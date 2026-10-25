@@ -213,7 +213,7 @@ Item {
                 timeout.stop();
                 sheet.warmTopRow();
                 seasonSettle();
-            });
+            }, (typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null));
     }
 
     // Torrent warm-up (2026-07-31). The 2026-07-30 server warm-up starts the ENGINE

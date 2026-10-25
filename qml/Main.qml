@@ -735,7 +735,7 @@ Window {
                         console.log("[streams-selftest] #" + i, rows[i].addonName,
                                     rows[i].quality, rows[i].streamKind,
                                     String(rows[i].infoHash).substring(0, 24))
-                })
+                }, (typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null))
         }
         // The production native entry point starts this timer from its first-frame signal. A
         // bare QML harness has no bridge, so retain a deterministic fallback for those fixtures.
@@ -1947,7 +1947,7 @@ Window {
             AddonClient.loadStreams(exts, mediaType, streamId, function() {}, function(rows) {
                 if (rows && rows.length) onRows(rows)
                 else lastResort()
-            })
+            }, (typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null))
         } else {
             lastResort()
         }

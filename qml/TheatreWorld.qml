@@ -133,7 +133,7 @@ WorldPage {
             AddonClient.loadStreams(exts, "series", item.id, function() {}, function(rows) {
                 if (rows && rows.length) onRows(rows)
                 else lastResort()
-            })
+            }, (typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null))
         } else {
             lastResort()
         }

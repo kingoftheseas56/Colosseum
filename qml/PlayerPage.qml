@@ -1407,7 +1407,7 @@ Item {
                     return
                 if (rows && rows.length) applyRows(rows)
                 else lastResort()
-            })
+            }, (typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null))
         } else {
             lastResort()
         }
@@ -1970,7 +1970,7 @@ Item {
                     return
                 if (rows && rows.length) startWith(rows)
                 else lastResort()
-            })
+            }, (typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null))
         } else {
             lastResort()
         }

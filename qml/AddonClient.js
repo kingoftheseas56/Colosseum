@@ -286,14 +286,16 @@ function _decoderProfileCovers(mime, decoderProfile, sourceProfile) {
 
 function _compatibility(state, reason) { return { state: state, reason: reason || "" }; }
 
-function _videoCompatibility(descriptor) {
+// Imported .pragma library code cannot read the caller's QML context properties.
+// QML callers pass PlatformRuntime explicitly through loadStreams/parseStream.
+function _videoCompatibility(descriptor, platformRuntime) {
     if (!descriptor || !descriptor.mime || descriptor.ambiguous)
         return _compatibility("unknown", "Codec profile is not explicit");
-    if (typeof PlatformRuntime === "undefined" || !PlatformRuntime || PlatformRuntime.android !== true)
+    if (!platformRuntime || platformRuntime.android !== true)
         return _compatibility("unknown", "Android decoder capabilities are not applicable");
 
     var capabilities = null;
-    try { capabilities = PlatformRuntime.videoDecodeCapabilities; } catch (e) { capabilities = null; }
+    try { capabilities = platformRuntime.videoDecodeCapabilities; } catch (e) { capabilities = null; }
     if (!capabilities || capabilities.available !== true || capabilities.complete !== true
             || !capabilities.decoders || typeof capabilities.decoders.length !== "number")
         return _compatibility("unknown", "Android decoder inventory is unavailable or incomplete");
@@ -492,7 +494,7 @@ function _requestHeaders(s) {
 
 // One stream from one extension → a sheet row. Returns null for rows the player
 // can't carry (no infoHash AND no direct url — e.g. externalUrl-only addons).
-function parseStream(s, addonName, addonPriority, addonId) {
+function parseStream(s, addonName, addonPriority, addonId, platformRuntime) {
     if (!s || typeof s !== "object" || Array.isArray(s)) return null;
     var isTorrent = !!(s.infoHash && String(s.infoHash).length);
     var directUrl = !isTorrent && s.url ? String(s.url) : "";
@@ -501,7 +503,7 @@ function parseStream(s, addonName, addonPriority, addonId) {
     var q = _quality(s);
     var tags = _tags(s, q);
     var videoCodec = _videoDescriptor(s);
-    var videoCompatibility = _videoCompatibility(videoCodec);
+    var videoCompatibility = _videoCompatibility(videoCodec, platformRuntime);
     var langs = _languages(s);
     var multi = /\bmulti\b|multi[\s.\-]?audio|dual[\s.\-]?audio/.test(_hay(s));
     return {
@@ -747,7 +749,7 @@ function streamExtensions(installedList, type, id) {
 // Ask every extension in parallel; onPartial(rows) fires as each one answers
 // (rows = accumulated, deduped, sorted); onDone(rows, askedNames) once all have
 // answered or timed out. rows is [] when nothing answers.
-function loadStreams(extensions, type, id, onPartial, onDone) {
+function loadStreams(extensions, type, id, onPartial, onDone, platformRuntime) {
     var exts = [];
     for (var ei = 0; ei < (extensions || []).length; ei++) {
         if (extensions[ei] && extensions[ei].enabled === true)
@@ -765,7 +767,7 @@ function loadStreams(extensions, type, id, onPartial, onDone) {
         var name = (ext.manifest && ext.manifest.name) || ext.id;
         if (list && list.length) {
             for (var i = 0; i < list.length; i++) {
-                var row = parseStream(list[i], name, priority, ext.id || "");
+                var row = parseStream(list[i], name, priority, ext.id || "", platformRuntime);
                 if (!row) continue;
                 var key = _rowKey(row);
                 if (seen[key]) continue;   // first (higher-priority) answer keeps the row

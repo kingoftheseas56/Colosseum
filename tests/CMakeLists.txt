@@ -4908,7 +4908,8 @@ colosseum_add_nuvio_backend_tests()
 # Android focused Node regressions; these are deterministic and use no providers.
 if(COLOSSEUM_FERIA_TEST_NODE)
     foreach(test_name android_continue_missing_download theatre_pinned_header_scrim theatre_search_year
-            addon_video_compatibility android_stream_route_restore_intent android_subtitle_restore
+            addon_video_compatibility addon_client_runtime_argument_contract
+            android_stream_route_restore_intent android_subtitle_restore
             android_download_lifecycle)
         add_test(NAME colosseum.${test_name}
             COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
@@ -4917,6 +4918,17 @@ if(COLOSSEUM_FERIA_TEST_NODE)
             TIMEOUT 30)
     endforeach()
 endif()
+
+add_executable(addon_client_runtime_context_harness addon_client_runtime_context_harness.cpp)
+set_target_properties(addon_client_runtime_context_harness PROPERTIES AUTOMOC ON)
+target_link_libraries(addon_client_runtime_context_harness PRIVATE Qt6::Core Qt6::Qml)
+add_test(NAME colosseum.addon_client_runtime_context
+    COMMAND addon_client_runtime_context_harness
+        "${CMAKE_CURRENT_SOURCE_DIR}/addon_client_runtime_context.qml")
+set_tests_properties(colosseum.addon_client_runtime_context PROPERTIES
+    LABELS "unit;qml;android;regression"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 30)
 
 add_test(NAME colosseum.qml.sources_sheet_codec_compatibility
     COMMAND colosseum_qml_tests -input

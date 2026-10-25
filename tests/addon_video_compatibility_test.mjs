@@ -23,9 +23,10 @@ function makeAddon(platformRuntime, responseForUrl) {
     FakeXMLHttpRequest.prototype.abort = function() {};
 
     const mod = {};
-    new Function('module', 'PlatformRuntime', 'XMLHttpRequest', source +
+    new Function('module', 'XMLHttpRequest', source +
         '\nmodule.parseStream = parseStream; module.loadStreams = loadStreams;')(
-            mod, platformRuntime, FakeXMLHttpRequest);
+            mod, FakeXMLHttpRequest);
+    mod.runtime = platformRuntime;
     return mod;
 }
 
@@ -42,7 +43,7 @@ function parse(addon, label, index = 0, extra = {}) {
         name: label,
         url: `https://media.example/${index}.mkv`
     }, extra);
-    return addon.parseStream(stream, 'Fixture', 0, 'fixture-addon');
+    return addon.parseStream(stream, 'Fixture', 0, 'fixture-addon', addon.runtime);
 }
 function state(row) { return row && row.videoCompatibility && row.videoCompatibility.state; }
 
@@ -180,6 +181,10 @@ addon = makeAddon(runtime(snapshot([], true, false)));
 row = parse(addon, '1080p HEVC Main10');
 assert.equal(state(row), 'unknown', 'partial decoder inventory is unknown');
 
+addon = makeAddon(null);
+row = parse(addon, '1080p HEVC Main10');
+assert.equal(state(row), 'unknown', 'a missing optional runtime never condemns a source');
+
 addon = makeAddon(runtime(snapshot([]), false));
 row = parse(addon, '1080p HEVC Main10');
 assert.equal(state(row), 'unknown', 'desktop receives no Android codec policy');
@@ -223,7 +228,7 @@ const extensions = [
     { id: 'late', transportUrl: 'https://late.example/manifest.json', enabled: true, manifest: { name: 'Late' } }
 ];
 let sortedRows = null;
-addon.loadStreams(extensions, 'movie', 'tt1234567', () => {}, rows => { sortedRows = rows; });
+addon.loadStreams(extensions, 'movie', 'tt1234567', () => {}, rows => { sortedRows = rows; }, addon.runtime);
 assert.ok(sortedRows, 'loadStreams returns rows from all addon replies');
 assert.deepEqual(sortedRows.map(item => item.infoHash), [
     'supported-normal', 'unknown-normal', 'unknown-late', 'unsupported-high'

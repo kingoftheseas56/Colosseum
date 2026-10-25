@@ -185,7 +185,7 @@ QtObject {
             AddonClient.loadStreams(exts, type, id, null, function(all) {
                 if (all && all.length) { finish(all); return }
                 Torrentio.loadStreams(type, id, finish)
-            })
+            }, (typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null))
             return
         }
         Torrentio.loadStreams(type, id, finish)
