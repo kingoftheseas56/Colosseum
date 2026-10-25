@@ -1736,6 +1736,22 @@ set_tests_properties(colosseum.qml.tracker_sync_center PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 120)
 
+add_test(NAME colosseum.qml.startup_artwork
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/startup_artwork")
+set_tests_properties(colosseum.qml.startup_artwork PROPERTIES
+    LABELS "qml;android;startup"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
+
+add_test(NAME colosseum.qml.extensions_artwork
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/extensions_artwork")
+set_tests_properties(colosseum.qml.extensions_artwork PROPERTIES
+    LABELS "qml;android;performance;extensions"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
+
 # Function 0006: imported Tankoban Progress must reach the real active ComicReaderShell.
 add_test(NAME colosseum.comicreader_sync_resume
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File

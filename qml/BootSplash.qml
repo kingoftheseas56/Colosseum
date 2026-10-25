@@ -15,6 +15,9 @@ Rectangle {
     property bool prefetchStarted: false
     property bool completed: false
     property bool prefetchEnabled: true
+    // Android enters its selected world directly; those visible cards load their
+    // own artwork. Keep the desktop's catalogue warm-up as the default.
+    property bool waitForArtwork: true
     readonly property real progress: !prefetchEnabled || urls.length === 0 ? 1 : done / urls.length
 
     function complete() {
@@ -59,10 +62,17 @@ Rectangle {
             complete()
     }
 
-    Component.onCompleted: TheatreApi.loadTheatre(function(rows) {
-        apiTimeout.stop()
-        startPrefetch(TheatreApi.imageUrlsFromRows(rows))
-    })
+    Component.onCompleted: {
+        if (!splash.waitForArtwork) {
+            // Let the parent's construction finish before its navigation handler.
+            Qt.callLater(splash.complete)
+            return
+        }
+        TheatreApi.loadTheatre(function(rows) {
+            apiTimeout.stop()
+            startPrefetch(TheatreApi.imageUrlsFromRows(rows))
+        })
+    }
 
     // hidden prefetchers — same sourceSize the tiles use, so the cached decode is reused 1:1
     Repeater {
@@ -83,7 +93,7 @@ Rectangle {
     }
 
     // If the live catalog stalls, still warm the static catalog and reveal the shell.
-    Timer { id: apiTimeout; interval: 4500; running: true; repeat: false; onTriggered: splash.startPrefetch([]) }
+    Timer { id: apiTimeout; interval: 4500; running: splash.waitForArtwork; repeat: false; onTriggered: splash.startPrefetch([]) }
 
     // hard timeout so boot always completes after the API/catalog prefetch starts
     Timer { id: timeout; interval: 9000; running: false; repeat: false; onTriggered: splash.complete() }

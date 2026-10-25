@@ -5804,6 +5804,7 @@ Window {
     BootSplash {
         id: boot
         prefetchEnabled: BootSplashPrefetchEnabled
+        waitForArtwork: !win.androidHost
         // Automation identity (Lanista): scenarios wait for `visible == false` here before
         // driving anything — the first pilot run proved every click lands "green" on the
         // occluded tree while this splash still owns the screen (vacuous pass, 2026-08-06).

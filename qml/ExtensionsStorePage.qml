@@ -27,6 +27,10 @@ Item {
     property string loadError: ""
     property bool loading: true
     property int revision: 0                 // bumps on every Extensions change
+    readonly property bool limitArtworkToViewport: {
+        const w = root.Window.window
+        return Qt.platform.os === "android" || !!(w && w.androidHost)
+    }
     readonly property bool phoneLayout: {
         const w = root.Window.window
         return !!(w && w.androidHost && w.width < 840)
@@ -42,6 +46,17 @@ Item {
     readonly property Item setup: setupLoader.item
 
     Theme { id: theme }
+
+    function rowArtworkActive(row) {
+        if (!root.limitArtworkToViewport) return true
+        if (!storeWorld.visible) return false
+        const height = storeWorld.viewportHeight
+        if (height <= 0) return true
+        const top = storeWorld.viewportContentY
+        // Warm one viewport around the current one, retaining layout and card
+        // identities while distant logo decodes and blur passes are released.
+        return row.y + row.height >= top - height && row.y <= top + height * 2
+    }
 
     function isInstalled(a) {
         if (!a || typeof Extensions === "undefined") return false
@@ -182,11 +197,14 @@ Item {
         }
 
         ExtensionsStoreRail {
+            id: essentialsRail
             title: "Essentials"
             sub: "The five a fresh Colosseum needs."
             automationId: "extensionsEssentialsRail"
             canSeeAll: false                 // all five are already on screen
             phoneLayout: root.phoneLayout
+            limitArtworkToViewport: root.limitArtworkToViewport
+            artworkActive: root.rowArtworkActive(essentialsRail)
             items: root.essentials
             installedFn: root.isInstalled
             busy: root.busy
@@ -197,12 +215,15 @@ Item {
         Repeater {
             model: root.rows
             delegate: ExtensionsStoreRail {
+                id: extensionRail
                 required property var modelData
                 required property int index
                 title: modelData.title
                 sub: modelData.sub
                 automationId: "extensionsStoreRail_" + index
                 phoneLayout: root.phoneLayout
+                limitArtworkToViewport: root.limitArtworkToViewport
+                artworkActive: root.rowArtworkActive(extensionRail)
                 items: modelData.items
                 installedFn: root.isInstalled
                 busy: root.busy

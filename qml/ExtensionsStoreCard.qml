@@ -16,6 +16,9 @@ Item {
     property bool busy: false
     property bool selected: false            // keyboard focus from the row
     property bool phoneLayout: false
+    // Keep the card/navigation alive while distant artwork releases its images
+    // and effect textures on memory-constrained hosts.
+    property bool artworkActive: true
     signal activated()
 
     readonly property bool lit: card.selected || action.hovered
@@ -48,20 +51,26 @@ Item {
             anchors.centerIn: parent
             width: art.width * 1.7 * 0.56 * 1.35
             height: width
-            source: card.addon.logo || ""
+            source: card.artworkActive ? (card.addon.logo || "") : ""
             fillMode: Image.PreserveAspectFit
             asynchronous: true
             visible: false
             sourceSize.width: 160; sourceSize.height: 160
         }
-        MultiEffect {
+        Loader {
             anchors.fill: washSource
-            source: washSource
-            visible: washSource.status === Image.Ready
-            blurEnabled: true; blur: 1.0; blurMax: 64; blurMultiplier: 1.6
-            saturation: 0.85
-            brightness: -0.28
-            opacity: 0.74
+            active: card.artworkActive
+            sourceComponent: Component {
+                MultiEffect {
+                    anchors.fill: parent
+                    source: washSource
+                    visible: washSource.status === Image.Ready
+                    blurEnabled: true; blur: 1.0; blurMax: 64; blurMultiplier: 1.6
+                    saturation: 0.85
+                    brightness: -0.28
+                    opacity: 0.74
+                }
+            }
         }
         Rectangle {
             anchors.fill: parent
@@ -90,7 +99,7 @@ Item {
                 id: logo
                 anchors.centerIn: parent
                 width: parent.width * 0.78; height: width
-                source: card.addon.logo || ""
+                source: card.artworkActive ? (card.addon.logo || "") : ""
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 sourceSize.width: 192; sourceSize.height: 192
