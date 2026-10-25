@@ -16,6 +16,53 @@
 #include <QStandardPaths>
 #include <QUrl>
 
+namespace {
+
+bool isTransientTransportError(QNetworkReply::NetworkError error) {
+    switch (error) {
+    case QNetworkReply::ConnectionRefusedError:
+    case QNetworkReply::RemoteHostClosedError:
+    case QNetworkReply::HostNotFoundError:
+    case QNetworkReply::TimeoutError:
+    case QNetworkReply::TemporaryNetworkFailureError:
+    case QNetworkReply::NetworkSessionFailedError:
+    case QNetworkReply::ProxyConnectionRefusedError:
+    case QNetworkReply::ProxyConnectionClosedError:
+    case QNetworkReply::ProxyNotFoundError:
+    case QNetworkReply::ProxyTimeoutError:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool hasExactTorrentIdentity(const QString &infoHash, int fileIdx) {
+    static const QRegularExpression validHash(QStringLiteral("^(?:[0-9a-f]{40}|[0-9a-f]{64})$"));
+    return fileIdx >= 0 && validHash.match(infoHash.trimmed().toLower()).hasMatch();
+}
+
+bool contentRangeStartsAt(const QByteArray &header, qint64 expectedStart) {
+    static const QRegularExpression contentRange(
+        QStringLiteral("^bytes\\s+(\\d+)-(\\d+)/(\\d+|\\*)$"),
+        QRegularExpression::CaseInsensitiveOption);
+    const auto match = contentRange.match(QString::fromLatin1(header).trimmed());
+    if (!match.hasMatch())
+        return false;
+    bool startOk = false;
+    bool endOk = false;
+    const qint64 start = match.captured(1).toLongLong(&startOk);
+    const qint64 end = match.captured(2).toLongLong(&endOk);
+    if (!startOk || !endOk || start != expectedStart || end < start)
+        return false;
+    if (match.captured(3) == QStringLiteral("*"))
+        return true;
+    bool totalOk = false;
+    const qint64 total = match.captured(3).toLongLong(&totalOk);
+    return totalOk && total > end;
+}
+
+} // namespace
+
 DownloadStore::DownloadStore(QObject *parent)
     : QObject(parent)
     , m_defaultDownloadDir(buildDefaultDownloadDir()) {
@@ -146,6 +193,9 @@ void DownloadStore::retryJob(const QString &id) {
     Job &j = m_jobs[i];
     j.state = QStringLiteral("queued");
     j.url.clear();            // identity payload survives; the URL never does
+    // Retry may follow a process restart, so reconstruct append eligibility
+    // only from the durable exact torrent hash/file pin.
+    j.resumeFromPart = hasExactTorrentIdentity(j.partialInfoHash, j.partialFileIdx);
     j.error.clear();
     j.ratio = 0; j.received = 0; j.total = 0;
     j.speed = 0.0; j.etaSec = -1; j.lastSampleMs = 0; j.lastSampleBytes = 0; j.baseOffset = 0;
@@ -388,6 +438,8 @@ void DownloadStore::startHttp(Job &job) {
     QDir().mkpath(QFileInfo(job.outputPath).absolutePath());
 
     job.baseOffset = 0;
+    job.resumeRangeValidated = false;
+    job.resumeRangeRejected = false;
     const qint64 partSize = QFile::exists(job.partPath) ? QFileInfo(job.partPath).size() : 0;
     const bool tryResume = job.resumeFromPart && partSize > 0;
     job.resumeFromPart = false;
@@ -433,13 +485,37 @@ void DownloadStore::startHttp(Job &job) {
                     failJob(id, QStringLiteral("reopen: %1").arg(j.file->errorString()));
                     return;
                 }
+            } else if (code == 206 && j.baseOffset > 0) {
+                const QByteArray contentRange = j.reply->rawHeader(
+                    QByteArrayLiteral("Content-Range"));
+                j.resumeRangeValidated = contentRangeStartsAt(contentRange, j.baseOffset);
+                if (!j.resumeRangeValidated) {
+                    j.resumeRangeRejected = true;
+                    qWarning() << "[videoq] rejecting mismatched Range response" << id
+                               << "expected offset" << j.baseOffset
+                               << "Content-Range" << contentRange;
+                    j.reply->abort();
+                }
             }
         });
     }
     connect(job.reply, &QNetworkReply::readyRead, this, [this, id]() {
         const int i = jobIndex(id);
-        if (i >= 0 && m_jobs.at(i).file && m_jobs.at(i).reply)
-            m_jobs[i].file->write(m_jobs[i].reply->readAll());
+        if (i < 0 || !m_jobs.at(i).file || !m_jobs.at(i).reply)
+            return;
+        Job &j = m_jobs[i];
+        if (j.resumeRangeRejected)
+            return;
+        const int code = j.reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (j.baseOffset > 0 && code == 206 && !j.resumeRangeValidated) {
+            // Fail closed if a backend delivers body bytes before its metadata
+            // signal. A 206 response is appendable only after its exact offset
+            // has been checked.
+            j.resumeRangeRejected = true;
+            j.reply->abort();
+            return;
+        }
+        j.file->write(j.reply->readAll());
     });
     connect(job.reply, &QNetworkReply::downloadProgress, this,
             [this, id](qint64 received, qint64 total) {
@@ -462,9 +538,15 @@ void DownloadStore::finishHttp(Job &job) {
         return;
     const QNetworkReply::NetworkError err = job.reply->error();
     const QString errText = job.reply->errorString();
-    if (job.file) {
+    const int httpStatus = job.reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const QByteArray contentRange = job.reply->rawHeader(QByteArrayLiteral("Content-Range"));
+    const qint64 expectedRangeOffset = job.baseOffset;
+    const bool resumeRangeRejected = job.resumeRangeRejected;
+    if (job.file && !resumeRangeRejected) {
         job.file->write(job.reply->readAll());
         job.file->flush();
+        job.file->close();
+    } else if (job.file) {
         job.file->close();
     }
     job.reply->deleteLater();
@@ -472,8 +554,39 @@ void DownloadStore::finishHttp(Job &job) {
     delete job.file;
     job.file = nullptr;
 
+    if (resumeRangeRejected) {
+        failJob(job.id, QStringLiteral("Server returned an invalid Content-Range for resume"));
+        return;
+    }
+
     if (err != QNetworkReply::NoError) {
-        failJob(job.id, errText);
+        const bool exactPinnedFile = hasExactTorrentIdentity(job.partialInfoHash,
+                                                              job.partialFileIdx);
+        const bool responsePreservesPrefix =
+            (httpStatus == 0 && expectedRangeOffset > 0)
+            || (httpStatus == 200 && expectedRangeOffset == 0)
+            || (httpStatus == 206 && contentRangeStartsAt(contentRange, expectedRangeOffset));
+        const bool keepPartial = isTransientTransportError(err) && exactPinnedFile
+            && QFileInfo(job.partPath).size() > 0 && responsePreservesPrefix;
+        if (!keepPartial) {
+            failJob(job.id, errText);
+            return;
+        }
+
+        // The current torrent identity is exact, and this response either
+        // started at byte zero or matched the requested Range offset. Keep the
+        // verified prefix for a manual retry, which will resolve a fresh URL.
+        job.state = QStringLiteral("failed");
+        job.error = errText.isEmpty() ? QStringLiteral("Download interrupted") : errText;
+        job.url.clear(); // the interrupted route is session-ephemeral; Retry must resolve again
+        job.resumeFromPart = true;
+        job.speed = 0.0;
+        job.etaSec = -1;
+        job.lastSampleMs = 0;
+        job.lastSampleBytes = 0;
+        saveQueue();
+        touch();
+        pump();
         return;
     }
     QFile::remove(job.outputPath);

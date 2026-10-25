@@ -92,6 +92,8 @@ private:
         qint64 lastSampleBytes = 0;
         qint64 baseOffset = 0;       // resume: bytes already in .part before this reply
         bool resumeFromPart = false;   // same URL or revalidated immutable torrent/file
+        bool resumeRangeValidated = false;
+        bool resumeRangeRejected = false;
         bool lifecyclePaused = false;  // manual Pause must not auto-resume
         QString partialInfoHash;       // identity of bytes already in .part
         int partialFileIdx = -1;
