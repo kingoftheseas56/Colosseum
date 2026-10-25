@@ -31,7 +31,7 @@ class LinuxReleasePolicyTests(unittest.TestCase):
 
     def test_clean_install_proves_the_trust_dependency(self):
         workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
-        install = next(line for line in workflow.splitlines() if "./Colosseum-1.1.9-linux-amd64.deb" in line)
+        install = next(line for line in workflow.splitlines() if re.search(r"\./Colosseum-\d+\.\d+\.\d+-linux-amd64\.deb", line))
         # A recommendation or a preinstalled store would mask a missing Depends
         # entry, so the clean container must install with recommendations off.
         self.assertIn("--no-install-recommends", install)
@@ -75,8 +75,9 @@ class LinuxReleasePolicyTests(unittest.TestCase):
     def test_shipping_configuration_rejects_fixtures_and_wrong_catalogue_origin(self):
         cache = ("CMAKE_BUILD_TYPE:STRING=Release\n"
                  "COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF\n"
+                 "COLOSSEUM_VINYL_IN_APP:BOOL=OFF\n"
                  "COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev\n")
-        assembly.validate_shipping_cache(cache)
+        assembly.validate_shipping_cache(cache, "1.1.10")
         for flag in ("COLOSSEUM_UPDATE_TESTING", "COLOSSEUM_ENABLE_VINYL_QUALIFICATION",
                      "COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES", "COLOSSEUM_NO_ACCOUNT_EDITION"):
             altered = cache.replace(flag + ":BOOL=OFF", flag + ":BOOL=ON")
@@ -86,6 +87,14 @@ class LinuxReleasePolicyTests(unittest.TestCase):
                 assembly.validate_shipping_cache(altered)
         with self.assertRaises(ValueError):
             assembly.validate_shipping_cache(cache.replace("https://colosseum-content-api.", "https://staging."))
+        with self.assertRaisesRegex(ValueError, "Vinyl must be explicitly disabled"):
+            assembly.validate_shipping_cache(cache.replace("COLOSSEUM_VINYL_IN_APP:BOOL=OFF",
+                                                             "COLOSSEUM_VINYL_IN_APP:BOOL=ON"), "1.1.10")
+        with self.assertRaisesRegex(ValueError, "Vinyl must be explicitly disabled"):
+            assembly.validate_shipping_cache(cache.replace("COLOSSEUM_VINYL_IN_APP:BOOL=OFF\n", ""), "1.1.10")
+        # The shipping-only gate must not silently remove Vinyl from older package policies.
+        assembly.validate_shipping_cache(cache.replace("COLOSSEUM_VINYL_IN_APP:BOOL=OFF",
+                                                        "COLOSSEUM_VINYL_IN_APP:BOOL=ON"), "1.1.9")
 
 
 if __name__ == "__main__":

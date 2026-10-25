@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.1.9 LANGUAGES C CXX)
+project(colosseum VERSION 1.1.10 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -24,6 +24,11 @@ option(COLOSSEUM_UPDATE_TESTING
 option(COLOSSEUM_NO_ACCOUNT_EDITION
     "Build the no-account edition: account features hidden and inert, local-only profiles only"
     OFF)
+# This is an availability gate, not source removal. Keep Vinyl available in
+# ordinary development builds; the 1.1.10 shipping configurations set it OFF.
+option(COLOSSEUM_VINYL_IN_APP
+    "Enable the Vinyl world in the application"
+    ON)
 # The semantic catalogue endpoint is NEVER enabled by an edition switch: the
 # staging endpoint ships only in explicit qualification builds
 # (-DCOLOSSEUM_CONTENT_API_URL=...), and a release build compiles it in only
@@ -279,7 +284,6 @@ else()
     message(FATAL_ERROR "libtorrent + Boost + OpenSSL NOT found via find_package on this platform — install libtorrent-rasterbar-dev, libboost-all-dev and libssl-dev (see guides/WSL-FIRST-BUILD.md).")
 endif()
 
-if(NOT ANDROID)
 add_library(colosseum_update_crypto INTERFACE)
 if(TARGET OpenSSL::Crypto)
     target_link_libraries(colosseum_update_crypto INTERFACE OpenSSL::Crypto)
@@ -290,8 +294,6 @@ elseif(OPENSSL_MSVC_ROOT AND EXISTS "${OPENSSL_MSVC_ROOT}/include" AND
         "${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib" ws2_32 crypt32)
 else()
     message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
-endif()
-
 endif()
 
 qt_add_executable(colosseum
@@ -668,16 +670,10 @@ qt_add_executable(colosseum
     torrent/TorrentResult.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
-    torrent/PirateBayIndexer.cpp
-    torrent/PirateBayIndexer.h
-    torrent/ExtTorrentsIndexer.cpp
-    torrent/ExtTorrentsIndexer.h
-    torrent/TorrentsCsvIndexer.cpp
-    torrent/TorrentsCsvIndexer.h
-    torrent/KnabenIndexer.cpp
-    torrent/KnabenIndexer.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/BookTorrentRanker.cpp
     torrent/BookTorrentRanker.h
     torrent/BookTorrentFilePicker.cpp
@@ -806,6 +802,18 @@ qt_add_executable(colosseum
     engine/BiblioCatalog.h
 )
 
+# Provider updates reuse the existing Ed25519 verifier and OpenSSL owner.
+add_library(tankoyomi_addon_store STATIC
+    engine/TankoyomiAddonStore.cpp engine/TankoyomiAddonStore.h
+    engine/TankoyomiAddonPublicKey.h)
+target_include_directories(tankoyomi_addon_store PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_addon_store PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
+target_link_libraries(colosseum PRIVATE tankoyomi_addon_store)
+if(ANDROID)
+    target_sources(colosseum PRIVATE update/UpdateTrust.cpp)
+    target_link_libraries(colosseum PRIVATE colosseum_update_crypto)
+endif()
+
 if(NOT ANDROID)
     # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
     target_sources(colosseum PRIVATE
@@ -907,7 +915,7 @@ file(GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS
 qt_add_resources(colosseum "tankoyomi_resources"
     PREFIX "/"
     BASE "${CMAKE_CURRENT_SOURCE_DIR}/../extensions"
-    FILES ${TANKOYOMI_RESOURCE_FILES})
+    FILES "${CMAKE_CURRENT_SOURCE_DIR}/../extensions/tankoyomi/manifest.json")
 target_include_directories(colosseum PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} engine player torrent)
 if(NOT ANDROID)
     # MediaAdmissionProbe.cpp uses the raw <mpv/client.h> C API only on desktop.
@@ -915,6 +923,11 @@ if(NOT ANDROID)
 endif()
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_READER2_PROFILE_RUNTIME=1)
+if(COLOSSEUM_VINYL_IN_APP)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_VINYL_IN_APP=1)
+else()
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_VINYL_IN_APP=0)
+endif()
 if(COLOSSEUM_ENABLE_VINYL_QUALIFICATION AND NOT ANDROID)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_VINYL_QUALIFICATION=1)
 endif()
@@ -1123,6 +1136,16 @@ add_executable(tankoyomi_series_matcher_harness
     ../tests/tankoyomi_series_matcher_harness.cpp)
 target_include_directories(tankoyomi_series_matcher_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(tankoyomi_series_matcher_harness PRIVATE Qt6::Core)
+
+add_executable(tankoyomi_worker_transport_harness
+    ../tests/tankoyomi_worker_transport_harness.cpp
+    engine/TankoyomiScriptProvider.cpp
+    engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp
+    engine/MangaImageHostResolver.h
+    engine/TankoyomiNetworkPolicy.cpp)
+target_include_directories(tankoyomi_worker_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_worker_transport_harness PRIVATE Qt6::Core Qt6::Network Qt6::Qml)
 
 add_executable(tankoyomi_network_policy_harness
     engine/TankoyomiNetworkPolicy.cpp
@@ -1870,6 +1893,8 @@ add_executable(comic_downloader_archive_ingest_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -1928,6 +1953,8 @@ add_executable(comic_downloader_legacy_migration_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -1982,6 +2009,8 @@ add_executable(comic_downloader_ingest_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2043,6 +2072,8 @@ add_executable(comic_downloader_pack_demux_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2097,6 +2128,8 @@ add_executable(comic_torrents_search_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2161,6 +2194,8 @@ add_executable(comic_torrent_pack_transport_harness
     torrent/ComicTorrentQueryPlanner.h
     torrent/TankorentSearchService.cpp
     torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
     torrent/TorrentIndexer.cpp
     torrent/TorrentIndexer.h
     torrent/PirateBayIndexer.cpp
@@ -2302,6 +2337,36 @@ target_compile_definitions(manga_tankoban_logic_harness PRIVATE
     TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
 target_link_libraries(manga_tankoban_logic_harness PRIVATE Qt6::Core Qt6::Network)
 
+# Focused native Nyaa RSS/metainfo transport coverage; local query planning,
+# trust, volume matching, ranking and candidate derivation stay in MangaNyaaSource.
+add_executable(manga_nyaa_worker_harness
+    ../tests/manga_nyaa_worker_harness.cpp
+    engine/CbzArchive.cpp
+    engine/MangaTankobanService.cpp
+    engine/MangaTankobanService.h
+    engine/MangaTankobanLogic.cpp
+    engine/MangaSynopsisEnricher.cpp
+    engine/MangaVolumeIndex.cpp
+    engine/MangaVolumeArchiveIngestor.cpp
+    engine/MangaVolumePacker.cpp
+    engine/MangaScraper.h
+    torrent/MangaNyaaSource.cpp
+    torrent/MangaTorrentDiscovery.cpp
+    torrent/MangaVolumeIdentity.cpp
+    torrent/MangaVolumeTorrentDownloader.cpp
+    torrent/MangaVolumeRequestLedger.cpp
+    torrent/MangaVolumeFilePicker.cpp
+    torrent/MangaTorrentIndex.cpp
+    torrent/MangaTorrentIndexer.cpp
+    third_party/miniz/miniz.c
+)
+target_include_directories(manga_nyaa_worker_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_compile_definitions(manga_nyaa_worker_harness PRIVATE
+    COLOSSEUM_MANGA_NYAA_TESTING=1
+    TANKOBAN_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/../tests/fixtures/tankoban")
+target_link_libraries(manga_nyaa_worker_harness PRIVATE
+    Qt6::Core Qt6::Network Qt6::Sql Qt6::Concurrent)
+
 # knaben_probe — in-process Cloudflare/results gate for the knaben.org meta-search
 # aggregator, a candidate Tankorent indexer. Hits the API through Qt's QNAM (the
 # same TLS/HTTP-2 fingerprint the live indexers present) so the CF verdict is real,
@@ -2323,6 +2388,20 @@ add_executable(knaben_indexer_harness
 )
 target_include_directories(knaben_indexer_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(knaben_indexer_harness PRIVATE Qt6::Core Qt6::Network)
+
+# tankorent_worker_transport_harness — mocked QNAM coverage for the native
+# source-agnostic Worker adapter, response validation, routing, and cancellation.
+add_executable(tankorent_worker_transport_harness
+    ../tests/tankorent_worker_transport_harness.cpp
+    torrent/TankorentSearchService.cpp
+    torrent/TankorentSearchService.h
+    torrent/TankorentWorkerIndexer.cpp
+    torrent/TankorentWorkerIndexer.h
+    torrent/TorrentIndexer.cpp
+    torrent/TorrentIndexer.h
+)
+target_include_directories(tankorent_worker_transport_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankorent_worker_transport_harness PRIVATE Qt6::Core Qt6::Network)
 
 add_executable(manga_volume_index_harness
     ../tests/manga_volume_index_harness.cpp
@@ -3133,4 +3212,31 @@ if(BUILD_TESTING)
     target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core feria_discovery)
     add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
 endif()
+add_executable(tankoyomi_addon_store_harness
+    ../tests/tankoyomi_addon_store_harness.cpp update/UpdateTrust.cpp)
+target_include_directories(tankoyomi_addon_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_addon_store_harness PRIVATE tankoyomi_addon_store Qt6::Core Qt6::Network colosseum_update_crypto)
+add_executable(tankoyomi_device_runtime_harness
+    ../tests/tankoyomi_device_runtime_harness.cpp
+    engine/TankoyomiScriptProvider.cpp engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp engine/TankoyomiNetworkPolicy.cpp update/UpdateTrust.cpp)
+target_include_directories(tankoyomi_device_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_device_runtime_harness PRIVATE tankoyomi_addon_store Qt6::Core Qt6::Network Qt6::Qml colosseum_update_crypto)
+if(BUILD_TESTING)
+    add_test(NAME colosseum.tankoyomi_addon_store COMMAND tankoyomi_addon_store_harness)
+    set_tests_properties(colosseum.tankoyomi_addon_store PROPERTIES
+        LABELS "unit;tankoyomi;network" TIMEOUT 30)
+    add_test(NAME colosseum.tankoyomi_device_runtime COMMAND tankoyomi_device_runtime_harness)
+    set_tests_properties(colosseum.tankoyomi_device_runtime PROPERTIES
+        LABELS "unit;tankoyomi;network" TIMEOUT 45
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
+endif()
+foreach(tankoyomi_runtime_target IN ITEMS
+    tankoyomi_script_provider_transport_harness tankoyomi_worker_transport_harness
+    tankoyomi_service_runtime_harness tankoyomi_service_configuration_harness
+    tankoyomi_provider_attempt_timeout_harness tankoyomi_provider_live_harness
+    tankoyomi_page_security_harness manga_downloader_cancel_harness)
+    target_sources(${tankoyomi_runtime_target} PRIVATE update/UpdateTrust.cpp)
+    target_link_libraries(${tankoyomi_runtime_target} PRIVATE tankoyomi_addon_store colosseum_update_crypto)
+endforeach()
 endif() # NOT ANDROID: desktop harness/test estate

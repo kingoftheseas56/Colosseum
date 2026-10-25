@@ -22,7 +22,7 @@ def release_version(source):
     if not match:raise ValueError('Project release version missing')
     return match.group(1)
 
-def validate_shipping_cache(cache):
+def validate_shipping_cache(cache, version=None):
     if not re.search(r'^CMAKE_BUILD_TYPE:STRING=Release$',cache,re.M):raise ValueError('Not Release')
     for flag in ('COLOSSEUM_UPDATE_TESTING','COLOSSEUM_ENABLE_VINYL_QUALIFICATION',
                  'COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES','COLOSSEUM_NO_ACCOUNT_EDITION'):
@@ -30,6 +30,8 @@ def validate_shipping_cache(cache):
     if 'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF' not in cache:raise ValueError('Standard edition must be explicit')
     if not re.search(r'^COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api\.colosseum-watchparty-relay\.workers\.dev$',cache,re.M):
         raise ValueError('Qualified production catalogue origin required')
+    if version == '1.1.10' and not re.search(r'^COLOSSEUM_VINYL_IN_APP:BOOL=OFF$',cache,re.M):
+        raise ValueError('Vinyl must be explicitly disabled in 1.1.10 shipping builds')
 
 def main():
     ap=argparse.ArgumentParser()
@@ -45,9 +47,9 @@ def main():
     if not re.fullmatch('[0-9a-f]{40}',a.commit):raise SystemExit('Full source commit required')
     if out.exists():raise SystemExit('Stage must not exist; choose a fresh directory')
     if not (build/'colosseum').is_file():raise SystemExit('Compiled application missing')
-    cache=(build/'CMakeCache.txt').read_text()
-    validate_shipping_cache(cache)
     version=release_version(src)
+    cache=(build/'CMakeCache.txt').read_text()
+    validate_shipping_cache(cache,version)
     out.mkdir(parents=True); bind=out/'usr/bin'; lib=out/'usr/lib'; bind.mkdir(parents=True);lib.mkdir()
     shutil.copy2(build/'colosseum',bind/'colosseum');shutil.copy2(build/'qml-build.manifest',bind/'qml-build.manifest')
     for name in ('qml','assets','resources','data'):shutil.copytree(src/name,out/name,symlinks=False)

@@ -1,6 +1,6 @@
 #pragma once
 
-// Manga-specific Nyaa RSS volume discovery for Tankoban "volume mode".
+// Manga-specific Nyaa volume discovery for Tankoban "volume mode".
 //
 // PORTED from Tankoban 2's proven core/manga/NyaaRuntimeSource: the query
 // family, the namespace-aware RSS parse, the uploader-trust tiers, the
@@ -10,18 +10,14 @@
 // filters TB2 lacked (chapter-pack, wrong-target, raw/untranslated, weak
 // series-title match, hash-less rows).
 //
-// This is a DELIBERATE fork, not a reuse of Colosseum's generic
-// torrent/TankorentSearchService. That service explicitly DROPPED Nyaa and its
-// generic result type carries no uploader metadata, so trust-ranked volume
-// discovery cannot live there. The Nyaa behaviour is kept manga-side, here,
-// leaving the generic torrent path untouched. Torrent payloads are later handed
-// to Colosseum's one shared TorrentEngine — out of scope for this source.
+// This remains a manga-specific source rather than a generic
+// torrent/TankorentSearchService indexer: Nyaa RSS supplies metadata, while
+// uploader trust and volume filtering are local manga decisions. Torrent bytes
+// are still fetched and consumed by Colosseum's native torrent path.
 //
 // Concern split (intentional, so the pure logic is harness-testable):
-//   * queryVariants / parseRss are pure and trust-agnostic. parseRss takes only
-//     the RSS bytes (the pinned harness contract) and therefore does NO trust
-//     tagging and NO target filtering — it just extracts fields and derives the
-//     coverage/standalone/digital data straight from each title.
+//   * queryVariants and parseRss are pure and trust-agnostic. Production
+//     discovery also fetches and parses Nyaa's fixed-origin RSS endpoint.
 //   * filterAndRank is where every trust-dependent and volume-target decision
 //     happens: uploader inference, tier tagging, blocked drop, coverage/target
 //     match, chapter-pack / raw / weak-match / hash-less rejection, dedup by
@@ -39,9 +35,11 @@
 #include <QSet>
 #include <QString>
 #include <QStringList>
+#include <QUrl>
 
 class QNetworkAccessManager;
 class QNetworkReply;
+class QTimer;
 
 namespace MangaTankoban {
 
@@ -63,7 +61,7 @@ struct MangaNyaaCandidate {
     bool    standalone  = false; // coverageLo == coverageHi (a single volume)
     bool    digitalHint = false; // title advertises a digital/official edition
     // ── Arc 18 M2 discovery provenance (identity/indexing inputs) ──
-    QString torrentUrl;   // Nyaa RSS <link> — the .torrent metainfo URL when exposed
+    QString torrentUrl;   // validated Nyaa .torrent URL used by native metainfo fetch
     QString query;        // which query variant found this candidate
     qint64  discoveredAt = 0;    // epoch ms when discovery merged this row
 };
@@ -89,9 +87,17 @@ public:
     explicit MangaNyaaSource(QNetworkAccessManager* nam, QObject* parent = nullptr);
     ~MangaNyaaSource() override;
 
-    // Pure, trust-agnostic RSS parse. Returns candidates in document order with
-    // the coverage/standalone/digital fields derived from each title; tier is
-    // left at its default and no filtering is applied (see filterAndRank).
+#ifdef COLOSSEUM_MANGA_NYAA_TESTING
+    // Test-only endpoint/deadline seam. Production always uses nyaa.si.
+    MangaNyaaSource(QNetworkAccessManager* nam, const QUrl& rssEndpoint,
+                    int deadlineMs, QObject* parent = nullptr);
+#endif
+
+    // RSS results and the native metainfo fetcher both enforce this exact
+    // Nyaa download URL shape before allowing native torrent retrieval.
+    static bool isValidTorrentUrl(const QString& raw);
+
+    // Pure RSS parse with locally derived volume coverage and digital hints.
     static QList<MangaNyaaCandidate> parseRss(const QByteArray& payload);
 
     // Pure filter + rank. Rejects chapter packs, wrong-target / no-coverage rows,
@@ -111,15 +117,18 @@ public:
                                                    const TrustTable& trust,
                                                    bool seriesMode = false);
 
-    // Fire an RSS search for one volume across the query family. Results land on
+    // Fire one bounded Nyaa RSS GET per query in the family. Results land on
     // searchSucceeded keyed by MangaTankoban::volumeId(series.seriesId,
     // targetVolume); a failure with no results lands on searchFailed.
     void search(const SeriesSnapshot& series, const QString& targetVolume);
 
+    // Abort all in-flight query requests. Destruction performs the same cleanup.
+    void cancel();
+
     // Series-level search (catalogue-independence Slice 4): no volume target at
     // all, for a shelf-less series' "Search nyaa" entry. Reuses queryVariants/
-    // parseRss unchanged (an empty volume number naturally falls to the bare-
-    // title query family); filterAndRank runs in series mode. Results land on
+    // empty volume number naturally falls to the bare-title query family;
+    // filterAndRank runs in series mode. Results land on
     // searchSucceeded keyed by series.seriesId verbatim — the caller (the
     // façade) supplies whatever opaque key it wants results grouped under.
     void searchSeries(const SeriesSnapshot& series);
@@ -128,9 +137,6 @@ signals:
     void searchSucceeded(const QString& volumeId,
                          const QList<MangaTankoban::MangaNyaaCandidate>& rows);
     void searchFailed(const QString& volumeId, const QString& reason);
-
-private slots:
-    void onReplyFinished();
 
 private:
     struct PendingSearch {
@@ -143,16 +149,35 @@ private:
         QStringList errors;
     };
 
+    struct ReplyState {
+        QString volumeId;
+        QString query;
+        QPointer<QNetworkReply> reply;
+        QPointer<QTimer> deadline;
+        QByteArray body;
+        bool tooLarge = false;
+    };
+
     void loadTrustResource();
-    // Shared by search()/searchSeries(): fires the query family, tracks the
-    // pending replies under `vid`, and (in finishReply) ranks with the right mode.
+    // Shared by search()/searchSeries(): fires the bounded RSS query family,
+    // tracks each reply under `vid`, then ranks with the right mode.
     void startSearch(const QString& vid, const SeriesSnapshot& series,
                      const QString& targetVolume, bool seriesMode);
-    void finishReply(QNetworkReply* reply);
+    void readAvailable(QNetworkReply* reply);
+    void onReplyFinished(QNetworkReply* reply);
+    void onReplyDestroyed(QNetworkReply* reply);
+    void failReply(QNetworkReply* reply, const QString& reason);
+    void releaseReply(QNetworkReply* reply, bool abort);
+    void completeQuery(const QString& vid, const QList<MangaNyaaCandidate>& rows,
+                       const QString& error = {});
+    void completeSearch(const QString& vid);
 
     QPointer<QNetworkAccessManager> m_nam;
+    QUrl m_rssEndpoint;
+    int m_deadlineMs = 20000;
     TrustTable m_trust;
     QHash<QString, PendingSearch> m_pending; // keyed by volumeId
+    QHash<QNetworkReply*, ReplyState> m_replies; // one bounded response per query
 };
 
 } // namespace MangaTankoban

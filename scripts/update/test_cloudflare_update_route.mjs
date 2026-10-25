@@ -127,6 +127,36 @@ test("versioned notes are real HTML with Coming Soon and optional accounts, with
   assert.ok(response.headers.get("ETag"));
 });
 
+test("1.1.10 notes serve the authored features without claiming publication", async (t) => {
+  t.mock.method(globalThis, "fetch", async () => { throw Error("notes must be local"); });
+  const response = await route.default.fetch(request("GET", "/releases/v1.1.10"));
+  assert.equal(response.status, 200);
+  assert.match(response.headers.get("Content-Type"), /text\/html/);
+  const html = await response.text();
+  for (const expected of ["Colosseum 1.1.10", "Tankoyomi and Tankorent", "MangaSin",
+    "Secret Service", "newer than 1.1.9", "Linux updates remain manual"])
+    assert.ok(html.includes(expected), expected);
+  assert.ok(!html.includes("<script"));
+  assert.ok(!html.includes("Release published"));
+  assert.equal(response.headers.get("X-Content-Type-Options"), "nosniff");
+  assert.ok(response.headers.get("ETag"));
+});
+
+test("1.1.10 notes preserve exact GET, HEAD, conditional and method behavior", async () => {
+  const path = "/releases/v1.1.10";
+  const get = await route.default.fetch(request("GET", path));
+  const head = await route.default.fetch(request("HEAD", path + "?from=app"));
+  assert.equal(head.status, 200);
+  assert.equal(await head.text(), "");
+  assert.equal(head.headers.get("ETag"), get.headers.get("ETag"));
+  const cached = await route.default.fetch(request("GET", path, {"If-None-Match":get.headers.get("ETag")}));
+  assert.equal(cached.status, 304);
+  assert.equal(await cached.text(), "");
+  const post = await route.default.fetch(request("POST", path));
+  assert.equal(post.status, 405);
+  assert.equal(post.headers.get("Allow"), "GET, HEAD");
+});
+
 test("notes conditional requests, HEAD and writes preserve the scoped route", async () => {
   const get = await route.default.fetch(request("GET", "/releases/v1.1.9"));
   const head = await route.default.fetch(request("HEAD", "/releases/v1.1.9?from=app"));
@@ -139,7 +169,8 @@ test("notes conditional requests, HEAD and writes preserve the scoped route", as
   const post = await route.default.fetch(request("POST", "/releases/v1.1.9"));
   assert.equal(post.status, 405);
   assert.equal(post.headers.get("Allow"), "GET, HEAD");
-  for (const wrong of ["/releases/v1.1.9.html", "/releases/v1.1.90", "/releases/v1.1.8"])
+  for (const wrong of ["/releases/v1.1.9.html", "/releases/v1.1.90", "/releases/v1.1.8",
+    "/releases/v1.1.100", "/releases/v1.1.11"])
     assert.equal((await route.default.fetch(request("GET", wrong))).status, 404);
 });
 

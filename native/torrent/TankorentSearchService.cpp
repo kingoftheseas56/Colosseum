@@ -1,10 +1,7 @@
 #include "TankorentSearchService.h"
 
 #include "TorrentIndexer.h"
-#include "PirateBayIndexer.h"
-#include "ExtTorrentsIndexer.h"
-#include "TorrentsCsvIndexer.h"
-#include "KnabenIndexer.h"
+#include "TankorentWorkerIndexer.h"
 
 #include <QCoreApplication>
 #include <QSettings>
@@ -16,17 +13,8 @@ namespace {
 // MOVED VERBATIM from TankorentPage.cpp during the headless-service extraction
 // (HELP.md 2026-05-21). Any future edit MUST keep this as the single source
 // of truth — the page no longer carries its own copy.
-// Colosseum port (2026-07-13): only the 3 keyless, CF-free book indexers survive.
-// 1337x/nyaa/yts/eztv were dropped — 1337x needs a QtWebEngine CF-cookie harvester
-// (banned), the rest are video/anime lanes Biblio doesn't use.
-// 2026-07-16: "knaben" was added as a keyless meta-search AGGREGATOR to reach
-// 1337x — but Hemanth eyes-on (2026-07-16) found it rarely returns a real match
-// (its fuzzy `search_type: score` relevance surfaces look-alikes on a shared
-// word), while PirateBay + Torrents-CSV return the actual matches. So knaben is
-// DISABLED here. The KnabenIndexer class + its harness stay in the tree for an
-// easy, category-scoped re-enable later; dropping it from every allowlist means
-// buildIndexersFor() never instantiates or queries it. Trade-off recorded: we
-// lose knaben's 1337x reach — acceptable, the 3 direct indexers carry matches.
+// Knaben remains outside the media allowlists, but is reachable for an explicit
+// source pick and for unfiltered searches, matching the existing routing.
 const QHash<QString, QSet<QString>> kMediaTypeIndexers = {
     { "books",      { "piratebay", "exttorrents", "torrentscsv" } },
     { "audiobooks", { "piratebay", "exttorrents", "torrentscsv" } },
@@ -85,10 +73,10 @@ QList<TorrentIndexer*> TankorentSearchService::buildIndexersFor(const QString& m
             delete indexer;
     };
 
-    addIf("piratebay",    new PirateBayIndexer(m_nam, this));
-    addIf("exttorrents",  new ExtTorrentsIndexer(m_nam, this));
-    addIf("torrentscsv",  new TorrentsCsvIndexer(m_nam, this));
-    addIf("knaben",       new KnabenIndexer(m_nam, this));
+    addIf("piratebay",    new TankorentWorkerIndexer(m_nam, QStringLiteral("piratebay"), this));
+    addIf("exttorrents",  new TankorentWorkerIndexer(m_nam, QStringLiteral("exttorrents"), this));
+    addIf("torrentscsv",  new TankorentWorkerIndexer(m_nam, QStringLiteral("torrentscsv"), this));
+    addIf("knaben",       new TankorentWorkerIndexer(m_nam, QStringLiteral("knaben"), this));
 
     return out;
 }
@@ -173,6 +161,8 @@ void TankorentSearchService::cleanupContext(SearchContext& ctx)
     for (auto* idx : ctx.activeIndexers) {
         if (!idx) continue;
         idx->disconnect(this);
+        if (auto *worker = qobject_cast<TankorentWorkerIndexer *>(idx))
+            worker->cancel();
         idx->deleteLater();
     }
     ctx.activeIndexers.clear();

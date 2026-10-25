@@ -17,6 +17,8 @@ This file guides contributors and coding agents working in Colosseum. The instru
 - Colosseum owns canonical state for identity, library, history, progress, and preferences; external services may enrich or synchronize it but do not silently become authority.
 - Prefer local-first behavior and graceful cached/offline operation where practical.
 - Keep providers replaceable and medium-aware rather than allowing one provider to define the product architecture.
+- Deploy only actual configurable, independently updatable addon systems, such as Tankoyomi and Tankorent, through Workers. A source enable/disable toggle alone does not make a built-in integration a deployable addon.
+- Keep individual built-in sources native, including Nyaa, AudioBookBay, LibGen and GetComics. Downloads, libtorrent, hash verification, file indexing and canonical local state remain native even when an addon runs through Workers.
 - Before creating a new store, cache, resolver, history system, identity system, player, database, or extension mechanism, check whether Colosseum already owns that truth and extend the existing owner when practical.
 - Do not lower the intended product end state merely because a shortcut is easier to implement.
 

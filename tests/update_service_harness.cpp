@@ -779,7 +779,7 @@ int main()
             require(unknown.state() == UpdateService::UpToDate,
                     "sequenced equal-version offer against a missing installed identity "
                     "is not treated as newer");
-            unknownOffer = validResult(manifestFor("1.2.0", "1.1.0", 5));
+            unknownOffer = validResult(manifestFor("1.1.10", "1.1.0", 0));
             unknown.checkNow();
             require(unknown.state() == UpdateService::Available,
                     "genuinely newer displayed version is offered without installed identity");
