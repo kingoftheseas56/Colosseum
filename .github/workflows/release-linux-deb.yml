@@ -10,6 +10,7 @@ on:
       - 'scripts/stage_api_content.py'
       - '.gitattributes'
       - 'tests/test_linux_release_policy.py'
+      - 'tests/test_linux_installed_player_smoke.py'
       - 'tests/test_stage_api_content.py'
 
 permissions:
@@ -36,7 +37,7 @@ jobs:
             gnome-keyring dbus-daemon
       - name: Packaging regressions and public path guard
         run: |
-          python3 -m unittest -v tests.test_linux_release_policy tests.test_stage_api_content
+          python3 -m unittest -v tests.test_linux_release_policy tests.test_linux_installed_player_smoke tests.test_stage_api_content
           python3 tools/linux-release/test_packaging.py
           python3 scripts/check_public_paths.py
       - name: Install Qt 6.11.1
@@ -174,6 +175,12 @@ jobs:
           chown package-test:package-test /tmp/installed-receipts
           runuser -u package-test -- xvfb-run -a -s '-screen 0 1920x1080x24' \
             python3 tools/linux-release/smoke_installed.py --output /tmp/installed-receipts
+      - name: Play a checked-in local fixture through installed Player 1
+        run: |
+          runuser -u package-test -- xvfb-run -a -s '-screen 0 1920x1080x24' \
+            python3 tools/linux-release/smoke_installed_player.py \
+              --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
+              --output /tmp/installed-receipts
       - name: Verify clean uninstall preserves user files
         run: |
           runuser -u package-test -- sh -c 'mkdir -p "$HOME/.local/share/Colosseum"; echo preserve > "$HOME/.local/share/Colosseum/package-uninstall-sentinel"'
