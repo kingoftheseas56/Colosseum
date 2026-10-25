@@ -50,6 +50,7 @@ public:
     Q_INVOKABLE void attachWindow(QWindow *window);
     Q_INVOKABLE void dismissKeyboard();
     Q_INVOKABLE void dispatchSystemBack();
+    Q_INVOKABLE void backgroundApplication();
     Q_INVOKABLE bool requestStorageAccess(const QString &purpose = QString());
     Q_INVOKABLE bool requestPermission(const QString &permission);
 

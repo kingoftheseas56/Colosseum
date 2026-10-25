@@ -4058,6 +4058,8 @@ Item {
         z: 4
         active: (root.starting && !root.resumeChoiceOpen) || root.errored
         errored: root.errored
+        cancelVisible: !chrome.visible
+        contentBottomInset: chrome.visible ? bottomDock.height : 0
         // Clean show name for the loader — strip a trailing " - S3E4" so the episode line owns S/E.
         title: (root.mediaTitle || mpv.mediaTitle || "").replace(/\s+[-–—]\s+S\d+\s*E\d+.*$/i, "")
         episodeLine: root.mediaLoadingLine

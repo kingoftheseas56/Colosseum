@@ -764,6 +764,8 @@ Window {
         var rec = (typeof Sessions !== "undefined" && Sessions && Sessions.activeId)
                 ? Sessions.get(Sessions.activeId) : ({})
         return {
+            androidHost: win.androidHost,
+            keyboardVisible: win.androidHost && Qt.inputMethod.visible,
             transitioning: fullscreenTransition.transitioning,
             bootVisible: boot.visible,
             accountHostVisible: accountHost.visible,
@@ -879,8 +881,15 @@ Window {
         identityCeremonyDialog.close()
     }
     function handleEscape() {
-        win.cancelCatalogueRoute();
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
+        if (action === "dismissKeyboard") {
+            if (typeof PlatformRuntime !== "undefined" && PlatformRuntime)
+                PlatformRuntime.dismissKeyboard()
+            else
+                Qt.inputMethod.hide()
+            return
+        }
+        win.cancelCatalogueRoute();
         switch (action) {
         case "consume": return
         case "cancelIdentityCeremony": identityCeremonyDialog.cancelRequested(); return
@@ -934,6 +943,10 @@ Window {
         case "biblioGenreIndex": win.closeBiblioGenreIndex(); return
         case "genre": win.closeGenre(); return
         case "genreIndex": win.closeGenreIndex(); return
+        case "backgroundApplication":
+            if (typeof PlatformRuntime !== "undefined" && PlatformRuntime)
+                PlatformRuntime.backgroundApplication()
+            return
         case "world": win.closeWorld(); return
         default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
@@ -4163,6 +4176,7 @@ Window {
                     // showExplicitContent too: otherwise Tankoban Discover's first page is
                     // fetched with the WorldPage default and refetched when onLoaded binds it.
                     setSource(win.worldSourceFor(mode), {
+                        "androidHost": win.androidHost,
                         "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen,
                         "showExplicitContent": contentPreferences.showExplicit
                     })

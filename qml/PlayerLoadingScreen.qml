@@ -20,6 +20,9 @@ Item {
     property string statusText: ""
     property bool   active: false
     property bool   errored: false
+    // The parent HUD owns Back while it is visible over the error face.
+    property bool   cancelVisible: true
+    property real   contentBottomInset: 0
     // Passed in from PlayerPage (theme.hud) so this file never depends on cross-file `theme` scope.
     property string hudFamily: "Segoe UI"
     property string errorText: ""
@@ -131,7 +134,7 @@ Item {
     Column {
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.bottom: parent.bottom
-        anchors.bottomMargin: Math.round(root.height * 0.11)
+        anchors.bottomMargin: Math.max(Math.round(root.height * 0.11), root.contentBottomInset + 18)
         spacing: 14
         width: Math.min(root.width * 0.40, 440)
 
@@ -179,6 +182,7 @@ Item {
     // which PlayerPage wires to the SAME back/cancel/session-parking action — no second shutdown path.
     Item {
         id: cancelBtn
+        visible: root.cancelVisible
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.leftMargin: 28
@@ -202,7 +206,7 @@ Item {
             id: cancelKeyboard
             anchors.fill: parent
             pointerEnabled: false
-            focusEnabled: root.active
+            focusEnabled: root.active && root.cancelVisible
             accessibleName: qsTr("Cancel loading")
             focusRadius: width / 2
             onTriggered: root.cancelRequested()

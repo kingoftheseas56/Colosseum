@@ -13,6 +13,9 @@ function actionFor(state) {
     if (on(s.transitioning) || on(s.bootVisible) || on(s.accountHostVisible))
         return "consume"
 
+    // A keyboard dismissal must not also close the page or its pending route.
+    if (on(s.androidHost) && on(s.keyboardVisible)) return "dismissKeyboard"
+
     // Same-window modal/transient surfaces, highest visual/interaction ownership first.
     if (on(s.identityCeremonyOpen)) return "cancelIdentityCeremony"
     // Main Sync sits above taskbar pages, but an identity ceremony may cover it.
@@ -67,6 +70,9 @@ function actionFor(state) {
     if (on(s.genreActive)) return "genre"
     if (on(s.genreIndexActive)) return "genreIndex"
 
+    // Android has no desktop Home. Preserve the current world when leaving the
+    // foreground, after every keyboard, transient, session and page owner.
+    if (on(s.androidHost)) return "backgroundApplication"
     if (on(s.worldOpen)) return "world"
     // Back never quits (world-feel Slice 6): on Home it returns to the top of Home and stops.
     // Quitting is Ctrl+Q or the Quit control, never a Back press.

@@ -717,6 +717,7 @@ Item {
     // ── scrollable content ─────────────────────────────────────────────────
     Flickable {
         id: page
+        objectName: "biblioBookScroll"
         anchors.left: parent.left; anchors.right: parent.right
         y: 108; height: detail.height - 108
         contentWidth: width
@@ -728,13 +729,19 @@ Item {
 
         Item {
             id: body
+            objectName: "biblioBookBody"
             x: theme.margin
             width: detail.width - theme.margin * 2
-            implicitHeight: Math.max(coverCol.implicitHeight, textCol.implicitHeight) + 36
+            readonly property bool stackColumns: width < 268 + 64 + 320
+            implicitHeight: stackColumns
+                            ? coverCol.implicitHeight + 32 + textCol.implicitHeight + 36
+                            : Math.max(coverCol.implicitHeight, textCol.implicitHeight) + 36
 
             // ── cover column ──
             Column {
                 id: coverCol
+                objectName: "biblioBookCoverColumn"
+                x: body.stackColumns ? Math.max(0, (body.width - width) / 2) : 0
                 width: 268
                 topPadding: 16
                 spacing: 28
@@ -820,6 +827,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                     }
                     LibraryButton {
+                        objectName: "biblioLibraryButton"
                         width: parent.width
                         height: 50
                         radius: 13
@@ -835,8 +843,10 @@ Item {
             // ── text column ──
             Column {
                 id: textCol
-                anchors.left: coverCol.right; anchors.leftMargin: 64
-                anchors.right: parent.right
+                objectName: "biblioBookTextColumn"
+                x: body.stackColumns ? 0 : coverCol.x + coverCol.width + 64
+                y: body.stackColumns ? coverCol.implicitHeight + 32 : 0
+                width: body.stackColumns ? body.width : body.width - coverCol.width - 64
                 topPadding: 18
                 spacing: 0
 
@@ -847,6 +857,7 @@ Item {
                 }
                 Item { width: 1; height: 14 }
                 Text {                                // title
+                    objectName: "biblioBookTitle"
                     text: detail.book && detail.book.title ? detail.book.title : ""
                     color: theme.ink; font.family: theme.display; font.pixelSize: 54
                     width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.02
@@ -1026,6 +1037,7 @@ Item {
                 Item { width: 1; height: 12 }
                 Glass {
                     id: editionList
+                    objectName: "biblioEditionList"
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: edCol.implicitHeight
@@ -1136,6 +1148,7 @@ Item {
                 Item { width: 1; height: 12 }
                 Glass {
                     id: audiobookList
+                    objectName: "biblioAudiobookList"
                     backdrop: detail.backdrop
                     width: Math.min(parent.width, 640); radius: 14
                     height: abCol.implicitHeight

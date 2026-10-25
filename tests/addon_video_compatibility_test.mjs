@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
 
-const sourcePath = process.argv[2] || 'qml/AddonClient.js';
+const sourcePath = process.argv[2] || new URL('../qml/AddonClient.js', import.meta.url);
 const source = fs.readFileSync(sourcePath, 'utf8').replace(/^\.pragma library\s*$/m, '');
 
 function makeAddon(platformRuntime, responseForUrl) {

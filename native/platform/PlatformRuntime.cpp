@@ -201,6 +201,29 @@ void Runtime::dispatchSystemBack() {
         emit backRequested();
 }
 
+void Runtime::backgroundApplication() {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android)
+        return;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) {
+            qWarning("[platform] Cannot background Android task without an activity");
+            return false;
+        }
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid())
+            return false;
+        const bool moved = activity.callMethod<jboolean>(
+            "moveTaskToBack", "(Z)Z", jboolean(true));
+        if (moved)
+            qInfo("[platform] Android task sent to background");
+        else
+            qWarning("[platform] Android declined to background the task");
+        return moved;
+    });
+#endif
+}
+
 bool Runtime::requestStorageAccess(const QString &purpose) {
     if (!m_capabilities.storageAccessFramework)
         return false;

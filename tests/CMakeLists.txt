@@ -1720,6 +1720,14 @@ set_tests_properties(colosseum.qml.sources_sheet_empty_extensions PROPERTIES
     ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 120)
 
+add_test(NAME colosseum.qml.stage3_responsive
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/qml/stage3_responsive")
+set_tests_properties(colosseum.qml.stage3_responsive PROPERTIES
+    LABELS "qml;android;responsive"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
+
 add_test(NAME colosseum.qml.tracker_sync_center
          COMMAND colosseum_qml_tests -input
                  "${CMAKE_CURRENT_SOURCE_DIR}/qml/tracker_sync_center")
@@ -4910,7 +4918,8 @@ if(COLOSSEUM_FERIA_TEST_NODE)
     foreach(test_name android_continue_missing_download theatre_pinned_header_scrim theatre_search_year
             addon_video_compatibility addon_client_runtime_argument_contract
             android_stream_route_restore_intent android_subtitle_restore
-            android_download_lifecycle)
+            android_download_lifecycle shell_back_policy android_shell_back_dispatch
+            android_world_host_initialization)
         add_test(NAME colosseum.${test_name}
             COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
         set_tests_properties(colosseum.${test_name} PROPERTIES

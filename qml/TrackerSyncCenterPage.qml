@@ -1652,12 +1652,21 @@ Item {
             width: root.width - root.pageInset * 2
             spacing: 0
 
-            RowLayout {
+            Item {
+                id: syncHeader
                 Layout.fillWidth: true
                 Layout.bottomMargin: 6
-                spacing: 20
+                implicitHeight: root.width >= 760
+                                ? Math.max(headerTitle.implicitHeight, headerActions.implicitHeight)
+                                : headerActions.y + headerActions.implicitHeight
 
                 ColumnLayout {
+                    id: headerTitle
+                    x: 0
+                    y: 0
+                    width: root.width >= 760
+                           ? Math.max(0, parent.width - headerActions.implicitWidth - 20)
+                           : parent.width
                     spacing: 0
                     Text {
                         objectName: "trackerSyncPageTitle"
@@ -1677,7 +1686,13 @@ Item {
                     }
                 }
 
-                Item { Layout.fillWidth: true }
+                Row {
+                    id: headerActions
+                    x: root.width >= 760 ? parent.width - width : 0
+                    y: root.width >= 760
+                       ? Math.round(Math.max(0, (headerTitle.implicitHeight - height) / 2))
+                       : headerTitle.implicitHeight + 12
+                    spacing: 20
 
                 Button {
                     id: preferencesButton
@@ -1744,6 +1759,7 @@ Item {
                     }
                     padding: 13
                 }
+                }
             }
 
             Text {
@@ -1759,6 +1775,9 @@ Item {
             Rectangle {
                 objectName: "trackerEmptyState"
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: pageColumn.width
+                Layout.maximumWidth: pageColumn.width
                 Layout.preferredHeight: 138
                 Layout.bottomMargin: 16
                 visible: root.connectedCount === 0
@@ -1769,14 +1788,14 @@ Item {
 
                 RowLayout {
                     anchors.fill: parent
-                    anchors.margins: 22
-                    spacing: 30
+                    anchors.margins: root.width >= 760 ? 22 : 14
+                    spacing: root.width >= 760 ? 30 : 12
 
                     Image {
                         objectName: "trackerNativeLibraryIcon"
                         source: "../assets/icons/colosseum.svg"
-                        Layout.preferredWidth: root.width >= 900 ? 180 : 72
-                        Layout.preferredHeight: 80
+                        Layout.preferredWidth: root.width >= 900 ? 180 : (root.width < 760 ? 44 : 72)
+                        Layout.preferredHeight: root.width < 760 ? 52 : 80
                         fillMode: Image.PreserveAspectFit
                     }
                     Rectangle {
@@ -1786,6 +1805,7 @@ Item {
                     }
                     ColumnLayout {
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                         spacing: 3
                         Text {
                             text: "NATIVE LIBRARY"
@@ -1814,6 +1834,7 @@ Item {
                             font.pixelSize: 11
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                         }
                     }
                     Rectangle {
@@ -2067,6 +2088,9 @@ Item {
                 id: connectedSection
                 objectName: "trackerConnectedSection"
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: pageColumn.width
+                Layout.maximumWidth: pageColumn.width
                 Layout.bottomMargin: 34
                 spacing: 16
                 visible: root.connectedTrackers.length > 0
@@ -2092,6 +2116,9 @@ Item {
                     id: connectedGrid
                     objectName: "trackerConnectedGrid"
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: pageColumn.width
+                    Layout.maximumWidth: pageColumn.width
                     columns: root.connectedColumns
                     columnSpacing: 14
                     rowSpacing: 14
@@ -2103,6 +2130,7 @@ Item {
                             required property var modelData
                             objectName: "trackerCard_" + modelData.providerKey
                             Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             Layout.preferredHeight: 177
                             activeFocusOnTab: true
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
@@ -2230,6 +2258,9 @@ Item {
                 id: mainSyncSection
                 objectName: "trackerMainSyncSection"
                 Layout.fillWidth: true
+                Layout.minimumWidth: 0
+                Layout.preferredWidth: pageColumn.width
+                Layout.maximumWidth: pageColumn.width
                 Layout.bottomMargin: 16
                 spacing: 12
 
@@ -2251,6 +2282,9 @@ Item {
                 Rectangle {
                     objectName: "trackerStremioCard"
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: pageColumn.width
+                    Layout.maximumWidth: pageColumn.width
                     Layout.preferredHeight: 116
                     radius: 16
                     color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.96)
@@ -2259,19 +2293,22 @@ Item {
 
                     RowLayout {
                         anchors.fill: parent
-                        anchors.leftMargin: 26
-                        anchors.rightMargin: 24
-                        spacing: 22
+                        anchors.leftMargin: root.width >= 760 ? 26 : 14
+                        anchors.rightMargin: root.width >= 760 ? 24 : 14
+                        spacing: root.width >= 760 ? 22 : 12
 
                         Image {
                             objectName: "trackerStremioIcon"
                             source: "../assets/icons/stremio-official.svg"
-                            Layout.preferredWidth: 74
-                            Layout.preferredHeight: 74
+                            Layout.preferredWidth: root.width < 760 ? 56 : 74
+                            Layout.preferredHeight: root.width < 760 ? 56 : 74
                             fillMode: Image.PreserveAspectFit
                         }
                         ColumnLayout {
+                            id: stremioDescription
                             spacing: 6
+                            Layout.fillWidth: true
+                            Layout.minimumWidth: 0
                             Text {
                                 text: "Stremio"
                                 color: theme.ink
@@ -2284,6 +2321,9 @@ Item {
                                 color: theme.inkDim
                                 font.family: theme.ui
                                 font.pixelSize: 11
+                                Layout.fillWidth: true
+                                Layout.minimumWidth: 0
+                                wrapMode: Text.WordWrap
                             }
                             RowLayout {
                                 visible: root.width >= 760
@@ -2314,8 +2354,11 @@ Item {
                                 }
                             }
                         }
-                        Item { Layout.fillWidth: true }
                         ColumnLayout {
+                            Layout.preferredWidth: 142
+                            Layout.minimumWidth: 142
+                            Layout.maximumWidth: 142
+                            Layout.alignment: Qt.AlignRight
                             spacing: 7
                             Rectangle {
                                 objectName: "trackerStremioStatusBadge"
@@ -2372,8 +2415,11 @@ Item {
                 Layout.bottomMargin: 120
                 spacing: 16
 
-                RowLayout {
+                GridLayout {
                     Layout.fillWidth: true
+                    columns: root.width >= 760 ? 2 : 1
+                    columnSpacing: 12
+                    rowSpacing: 4
                     Text {
                         objectName: "trackerCatalogueTitle"
                         text: "Available trackers"
@@ -2381,12 +2427,16 @@ Item {
                         font.family: theme.display
                         font.pixelSize: 27
                         Layout.fillWidth: true
+                        Layout.minimumWidth: 0
                     }
                     Text {
                         text: "Capabilities are verified per provider"
                         color: theme.inkDimmer
                         font.family: theme.ui
                         font.pixelSize: 12
+                        Layout.fillWidth: true
+                        Layout.minimumWidth: 0
+                        horizontalAlignment: root.width >= 760 ? Text.AlignRight : Text.AlignLeft
                     }
                 }
 
@@ -2394,6 +2444,9 @@ Item {
                     id: catalogueGrid
                     objectName: "trackerCatalogueGrid"
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
+                    Layout.preferredWidth: pageColumn.width
+                    Layout.maximumWidth: pageColumn.width
                     columns: root.catalogueColumns
                     columnSpacing: 12
                     rowSpacing: 12
