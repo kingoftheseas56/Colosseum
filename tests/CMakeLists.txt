@@ -4437,6 +4437,16 @@ set_tests_properties(colosseum.player1_runtime_recovery PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+find_program(COLOSSEUM_PLAYER_TEST_NODE NAMES node)
+if(COLOSSEUM_PLAYER_TEST_NODE)
+    add_test(NAME colosseum.player1_recovery_resume
+             COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/player_recovery_resume_test.mjs")
+    set_tests_properties(colosseum.player1_recovery_resume PROPERTIES
+        LABELS "unit;player"
+        TIMEOUT 30)
+endif()
+
 add_test(NAME colosseum.player1_resume_choice
          COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
                  "${CMAKE_CURRENT_SOURCE_DIR}/test_player_resume_choice_p0.ps1")
