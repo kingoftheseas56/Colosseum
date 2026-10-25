@@ -1709,6 +1709,17 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
 
+# SourcesSheet's empty-provider action is a standalone offscreen Qt Quick test
+# outside tests/qml/tst_*.qml, so register its exact file with the shared runner
+# rather than relying on the aggregate directory scan to discover it.
+add_test(NAME colosseum.qml.sources_sheet_empty_extensions
+         COMMAND colosseum_qml_tests -input
+                 "${CMAKE_CURRENT_SOURCE_DIR}/sources_sheet_empty_extensions_harness.qml")
+set_tests_properties(colosseum.qml.sources_sheet_empty_extensions PROPERTIES
+    LABELS "qml"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
+
 add_test(NAME colosseum.qml.tracker_sync_center
          COMMAND colosseum_qml_tests -input
                  "${CMAKE_CURRENT_SOURCE_DIR}/qml/tracker_sync_center")

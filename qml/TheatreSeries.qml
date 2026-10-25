@@ -24,6 +24,7 @@ Item {
     signal fullscreenRequested()
     signal closeRequested()
     signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)
+    signal openExtensionsRequested()
     signal playLocalRequested(var payload)   // downloaded copy on disk → openLocalVideoSession, no sources sheet
     signal playArrivingRequested(var job)    // still-downloading copy → routeArrivingPlay (disk-first .part play)
     signal openItemRequested(var item)
@@ -2429,6 +2430,7 @@ Item {
         id: sources
         z: 60
         backdrop: page.backdrop
+        onOpenExtensionsRequested: page.openExtensionsRequested()
         onPlayRequested: (infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext) => page.playRequested(infoHash, fileIdx, title, backdropUrl, subType, subId, streamCandidates, playbackContext)
         onDownloadRequested: (row) => {
             if (page.pendingSeasonPick) {

@@ -3166,3 +3166,31 @@ any delivery claim that includes the native union code.
   receiving run. Dots' Linux visual evidence and the owner's v2 design approval
   are separate from these Windows integration checks. The previously documented
   intermittent title-action failure is not claimed fixed by this slice.
+
+## Android 019 scoped search and empty-source checks (2026-10-25)
+
+- Theatre year grouping: the RED invocation was
+  `node tests/theatre_search_year_test.mjs <019 evidence>/tests/search-year/WorldSearch.018-baseline.js`;
+  it reproduced the accepted 018 baseline failure (exit 1, one exact-year row
+  returned where all six source identities must remain). The same test against
+  the working-tree `qml/WorldSearch.js` (`node tests/theatre_search_year_test.mjs`)
+  passed (exit 0). The fixtures cover
+  exact/adjacent/remaining year groups, identity preservation, numeric full
+  titles, and partial-provider error truth. Receipt and source-blob identity:
+  `work\019\tests\search-year\README.md`, `manifest.json`,
+  `baseline-red.log`, and `fixed-green.log`.
+- Empty SourcesSheet Extensions route: the focused Qt 6.11.1 run used
+  `qmltestrunner.exe -platform offscreen -input
+  tests/sources_sheet_empty_extensions_harness.qml -v2 -o
+  work\019\tests\empty-sources\green-window.xml,xml` with the Qt 6.11.1
+  MSVC runtime on PATH, software rendering, Basic Controls, and Windows fonts.
+  The captured pre-fix run exited 2 with two test-function failures; the
+  current focused run exited 0 with three test functions passing, including
+  phone and desktop sheet containment. Receipts are
+  `work\019\tests\empty-sources\baseline-red.xml`, `green.xml`, and
+  `green-window.xml` (paired `.exit` files record process status).
+- `tests/CMakeLists.txt` now registers the standalone offscreen harness
+  with the existing `colosseum_qml_tests` runner by exact input file, labelled
+  `qml`; this matches the repository's existing exact-file QuickTest
+  registration pattern. The new registration has not yet been configured or
+  run through CTest. No app build or device test is claimed for either check.

@@ -115,10 +115,16 @@ function pickTheatreTopMatch(query, all) {
             || all.some(function(row) { return normTitle(row.title) === normTitle(query); }))
         return pickTopMatch(query, all);
     var year = Number(match[2] || match[3]);
-    var matching = all.filter(function(row) {
-        return parseInt(row.data && row.data.releaseInfo, 10) === year;
+    var exactYear = [], adjacentYear = [], otherYears = [];
+    all.forEach(function(row) {
+        var rowYear = parseInt(row.data && row.data.releaseInfo, 10);
+        if (rowYear === year) exactYear.push(row);
+        else if (Math.abs(rowYear - year) === 1) adjacentYear.push(row);
+        else otherYears.push(row);
     });
-    return pickTopMatch(match[1], matching);
+    return pickTopMatch(match[1], exactYear)
+            .concat(pickTopMatch(match[1], adjacentYear))
+            .concat(pickTopMatch(match[1], otherYears));
 }
 
 function searchTheatre(query, done) {
