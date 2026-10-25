@@ -37,7 +37,7 @@ TestCase {
         var relationship=session.pendingImportCeremony.relationship;
         session.cancelImportIdentity();compare(session.pendingImportCeremony,null);compare(store.rows.length,1);
         session.importFiles([path]);compare(session.pendingImportCeremony.relationship,relationship);
-        verify(session.decideImportIdentity(relationship,"same-media"));tryCompare(session,"browseError","");
+        verify(session.decideImportIdentity(relationship,"same-media"));tryVerify(()=>!session.importing && session.browseError==="");
         compare(store.rows[0].payload.album.tracks[0].id,oldId);compare(session.queue[0].queueId,queueId);
         session.retry();tryVerify(()=>session.player!==null);compare(session.error,"");compare(session.playingTrack.id,oldId);
         var second=BridgeFixtures.createIdentityAudio();session.importFiles([second]);BridgeFixtures.changeIdentityAudio(second,480);
@@ -100,6 +100,7 @@ TestCase {
         verify(session.decideImportIdentity(first,"new-media"));
         tryVerify(()=>session.pendingImportCeremony!==null && session.pendingImportCeremony.relationship!==first);
         verify(session.decideImportIdentity(session.pendingImportCeremony.relationship,"new-media"));
+        tryVerify(()=>!session.importing && store.rows.length===4);
         tryCompare(session,"browseError","");compare(session.queue[0].queueId,oldQueue);compare(session.playingTrack.id,oldId);
         session.retry();tryCompare(session,"sourceState","error");verify(session.error.indexOf("changed")>=0);
         compare(store.rows.length,4);store.destroy();
@@ -108,7 +109,7 @@ TestCase {
         console.log("Bridge array diagnostics",Array.isArray(rawAlbum.tracks),Array.isArray(rawAlbum.artists),Array.isArray(rawAlbum.editions));
         session.openAlbum(rawAlbum.id);tryCompare(session,"browsing",false);
         compare(session.browseError,"");compare(session.shownAlbumId,rawAlbum.id);compare(session.tracks.length,1);
-        session.playTrack(0);tryVerify(()=>session.player!==null);compare(session.player.loadedUrl.indexOf("file:"),0);
+        session.playTrack(0);tryVerify(()=>session.player!==null);compare(String(session.player.currentUrl).indexOf("file:"),0);
     }
     function test_nativeSearchAndQueuedAlbum() {
         session.search("");tryCompare(session,"browsing",false);compare(session.results.length,1);

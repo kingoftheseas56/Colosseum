@@ -11,7 +11,7 @@ Flickable {
 
     signal albumRequested(var album)
     signal songRequested(var song)
-    signal artistRequested(string name)
+    signal artistRequested(var artist)
     signal backRequested()
 
     property real gutter: width < 720 ? 24 : width < 1100 ? 36 : 54
@@ -46,12 +46,7 @@ Flickable {
         Qt.callLater(function() {
             root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, hero.height - artistTitleBar.height));
         });
-        if (focusTabButton) {
-            var idx = valid.indexOf(tabKey);
-            var btn = tabRepeater.itemAt(idx);
-            if (btn)
-                btn.forceActiveFocus(Qt.TabFocusReason);
-        }
+        if (focusTabButton) artistTabs.forceActiveFocus(Qt.TabFocusReason);
     }
 
     function focusAlbumTileAt(targetIndex) {
@@ -69,26 +64,21 @@ Flickable {
     function activateDiscographyCard(card, originItem) {
         if (!card)
             return;
-        if (card.playable && card.album && card.album.tracks && card.album.tracks.length > 0) {
+        if (card.browsable || (card.playable && card.album && card.album.tracks && card.album.tracks.length > 0)) {
             root.albumRequested(card.album);
             return;
         }
-        dialogReturnItem = originItem || null;
+        dialogReturnItem = originItem && originItem.activeFocus ? originItem : null;
         releaseDetailDialog.selection = card;
         releaseDetailDialog.open();
     }
 
     function openSearchDialog(originItem) {
         releasePicker.closePopup(false);
-        dialogReturnItem = originItem || searchButton;
-        searchInput.text = "";
+        var origin = originItem || searchButton;
+        dialogReturnItem = origin.activeFocus ? origin : null;
+        searchDialog.query = "";
         searchDialog.open();
-    }
-
-    function openBackdropsDialog(originItem) {
-        releasePicker.closePopup(false);
-        dialogReturnItem = originItem || backdropsButton;
-        backdropDialog.open();
     }
 
     function restoreDialogFocus() {
@@ -99,7 +89,7 @@ Flickable {
                 if (target)
                     target.forceActiveFocus(Qt.PopupFocusReason);
             });
-        }
+        } else root.forceActiveFocus(Qt.OtherFocusReason);
     }
 
     function categoryAvailable(category) {
@@ -143,7 +133,7 @@ Flickable {
             root.albumRequested(record.album);
             return;
         }
-        dialogReturnItem = originItem || null;
+        dialogReturnItem = originItem && originItem.activeFocus ? originItem : null;
         mediaDialog.selection = record;
         mediaDialog.open();
     }
@@ -215,7 +205,6 @@ Flickable {
             playlistDialog.close();
             createDialog.close();
             searchDialog.close();
-            backdropDialog.close();
             releaseDetailDialog.close();
         }
     }
@@ -272,7 +261,6 @@ Flickable {
             skinLayerBReady: internalArtistSkin.artistLayerBReady
             artistData: root.artistData
             onCreatePlaylistRequested: { playlistName.text = ""; createDialog.open(); }
-            onBackdropsRequested: root.openBackdropsDialog(null)
             onItemFocused: item => root.reveal(item)
         }
 
@@ -347,7 +335,7 @@ Flickable {
                         color: theme.edge
                     }
 
-                    // Controls: shared All releases picker + ONE Sort toggle
+                    // Shared All releases picker
                     Row {
                         id: discographyControls
                         anchors.left: parent.left
@@ -379,34 +367,7 @@ Flickable {
                             onPicked: key => root.artistData.selectReleaseCategory(key)
                         }
 
-                        // ONE Sort button (.control-btn parity)
-                        KeyboardAction {
-                            id: sort
-                            objectName: "vinylArtistSort"
-                            width: 148
-                            height: 39
-                            focusRadius: 9
-                            spaceActivates: true
-                            accessibleName: root.artistData.newestFirst ? "Sort oldest first" : "Sort newest first"
-                            onTriggered: root.artistData.newestFirst = !root.artistData.newestFirst
-                            Rectangle {
-                                anchors.fill: parent
-                                radius: 9
-                                color: sort.interactionActive
-                                    ? Qt.rgba(0.11, 0.12, 0.16, 0.88)
-                                    : Qt.rgba(0.063, 0.067, 0.09, 0.78)
-                                border.width: 1
-                                border.color: sort.interactionActive ? theme.gold : theme.edge
-                            }
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.artistData.newestFirst ? "Newest first  ↓" : "Oldest first  ↑"
-                                color: sort.interactionActive ? theme.gold : theme.ink
-                                font.family: theme.ui
-                                font.pixelSize: 13
-                                font.weight: Font.DemiBold
-                            }
-                        }
+
                     }
                 }
 
@@ -492,15 +453,6 @@ Flickable {
                         font.family: theme.display
                         font.pixelSize: Math.max(38, Math.min(55, root.width * 0.0315))
                         font.weight: Font.Normal
-                    }
-                    Text {
-                        width: parent.width
-                        text: String(root.artistData.singlesRows.length)
-                            + " selected tracks in a compact vertical list, with sleeve artwork and release context."
-                        color: theme.inkDim
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        wrapMode: Text.WordWrap
                     }
                 }
 
@@ -707,6 +659,7 @@ Flickable {
                             Repeater {
                                 model: root.artistData.filters.length
                                 delegate: KeyboardAction {
+                                    focusOnPointer: false
                                     readonly property var modelData: root.artistData.filters[index]
                                     objectName: "vinylArtistFilter_" + modelData.key
                                     width: filterText.implicitWidth + 24; height: 34
@@ -763,7 +716,7 @@ Flickable {
                     artistData: root.artistData
                     prefix: "vinylArtistRelated"
                     shape: "round"
-                    onActivated: record => root.artistRequested(record.title)
+                    onActivated: record => root.artistRequested(record.artistRef || record.title)
                     onSeeAllRequested: root.openCategory("related")
                     onItemFocused: item => root.reveal(item)
                 }
@@ -789,7 +742,7 @@ Flickable {
     }
 
     // Pinned Sticky Artist Tab Bar (.tabbar parity: 58px height, sticks below 76px header)
-    Rectangle {
+    Item {
         id: stickyTabBar
         objectName: "vinylArtistTabBar"
         visible: root.selectedCategory === ""
@@ -798,121 +751,34 @@ Flickable {
         width: root.width
         height: 58
         z: 30
-        color: Qt.rgba(0.031, 0.035, 0.055, 0.88)
-
-        Rectangle {
-            anchors.top: parent.top
-            width: parent.width
-            height: 1
-            color: theme.edge
-        }
-        Rectangle {
-            anchors.bottom: parent.bottom
-            width: parent.width
-            height: 1
-            color: theme.edge
-        }
-
-        // Left: Albums / Singles / Videos / Live tabs
-        Row {
-            id: tabListRow
-            x: root.gutter
+        WorldTabBar {
+            id: artistTabs
+            objectName: "vinylArtistSharedTabs"
+            anchors.left: parent.left; anchors.leftMargin: root.gutter
+            anchors.right: searchButton.left; anchors.rightMargin: 20
             height: parent.height
-            spacing: 22
-
-            Repeater {
-                id: tabRepeater
-                readonly property var tabs: [
-                    {key: "albums", label: "Albums", count: root.artistData.allDiscographyCards.length},
-                    {key: "singles", label: "Singles", count: root.artistData.singlesRows.length},
-                    {key: "videos", label: "Videos", count: root.artistData.media.videos.length},
-                    {key: "live", label: "Live", count: root.artistData.liveCards.length}
-                ]
-                model: tabs.length
-                delegate: KeyboardAction {
-                    id: tabBtn
-                    readonly property var modelData: tabRepeater.tabs[index]
-                    required property int index
-
-                    readonly property bool isCurrentTab: root.artistData.activeTab === modelData.key
-                    objectName: "vinylArtistTab_" + modelData.key
-                    width: tabRowInner.implicitWidth + 8
-                    height: 58
-                    focusRadius: 8
-                    focusInset: 6
-                    spaceActivates: true
-                    accessibleName: modelData.label + " tab"
-                    onTriggered: root.switchTab(modelData.key, false)
-
-                    Keys.onLeftPressed: event => {
-                        var keys = ["albums", "singles", "videos", "live"];
-                        var nextKey = keys[(tabBtn.index + keys.length - 1) % keys.length];
-                        root.switchTab(nextKey, true);
-                        event.accepted = true;
-                    }
-                    Keys.onRightPressed: event => {
-                        var keys = ["albums", "singles", "videos", "live"];
-                        var nextKey = keys[(tabBtn.index + 1) % keys.length];
-                        root.switchTab(nextKey, true);
-                        event.accepted = true;
-                    }
-                    Keys.onPressed: event => {
-                        if (event.key === Qt.Key_Home) {
-                            root.switchTab("albums", true);
-                            event.accepted = true;
-                        } else if (event.key === Qt.Key_End) {
-                            root.switchTab("live", true);
-                            event.accepted = true;
-                        }
-                    }
-
-                    Row {
-                        id: tabRowInner
-                        anchors.centerIn: parent
-                        spacing: 7
-                        Text {
-                            text: tabBtn.modelData.label
-                            color: tabBtn.isCurrentTab
-                                ? theme.ink
-                                : (tabBtn.interactionActive ? Qt.rgba(0.969, 0.969, 0.961, 0.92) : theme.inkDimmer)
-                            font.family: theme.ui
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                        Text {
-                            visible: Number(tabBtn.modelData.count) > 0
-                            text: String(tabBtn.modelData.count)
-                            color: tabBtn.isCurrentTab ? theme.gold : theme.inkDimmer
-                            font.family: theme.ui
-                            font.pixelSize: 11
-                            font.weight: Font.Bold
-                            anchors.verticalCenter: parent.verticalCenter
-                        }
-                    }
-
-                    // Active 3px gold bottom bar (.tab.active::after parity)
-                    Rectangle {
-                        visible: tabBtn.isCurrentTab
-                        anchors.left: parent.left
-                        anchors.right: parent.right
-                        anchors.bottom: parent.bottom
-                        height: 3
-                        radius: 2
-                        color: theme.gold
-                    }
-                }
-            }
+            backdrop: root.backdrop
+            track: root.contentY
+            compact: true
+            focusOnPointer: false
+            tabPrefix: "vinylArtistTab"
+            tabModel: [
+                {key:"albums",label:"Albums"}, {key:"singles",label:"Singles"},
+                {key:"videos",label:"Videos"}, {key:"live",label:"Live"}
+            ]
+            currentTab: root.artistData.activeTab
+            onTabRequested: tab => root.switchTab(tab, false)
         }
 
         // Right: Artist-scoped Search pill (.search-btn parity)
         KeyboardAction {
+            focusOnPointer: false
             id: searchButton
             objectName: "vinylArtistSearchButton"
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
             anchors.verticalCenter: parent.verticalCenter
-            width: Math.min(240, searchBtnRow.implicitWidth + 28)
+            width: 40
             height: 40
             focusRadius: 20
             spaceActivates: true
@@ -926,30 +792,15 @@ Flickable {
                     ? Qt.rgba(1, 1, 1, 0.12)
                     : Qt.rgba(0.063, 0.067, 0.09, 0.68)
                 border.width: 1
-                border.color: searchButton.interactionActive ? theme.gold : theme.edge
+                border.color: searchButton.interactionActive ? theme.inkDimmer : theme.edge
             }
 
-            Row {
-                id: searchBtnRow
+            VinylControlIcon {
                 anchors.centerIn: parent
-                spacing: 8
-                Text {
-                    text: "⌕"
-                    color: theme.gold
-                    font.family: theme.ui
-                    font.pixelSize: 14
-                    font.weight: Font.Bold
-                    anchors.verticalCenter: parent.verticalCenter
-                }
-                Text {
-                    text: "Search " + root.artistData.record.name
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
-                    elide: Text.ElideRight
-                    anchors.verticalCenter: parent.verticalCenter
-                }
+                width: 20
+                height: 20
+                symbol: "search"
+                color: theme.gold
             }
         }
     }
@@ -996,6 +847,7 @@ Flickable {
             spacing: 12
 
             BackAction {
+                focusOnPointer: false
                 id: headerBackButton
                 objectName: "vinylArtistHeaderBack"
                 label: "Vinyl"
@@ -1024,7 +876,7 @@ Flickable {
             }
         }
 
-        // Right: Backdrops selector + System menu button (.rightbar parity)
+        // Page options
         Row {
             anchors.right: parent.right
             anchors.rightMargin: root.gutter
@@ -1032,50 +884,7 @@ Flickable {
             spacing: 10
 
             KeyboardAction {
-                id: backdropsButton
-                objectName: "vinylArtistBackdropsButton"
-                width: backdropBtnRow.implicitWidth + 28
-                height: 40
-                focusRadius: 20
-                spaceActivates: true
-                accessibleName: "Artist backdrops"
-                onTriggered: root.openBackdropsDialog(backdropsButton)
-
-                Rectangle {
-                    anchors.fill: parent
-                    radius: 20
-                    color: backdropsButton.interactionActive
-                        ? Qt.rgba(1, 1, 1, 0.12)
-                        : Qt.rgba(0.063, 0.067, 0.09, 0.56)
-                    border.width: 1
-                    border.color: backdropsButton.interactionActive ? theme.gold : theme.edge
-                }
-
-                Row {
-                    id: backdropBtnRow
-                    anchors.centerIn: parent
-                    spacing: 8
-                    Text {
-                        text: "Backdrops"
-                        color: theme.ink
-                        font.family: theme.ui
-                        font.pixelSize: 13
-                        font.weight: Font.DemiBold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                    Text {
-                        visible: root.artistData.heroPhotos.length > 0
-                        text: (root.artistData.heroPhotos.length < 10 ? "0" : "") + String(root.artistData.heroPhotos.length)
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 11
-                        font.weight: Font.Bold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
-                }
-            }
-
-            KeyboardAction {
+                focusOnPointer: false
                 id: moreButton
                 objectName: "vinylArtistMoreButton"
                 width: 40
@@ -1129,6 +938,7 @@ Flickable {
                 spacing: 2
 
                 KeyboardAction {
+                    focusOnPointer: false
                     id: createPlaylistMenuAction
                     enabled: root.artistData.playlistEnabled !== false
                     opacity: enabled ? 1 : 0.4
@@ -1141,7 +951,7 @@ Flickable {
                     accessibleName: "Create playlist"
                     onTriggered: {
                         root.systemMenuOpen = false;
-                        root.dialogReturnItem = moreButton;
+                        root.dialogReturnItem = moreButton.activeFocus ? moreButton : null;
                         playlistName.text = "";
                         createDialog.open();
                     }
@@ -1156,6 +966,7 @@ Flickable {
                 }
 
                 KeyboardAction {
+                    focusOnPointer: false
                     objectName: "vinylArtistSavedPlaylistsMenu"
                     spaceActivates: true
                     focusRadius: 8
@@ -1168,6 +979,7 @@ Flickable {
                 }
 
                 KeyboardAction {
+                    focusOnPointer: false
                     id: topOfPageAction
                     objectName: "vinylArtistTopOfPageAction"
                     width: parent.width
@@ -1302,6 +1114,7 @@ Flickable {
             spacing: 8
 
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistHudPrev"
                 width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Previous track"
@@ -1313,6 +1126,7 @@ Flickable {
                 Image { anchors.centerIn: parent; width: 16; height: 16; source: "../../assets/icons/lucide/skip-back.svg" }
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistHudPlay"
                 width: 42; height: 42; focusRadius: 21; focusPrimary: true; spaceActivates: true
                 accessibleName: root.artistData.demoPlaying ? "Pause visual demo" : "Play visual demo"
@@ -1330,6 +1144,7 @@ Flickable {
                 }
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistHudNext"
                 width: 38; height: 38; focusRadius: 19; spaceActivates: true
                 accessibleName: "Next track"
@@ -1374,325 +1189,18 @@ Flickable {
         }
     }
 
-    // Artist-scoped Search Dialog (openSearch parity)
-    Dialog {
+    VinylArtistSearchPopup {
         id: searchDialog
-        objectName: "vinylArtistSearchDialog"
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(620, parent.width - 48)
-        height: Math.min(540, parent.height - 72)
-        title: "Search " + root.artistData.record.name
-        modal: true
-        focus: true
-        palette.window: "#0e1017"
-        palette.windowText: theme.ink
-        palette.text: theme.ink
-        palette.base: "#171a24"
-        palette.button: "#252834"
-        palette.buttonText: theme.ink
-        standardButtons: Dialog.Close
-
-        readonly property var matches: root.artistData.search(searchInput.text)
-
-        onOpened: searchInput.forceActiveFocus(Qt.PopupFocusReason)
+        artistData: root.artistData
+        backdrop: root.backdrop
         onClosed: root.restoreDialogFocus()
-
-        contentItem: Column {
-            spacing: 12
-            TextField {
-                id: searchInput
-                objectName: "vinylArtistSearchInput"
-                width: parent.width
-                placeholderText: "Albums, songs, videos, live…"
-                color: theme.ink
-                font.family: theme.ui
-                font.pixelSize: 14
-                Keys.onDownPressed: event => {
-                    if (searchResultsList.count > 0) {
-                        var first = searchResultsList.itemAtIndex(0);
-                        if (first) first.forceActiveFocus(Qt.TabFocusReason);
-                        event.accepted = true;
-                    }
-                }
-            }
-
-            ListView {
-                id: searchResultsList
-                objectName: "vinylArtistSearchResultsList"
-                width: parent.width
-                height: Math.max(180, searchDialog.height - 170)
-                clip: true
-                spacing: 4
-                model: searchDialog.matches.length
-
-                delegate: KeyboardAction {
-                    id: matchRow
-                    readonly property var modelData: searchDialog.matches[index]
-                    required property int index
-
-                    objectName: "vinylArtistSearchResult_" + index
-                    width: searchResultsList.width
-                    height: 48
-                    focusRadius: 9
-                    focusInset: -2
-                    spaceActivates: true
-                    accessibleName: modelData.label + ", " + modelData.type
-                    onTriggered: {
-                        var item = modelData;
-                        searchDialog.close();
-                        root.switchTab(item.tab, false);
-                        if (item.type === "Album") {
-                            root.activateDiscographyCard(item.record, null);
-                        } else if (item.type === "Track") {
-                            root.artistData.queueDemoSong(item.rowIndex);
-                            if (item.record && item.record.playable && item.record.song)
-                                root.songRequested(item.record.song);
-                        } else if (item.type === "Video" || item.type === "Live") {
-                            root.showMedia(item.record, null);
-                        }
-                    }
-
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 9
-                        color: matchRow.interactionActive ? Qt.rgba(0.94, 0.77, 0.29, 0.14) : Qt.rgba(1, 1, 1, 0.04)
-                        border.width: matchRow.interactionActive ? 1 : 0
-                        border.color: theme.gold
-                    }
-
-                    Column {
-                        x: 12
-                        width: parent.width - 104
-                        anchors.verticalCenter: parent.verticalCenter
-                        spacing: 2
-                        Text {
-                            width: parent.width
-                            text: matchRow.modelData.label
-                            color: theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 14
-                            font.weight: Font.DemiBold
-                            elide: Text.ElideRight
-                        }
-                        Text {
-                            width: parent.width
-                            text: matchRow.modelData.extra
-                            color: theme.inkDim
-                            font.family: theme.ui
-                            font.pixelSize: 11
-                            elide: Text.ElideRight
-                        }
-                    }
-
-                    Text {
-                        anchors.right: parent.right
-                        anchors.rightMargin: 12
-                        anchors.verticalCenter: parent.verticalCenter
-                        text: String(matchRow.modelData.type).toUpperCase()
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 10
-                        font.weight: Font.Bold
-                        font.letterSpacing: 1.4
-                    }
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: "Search applies to this artist's release entries, tracks, and video/performance picks."
-                color: theme.inkDimmer
-                font.family: theme.ui
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-            }
-        }
-    }
-
-    // Artist Backdrops Dialog (openBackdrops parity)
-    Dialog {
-        id: backdropDialog
-        objectName: "vinylArtistBackdropsDialog"
-        parent: Overlay.overlay
-        anchors.centerIn: parent
-        width: Math.min(640, parent.width - 48)
-        title: "Artist backdrops"
-        modal: true
-        focus: true
-        palette.window: "#0e1017"
-        palette.windowText: theme.ink
-        palette.text: theme.ink
-        palette.button: "#252834"
-        palette.buttonText: theme.ink
-        standardButtons: Dialog.Close
-
-        onOpened: autoWallOption.forceActiveFocus(Qt.PopupFocusReason)
-        onClosed: root.restoreDialogFocus()
-
-        contentItem: Column {
-            spacing: 14
-
-            Text {
-                width: parent.width
-                text: "Auto rotate is the default when multiple photographs exist. The selected photograph drives both the sharp hero and the synchronized full-page blurred skin."
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-            }
-
-            Flow {
-                width: parent.width
-                spacing: 10
-
-                KeyboardAction {
-                    id: autoWallOption
-                    objectName: "vinylArtistBackdrop_auto"
-                    width: 180
-                    height: 64
-                    focusRadius: 10
-                    spaceActivates: true
-                    accessibleName: "Auto rotate backdrops"
-                    onTriggered: {
-                        hero.setBackdrop("auto");
-                        backdropDialog.close();
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 10
-                        color: root.artistData.selectedWallpaper === "auto"
-                            ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                            : Qt.rgba(1, 1, 1, 0.05)
-                        border.width: root.artistData.selectedWallpaper === "auto" ? 2 : 1
-                        border.color: root.artistData.selectedWallpaper === "auto" ? theme.gold : theme.edge
-                    }
-                    Column {
-                        anchors.centerIn: parent
-                        spacing: 3
-                        Text {
-                            text: "Auto rotate"
-                            color: root.artistData.selectedWallpaper === "auto" ? theme.gold : theme.ink
-                            font.family: theme.ui
-                            font.pixelSize: 13
-                            font.weight: Font.Bold
-                        }
-                        Text {
-                            text: String(root.artistData.heroPhotos.length) + " eligible photos"
-                            color: theme.inkDim
-                            font.family: theme.ui
-                            font.pixelSize: 11
-                        }
-                    }
-                }
-
-                Repeater {
-                    model: root.artistData.backdropOptions.length
-                    delegate: KeyboardAction {
-                        id: wallOption
-                        readonly property var modelData: root.artistData.backdropOptions[index]
-                        required property int index
-
-                        readonly property bool isSelectedWall: root.artistData.selectedWallpaper === modelData.id
-                        objectName: "vinylArtistBackdrop_" + modelData.id
-                        width: 180
-                        height: 64
-                        focusRadius: 10
-                        spaceActivates: true
-                        accessibleName: modelData.name + ", " + modelData.era
-                        onTriggered: {
-                            hero.setBackdrop(modelData.id);
-                            backdropDialog.close();
-                        }
-                        Rectangle {
-                            anchors.fill: parent
-                            radius: 10
-                            color: wallOption.isSelectedWall
-                                ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                                : Qt.rgba(1, 1, 1, 0.05)
-                            border.width: wallOption.isSelectedWall ? 2 : 1
-                            border.color: wallOption.isSelectedWall ? theme.gold : theme.edge
-                        }
-                        Column {
-                            x: 12
-                            width: parent.width - 24
-                            anchors.verticalCenter: parent.verticalCenter
-                            spacing: 3
-                            Text {
-                                width: parent.width
-                                text: wallOption.modelData.name
-                                color: wallOption.isSelectedWall ? theme.gold : theme.ink
-                                font.family: theme.ui
-                                font.pixelSize: 13
-                                font.weight: Font.Bold
-                                elide: Text.ElideRight
-                            }
-                            Text {
-                                width: parent.width
-                                text: wallOption.modelData.era
-                                color: theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 11
-                                elide: Text.ElideRight
-                            }
-                        }
-                    }
-                }
-            }
-
-            Row {
-                width: parent.width
-                spacing: 8
-                TextField {
-                    id: customWallField
-                    objectName: "vinylArtistBackdropCustomInput"
-                    width: parent.width - 110
-                    placeholderText: "Local image URL or path (file:///...)"
-                    color: theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: 13
-                }
-                KeyboardAction {
-                    id: applyCustomWallBtn
-                    objectName: "vinylArtistBackdropCustomApply"
-                    width: 100
-                    height: 38
-                    focusRadius: 8
-                    spaceActivates: true
-                    accessibleName: "Apply custom banner"
-                    onTriggered: {
-                        if (customWallField.text.trim().length > 0) {
-                            root.artistData.customBackdropUrl = customWallField.text.trim();
-                            hero.setBackdrop("custom");
-                            backdropDialog.close();
-                        }
-                    }
-                    Rectangle {
-                        anchors.fill: parent
-                        radius: 8
-                        color: Qt.rgba(0.94, 0.77, 0.29, 0.16)
-                        border.width: 1
-                        border.color: theme.gold
-                    }
-                    Text {
-                        anchors.centerIn: parent
-                        text: "Use local"
-                        color: theme.gold
-                        font.family: theme.ui
-                        font.pixelSize: 12
-                        font.weight: Font.Bold
-                    }
-                }
-            }
-
-            Text {
-                width: parent.width
-                text: "Source note: Reference artist imagery from TheAudioDB does not establish commercial redistribution rights."
-                color: theme.inkDimmer
-                font.family: theme.ui
-                font.pixelSize: 11
-                wrapMode: Text.WordWrap
-            }
+        onMatchRequested: item => {
+            root.switchTab(item.tab, false);
+            if (item.type === "Album" || item.type === "Single") root.activateDiscographyCard(item.record, null);
+            else if (item.type === "Track") {
+                if (item.record && item.record.song) root.songRequested(item.record.song);
+                else if (item.record && item.record.album) root.albumRequested(item.record.album);
+            } else if (item.type === "Video" || item.type === "Live") root.showMedia(item.record, null);
         }
     }
 
@@ -1735,6 +1243,7 @@ Flickable {
                 text: root.artistData.liveMode ? "No playable local tracks are available for this release." : "This is a release in the artist collection. The album and song detail players belong to their own Vinyl rooms; this prototype does not invent an album track list."
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistReleaseReferenceLink"
                 visible: !!(releaseDetailDialog.selection.sourceUrl && String(releaseDetailDialog.selection.sourceUrl).length > 0)
                 width: parent.width
@@ -1787,6 +1296,7 @@ Flickable {
                 text: root.artistData.liveMode ? "No playable local file is available for this media." : "Catalogue reference. Playback for this media is not connected in the artist preview. Opening the source leaves Colosseum."
             }
             KeyboardAction {
+                focusOnPointer: false
                 objectName: "vinylArtistMediaSource"
                 visible: !root.artistData.liveMode && !!mediaDialog.selection.sourceUrl
                 width: parent.width; height: 40

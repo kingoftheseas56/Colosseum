@@ -10,6 +10,7 @@ TestCase {
         verify(c.status===Component.Ready,c.errorString())
         host=c.createObject(null); host.pageData.frozen=true; host.page="world"
         tryCompare(host,"ready",true)
+        host.worldData.resetPicker()
     }
     function cleanup() { if(host){host.close();host.destroy()} }
 
@@ -18,7 +19,7 @@ TestCase {
         var world=item("vinylWorld")
         var fold=host.worldScroll.y+host.worldScroll.height
         function checkAll() {
-            ;["vinylPickerQuestion","vinylPickerSearch","vinylPickerSkip","vinylPickerDone"].forEach(function(name){
+            ;["vinylPickerQuestion","vinylPickerSkip","vinylPickerDone"].forEach(function(name){
                 var it=item(name)
                 verify(it!==null,name+" must exist")
                 var p=it.mapToItem(host.contentItem,0,0)
@@ -64,10 +65,13 @@ TestCase {
         verify(picker.offered.length>0)
         picker.offered.forEach(function(i){verify(i.title.toLowerCase().indexOf("rahman")>=0)})
         host.worldData.setPickerQuery("")
-        picker.toggleArtist(picker.offered[0].id)
-        picker.toggleArtist(picker.offered[1].id)
-        picker.toggleArtist(picker.offered[2].id)
+        var chosen=picker.offered.slice(0,3)
+        chosen.forEach(function(artist){picker.toggleArtist(artist)})
         mouseClick(item("vinylPickerDone"))
+        compare(host.worldData.picks,chosen.map(function(artist){return artist.id}),
+            "Done without an explicit list must save the map selections from the draft")
+        verify(!item("vinylTasteEdit").visible,
+            "The prototype must not expose Edit tastes without an edit API")
         verify(host.worldData.homeRows.length>0)
         compare(host.worldData.coldShelves.length,0)
     }
@@ -75,11 +79,11 @@ TestCase {
         host.worldData.setProfile("skipped")
         host.worldData.resetPicker()
         var picker=item("vinylTastePicker")
-        picker.toggleArtist(picker.offered[0].id)
+        picker.toggleArtist(picker.offered[0])
         verify(picker.selected.length===1)
         host.worldData.setProfile("new")
         compare(picker.selected.length,0)
-        host.worldData.answerPicker(picker.selected)
+        host.worldData.answerPicker()
         compare(host.worldData.picks.length,0)
     }
     function test_doneEmptyAndDiscoverAccessible() {

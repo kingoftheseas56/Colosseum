@@ -102,10 +102,15 @@ TestCase {
         host.worldData.openList("popular",false)
         waitForRendering(host.contentItem)
         host.worldScroll.contentY=world.contentTop+650
+        waitForRendering(host.contentItem)
+        var listOffset=host.worldScroll.contentY
         world.setTab("home")
         waitForRendering(host.contentItem)
         world.setTab("discover")
         waitForRendering(host.contentItem)
+        compare(world.listKey,"popular")
+        tryVerify(function(){return Math.abs(host.worldScroll.contentY-listOffset)<4})
+        world.backFromList()
         tryVerify(function(){return Math.abs(host.worldScroll.contentY-origin)<4})
     }
     function test_snapshotMissingSectionsAbsent() {

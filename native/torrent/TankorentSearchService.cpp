@@ -19,6 +19,7 @@ const QHash<QString, QSet<QString>> kMediaTypeIndexers = {
     { "books",      { "piratebay", "exttorrents", "torrentscsv" } },
     { "audiobooks", { "piratebay", "exttorrents", "torrentscsv" } },
     { "comics",     { "piratebay", "exttorrents", "torrentscsv" } },
+    { "music",      { "piratebay", "exttorrents", "torrentscsv" } },
 };
 
 } // anonymous namespace

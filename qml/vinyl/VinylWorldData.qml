@@ -9,6 +9,7 @@ Item {
     property string profile: "new"
     property var lens: ({kind:"albums",genre:"",decade:"",country:"",language:""})
     property bool catalogueReachable: true
+    property bool tastePickerOpen: false
     property var profileStates: ({new:{answered:false,picks:[]}, skipped:{answered:true,picks:[]},
                                   seasoned:{answered:true,picks:[]}})
     readonly property var picks: (profileStates[profile] || {}).picks || []
@@ -96,7 +97,9 @@ Item {
         states[profile]=Object.assign({},states[profile],{query:value})
         profileStates=states
     }
-    function togglePickerArtist(id) {
+    function togglePickerArtist(artist) {
+        var id=artist && typeof artist==="object" ? String(artist.key || artist.id || "") : String(artist || "")
+        if (!id) return
         var draft=pickerDraft.slice(), at=draft.indexOf(id)
         if (at<0) draft.push(id); else draft.splice(at,1)
         var states=Object.assign({},profileStates)
@@ -104,15 +107,27 @@ Item {
         profileStates=states
     }
     function answerPicker(values) {
+        tastePickerOpen=false;
         var valid=Lists.artistOptions(catalogue,"").map(function(i) {return i.id})
+        values=values===undefined ? pickerDraft : values
+        values=(values || []).map(function(value) {
+            return value && typeof value==="object" ? String(value.key || value.id || "") : String(value || "")
+        })
         var selected=values.filter(function(v,i) {return valid.indexOf(v)>=0 && values.indexOf(v)===i})
         var states=Object.assign({},profileStates);states[profile]={answered:true,picks:selected};profileStates=states
     }
     function skipPicker() { answerPicker([]) }
     function resetPicker() {
+        tastePickerOpen=true;
         var states=Object.assign({},profileStates);states[profile]={answered:false,picks:[]};profileStates=states
     }
-    function artistOptions(query) { return Lists.artistOptions(catalogue,query) }
+    function artistOptions(query) {
+        return Lists.artistOptions(catalogue,query).map(function(artist) {
+            var item=Object.assign({},artist)
+            item.key=String(artist.key || artist.id || "")
+            return item
+        })
+    }
     function setCatalogueReachable(value) { catalogueReachable=value }
     function activate(item) { itemRequested(item) }
     function openList(key,home) { listRequested(key,home) }

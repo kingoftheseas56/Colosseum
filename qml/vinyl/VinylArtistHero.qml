@@ -12,13 +12,15 @@ Item {
     property int crossfadeDurationMs: 1350
 
     signal createPlaylistRequested()
-    signal backdropsRequested()
     signal playArtistRequested()
     signal shuffleArtistRequested()
     signal itemFocused(var item)
 
     readonly property bool sourcedContext: artistData.context.sources.length > 0
-    readonly property var eligiblePhotos: artistData.heroPhotos || []
+    property var failedPhotoIds: []
+    readonly property var eligiblePhotos: (artistData.heroPhotos || []).filter(function(photo) {
+        return root.failedPhotoIds.indexOf(photo.id) < 0;
+    })
     readonly property int eligiblePhotoCount: eligiblePhotos.length
     readonly property string rotationMode: {
         if (artistData.customBackdropUrl && String(artistData.customBackdropUrl).length > 0)
@@ -98,6 +100,7 @@ Item {
 
     function resolvedUrlForPhoto(photo, useFallback) {
         if (!photo) {
+            if (artistData.liveMode) return "";
             if (artistData.record && artistData.record.releases && artistData.record.releases.length > 0)
                 return artistData.artwork(artistData.record.releases[0].album.cover);
             return "";
@@ -125,6 +128,17 @@ Item {
             var serial = photoRequestSerial;
             var failed = layer === 0 ? layerASource : layerBSource;
             var fallback = layer === 0 ? layerAFallback : layerBFallback;
+            if (root.artistData.liveMode) {
+                Qt.callLater(function() {
+                    if (root.photoRequestSerial !== serial) return;
+                    var photo = root.eligiblePhotos.find(function(value) { return String(value.cover) === String(failed); });
+                    if (!photo) return;
+                    root.failedPhotoIds = root.failedPhotoIds.concat([photo.id]);
+                    if (root.artistData.selectedWallpaper === photo.id) root.artistData.selectedWallpaper = "auto";
+                    root.syncInitialBackdrop();
+                });
+                return;
+            }
             if (fallback && failed !== fallback) {
                 Qt.callLater(function() {
                     if (root.photoRequestSerial !== serial) return;
@@ -216,7 +230,7 @@ Item {
     Connections {
         target: root.artistData
         ignoreUnknownSignals: true
-        function onHeroPhotosChanged() { root.syncInitialBackdrop(); }
+        function onHeroPhotosChanged() { root.failedPhotoIds = []; root.syncInitialBackdrop(); }
         function onNameChanged() { root.syncInitialBackdrop(); }
         function onOverrideHeroPhotosChanged() { root.syncInitialBackdrop(); }
         function onCustomBackdropUrlChanged() {
@@ -474,9 +488,10 @@ Item {
             spacing: 12
 
             KeyboardAction {
+                focusOnPointer: false
                 id: playAction
                 objectName: "vinylArtistPlay"
-                width: 118
+                width: 46
                 height: 46
                 focusRadius: 9
                 focusPrimary: true
@@ -494,32 +509,20 @@ Item {
                     radius: 9
                     color: theme.gold
                 }
-                Row {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    spacing: 8
-                    Image {
-                        width: 16
-                        height: 16
-                        anchors.verticalCenter: parent.verticalCenter
-                        source: "data:image/svg+xml," + encodeURIComponent(
-                            '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="#17181c">'
-                            + (root.artistData.demoPlaying ? '<path d="M6 4h4v16H6zM14 4h4v16h-4z"/>' : '<path d="M7 4l14 8-14 8z"/>') + '</svg>')
-                    }
-                    Text {
-                        text: root.artistData.demoPlaying ? "Pause" : "Play"
-                        color: "#17181c"
-                        font.family: theme.ui
-                        font.pixelSize: 14
-                        font.weight: Font.Bold
-                        anchors.verticalCenter: parent.verticalCenter
-                    }
+                    width: 20
+                    height: 20
+                    symbol: root.artistData.demoPlaying ? "pause" : "play"
+                    color: "#17181c"
                 }
             }
 
             KeyboardAction {
+                focusOnPointer: false
                 id: shuffleAction
                 objectName: "vinylArtistShuffle"
-                width: 116
+                width: 46
                 height: 46
                 focusRadius: 9
                 spaceActivates: true
@@ -538,17 +541,17 @@ Item {
                     border.width: 1
                     border.color: shuffleAction.interactionActive ? Qt.rgba(1, 1, 1, 0.34) : theme.edge
                 }
-                Text {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    text: "⇄  Shuffle"
+                    width: 20
+                    height: 20
+                    symbol: "shuffle"
                     color: theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: 14
-                    font.weight: Font.Bold
                 }
             }
 
             KeyboardAction {
+                focusOnPointer: false
                 id: save
                 objectName: "vinylArtistSave"
                 width: 46
@@ -557,7 +560,6 @@ Item {
                 spaceActivates: true
                 enabled: root.artistData.saveEnabled !== false
                 opacity: enabled ? 1 : 0.4
-                accessibleDescription: enabled ? "" : "Artist saving is not available yet"
                 accessibleName: root.artistData.saved ? "Unsave artist" : "Save artist"
                 onTriggered: root.artistData.toggleSaved()
                 onActiveFocusChanged: if (activeFocus) root.itemFocused(save)
@@ -570,20 +572,20 @@ Item {
                     border.width: 1
                     border.color: root.artistData.saved ? theme.gold : theme.edge
                 }
-                Text {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    text: root.artistData.saved ? "♥" : "♡"
+                    width: 20
+                    height: 20
+                    symbol: root.artistData.saved ? "saved" : "save"
                     color: root.artistData.saved ? theme.gold : theme.ink
-                    font.family: theme.ui
-                    font.pixelSize: 17
-                    font.weight: Font.Bold
                 }
             }
 
             KeyboardAction {
+                focusOnPointer: false
                 id: create
                 objectName: "vinylArtistCreatePlaylist"
-                width: 146
+                width: 46
                 height: 46
                 focusRadius: 9
                 spaceActivates: true
@@ -598,13 +600,12 @@ Item {
                     border.width: 1
                     border.color: theme.edge
                 }
-                Text {
+                VinylControlIcon {
                     anchors.centerIn: parent
-                    text: "+ Create playlist"
+                    width: 20
+                    height: 20
+                    symbol: "queue"
                     color: theme.gold
-                    font.family: theme.ui
-                    font.pixelSize: 13
-                    font.weight: Font.DemiBold
                 }
             }
         }

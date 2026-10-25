@@ -4300,6 +4300,8 @@ Window {
                             win.claimAudio("vinyl")
                             win.registerVinylSession()
                         })
+                        item.homeLanding = true
+                        item.showHome()
                         win.applyVinylResume()
                         return
                     }

@@ -64,7 +64,9 @@ public:
     // titleKey, itemKey, title, itemLabel?, cover?, utcOffsetMinutes,
     // syncable, source?) plus the type's own fields (playback:
     // startAtMs/endAtMs/activeMs/rateMilli; reading: atMs/readingForm/
-    // pageKeys/progressMicros; completion: atMs/reason). `v` and `type` are
+    // pageKeys/progressMicros; completion: atMs/reason; music_action:
+    // atMs/action/origin/positionMs/durationMs/entityRef/artistRefs?/
+    // releaseRef?). Music actions require syncable=false. `v` and `type` are
     // supplied by the store. `eventId` is optional — generated when absent.
     //
     // Validated via ActivityProjector::validateEvent() BEFORE any database
@@ -76,6 +78,9 @@ public:
     Q_INVOKABLE bool recordPlaybackDelta(const QVariantMap &fact);
     Q_INVOKABLE bool recordReadingDelta(const QVariantMap &fact);
     Q_INVOKABLE bool recordCompletion(const QVariantMap &fact);
+    // Retained local-only evidence for Vinyl recommendation learning. It is
+    // not counted by month activity or projected into user-facing History.
+    Q_INVOKABLE bool recordMusicAction(const QVariantMap &fact);
 
     void setRetentionEnabled(bool enabled);
     bool retentionEnabled() const { return m_retentionEnabled; }

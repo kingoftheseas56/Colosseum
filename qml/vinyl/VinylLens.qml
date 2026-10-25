@@ -8,12 +8,25 @@ Item {
     required property Item backdrop
     required property Flickable pageFlick
     readonly property string title: worldData.lensTitle
+    readonly property bool onlineMode: worldData.onlineMode === true
     property string openFilter: ""
-    implicitHeight: filterRow.y + filterRow.height + 24
+    implicitHeight: filterRow.visible
+        ? filterRow.y + filterRow.height + 24
+        : divider.y + divider.height + 24
     onWidthChanged: if (menu.opened) Qt.callLater(menu.clampToViewport)
     Connections {
         target: root.pageFlick
         function onHeightChanged() { if (menu.opened) Qt.callLater(menu.clampToViewport) }
+    }
+    Connections {
+        target: root.worldData
+        ignoreUnknownSignals: true
+        function onOnlineModeChanged() {
+            if (root.onlineMode && menu.opened) menu.close();
+            else if (!root.onlineMode && root.worldData.lens.kind === "playlists"
+                    && typeof root.worldData.setKind === "function")
+                root.worldData.setKind("albums");
+        }
     }
     Theme { id: theme }
     Text {
@@ -35,7 +48,7 @@ Item {
         y: 14
         spacing: 8
         Repeater {
-            model: ["albums","artists","songs"]
+            model: root.onlineMode ? ["albums","artists","songs","playlists"] : ["albums","artists","songs"]
             delegate: VinylWorldButton {
                 required property string modelData
                 objectName: "vinylKind_" + modelData
@@ -53,6 +66,7 @@ Item {
         id: filterRow
         y: divider.y + 22
         spacing: 12
+        visible: !root.onlineMode
         Repeater {
             model: ["genre","decade","country","language"]
             delegate: VinylWorldButton {
@@ -84,22 +98,31 @@ Item {
         property real maxVisibleHeight: 350
         property bool opensAbove: false
         property Item focusReturn: null
+        property bool keyboardEntry: false
         focus: true
         padding: 12
         closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        onAboutToShow: keyboardEntry=!!focusReturn && focusReturn.activeFocus
         onOpened: {
+            if (!keyboardEntry) { options.forceActiveFocus(Qt.PopupFocusReason); return; }
+            focusOption();
+        }
+        function focusOption() {
             for (var i=0;i<optionButtons.count;i++) {
                 var option=optionButtons.itemAt(i)
                 if (option && option.enabled && option.selected) {
-                    option.forceActiveFocus(Qt.PopupFocusReason)
+                    option.forceActiveFocus(Qt.TabFocusReason)
                     return
                 }
             }
             var first=optionButtons.itemAt(0)
-            if (first) first.forceActiveFocus(Qt.PopupFocusReason)
+            if (first) first.forceActiveFocus(Qt.TabFocusReason)
         }
-        onClosed: if (focusReturn && focusReturn.visible && focusReturn.enabled)
-                      focusReturn.forceActiveFocus(Qt.PopupFocusReason)
+        onClosed: {
+            if (keyboardEntry && focusReturn && focusReturn.visible && focusReturn.enabled)
+                focusReturn.forceActiveFocus(Qt.TabFocusReason)
+            else root.forceActiveFocus(Qt.OtherFocusReason)
+        }
         function clampToViewport() {
             if (!root.pageFlick) { menu.maxVisibleHeight = 350; return }
             // A popup's own y is not settled before its first open, so the
@@ -123,6 +146,8 @@ Item {
             contentHeight: options.implicitHeight
             Column {
                 id: options
+                Keys.onDownPressed: menu.focusOption()
+                Keys.onUpPressed: menu.focusOption()
                 width: parent.width
                 spacing: 5
                 Repeater {
