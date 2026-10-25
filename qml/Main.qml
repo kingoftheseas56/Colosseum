@@ -2400,6 +2400,31 @@ Window {
             if (vids[i].id === id) return String(vids[i].path || "")
         return ""
     }
+    function releaseRemovedLocalVideo(id) {
+        var player = playerLayer.item
+        if (!win.androidHost || !id || !player
+                || !String(player.mediaLocalPath || "").length
+                || String(player.mediaId || "") !== String(id))
+            return
+        // A minimized Android player can still hold the unlinked file open.
+        // Close only its matching local session so deletion releases the bytes.
+        var sessionId = win.playerOpen ? String(Sessions.activeId || "") : ""
+        if (!sessionId.length) sessionId = String(win.warmPlayerSessionId || "")
+        if (sessionId.length) {
+            var rec = Sessions.get(sessionId)
+            var target = rec ? rec.target : null
+            if (rec && rec.contentKind === "movie" && target
+                    && String(target.id || "") === String(id)
+                    && String(target.localPath || "") === String(player.mediaLocalPath))
+                win.closeSession(sessionId)
+            return
+        }
+        win.closePlayer()
+    }
+    Connections {
+        target: Download
+        function onRemoved(id) { win.releaseRemovedLocalVideo(id) }
+    }
     function routeDownloadWorld(worldKey) {
         win.closeDownloadsPage()
         var medium = worldKey === "tankoban" ? "Tankoban"
