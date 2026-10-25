@@ -996,7 +996,7 @@ Item {
             id: col
             x: theme.margin
             width: root.width - theme.margin * 2
-            topPadding: 106
+            topPadding: vaultHeader.y + vaultHeader.height + 38
             spacing: 0
 
             // ---- header (no-storage/scanning states only — the browse face leads with the carousel) ----
@@ -1138,20 +1138,16 @@ Item {
         Glass {
             objectName: "vaultStorageGlass"
             backdrop: root.backdrop
-            x: 12; y: 82
-            width: browseRail.width; height: parent.height - 106
+            x: 12; y: vaultHeader.y + vaultHeader.height + 14
+            width: browseRail.width; height: parent.height - y - 24
             radius: 18; scrim: 0.32
         }
-        Text {
-            visible: browseRail.expanded
-            x: 76; y: 30; text: "COLOSSEUM"
-            color: theme.ink; font.family: theme.display; font.pixelSize: 12; font.letterSpacing: 1.8
-        }
+
             VaultBrowseRail {
                 id: browseRail
                 anchors.left: parent.left; anchors.leftMargin: 12
                 anchors.top: parent.top; anchors.bottom: parent.bottom
-                anchors.topMargin: 92; anchors.bottomMargin: 80
+                anchors.topMargin: vaultHeader.y + vaultHeader.height + 24; anchors.bottomMargin: 80
                 roots: root.browseRootsDetail
                 expanded: root.width < 860 ? root.narrowRailExpanded : browseSettings.railExpanded
                 selectedRootPath: root.crumbStack.length ? root.crumbStack[0].key : ""
@@ -1209,7 +1205,7 @@ Item {
             id: mainArea
             anchors.left: browseRail.right; anchors.leftMargin: root.width < 1000 ? 22 : theme.margin
             anchors.right: parent.right; anchors.rightMargin: root.width < 1000 ? 22 : theme.margin
-            anchors.top: parent.top; anchors.topMargin: 88
+            anchors.top: parent.top; anchors.topMargin: vaultHeader.y + vaultHeader.height + 20
             anchors.bottom: parent.bottom; anchors.bottomMargin: 24
             VaultBrowseCrumb {
                 id: browseCrumb
@@ -1517,30 +1513,129 @@ Item {
         }
     }
 
-    // Permanent search and title strip; the window controls keep their existing signals.
+    // One frame owns the title, search and window actions. Its inner side zones
+    // reserve equal space, keeping search on the page center as the rail changes.
     Item {
-        anchors.left: parent.left; anchors.leftMargin: root.hasConfirmedStorage ? browseRail.width : 100
-        anchors.right: parent.right
-        height: 70
+        id: vaultHeader
+        objectName: "vaultHeader"
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.leftMargin: 16; anchors.rightMargin: 16
+        y: 12
+        height: stackedSearch ? 104 : 56
+        z: 60
+        readonly property bool stackedSearch: width < 600
+        readonly property real sideWidth: Math.max(headerLeading.width, headerWindowControls.width) + 32
+
         Glass {
             objectName: "vaultHeaderGlass"
-            anchors.fill: parent; anchors.leftMargin: 16; anchors.rightMargin: 16
-            anchors.topMargin: 12; anchors.bottomMargin: 4
-            backdrop: root.backdrop; radius: 27; scrim: 0.28
+            anchors.fill: parent
+            backdrop: root.backdrop
+            radius: vaultHeader.stackedSearch ? 22 : height / 2
+            scrim: 0.28
         }
-        Text {
-            anchors.left: parent.left; anchors.leftMargin: 40; anchors.verticalCenter: parent.verticalCenter
-            text: "Vault"; color: theme.ink; font.family: theme.display; font.pixelSize: 22; font.weight: Font.DemiBold
+        MouseArea { anchors.fill: parent }
+
+        Item {
+            id: headerMainRow
+            anchors.left: parent.left; anchors.right: parent.right
+            height: 56
+
+            Row {
+                id: headerLeading
+                anchors.left: parent.left; anchors.leftMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                height: 44
+                spacing: 12
+                BackAction {
+                    objectName: "vaultHeaderBack"
+                    anchors.verticalCenter: parent.verticalCenter
+                    variant: "capsule"
+                    tip: "Back"
+                    onTriggered: root.handleBack()
+                }
+                Text {
+                    objectName: "vaultHeaderTitle"
+                    anchors.verticalCenter: parent.verticalCenter
+                    height: parent.height
+                    verticalAlignment: Text.AlignVCenter
+                    text: "Vault"
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: 22
+                    font.weight: Font.DemiBold
+                    font.preferTypoLineMetrics: true
+                }
+            }
+
+            Row {
+                id: headerWindowControls
+                objectName: "vaultHeaderWindowControls"
+                anchors.right: parent.right; anchors.rightMargin: 12
+                anchors.verticalCenter: parent.verticalCenter
+                height: 44
+                VaultAction {
+                    id: headerMinimize
+                    objectName: "vaultHeaderMinimize"
+                    width: 44; height: 44
+                    quiet: true
+                    accessibleName: "Minimize"
+                    Image {
+                        anchors.centerIn: parent; width: 20; height: 20
+                        source: "../assets/icons/minimize.svg"
+                        opacity: headerMinimize.keyboardAction.interactionActive ? 1 : 0.8
+                    }
+                    onTriggered: root.minimizeRequested()
+                }
+                VaultAction {
+                    id: headerFullscreen
+                    objectName: "vaultHeaderFullscreen"
+                    width: 44; height: 44
+                    quiet: true
+                    accessibleName: "Toggle fullscreen"
+                    Image {
+                        anchors.centerIn: parent; width: 20; height: 20
+                        source: "../assets/icons/fullscreen.svg"
+                        opacity: headerFullscreen.keyboardAction.interactionActive ? 1 : 0.8
+                    }
+                    onTriggered: root.fullscreenRequested()
+                }
+                VaultAction {
+                    id: headerClose
+                    objectName: "vaultHeaderClose"
+                    width: 44; height: 44
+                    quiet: true
+                    accessibleName: "Close Colosseum"
+                    Image {
+                        anchors.centerIn: parent; width: 20; height: 20
+                        source: "../assets/icons/power.svg"
+                        opacity: headerClose.keyboardAction.interactionActive ? 1 : 0.8
+                    }
+                    onTriggered: root.closeRequested()
+                }
+            }
         }
+
         Rectangle {
             id: browseSearchField; objectName: "vaultBrowseSearchField"
-            anchors.right: parent.right; anchors.rightMargin: 180; anchors.verticalCenter: parent.verticalCenter
-            width: Math.max(150, Math.min(350, parent.width - 330)); height: 36; radius: 18
+            enabled: !root.detailSheetVisible && !root.cardVisible && !root.folderDetailOpen
+                && !identifyDialog.opened && !identityCeremonyDialog.opened
+            anchors.horizontalCenter: parent.horizontalCenter
+            y: vaultHeader.stackedSearch ? 56 : (vaultHeader.height - height) / 2
+            width: vaultHeader.stackedSearch ? parent.width - 32
+                : Math.min(400, parent.width - 2 * vaultHeader.sideWidth)
+            height: 36; radius: height / 2
             color: theme.glassTint; border.width: 1
             border.color: searchInput.activeFocus ? theme.gold : theme.edge
+            Image {
+                anchors.left: parent.left; anchors.leftMargin: 13
+                anchors.verticalCenter: parent.verticalCenter
+                width: 16; height: 16
+                source: "../assets/icons/search.svg"
+                opacity: 0.7
+            }
             TextInput {
                 id: searchInput; objectName: "vaultBrowseSearchInput"
-                anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 36
+                anchors.fill: parent; anchors.leftMargin: 38; anchors.rightMargin: 36
                 color: theme.ink; font.family: theme.ui; font.pixelSize: 12
                 verticalAlignment: TextInput.AlignVCenter; clip: true
                 selectionColor: theme.gold; selectedTextColor: theme.background
@@ -1562,19 +1657,22 @@ Item {
                 Keys.onEscapePressed: (event) => { root.leaveSearchView(); event.accepted = true }
             }
             Text {
-                anchors.fill: parent; anchors.leftMargin: 13; anchors.rightMargin: 12
+                anchors.fill: parent; anchors.leftMargin: 38; anchors.rightMargin: 12
                 verticalAlignment: Text.AlignVCenter; visible: searchInput.length === 0
                 text: "Search titles, identities, filenames"; elide: Text.ElideRight
                 color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
             }
             VaultAction {
+                objectName: "vaultHeaderClearSearch"
                 anchors.right: parent.right; width: 34; height: parent.height
                 text: "×"; accessibleName: "Clear search"; quiet: true; visible: searchInput.length > 0
-                onTriggered: { root.leaveSearchView(); searchInput.forceActiveFocus() }
+                onTriggered: {
+                    root.leaveSearchView()
+                    Qt.callLater(function() { searchInput.forceActiveFocus() })
+                }
             }
         }
     }
-
 
     // Card right-click context menu — Reveal in Explorer (always, when the row carries a real
     // path) plus the reachable identify/hide affordances the old shelves also exposed.
@@ -2012,46 +2110,6 @@ Item {
     // populated face by Slice 5 (the rail + breadcrumb + grid replaced it), and its vocabulary
     // (`currentTab`/`tabModel`/`seriesFor`/`shelfKinds`/`allSeries`) was deleted outright by the
     // Phase-4 G3 ruling (2026-08-25). `WorldTabBar` itself is untouched — other pages still use it.
-
-    // ---- top chrome: minimize · fullscreen · power (same vocabulary as Settings/Downloads) ----
-    Item {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.topMargin: 24
-        anchors.rightMargin: theme.margin
-        z: 60
-        width: chromeRow.implicitWidth
-        height: 30
-        Row {
-            id: chromeRow
-            spacing: 22
-            Text { text: "—"; color: mMa.containsMouse || minKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: mMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
-                   KeyboardAction { id: minKey; anchors.fill: parent; pointerEnabled: false
-                                    accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
-            Text { text: "⛶"; color: fMa.containsMouse || fullKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: fMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
-                   KeyboardAction { id: fullKey; anchors.fill: parent; pointerEnabled: false
-                                    accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
-            Text { text: "⏻"; color: pMa.containsMouse || closeKey.activeFocus ? theme.ink : theme.inkDim; font.pixelSize: 17
-                   MouseArea { id: pMa; anchors.fill: parent; hoverEnabled: true
-                               cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
-                   KeyboardAction { id: closeKey; anchors.fill: parent; pointerEnabled: false
-                                    accessibleName: "Close Colosseum"; onTriggered: root.closeRequested() } }
-        }
-    }
-    BackAction {
-        variant: "capsule"; tip: "Back"
-        anchors.top: parent.top
-        anchors.left: parent.left
-        anchors.topMargin: 21
-        anchors.leftMargin: 14
-        // The visible Back control and shell Escape share the exact same Vault-local
-        // arbitration, including sheets, folder detail and browse ancestry.
-        onTriggered: root.handleBack()
-    }
 
     // ── the founding-ceremony confirmation card: a modal over the Vault once a census yields a
     //    candidate. Seedable component; VaultPage wires it to the VaultLibrary façade. ──

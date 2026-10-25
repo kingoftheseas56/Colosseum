@@ -156,6 +156,7 @@ jobs:
           cmake -S native -B $build -G Ninja -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF `
             -DCOLOSSEUM_UPDATE_TESTING=OFF `
             -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF `
+            -DCOLOSSEUM_VINYL_IN_APP=OFF `
             -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF `
             -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev `
             "-DCMAKE_TOOLCHAIN_FILE=$env:VCPKG_ROOT/scripts/buildsystems/vcpkg.cmake" `

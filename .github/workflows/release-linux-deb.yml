@@ -11,6 +11,7 @@ on:
       - '.gitattributes'
       - 'tests/test_linux_release_policy.py'
       - 'tests/test_linux_installed_player_smoke.py'
+      - 'tests/test_vinyl_release_gate.py'
       - 'tests/test_stage_api_content.py'
 
 permissions:
@@ -37,7 +38,7 @@ jobs:
             gnome-keyring dbus-daemon
       - name: Packaging regressions and public path guard
         run: |
-          python3 -m unittest -v tests.test_linux_release_policy tests.test_linux_installed_player_smoke tests.test_stage_api_content
+          python3 -m unittest -v tests.test_linux_release_policy tests.test_linux_installed_player_smoke tests.test_stage_api_content tests.test_vinyl_release_gate
           python3 tools/linux-release/test_packaging.py
           python3 scripts/check_public_paths.py
       - name: Install Qt 6.11.1
@@ -91,6 +92,7 @@ jobs:
             -DCMAKE_BUILD_TYPE=Release -DBUILD_TESTING=OFF \
             -DCOLOSSEUM_BUILD_PLAYER2=OFF -DCOLOSSEUM_PLAYER2_IN_APP=OFF \
             -DCOLOSSEUM_NO_ACCOUNT_EDITION=OFF -DCOLOSSEUM_UPDATE_TESTING=OFF \
+            -DCOLOSSEUM_VINYL_IN_APP=OFF \
             -DCOLOSSEUM_ENABLE_VINYL_QUALIFICATION=OFF -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF \
             -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev \
             -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR;$RUNNER_TEMP/ecm-install;$RUNNER_TEMP/mpvqt-install" \

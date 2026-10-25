@@ -24,6 +24,11 @@ option(COLOSSEUM_UPDATE_TESTING
 option(COLOSSEUM_NO_ACCOUNT_EDITION
     "Build the no-account edition: account features hidden and inert, local-only profiles only"
     OFF)
+# This is an availability gate, not source removal. Keep Vinyl available in
+# ordinary development builds; the 1.1.10 shipping configurations set it OFF.
+option(COLOSSEUM_VINYL_IN_APP
+    "Enable the Vinyl world in the application"
+    ON)
 # The semantic catalogue endpoint is NEVER enabled by an edition switch: the
 # staging endpoint ships only in explicit qualification builds
 # (-DCOLOSSEUM_CONTENT_API_URL=...), and a release build compiles it in only
@@ -918,6 +923,11 @@ if(NOT ANDROID)
 endif()
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_VERSION="${PROJECT_VERSION}")
 target_compile_definitions(colosseum PRIVATE COLOSSEUM_READER2_PROFILE_RUNTIME=1)
+if(COLOSSEUM_VINYL_IN_APP)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_VINYL_IN_APP=1)
+else()
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_VINYL_IN_APP=0)
+endif()
 if(COLOSSEUM_ENABLE_VINYL_QUALIFICATION AND NOT ANDROID)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_VINYL_QUALIFICATION=1)
 endif()

@@ -74,6 +74,10 @@ if [ "$VERSION" = "1.1.9" ] || [ "$VERSION" = "1.1.10" ]; then
   grep -Fxq 'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF' "$BUILD_DIR/CMakeCache.txt" \
     || { echo "refusing $VERSION without the standard accounts-capable edition"; exit 1; }
 fi
+if [ "$VERSION" = "1.1.10" ]; then
+  grep -Fxq 'COLOSSEUM_VINYL_IN_APP:BOOL=OFF' "$BUILD_DIR/CMakeCache.txt" \
+    || { echo "refusing 1.1.10 with Vinyl enabled or unspecified"; exit 1; }
+fi
 
 # API builds use semantic queries and never download whole catalogues. The
 # checksummed staging step below also removes the delivered tribute artwork.
