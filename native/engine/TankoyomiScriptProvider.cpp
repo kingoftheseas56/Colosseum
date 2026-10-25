@@ -1,4 +1,5 @@
 #include "TankoyomiScriptProvider.h"
+#include "TankoyomiAddonStore.h"
 #include "TankoyomiNetworkPolicy.h"
 
 #include <QDebug>
@@ -8,6 +9,7 @@
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QMetaObject>
+#include <QMetaType>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -15,10 +17,160 @@
 #include <QStringDecoder>
 #include <QUrl>
 #include <QTimer>
+#include <QSet>
 
+#include <openssl/evp.h>
+
+#include <atomic>
+#include <chrono>
+#include <condition_variable>
+#include <mutex>
+#include <thread>
+#include <utility>
 namespace {
+constexpr qint64 kMetadataResponseLimit = 8 * 1024 * 1024;
 constexpr qint64 kWorkerResponseLimit = 2 * 1024 * 1024;
+constexpr qint64 kOperationResponseLimit = 16 * 1024 * 1024;
+constexpr qint64 kScriptResultLimit = 8 * 1024 * 1024;
+constexpr qint64 kRequestBodyLimit = 1 * 1024 * 1024;
+constexpr qint64 kProviderScriptLimit = 2 * 1024 * 1024;
+constexpr int kOperationRequestBudget = 40;
 constexpr int kWorkerDeadlineMs = 45000;
+constexpr int kScriptOperationDeadlineMs = 45000;
+constexpr int kScriptSliceDeadlineMs = 5000;
+
+class ScriptSliceDeadline final
+{
+public:
+    ScriptSliceDeadline(QJSEngine &engine, int timeoutMs)
+        : m_engine(engine),
+          m_thread([this, timeoutMs] {
+              std::unique_lock lock(m_mutex);
+              if (m_condition.wait_for(lock, std::chrono::milliseconds(timeoutMs),
+                                       [this] { return m_cancelled; }))
+                  return;
+              m_expired.store(true, std::memory_order_release);
+              lock.unlock();
+              m_engine.setInterrupted(true);
+          })
+    {
+    }
+
+    ~ScriptSliceDeadline()
+    {
+        {
+            std::lock_guard lock(m_mutex);
+            m_cancelled = true;
+        }
+        m_condition.notify_one();
+        if (m_thread.joinable()) m_thread.join();
+        if (m_expired.load(std::memory_order_acquire)) m_engine.setInterrupted(false);
+    }
+
+    bool expired() const { return m_expired.load(std::memory_order_acquire); }
+
+private:
+    QJSEngine &m_engine;
+    std::mutex m_mutex;
+    std::condition_variable m_condition;
+    bool m_cancelled = false;
+    std::atomic_bool m_expired{false};
+    std::thread m_thread;
+};
+
+bool decodeUtf8Strict(const QByteArray &bytes, QString *text)
+{
+    QStringDecoder decoder(QStringDecoder::Utf8, QStringConverter::Flag::Stateless);
+    const QString decoded = decoder.decode(bytes);
+    if (decoder.hasError()) return false;
+    if (text) *text = decoded;
+    return true;
+}
+
+bool deriveCryptoJsKey(const QByteArray &password, const QByteArray &salt,
+                       QByteArray *key, QByteArray *iv)
+{
+    if (salt.size() != 8 || !key || !iv) return false;
+    QByteArray material;
+    QByteArray previous;
+    while (material.size() < 48) {
+        EVP_MD_CTX *digest = EVP_MD_CTX_new();
+        if (!digest) return false;
+        unsigned char output[EVP_MAX_MD_SIZE]{};
+        unsigned int outputSize = 0;
+        const bool ok = EVP_DigestInit_ex(digest, EVP_md5(), nullptr) == 1
+            && (previous.isEmpty()
+                || EVP_DigestUpdate(digest, previous.constData(), size_t(previous.size())) == 1)
+            && EVP_DigestUpdate(digest, password.constData(), size_t(password.size())) == 1
+            && EVP_DigestUpdate(digest, salt.constData(), size_t(salt.size())) == 1
+            && EVP_DigestFinal_ex(digest, output, &outputSize) == 1;
+        EVP_MD_CTX_free(digest);
+        if (!ok || outputSize != 16) return false;
+        previous = QByteArray(reinterpret_cast<const char *>(output), int(outputSize));
+        material.append(previous);
+    }
+    *key = material.left(32);
+    *iv = material.mid(32, 16);
+    return true;
+}
+
+QString decryptCryptoJs(const QString &ciphertextBase64,
+                        const QString &saltHex,
+                        const QString &password)
+{
+    const QByteArray encoded = ciphertextBase64.toLatin1();
+    const QByteArray saltText = saltHex.toLatin1();
+    if (encoded.isEmpty() || encoded.size() > 12 * 1024 * 1024
+        || !QRegularExpression(QStringLiteral("^[0-9A-Fa-f]{16}$")).match(saltHex).hasMatch())
+        return {};
+    const QByteArray ciphertext = QByteArray::fromBase64(
+        encoded, QByteArray::AbortOnBase64DecodingErrors);
+    if (ciphertext.isEmpty() || ciphertext.size() > kMetadataResponseLimit
+        || ciphertext.size() % 16 != 0)
+        return {};
+    const QByteArray salt = QByteArray::fromHex(saltText);
+    QByteArray key;
+    QByteArray iv;
+    if (!deriveCryptoJsKey(password.toUtf8(), salt, &key, &iv)) return {};
+
+    EVP_CIPHER_CTX *context = EVP_CIPHER_CTX_new();
+    if (!context) return {};
+    QByteArray plaintext(ciphertext.size() + EVP_MAX_BLOCK_LENGTH, Qt::Uninitialized);
+    int firstSize = 0;
+    int finalSize = 0;
+    const bool ok = EVP_DecryptInit_ex(context, EVP_aes_256_cbc(), nullptr,
+                                       reinterpret_cast<const unsigned char *>(key.constData()),
+                                       reinterpret_cast<const unsigned char *>(iv.constData())) == 1
+        && EVP_DecryptUpdate(context,
+                             reinterpret_cast<unsigned char *>(plaintext.data()), &firstSize,
+                             reinterpret_cast<const unsigned char *>(ciphertext.constData()),
+                             ciphertext.size()) == 1
+        && EVP_DecryptFinal_ex(context,
+                               reinterpret_cast<unsigned char *>(plaintext.data()) + firstSize,
+                               &finalSize) == 1;
+    EVP_CIPHER_CTX_free(context);
+    if (!ok || firstSize < 0 || finalSize < 0
+        || qint64(firstSize) + finalSize > kMetadataResponseLimit)
+        return {};
+    plaintext.resize(firstSize + finalSize);
+    QString decoded;
+    return decodeUtf8Strict(plaintext, &decoded) ? decoded : QString();
+}
+
+QString decodeBase64Utf8(const QString &value)
+{
+    QByteArray encoded = value.toLatin1();
+    if (encoded.isEmpty() || encoded.size() > 16 * 1024)
+        return {};
+    encoded.replace('-', '+');
+    encoded.replace('_', '/');
+    while (encoded.size() % 4 != 0) encoded.append('=');
+    const QByteArray bytes = QByteArray::fromBase64(
+        encoded, QByteArray::AbortOnBase64DecodingErrors);
+    if (bytes.size() > 8 * 1024) return {};
+    QString decoded;
+    return decodeUtf8Strict(bytes, &decoded) ? decoded : QString();
+}
 
 bool isWorkerPathComponent(const QString &value)
 {
@@ -48,6 +200,41 @@ QUrl workerMethodUrl(const QUrl &base, const QString &language,
     return QUrl::fromEncoded(encoded, QUrl::StrictMode);
 }
 } // namespace
+
+struct TankoyomiScriptProvider::Fetch
+{
+    QString callbackId;
+    QString operationToken;
+    QUrl logicalUrl;
+    QNetworkRequest request;
+    QString method;
+    QByteArray body;
+    QByteArray response;
+    int redirects = 0;
+    bool settled = false;
+    QPointer<QTimer> deadline;
+    QPointer<QNetworkReply> reply;
+};
+
+struct TankoyomiScriptProvider::ScriptOperation
+{
+    QString token;
+    int requestCount = 0;
+    qint64 responseBytes = 0;
+    bool settled = false;
+    QPointer<QTimer> deadline;
+};
+
+struct TankoyomiScriptProvider::WorkerCall
+{
+    quint64 id = 0;
+    QString token;
+    QString method;
+    QByteArray response;
+    bool settled = false;
+    QPointer<QTimer> deadline;
+    QPointer<QNetworkReply> reply;
+};
 
 TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
                                                  QString language,
@@ -79,10 +266,34 @@ TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
         m_loadError = QStringLiteral("Unable to open Tankoyomi provider %1").arg(resourcePath);
         return;
     }
+    const QByteArray script = file.read(kProviderScriptLimit + 1);
+    if (script.size() > kProviderScriptLimit) {
+        m_loadError = QStringLiteral("Tankoyomi provider script exceeds 2 MiB");
+        return;
+    }
+    initializeScript(script, resourcePath);
+    m_ready = m_deviceScriptLoaded;
+}
+
+bool TankoyomiScriptProvider::initializeScript(const QByteArray &script,
+                                               const QString &filename)
+{
+    if (script.size() > kProviderScriptLimit) {
+        m_loadError = QStringLiteral("Tankoyomi provider script exceeds 2 MiB");
+        return false;
+    }
+    QString source;
+    if (!decodeUtf8Strict(script, &source)) {
+        m_loadError = QStringLiteral("Tankoyomi provider script is not valid UTF-8");
+        return false;
+    }
+    // The provider owns its engine; the engine must never collect the provider.
+    QJSEngine::setObjectOwnership(this, QJSEngine::CppOwnership);
     m_engine.globalObject().setProperty(QStringLiteral("__tkNative"), m_engine.newQObject(this));
     const QString bootstrap = QString::fromUtf8(R"JS(
 this.__tankoyomiCallbacks = {};
 this.__tankoyomiNextCallbackId = 1;
+this.__tankoyomiActiveToken = '';
 
 (function(root) {
   function makeTask(start) {
@@ -129,23 +340,48 @@ this.__tankoyomiNextCallbackId = 1;
       value.start(resolve, reject);
       return;
     }
+    if (value && typeof value.then === 'function') {
+      var settled = false;
+      try {
+        value.then(function(nextValue) {
+          if (settled) return;
+          settled = true;
+          adopt(nextValue, resolve, reject);
+        }, function(error) {
+          if (settled) return;
+          settled = true;
+          reject(error);
+        });
+      } catch (error) {
+        if (!settled) reject(error);
+      }
+      return;
+    }
     resolve(value);
   }
 
-  function fetchText(url, options) {
+  function fetchText(url, options, operationToken) {
     return makeTask(function(resolve, reject) {
       var callbackId = String(root.__tankoyomiNextCallbackId++);
       root.__tankoyomiCallbacks[callbackId] = { resolve: resolve, reject: reject };
-      __tkNative.jsFetchText(callbackId, String(url), JSON.stringify(options || {}));
+      __tkNative.jsFetchText(callbackId, String(url), JSON.stringify(options || {}),
+                             String(operationToken || ''));
     });
   }
 
-  root.__tankoyomiCtx = Object.freeze({
-    fetchText: fetchText,
-    fetchJson: function(url, options) {
-      return fetchText(url, options).then(function(text) { return JSON.parse(text); });
-    }
-  });
+  root.__tankoyomiContextForToken = function(operationToken) {
+    var token = String(operationToken || '');
+    return Object.freeze({
+      fetchText: function(url, options) { return fetchText(url, options, token); },
+      fetchJson: function(url, options) {
+        return fetchText(url, options, token).then(function(text) { return JSON.parse(text); });
+      },
+      decryptCryptoJs: function(ciphertextBase64, saltHex, password) {
+        return __tkNative.jsDecryptCryptoJs(String(ciphertextBase64), String(saltHex), String(password));
+      },
+      decodeBase64: function(value) { return __tkNative.jsDecodeBase64(String(value)); }
+    });
+  };
 
   root.__tankoyomiDeliverFetch = function(callbackId, ok, payload) {
     var callbacks = root.__tankoyomiCallbacks[String(callbackId)];
@@ -160,45 +396,60 @@ this.__tankoyomiNextCallbackId = 1;
       task,
       function(value) { __tkNative.jsResolve(String(token), JSON.stringify(value)); },
       function(error) {
-        var message = String(error);
-        if (error && error.stack) message += '\n' + String(error.stack);
+        var message = String(error && error.message ? error.message : error);
         __tkNative.jsReject(String(token), String(message));
       }
     );
   };
 })(this);
 )JS");
-    QJSValue setup = m_engine.evaluate(bootstrap, QStringLiteral("tankoyomi-runtime.js"));
+    QJSValue setup;
+    {
+        ScriptSliceDeadline deadline(m_engine, kScriptSliceDeadlineMs);
+        setup = m_engine.evaluate(bootstrap, QStringLiteral("tankoyomi-runtime.js"));
+        if (deadline.expired()) {
+            m_loadError = QStringLiteral("Tankoyomi runtime setup exceeded its execution limit");
+            return false;
+        }
+    }
     if (setup.isError()) {
         m_loadError = setup.toString();
-        return;
+        return false;
     }
 
     m_engine.globalObject().setProperty(QStringLiteral("TankoyomiProvider"),
                                         QJSValue(QJSValue::UndefinedValue));
     QStringList providerTrace;
-    QJSValue evaluated = m_engine.evaluate(QString::fromUtf8(file.readAll()),
-                                           resourcePath, 1, &providerTrace);
+    QJSValue evaluated;
+    {
+        ScriptSliceDeadline deadline(m_engine, kScriptSliceDeadlineMs);
+        evaluated = m_engine.evaluate(source, filename, 1, &providerTrace);
+        if (deadline.expired()) {
+            m_loadError = QStringLiteral("Tankoyomi provider script exceeded its execution limit");
+            return false;
+        }
+    }
     if (evaluated.isError()) {
         m_loadError = QStringLiteral("%1 at %2:%3")
-            .arg(evaluated.toString(), resourcePath)
+            .arg(evaluated.toString(), filename)
             .arg(evaluated.property(QStringLiteral("lineNumber")).toInt());
         if (!providerTrace.isEmpty())
             m_loadError += QStringLiteral(" | ") + providerTrace.join(QStringLiteral(" | "));
-        return;
+        return false;
     }
 
     m_provider = m_engine.globalObject().property(QStringLiteral("TankoyomiProvider"));
-    m_context = m_engine.globalObject().property(QStringLiteral("__tankoyomiCtx"));
+    m_context = m_engine.globalObject().property(QStringLiteral("__tankoyomiContextForToken"));
     m_run = m_engine.globalObject().property(QStringLiteral("__tankoyomiRun"));
     m_deliverFetch = m_engine.globalObject().property(QStringLiteral("__tankoyomiDeliverFetch"));
-    if (!m_provider.isObject() || !m_context.isObject()
+    if (!m_provider.isObject() || !m_context.isCallable()
         || !m_run.isCallable() || !m_deliverFetch.isCallable()) {
         m_loadError = QStringLiteral("Tankoyomi provider %1 did not expose the provider contract")
                           .arg(m_providerId);
-        return;
+        return false;
     }
-    m_ready = true;
+    m_deviceScriptLoaded = true;
+    return true;
 }
 
 TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
@@ -211,18 +462,57 @@ TankoyomiScriptProvider::TankoyomiScriptProvider(QString providerId,
       m_language(std::move(language)),
       m_workerBase(std::move(workerBase)),
       m_workerMode(true),
-      m_nam(nam ? nam : new QNetworkAccessManager(this)),
       m_hostResolver(MangaImageHostResolver::Lookup(), this)
 {
     if (!isValidWorkerBase(m_workerBase, m_providerId, m_language)) {
         m_loadError = QStringLiteral("Invalid Tankoyomi worker configuration");
         return;
     }
+    if (m_language == QLatin1String("es")
+        && (m_providerId == QLatin1String("mangasin")
+            || m_providerId == QLatin1String("lectorxd"))) {
+        m_deviceMode = true;
+        m_workerMode = false;
+        m_addonStore = new TankoyomiAddonStore(m_workerBase, this);
+        // Never share the app manager or its account cookies with device scripts.
+        m_ownedDeviceNam = new QNetworkAccessManager(this);
+        m_nam = m_ownedDeviceNam;
+        m_ready = true;
+        return;
+    }
+    m_workerMode = true;
+    m_nam = nam ? nam : new QNetworkAccessManager(this);
     m_ready = true;
+}
+
+TankoyomiScriptProvider::TankoyomiScriptProvider(
+    QString providerId, QString language, TankoyomiAddonStore *addonStore,
+    QNetworkAccessManager *sourceNam, MangaImageHostResolver::Lookup lookup,
+    QObject *parent)
+    : QObject(parent),
+      m_providerId(std::move(providerId)),
+      m_language(std::move(language)),
+      m_nam(sourceNam ? sourceNam : new QNetworkAccessManager(this)),
+      m_hostResolver(std::move(lookup), this)
+{
+    m_deviceMode = true;
+    m_ready = true;
+    const bool allowedId = m_language == QLatin1String("es")
+        && (m_providerId == QLatin1String("mangasin")
+            || m_providerId == QLatin1String("lectorxd"));
+    if (!allowedId || !addonStore) {
+        m_loadError = QStringLiteral("Invalid Tankoyomi device addon configuration");
+        return;
+    }
+    m_addonStore = addonStore;
 }
 
 void TankoyomiScriptProvider::searchSeries(const QString &token, const QString &query)
 {
+    if (m_deviceMode) {
+        queueDeviceCall(QStringLiteral("searchSeries"), token, query);
+        return;
+    }
     if (m_workerMode) {
         QJsonObject payload;
         payload.insert(QStringLiteral("query"), query);
@@ -234,6 +524,10 @@ void TankoyomiScriptProvider::searchSeries(const QString &token, const QString &
 
 void TankoyomiScriptProvider::getChapters(const QString &token, const QVariantMap &series)
 {
+    if (m_deviceMode) {
+        queueDeviceCall(QStringLiteral("getChapters"), token, series);
+        return;
+    }
     if (m_workerMode) {
         QJsonObject payload;
         payload.insert(QStringLiteral("series"), QJsonObject::fromVariantMap(series));
@@ -245,6 +539,10 @@ void TankoyomiScriptProvider::getChapters(const QString &token, const QVariantMa
 
 void TankoyomiScriptProvider::getPages(const QString &token, const QVariantMap &chapter)
 {
+    if (m_deviceMode) {
+        queueDeviceCall(QStringLiteral("getPages"), token, chapter);
+        return;
+    }
     if (m_workerMode) {
         QJsonObject payload;
         payload.insert(QStringLiteral("chapter"), QJsonObject::fromVariantMap(chapter));
@@ -271,46 +569,217 @@ void TankoyomiScriptProvider::invoke(const QString &method,
                            .arg(m_providerId, method));
         return;
     }
-
-    QJSValueList callArgs;
-    callArgs.append(m_context);
-    callArgs.append(args);
-    QJSValue task = function.callWithInstance(m_provider, callArgs);
-    if (task.isError()) {
-        emit failed(token, task.toString());
+    if (m_scriptOperations.contains(token)) {
+        emit failed(token, QStringLiteral("Duplicate Tankoyomi operation token"));
         return;
     }
+    startScriptOperation(token);
 
-    QJSValue started = m_run.call({task, m_engine.toScriptValue(token)});
-    if (started.isError())
-        emit failed(token, started.toString());
+    QJSValueList callArgs;
+    const QJSValue scopedContext = m_context.call({m_engine.toScriptValue(token)});
+    if (scopedContext.isError()) {
+        finishScriptOperation(token, false, QVariant(), scopedContext.toString());
+        return;
+    }
+    callArgs.append(scopedContext);
+    callArgs.append(args);
+    m_engine.globalObject().setProperty(QStringLiteral("__tankoyomiActiveToken"), token);
+    QJSValue task;
+    QJSValue started;
+    bool executionExpired = false;
+    {
+        ScriptSliceDeadline deadline(m_engine, kScriptSliceDeadlineMs);
+        task = function.callWithInstance(m_provider, callArgs);
+        if (!task.isError())
+            started = m_run.call({task, m_engine.toScriptValue(token)});
+        executionExpired = deadline.expired();
+    }
+    m_engine.globalObject().setProperty(QStringLiteral("__tankoyomiActiveToken"), QString());
+    if (executionExpired)
+        finishScriptOperation(token, false, QVariant(),
+                              QStringLiteral("Tankoyomi provider execution timed out"));
+    else if (task.isError())
+        finishScriptOperation(token, false, QVariant(), task.toString());
+    else if (started.isError())
+        finishScriptOperation(token, false, QVariant(), started.toString());
 }
-struct TankoyomiScriptProvider::Fetch
-{
-    QString callbackId;
-    QUrl logicalUrl;
-    QNetworkRequest request;
-    QString method;
-    QByteArray body;
-    int redirects = 0;
-    bool settled = false;
-    QPointer<QTimer> deadline;
-    QPointer<QNetworkReply> reply;
-};
 
-struct TankoyomiScriptProvider::WorkerCall
+void TankoyomiScriptProvider::queueDeviceCall(const QString &method,
+                                              const QString &token,
+                                              const QVariant &value)
 {
-    quint64 id = 0;
-    QString token;
-    QString method;
-    QByteArray response;
-    bool settled = false;
-    QPointer<QTimer> deadline;
-    QPointer<QNetworkReply> reply;
-};
+    if (!m_ready || !m_loadError.isEmpty()) {
+        const QString message = m_loadError.isEmpty()
+            ? QStringLiteral("Tankoyomi device addon is unavailable") : m_loadError;
+        QMetaObject::invokeMethod(this, [this, token, message] { emit failed(token, message); },
+                                  Qt::QueuedConnection);
+        return;
+    }
+    if (m_pendingDeviceCalls.size() >= 64) {
+        QMetaObject::invokeMethod(this, [this, token] {
+            emit failed(token, QStringLiteral("Too many Tankoyomi addon calls are queued"));
+        }, Qt::QueuedConnection);
+        return;
+    }
+    if (m_scriptOperations.contains(token)) {
+        QMetaObject::invokeMethod(this, [this, token] {
+            emit failed(token, QStringLiteral("Duplicate Tankoyomi operation token"));
+        }, Qt::QueuedConnection);
+        return;
+    }
+    for (const PendingDeviceCall &pending : std::as_const(m_pendingDeviceCalls)) {
+        if (pending.token == token) {
+            QMetaObject::invokeMethod(this, [this, token] {
+                emit failed(token, QStringLiteral("Duplicate Tankoyomi operation token"));
+            }, Qt::QueuedConnection);
+            return;
+        }
+    }
+    m_pendingDeviceCalls.append(PendingDeviceCall{method, token, value});
+    ensureDeviceScriptLoaded();
+}
 
+void TankoyomiScriptProvider::ensureDeviceScriptLoaded()
+{
+    if (!m_deviceMode) return;
+    if (m_deviceScriptLoaded) {
+        drainDeviceCalls();
+        return;
+    }
+    if (m_deviceScriptLoading || !m_loadError.isEmpty()) return;
+    if (!m_addonStore) {
+        m_loadError = QStringLiteral("Tankoyomi signed addon store is unavailable");
+        drainDeviceCalls();
+        return;
+    }
+    m_deviceScriptLoading = true;
+    const QPointer<TankoyomiScriptProvider> guard(this);
+    m_addonStore->load(m_providerId,
+                       [guard](QByteArray script, QStringList hosts, QString error) mutable {
+        if (!guard) return;
+        guard->m_deviceScriptLoading = false;
+        if (!error.isEmpty()) {
+            guard->m_loadError = std::move(error);
+            guard->drainDeviceCalls();
+            // A later user action can retry a transient delivery failure.
+            if (guard) guard->m_loadError.clear();
+            return;
+        }
+        guard->allowedHosts = std::move(hosts);
+        if (guard->allowedHosts.isEmpty()) {
+            guard->m_loadError = QStringLiteral("Tankoyomi addon has no metadata host allowlist");
+            guard->drainDeviceCalls();
+            return;
+        }
+        if (!guard->initializeScript(script,
+                                     QStringLiteral("signed-addon:%1").arg(guard->m_providerId))) {
+            guard->drainDeviceCalls();
+            return;
+        }
+        guard->drainDeviceCalls();
+    });
+}
+
+void TankoyomiScriptProvider::drainDeviceCalls()
+{
+    if (m_pendingDeviceCalls.isEmpty()) return;
+    if (!m_loadError.isEmpty()) {
+        const QVector<PendingDeviceCall> pending = std::move(m_pendingDeviceCalls);
+        m_pendingDeviceCalls.clear();
+        for (const PendingDeviceCall &call : pending)
+            emit failed(call.token, m_loadError);
+        return;
+    }
+    if (!m_deviceScriptLoaded) return;
+    const QVector<PendingDeviceCall> pending = std::move(m_pendingDeviceCalls);
+    m_pendingDeviceCalls.clear();
+    for (const PendingDeviceCall &call : pending)
+        invokeDeviceCall(call);
+}
+
+void TankoyomiScriptProvider::invokeDeviceCall(const PendingDeviceCall &call)
+{
+    const QByteArray input = QJsonDocument::fromVariant(call.value).toJson(QJsonDocument::Compact);
+    const qint64 inputSize = call.value.metaType().id() == QMetaType::QString
+        ? call.value.toString().toUtf8().size() : input.size();
+    if (inputSize > kRequestBodyLimit) {
+        emit failed(call.token, QStringLiteral("Tankoyomi addon input exceeds 1 MiB"));
+        return;
+    }
+    invoke(call.method, call.token, {m_engine.toScriptValue(call.value)});
+}
+
+void TankoyomiScriptProvider::startScriptOperation(const QString &token)
+{
+    auto operation = std::make_shared<ScriptOperation>();
+    operation->token = token;
+    auto *deadline = new QTimer(this);
+    deadline->setSingleShot(true);
+    operation->deadline = deadline;
+    m_scriptOperations.insert(token, operation);
+    connect(deadline, &QTimer::timeout, this, [this, token] { timeoutScriptOperation(token); });
+    deadline->start(kScriptOperationDeadlineMs);
+}
+
+void TankoyomiScriptProvider::finishScriptOperation(const QString &token, bool ok,
+                                                    const QVariant &value,
+                                                    const QString &message)
+{
+    const auto operation = m_scriptOperations.take(token);
+    if (!operation) return;
+    const auto callbacks = m_engine.globalObject().property(QStringLiteral("__tankoyomiCallbacks"));
+    const auto callbackIds = m_fetchTokens.keys(token);
+    for (const QString &callbackId : callbackIds) {
+        QJSValue callbackMap = callbacks;
+        callbackMap.deleteProperty(callbackId);
+        m_fetchTokens.remove(callbackId);
+    }
+    if (operation) {
+        operation->settled = true;
+        if (operation->deadline) {
+            operation->deadline->stop();
+            operation->deadline->deleteLater();
+            operation->deadline.clear();
+        }
+    }
+    const auto pending = m_fetches.values();
+    for (const auto &fetch : pending) {
+        if (fetch->operationToken != token) continue;
+        fetch->settled = true;
+        m_fetches.remove(fetch->callbackId);
+        m_fetchTokens.remove(fetch->callbackId);
+        if (fetch->deadline) {
+            fetch->deadline->stop();
+            fetch->deadline->deleteLater();
+            fetch->deadline.clear();
+        }
+        if (fetch->reply) {
+            disconnect(fetch->reply, nullptr, this, nullptr);
+            if (!fetch->reply->isFinished()) fetch->reply->abort();
+            fetch->reply->deleteLater();
+            fetch->reply.clear();
+        }
+    }
+    if (ok) emit resolved(token, value);
+    else emit failed(token, message);
+}
+
+void TankoyomiScriptProvider::timeoutScriptOperation(const QString &token)
+{
+    if (!m_scriptOperations.contains(token)) return;
+    finishScriptOperation(token, false, QVariant(),
+                          QStringLiteral("Tankoyomi provider operation timed out"));
+}
 TankoyomiScriptProvider::~TankoyomiScriptProvider()
 {
+    m_pendingDeviceCalls.clear();
+    const auto operations = m_scriptOperations.values();
+    m_scriptOperations.clear();
+    for (const auto &operation : operations) {
+        operation->settled = true;
+        if (operation->deadline) operation->deadline->stop();
+    }
+
     const auto workerCalls = m_workerCalls.values();
     m_workerCalls.clear();
     for (const auto &call : workerCalls) {
@@ -327,6 +796,7 @@ TankoyomiScriptProvider::~TankoyomiScriptProvider()
     // destruction, rather than leaving replies attached to a shared manager.
     const auto pending = m_fetches.values();
     m_fetches.clear();
+    m_fetchTokens.clear();
     for (const auto &fetch : pending) {
         fetch->settled = true;
         if (fetch->deadline) fetch->deadline->stop();
@@ -387,6 +857,11 @@ void TankoyomiScriptProvider::invokeWorker(const QString &method,
     deadline->start(kWorkerDeadlineMs);
 
     const QByteArray body = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    if (body.size() > kRequestBodyLimit) {
+        finishWorkerCall(call, false, QVariant(),
+                         QStringLiteral("Tankoyomi worker request body exceeds 1 MiB"));
+        return;
+    }
     QNetworkReply *reply = m_nam->post(request, body);
     call->reply = reply;
     if (!reply) {
@@ -418,9 +893,7 @@ void TankoyomiScriptProvider::invokeWorker(const QString &method,
             return;
         }
 
-        QStringDecoder utf8(QStringDecoder::Utf8);
-        utf8.decode(call->response);
-        if (utf8.hasError()) {
+        if (!decodeUtf8Strict(call->response, nullptr)) {
             finishWorkerCall(call, false, QVariant(),
                              QStringLiteral("Tankoyomi worker returned invalid UTF-8 JSON"));
             return;
@@ -520,8 +993,26 @@ bool TankoyomiScriptProvider::hostAllowed(const QString &host) const
 
 void TankoyomiScriptProvider::jsFetchText(const QString &callbackId,
                                           const QString &url,
-                                          const QString &optionsJson)
+                                          const QString &optionsJson,
+                                          const QString &operationToken)
 {
+    const auto operation = m_scriptOperations.value(operationToken);
+    if (!operation || operation->settled) {
+        deliverFetch(callbackId, false, QStringLiteral("Tankoyomi operation is unavailable"));
+        return;
+    }
+    if (++operation->requestCount > kOperationRequestBudget) {
+        m_fetchTokens.insert(callbackId, operationToken);
+        // A hard budget is authoritative even if provider code catches errors.
+        finishScriptOperation(operationToken, false, QVariant(),
+                              QStringLiteral("Tankoyomi operation exceeded its 40-request budget"));
+        return;
+    }
+    m_fetchTokens.insert(callbackId, operationToken);
+    if (optionsJson.toUtf8().size() > kRequestBodyLimit) {
+        deliverFetch(callbackId, false, QStringLiteral("Tankoyomi request options exceed 1 MiB"));
+        return;
+    }
     const QUrl target(url);
     if (!TankoyomiNetworkPolicy::pageUrlAllowedBeforeDns(target, QStringLiteral("public-https"))
         || !hostAllowed(target.host())) {
@@ -553,10 +1044,16 @@ void TankoyomiScriptProvider::jsFetchText(const QString &callbackId,
 
     auto fetch = std::make_shared<Fetch>();
     fetch->callbackId = callbackId;
+    fetch->operationToken = operationToken;
     fetch->logicalUrl = target;
     fetch->request = QNetworkRequest(target);
     fetch->method = method;
     fetch->body = options.value(QStringLiteral("body")).toString().toUtf8();
+    if (fetch->body.size() > kRequestBodyLimit
+        || (method == QLatin1String("GET") && !fetch->body.isEmpty())) {
+        deliverFetch(callbackId, false, QStringLiteral("Tankoyomi request body is invalid or exceeds 1 MiB"));
+        return;
+    }
     const int defaultTimeoutMs = 15000;
     const int requestedTimeoutMs = options.value(QStringLiteral("timeoutMs")).toInt(defaultTimeoutMs);
     const int timeoutMs = qBound(1000, requestedTimeoutMs, 45000);
@@ -569,11 +1066,13 @@ void TankoyomiScriptProvider::jsFetchText(const QString &callbackId,
         "(KHTML, like Gecko) Chrome/152.0 Safari/537.36");
     fetch->request.setRawHeader("Accept", "text/html,application/json;q=0.9,*/*;q=0.8");
     const QJsonObject headers = options.value(QStringLiteral("headers")).toObject();
+    static const QSet<QByteArray> allowedHeaders = {
+        QByteArrayLiteral("accept"), QByteArrayLiteral("accept-language"),
+        QByteArrayLiteral("content-type"), QByteArrayLiteral("referer")};
     for (auto it = headers.begin(); it != headers.end(); ++it) {
-        const QByteArray name = it.key().toUtf8();
+        const QByteArray name = it.key().toUtf8().toLower();
         const QByteArray value = it.value().toString().toUtf8();
-        // A provider may describe HTTP metadata, not override the routed host.
-        if (name.compare("Host", Qt::CaseInsensitive) == 0
+        if (!allowedHeaders.contains(name) || name.size() > 128 || value.size() > 8192
             || name.contains('\r') || name.contains('\n')
             || value.contains('\r') || value.contains('\n'))
             continue;
@@ -630,7 +1129,14 @@ void TankoyomiScriptProvider::issueFetch(const std::shared_ptr<Fetch> &fetch)
     QNetworkReply *reply = fetch->method == QLatin1String("POST")
         ? m_nam->post(request, fetch->body) : m_nam->get(request);
     fetch->reply = reply;
+    if (!reply) {
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi request could not start"));
+        return;
+    }
+    connect(reply, &QIODevice::readyRead, this, [this, fetch] { readFetchResponse(fetch); });
     connect(reply, &QNetworkReply::finished, this, [this, fetch, reply] {
+        if (fetch->settled) return;
+        readFetchResponse(fetch);
         if (fetch->settled) return;
         fetch->reply.clear();
         const int status = reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
@@ -644,6 +1150,7 @@ void TankoyomiScriptProvider::issueFetch(const std::shared_ptr<Fetch> &fetch)
                 finishFetch(fetch, false, QStringLiteral("Tankoyomi metadata redirect rejected"));
                 return;
             }
+            fetch->response.clear();
             const QUrl next = fetch->logicalUrl.resolved(location);
             if (next.host() != fetch->logicalUrl.host() || next.port(443) != fetch->logicalUrl.port(443)) {
                 fetch->request.setRawHeader("Authorization", QByteArray());
@@ -666,8 +1173,44 @@ void TankoyomiScriptProvider::issueFetch(const std::shared_ptr<Fetch> &fetch)
                         status > 0 ? QStringLiteral("HTTP %1: %2").arg(status).arg(errorText) : errorText);
             return;
         }
-        finishFetch(fetch, true, QString::fromUtf8(reply->readAll()));
+        QString payload;
+        if (!decodeUtf8Strict(fetch->response, &payload)) {
+            finishFetch(fetch, false, QStringLiteral("Tankoyomi metadata response is not valid UTF-8"));
+            return;
+        }
+        finishFetch(fetch, true, payload);
     });
+}
+
+void TankoyomiScriptProvider::readFetchResponse(const std::shared_ptr<Fetch> &fetch)
+{
+    if (!fetch || fetch->settled || !fetch->reply) return;
+    const auto operation = m_scriptOperations.value(fetch->operationToken);
+    if (!operation || operation->settled) {
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi operation is no longer active"));
+        return;
+    }
+    const qint64 available = fetch->reply->bytesAvailable();
+    if (available < 0 || available > kMetadataResponseLimit - fetch->response.size()) {
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi metadata response exceeds 8 MiB"));
+        return;
+    }
+    if (available > kOperationResponseLimit - operation->responseBytes) {
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi operation responses exceed 16 MiB"));
+        return;
+    }
+    if (available == 0) return;
+    const QByteArray chunk = fetch->reply->read(available);
+    if (chunk.size() > kMetadataResponseLimit - fetch->response.size()) {
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi metadata response exceeds 8 MiB"));
+        return;
+    }
+    if (chunk.size() > kOperationResponseLimit - operation->responseBytes) {
+        finishFetch(fetch, false, QStringLiteral("Tankoyomi operation responses exceed 16 MiB"));
+        return;
+    }
+    fetch->response.append(chunk);
+    operation->responseBytes += chunk.size();
 }
 
 void TankoyomiScriptProvider::finishFetch(const std::shared_ptr<Fetch> &fetch,
@@ -693,34 +1236,71 @@ void TankoyomiScriptProvider::deliverFetch(const QString &callbackId,
                                            bool ok,
                                            const QString &payload)
 {
-    if (!m_deliverFetch.isCallable())
+    const QString token = m_fetchTokens.take(callbackId);
+    if (!m_deliverFetch.isCallable()) {
+        if (!token.isEmpty())
+            finishScriptOperation(token, false, QVariant(),
+                                  QStringLiteral("Tankoyomi runtime fetch bridge is unavailable"));
         return;
-    QJSValue result = m_deliverFetch.call(
-        {m_engine.toScriptValue(callbackId),
-         m_engine.toScriptValue(ok),
-         m_engine.toScriptValue(payload)});
-    if (result.isError())
-        emit failed(callbackId, result.toString());
+    }
+    const QString previousToken = m_engine.globalObject()
+        .property(QStringLiteral("__tankoyomiActiveToken")).toString();
+    m_engine.globalObject().setProperty(QStringLiteral("__tankoyomiActiveToken"), token);
+    QJSValue result;
+    bool executionExpired = false;
+    {
+        ScriptSliceDeadline deadline(m_engine, kScriptSliceDeadlineMs);
+        result = m_deliverFetch.call(
+            {m_engine.toScriptValue(callbackId),
+             m_engine.toScriptValue(ok),
+             m_engine.toScriptValue(payload)});
+        executionExpired = deadline.expired();
+    }
+    m_engine.globalObject().setProperty(QStringLiteral("__tankoyomiActiveToken"), previousToken);
+    if (!token.isEmpty() && executionExpired)
+        finishScriptOperation(token, false, QVariant(),
+                              QStringLiteral("Tankoyomi provider execution timed out"));
+    else if (!token.isEmpty() && result.isError())
+        finishScriptOperation(token, false, QVariant(), result.toString());
 }
 
 void TankoyomiScriptProvider::jsResolve(const QString &token, const QString &json)
 {
+    if (json.toUtf8().size() > kScriptResultLimit) {
+        finishScriptOperation(token, false, QVariant(),
+                              QStringLiteral("Tankoyomi provider result exceeds 8 MiB"));
+        return;
+    }
     QJsonParseError error;
     const QJsonDocument document = QJsonDocument::fromJson(json.toUtf8(), &error);
     if (error.error != QJsonParseError::NoError) {
-        emit failed(token, QStringLiteral("Tankoyomi provider returned invalid JSON: %1")
-                           .arg(error.errorString()));
+        finishScriptOperation(token, false, QVariant(),
+                              QStringLiteral("Tankoyomi provider returned invalid JSON: %1")
+                                  .arg(error.errorString()));
         return;
     }
     if (document.isArray())
-        emit resolved(token, document.array().toVariantList());
+        finishScriptOperation(token, true, document.array().toVariantList(), QString());
     else if (document.isObject())
-        emit resolved(token, document.object().toVariantMap());
+        finishScriptOperation(token, true, document.object().toVariantMap(), QString());
     else
-        emit resolved(token, QVariant());
+        finishScriptOperation(token, true, QVariant(), QString());
 }
 
 void TankoyomiScriptProvider::jsReject(const QString &token, const QString &message)
 {
-    emit failed(token, message);
+    finishScriptOperation(token, false, QVariant(), message.left(4096));
+}
+
+QString TankoyomiScriptProvider::jsDecryptCryptoJs(const QString &ciphertextBase64,
+                                                   const QString &saltHex,
+                                                   const QString &password)
+{
+    if (password.isEmpty() || password.size() > 256) return {};
+    return decryptCryptoJs(ciphertextBase64, saltHex, password);
+}
+
+QString TankoyomiScriptProvider::jsDecodeBase64(const QString &value)
+{
+    return decodeBase64Utf8(value);
 }

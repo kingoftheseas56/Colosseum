@@ -115,7 +115,7 @@ TankoyomiChapterService::TankoyomiChapterService(
 
     addProviders(std::move(resolverLookup));
     if (!m_workerBase.isEmpty()) {
-        qInfo() << "[tankoyomi] provider execution: Worker" << m_workerBase.host();
+        qInfo() << "[tankoyomi] provider execution: Worker with signed device addons for MangaSin/LectorXD" << m_workerBase.host();
         QTimer::singleShot(0, this, &TankoyomiChapterService::refreshRemoteRegistry);
     }
 }

@@ -11,6 +11,16 @@ const DEFAULT_TIMEOUT_MS = 15_000;
 const MAX_TIMEOUT_MS = 30_000;
 const REQUEST_BODY_TIMEOUT_MS = 10_000;
 const ALLOWED_METHODS = new Set(['searchSeries', 'getChapters', 'getPages']);
+const ADDON_KEY_ID = 'tankoyomi-addon-2026-10';
+const ADDON_PROVIDERS = Object.freeze({
+  mangasin: Object.freeze(['m440.in']),
+  lectorxd: Object.freeze(['lectorxd.com'])
+});
+const ADDON_PAYLOAD_FIELDS = Object.freeze([
+  'contractVersion', 'addonId', 'language', 'providerId', 'revision',
+  'allowedHosts', 'scriptSha256', 'scriptBase64'
+]);
+const ADDON_PAYLOAD_FIELD_NAMES = Object.freeze([...ADDON_PAYLOAD_FIELDS].sort());
 const ALLOWED_HEADERS = new Set([
   'accept', 'authorization', 'content-type', 'hx-request', 'hx-target', 'origin',
   'referer', 'x-requested-with'
@@ -28,6 +38,63 @@ function jsonResponse(value, status = 200) {
     status,
     headers: {
       'content-type': 'application/json; charset=utf-8',
+      'cache-control': 'no-store'
+    }
+  });
+}
+
+function canonicalBase64Bytes(value) {
+  if (typeof value !== 'string' || !value.length
+      || !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(value))
+    return null;
+  const bytes = Buffer.from(value, 'base64');
+  return bytes.length && bytes.toString('base64') === value ? bytes : null;
+}
+
+function isPublishableAddonEnvelope(envelope, providerId) {
+  if (!envelope || typeof envelope !== 'object' || Array.isArray(envelope)
+      || envelope.formatVersion !== 1 || envelope.keyId !== ADDON_KEY_ID)
+    return false;
+  const payloadBytes = canonicalBase64Bytes(envelope.payload);
+  const signatureBytes = canonicalBase64Bytes(envelope.signature);
+  if (!payloadBytes || !signatureBytes || signatureBytes.length !== 64) return false;
+
+  let payload;
+  try {
+    payload = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(payloadBytes));
+  } catch (_) {
+    return false;
+  }
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) return false;
+  const fieldNames = Object.keys(payload).sort();
+  if (fieldNames.length !== ADDON_PAYLOAD_FIELDS.length
+      || fieldNames.some((field, index) => field !== ADDON_PAYLOAD_FIELD_NAMES[index]))
+    return false;
+
+  const expectedHosts = ADDON_PROVIDERS[providerId];
+  if (payload.contractVersion !== 1 || payload.addonId !== 'colosseum.well.tankoyomi'
+      || payload.language !== 'es' || payload.providerId !== providerId
+      || !Number.isSafeInteger(payload.revision) || payload.revision <= 0
+      || !Array.isArray(payload.allowedHosts)
+      || payload.allowedHosts.length !== expectedHosts.length
+      || payload.allowedHosts.some((host, index) => host !== expectedHosts[index])
+      || typeof payload.scriptSha256 !== 'string' || !/^[a-f0-9]{64}$/.test(payload.scriptSha256))
+    return false;
+
+  const scriptBytes = canonicalBase64Bytes(payload.scriptBase64);
+  return Boolean(scriptBytes && createHash('sha256').update(scriptBytes).digest('hex') === payload.scriptSha256);
+}
+
+function addonEnvelopeFrom(addonEnvelopes, providerId) {
+  if (addonEnvelopes instanceof Map) return addonEnvelopes.get(providerId);
+  return addonEnvelopes?.[providerId];
+}
+
+function addonResponse(envelope) {
+  return new Response(JSON.stringify(envelope), {
+    status: 200,
+    headers: {
+      'content-type': 'application/json',
       'cache-control': 'no-store'
     }
   });
@@ -345,7 +412,7 @@ function providerFrom(providers, key) {
   return providers?.[key];
 }
 
-export function createWorker({ manifest, providers = {}, fetchImpl = globalThis.fetch } = {}) {
+export function createWorker({ manifest, providers = {}, addonEnvelopes = {}, fetchImpl = globalThis.fetch } = {}) {
   if (!manifest || !Array.isArray(manifest.languages)) throw new TypeError('A Tankoyomi manifest is required');
   if (typeof fetchImpl !== 'function') throw new TypeError('A fetch implementation is required');
 
@@ -359,6 +426,20 @@ export function createWorker({ manifest, providers = {}, fetchImpl = globalThis.
       if (request.method !== 'GET') return errorResponse(new HttpError(405, 'Method not allowed'));
       return jsonResponse({ ...manifest, contractVersion: CONTRACT_VERSION });
     }
+
+    const addonMatch = /^\/addons\/v1\/es\/(mangasin|lectorxd)\.json$/.exec(url.pathname);
+    if (addonMatch) {
+      if (request.method !== 'GET') return errorResponse(new HttpError(405, 'Method not allowed'));
+      const [, providerId] = addonMatch;
+      const envelope = addonEnvelopeFrom(addonEnvelopes, providerId);
+      if (!isPublishableAddonEnvelope(envelope, providerId))
+        return errorResponse(new HttpError(503, 'Signed addon artifact is unavailable'));
+      // Signed bundles are published as static artifacts. This route never
+      // contacts the source site; clients verify the Ed25519 signature.
+      return addonResponse(envelope);
+    }
+    if (url.pathname.startsWith('/addons/'))
+      return errorResponse(new HttpError(404, 'Route not found'));
 
     const segments = url.pathname.split('/').slice(1);
     if (segments.length !== 4 || segments[0] !== 'v1')

@@ -279,7 +279,6 @@ else()
     message(FATAL_ERROR "libtorrent + Boost + OpenSSL NOT found via find_package on this platform — install libtorrent-rasterbar-dev, libboost-all-dev and libssl-dev (see guides/WSL-FIRST-BUILD.md).")
 endif()
 
-if(NOT ANDROID)
 add_library(colosseum_update_crypto INTERFACE)
 if(TARGET OpenSSL::Crypto)
     target_link_libraries(colosseum_update_crypto INTERFACE OpenSSL::Crypto)
@@ -290,8 +289,6 @@ elseif(OPENSSL_MSVC_ROOT AND EXISTS "${OPENSSL_MSVC_ROOT}/include" AND
         "${OPENSSL_MSVC_ROOT}/lib/libcrypto.lib" ws2_32 crypt32)
 else()
     message(FATAL_ERROR "OpenSSL crypto is required for Colosseum update manifest verification")
-endif()
-
 endif()
 
 qt_add_executable(colosseum
@@ -799,6 +796,18 @@ qt_add_executable(colosseum
     engine/BiblioCatalog.cpp
     engine/BiblioCatalog.h
 )
+
+# Provider updates reuse the existing Ed25519 verifier and OpenSSL owner.
+add_library(tankoyomi_addon_store STATIC
+    engine/TankoyomiAddonStore.cpp engine/TankoyomiAddonStore.h
+    engine/TankoyomiAddonPublicKey.h)
+target_include_directories(tankoyomi_addon_store PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_addon_store PRIVATE Qt6::Core Qt6::Network colosseum_update_crypto)
+target_link_libraries(colosseum PRIVATE tankoyomi_addon_store)
+if(ANDROID)
+    target_sources(colosseum PRIVATE update/UpdateTrust.cpp)
+    target_link_libraries(colosseum PRIVATE colosseum_update_crypto)
+endif()
 
 if(NOT ANDROID)
     # Desktop-only shipping organs: preserved for Windows/Linux, absent from the Android target graph.
@@ -3162,4 +3171,31 @@ if(BUILD_TESTING)
     target_link_libraries(vinyl_session_store_harness PRIVATE Qt6::Core feria_discovery)
     add_test(NAME colosseum.vinyl_session_store COMMAND vinyl_session_store_harness)
 endif()
+add_executable(tankoyomi_addon_store_harness
+    ../tests/tankoyomi_addon_store_harness.cpp update/UpdateTrust.cpp)
+target_include_directories(tankoyomi_addon_store_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_addon_store_harness PRIVATE tankoyomi_addon_store Qt6::Core Qt6::Network colosseum_update_crypto)
+add_executable(tankoyomi_device_runtime_harness
+    ../tests/tankoyomi_device_runtime_harness.cpp
+    engine/TankoyomiScriptProvider.cpp engine/TankoyomiScriptProvider.h
+    engine/MangaImageHostResolver.cpp engine/TankoyomiNetworkPolicy.cpp update/UpdateTrust.cpp)
+target_include_directories(tankoyomi_device_runtime_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(tankoyomi_device_runtime_harness PRIVATE tankoyomi_addon_store Qt6::Core Qt6::Network Qt6::Qml colosseum_update_crypto)
+if(BUILD_TESTING)
+    add_test(NAME colosseum.tankoyomi_addon_store COMMAND tankoyomi_addon_store_harness)
+    set_tests_properties(colosseum.tankoyomi_addon_store PROPERTIES
+        LABELS "unit;tankoyomi;network" TIMEOUT 30)
+    add_test(NAME colosseum.tankoyomi_device_runtime COMMAND tankoyomi_device_runtime_harness)
+    set_tests_properties(colosseum.tankoyomi_device_runtime PROPERTIES
+        LABELS "unit;tankoyomi;network" TIMEOUT 45
+        WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/..")
+endif()
+foreach(tankoyomi_runtime_target IN ITEMS
+    tankoyomi_script_provider_transport_harness tankoyomi_worker_transport_harness
+    tankoyomi_service_runtime_harness tankoyomi_service_configuration_harness
+    tankoyomi_provider_attempt_timeout_harness tankoyomi_provider_live_harness
+    tankoyomi_page_security_harness manga_downloader_cancel_harness)
+    target_sources(${tankoyomi_runtime_target} PRIVATE update/UpdateTrust.cpp)
+    target_link_libraries(${tankoyomi_runtime_target} PRIVATE tankoyomi_addon_store colosseum_update_crypto)
+endforeach()
 endif() # NOT ANDROID: desktop harness/test estate

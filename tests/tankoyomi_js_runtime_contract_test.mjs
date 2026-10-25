@@ -18,8 +18,8 @@ const providerPaths = [
 let failures = 0;
 const check = (ok, msg) => { console.log(`${ok ? '  ok  ' : '  FAIL'} ${msg}`); if (!ok) failures++; };
 
-check(h.includes('QJSEngine'), 'runtime uses the smaller QJSEngine sandbox');
-check(!cpp.includes('new Promise'), 'runtime avoids QJSEngine Promise scheduling');
+check(h.includes('QJSEngine'), 'runtime reuses the existing QJSEngine');
+check(!cpp.includes('new Promise'), 'fetch task bridge does not construct native Promises');
 check(cpp.includes('__tankoyomiCallbacks'), 'runtime owns per-call success/error callbacks');
 check(cpp.includes('fetchText') && cpp.includes('fetchJson'), 'runtime exposes scoped fetchText/fetchJson');
 check(h.includes('QStringList allowedHosts'), 'runtime receives a manifest origin allowlist');
@@ -36,7 +36,7 @@ check(cmake.includes('GLOB_RECURSE TANKOYOMI_RESOURCE_FILES CONFIGURE_DEPENDS'),
   'CMake auto-discovers provider resources for local transport fixtures');
 const productionResources = cmake.match(/qt_add_resources\(colosseum "tankoyomi_resources"[\s\S]*?\)/)?.[0] || '';
 check(productionResources.includes('/manifest.json"') && !productionResources.includes('${TANKOYOMI_RESOURCE_FILES}'),
-  'production embeds inventory only; provider scripts execute in the Worker');
+  'production embeds inventory only; provider scripts are supplied remotely');
 check(!qrc.includes('tankoyomi/languages/'),
   'base app QRC no longer hardcodes provider scripts');
 check(service.includes('m_registry.providersForLanguage'),

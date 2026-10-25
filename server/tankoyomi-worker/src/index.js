@@ -1,4 +1,5 @@
 import manifest from '../../../extensions/tankoyomi/manifest.json' with { type: 'json' };
+import { addonEnvelopes } from './addon-artifacts.mjs';
 import weebcentral from '../../../extensions/tankoyomi/languages/en/weebcentral.js';
 import zonatmo from '../../../extensions/tankoyomi/languages/es/zonatmo.js';
 import niadd from '../../../extensions/tankoyomi/languages/es/niadd.js';
@@ -28,5 +29,5 @@ const providers = {
   'fr/mangamoins': mangamoins
 };
 
-export default createWorker({ manifest, providers });
+export default createWorker({ manifest, providers, addonEnvelopes });
 export { manifest, providers };

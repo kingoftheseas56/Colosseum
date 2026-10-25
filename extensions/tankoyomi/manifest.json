@@ -1,6 +1,6 @@
 {
   "id": "colosseum.well.tankoyomi",
-  "version": "0.2.1",
+  "version": "0.2.2",
   "name": "Tankoyomi",
   "description": "Language-aware manga chapter source router for Tankoban Chapter Mode.",
   "type": "tankoyomi",

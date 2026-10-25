@@ -109,7 +109,10 @@ console.log('ok — Spanish MangaSin provider contract');
   const pages = await provider.getPages({ fetchText: async u => {
     assert.equal(u, CHAPTER); return html;
   } }, { url: CHAPTER });
-  assert.deepEqual(pages, [{ index: 0, url: img1 }, { index: 1, url: img2 }]);
+  assert.deepEqual(pages, [
+    { index: 0, url: img1, referer: CHAPTER },
+    { index: 1, url: img2, referer: CHAPTER }
+  ], 'native image requests must carry the canonical chapter Referer');
   assert.deepEqual(await provider.getPages({ fetchText: async () => '<div id="other"></div>' }, CHAPTER), []);
   assert.throws(() => provider.getPages({}, { url: 'file:///etc/passwd' }), /chapter URL/);
   console.log('ok — reader lazy images, ordering, duplicates, and safe HTTPS-only pages');
@@ -136,7 +139,10 @@ console.log('ok — Spanish MangaSin provider contract');
     decodeBase64: data => { decodes++; return Buffer.from(data, 'base64').toString('utf8'); }
   };
   const pages = await provider.getPages(ctx, { url: SERIES + '/1' });
-  assert.deepEqual(pages, [{ index: 0, url: valid }, { index: 1, url: direct }]);
+  assert.deepEqual(pages, [
+    { index: 0, url: valid, referer: SERIES + '/1' },
+    { index: 1, url: direct, referer: SERIES + '/1' }
+  ]);
   assert.equal(decodes, 6);
   console.log('ok — encoded historical One Piece images decoded, unsafe origins rejected');
 }

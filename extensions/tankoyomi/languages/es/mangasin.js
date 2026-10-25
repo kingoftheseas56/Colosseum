@@ -127,7 +127,7 @@
         const resolved = imageUrl(ctx, raw);
         if (!resolved || seen.has(resolved)) continue;
         seen.add(resolved);
-        out.push({ index: out.length, url: resolved });
+        out.push({ index: out.length, url: resolved, referer: url });
       }
       return out;
     });
