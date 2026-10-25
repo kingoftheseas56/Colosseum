@@ -6,8 +6,8 @@ import json
 from pathlib import Path, PurePosixPath
 import tarfile
 
-PACKAGE_SHA256 = 'e35e704c901cd67421679fdc82fe4925f6fd28518a1c926c477bcb471df034ad'
-PACKAGE_BYTES = 333718172
+PACKAGE_SHA256 = 'bb6cca0f21c233cb8b8ff2c725828a6b6792245ebef73dc2b5dd090ced97f915'
+PACKAGE_BYTES = 335014660
 
 
 def digest(path):

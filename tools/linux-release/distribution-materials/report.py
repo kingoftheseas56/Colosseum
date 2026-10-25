@@ -81,7 +81,7 @@ def generate(out):
                'unresolved_records': len(unresolved)}
     write_json(out / 'SUMMARY.json', summary)
     notices = [
-        'Colosseum 1.1.9 Linux distribution materials - receiving review draft',
+        'Colosseum 1.1.10 Linux distribution materials - receiving review draft',
         'Exact package SHA256: ' + summary['package'].get('sha256', 'UNKNOWN'),
         'This index records technical provenance and preserves upstream notices.',
         'It does not make a source offer or certify redistribution compliance.',

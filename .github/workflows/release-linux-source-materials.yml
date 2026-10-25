@@ -1,17 +1,7 @@
-name: Linux source materials proof
+name: Linux source materials proof (1.1.10)
 
 on:
   workflow_dispatch:
-    inputs:
-      full_collection:
-        description: 'Collect everything again instead of resuming the pinned verified collection'
-        type: boolean
-        default: false
-  push:
-    branches: ['codex/119-linux-source-proof-20261019']
-    paths:
-      - '.github/workflows/release-linux-source-materials.yml'
-      - 'tools/linux-release/distribution-materials/**'
 
 permissions:
   contents: read
@@ -22,7 +12,7 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 90
     env:
-      ACCEPTED_COMMIT: fa08d3a43c842b5b3eb19023b74e4d716e63a6e5
+      ACCEPTED_COMMIT: 422541a52bcd32be1cfeca7554d74186e6288cf1
     steps:
       - uses: actions/checkout@v7
         with:
@@ -31,56 +21,25 @@ jobs:
             tools/linux-release
       - name: Focused collector checks
         run: python3 -m unittest discover -s tools/linux-release/distribution-materials -p 'test_*.py' -v
-      - name: Download exact accepted artifact without rebuilding
+      - name: Download exact 1.1.10 accepted artifact without rebuilding
         uses: actions/download-artifact@v4
         with:
-          artifact-ids: '12182359609'
-          run-id: '39244501311'
+          artifact-ids: '12599515396'
+          run-id: '40192334970'
           github-token: ${{ github.token }}
           path: accepted
           merge-multiple: true
       - name: Stream pinned package and retain its evidence
         run: |
-          python3 tools/linux-release/distribution-materials/inventory.py \
-            --package accepted/Colosseum-1.1.9-linux-amd64.deb --output evidence
+          python3 tools/linux-release/distribution-materials/inventory.py --package accepted/Colosseum-1.1.10-linux-amd64.deb --output evidence
           mkdir -p evidence/recipes
           cp accepted/BUILD-IDENTITY.json accepted/package-check.json evidence/recipes/
           git fetch --depth=1 origin "$ACCEPTED_COMMIT"
           test "$(git rev-parse FETCH_HEAD)" = "$ACCEPTED_COMMIT"
           git show "$ACCEPTED_COMMIT:.github/workflows/release-linux-deb.yml" > evidence/recipes/accepted-build-workflow.yml
-          git archive --format=tar.gz --prefix="colosseum-$ACCEPTED_COMMIT/" \
-            --output="evidence/recipes/colosseum-$ACCEPTED_COMMIT.tar.gz" "$ACCEPTED_COMMIT"
+          git archive --format=tar.gz --prefix="colosseum-$ACCEPTED_COMMIT/" --output="evidence/recipes/colosseum-$ACCEPTED_COMMIT.tar.gz" "$ACCEPTED_COMMIT"
           cp tools/linux-release/distribution-materials/README.md evidence/recipes/ACQUISITION-AND-BUILD.md
           mkdir evidence/recipes/collector
-          cp tools/linux-release/distribution-materials/*.py tools/linux-release/distribution-materials/README.md evidence/recipes/collector/
-          printf '%s\n' "$GITHUB_SHA" > evidence/recipes/collector-commit.txt
-          printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > evidence/recipes/ci-run.txt
-      - name: Download pinned prior review inputs
-        if: ${{ !inputs.full_collection }}
-        uses: actions/download-artifact@v4
-        with:
-          artifact-ids: '12190145167'
-          run-id: '39258916821'
-          github-token: ${{ github.token }}
-          path: prior-review
-          merge-multiple: true
-      - name: Download pinned prior source inputs on CI
-        if: ${{ !inputs.full_collection }}
-        uses: actions/download-artifact@v4
-        with:
-          artifact-ids: '12189870457'
-          run-id: '39258916821'
-          github-token: ${{ github.token }}
-          path: evidence
-          merge-multiple: true
-      - name: Verify every cached input before resuming
-        if: ${{ !inputs.full_collection }}
-        run: |
-          tar -xzf prior-review/review-materials.tar.gz -C evidence
-          python3 tools/linux-release/distribution-materials/verify_cache.py --output evidence
-          cp evidence/SHA256-INDEX.json evidence/recipes/REUSED-INPUT-SHA256-INDEX.json
-          cp evidence/recipes/collector-commit.txt evidence/recipes/reused-collector-commit.txt
-          printf '%s\n' '39258916821; review artifact 12190145167; source artifact 12189870457' > evidence/recipes/reused-ci-inputs.txt
           cp tools/linux-release/distribution-materials/*.py tools/linux-release/distribution-materials/README.md evidence/recipes/collector/
           printf '%s\n' "$GITHUB_SHA" > evidence/recipes/collector-commit.txt
           printf '%s\n' "$GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID" > evidence/recipes/ci-run.txt
@@ -100,31 +59,20 @@ jobs:
           Check-Valid-Until: no
           EOF
           sudo apt-get update 2>&1 | tee apt-update.txt
-          packages=(dpkg-dev patchelf p7zip-full)
-          if [[ '${{ inputs.full_collection }}' == 'true' ]]; then
-            packages+=(libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev
-              libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libxkbcommon-x11-0
-              libxcb-icccm4 libxcb-keysyms1 libxcb-xkb1 ffmpeg)
-          fi
+          packages=(dpkg-dev patchelf p7zip-full libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 libxkbcommon-x11-0 libxcb-icccm4 libxcb-keysyms1 libxcb-xkb1 ffmpeg)
           sudo apt-get install -y --no-install-recommends "${packages[@]}" 2>&1 | tee apt-install.txt
           mkdir -p evidence/apt-trust/lists
           cp apt-update.txt apt-install.txt /etc/apt/sources.list.d/ubuntu.sources evidence/apt-trust/
           cp /etc/apt/sources.list.d/zz-colosseum-source-snapshot.sources evidence/apt-trust/
           cp /usr/share/keyrings/ubuntu-archive-keyring.gpg evidence/apt-trust/
-          # Retain authenticated indices, not merely a list of package names.
           find /var/lib/apt/lists -maxdepth 1 -type f -name '*ubuntu*' -exec cp '{}' evidence/apt-trust/lists/ ';'
           dpkg-query -W -f='${Package}\t${Version}\t${source:Package}\t${source:Version}\n' > evidence/apt-trust/collector-host-packages.tsv
           patchelf --version > evidence/apt-trust/patchelf-version.txt
-      - name: Verify exact distro files and acquire corresponding source inputs
-        run: |
-          args=()
-          if [[ '${{ inputs.full_collection }}' != 'true' ]]; then args+=(--resume-sources); fi
-          python3 tools/linux-release/distribution-materials/distro.py --output evidence "${args[@]}"
-      - name: Acquire Qt SDK families and rebuilt TIFF and KDE source inputs
-        if: ${{ inputs.full_collection }}
+      - name: Verify exact distro files and acquire corresponding 1.1.10 source inputs
+        run: python3 tools/linux-release/distribution-materials/distro.py --output evidence
+      - name: Acquire Qt SDK families, rebuilt TIFF and KDE source inputs
         run: python3 tools/linux-release/distribution-materials/upstream.py --output evidence
       - name: Verify Qt SDK binary archive ownership and acquire ICU candidate source
-        if: ${{ inputs.full_collection }}
         run: python3 tools/linux-release/distribution-materials/sdk.py --output evidence
       - name: Generate explicit review inventory and checksums
         if: always()
@@ -136,7 +84,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: linux-source-proof-review
+          name: colosseum-1.1.10-linux-source-proof-review
           path: |
             review-materials.tar.gz
             evidence/SUMMARY.json
@@ -149,7 +97,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: linux-source-proof-acquired-sources
+          name: colosseum-1.1.10-linux-source-proof-acquired-sources
           path: |
             evidence/sources/**
             evidence/upstream/**/*.tar.xz

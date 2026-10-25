@@ -1,86 +1,70 @@
-# Exact Linux candidate source acquisition
+# Colosseum 1.1.10 Linux source materials
 
-The default run resumes pinned collection39258916821 by downloading review
-artifact12190145167 and source artifact12189870457 on CI. Before reuse, every
-file is verified against that collection's complete SHA256 index. The accepted
-Debian input is independently streamed again. The final receipts distinguish
-reused proofs (including all207 SDK files) from the two repaired source URL
-index entries. APT's URL query runs in an empty temporary directory because it
-otherwise suppresses URIs for already cached files. Current Ubuntu archives precede the historical
-snapshot; downloads use bounded retries for transient network errors. The exact
-Qt WebEngine extension repository comes from the accepted pinned aqt installer
-layout. Existing command logs are preserved and new receipts append after them.
-For a fresh collection, manually dispatch with full_collection=true; this also
-works after the optional reuse artifacts expire, provided the accepted package
-input is still accessible. Reuse is never treated as a new independent build.
+This collector is pinned to the accepted 1.1.10 candidate from GitHub Actions run
+`40192334970`, artifact `12599515396`, and application source commit
+`422541a52bcd32be1cfeca7554d74186e6288cf1`. The package is
+`Colosseum-1.1.10-linux-amd64.deb`, 335014660 bytes, SHA256
+`bb6cca0f21c233cb8b8ff2c725828a6b6792245ebef73dc2b5dd090ced97f915`. It matches the local notices-package copy by byte count and SHA256.
+The collector streams the package and retains only its identity, build identity,
+notices, SBOMs and metadata. It does not rebuild or alter the installer.
 
-This collector prepares review artifacts for the accepted 1.1.9 Debian package;
-it does not rebuild the application, publish a release or promise a source offer.
-The package size and SHA256 are pinned in inventory.py. All payload files are
-hashed through a stream; only notices, license texts and metadata are extracted.
+Run the manual workflow on Ubuntu 24.04. It starts a fresh 1.1.10 collection;
+no 1.1.9 proofs or source archives are reused. Ubuntu source acquisition uses
+authenticated APT metadata, the original package provenance, exact binary
+versions, exact file hashes and replayed RPATH transformations. The resulting
+`ubuntu-source-index.json` records each exact source package/version, every
+acquired file's SHA256 and size, and its APT acquisition URL.
 
-Run the named branch workflow on Ubuntu 24.04. Its input is accepted artifact
-12182359609 of run 39244501311. The workflow retains the exact application's
-source archive, accepted build workflow and collector revision. It enables
-Ubuntu deb-src with normal signed APT authentication and retains InRelease,
-Packages/Sources indices, source configuration, archive keyring and command logs.
+The workflow records the accepted build workflow and an archive of the exact
+application source commit. It also retains the original Ubuntu package
+provenance, signed APT indices and keyring, Qt SPDX/CycloneDX SBOMs, and
+collector revision. `SHA256-INDEX.json` hashes the retained evidence and
+source material. CI artifacts have 14-day retention.
 
-For each actual Ubuntu-origin bundled dependency, distro.py looks up the exact
-origin path in dpkg's database. This is only an owner candidate: verification
-then requires the binary package at the version recorded in the accepted
-package's provenance, authenticated Packages metadata, matching archive checksum,
-the exact file inside that archive, matching pre-relocation SHA256, and replayed
-RPATH transformation matching the shipped bytes. For ffmpeg/ffprobe, whose
-pre-relocation hashes were not retained, the exact final transformed bytes are
-required. Runner drift never substitutes a newer package or source version.
+## Ubuntu package rebuild
 
-Only verified binary metadata supplies source package/version. Source identity
-must also agree with the original build provenance. apt-get source downloads
-the exact version, and all source files must match authenticated Sources SHA256
-and size. The source index retains actual APT acquisition URIs. An unavailable
-old version, absent owner, notice, hash or source metadata stays unresolved.
-Host package lists and SONAME-name guesses are never sufficient evidence.
-The accepted runner image supplied AppArmor .8, superseded before the package
-build. CI adds official Ubuntu snapshot 20261001T000000Z noble-updates/main
-metadata to acquire that exact version; historical validity checking is disabled
-only for that archived repository, with archive signature verification retained.
-The signed historical indices and configuration are part of review evidence.
+For each entry in `ubuntu-source-index.json`, use the pinned `.dsc`, Debian
+patches and original source files listed in that record. Verify the recorded
+hashes, unpack with `dpkg-source -x <source.dsc>`, install the exact
+`Build-Depends` from the matching authenticated Ubuntu snapshot, and follow
+that source package's `debian/README*` or `debian/rules` build target. Do not
+replace the recorded source version with a newer package version and treat it
+as the same build.
 
-Qt is separate from Ubuntu: its own original SPDX/CycloneDX documents are
-retained. Upstream collection acquires Qt release module archives, verifies
-official download.qt.io SHA256 metadata and retains source notices. Module Git
-snapshots use full commits from retained SBOMs where present, otherwise the
-upstream v6.11.1 tag with its resolved commit recorded. Archive files are compared
-with Git blob identities; missing/different paths and gitlinks remain visible.
-sdk.py additionally verifies original Qt installer archive checksums, locates
-exact file members, checks retained pre-relocation hashes where present and
-replays RPATH edits against shipped SHA256. The original installer archives are
-temporary CI inputs, not claimed to be source. Archive checksums and the exact
-Qt Updates.xml metadata remain in review evidence. SBOM path attribution by
-itself is explicitly weaker than this file verification. ICU73.2
-has NOASSERTION source location in the retained SDK SBOM and remains unresolved
-until exact SDK source/build provenance is supplied. The Unicode73.2 source
-archive is acquired against official Unicode SHA512 metadata as a candidate,
-with this correspondence limitation recorded. QtWebEngine source archives
-contain Chromium, but transitive source closure and SDK configuration must be
-reviewed against the retained Chromium SBOMs and recorded gitlinks.
+## Application build and dynamic relinking
 
-The custom TIFF plugin has its own exact qtimageformats commit snapshot
-77f35e5694885844c3eb3a737769b5ed290b8ccc, separate from the SDK module. This includes
-the bundled libtiff source, attribution and COPYRIGHT. The accepted workflow
-records FEATURE_system_tiff=OFF and the complete CMake invocation. MpvQt1.2.0 and
-ECM6.15.0 archives must match accepted build SHA256 pins; their notices are
-retained unchanged. The workflow records all original build options and linkage.
-Reproducing the application uses that accepted workflow/source with the acquired
-exact dependency sources, not a claim that current APT versions reproduce it.
-Ubuntu source packages retain their Debian patches and debian/rules; inspect each
-.dsc and use dpkg-source -x followed by the package's documented build procedure.
-No reproduction/build or license-specific relinking qualification is claimed.
+`recipes/accepted-build-workflow.yml` is the exact 1.1.10 build workflow from
+the pinned application commit; `recipes/colosseum-422541a52bcd32be1cfeca7554d74186e6288cf1.tar.gz`
+is the corresponding source tree. The workflow records the CMake options and
+all build steps. It pins ECM 6.15.0 to SHA256
+`f7cd022095a9e6bdbe5897720a24bfda81d211757b7c08b173061962bf2ee0b2`,
+MpvQt 1.2.0 to SHA256
+`8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb`,
+and the rebuilt Qt TIFF plugin to qtimageformats commit
+`77f35e5694885844c3eb3a737769b5ed290b8ccc` with
+`FEATURE_system_tiff=OFF`. Qt SDK source manifests record the exact Qt
+module archives and Git commits; the QtWebEngine manifest includes its
+Chromium gitlink commits.
 
-Outputs: review artifact with inventory, unchanged notices, metadata, logs,
-build recipes and unresolved cases; source artifact with actual acquired source
-archives and SHA256-INDEX.json. Verify each downloaded artifact/file checksum
-before receiving. CI artifacts expire after 14 days. Public distribution needs
-durable approved source hosting and notice/source-delivery acceptance. No
-license classification defaults to permissive, no blanket licensing verdict is
-generated, and successful CI alone never closes the source-distribution gate.
+The app uses dynamically linked libraries. To relink after rebuilding a
+dependency, use the accepted workflow's Qt 6.11.1 prefix, compiler, CMake
+options and module versions, rebuild the app against that prefix, and preserve
+the package's relative RPATHs (`$ORIGIN/.` for bundled libraries and
+`$ORIGIN/../lib` for bundled executables). Re-run the package checks and
+compare the resulting files before replacing any shipped runtime. These
+materials do not prove that the Qt SDK binaries can be reproduced: the exact
+Qt-prebuilt ICU 73.2 source/build provenance remains unresolved, and
+QtWebEngine/Chromium closure remains subject to review.
+
+The Qt module archives are acquired from Qt's release download area and their
+source files are compared with the matching Git commit where available.
+QtWebEngine's source archive and gitlink manifest are evidence for review;
+they do not establish complete Chromium source/patch/configuration delivery.
+The Unicode ICU 73.2 source archive is retained as a candidate only because
+the Qt SBOM records `NOASSERTION` for its source location.
+
+The source and review artifacts preserve upstream notices and report
+unresolved correspondence or notice questions. They do not certify legal
+compliance, make a public source offer, or close the public distribution gate.
+Ubuntu `.dsc` packages include Debian patches and `debian/rules`; build or
+relink claims require separate review of the exact package, source and outputs.
