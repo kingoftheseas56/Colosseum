@@ -95,6 +95,9 @@ Item {
                 MultiEffect {
                     anchors.fill: sourceGlyph
                     source: sourceGlyph
+                    // The shared Universes atom asset is black for its light-surface uses.
+                    // Raise its luminance before tinting so the glyph remains visible here.
+                    brightness: tab.entry.name === "Universes" ? 1.0 : 0.0
                     colorization: 1.0
                     colorizationColor: tab.active ? "#f0c44a" : "#9a99a5"
                 }
