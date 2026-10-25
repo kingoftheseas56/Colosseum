@@ -1,24 +1,24 @@
 {
   "sources": {
     "imdb": {
-      "sha256": "5f11ab2a794519c76a742e03775c1eba1108b94711d61f7f97dd6ddb50c5d0f8",
-      "bytes": 21528576
+      "sha256": "6d5941fb2138d1ae4df10860ab3007cb1e2a9993c28d5d97ff44f187aa9d5fb6",
+      "bytes": 22036480
     },
     "mal": {
       "sha256": "9b46581a3ba4da1d5f874600710c661199f42935f37e4c8cb0af0649ba59ca72",
       "bytes": 41381888
     },
     "comics": {
-      "sha256": "bf3062bfbba743af72f3ab16139eb893a1ca9f0986c326823e84fe4fe675604e",
-      "bytes": 98865152
+      "sha256": "574f26f907dc3fec9be0247d6639b91a4b791dbc2d3d14f735a676aa4803d3c9",
+      "bytes": 96890880
     },
     "tankoban": {
       "sha256": "04d485c6a559fdc7b6d1d651a622befd77af8bf93b2c7bdbcf7ebbd7bdd7e5a1",
       "bytes": 2850816
     }
   },
-  "sourceBytes": 164626432,
+  "sourceBytes": 163160064,
   "tables": 24,
-  "rows": 1133337,
-  "estimatedRowWrites": 2823109
+  "rows": 1106734,
+  "estimatedRowWrites": 2747060
 }

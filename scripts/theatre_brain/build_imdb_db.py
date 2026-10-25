@@ -8,10 +8,12 @@ only the artifact (data/*.db is gitignored). Downloads happen at BAKE TIME on th
 dev machine; the runtime never touches the dumps.
 
 Usage:  python scripts/theatre_brain/build_imdb_db.py [--selftest]
-Output: data/imdb_catalog.db  (tables: title, genre, meta)
+        [--cache-dir PATH] [--output PATH]
+Output: data/imdb_catalog.db by default (tables: title, genre, meta)
 """
 from __future__ import annotations
 
+import argparse
 import gzip
 import json
 import os
@@ -30,7 +32,8 @@ DUMPS = ["title.ratings.tsv.gz", "title.basics.tsv.gz",
          "title.episode.tsv.gz", "title.akas.tsv.gz"]
 
 VOTE_FLOOR = 1000          # inclusion dial — raise if the artifact runs fat
-KEEP_TYPES = {"movie": "movie", "tvSeries": "series", "tvMiniSeries": "mini"}
+KEEP_TYPES = {"movie": "movie", "short": "movie",
+              "tvSeries": "series", "tvMiniSeries": "mini"}
 
 _POSSESSIVE = re.compile(r"['’]s")
 _NON_ALNUM = re.compile(r"[^a-z0-9]+")
@@ -172,22 +175,30 @@ def selftest() -> int:
     check(keep_title("movie", "0", 1000) and not keep_title("movie", "1", 99999), "adult excluded")
     check(not keep_title("tvEpisode", "0", 99999) and keep_title("tvMiniSeries", "0", 1000), "type filter")
     check(not keep_title("movie", "0", VOTE_FLOOR - 1), "vote floor")
+    check(keep_title("short", "0", VOTE_FLOOR) and KEEP_TYPES.get("short") == "movie",
+          "IMDb shorts admitted as movies at the vote floor")
+    check(not keep_title("short", "0", VOTE_FLOOR - 1), "shorts below vote floor excluded")
+    check(not keep_title("short", "1", 99999), "adult shorts excluded")
+    check(KEEP_TYPES.get("movie") == "movie" and KEEP_TYPES.get("tvSeries") == "series"
+          and KEEP_TYPES.get("tvMiniSeries") == "mini"
+          and "tvEpisode" not in KEEP_TYPES and "tvMovie" not in KEEP_TYPES,
+          "existing and unwanted IMDb type mappings")
     check(is_anime("tt0388629", {"tt0388629"}) and not is_anime("tt0096697", {"tt0388629"}),
           "isAnime from the anime-identity set")
     print("SELFTEST OK" if ok else "SELFTEST FAILED")
     return 0 if ok else 1
 
 
-def fetch(name: str) -> str:
+def fetch(name: str, cache_dir: str = CACHE) -> str:
     """Cache a dump by bare filename (IMDb TSVs) OR by full URL (Fribb JSON).
 
     A bare name downloads from datasets.imdbws.com; a full http(s) URL is
     cached under its basename. Public, keyless sources only."""
-    os.makedirs(CACHE, exist_ok=True)
+    os.makedirs(cache_dir, exist_ok=True)
     is_url = name.startswith("http://") or name.startswith("https://")
     cache_name = name.rsplit("/", 1)[-1] if is_url else name
     src = name if is_url else BASE + name
-    path = os.path.join(CACHE, cache_name)
+    path = os.path.join(cache_dir, cache_name)
     if not os.path.exists(path):
         print("downloading", cache_name)
         urllib.request.urlretrieve(src, path)
@@ -202,11 +213,11 @@ def fetch(name: str) -> str:
 FRIBB_URL = "https://raw.githubusercontent.com/Fribb/anime-lists/master/anime-list-full.json"
 
 
-def load_anime_tt() -> set[str]:
+def load_anime_tt(cache_dir: str = CACHE) -> set[str]:
     """Every tt id the Fribb anime-identity dataset cross-references to IMDb.
     `imdb_id` is a list of tt strings per entry (sometimes a single string,
     sometimes empty); we flatten all into one set."""
-    with open(fetch(FRIBB_URL), "rt", encoding="utf-8", errors="replace") as f:
+    with open(fetch(FRIBB_URL, cache_dir), "rt", encoding="utf-8", errors="replace") as f:
         data = json.load(f)
     out: set[str] = set()
     for e in data:
@@ -225,14 +236,15 @@ def tsv_rows(path: str):
             yield dict(zip(header, line.rstrip("\n").split("\t")))
 
 
-def bake() -> int:
+def bake(db_path: str = DB_PATH, cache_dir: str = CACHE) -> int:
+    db_path = os.path.abspath(db_path)
     # anime identity (definitive; loaded once, reused at insert time)
-    anime_tt = load_anime_tt()
+    anime_tt = load_anime_tt(cache_dir)
     print(f"anime tt ids (Fribb): {len(anime_tt):,}")
 
     # pass 1 — ratings above the floor
     ratings = {}
-    for r in tsv_rows(fetch("title.ratings.tsv.gz")):
+    for r in tsv_rows(fetch("title.ratings.tsv.gz", cache_dir)):
         v = int(r["numVotes"])
         if v >= VOTE_FLOOR:
             ratings[r["tconst"]] = (float(r["averageRating"]), v)
@@ -240,7 +252,7 @@ def bake() -> int:
 
     # pass 2 — basics for kept titles
     titles = {}
-    for r in tsv_rows(fetch("title.basics.tsv.gz")):
+    for r in tsv_rows(fetch("title.basics.tsv.gz", cache_dir)):
         tt = r["tconst"]
         if tt not in ratings or not keep_title(r["titleType"], r["isAdult"], ratings[tt][1]):
             continue
@@ -262,13 +274,13 @@ def bake() -> int:
     print(f"titles kept: {len(titles):,}")
 
     # pass 3 — episode counts for kept series
-    for r in tsv_rows(fetch("title.episode.tsv.gz")):
+    for r in tsv_rows(fetch("title.episode.tsv.gz", cache_dir)):
         p = r["parentTconst"]
         if p in titles:
             titles[p]["episodes"] += 1
 
     # pass 4 — language evidence from akas
-    for r in tsv_rows(fetch("title.akas.tsv.gz")):
+    for r in tsv_rows(fetch("title.akas.tsv.gz", cache_dir)):
         t = titles.get(r["titleId"])
         if t is None:
             continue
@@ -288,8 +300,9 @@ def bake() -> int:
             t["usPrimary"] = True
 
     # bake
-    os.makedirs(os.path.dirname(DB_PATH), exist_ok=True)
-    tmp = DB_PATH + ".building"
+    output_dir = os.path.dirname(os.path.abspath(db_path))
+    os.makedirs(output_dir, exist_ok=True)
+    tmp = db_path + ".building"
     if os.path.exists(tmp):
         os.remove(tmp)
     db = sqlite3.connect(tmp)
@@ -330,14 +343,25 @@ def bake() -> int:
     db.execute("INSERT INTO meta VALUES ('vote_floor', ?)", (str(VOTE_FLOOR),))
     db.commit()
     db.close()
-    if os.path.exists(DB_PATH):
-        os.remove(DB_PATH)
-    os.rename(tmp, DB_PATH)
-    print(f"baked: {DB_PATH} ({os.path.getsize(DB_PATH)/1048576:.1f} MB, "
+    if os.path.exists(db_path):
+        os.remove(db_path)
+    os.rename(tmp, db_path)
+    print(f"baked: {db_path} ({os.path.getsize(db_path)/1048576:.1f} MB, "
           f"{len(titles):,} titles, {n_lang:,} with known language, "
           f"{n_anime:,} anime)")
     return 0
 
 
+def main(argv: list[str] | None = None) -> int:
+    parser = argparse.ArgumentParser(description="Bake the public IMDb datasets into a local catalogue.")
+    parser.add_argument("--selftest", action="store_true", help="run local policy checks without fetching inputs")
+    parser.add_argument("--cache-dir", default=CACHE, help="input cache directory (default: enrichment/imdb)")
+    parser.add_argument("--output", default=DB_PATH, help="output SQLite path (default: data/imdb_catalog.db)")
+    args = parser.parse_args(argv)
+    if args.selftest:
+        return selftest()
+    return bake(args.output, args.cache_dir)
+
+
 if __name__ == "__main__":
-    sys.exit(selftest() if "--selftest" in sys.argv else bake())
+    sys.exit(main())
