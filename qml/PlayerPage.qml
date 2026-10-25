@@ -3987,7 +3987,10 @@ Item {
         // clear of the dock AND its state line (Buffering / ENDS) that rides above it
         anchors.bottomMargin: root.controlsShown ? bottomDock.height + 40 : 52
         width: Math.min(parent.width * 0.86, 1180)
-        z: 24
+        // Keep cues readable above the HUD's pause information card. Menus and
+        // prompts still own the foreground while the user is interacting.
+        z: chrome.z + (root.anyMenuOpen || root.resumeChoiceOpen
+                       || root.shortcutsOpen || root.upNextVisible ? -1 : 1)
         spacing: 4
         visible: root.supportsPlayerCapability("subtitleCueOverlay")
                  && mpv.subtitleCues && mpv.subtitleCues.length > 0

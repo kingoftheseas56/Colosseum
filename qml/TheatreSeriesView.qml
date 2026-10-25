@@ -526,6 +526,14 @@ Item {
         page.closeEpisodeContext(true)
     }
 
+    function requestEscape() {
+        if (page.episodeContextOpen) { page.closeEpisodeContext(true); return true }
+        if (sources.requestEscape()) return true
+        if (page.episodeJumpOpen) { page.closeEpisodeJump(true); return true }
+        if (page.seasonMenuOpen) { page.closeSeasonMenu(true); return true }
+        return false
+    }
+
     function sourceBackdrop() {
         return banner.length ? banner : cover;
     }

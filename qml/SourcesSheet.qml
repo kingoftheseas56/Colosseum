@@ -264,6 +264,14 @@ Item {
         if(target) Qt.callLater(function(){ if(target.visible&&target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
+    function requestEscape() {
+        if (!sheet.open) return false
+        if (sheet.sourceContextOpen) { sheet.closeSourceContext(true); return true }
+        if (sheet.extMenuOpen) { sheet.closeExtMenu(true); return true }
+        sheet.hide()
+        return true
+    }
+
     // the mode's row universe: season mode sees only full-season torrents,
     // everything else sees the raw answer. Quality pills filter on top of this.
     function baseRows() {

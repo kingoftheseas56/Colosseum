@@ -682,6 +682,7 @@ Item {
             }
         }
         Row {
+            visible: Qt.platform.os !== "android"
             anchors.right: parent.right; anchors.rightMargin: 14
             anchors.verticalCenter: parent.verticalCenter
             spacing: 6
