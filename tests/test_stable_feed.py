@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / "scripts" / "update"))
 
-from create_stable_feed import build_stable_feed, validated_base  # noqa: E402
+from create_stable_feed import asset_url, build_stable_feed, validated_base  # noqa: E402
 from generate_update_manifest import manifest_bytes, sign_raw  # noqa: E402
 from verify_update_release import verify  # noqa: E402
 
@@ -76,12 +76,21 @@ class IndependentUpdateFeedTests(unittest.TestCase):
         for item in data["assets"]:
             self.assertTrue(item["browser_download_url"].startswith(
                 "https://gitlab.com/kingoftheseas56/colosseum-site/-/raw/"
-                "release-assets/v1.1.9/releases/"))
+                "release-assets%2Fv1.1.9/releases/"))
             self.assertTrue(item["browser_download_url"].endswith("?ref_type=heads"))
             local = self.root / item["name"]
             self.assertEqual(item["size"], local.stat().st_size)
             self.assertEqual(item["digest"], "sha256:" + hashlib.sha256(local.read_bytes()).hexdigest())
         self.assertIn(b'"draft":false', first)
+
+    def test_1110_encodes_branch_slash_for_public_lfs_downloads(self):
+        # Full unauthenticated downloads of this encoded-ref URL returned the
+        # verified installer; the unencoded branch path returned HTTP404.
+        base = ASSET_BASE.replace('v1.1.9', 'v1.1.10')
+        self.assertEqual(
+            asset_url(validated_base(base, 'v1.1.10'), 'Colosseum-1.1.10-setup.exe'),
+            'https://gitlab.com/kingoftheseas56/colosseum-site/-/raw/'
+            'release-assets%2Fv1.1.10/releases/Colosseum-1.1.10-setup.exe?ref_type=heads')
 
     def test_rejects_altered_signature(self):
         corrupt = bytearray(self.signature.read_bytes())
