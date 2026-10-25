@@ -65,6 +65,45 @@ row = parse(addon, '1080p x265 10-bit');
 assert.equal(row.videoCodec.profile, 'main10', 'explicit 10-bit HEVC evidence maps to Main10');
 assert.equal(state(row), 'unsupported');
 
+// Android MediaCodec may report an exact profile inventory while omitting its
+// level values (level 0). The T20-shaped inventory also reports Main Still,
+// which is a known profile but is not a Main10 decoder.
+addon = makeAddon(runtime(snapshot([decoder('video/hevc', [
+    profile('main', 0), profile('main-still', 0)
+], true)])));
+row = parse(addon, '2160p x265 Main10 HDR10+');
+assert.equal(state(row), 'unsupported',
+    'complete Main/Main-Still inventory excludes Main10 even when decoder levels are unknown');
+row = parse(addon, '1080p HEVC Main');
+assert.equal(state(row), 'unknown',
+    'matching Main with missing source and decoder levels remains unknown');
+
+addon = makeAddon(runtime(snapshot([decoder('video/hevc', [profile('main-still', 0)], true)])));
+row = parse(addon, '1080p HEVC Main');
+assert.equal(state(row), 'unsupported', 'Main Still alone does not cover HEVC Main');
+row = parse(addon, '2160p x265 Main10 HDR10+');
+assert.equal(state(row), 'unsupported', 'Main Still alone does not cover HEVC Main10');
+
+addon = makeAddon(runtime(snapshot([decoder('video/av01', [profile('main', 0)], true)])));
+row = parse(addon, '2160p AV1 Main10 HDR10');
+assert.equal(state(row), 'unsupported',
+    'complete level-unknown AV1 Main inventory excludes Main10');
+row = parse(addon, '1080p AV1 Main');
+assert.equal(state(row), 'unknown',
+    'matching AV1 Main with missing source and decoder levels remains unknown');
+
+addon = makeAddon(runtime(snapshot([decoder('video/hevc', [
+    profile('main', 0), profile('main-still', 0)
+], false)])));
+row = parse(addon, '2160p x265 Main10 HDR10+');
+assert.equal(state(row), 'unknown', 'an explicitly incomplete profile inventory cannot exclude Main10');
+
+addon = makeAddon(runtime(snapshot([decoder('video/hevc', [
+    profile('main', 0), profile('vendor-future-profile', 0)
+], true)])));
+row = parse(addon, '2160p x265 Main10 HDR10+');
+assert.equal(state(row), 'unknown', 'an unrecognized profile keeps absence conclusions conservative');
+
 addon = makeAddon(runtime(snapshot([decoder('video/hevc', [profile('main10', 153)])])));
 row = parse(addon, '1080p HEVC Main');
 assert.equal(state(row), 'unknown', 'missing source level prevents a positive support claim');

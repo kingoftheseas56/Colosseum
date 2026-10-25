@@ -255,8 +255,13 @@ function _normalizedCapabilityProfile(mime, profile) {
     var value = String(profile || "").toLowerCase().replace(/[^a-z0-9]/g, "");
     if (value === "constrainedbaseline") value = "baseline";
     if (value === "constrainedhigh") value = "high";
-    if (mime === "video/hevc" || mime === "video/av01")
+    if (mime === "video/hevc" && value === "mainstill") {
+        // Android reports HEVC Main Still separately; it is not Main or Main10 coverage.
+        return value;
+    }
+    if (mime === "video/hevc" || mime === "video/av01") {
         return value === "main" || value === "main10" ? value : "";
+    }
     if (mime === "video/avc")
         return _contains(["baseline", "main", "high", "high10", "high422", "high444"], value) ? value : "";
     return "";
@@ -332,7 +337,6 @@ function _videoCompatibility(descriptor) {
             if (!normalized) { incompleteProfiles = true; continue; }
             var level = (typeof entry.level === "number" && isFinite(entry.level) && entry.level > 0)
                 ? entry.level : 0;
-            if (!level) incompleteProfiles = true;
             records.push({ profile: normalized, level: level });
         }
     }
