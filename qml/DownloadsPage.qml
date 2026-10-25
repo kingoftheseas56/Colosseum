@@ -1204,13 +1204,18 @@ Item {
                             // honest empty lane
                             Column {
                                 visible: lane.laneList.length === 0
+                                width: shelfCol.width
                                 spacing: 12
                                 Text {
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
                                     text: "Nothing from " + lane.modelData.title + " lives here yet."
                                     color: theme.inkDim
                                     font.family: theme.display; font.italic: true; font.pixelSize: 19
                                 }
                                 Text {
+                                    width: parent.width
+                                    wrapMode: Text.WordWrap
                                     text: "Open " + lane.modelData.title + " and pick something ›"
                                     color: goInput.interactionActive ? "#ffd968" : theme.gold
                                     font.family: theme.ui; font.pixelSize: 14
