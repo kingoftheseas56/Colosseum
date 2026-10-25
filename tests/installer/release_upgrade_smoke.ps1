@@ -7,6 +7,16 @@ $ErrorActionPreference = 'Stop'
 function Require([bool]$condition, [string]$message) {
     if (!$condition) { throw "RELEASE_UPGRADE_FAIL: $message" }
 }
+function Write-UpgradeProcesses([string]$phase) {
+    $processes = @(Get-CimInstance Win32_Process | Where-Object {
+        $_.ExecutablePath -and $_.ExecutablePath.StartsWith(
+            $installRoot + [IO.Path]::DirectorySeparatorChar, [StringComparison]::OrdinalIgnoreCase)
+    } | Select-Object ProcessId, ParentProcessId, Name, ExecutablePath)
+    [pscustomobject]@{ Phase = $phase; Processes = $processes } |
+        ConvertTo-Json -Depth 4 -Compress |
+        Add-Content (Join-Path $env:RUNNER_TEMP 'upgrade-processes.log')
+    return $processes
+}
 # Run only on a fresh GitHub-hosted runner. Never use the user's install/registry.
 Require ($env:GITHUB_ACTIONS -eq 'true' -and $env:RUNNER_ENVIRONMENT -eq 'github-hosted') 'clean hosted runner required'
 $installRoot = Join-Path $env:LOCALAPPDATA 'Programs\Colosseum'
@@ -30,15 +40,27 @@ Require (Test-Path $profile) 'prior app created private profile'
 # Save durable prior settings and an explicit user-state sentinel outside the payload.
 $sentinel = Join-Path $profile 'upgrade-preservation.json'
 '{"library":"owned-fixture","progress":37,"preference":"keep"}' | Set-Content $sentinel
-$preserved = @{}
-Get-ChildItem $profile -Recurse -File | Where-Object { $_.Extension -in @('.ini', '.conf') -or $_.FullName -eq $sentinel } | ForEach-Object { $preserved[$_.FullName] = (Get-FileHash $_.FullName).Hash }
 $updateLog = Join-Path $env:RUNNER_TEMP 'real-upgrade.log'
 # Exact PID wait: installer must stay alive before the old app is closed.
 $upgrade = Start-Process $Installer -ArgumentList @('/UPDATE=1',"/WAITPID=$($old.Id)",'/TARGETVERSION=1.1.10','/RESTART=0',"/LOG=$updateLog") -PassThru
 Start-Sleep -Seconds 3
 $upgrade.Refresh(); Require (!$upgrade.HasExited) 'updater waits for old process'
-Stop-Process -Id $old.Id -Force
+$null = Write-UpgradeProcesses 'before-normal-shutdown'
+# Match the production updater's normal application shutdown. Force-killing only
+# the parent bypasses helper teardown and can leave the install directory locked.
+$old.Refresh()
+Require ($old.MainWindowHandle -ne 0) 'prior app has a window for normal shutdown'
+Require ($old.CloseMainWindow()) 'prior app accepted normal shutdown request'
+Require ($old.WaitForExit(60000)) 'prior app normal shutdown timeout'
+Require ($old.ExitCode -eq 0) "prior app normal shutdown exit=$($old.ExitCode)"
+$remaining = @(Write-UpgradeProcesses 'after-normal-shutdown')
+Require ($remaining.Count -eq 0) 'payload processes remain after normal shutdown; see upgrade-processes.log'
+# Normal shutdown may flush durable settings. Preserve that settled state, along
+# with the sentinel, across replacement and the first healthy boot.
+$preserved = @{}
+Get-ChildItem $profile -Recurse -File | Where-Object { $_.Extension -in @('.ini', '.conf') -or $_.FullName -eq $sentinel } | ForEach-Object { $preserved[$_.FullName] = (Get-FileHash $_.FullName).Hash }
 Require ($upgrade.WaitForExit(120000)) 'upgrade timeout'
+$null = Write-UpgradeProcesses 'after-upgrade'
 Require ($upgrade.ExitCode -eq 0) "upgrade exit=$($upgrade.ExitCode)"
 Require ((Get-ItemProperty $regPath).DisplayVersion -eq '1.1.10') 'updated registry version'
 Require ((Get-FileHash $exe).Hash -ne $oldExeSha) 'new binary installed'
