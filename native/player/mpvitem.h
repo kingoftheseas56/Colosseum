@@ -31,6 +31,7 @@ public:
         // Batch stats reads encode their property INDEX in the reply id: StatsBatch + i.
         // Kept far above the small ids so the switch in onAsyncReply stays clean.
         StatsBatch = 100,
+        DecodedDimensions = 1000,
     };
     Q_ENUM(AsyncIds)
 
@@ -232,6 +233,7 @@ private:
     QVariantMap m_statsBatchValues;
     int m_statsBatchPending = 0;
     void onAsyncReply(const QVariant &data, mpv_event event);
+    void refreshDecodedDimensions();
     QString formatTime(const double time) const;
     QVariantList tracksForType(const QString &type) const;
     QString stringifyId(const QVariant &value) const;
@@ -254,6 +256,8 @@ private:
     QUrl m_currentUrl;
     int m_decodedWidth{0};
     int m_decodedHeight{0};
+    int m_decodedRefreshId = static_cast<int>(AsyncIds::DecodedDimensions);
+    bool m_decodedRefreshEnabled = false;
     QVariantList m_trackList;
     QVariantList m_chapters;
     double m_cacheTime = 0.0;

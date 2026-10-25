@@ -208,6 +208,10 @@ Item {
     property int    mediaResumeFileIdx: 0 //   ...at this file index
     property string mediaLocalPath: ""    // downloaded-file playback: resume by path, not torrent
     property real   pendingSeekSec: -1    // seek here once the file opens (resume / session restore)
+    // Same-item recovery survives mpv clearing time-pos before an error/reload.
+    property real recoveryPositionSec: -1
+    property bool recoveryResumePending: false
+    property bool recoveryResumePaused: false
 
     // --- Your Colosseum activity (Lane A, CPP-PORT-CONTRACT.md §9): the identity key
     // ("kind|titleKey|itemKey") the tracker's current open session was begun for, so a
@@ -1405,10 +1409,8 @@ Item {
         root.mediaResumeFileIdx = c.fileIdx || 0
         // Mid-play stream switch: carry the live position into the replacement stream.
         // No overlay mid-watch — you were just watching, so the seek is silent.
-        if (reason === "switch" && mpv.position > 0) {
-            root.pendingSeekSec = mpv.position
-            root.resumePromptConsumed = true   // silent carry — skip the resume overlay
-        }
+        if (reason === "switch")
+            root.prepareRecoveryResume()
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -1440,6 +1442,7 @@ Item {
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.resetRecoveryResume()
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
         root.clearAbLoop()
@@ -1510,6 +1513,7 @@ Item {
         if (root.currentStreamIndex < 0 || root.currentStreamIndex >= root.streamCandidates.length)
             return
         var c = root.streamCandidates[root.currentStreamIndex] || ({})
+        root.prepareRecoveryResume()
         root.streamRetryCount += 1
         root.errored = false
         root.starting = true
@@ -1548,6 +1552,27 @@ Item {
     }
 
     // --- recovery watch + wake reconnect (Feature 3) ---
+    function resetRecoveryResume() {
+        root.recoveryPositionSec = -1
+        root.recoveryResumePending = false
+        root.recoveryResumePaused = false
+    }
+
+    function prepareRecoveryResume() {
+        if (!root.recoveryResumePending) {
+            var pos = Number(mpv.position)
+            if (!root.starting && isFinite(pos) && pos > 0)
+                root.recoveryPositionSec = pos
+            // No playback yet: keep the initial Resume/Start over decision intact.
+            if (root.recoveryPositionSec < 0)
+                return
+            root.recoveryResumePaused = mpv.pause
+            root.recoveryResumePending = true
+        }
+        root.pendingSeekSec = root.recoveryPositionSec
+        root.resumePromptConsumed = true
+    }
+
     // Local downloaded files and live streams are excluded from automatic source switching
     // and reconnection: locals fail honestly, live has no seekable resume point.
     function recoveryExcluded() {
@@ -1588,7 +1613,7 @@ Item {
     }
 
     function tickRecoveryWatch() {
-        if (root.recoveryExcluded())
+        if (!root.visible || root.recoveryExcluded())
             return
         if (root.starting || root.errored || mpv.pause || !root.fileReady)
             return
@@ -1629,7 +1654,7 @@ Item {
     }
 
     function tickWakeReconnect() {
-        if (root.recoveryExcluded())
+        if (!root.visible || root.recoveryExcluded())
             return
         if (!root.currentPlaybackUrl.length || root.errored)
             return
@@ -1674,6 +1699,7 @@ Item {
             root.wakeChrome()
             return
         }
+        root.prepareRecoveryResume()
         if (!root.streamCandidates.length && !root.mediaResumeHash.length
                 && root.currentPlaybackUrl.length) {
             // Direct-url (Arriving) session: no candidate ladder to walk —
@@ -1718,6 +1744,8 @@ Item {
     function handleStreamWatchdog() {
         // FILE_LOADED is not playback proof. `starting` retires only after position
         // genuinely advances, so a loaded-but-frozen/black source must still time out.
+        if (!root.visible)
+            return
         if (!root.starting)
             return
         root.statusMsg = "This source did not start. Trying another stream..."
@@ -2421,6 +2449,7 @@ Item {
 
 
     function playUrl(url, title) {
+        root.resetRecoveryResume()
         root.hydrateGen += 1   // identity reset: a late hydration callback must not land here
         root.playbackQueueOrderingMode = ""
         root.clearAbLoop()
@@ -2505,6 +2534,7 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.resetRecoveryResume()
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
         root.arrivingStreamUrl = String(t.arrivingUrl || "")
@@ -2572,6 +2602,7 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.resetRecoveryResume()
         var t = target || ({})
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
@@ -2686,6 +2717,8 @@ Item {
     }
 
     function armPlaybackAfterResumeChoice(label, seekSec) {
+        root.resetRecoveryResume()
+        root.recoveryPositionSec = seekSec >= 0 ? seekSec : -1
         // prepareResumeChoice() deliberately retired the initial start state while UI owned
         // the decision. Re-arm BEFORE the seek so that seek-driven position notifications
         // cannot certify playback as started; only later post-unpause advancement may clear it.
@@ -2717,6 +2750,7 @@ Item {
     }
 
     function stop() {
+        root.resetRecoveryResume()
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
         root.sendTraktPlayback(false)
         root.recordProgress()   // capture where we left off BEFORE mpv clears position
@@ -2773,6 +2807,8 @@ Item {
     }
     function seekTo(sec) {
         var target = root.clamp(sec, 0, Math.max(0, mpv.duration))
+        if (root.fileReady && !root.starting && !root.recoveryResumePending)
+            root.recoveryPositionSec = target
         root.seekTargetSec = target
         seekSettleGuard.restart()
         root.activityDiscontinuity(target)   // Activity (§9 Lane A): central seekTo() path
@@ -2782,6 +2818,8 @@ Item {
     function seekStep(delta) {
         if (mpv.duration > 0) {
             root.seekTargetSec = root.clamp(mpv.position + delta, 0, mpv.duration)
+            if (root.fileReady && !root.starting && !root.recoveryResumePending)
+                root.recoveryPositionSec = root.seekTargetSec
             seekSettleGuard.restart()
             root.activityDiscontinuity(root.seekTargetSec)   // Activity: same reset as seekTo()
         }
@@ -3393,6 +3431,13 @@ Item {
         if (typeof Power !== "undefined") Power.release()
     }
     onVisibleChanged: {
+        // Hidden retained players cannot render video. Stop their watchdogs and
+        // discard the hidden interval before granting a fresh visible grace period.
+        root.resetRecoveryWatch()
+        if (visible && root.starting)
+            streamWatchdog.restart()
+        else if (!visible)
+            streamWatchdog.stop()
         if (visible)
             root.forceActiveFocus()
         else if (typeof Stream !== "undefined") {
@@ -3622,7 +3667,16 @@ Item {
             root.seekPreview = mpv.position
             root.fileReady = true
             var startupOwnedByUi = false
-            if (root.wakeReconnectPendingSeek > 1) {
+            if (root.recoveryResumePending) {
+                var recoveryPaused = root.recoveryResumePaused
+                var recoverySeek = root.pendingSeekSec
+                if (recoverySeek >= 0)
+                    mpv.seekExact(recoverySeek)
+                root.pendingSeekSec = -1
+                root.recoveryResumePending = false
+                mpv.pause = recoveryPaused
+                startupOwnedByUi = recoveryPaused
+            } else if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor
                 // whatever pause state carried (a playing stream resumes, a deliberate pause stays).
                 var pos = root.wakeReconnectPendingSeek
@@ -3715,6 +3769,9 @@ Item {
         onSpeedChanged: root.activityDiscontinuity()   // Activity (§9 Lane A): speed change
         onPositionChanged: {
             root.finishStartingIfPlaybackAdvanced()
+            if (!root.starting && root.fileReady && !root.errored
+                    && !root.recoveryResumePending && mpv.position > 0)
+                root.recoveryPositionSec = mpv.position
             root.syncWatchPartyPlayerObservation()
         }
         onGifSaved: function(path) {
@@ -3879,7 +3936,7 @@ Item {
         id: recoveryWatchTimer
         interval: 1000
         repeat: true
-        running: !root.recoveryExcluded() && !root.starting && !root.errored && !mpv.pause && root.fileReady
+        running: root.visible && !root.recoveryExcluded() && !root.starting && !root.errored && !mpv.pause && root.fileReady
         onTriggered: root.tickRecoveryWatch()
     }
 
@@ -3889,7 +3946,7 @@ Item {
         id: wakeReconnectTimer
         interval: root.wakeReconnectTickMs
         repeat: true
-        running: !root.recoveryExcluded() && root.fileReady
+        running: root.visible && !root.recoveryExcluded() && root.fileReady
         onTriggered: root.tickWakeReconnect()
     }
 

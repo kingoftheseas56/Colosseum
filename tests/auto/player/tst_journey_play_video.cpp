@@ -128,6 +128,7 @@ private slots:
     void route_is_not_ready();
     void audio_only_never_ready();
     void decoded_fixture_reports_exact_dimensions();
+    void same_size_reload_reports_decoded_dimensions();
     void source_identity_matches();
 };
 
@@ -208,6 +209,31 @@ void tst_journey_play_video::decoded_fixture_reports_exact_dimensions()
     QVERIFY2(playerReadyFrom(/*sessionFileLoaded=*/true, /*sessionErrored=*/false,
                               p.item->decodedWidth(), p.item->decodedHeight()),
              "playerReady must be true once a real frame has decoded on an otherwise-loaded session");
+}
+
+void tst_journey_play_video::same_size_reload_reports_decoded_dimensions()
+{
+    WindowedPlayer p;
+    QVERIFY(QTest::qWaitForWindowExposed(&p.window));
+    const QString video = fixtureDir() + QStringLiteral("tiny.mp4");
+    p.item->loadFile(video);
+    QTRY_VERIFY_WITH_TIMEOUT(p.item->decodedWidth() == 64 && p.item->decodedHeight() == 64, 15000);
+    p.item->setPause(true);
+
+    // Same-size reopens may not emit a property VALUE CHANGE from libmpv.
+    // Each real replacement must still reset and then reacquire decoded truth.
+    for (int reload = 0; reload < 3; ++reload) {
+        p.item->loadFile(video);
+        QCOMPARE(p.item->decodedWidth(), 0);
+        QCOMPARE(p.item->decodedHeight(), 0);
+        QTRY_VERIFY_WITH_TIMEOUT(p.item->decodedWidth() == 64 && p.item->decodedHeight() == 64, 15000);
+    }
+
+    p.item->loadFile(fixtureDir() + QStringLiteral("tiny-audio.m4a"));
+    QSignalSpy loadedSpy(p.item, &MpvItem::fileLoaded);
+    QVERIFY(loadedSpy.wait(15000));
+    QCOMPARE(p.item->decodedWidth(), 0);
+    QCOMPARE(p.item->decodedHeight(), 0);
 }
 
 // The stable source identity (mpv's currentUrl, which qml/PlayerPage.qml's sourceIdentity
