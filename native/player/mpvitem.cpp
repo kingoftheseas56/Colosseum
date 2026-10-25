@@ -113,13 +113,21 @@ void MpvItem::setupConnections()
             this, &MpvItem::onPropertyChanged, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::fileStarted,
-            this, &MpvItem::fileStarted, Qt::QueuedConnection);
+            this, [this] {
+        m_decodedRefreshEnabled = false;
+        Q_EMIT fileStarted();
+    }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::fileLoaded,
-            this, &MpvItem::fileLoaded, Qt::QueuedConnection);
+            this, [this] {
+        m_decodedRefreshEnabled = true;
+        refreshDecodedDimensions();
+        Q_EMIT fileLoaded();
+    }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::endFile,
             this, [this](const QString &reason) {
+        m_decodedRefreshEnabled = false;
         Q_EMIT endFile(reason);
         if (reason == QLatin1String("error") || reason == QLatin1String("other")) {
             // Installed MpvQt exposes only the coarse end-file reason string here;
@@ -130,7 +138,10 @@ void MpvItem::setupConnections()
     }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::videoReconfig,
-            this, &MpvItem::videoReconfig, Qt::QueuedConnection);
+            this, [this] {
+        refreshDecodedDimensions();
+        Q_EMIT videoReconfig();
+    }, Qt::QueuedConnection);
 
     connect(mpvController(), &MpvController::asyncReply,
             this, &MpvItem::onAsyncReply, Qt::QueuedConnection);
@@ -251,6 +262,16 @@ void MpvItem::onAsyncReply(const QVariant &data, mpv_event event)
 {
     // Stats batch replies encode their property index above the small enum ids.
     const int replyId = static_cast<int>(event.reply_userdata);
+    if (replyId >= static_cast<int>(AsyncIds::DecodedDimensions)) {
+        // A newer load/reconfiguration invalidates older dimension replies.
+        if (m_decodedRefreshEnabled && event.error >= 0) {
+            if (replyId == m_decodedRefreshId)
+                onPropertyChanged(QStringLiteral("dwidth"), data);
+            else if (replyId == m_decodedRefreshId + 1)
+                onPropertyChanged(QStringLiteral("dheight"), data);
+        }
+        return;
+    }
     const int batchBase = static_cast<int>(AsyncIds::StatsBatch);
     if (replyId >= batchBase && replyId < batchBase + m_statsBatchProperties.size()) {
         m_statsBatchValues.insert(m_statsBatchProperties.at(replyId - batchBase), data);
@@ -271,6 +292,18 @@ void MpvItem::onAsyncReply(const QVariant &data, mpv_event event)
         Q_UNUSED(data)
         break;
     }
+}
+
+void MpvItem::refreshDecodedDimensions()
+{
+    if (!m_decodedRefreshEnabled)
+        return;
+    // libmpv need not repeat unchanged dwidth/dheight notifications after a
+    // same-size reload. Read those exact decoded properties after load/reconfig,
+    // without taking the mpv core lock synchronously on the GUI thread.
+    m_decodedRefreshId += 2;
+    getPropertyAsync(QStringLiteral("dwidth"), m_decodedRefreshId);
+    getPropertyAsync(QStringLiteral("dheight"), m_decodedRefreshId + 1);
 }
 
 QString MpvItem::formatTime(const double time) const
@@ -309,6 +342,8 @@ void MpvItem::loadFileWithHeaders(const QString &url, const QVariantMap &headers
 
 void MpvItem::issueLoadFile(const QString &file)
 {
+    m_decodedRefreshEnabled = false;
+    m_decodedRefreshId += 2;
     auto url = QUrl::fromUserInput(file);
     if (m_currentUrl != url) {
         m_currentUrl = url;
