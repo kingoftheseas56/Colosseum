@@ -10,7 +10,7 @@ on:
       expected_version:
         description: Expected installed Colosseum version
         required: true
-        default: "1.1.9"
+        default: "1.1.10"
         type: string
 
       receive_run_id:
@@ -38,7 +38,7 @@ jobs:
     timeout-minutes: 120
     env:
       SOURCE_SHA: ${{ inputs.source_sha || github.sha }}
-      VERSION: ${{ inputs.expected_version || '1.1.9' }}
+      VERSION: ${{ inputs.expected_version || '1.1.10' }}
       VCPKG_TAG: "2026.07.29"
       MPV_RELEASE: "20261011"
       MPV_VERSION: "20261011-git-accb7b2821"
@@ -239,7 +239,7 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     env:
-      VERSION: ${{ inputs.expected_version || '1.1.9' }}
+      VERSION: ${{ inputs.expected_version || '1.1.10' }}
     steps:
       - uses: actions/checkout@v7
       - name: Download canonical installer artifact
@@ -268,7 +268,7 @@ jobs:
       - name: Receive exact rebuilt installer
         uses: actions/download-artifact@v4
         with:
-          name: Colosseum-1.1.9-setup
+          name: Colosseum-1.1.10-setup
           path: ${{ runner.temp }}/received
           run-id: ${{ inputs.receive_run_id }}
           github-token: ${{ github.token }}
@@ -278,16 +278,16 @@ jobs:
           EXPECTED_SHA256: ${{ inputs.receive_sha256 }}
         run: |
           if ($env:EXPECTED_SHA256 -notmatch '^[0-9a-fA-F]{64}$') { throw 'exact digest required' }
-          & ./tests/installer/release_installer_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-1.1.9-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -ExpectedVersion '1.1.9'
-      - name: Receive published 1.1.8 and qualify real upgrade
+          & ./tests/installer/release_installer_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-1.1.10-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -ExpectedVersion '1.1.10'
+      - name: Receive published 1.1.9 and qualify real upgrade
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
           EXPECTED_SHA256: ${{ inputs.receive_sha256 }}
         run: |
-          gh release download v1.1.8 --repo kingoftheseas56/Colosseum --pattern Colosseum-1.1.8-setup.exe --dir "$env:RUNNER_TEMP/prior"
+          gh release download v1.1.9 --repo kingoftheseas56/Colosseum --pattern Colosseum-1.1.9-setup.exe --dir "$env:RUNNER_TEMP/prior"
           if ($LASTEXITCODE -ne 0) { throw 'prior installer download failed' }
-          & ./tests/installer/release_upgrade_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-1.1.9-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -PreviousInstaller "$env:RUNNER_TEMP/prior/Colosseum-1.1.8-setup.exe"
+          & ./tests/installer/release_upgrade_smoke.ps1 -Installer "$env:RUNNER_TEMP/received/Colosseum-1.1.10-setup.exe" -ExpectedSha256 $env:EXPECTED_SHA256 -PreviousInstaller "$env:RUNNER_TEMP/prior/Colosseum-1.1.9-setup.exe"
       - name: Preserve acceptance logs
         if: always()
         uses: actions/upload-artifact@v4

@@ -17,6 +17,10 @@
     {
       "pattern": "https://getcolosseum.world/releases/v1.1.9*",
       "zone_name": "getcolosseum.world"
+    },
+    {
+      "pattern": "https://getcolosseum.world/releases/v1.1.10*",
+      "zone_name": "getcolosseum.world"
     }
   ]
 }

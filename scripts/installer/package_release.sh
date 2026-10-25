@@ -66,13 +66,13 @@ for option in COLOSSEUM_ENABLE_VINYL_QUALIFICATION COLOSSEUM_ENABLE_VINYL_TEST_F
   fi
 done
 
-# 1.1.9 ships the qualified online catalogues in the one standard edition.
+# 1.1.9 and 1.1.10 ship the qualified online catalogues in the one standard edition.
 # Reject an unconfigured/staging build before assembling any release payload.
-if [ "$VERSION" = "1.1.9" ]; then
+if [ "$VERSION" = "1.1.9" ] || [ "$VERSION" = "1.1.10" ]; then
   grep -Fxq 'COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev' "$BUILD_DIR/CMakeCache.txt" \
-    || { echo "refusing 1.1.9 without its qualified production content API"; exit 1; }
+    || { echo "refusing $VERSION without its qualified production content API"; exit 1; }
   grep -Fxq 'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF' "$BUILD_DIR/CMakeCache.txt" \
-    || { echo "refusing 1.1.9 without the standard accounts-capable edition"; exit 1; }
+    || { echo "refusing $VERSION without the standard accounts-capable edition"; exit 1; }
 fi
 
 # API builds use semantic queries and never download whole catalogues. The

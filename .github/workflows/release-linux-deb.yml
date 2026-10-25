@@ -32,7 +32,8 @@ jobs:
           sudo apt-get install -y --no-install-recommends \
             build-essential ninja-build pkg-config patchelf binutils dpkg-dev \
             libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
-            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 ffmpeg
+            libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 ffmpeg \
+            gnome-keyring dbus-daemon
       - name: Packaging regressions and public path guard
         run: |
           python3 -m unittest -v tests.test_linux_release_policy tests.test_stage_api_content
@@ -48,6 +49,14 @@ jobs:
           modules: 'qtwebengine qtwebchannel qtwebsockets qtpositioning qtserialport qtimageformats'
           aqtsource: 'git+https://github.com/miurahr/aqtinstall.git@8c3695d4a4e1ceabf6a74dc6c79681656dc6b74b'
           cache: true
+      - name: Verify Linux account persistence and locked-keyring failures
+        run: |
+          mkdir -p release-output/accounts
+          cmake -S tests/account_secure_storage -B "$RUNNER_TEMP/account-build" -G Ninja \
+            -DCMAKE_BUILD_TYPE=Release -DCMAKE_PREFIX_PATH="$QT_ROOT_DIR"
+          cmake --build "$RUNNER_TEMP/account-build" --parallel 2
+          sh tests/account_secure_storage/run-linux-tests.sh "$RUNNER_TEMP/account-build" \
+            2>&1 | tee release-output/accounts/secret-service-tests.txt
       - name: Build pinned ECM and MpvQt
         run: |
           curl --fail --location --retry 3 "https://download.kde.org/Attic/frameworks/6.15/extra-cmake-modules-$ECM_VERSION.tar.xz" -o "$RUNNER_TEMP/ecm.tar.xz"
@@ -119,11 +128,11 @@ jobs:
           python3 tools/linux-release/check_package.py "$RUNNER_TEMP/AppDir" --report release-output/package-check.json
           python3 scripts/linux_runtime_dependency_gate.py --appdir "$RUNNER_TEMP/AppDir"
           cp "$RUNNER_TEMP/AppDir/BUILD-IDENTITY.json" release-output/
-          python3 tools/linux-release/package_deb.py --stage "$RUNNER_TEMP/AppDir" --output release-output/Colosseum-1.1.9-linux-amd64.deb
+          python3 tools/linux-release/package_deb.py --stage "$RUNNER_TEMP/AppDir" --output release-output/Colosseum-1.1.10-linux-amd64.deb
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Colosseum-1.1.9-linux-deb-candidate
+          name: Colosseum-1.1.10-linux-deb-candidate
           path: release-output/
           if-no-files-found: warn
           retention-days: 7
@@ -137,7 +146,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/download-artifact@v4
         with:
-          name: Colosseum-1.1.9-linux-deb-candidate
+          name: Colosseum-1.1.10-linux-deb-candidate
           path: package
       - name: Install on clean Ubuntu without a Qt SDK
         env:
@@ -151,13 +160,13 @@ jobs:
           mkdir -p /tmp/installed-receipts
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/ca-certificates-before.txt
           cd package
-          sha256sum --check --strict Colosseum-1.1.9-linux-amd64.deb.sha256
-          apt-get install -y --no-install-recommends ./Colosseum-1.1.9-linux-amd64.deb
+          sha256sum --check --strict Colosseum-1.1.10-linux-amd64.deb.sha256
+          apt-get install -y --no-install-recommends ./Colosseum-1.1.10-linux-amd64.deb
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-after.txt
           test "$(cat /tmp/installed-receipts/ca-certificates-after.txt)" = 'ii '
           test -s /etc/ssl/certs/ca-certificates.crt
           desktop-file-validate /usr/share/applications/colosseum.desktop
-          test "$(/usr/bin/colosseum --version)" = 'Colosseum 1.1.9'
+          test "$(/usr/bin/colosseum --version)" = 'Colosseum 1.1.10'
       - name: Start and quit installed UI as a normal user
         run: |
           useradd --create-home --shell /bin/bash package-test
@@ -176,7 +185,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Colosseum-1.1.9-linux-installed-smoke
+          name: Colosseum-1.1.10-linux-installed-smoke
           path: /tmp/installed-receipts/
           if-no-files-found: warn
           retention-days: 7

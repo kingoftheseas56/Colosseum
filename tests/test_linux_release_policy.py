@@ -31,7 +31,7 @@ class LinuxReleasePolicyTests(unittest.TestCase):
 
     def test_clean_install_proves_the_trust_dependency(self):
         workflow = (ROOT / ".github/workflows/release-linux-deb.yml").read_text()
-        install = next(line for line in workflow.splitlines() if "./Colosseum-1.1.9-linux-amd64.deb" in line)
+        install = next(line for line in workflow.splitlines() if re.search(r"\./Colosseum-\d+\.\d+\.\d+-linux-amd64\.deb", line))
         # A recommendation or a preinstalled store would mask a missing Depends
         # entry, so the clean container must install with recommendations off.
         self.assertIn("--no-install-recommends", install)
