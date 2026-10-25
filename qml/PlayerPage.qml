@@ -3,7 +3,8 @@ pragma ComponentBehavior: Bound
 // PlayerPage - Harbor/TB3-style fullscreen player chrome on top of Colosseum's mpvqt MpvItem.
 // Streaming remains behind the Stream.play -> streamReady seam. This page owns playback
 // transitions, including best-effort Stremio Trakt events for IMDb-identified titles.
-import QtQuick
+// Match the built-in module sealed by the native shell before lazy player loading.
+import QtQuick 6
 import QtQuick.Window
 import QtCore
 import Colosseum.Player

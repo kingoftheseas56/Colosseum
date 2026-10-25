@@ -166,6 +166,22 @@ set_tests_properties(colosseum.session_model_contract PROPERTIES
 # into the shipping app (arc non-goal). Targets defined here are real Qt Tests:
 # per-case reporting, data rows, selectable by function/tag.
 find_package(Qt6 REQUIRED COMPONENTS Test Network WebSockets)
+
+# Exercise the real Qt registration failure and the production module guard.
+add_executable(tst_qml_module_guard auto/player/tst_qml_module_guard.cpp)
+target_include_directories(tst_qml_module_guard PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+target_compile_definitions(tst_qml_module_guard PRIVATE
+    PLAYER_PAGE_SOURCE="${CMAKE_CURRENT_SOURCE_DIR}/../qml/PlayerPage.qml")
+target_link_libraries(tst_qml_module_guard PRIVATE Qt6::Quick Qt6::Qml Qt6::Test)
+set_target_properties(tst_qml_module_guard PROPERTIES
+    AUTOMOC ON
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_qml_module_guard POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>" "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.qml_module_guard COMMAND tst_qml_module_guard)
+set_tests_properties(colosseum.qttest.qml_module_guard PROPERTIES
+    LABELS "unit;player;bootstrap" TIMEOUT 30 ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
 set(CMAKE_AUTOMOC ON)
 
 add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
@@ -3948,6 +3964,11 @@ set_tests_properties(colosseum.player1_runtime_recovery PROPERTIES
 
 find_program(COLOSSEUM_PLAYER_TEST_NODE NAMES node)
 if(COLOSSEUM_PLAYER_TEST_NODE)
+    add_test(NAME colosseum.player_loader_failure
+             COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"
+                     "${CMAKE_CURRENT_SOURCE_DIR}/player_loader_failure_test.mjs")
+    set_tests_properties(colosseum.player_loader_failure PROPERTIES
+        LABELS "unit;player" TIMEOUT 30)
     add_test(NAME colosseum.player1_recovery_resume
              COMMAND "${COLOSSEUM_PLAYER_TEST_NODE}"
                      "${CMAKE_CURRENT_SOURCE_DIR}/player_recovery_resume_test.mjs")

@@ -1597,10 +1597,30 @@ Window {
     // Keep the Loader cold until first use, incubate it across event-loop turns, then replay the
     // one latest open request after onLoaded. Once created, the existing keep-alive policy wins.
     property var pendingPlayerOpen: null
+    property bool playerLayerRetryPending: false
 
     function ensurePlayerLayerLoading() {
+        if (playerLayerRetryPending)
+            return
+        if (playerLayer.status === Loader.Error) {
+            retryPlayerLayerLoading()
+            return
+        }
         if (!playerLayer.active)
             playerLayer.active = true
+    }
+    function retryPlayerLayerLoading() {
+        if (playerLayerRetryPending || !win.playerOpen || !win.pendingPlayerOpen)
+            return
+        playerLayerRetryPending = true
+        var sameSource = playerLayer.source
+        playerLayer.active = false
+        playerLayer.source = ""
+        Qt.callLater(function() {
+            playerLayer.source = sameSource
+            playerLayerRetryPending = false
+            playerLayer.active = win.playerOpen && !!win.pendingPlayerOpen
+        })
     }
     function queuePlayerSessionOpen(sessionId) {
         win.pendingPlayerOpen = { "kind": "session", "sessionId": String(sessionId || "") }
@@ -4278,6 +4298,7 @@ Window {
     // ---- video player layer: above every detail/series layer (mpv under house glass) ----
     Loader {
         id: playerLayer
+        objectName: "playerPageLoader"
         anchors.fill: parent
         z: 60
         active: false
@@ -4288,6 +4309,10 @@ Window {
         // The ONE production line that selects the backend. Player2Page.qml deliberately exposes the
         // same interface as PlayerPage.qml, so every playerLayer.item.* call site below stays as-is.
         source: win.usePlayer2 ? "player2host/Player2Page.qml" : "PlayerPage.qml"
+        onStatusChanged: {
+            if (status === Loader.Error)
+                console.error("[player] page load failed; pending playback retained for retry")
+        }
         onLoaded: {
             // Say which engine is driving, every time the player opens. Without this, telling the two
             // apart means reading process paths after the fact - which is exactly what happened on the
@@ -4313,6 +4338,14 @@ Window {
             // present the newly-created player/loading face before mpv/file-open work begins.
             Qt.callLater(win.flushPendingPlayerOpen)
         }
+    }
+
+    PlayerLoadFailure {
+        anchors.fill: parent
+        z: 61
+        visible: win.playerOpen && playerLayer.status === Loader.Error
+        onRetryRequested: win.retryPlayerLayerLoading()
+        onBackRequested: win.minimizePlayer()
     }
 
     // ---- book detail layer: Biblio's OWN dust-jacket page over the world (above series) ----
