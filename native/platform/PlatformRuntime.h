@@ -6,6 +6,7 @@
 #include <QObject>
 #include <QPointer>
 #include <QString>
+#include <QVariantMap>
 
 class QEvent;
 class QWindow;
@@ -17,6 +18,7 @@ class Runtime final : public QObject {
     Q_PROPERTY(QString kind READ kind CONSTANT)
     Q_PROPERTY(bool android READ android CONSTANT)
     Q_PROPERTY(bool androidTelevision READ androidTelevision CONSTANT)
+    Q_PROPERTY(QVariantMap videoDecodeCapabilities READ videoDecodeCapabilities CONSTANT)
     Q_PROPERTY(QString applicationState READ applicationState NOTIFY applicationStateChanged)
     Q_PROPERTY(bool foreground READ foreground NOTIFY applicationStateChanged)
     Q_PROPERTY(bool keyboardVisible READ keyboardVisible NOTIFY keyboardVisibleChanged)
@@ -34,6 +36,7 @@ public:
     QString kind() const;
     bool android() const;
     bool androidTelevision() const;
+    QVariantMap videoDecodeCapabilities() const;
     QString applicationState() const;
     bool foreground() const;
     bool keyboardVisible() const;
@@ -72,6 +75,7 @@ private:
     QMargins m_safeAreaMargins;
     bool m_surfaceAvailable = false;
     bool m_androidTelevision = false;
+    mutable QVariantMap m_videoDecodeCapabilities;
 };
 
 } // namespace Colosseum::Platform

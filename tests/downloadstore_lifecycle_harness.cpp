@@ -521,6 +521,12 @@ private:
             break;
         case Phase::DirectPrefix:
             if (partSize >= m_prefixSize) {
+                if (!QMetaObject::invokeMethod(
+                        &m_store, "setBackgroundExecutionAllowed", Qt::DirectConnection,
+                        Q_ARG(bool, true))) {
+                    fail(QStringLiteral("service lease API missing in external direct boundary case"));
+                    return;
+                }
                 if (!setForeground(false)) {
                     fail(QStringLiteral("setForeground(false) missing in external direct source boundary control"));
                     return;
@@ -629,6 +635,408 @@ private:
     QHash<QString, int> m_resolveCount;
     QHash<QString, QString> m_paths;
     QHash<QString, QByteArray> m_bodies;
+    int m_passCount = 0;
+};
+
+class BackgroundExecutionHarness final : public QObject {
+public:
+    explicit BackgroundExecutionHarness(QCoreApplication &app)
+        : QObject(&app), m_app(app), m_server(this), m_store(this), m_poll(this), m_deadline(this) {
+        m_poll.setInterval(10);
+        QObject::connect(&m_poll, &QTimer::timeout, this, [this]() { tick(); });
+        m_deadline.setSingleShot(true);
+        QObject::connect(&m_deadline, &QTimer::timeout, this, [this]() {
+            fail(QStringLiteral("background execution case timed out in phase %1")
+                     .arg(int(m_phase)));
+        });
+        QObject::connect(&m_store, &DownloadStore::needResolve, this,
+                         [this](const QString &id, const QString &, const QString &) {
+            onNeedResolve(id);
+        });
+        QObject::connect(&m_store, &DownloadStore::resolutionReset,
+                         this, [this]() { ++m_resolutionResetCount; });
+    }
+
+    bool start() {
+        if (!m_temp.isValid())
+            return fail(QStringLiteral("temporary directory unavailable"));
+        if (!m_server.listen())
+            return fail(QStringLiteral("loopback HTTP fixture failed to listen"));
+        if (!setForeground(false))
+            return fail(QStringLiteral("DownloadStore::setForeground(bool) is missing"));
+
+        m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_firstBody, m_prefixSize);
+        enqueue(m_firstId, m_firstPath, QString(), -1);
+        enqueue(m_secondId, m_secondPath, QString(), -1);
+        if (state(m_firstId) != QStringLiteral("queued")
+            || state(m_secondId) != QStringLiteral("queued")
+            || m_resolveCount.value(m_firstId) != 0) {
+            return fail(QStringLiteral("hidden jobs without a service lease were promoted"));
+        }
+        pass("hidden queued jobs wait without a service lease");
+
+        m_phase = Phase::FirstPrefix;
+        m_leaseApiAvailable = setBackgroundExecutionAllowed(true);
+        m_deadline.start(25000);
+        m_poll.start();
+        return true;
+    }
+
+private:
+    enum class Phase {
+        FirstPrefix,
+        FirstDone,
+        SecondPrefix,
+        SecondDone,
+        TorrentPrefix,
+        TorrentPaused,
+        TorrentDone,
+        DirectPrefix,
+        DirectPaused,
+        DirectDone,
+        ManualPrefix,
+        ManualDone,
+        Finished,
+    };
+
+    bool fail(const QString &message) {
+        std::fprintf(stderr, "FAIL: %s\n", message.toUtf8().constData());
+        m_app.exit(1);
+        return false;
+    }
+
+    void pass(const char *message) {
+        ++m_passCount;
+        std::printf("PASS: %s\n", message);
+        std::fflush(stdout);
+    }
+
+    bool setForeground(bool foreground) {
+        return QMetaObject::invokeMethod(
+            &m_store, "setForeground", Qt::DirectConnection, Q_ARG(bool, foreground));
+    }
+
+    bool setBackgroundExecutionAllowed(bool allowed) {
+        return QMetaObject::invokeMethod(
+            &m_store, "setBackgroundExecutionAllowed", Qt::DirectConnection,
+            Q_ARG(bool, allowed));
+    }
+
+    void enqueue(const QString &id, const QString &path,
+                 const QString &infoHash, int fileIdx) {
+        QVariantMap request{
+            {QStringLiteral("id"), id},
+            {QStringLiteral("kind"), QStringLiteral("movie")},
+            {QStringLiteral("title"), id},
+            {QStringLiteral("outputPath"), path},
+        };
+        if (!infoHash.isEmpty()) {
+            request.insert(QStringLiteral("infoHash"), infoHash);
+            request.insert(QStringLiteral("fileIdx"), fileIdx);
+        }
+        m_store.enqueue(request);
+    }
+
+    bool feedTorrent(const QString &id, const QString &url) {
+        return QMetaObject::invokeMethod(
+            &m_store, "feedTorrentUrl", Qt::DirectConnection,
+            Q_ARG(QString, id), Q_ARG(QString, url), Q_ARG(QString, m_torrentHash),
+            Q_ARG(int, m_torrentFileIdx));
+    }
+
+    QVariantMap row(const QString &id) const {
+        for (const QVariant &value : m_store.jobs()) {
+            const QVariantMap candidate = value.toMap();
+            if (candidate.value(QStringLiteral("id")).toString() == id)
+                return candidate;
+        }
+        return {};
+    }
+
+    QString state(const QString &id) const {
+        return row(id).value(QStringLiteral("state")).toString();
+    }
+
+    QByteArray readFile(const QString &path) const {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly))
+            return {};
+        return file.readAll();
+    }
+
+    void onNeedResolve(const QString &id) {
+        const int count = ++m_resolveCount[id];
+        if (id == m_firstId && count == 1) {
+            m_store.feedSource(id, m_server.url(QStringLiteral("/lease-first.mp4"),
+                                                QStringLiteral("127.0.0.2")), {});
+        } else if (id == m_secondId && count == 1) {
+            m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_secondBody, m_prefixSize);
+            m_store.feedSource(id, m_server.url(QStringLiteral("/lease-second.mp4"),
+                                                QStringLiteral("127.0.0.2")), {});
+        } else if (id == m_torrentId) {
+            if (count == 1) {
+                m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_torrentBody, m_prefixSize);
+                if (!feedTorrent(id, m_server.url(QStringLiteral("/old-torrent-route.mp4"))))
+                    fail(QStringLiteral("feedTorrentUrl missing for first torrent route"));
+            } else if (count == 2) {
+                m_server.setResponse(RangeFixture::Mode::HonorRange, m_torrentBody);
+                if (!feedTorrent(id, m_server.url(QStringLiteral("/fresh-torrent-route.mp4"))))
+                    fail(QStringLiteral("feedTorrentUrl missing for refreshed torrent route"));
+            }
+        } else if (id == m_directId && count == 1) {
+            m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_directBody, m_prefixSize);
+            m_store.feedSource(id, m_server.url(QStringLiteral("/lease-loss-direct.mp4"),
+                                                QStringLiteral("127.0.0.2")), {});
+        } else if (id == m_manualId && count == 1) {
+            m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_manualBody, m_prefixSize);
+            m_store.feedSource(id, m_server.url(QStringLiteral("/manual-lease.mp4"),
+                                                QStringLiteral("127.0.0.2")), {});
+        }
+    }
+
+    void tick() {
+        if (m_phase == Phase::Finished)
+            return;
+        if (!m_leaseApiAvailable && m_phase == Phase::FirstPrefix) {
+            fail(QStringLiteral("baseline: service lease API is absent; hidden queued job did not promote"));
+            return;
+        }
+
+        switch (m_phase) {
+        case Phase::FirstPrefix:
+            if (QFileInfo(m_firstPath + QStringLiteral(".part")).size() < m_prefixSize)
+                return;
+            if (state(m_firstId) != QStringLiteral("downloading")
+                || state(m_secondId) != QStringLiteral("queued")) {
+                fail(QStringLiteral("background lease did not run exactly one queued transfer"));
+                return;
+            }
+            pass("background lease admits resolver handshake and starts the first queued transfer while hidden");
+            m_phase = Phase::FirstDone;
+            if (!m_server.finishHeldResponse())
+                fail(QStringLiteral("first background response was not held for completion"));
+            break;
+
+        case Phase::FirstDone:
+            if (!QFile::exists(m_firstPath) || readFile(m_firstPath) != m_firstBody)
+                return;
+            pass("HTTP bytes continue growing and complete exactly while hidden under the lease");
+            if (m_resolveCount.value(m_secondId) != 1
+                || state(m_secondId) != QStringLiteral("downloading")) {
+                fail(QStringLiteral("second queued job was not promoted after first completion"));
+                return;
+            }
+            m_phase = Phase::SecondPrefix;
+            break;
+
+        case Phase::SecondPrefix: {
+            if (QFileInfo(m_secondPath + QStringLiteral(".part")).size() < m_prefixSize)
+                return;
+            const int resetsBefore = m_resolutionResetCount;
+            if (!setForeground(true) || !setBackgroundExecutionAllowed(false)) {
+                fail(QStringLiteral("foreground/lease transition API missing"));
+                return;
+            }
+            if (state(m_secondId) != QStringLiteral("downloading")
+                || m_resolutionResetCount != resetsBefore) {
+                fail(QStringLiteral("releasing the service lease while foreground interrupted the transfer"));
+                return;
+            }
+            pass("foreground keeps transfer available when the background lease is released");
+            m_phase = Phase::SecondDone;
+            if (!m_server.finishHeldResponse())
+                fail(QStringLiteral("second response was not held for completion"));
+            break;
+        }
+
+        case Phase::SecondDone:
+            if (!QFile::exists(m_secondPath) || readFile(m_secondPath) != m_secondBody)
+                return;
+            pass("foreground transfer completes after service lease release");
+            if (!setForeground(false)) {
+                fail(QStringLiteral("foreground lifecycle API missing"));
+                return;
+            }
+            m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_torrentBody, m_prefixSize);
+            m_phase = Phase::TorrentPrefix;
+            enqueue(m_torrentId, m_torrentPath, m_torrentHash, m_torrentFileIdx);
+            if (state(m_torrentId) != QStringLiteral("queued")
+                || m_resolveCount.value(m_torrentId) != 0) {
+                fail(QStringLiteral("fresh hidden job promoted after the lease was released"));
+                return;
+            }
+            if (!setBackgroundExecutionAllowed(true)) {
+                fail(QStringLiteral("service lease could not be reacquired while hidden"));
+                return;
+            }
+            break;
+
+        case Phase::TorrentPrefix:
+            if (QFileInfo(m_torrentPath + QStringLiteral(".part")).size() < m_prefixSize)
+                return;
+            if (!setBackgroundExecutionAllowed(false)) {
+                fail(QStringLiteral("service lease release failed during torrent transfer"));
+                return;
+            }
+            m_server.dropHeldSocket();
+            if (state(m_torrentId) != QStringLiteral("paused")
+                || readFile(m_torrentPath + QStringLiteral(".part")) != m_torrentBody.left(m_prefixSize)
+                || !row(m_torrentId).value(QStringLiteral("url")).toString().isEmpty()) {
+                fail(QStringLiteral("hidden lease loss did not preserve exact torrent bytes and retire its route"));
+                return;
+            }
+            pass("hidden lease loss pauses torrent work, preserves its exact prefix, and retires the route");
+            m_server.setResponse(RangeFixture::Mode::HonorRange, m_torrentBody);
+            m_phase = Phase::TorrentPaused;
+            if (!setBackgroundExecutionAllowed(true)) {
+                fail(QStringLiteral("service lease could not be reacquired for torrent recovery"));
+                return;
+            }
+            break;
+
+        case Phase::TorrentPaused:
+            if (m_resolveCount.value(m_torrentId) != 2)
+                return;
+            m_phase = Phase::TorrentDone;
+            break;
+
+        case Phase::TorrentDone:
+            if (!QFile::exists(m_torrentPath) || readFile(m_torrentPath) != m_torrentBody)
+                return;
+            if (m_server.requestCount() < 4
+                || !m_server.requestAt(3).startsWith("GET /fresh-torrent-route.mp4 ")
+                || !m_server.requestAt(3).toLower().contains(
+                    "\r\nrange: bytes=" + QByteArray::number(m_prefixSize))
+                || m_server.statusAt(3) != 206) {
+                fail(QStringLiteral("recovered torrent job did not re-resolve and Range/206 from its exact prefix"));
+                return;
+            }
+            pass("lease recovery re-resolves the pinned torrent file and completes via exact Range/206");
+            m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_directBody, m_prefixSize);
+            m_phase = Phase::DirectPrefix;
+            enqueue(m_directId, m_directPath, QString(), -1);
+            break;
+
+        case Phase::DirectPrefix:
+            if (QFileInfo(m_directPath + QStringLiteral(".part")).size() < m_prefixSize)
+                return;
+            if (!setBackgroundExecutionAllowed(false)) {
+                fail(QStringLiteral("service lease release failed during direct HTTP transfer"));
+                return;
+            }
+            m_server.dropHeldSocket();
+            if (state(m_directId) != QStringLiteral("paused")
+                || readFile(m_directPath + QStringLiteral(".part")) != m_directBody.left(m_prefixSize)) {
+                fail(QStringLiteral("lease loss did not pause direct HTTP while preserving exact partial bytes"));
+                return;
+            }
+            pass("hidden lease loss also pauses direct HTTP and retains its exact partial bytes");
+            m_server.setResponse(RangeFixture::Mode::HonorRange, m_directBody);
+            m_phase = Phase::DirectPaused;
+            if (!setBackgroundExecutionAllowed(true)) {
+                fail(QStringLiteral("service lease could not be reacquired for direct HTTP recovery"));
+                return;
+            }
+            break;
+
+        case Phase::DirectPaused:
+            if (state(m_directId) != QStringLiteral("downloading"))
+                return;
+            m_phase = Phase::DirectDone;
+            break;
+
+        case Phase::DirectDone:
+            if (!QFile::exists(m_directPath) || readFile(m_directPath) != m_directBody)
+                return;
+            if (m_server.requestCount() < 6
+                || !m_server.requestAt(5).startsWith("GET /lease-loss-direct.mp4 ")
+                || !m_server.requestAt(5).toLower().contains(
+                    "\r\nrange: bytes=" + QByteArray::number(m_prefixSize))
+                || m_server.statusAt(5) != 206) {
+                fail(QStringLiteral("direct HTTP recovery failed to Range-resume the retained prefix"));
+                return;
+            }
+            pass("direct HTTP resumes from the retained prefix after lease reacquisition");
+            m_server.setResponse(RangeFixture::Mode::HoldPrefix, m_manualBody, m_prefixSize);
+            m_phase = Phase::ManualPrefix;
+            enqueue(m_manualId, m_manualPath, QString(), -1);
+            break;
+
+        case Phase::ManualPrefix:
+            if (QFileInfo(m_manualPath + QStringLiteral(".part")).size() < m_prefixSize)
+                return;
+            m_store.pauseJob(m_manualId);
+            m_server.dropHeldSocket();
+            if (state(m_manualId) != QStringLiteral("paused")
+                || readFile(m_manualPath + QStringLiteral(".part")) != m_manualBody.left(m_prefixSize)) {
+                fail(QStringLiteral("manual pause did not preserve the active transfer prefix"));
+                return;
+            }
+            if (!setBackgroundExecutionAllowed(false) || !setBackgroundExecutionAllowed(true)
+                || !setForeground(true) || !setForeground(false)) {
+                fail(QStringLiteral("manual pause service/foreground toggles failed"));
+                return;
+            }
+            if (state(m_manualId) != QStringLiteral("paused")
+                || m_resolveCount.value(m_manualId) != 1) {
+                fail(QStringLiteral("manual pause auto-resumed across service lease changes"));
+                return;
+            }
+            pass("manual pause remains paused across service lease and foreground transitions");
+            m_server.setResponse(RangeFixture::Mode::HonorRange, m_manualBody);
+            m_phase = Phase::ManualDone;
+            m_store.resumeJob(m_manualId);
+            break;
+
+        case Phase::ManualDone:
+            if (!QFile::exists(m_manualPath) || readFile(m_manualPath) != m_manualBody)
+                return;
+            pass("explicit manual resume still completes from its preserved prefix");
+            finish();
+            break;
+
+        case Phase::Finished:
+            break;
+        }
+    }
+
+    void finish() {
+        m_phase = Phase::Finished;
+        m_poll.stop();
+        m_deadline.stop();
+        std::printf("RESULT: %d passed, 0 failed\n", m_passCount);
+        std::fflush(stdout);
+        m_app.quit();
+    }
+
+    QCoreApplication &m_app;
+    QTemporaryDir m_temp;
+    RangeFixture m_server;
+    DownloadStore m_store;
+    QTimer m_poll;
+    QTimer m_deadline;
+    Phase m_phase = Phase::FirstPrefix;
+    bool m_leaseApiAvailable = false;
+    int m_resolutionResetCount = 0;
+    QHash<QString, int> m_resolveCount;
+    const qint64 m_prefixSize = 96 * 1024;
+    const QString m_firstId = QStringLiteral("lease-first-%1").arg(QCoreApplication::applicationPid());
+    const QString m_firstPath = m_temp.filePath(QStringLiteral("lease-first.mp4"));
+    const QByteArray m_firstBody = patternedBytes(256 * 1024, 11);
+    const QString m_secondId = QStringLiteral("lease-second-%1").arg(QCoreApplication::applicationPid());
+    const QString m_secondPath = m_temp.filePath(QStringLiteral("lease-second.mp4"));
+    const QByteArray m_secondBody = patternedBytes(192 * 1024, 12);
+    const QString m_torrentId = QStringLiteral("lease-torrent-%1").arg(QCoreApplication::applicationPid());
+    const QString m_torrentPath = m_temp.filePath(QStringLiteral("lease-torrent.mp4"));
+    const QString m_torrentHash = QString(40, QLatin1Char('9'));
+    const int m_torrentFileIdx = 4;
+    const QByteArray m_torrentBody = patternedBytes(320 * 1024, 13);
+    const QString m_directId = QStringLiteral("lease-direct-%1").arg(QCoreApplication::applicationPid());
+    const QString m_directPath = m_temp.filePath(QStringLiteral("lease-direct.mp4"));
+    const QByteArray m_directBody = patternedBytes(224 * 1024, 14);
+    const QString m_manualId = QStringLiteral("lease-manual-%1").arg(QCoreApplication::applicationPid());
+    const QString m_manualPath = m_temp.filePath(QStringLiteral("lease-manual.mp4"));
+    const QByteArray m_manualBody = patternedBytes(160 * 1024, 15);
     int m_passCount = 0;
 };
 
@@ -909,13 +1317,21 @@ int main(int argc, char **argv) {
     QCoreApplication app(argc, argv);
     QCoreApplication::setOrganizationName(QStringLiteral("ColosseumAudit"));
     const bool legacyCompatibility = app.arguments().contains(QStringLiteral("--legacy-compat"));
+    const bool backgroundExecution = app.arguments().contains(QStringLiteral("--background-execution"));
     QCoreApplication::setApplicationName(QStringLiteral("DownloadStoreLifecycle-%1-%2")
                                              .arg(legacyCompatibility ? QStringLiteral("legacy")
-                                                                      : QStringLiteral("regular"))
+                                                   : backgroundExecution ? QStringLiteral("background")
+                                                                         : QStringLiteral("regular"))
                                              .arg(QCoreApplication::applicationPid()));
 
     if (legacyCompatibility) {
         LegacyCompatHarness harness(app);
+        if (!harness.start())
+            return 1;
+        return app.exec();
+    }
+    if (backgroundExecution) {
+        BackgroundExecutionHarness harness(app);
         if (!harness.start())
             return 1;
         return app.exec();

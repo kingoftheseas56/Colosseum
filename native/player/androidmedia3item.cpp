@@ -446,6 +446,9 @@ void AndroidMedia3Item::setHostLifecycleState(const QString &state)
         const auto action = m_state.beginLifecycleHostStop(generation);
         if (action == Colosseum::Player::HostPlaybackAction::Stop) {
             m_restoreLifecycleEpoch = m_state.snapshot().lifecycleEpoch;
+            // Media3 keeps a separate Java-side userWantsPlay value for
+            // prepareForLifecycleRestore(); clear it before stopping the host.
+            callHost("pause");
             callHost("stopForLifecycle");
         }
         publishSnapshotChanges(before);

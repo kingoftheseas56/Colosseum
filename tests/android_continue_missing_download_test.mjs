@@ -123,7 +123,7 @@ for (const name of ['clearActiveDirectHeaders', 'clearAbLoop', 'cancelSleepTimer
     'fetchSubtitles', 'playStreamAt', 'maybeHydrateContext']) p[name] = () => {};
 const playerContext = { root: p, mpv: { duration: 5796.46, pause: false } };
 vm.createContext(playerContext);
-for (const name of ['playTorrent', 'restoreState', 'shouldSkipResumePrompt', 'prepareResumeChoice'])
+for (const name of ['clearStreamRouteRestore', 'playTorrent', 'restoreState', 'shouldSkipResumePrompt', 'prepareResumeChoice'])
     vm.runInContext(production(playerSource, name), playerContext);
 Object.assign(p, playerContext);
 for (const [position, explicit, prompt] of [[5132.649, true, true], [1200, true, true],

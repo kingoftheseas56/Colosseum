@@ -671,10 +671,16 @@ Item {
                 // Today every shown row is ready; slice 5 drives HTTP rows "checking" → "confirmed".
                 // Plain string on purpose — ui-wait-for polls strict-equality only.
                 property string checkState: "confirmed"
+                readonly property bool codecUnsupported: row.modelData.videoCompatibility
+                    && row.modelData.videoCompatibility.state === "unsupported"
+                readonly property string codecCompatibilityLabel: codecUnsupported
+                    ? "Unsupported on this device — " + (row.modelData.videoCompatibility.reason || "Video codec profile is unsupported")
+                    : ""
                 // Slice 7 flips this when a series pre-picks the source that worked last episode.
                 property bool preselected: false
                 width: ListView.view.width
-                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28) : 150
+                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight + 28)
+                    : (codecUnsupported ? 168 : 150)
 
                 Rectangle { anchors.fill: parent; color: list.activeFocus && list.currentIndex === row.index
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.08)
@@ -757,6 +763,14 @@ Item {
                     Text {
                         text: (row.modelData.streamKind || "Torrent") + " · " + (row.modelData.streamLabel || "P2P stream")
                         color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                    }
+                    Text {
+                        objectName: "sourceCompatibilityWide_" + row.index
+                        width: parent.width
+                        visible: row.codecUnsupported
+                        text: row.codecCompatibilityLabel
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                        wrapMode: Text.WordWrap
                     }
                 }
 
@@ -963,6 +977,14 @@ Item {
                         color: theme.inkDimmer; font.family: theme.ui
                         font.pixelSize: 12; font.weight: Font.DemiBold
                         wrapMode: Text.WrapAnywhere
+                    }
+                    Text {
+                        objectName: "sourceCompatibilityPhone_" + row.index
+                        width: parent.width
+                        visible: row.codecUnsupported
+                        text: row.codecCompatibilityLabel
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                        font.weight: Font.DemiBold; wrapMode: Text.WrapAnywhere
                     }
                     Row {
                         width: parent.width; height: 48; spacing: 12

@@ -464,6 +464,16 @@ private slots:
     void malformedUrlIsRejected();
     void oldErrorEventsDoNotFailCurrentChain();
     void backgroundLifecycleInvalidatesAndReconstructs();
+    void backgroundDownloadKeepsSharedRouteWithoutPlayback();
+    void backgroundDownloadCanFinishPreparing();
+    void backgroundDownloadLeaseLossQuiesces();
+    void backgroundSharedPrepareKeepsDownload_data();
+    void backgroundSharedPrepareKeepsDownload();
+    void completedDownloadRetiresOnlyDownloadOwnership();
+    void closingPlayerKeepsSameSourceDownload();
+    void finalDownloadCompletionReleasesIdleEngine();
+    void downloadCompletionBeforeHostStartReleasesRoute();
+    void differentFilePlaybackCannotReplaceDownloadRoute();
     // Task014: Nokia T20 foreground return. QML re-demands before the C++
     // lifecycle slot runs; that slot's fence then drops the demand.
     void demandStampedBeforeForegroundRestoreIsFenced();
@@ -609,9 +619,9 @@ void TestNuvioStreamBackend::stopDuringInflightPrepareSuppressesAndRemoves() {
         fake().pushEvent(*fake().heldPrepared);
         fake().heldPrepared.reset();
     }
-    // The late completion belongs to nobody: its route is retired and no
-    // publication or error reaches the closed player.
-    QTRY_VERIFY_WITH_TIMEOUT(fake().stopStreamIds.contains(QString::fromLatin1("stream-1")), 10000);
+    // The last owner was removed, so engine teardown retires every pending
+    // route. A completion from that destroyed session cannot publish anything.
+    QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 10000);
     QTest::qWait(300);
     QCOMPARE(ready.count(), 0);
     QCOMPARE(errors.count(), 0);
@@ -943,8 +953,8 @@ void TestNuvioStreamBackend::inFlightPrefetchIsPromotedByForegroundPlay() {
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
     backend.prefetch(kInfoHashB, 0);
     QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 2, 10000);
-    // The prefetch is still in flight when its source becomes the foreground
-    // selection: its completion must publish as streamReady, not fetchReady.
+    // Both the download and player still own the pending source. Each must
+    // receive its completion, or the download remains stuck resolving.
     backend.play(kInfoHashB, 0);
     fake().holdPreparedTorrent.clear();
     {
@@ -956,7 +966,7 @@ void TestNuvioStreamBackend::inFlightPrefetchIsPromotedByForegroundPlay() {
     }
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
     QCOMPARE(ready.at(1).at(0).toString(), QString::fromLatin1(kUrlB));
-    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 0, 10000);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
     QCOMPARE(backend.streamUrl(kInfoHashB, 0), QString::fromLatin1(kUrlB));
 }
 
@@ -1055,6 +1065,205 @@ void TestNuvioStreamBackend::backgroundLifecycleInvalidatesAndReconstructs() {
     QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
     QCOMPARE(fake().createCount, 2);
     QCOMPARE(ready.at(1).at(0).toString(), QString::fromLatin1(kUrlB));
+}
+
+void TestNuvioStreamBackend::backgroundDownloadKeepsSharedRouteWithoutPlayback() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    backend.setForeground(false);
+    QTest::qWait(300);
+    QCOMPARE(fake().destroyCount, 0);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+    QVERIFY(!backend.ready());
+    QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString());
+    backend.play(kInfoHashB, 0); // Background playback is still forbidden.
+    QTest::qWait(200);
+    QCOMPARE(fake().addTorrentCount, 1);
+    QCOMPARE(ready.count(), 1);
+    backend.setForeground(true);
+    QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString());
+    backend.play(kInfoHashA, 0); // Explicit Play may reuse the download route.
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 2, 10000);
+    QCOMPARE(fake().prepareCount, 1);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, false)));
+    QTest::qWait(200);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+    QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString::fromLatin1(kUrlA));
+    backend.stop();
+    QTRY_VERIFY_WITH_TIMEOUT(fake().stopStreamIds.contains(QStringLiteral("stream-1")), 10000);
+}
+
+void TestNuvioStreamBackend::backgroundDownloadCanFinishPreparing() {
+    FakeEngineReset reset;
+    fake().holdPreparedTorrent = QString::fromLatin1(kInfoHashA);
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 1, 10000);
+    backend.setForeground(false);
+    {
+        std::lock_guard lock(fake().mutex);
+        QVERIFY(fake().heldPrepared.has_value());
+        fake().pushEvent(*fake().heldPrepared);
+        fake().heldPrepared.reset();
+    }
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QCOMPARE(ready.count(), 0);
+    QCOMPARE(fake().destroyCount, 0);
+    QCOMPARE(fetch.at(0).at(0).toString(), QString::fromLatin1(kUrlA));
+}
+
+void TestNuvioStreamBackend::backgroundDownloadLeaseLossQuiesces() {
+    FakeEngineReset reset;
+    fake().holdPreparedTorrent = QString::fromLatin1(kInfoHashA);
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 1, 10000);
+    backend.setForeground(false);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, false)));
+    QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 10000);
+    {
+        std::lock_guard lock(fake().mutex);
+        QVERIFY(fake().heldPrepared.has_value());
+        fake().pushEvent(*fake().heldPrepared);
+        fake().heldPrepared.reset();
+    }
+    backend.prefetch(kInfoHashB, 0);
+    QTest::qWait(300);
+    QCOMPARE(fetch.count(), 0);
+    QCOMPARE(fake().createCount, 1);
+}
+
+void TestNuvioStreamBackend::backgroundSharedPrepareKeepsDownload_data() {
+    QTest::addColumn<bool>("playFirst");
+    QTest::newRow("play-then-download") << true;
+    QTest::newRow("download-then-play") << false;
+}
+
+void TestNuvioStreamBackend::backgroundSharedPrepareKeepsDownload() {
+    QFETCH(bool, playFirst);
+    FakeEngineReset reset;
+    fake().holdPreparedTorrent = QString::fromLatin1(kInfoHashA);
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    if (playFirst) backend.play(kInfoHashA, 0);
+    else backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fake().prepareCount, 1, 10000);
+    if (playFirst) backend.prefetch(kInfoHashA, 0);
+    else backend.play(kInfoHashA, 0);
+    backend.setForeground(false);
+    QTest::qWait(100);
+    {
+        std::lock_guard lock(fake().mutex);
+        QVERIFY(fake().heldPrepared.has_value());
+        fake().pushEvent(*fake().heldPrepared);
+        fake().heldPrepared.reset();
+    }
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QCOMPARE(ready.count(), 0);
+    QCOMPARE(fake().prepareCount, 1);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+}
+
+void TestNuvioStreamBackend::completedDownloadRetiresOnlyDownloadOwnership() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    backend.prefetch(kInfoHashB, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, false)));
+    QTRY_VERIFY_WITH_TIMEOUT(fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashB)), 10000);
+    QVERIFY(!fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashA)));
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+    QCOMPARE(backend.streamUrl(kInfoHashA, 0), QString::fromLatin1(kUrlA));
+}
+
+void TestNuvioStreamBackend::closingPlayerKeepsSameSourceDownload() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.play(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    backend.stop();
+    QTest::qWait(300);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+    QVERIFY(!fake().removedTorrentIds.contains(QString::fromLatin1(kInfoHashA)));
+}
+
+void TestNuvioStreamBackend::finalDownloadCompletionReleasesIdleEngine() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, true)));
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    QVERIFY(QMetaObject::invokeMethod(&backend, "setBackgroundDownloadsActive",
+        Qt::DirectConnection, Q_ARG(bool, false)));
+    QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 1000);
+    QCOMPARE(fake().createCount, 1);
+}
+
+void TestNuvioStreamBackend::downloadCompletionBeforeHostStartReleasesRoute() {
+    FakeEngineReset reset;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    backend.stopPrefetch();
+    QTRY_COMPARE_WITH_TIMEOUT(fake().destroyCount, 1, 10000);
+    QVERIFY(fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+}
+
+void TestNuvioStreamBackend::differentFilePlaybackCannotReplaceDownloadRoute() {
+    FakeEngineReset reset;
+    fake().fileCount = 2;
+    NuvioStreamBackend backend(fakeApi(), testConfiguration());
+    QSignalSpy fetch(&backend, &NuvioStreamBackend::fetchReady);
+    QSignalSpy ready(&backend, &NuvioStreamBackend::streamReady);
+    QSignalSpy errors(&backend, &NuvioStreamBackend::streamError);
+    backend.prefetch(kInfoHashA, 0);
+    QTRY_COMPARE_WITH_TIMEOUT(fetch.count(), 1, 10000);
+    backend.play(kInfoHashA, 1);
+    QTRY_COMPARE_WITH_TIMEOUT(errors.count(), 1, 1000);
+    QVERIFY(errors.at(0).at(0).toString().contains(QStringLiteral("download")));
+    QCOMPARE(fake().prepareCount, 1);
+    QCOMPARE(ready.count(), 0);
+    QVERIFY(!fake().stopStreamIds.contains(QStringLiteral("stream-1")));
+    // Pausing/completing that download releases the constraint. Explicit Play
+    // can then prepare the requested file without inheriting the old route.
+    backend.stopPrefetch();
+    backend.play(kInfoHashA, 1);
+    QTRY_COMPARE_WITH_TIMEOUT(ready.count(), 1, 10000);
+    QCOMPARE(fake().prepareCount, 2);
 }
 
 void TestNuvioStreamBackend::demandStampedBeforeForegroundRestoreIsFenced() {

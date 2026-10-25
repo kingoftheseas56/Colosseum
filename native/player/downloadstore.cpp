@@ -66,6 +66,10 @@ int DownloadStore::jobIndex(const QString &id) const {
     return -1;
 }
 
+bool DownloadStore::executionAllowed() const {
+    return m_foreground || m_backgroundExecutionAllowed;
+}
+
 void DownloadStore::touch() {
     ++m_queueRevision;
     emit changed();
@@ -183,7 +187,7 @@ void DownloadStore::resumeJob(const QString &id) {
 }
 
 void DownloadStore::pump() {
-    if (!m_foreground)
+    if (!executionAllowed())
         return;
     if (activeIndex() >= 0)
         return;   // MAX_ACTIVE_VIDEO = 1: one live job at a time
@@ -211,7 +215,7 @@ void DownloadStore::feedUrl(const QString &id, const QString &url) {
 
 void DownloadStore::feedSource(const QString &id, const QString &url, const QVariantMap &headers) {
     const int i = jobIndex(id);
-    if (i < 0 || url.isEmpty() || !m_foreground
+    if (i < 0 || url.isEmpty() || !executionAllowed()
         || m_jobs.at(i).state != QStringLiteral("resolving"))
         return;
     Job &j = m_jobs[i];
@@ -229,7 +233,7 @@ void DownloadStore::feedSource(const QString &id, const QString &url, const QVar
 void DownloadStore::feedTorrentUrl(const QString &id, const QString &url,
                                    const QString &infoHash, int fileIdx) {
     const int i = jobIndex(id);
-    if (i < 0 || url.isEmpty() || !m_foreground
+    if (i < 0 || url.isEmpty() || !executionAllowed()
         || m_jobs.at(i).state != QStringLiteral("resolving"))
         return;
     const QString hash = infoHash.trimmed().toLower();
@@ -255,9 +259,28 @@ void DownloadStore::feedTorrentUrl(const QString &id, const QString &url,
 void DownloadStore::setForeground(bool foreground) {
     if (m_foreground == foreground)
         return;
+    const bool wasAvailable = executionAllowed();
     m_foreground = foreground;
-    if (!foreground) {
-        // Fence source-search callbacks before disconnecting the HTTP replies.
+    const bool available = executionAllowed();
+    if (wasAvailable != available)
+        transitionExecutionAvailability(available);
+}
+
+void DownloadStore::setBackgroundExecutionAllowed(bool allowed) {
+    if (m_backgroundExecutionAllowed == allowed)
+        return;
+    const bool wasAvailable = executionAllowed();
+    m_backgroundExecutionAllowed = allowed;
+    const bool available = executionAllowed();
+    if (wasAvailable != available)
+        transitionExecutionAvailability(available);
+}
+
+void DownloadStore::transitionExecutionAvailability(bool available) {
+    if (!available) {
+        // Fence source-search callbacks before disconnecting HTTP replies. A
+        // service lease keeps the existing resolver/network work alive because
+        // this transition runs only after foreground AND lease are both lost.
         emit resolutionReset();
         const auto retiringRoute = [](const Job &j) {
             const QString host = QUrl(j.url).host();
@@ -267,8 +290,7 @@ void DownloadStore::setForeground(bool foreground) {
         QStringList ids;
         for (const Job &j : m_jobs)
             if ((j.state == QStringLiteral("queued") || j.state == QStringLiteral("resolving")
-                 || j.state == QStringLiteral("downloading"))
-                && (j.url.isEmpty() || retiringRoute(j)))
+                 || j.state == QStringLiteral("downloading")))
                 ids.append(j.id);
         for (const QString &id : ids) {
             pauseJob(id);
@@ -279,7 +301,9 @@ void DownloadStore::setForeground(bool foreground) {
             qInfo() << "[videoq] lifecycle paused" << id << "retained bytes"
                     << QFileInfo(j.partPath).size();
         }
-        // Manually paused jobs also own retired URLs, but stay manually paused.
+        // Local/torrent URLs retire with the streaming engine. Direct HTTP URLs
+        // remain available so their exact URL can Range-resume after a lease
+        // returns. Manually paused jobs never enter lifecyclePaused.
         for (Job &j : m_jobs) {
             if (retiringRoute(j))
                 j.url.clear();

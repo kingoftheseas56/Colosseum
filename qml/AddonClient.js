@@ -116,6 +116,253 @@ function _contains(arr, v) {
     return false;
 }
 
+function _videoMatches(text, pattern) {
+    var re = new RegExp(pattern, "gi");
+    var out = [];
+    var match;
+    while ((match = re.exec(text)) !== null) {
+        out.push({ index: match.index, length: match[0].length, text: match[0] });
+        if (!match[0].length) ++re.lastIndex;
+    }
+    return out;
+}
+
+function _videoMarkerNearCodec(text, marker, codec, maxDistance, allowWords) {
+    var markerStart = marker.index;
+    var markerEnd = markerStart + marker.length;
+    var codecStart = codec.index;
+    var codecEnd = codecStart + codec.length;
+    var gapStart = markerStart >= codecEnd ? codecEnd : markerEnd;
+    var gapEnd = markerStart >= codecEnd ? markerStart : codecStart;
+    if (gapEnd - gapStart > maxDistance) return false;
+    return allowWords || !/[a-z0-9]/i.test(text.slice(gapStart, gapEnd));
+}
+
+function _videoProfile(mime, marker) {
+    var value = marker.toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (mime === "video/hevc" || mime === "video/av01") {
+        if (value.indexOf("main10") >= 0 || value.indexOf("10main") >= 0
+                || value.indexOf("10bit") >= 0 || value === "10b"
+                || value.indexOf("hdr10") === 0) return "main10";
+        if (value === "main" || value === "main8" || value === "8main") return "main";
+        return "";
+    }
+    if (mime === "video/avc") {
+        if (value.indexOf("baseline") >= 0) return "baseline";
+        if (value.indexOf("high444") >= 0) return "high444";
+        if (value.indexOf("high422") >= 0) return "high422";
+        if (value.indexOf("high10") >= 0) return "high10";
+        if (value.indexOf("constrainedhigh") >= 0 || value.indexOf("highconstrained") >= 0
+                || value === "high" || value === "main") return value === "main" ? "main" : "high";
+        return "";
+    }
+    return "";
+}
+
+// Stremio has no standard video-codec fields. Parse explicit evidence from its
+// name/title or filename hint; absent or contradictory hints remain unknown.
+function _videoDescriptor(s) {
+    var hints = [String(s.name || ""), String(s.title || ""),
+                 String((s.behaviorHints && s.behaviorHints.filename) || "")];
+    var specs = [
+        { mime: "video/hevc", pattern: "\\bhevc\\b|\\bh[\\s._-]?265\\b|\\bx265\\b" },
+        { mime: "video/avc", pattern: "\\bavc\\b|\\bh[\\s._-]?264\\b|\\bx264\\b" },
+        { mime: "video/av01", pattern: "\\bav0?1\\b" },
+        { mime: "video/dolby-vision", pattern: "\\bdv\\b|\\bdovi\\b|dolby[\\s._-]?vision" }
+    ];
+    var matchesByMime = ({});
+    for (var h = 0; h < hints.length; ++h) {
+        var text = hints[h].toLowerCase();
+        for (var f = 0; f < specs.length; ++f) {
+            var matches = _videoMatches(text, specs[f].pattern);
+            if (!matches.length) continue;
+            if (!matchesByMime[specs[f].mime]) matchesByMime[specs[f].mime] = [];
+            for (var m = 0; m < matches.length; ++m)
+                matchesByMime[specs[f].mime].push({ text: text, index: matches[m].index, length: matches[m].length });
+        }
+    }
+
+    var foundMimes = [];
+    for (var mime in matchesByMime)
+        if (Object.prototype.hasOwnProperty.call(matchesByMime, mime)) foundMimes.push(mime);
+    // DV has its own MediaCodec family; its label is the operative constraint
+    // when the same name also mentions its HEVC/AV1 base layer.
+    var selectedMime = _contains(foundMimes, "video/dolby-vision")
+        ? "video/dolby-vision" : (foundMimes.length === 1 ? foundMimes[0] : "");
+    var ambiguous = foundMimes.length > 1 && selectedMime !== "video/dolby-vision";
+    var profiles = [];
+    var levels = [];
+
+    if (selectedMime && selectedMime !== "video/dolby-vision") {
+        var profilePattern = selectedMime === "video/avc"
+            ? "\\bconstrained[\\s._-]*baseline\\b|\\bbaseline[\\s._-]*constrained\\b"
+                + "|\\bconstrained[\\s._-]*high\\b|\\bhigh[\\s._-]*constrained\\b"
+                + "|\\bhigh[\\s._-]*4\\s*:\\s*2\\s*:\\s*2\\b|\\bhigh[\\s._-]*422\\b"
+                + "|\\bhigh[\\s._-]*4\\s*:\\s*4\\s*:\\s*4\\b|\\bhigh[\\s._-]*444\\b"
+                + "|\\bhigh[\\s._-]*10\\b|\\bbaseline\\b|\\bmain\\b"
+                + "|\\bhigh\\b(?![\\s._-]*(?:10\\b|422\\b|444\\b|4\\s*:\\s*[24]\\s*:\\s*[24]\\b))"
+            : "\\bmain[\\s._-]*10\\b|\\b10[\\s._-]*main\\b|\\bmain[\\s._-]*8\\b"
+                + "|\\bmain\\b|\\b10[\\s._-]*bit\\b|\\b10b\\b|\\bhdr10\\+?(?![a-z0-9])";
+        for (var p = 0; p < matchesByMime[selectedMime].length; ++p) {
+            var codecMatch = matchesByMime[selectedMime][p];
+            var nearProfiles = _videoMatches(codecMatch.text, profilePattern);
+            for (var n = 0; n < nearProfiles.length; ++n) {
+                if (!_videoMarkerNearCodec(codecMatch.text, nearProfiles[n], codecMatch, 24, false)) continue;
+                var normalizedProfile = _videoProfile(selectedMime, nearProfiles[n].text);
+                if (normalizedProfile && !_contains(profiles, normalizedProfile)) profiles.push(normalizedProfile);
+            }
+            if (selectedMime === "video/avc") {
+                var nearLevels = _videoMatches(codecMatch.text,
+                    "\\blevel[\\s:=._-]*(\\d{1,2}\\.\\d{1,2})\\b|\\bl(\\d{1,2}\\.\\d{1,2})\\b");
+                for (var l = 0; l < nearLevels.length; ++l) {
+                    if (!_videoMarkerNearCodec(codecMatch.text, nearLevels[l], codecMatch, 64, true)) continue;
+                    var numberMatch = nearLevels[l].text.match(/(\d{1,2}\.\d{1,2})/);
+                    var parsedLevel = numberMatch ? Number(numberMatch[1]) : 0;
+                    if (parsedLevel > 0 && levels.indexOf(parsedLevel) < 0) levels.push(parsedLevel);
+                }
+            }
+        }
+    }
+
+    if (profiles.length > 1 || levels.length > 1) ambiguous = true;
+    return {
+        mime: selectedMime,
+        profile: profiles.length === 1 ? profiles[0] : "",
+        level: levels.length === 1 ? levels[0] : 0,
+        ambiguous: ambiguous
+    };
+}
+
+function _codecName(mime) {
+    return mime === "video/hevc" ? "HEVC"
+        : mime === "video/avc" ? "H.264"
+        : mime === "video/av01" ? "AV1"
+        : mime === "video/dolby-vision" ? "Dolby Vision" : "video codec";
+}
+
+function _profileName(profile) {
+    if (profile === "main") return "Main";
+    if (profile === "main10") return "Main10";
+    if (profile === "baseline") return "Baseline";
+    if (profile === "high") return "High";
+    if (profile === "high10") return "High10";
+    if (profile === "high422") return "High422";
+    if (profile === "high444") return "High444";
+    return "";
+}
+
+function _normalizedCapabilityProfile(mime, profile) {
+    var value = String(profile || "").toLowerCase().replace(/[^a-z0-9]/g, "");
+    if (value === "constrainedbaseline") value = "baseline";
+    if (value === "constrainedhigh") value = "high";
+    if (mime === "video/hevc" || mime === "video/av01")
+        return value === "main" || value === "main10" ? value : "";
+    if (mime === "video/avc")
+        return _contains(["baseline", "main", "high", "high10", "high422", "high444"], value) ? value : "";
+    return "";
+}
+
+function _decoderProfileCovers(mime, decoderProfile, sourceProfile) {
+    if (decoderProfile === sourceProfile) return true;
+    if ((mime === "video/hevc" || mime === "video/av01")
+            && decoderProfile === "main10" && sourceProfile === "main") return true;
+    if (mime === "video/avc") {
+        var avcCoverage = {
+            main: ["baseline"],
+            high: ["baseline", "main"],
+            high10: ["baseline", "main", "high"],
+            high422: ["baseline", "main", "high", "high10"],
+            high444: ["baseline", "main", "high", "high10", "high422"]
+        };
+        return _contains(avcCoverage[decoderProfile] || [], sourceProfile);
+    }
+    return false;
+}
+
+function _compatibility(state, reason) { return { state: state, reason: reason || "" }; }
+
+function _videoCompatibility(descriptor) {
+    if (!descriptor || !descriptor.mime || descriptor.ambiguous)
+        return _compatibility("unknown", "Codec profile is not explicit");
+    if (typeof PlatformRuntime === "undefined" || !PlatformRuntime || PlatformRuntime.android !== true)
+        return _compatibility("unknown", "Android decoder capabilities are not applicable");
+
+    var capabilities = null;
+    try { capabilities = PlatformRuntime.videoDecodeCapabilities; } catch (e) { capabilities = null; }
+    if (!capabilities || capabilities.available !== true || capabilities.complete !== true
+            || !capabilities.decoders || typeof capabilities.decoders.length !== "number")
+        return _compatibility("unknown", "Android decoder inventory is unavailable or incomplete");
+
+    var familyDecoders = [];
+    for (var i = 0; i < capabilities.decoders.length; ++i) {
+        var decoder = capabilities.decoders[i];
+        if (!decoder || typeof decoder !== "object" || typeof decoder.mime !== "string")
+            return _compatibility("unknown", "Android decoder inventory is invalid");
+        if (decoder.mime.toLowerCase() === descriptor.mime) familyDecoders.push(decoder);
+    }
+    if (!familyDecoders.length && descriptor.mime === "video/dolby-vision") {
+        var fallbackMimes = ["video/avc", "video/hevc", "video/av01"];
+        for (var f = 0; f < capabilities.decoders.length; ++f) {
+            var fallbackDecoder = capabilities.decoders[f];
+            if (fallbackDecoder && typeof fallbackDecoder.mime === "string"
+                    && _contains(fallbackMimes, fallbackDecoder.mime.toLowerCase()))
+                return _compatibility("unknown", "Dolby Vision base-layer playback depends on the source profile");
+        }
+    }
+    if (!familyDecoders.length)
+        return _compatibility("unsupported", "No " + _codecName(descriptor.mime) + " decoder is available");
+    if (descriptor.mime === "video/dolby-vision")
+        return _compatibility("supported", "A Dolby Vision decoder is available");
+
+    var records = [];
+    var incompleteProfiles = false;
+    for (var d = 0; d < familyDecoders.length; ++d) {
+        var decoderProfiles = familyDecoders[d].profiles;
+        var decoderComplete = familyDecoders[d].profilesComplete === true;
+        if (familyDecoders[d].profilesComplete === undefined
+                && decoderProfiles && decoderProfiles.length > 0) decoderComplete = true;
+        if (!decoderProfiles || typeof decoderProfiles.length !== "number" || decoderProfiles.length === 0)
+            decoderComplete = false;
+        if (!decoderComplete) incompleteProfiles = true;
+        if (!decoderProfiles || typeof decoderProfiles.length !== "number") continue;
+        for (var j = 0; j < decoderProfiles.length; ++j) {
+            var entry = decoderProfiles[j];
+            if (!entry || typeof entry !== "object") { incompleteProfiles = true; continue; }
+            var normalized = _normalizedCapabilityProfile(descriptor.mime, entry.profile);
+            if (!normalized) { incompleteProfiles = true; continue; }
+            var level = (typeof entry.level === "number" && isFinite(entry.level) && entry.level > 0)
+                ? entry.level : 0;
+            if (!level) incompleteProfiles = true;
+            records.push({ profile: normalized, level: level });
+        }
+    }
+
+    var codecLabel = _codecName(descriptor.mime);
+    if (!descriptor.profile)
+        return _compatibility("unknown", "Source profile is not explicit");
+
+    var matching = [];
+    for (var k = 0; k < records.length; ++k)
+        if (_decoderProfileCovers(descriptor.mime, records[k].profile, descriptor.profile)) matching.push(records[k]);
+    if (!matching.length) {
+        if (incompleteProfiles) return _compatibility("unknown", "Decoder profile inventory is incomplete");
+        return _compatibility("unsupported", "No " + codecLabel + " " + _profileName(descriptor.profile) + " decoder is available");
+    }
+    if (!descriptor.level)
+        return _compatibility("unknown", "Source level is not explicit");
+
+    var levelSupported = false;
+    var levelUnknown = incompleteProfiles;
+    for (var m = 0; m < matching.length; ++m) {
+        if (!matching[m].level) levelUnknown = true;
+        else if (matching[m].level >= descriptor.level) levelSupported = true;
+    }
+    if (levelSupported) return _compatibility("supported", "A compatible decoder profile and level are available");
+    if (levelUnknown) return _compatibility("unknown", "Decoder level inventory is incomplete");
+    return _compatibility("unsupported", codecLabel + " " + _profileName(descriptor.profile)
+        + " level " + descriptor.level + " exceeds decoder support");
+}
+
 function _pushTag(arr, v) {
     if (v && !_contains(arr, v)) arr.push(v);
 }
@@ -129,6 +376,7 @@ function _tags(s, q) {
     else if (/blu[\s.\-]?ray|bdrip|br[\s.\-]?rip/.test(hay)) _pushTag(out, "BluRay");
     if (/hevc|h[\s.\-]?265|x265/.test(hay)) _pushTag(out, "HEVC");
     else if (/avc|h[\s.\-]?264|x264/.test(hay)) _pushTag(out, "H.264");
+    if (/\bav0?1\b/.test(hay)) _pushTag(out, "AV1");
     if (/\bdv\b|dolby[\s.\-]?vision/.test(hay)) _pushTag(out, "DV");
     if (/hdr10\+/.test(hay)) _pushTag(out, "HDR10+");
     else if (/\bhdr\b/.test(hay)) _pushTag(out, "HDR");
@@ -248,6 +496,8 @@ function parseStream(s, addonName, addonPriority, addonId) {
 
     var q = _quality(s);
     var tags = _tags(s, q);
+    var videoCodec = _videoDescriptor(s);
+    var videoCompatibility = _videoCompatibility(videoCodec);
     var langs = _languages(s);
     var multi = /\bmulti\b|multi[\s.\-]?audio|dual[\s.\-]?audio/.test(_hay(s));
     return {
@@ -258,6 +508,8 @@ function parseStream(s, addonName, addonPriority, addonId) {
         release: _release(s),
         tags: tags,
         qualityLine: _qualityLine(tags, q),
+        videoCodec: videoCodec,
+        videoCompatibility: videoCompatibility,
         sourceName: isTorrent ? _sourceName(s, "P2P") : (_host(directUrl) || addonName),
         languages: langs,
         audio: (multi || langs.length > 1) ? "Multi Audio" : "English",
@@ -323,6 +575,9 @@ function _rowKey(r) {
 
 function _sortRows(rows) {
     rows.sort(function(a, b) {
+        var aUnsupported = !!(a.videoCompatibility && a.videoCompatibility.state === "unsupported");
+        var bUnsupported = !!(b.videoCompatibility && b.videoCompatibility.state === "unsupported");
+        if (aUnsupported !== bUnsupported) return aUnsupported ? 1 : -1;
         if (a.addonPriority !== b.addonPriority) return a.addonPriority - b.addonPriority;
         if (b.rank !== a.rank) return b.rank - a.rank;
         return b.seeders - a.seeders;

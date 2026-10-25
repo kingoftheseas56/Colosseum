@@ -1487,22 +1487,6 @@ int main(int argc, char *argv[]) {
     // Current-player video download state exposed to QML as `Download`.
     auto *download = new DownloadStore(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Download"), download);
-#ifdef Q_OS_ANDROID
-    const auto syncVideoForeground = [platformRuntime, stream, download]() {
-        if (platformRuntime->foreground()) {
-            stream->setForeground(true);
-            download->setForeground(true);
-        } else {
-            // Disconnect/preserve HTTP partials before retiring engine routes.
-            download->setForeground(false);
-            stream->setForeground(false);
-        }
-    };
-    QObject::connect(platformRuntime,
-                     &Colosseum::Platform::Runtime::applicationStateChanged,
-                     stream, syncVideoForeground);
-    syncVideoForeground();
-#endif
     if (qEnvironmentVariableIsSet("COLOSSEUM_VIDEOQ_SELFTEST"))
         download->selfTest(qEnvironmentVariable("COLOSSEUM_VIDEOQ_SELFTEST"));
 
@@ -1519,6 +1503,42 @@ int main(int argc, char *argv[]) {
         localDownloads, &app);
     engine.rootContext()->setContextProperty(
         QStringLiteral("PlatformDownloads"), platformDownloads);
+
+#ifdef Q_OS_ANDROID
+    const auto syncVideoForeground = [platformRuntime, platformDownloads, stream, download]() {
+        const bool foreground = platformRuntime->foreground();
+        platformDownloads->setForeground(foreground);
+        const bool backgroundAllowed = platformDownloads->backgroundHostReady();
+        const bool videoDownloadAllowed = backgroundAllowed && platformDownloads->videoRunningCount() > 0;
+        if (foreground) {
+            stream->setForeground(true);
+            stream->setBackgroundDownloadsActive(videoDownloadAllowed);
+            download->setForeground(true);
+            download->setBackgroundExecutionAllowed(backgroundAllowed);
+        } else {
+            // Grant the backend before resumed resolution can ask for a route.
+            if (videoDownloadAllowed) stream->setBackgroundDownloadsActive(true);
+            download->setBackgroundExecutionAllowed(backgroundAllowed);
+            download->setForeground(false);
+            // Withdraw OS permission only after HTTP partials have been parked.
+            if (!videoDownloadAllowed) stream->setBackgroundDownloadsActive(false);
+            stream->setForeground(false);
+        }
+        // Completion/cancel can precede the service's asynchronous startup.
+        // Release the download route even when no OS lease was ever granted.
+        if (platformDownloads->videoRunningCount() == 0) stream->stopFetchDemand();
+    };
+    QObject::connect(platformRuntime,
+                     &Colosseum::Platform::Runtime::applicationStateChanged,
+                     stream, syncVideoForeground);
+    QObject::connect(platformDownloads,
+                     &Colosseum::Platform::BackgroundDownloadBridge::hostStateChanged,
+                     stream, syncVideoForeground, Qt::QueuedConnection);
+    QObject::connect(platformDownloads,
+                     &Colosseum::Platform::BackgroundDownloadBridge::changed,
+                     stream, syncVideoForeground, Qt::QueuedConnection);
+    syncVideoForeground();
+#endif
 
 #if !defined(Q_OS_ANDROID)
     // Slice 18 — the synthetic downloads root: derives VaultIndex::FileRows from

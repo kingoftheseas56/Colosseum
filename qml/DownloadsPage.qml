@@ -46,6 +46,8 @@ Item {
     property string openLedgerKey: ""
     property var ledgerItems: []
     property string mutationMessage: ""
+    readonly property string backgroundDownloadMessage: onAndroid
+        && typeof PlatformDownloads !== "undefined" ? PlatformDownloads.backgroundHostError : ""
 
     property bool confirmationOpen: false
     property string confirmationTitle: ""
@@ -504,6 +506,15 @@ Item {
                 color: "#c98b8b"
                 font.family: theme.ui
                 font.pixelSize: 13
+                wrapMode: Text.Wrap
+            }
+
+            Text {
+                objectName: "backgroundDownloadMessage"
+                visible: root.backgroundDownloadMessage.length > 0
+                topPadding: 10; width: parent.width
+                text: root.backgroundDownloadMessage
+                color: theme.gold; font.family: theme.ui; font.pixelSize: 13
                 wrapMode: Text.Wrap
             }
 

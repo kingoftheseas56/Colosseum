@@ -18,7 +18,9 @@ def test_platform_services_are_wired_into_build_graph():
     for source in required_sources:
         assert source in cmake, f"missing app build wiring: {source}"
     assert "add_executable(platform_services_harness" in cmake
-    assert "QT_ANDROID_PACKAGE_SOURCE_DIR" in cmake
+    assert 'include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/android.cmake")' in cmake
+    android_cmake = (NATIVE / "cmake" / "android.cmake").read_text(encoding="utf-8-sig")
+    assert "QT_ANDROID_PACKAGE_SOURCE_DIR" in android_cmake
     java = NATIVE / "platform" / "android" / "src" / "org" / "colosseum" / "platform" / "SecureCredentialStore.java"
     assert java.is_file(), "Android secure-store Java source is outside package-source src/"
 

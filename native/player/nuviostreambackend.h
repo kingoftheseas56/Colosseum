@@ -20,8 +20,8 @@
 //     different file of the playing torrent is deferred until playback moves
 //     away; a prefetch of the exact playing source reuses its route; a
 //     prefetch of another torrent runs in parallel and is remembered as the
-//     single prefetch route, which a later play() of the same source promotes
-//     without re-preparing.
+//     single prefetch route, which a later play() of the same source shares
+//     without re-preparing. Each owner may retire independently.
 //
 // Correlation discipline: every add_torrent/prepare_stream request id is
 // tracked per in-flight demand chain, and completions (metadata, prepared,
@@ -32,9 +32,9 @@
 // request is stopped so it cannot shadow newer playback.
 //
 // Teardown discipline (distinct from ordinary background transitions):
-//   * Background transition (setForeground(false)) quiesces on the worker:
-//     routes stopped, chains invalidated, engine destroyed there. The GUI
-//     thread never waits for that.
+//   * Background transition retires playback on the worker. With a confirmed
+//     Android download host, download routes/chains survive; otherwise all
+//     routes are stopped and the engine is destroyed. The GUI never waits.
 //   * Destruction invalidates the GUI delivery gate and transfers the
 //     joinable worker to the process-lifetime reaper without waiting for
 //     slow in-flight calls. Worker state remains alive until worker exit.
@@ -133,6 +133,10 @@ public:
     // quiesced (streams stopped, routes invalidated); the next explicit
     // foreground demand reconstructs fresh engine state.
     void setForeground(bool foreground);
+    // A successful Android foreground-download service grants only download
+    // execution. It never grants playback or changes the real Activity state.
+    Q_INVOKABLE void setBackgroundDownloadsActive(bool active);
+    void stopPrefetch();
 
 Q_SIGNALS:
     void readyChanged();

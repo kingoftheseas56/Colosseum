@@ -206,9 +206,12 @@ def test_warmup_and_startup_do_not_start_networking():
 def test_background_lifecycle_uses_platform_runtime():
     require(
         MAIN_CPP,
-        "stream->setForeground(platformRuntime->foreground())",
+        "const bool foreground = platformRuntime->foreground()",
         "main.cpp must wire PlatformRuntime foreground to the backend",
     )
+    require(MAIN_CPP, "stream->setForeground(true)", "foreground playback must be admitted")
+    require(MAIN_CPP, "stream->setForeground(false)", "hidden playback must be retired")
+    require(MAIN_CPP, "platformDownloads->backgroundHostReady()", "hidden downloads need a confirmed OS host")
     require(
         BACKEND_H,
         "quiesce",

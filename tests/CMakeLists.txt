@@ -4905,13 +4905,34 @@ endforeach()
 include("${COLOSSEUM_NATIVE_DIR}/cmake/NuvioBackendTests.cmake")
 colosseum_add_nuvio_backend_tests()
 
-# Android 018 focused Node regressions; these are deterministic and use no providers.
+# Android focused Node regressions; these are deterministic and use no providers.
 if(COLOSSEUM_FERIA_TEST_NODE)
-    foreach(test_name android_continue_missing_download theatre_pinned_header_scrim theatre_search_year)
+    foreach(test_name android_continue_missing_download theatre_pinned_header_scrim theatre_search_year
+            addon_video_compatibility android_stream_route_restore_intent android_subtitle_restore
+            android_download_lifecycle)
         add_test(NAME colosseum.${test_name}
             COMMAND "${COLOSSEUM_FERIA_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/${test_name}_test.mjs")
         set_tests_properties(colosseum.${test_name} PROPERTIES
             LABELS "unit;node;regression"
             TIMEOUT 30)
     endforeach()
+endif()
+
+add_test(NAME colosseum.qml.sources_sheet_codec_compatibility
+    COMMAND colosseum_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/sources_sheet_codec_compatibility_harness.qml")
+set_tests_properties(colosseum.qml.sources_sheet_codec_compatibility PROPERTIES
+    LABELS "qml;offscreen;android;regression"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
+
+find_package(Java QUIET COMPONENTS Runtime Development)
+if(Java_FOUND)
+    add_test(NAME colosseum.android_download_host_state
+        COMMAND "${CMAKE_COMMAND}" "-DSOURCE_ROOT=${CMAKE_CURRENT_SOURCE_DIR}/.."
+            "-DCLASS_DIR=${CMAKE_CURRENT_BINARY_DIR}/android-download-host-state"
+            "-DJAVAC=${Java_JAVAC_EXECUTABLE}" "-DJAVA=${Java_JAVA_EXECUTABLE}"
+            -P "${CMAKE_CURRENT_SOURCE_DIR}/run_android_download_host_state.cmake")
+    set_tests_properties(colosseum.android_download_host_state PROPERTIES
+        LABELS "unit;android;regression" TIMEOUT 60)
 endif()

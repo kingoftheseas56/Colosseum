@@ -55,9 +55,10 @@ public:
     Q_INVOKABLE void feedSource(const QString &id, const QString &url, const QVariantMap &headers);
     Q_INVOKABLE void feedTorrentUrl(const QString &id, const QString &url,
                                    const QString &infoHash, int fileIdx);
-    // Android pauses before its local torrent routes retire; foreground return
-    // re-resolves those routes without discarding a verified source's prefix.
+    // Android execution availability is foreground OR a foreground-service
+    // lease. Background transfers pause only when both sources are unavailable.
     Q_INVOKABLE void setForeground(bool foreground);
+    Q_INVOKABLE void setBackgroundExecutionAllowed(bool allowed);
     Q_INVOKABLE void failJob(const QString &id, const QString &reason);
 
     // ── downloaded-videos library ──
@@ -114,6 +115,8 @@ private:
 
     int activeIndex() const;                 // resolving/downloading job, or -1
     int jobIndex(const QString &id) const;
+    bool executionAllowed() const;
+    void transitionExecutionAvailability(bool available);
     void pump();                             // promote oldest queued while under cap
     void startHttp(Job &job);
     void finishHttp(Job &job);
@@ -138,4 +141,5 @@ private:
     QHash<QString, Entry> m_index;
     int m_queueRevision = 0;
     bool m_foreground = true;
+    bool m_backgroundExecutionAllowed = false;
 };

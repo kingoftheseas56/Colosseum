@@ -334,6 +334,7 @@ Item {
     property string streamRouteHash: ""
     property int streamRouteFileIdx: 0
     property bool streamRouteRestorePending: false
+    property bool streamRouteRestoreLoadPending: false
     // Pre-background position for that re-demand. Kept apart from the
     // wake-reconnect seek, which recovery retries reset.
     property real streamRouteRestoreSec: -1
@@ -1472,8 +1473,7 @@ Item {
         }
         var c = root.streamCandidates[index] || ({})
         // A fresh stream start is not a retired-route reopen.
-        root.streamRouteRestoreSubtitle = null
-        root.streamRouteRestoreIntent = ""
+        root.clearStreamRouteRestore()
         root.currentStreamIndex = index
         root.streamRetryCount = 0
         root.mediaResumeHash = c.infoHash || ""
@@ -1517,6 +1517,7 @@ Item {
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.clearStreamRouteRestore()
         root.explicitResumePosition = Number((playbackContext || ({})).resumePosition) > 0
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
@@ -1718,6 +1719,13 @@ Item {
             return false
         return Stream.streamUrl(root.streamRouteHash, root.streamRouteFileIdx) !== root.streamRouteUrl
     }
+    function clearStreamRouteRestore() {
+        root.streamRouteRestorePending = false
+        root.streamRouteRestoreLoadPending = false
+        root.streamRouteRestoreSec = -1
+        root.streamRouteRestoreIntent = ""
+        root.streamRouteRestoreSubtitle = null
+    }
     function restoreRetiredStreamRoute() {
         if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
             return false
@@ -1726,8 +1734,11 @@ Item {
         if (root.streamRouteRestorePending)
             return true
         root.streamRouteRestorePending = true
+        root.streamRouteRestoreLoadPending = false
         root.streamRouteRestoreSec = mpv.position > 1 ? mpv.position : -1
-        root.streamRouteRestoreIntent = mpv.pause ? "paused" : "playing"
+        // Android foreground return reopens in a parked state. An explicit Play
+        // tap during recovery may replace this intent before the fresh load lands.
+        root.streamRouteRestoreIntent = "paused"
         var subtitle = root.selectedSubtitleRow()
         root.streamRouteRestoreSubtitle = subtitle && subtitle.external && subtitle.url
                 ? { "url": subtitle.url, "title": subtitle.title || subtitle.label,
@@ -1736,6 +1747,7 @@ Item {
         root.statusMsg = "Reconnecting stream..."
         streamWatchdog.restart()
         console.info("[player] Stream.play via restoreRetiredStreamRoute at", root.streamRouteRestoreSec)
+        mpv.pause = true
         Stream.play(root.streamRouteHash, root.streamRouteFileIdx)
         return true
     }
@@ -2645,6 +2657,7 @@ Item {
     }
 
     function playLocalFile(target) {
+        root.clearStreamRouteRestore()
         root.explicitResumePosition = false
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
@@ -2714,6 +2727,7 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        root.clearStreamRouteRestore()
         root.explicitResumePosition = false
         var t = target || ({})
         var remoteUrl = String(t.streamUrl || "")
@@ -2878,10 +2892,7 @@ Item {
         root.clearActiveDirectHeaders()
         mpv.stopPlayback()
         root.streamRouteUrl = ""
-        root.streamRouteRestorePending = false
-        root.streamRouteRestoreSubtitle = null
-        root.streamRouteRestoreSec = -1
-        root.streamRouteRestoreIntent = ""
+        root.clearStreamRouteRestore()
         // A real close ends the stream's demand; minimize never reaches here.
         if (typeof Stream !== "undefined" && Stream.stopDemand)
             Stream.stopDemand()
@@ -3323,8 +3334,12 @@ Item {
         if (!root.starting && !root.errored) {
             if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
                 WatchPartySync.requestLocalPlayback(mpv.pause, mpv.position)
-            else
-                mpv.pause = !mpv.pause
+            else {
+                var nextPaused = !mpv.pause
+                if (root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                    root.streamRouteRestoreIntent = nextPaused ? "paused" : "playing"
+                mpv.pause = nextPaused
+            }
         }
         root.wakeChrome()
     }
@@ -3814,6 +3829,13 @@ Item {
             root.syncWatchPartyPlayerObservation()
         }
         onFileLoaded: {
+            if (root.streamRouteRestorePending && !root.streamRouteRestoreLoadPending) {
+                // The retired generation can report READY late. It is not the
+                // replacement route, so leave the saved return state for it.
+                if (!mpv.pause)
+                    mpv.pause = true
+                return
+            }
             // fileLoaded means mpv OPENED the file (its track list + duration are now available) —
             // NOT that playback has started. fileReady is set here because the track/subtitle
             // automation below needs the track list, but the loading state (starting / statusMsg /
@@ -3826,11 +3848,12 @@ Item {
             root.seekPreview = mpv.position
             root.fileReady = true
             var startupOwnedByUi = false
-            if (root.streamRouteRestoreIntent !== "" || root.streamRouteRestoreSec > 1) {
+            if (root.streamRouteRestoreLoadPending) {
                 // Re-demanded after the background quiesce: reopen where it was,
-                // with the playback intent it had (a near-start position has no seek).
+                // parked unless the user explicitly pressed Play during recovery.
                 var restoreSec = root.streamRouteRestoreSec
-                var restorePaused = root.streamRouteRestoreIntent === "paused"
+                var restorePaused = root.streamRouteRestoreIntent !== "playing"
+                root.streamRouteRestoreLoadPending = false
                 root.streamRouteRestoreSec = -1
                 root.streamRouteRestoreIntent = ""
                 root.wakeReconnectPendingSeek = -1
@@ -4060,11 +4083,18 @@ Item {
     Connections {
         target: Stream
         function onStreamReady(url, infoHash, fileIdx) {
+            var restoringRetiredRoute = root.streamRouteRestorePending
+                    && String(infoHash || "") === root.streamRouteHash
+                    && Number(fileIdx || 0) === root.streamRouteFileIdx
+            if ((root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                    && !restoringRetiredRoute)
+                root.clearStreamRouteRestore()
             root.statusMsg = "Buffering..."
             root.clearActiveDirectHeaders()
             root.currentPlaybackUrl = url || ""
             root.streamRouteUrl = url || ""
             root.streamRouteRestorePending = false
+            root.streamRouteRestoreLoadPending = restoringRetiredRoute
             root.streamRouteHash = String(infoHash || "")
             root.streamRouteFileIdx = Number(fileIdx || 0)
             streamWatchdog.restart()
@@ -4074,6 +4104,8 @@ Item {
             root.streamStatsDownloaded = 0
             Stream.watchStats(infoHash, fileIdx)
             mpv.loadSource(url)
+            if (restoringRetiredRoute && root.streamRouteRestoreIntent === "paused")
+                mpv.pause = true
         }
         function onStreamStats(infoHash, fileIdx, stats) {
             if (!root.starting)

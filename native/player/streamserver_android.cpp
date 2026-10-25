@@ -368,6 +368,14 @@ void StreamServer::setForeground(bool foreground) {
     }
 }
 
+void StreamServer::setBackgroundDownloadsActive(bool active) {
+    if (m_backend) m_backend->setBackgroundDownloadsActive(active);
+}
+
+void StreamServer::stopFetchDemand() {
+    if (m_backend) m_backend->stopPrefetch();
+}
+
 void StreamServer::stopDemand() {
     if (m_backend) {
         m_backend->stop();
@@ -407,6 +415,13 @@ void StreamServer::setForeground(bool foreground)
 {
     Q_UNUSED(foreground)
 }
+
+void StreamServer::setBackgroundDownloadsActive(bool active)
+{
+    Q_UNUSED(active)
+}
+
+void StreamServer::stopFetchDemand() {}
 
 void StreamServer::setForegroundProbe(std::function<bool()> probe)
 {

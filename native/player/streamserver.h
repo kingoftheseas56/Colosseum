@@ -57,6 +57,8 @@ public:
     // PlatformRuntime lifecycle gate: the backend quiesces in the background
     // and reconstructs fresh engine state on the next explicit demand.
     void setForeground(bool foreground);
+    void setBackgroundDownloadsActive(bool active);
+    void stopFetchDemand();
     // The live application foreground state. QML handlers of the same
     // lifecycle signal run before the C++ setForeground() slot, so a demand
     // issued from them syncs the backend first instead of being fenced.

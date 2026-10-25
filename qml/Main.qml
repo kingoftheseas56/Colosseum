@@ -2127,6 +2127,14 @@ Window {
         setGuiStallContext("navigate", currentSurface || "Home")
     }
 
+    Connections {
+        target: typeof PlatformDownloads !== "undefined" ? PlatformDownloads : null
+        function onOpenDownloadsRequested() {
+            if (win.playerOpen) win.minimizePlayer()
+            win.openDownloadsPage()
+        }
+    }
+
     // ---- Vault page: the taskbar folder door's full-page, mutually exclusive with the other taskbar
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----

@@ -406,6 +406,9 @@ HostPlaybackAction AndroidMedia3State::beginLifecycleHostStop(quint64 generation
     m_snapshot.hostStopped = true;
     m_snapshot.lifecycleErrorSuppressionArmed = true;
     m_snapshot.lifecyclePrepareSubmitted = false;
+    // Returning from Android background is not an implicit Play command. A
+    // deliberate noteUserPlay() during restore may set this again before READY.
+    m_snapshot.userWantsPlay = false;
     m_snapshot.paused = true;
     return HostPlaybackAction::Stop;
 }

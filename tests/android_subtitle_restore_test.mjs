@@ -1,5 +1,5 @@
-// Execute the actual retired-route and file-loaded QML bodies. A Media3 reload
-// drops sidecars; only a same-route restore may re-add the selected one.
+// Execute the actual retired-route, stream-ready, and file-loaded QML bodies. A
+// Media3 reload drops sidecars; only a same-route restore may re-add the selected one.
 import { readFileSync } from 'node:fs';
 import assert from 'node:assert/strict';
 const qml = readFileSync(new URL('../qml/PlayerPage.qml', import.meta.url), 'utf8').replace(/\r\n/g, '\n');
@@ -9,24 +9,32 @@ function body(name) {
 }
 function run(selected, delay = 0.4, duringReconnect = null) {
     const additions = [], demands = [];
-    const mpv = { position: 123, pause: true, subDelay: delay, subtitleTrack: selected?.id || '',
-        addSubtitle: (...args) => additions.push(args), seekExact() {} };
-    const values = { streamRouteRestorePending: false, streamRouteRestoreSec: -1,
+    const mpv = { position: 123, pause: false, subDelay: delay, subtitleTrack: selected?.id || '',
+        addSubtitle: (...args) => additions.push(args), seekExact() {},
+        loadSource() { this.position = 0; this.pause = false; this.subDelay = 0; this.subtitleTrack = ''; } };
+    const values = { streamRouteRestorePending: false, streamRouteRestoreLoadPending: false, streamRouteRestoreSec: -1,
         streamRouteRestoreIntent: '', streamRouteRestoreSubtitle: null,
         streamRouteHash: 'abc', streamRouteFileIdx: 0, streamRouteRetired: () => true,
         selectedSubtitleRow: () => selected, addedOnlineUrls: { old: true }, subModelRev: 0,
         pendingSeekSec: -1, userTouchedSubs: false, currentShowKey: () => 'video:tt0063350' };
     const root = new Proxy(values, { get: (o, k) => k in o ? o[k] : () => {} });
     const watchdog = { restart() {}, stop() {} };
+    const clearRestore = new Function('root', body('clearStreamRouteRestore'));
+    root.clearStreamRouteRestore = () => clearRestore(root);
     root.restoreStreamRouteSubtitle = new Function('root', 'mpv', 'console', body('restoreStreamRouteSubtitle')).bind(null, root, mpv, { info() {} });
+    const stream = { play: (...a) => demands.push(a), watchStats() {} };
+    const platform = { applicationState: 'active' };
+    const consoleStub = { info() {} };
     new Function('root', 'mpv', 'streamWatchdog', 'Stream', 'PlatformRuntime', 'console', body('restoreRetiredStreamRoute'))(
-        root, mpv, watchdog, { play: (...a) => demands.push(a) }, { applicationState: 'active' }, { info() {} });
+        root, mpv, watchdog, stream, platform, consoleStub);
     if (duringReconnect)
         duringReconnect(root, mpv);
     // Duplicate activation while waiting must preserve the first snapshot.
     new Function('root', 'mpv', 'streamWatchdog', 'Stream', 'PlatformRuntime', 'console', body('restoreRetiredStreamRoute'))(
-        root, mpv, watchdog, { play: (...a) => demands.push(a) }, { applicationState: 'active' }, { info() {} });
-    mpv.subtitleTrack = ''; mpv.subDelay = 0; mpv.position = 0;
+        root, mpv, watchdog, stream, platform, consoleStub);
+    const ready = /function onStreamReady\(url, infoHash, fileIdx\) \{([\s\S]*?)\n        \}\n        function onStreamStats/.exec(qml)[1];
+    new Function('root', 'mpv', 'Stream', 'streamWatchdog', 'url', 'infoHash', 'fileIdx', ready)(
+        root, mpv, stream, watchdog, 'http://127.0.0.1:11450/stream/new', 'abc', 0);
     const loaded = /onFileLoaded:\s*\{([\s\S]*?)\n        \}\n        onPlaybackError:/.exec(qml)[1];
     new Function('root', 'mpv', 'streamWatchdog', loaded)(root, mpv, watchdog);
     return { root, mpv, additions, demands };
@@ -56,9 +64,12 @@ for (const [name, delta, expected] of [['adjustSubtitleDelay', 0.1, 0.5], ['rese
 // Reset happens on genuinely new media and replacement sources, without retaining
 // adapter sidecars across loadSource calls.
 for (const name of ['resetTrackAutomation', 'playStreamAt', 'stop']) {
-    const root = new Proxy({ streamRouteRestoreSubtitle: sidecar, streamCandidates: [{}],
-        isStreamDead: () => false, directStreamUrl: () => '', currentStreamIndex: 0 },
-        { get: (o, k) => k in o ? o[k] : () => {} });
+    const values = { streamRouteRestoreSubtitle: sidecar, streamRouteRestorePending: true,
+        streamRouteRestoreLoadPending: true, streamRouteRestoreSec: 123,
+        streamRouteRestoreIntent: 'paused', streamCandidates: [{}],
+        isStreamDead: () => false, directStreamUrl: () => '', currentStreamIndex: 0 };
+    const root = new Proxy(values, { get: (o, k) => k in o ? o[k] : () => {} });
+    root.clearStreamRouteRestore = () => new Function('root', body('clearStreamRouteRestore'))(root);
     if (name === 'playStreamAt') {
         new Function('root','mpv','streamWatchdog','Stream','console','index','reason', body(name))(
             root, { position: 0 }, { restart() {} }, { play() {} }, { info() {} }, 0, 'switch');

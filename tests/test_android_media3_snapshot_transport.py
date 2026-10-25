@@ -20,9 +20,14 @@ def test_snapshot_transport() -> None:
     require(JAVA, "mainHandler.removeCallbacks(telemetryRunnable)", "release/stop must cancel telemetry")
     require(HEADER, "handlePlaybackSnapshot", "native facade must consume snapshots")
     require(CPP, "Media3PlayerHost_nativeOnPlaybackSnapshot", "JNI snapshot bridge must exist")
-    forbidden = 'callHost("pause");\n            callHost("stopForLifecycle");'
-    if forbidden in CPP:
-        raise AssertionError("lifecycle host stop must preserve user play intent without Java pause()")
+    lifecycle = CPP[CPP.index("void AndroidMedia3Item::setHostLifecycleState"):
+                    CPP.index("void AndroidMedia3Item::setAudioFocusState")]
+    hidden = lifecycle[lifecycle.index('if (normalized == QStringLiteral("hidden")'):
+                      lifecycle.index('if (normalized != QStringLiteral("active")')]
+    pause = hidden.find('callHost("pause");')
+    stop = hidden.find('callHost("stopForLifecycle");')
+    if pause < 0 or stop < 0 or pause > stop:
+        raise AssertionError("background lifecycle must clear Java play intent before stopping the host")
 
 
 if __name__ == "__main__":

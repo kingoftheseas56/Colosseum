@@ -4,6 +4,8 @@
 #include <QGuiApplication>
 #include <QInputMethod>
 #include <QKeyEvent>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QPlatformSurfaceEvent>
 #include <QWindow>
 
@@ -90,6 +92,35 @@ bool Runtime::android() const {
 
 bool Runtime::androidTelevision() const {
     return m_androidTelevision;
+}
+
+QVariantMap Runtime::videoDecodeCapabilities() const {
+    if (!m_videoDecodeCapabilities.isEmpty())
+        return m_videoDecodeCapabilities;
+
+    // Defer the one-time OS enumeration until sources first need it.
+    m_videoDecodeCapabilities = {{QStringLiteral("available"), false},
+                                {QStringLiteral("complete"), false},
+                                {QStringLiteral("decoders"), QVariantList{}}};
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android)
+        return m_videoDecodeCapabilities;
+    const QJniObject payload = QJniObject::callStaticObjectMethod(
+        "org/colosseum/platform/DeviceVideoCapabilities", "snapshot", "()Ljava/lang/String;");
+    if (!payload.isValid())
+        return m_videoDecodeCapabilities;
+    QJsonParseError error;
+    const QJsonDocument document = QJsonDocument::fromJson(payload.toString().toUtf8(), &error);
+    if (error.error == QJsonParseError::NoError && document.isObject()) {
+        const QJsonObject object = document.object();
+        if (object.value(QStringLiteral("available")).isBool()
+                && object.value(QStringLiteral("complete")).isBool()
+                && object.value(QStringLiteral("decoders")).isArray()) {
+            m_videoDecodeCapabilities = object.toVariantMap();
+        }
+    }
+#endif
+    return m_videoDecodeCapabilities;
 }
 
 QString Runtime::applicationState() const {
