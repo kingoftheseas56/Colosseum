@@ -4,12 +4,13 @@
   "summary": "Open Vault as its own world, update configurable addons online, read MangaSin on your device, and keep playback and Linux accounts reliable.",
   "notes_url": "https://getcolosseum.world/releases/v1.1.10",
   "highlights": [
-    {"kind": "feature", "section": "VAULT", "title": "A world of its own", "body": "Vault opens with its own background instead of leaving the previous world visible underneath.", "artwork_assets": []},
+    {"kind": "feature", "section": "VAULT", "title": "A world of its own", "body": "Vault opens with its own background and an aligned header. Search is centered, with a separate row in narrow windows.", "artwork_assets": []},
     {"kind": "feature", "section": "ADDONS", "title": "Updates through Workers", "body": "Tankoyomi and Tankorent use online addon delivery while downloads and torrent handling stay on your device. Existing source settings are preserved.", "artwork_assets": []},
     {"kind": "feature", "section": "MANGASIN", "title": "Read in Spanish", "body": "Enable MangaSin in Tankoyomi to search and read directly from your device, with signed addon updates. The source is optional and starts disabled.", "artwork_assets": []},
     {"kind": "feature", "section": "PLAYBACK", "title": "Load and recover reliably", "body": "The video player handles loading failures and preserves the playback position when retrying a failed stream.", "artwork_assets": []},
     {"kind": "feature", "section": "LINUX ACCOUNTS", "title": "Keep credentials secure", "body": "Accounts use the desktop Secret Service keyring. Locked or unavailable keyrings return an error without claiming credentials were deleted.", "artwork_assets": []},
-    {"kind": "feature", "section": "UPDATES", "title": "A new update version", "body": "Windows installations can recognize 1.1.10 as newer than 1.1.9. Linux updates remain manual.", "artwork_assets": []}
+    {"kind": "feature", "section": "UPDATES", "title": "A new update version", "body": "Windows installations can recognize 1.1.10 as newer than 1.1.9. Linux updates remain manual.", "artwork_assets": []},
+    {"kind": "feature", "section": "COMING SOON", "title": "Vinyl stays unavailable", "body": "Vinyl and Feria remain Coming Soon in this release. Development opt-ins cannot enable Vinyl in the shipping build.", "artwork_assets": []}
   ],
   "artwork": []
 }
