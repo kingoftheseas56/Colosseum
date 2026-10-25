@@ -368,6 +368,43 @@ int main(int argc, char **argv)
     require(!state.rearmAfterEnd(g4) && state.snapshot().errored,
             "an errored source stays terminal");
 
+    // Recovery must distinguish the pause introduced by markError from a
+    // deliberate user pause; the paused error state alone cannot express both.
+    AndroidMedia3State retryState;
+    const QString recoveryPause = QStringLiteral("recovery-paused");
+    const quint64 playingError = retryState.beginLoad(QStringLiteral("http://127.0.0.1/night"), {});
+    require(!retryState.playbackStat(recoveryPause).isValid(),
+            "pre-error recovery intent must be unavailable during ordinary playback");
+    require(retryState.updateTimeline(playingError, 4015357, 5796503, 4020000, 70,
+                                     false, 100, false, 1),
+            "recovery fixture must observe a playing position");
+    require(retryState.markError(playingError, QStringLiteral("network_error"), QStringLiteral("fixture")),
+            "playing source must accept its typed error");
+    require(retryState.snapshot().paused,
+            "an error still reports actual stopped playback as paused");
+    require(retryState.playbackStat(recoveryPause).isValid()
+                && !retryState.playbackStat(recoveryPause).toBool(),
+            "recovery must retain the playing intent from before the error-induced pause");
+    require(!retryState.playbackStat(QStringLiteral("unknown-stat")).isValid(),
+            "unknown playback stats must remain unavailable");
+    require(!retryState.markError(playingError, QStringLiteral("late"), QStringLiteral("fixture"))
+                && !retryState.playbackStat(recoveryPause).toBool(),
+            "duplicate error must not replace the original recovery intent");
+    const quint64 pausedError = retryState.beginLoad(QStringLiteral("http://127.0.0.1/paused"), {});
+    require(!retryState.playbackStat(recoveryPause).isValid(),
+            "a replacement source must not inherit the previous error intent");
+    require(retryState.updateTimeline(pausedError, 15000, 100000, 20000, 20,
+                                     true, 100, false, 1)
+                && retryState.markError(pausedError, QStringLiteral("network_error"), QStringLiteral("fixture")),
+            "manually paused source must accept its own error");
+    require(retryState.playbackStat(recoveryPause).isValid()
+                && retryState.playbackStat(recoveryPause).toBool(),
+            "recovery must preserve a genuine manual pause");
+    retryState.beginLoad(QStringLiteral("http://127.0.0.1/new"), {});
+    require(!retryState.markError(pausedError, QStringLiteral("stale"), QStringLiteral("fixture"))
+                && !retryState.playbackStat(recoveryPause).isValid(),
+            "a stale error must not repopulate recovery intent in a fresh generation");
+
     qInfo().noquote() << QStringLiteral("ANDROID_MEDIA3_STATE_OK");
     std::printf("ANDROID_MEDIA3_STATE_OK assertions=%d\n", assertionCount);
     std::fflush(stdout);

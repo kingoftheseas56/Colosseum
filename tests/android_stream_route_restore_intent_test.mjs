@@ -19,6 +19,10 @@ const restoreBody = extract(/function restoreRetiredStreamRoute\(\) \{([\s\S]*?)
 const readyBody = extract(/function onStreamReady\(url, infoHash, fileIdx\) \{([\s\S]*?)\n        \}\n        function onStreamStats/, "onStreamReady");
 const loadedBody = extract(/onFileLoaded:\s*\{([\s\S]*?)\n        \}\n        onPlaybackError:/, "onFileLoaded");
 const subtitleBody = extract(/function restoreStreamRouteSubtitle\(\) \{([\s\S]*?)\n    \}\n\n    function tickWakeReconnect/, "restoreStreamRouteSubtitle");
+const resetRecoveryResumeBody = extract(/function resetRecoveryResume\(\) \{([\s\S]*?)\n    \}\n/, "resetRecoveryResume");
+const resetRecoveryWatchBody = extract(/function resetRecoveryWatch\(\) \{([\s\S]*?)\n    \}\n/, "resetRecoveryWatch");
+const captureSelectedSubtitleBody = extract(/function captureSelectedSidecarSubtitle\(\) \{([\s\S]*?)\n    \}\n/, "captureSelectedSidecarSubtitle");
+const restoreSelectedSubtitleBody = extract(/function restoreSelectedSidecarSubtitle\(subtitle\) \{([\s\S]*?)\n    \}\n/, "restoreSelectedSidecarSubtitle");
 const toggleBody = extract(/function togglePlayPause\(\) \{([\s\S]*?)\n    \}\n/, "togglePlayPause");
 const clearBody = /function clearStreamRouteRestore\(\) \{([\s\S]*?)\n    \}\n/.exec(text)?.[1] || null;
 const playStreamAtBody = extract(/function playStreamAt\(index, reason\) \{([\s\S]*?)\n    \}\n/, "playStreamAt");
@@ -32,6 +36,10 @@ const restore = new Function("root", "mpv", "streamWatchdog", "Stream", "Platfor
 const onReady = new Function("root", "mpv", "Stream", "streamWatchdog", "url", "infoHash", "fileIdx", readyBody);
 const loaded = new Function("root", "mpv", "streamWatchdog", loadedBody);
 const restoreSubtitle = new Function("root", "mpv", subtitleBody);
+const resetRecoveryResume = new Function("root", resetRecoveryResumeBody);
+const resetRecoveryWatch = new Function("root", resetRecoveryWatchBody);
+const captureSelectedSubtitle = new Function("root", "mpv", captureSelectedSubtitleBody);
+const restoreSelectedSubtitle = new Function("root", "mpv", "console", "subtitle", restoreSelectedSubtitleBody);
 const toggle = new Function("root", "mpv", "WatchPartySync", toggleBody);
 const quiet = { info() {} };
 const watchdog = { restart() {}, stop() {} };
@@ -72,6 +80,10 @@ function makePlayback(positionSec, manuallyPaused) {
     });
     if (clearRestore)
         root.clearStreamRouteRestore = () => clearRestore(root);
+    root.resetRecoveryResume = () => resetRecoveryResume(root);
+    root.resetRecoveryWatch = () => resetRecoveryWatch(root);
+    root.captureSelectedSidecarSubtitle = () => captureSelectedSubtitle(root, mpv);
+    root.restoreSelectedSidecarSubtitle = subtitle => restoreSelectedSubtitle(root, mpv, quiet, subtitle);
     let paused = manuallyPaused;
     const mpv = {
         position: positionSec,

@@ -504,8 +504,7 @@ void AndroidMedia3Item::applyPlaybackProfile() {}
 void AndroidMedia3Item::refreshAudioOutput() {}
 QVariant AndroidMedia3Item::playbackStat(const QString &name)
 {
-    Q_UNUSED(name)
-    return {};
+    return m_state.playbackStat(name);
 }
 
 void AndroidMedia3Item::seekExact(double value)

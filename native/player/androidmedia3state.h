@@ -80,6 +80,7 @@ public:
     bool accepts(quint64 generation) const;
     const AndroidMedia3Snapshot &snapshot() const { return m_snapshot; }
     QVariantMap capabilities() const;
+    QVariant playbackStat(const QString &name) const;
 
     bool markReady(quint64 generation);
     bool noteVideoSize(quint64 generation, int width, int height);
@@ -128,6 +129,7 @@ private:
     quint64 m_generation = 0;
     quint64 m_lifecycleEpochCounter = 0;
     AndroidMedia3Snapshot m_snapshot;
+    bool m_pausedBeforeError = true;
     int m_pendingVideoWidth = 0;
     int m_pendingVideoHeight = 0;
     bool m_firstFramePublished = false;

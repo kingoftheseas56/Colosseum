@@ -4933,7 +4933,7 @@ colosseum_add_nuvio_backend_tests()
 if(COLOSSEUM_FERIA_TEST_NODE)
     foreach(test_name android_continue_missing_download theatre_pinned_header_scrim theatre_search_year
             addon_video_compatibility addon_client_runtime_argument_contract
-            android_stream_route_restore_intent android_subtitle_restore
+            android_stream_route_restore_intent android_stream_retry_resume android_subtitle_restore
             android_download_lifecycle shell_back_policy android_shell_back_dispatch
             android_world_host_initialization android_theatre_nested_back)
         add_test(NAME colosseum.${test_name}

@@ -58,6 +58,13 @@ bool isTerminal(const AndroidMedia3Snapshot &snapshot)
 
 } // namespace
 
+QVariant AndroidMedia3State::playbackStat(const QString &name) const
+{
+    if (name == QLatin1String("recovery-paused") && m_snapshot.errored)
+        return m_pausedBeforeError;
+    return {};
+}
+
 quint64 AndroidMedia3State::beginLoad(const QString &url, const QVariantMap &headers)
 {
     if (m_generation == std::numeric_limits<quint64>::max())
@@ -178,6 +185,7 @@ bool AndroidMedia3State::markError(quint64 generation, const QString &code, cons
 {
     if (!accepts(generation) || isTerminal(m_snapshot))
         return false;
+    m_pausedBeforeError = m_snapshot.paused;
     m_snapshot.errored = true;
     m_snapshot.errorCode = code;
     m_snapshot.errorMessage = message;
