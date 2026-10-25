@@ -90,6 +90,7 @@
 #include "bootstrap/AppDataMigration.h"
 #include "bootstrap/InstanceLock.h"
 #include "bootstrap/StartupLayout.h"
+#include "bootstrap/QmlModuleGuards.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
 #if !defined(Q_OS_ANDROID)
@@ -1988,6 +1989,13 @@ int main(int argc, char *argv[]) {
             ensureFeriaRuntime();
     }
 #endif
+
+    // Main has initialized the built-in types. Later player imports must reuse
+    // that registration instead of resolving another QtQuick plugin instance.
+    if (Colosseum::Bootstrap::sealQtQuickModule())
+        qInfo("[boot] QtQuick 6 sealed for lazy player imports");
+    else
+        qWarning("[boot] QtQuick 6 module could not be sealed");
 
     if (!hasQmlOverride) {
         QTimer::singleShot(0, pinStore, [pinStore, pinnedHosts] {
