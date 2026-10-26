@@ -12,6 +12,22 @@ on:
         description: "Distinct diagnostic package id (org.qtproject.example.colosseum.nuvio<id>)"
         type: string
         default: org.qtproject.example.colosseum.nuvio014local
+      release_unsigned_arm64:
+        description: "Opt-in: build one unsigned arm64 preview Release APK; no emulator or test signer"
+        type: boolean
+        default: false
+      release_preview_package:
+        description: "Side-by-side preview package id"
+        type: string
+        default: org.qtproject.example.colosseum.previewnuvio1
+      release_version_code:
+        description: "Android versionCode for the preview APK"
+        type: number
+        default: 2
+      release_content_api_url:
+        description: "HTTPS staging content API origin compiled into the preview"
+        type: string
+        default: https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev
 
 permissions:
   contents: read
@@ -42,6 +58,7 @@ jobs:
       - name: Reader publication and message boundary
         run: |
           python tests/test_android_cache_paths.py
+          python tests/test_android_unsigned_release.py
           python tests/test_android_reader_session.py
           node tests/android_reader_boot_test.mjs
           python tests/test_android_openssl_packaging_contract.py
@@ -88,6 +105,26 @@ jobs:
             ${{ steps.android-paths.outputs.sdk }}/ndk/27.2.12479018
           key: android-toolchain-v1-${{ hashFiles('scripts/android/install_toolchain.sh') }}
 
+      - name: Validate Android build mode and release inputs
+        env:
+          DIAGNOSTIC_MODE: ${{ inputs.nuvio_diagnostic_arm64 }}
+          RELEASE_MODE: ${{ inputs.release_unsigned_arm64 }}
+          RELEASE_PACKAGE: ${{ inputs.release_preview_package }}
+          RELEASE_VERSION_CODE: ${{ inputs.release_version_code }}
+          RELEASE_ENDPOINT: ${{ inputs.release_content_api_url }}
+        run: |
+          if [[ "$DIAGNOSTIC_MODE" == "true" && "$RELEASE_MODE" == "true" ]]; then
+            python3 scripts/android/release_apk.py validate-dispatch --diagnostic --release
+          elif [[ "$DIAGNOSTIC_MODE" == "true" ]]; then
+            python3 scripts/android/release_apk.py validate-dispatch --diagnostic
+          elif [[ "$RELEASE_MODE" == "true" ]]; then
+            python3 scripts/android/release_apk.py validate-dispatch --release \
+              --package "$RELEASE_PACKAGE" --version-code "$RELEASE_VERSION_CODE" \
+              --endpoint "$RELEASE_ENDPOINT"
+          else
+            python3 scripts/android/release_apk.py validate-dispatch
+          fi
+
       - name: Compile Android-selected QML before building APKs
         run: |
           set -o pipefail
@@ -102,22 +139,31 @@ jobs:
         uses: actions/cache/restore@v4
         with:
           path: ${{ steps.android-paths.outputs.deps }}
-          key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
+          # Keep the opt-in arm64 Release preparation from populating the
+          # long-lived Debug/diagnostic dependency cache namespace.
+          key: ${{ inputs.release_unsigned_arm64 && 'android-deps-release-arm64-v1-' || 'android-deps-v1-' }}${{ hashFiles('scripts/android/build_deps.sh') }}
 
       - name: Build OpenSSL / Boost / libtorrent (cache miss only)
         if: steps.deps-cache.outputs.cache-hit != 'true'
+        env:
+          RELEASE_MODE: ${{ inputs.release_unsigned_arm64 }}
         run: |
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
-          scripts/android/build_deps.sh arm64-v8a x86_64
+          if [[ "$RELEASE_MODE" == "true" ]]; then
+            scripts/android/build_deps.sh arm64-v8a
+          else
+            scripts/android/build_deps.sh arm64-v8a x86_64
+          fi
 
       - name: Save built dependency prefixes
         if: steps.deps-cache.outputs.cache-hit != 'true'
         uses: actions/cache/save@v4
         with:
           path: ${{ steps.android-paths.outputs.deps }}
-          key: android-deps-v1-${{ hashFiles('scripts/android/build_deps.sh') }}
+          key: ${{ inputs.release_unsigned_arm64 && 'android-deps-release-arm64-v1-' || 'android-deps-v1-' }}${{ hashFiles('scripts/android/build_deps.sh') }}
 
       - name: Decode stable test signing key
+        if: ${{ !inputs.release_unsigned_arm64 }}
         # Test-only keystore shared by every CI build so a new APK installs over the previous one.
         # Secrets: ANDROID_TEST_KEYSTORE_B64 (base64 .jks) and ANDROID_TEST_KEYSTORE_PASSWORD.
         env:
@@ -139,7 +185,7 @@ jobs:
           restore-keys: android-ccache-v1-
 
       - name: Build x86_64 APK
-        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
+        if: ${{ !inputs.nuvio_diagnostic_arm64 && !inputs.release_unsigned_arm64 }}
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
@@ -150,14 +196,17 @@ jobs:
 
       # Opt-in Nuvio ARM64 diagnostic (task014). The product feature stays OFF
       # unless this input is set; x86_64 and the emulator smoke are skipped.
-      - name: Nuvio diagnostic - restore pinned donor, prove patches, prepare hardened engine
-        if: ${{ inputs.nuvio_diagnostic_arm64 }}
+      - name: Nuvio build - restore pinned donor, prove patches, prepare hardened engine
+        if: ${{ inputs.nuvio_diagnostic_arm64 || inputs.release_unsigned_arm64 }}
         env:
           DIAG_PACKAGE: ${{ inputs.nuvio_diagnostic_package }}
+          DIAGNOSTIC_MODE: ${{ inputs.nuvio_diagnostic_arm64 }}
         run: |
           set -euo pipefail
-          [[ "$DIAG_PACKAGE" =~ ^org\.qtproject\.example\.colosseum\.nuvio[0-9a-z]+$ ]] || {
-            echo "::error::nuvio_diagnostic_package must be org.qtproject.example.colosseum.nuvio<id>"; exit 1; }
+          if [[ "$DIAGNOSTIC_MODE" == "true" ]]; then
+            [[ "$DIAG_PACKAGE" =~ ^org\.qtproject\.example\.colosseum\.nuvio[0-9a-z]+$ ]] || {
+              echo "::error::nuvio_diagnostic_package must be org.qtproject.example.colosseum.nuvio<id>"; exit 1; }
+          fi
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
           DIAG="$RUNNER_TEMP/nuvio014"
           mkdir -p "$DIAG" nuvio-diag
@@ -229,7 +278,7 @@ jobs:
           if-no-files-found: error
 
       - name: Build arm64-v8a APK
-        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
+        if: ${{ !inputs.nuvio_diagnostic_arm64 && !inputs.release_unsigned_arm64 }}
         env:
           COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
           COLOSSEUM_ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_TEST_KEYSTORE_PASSWORD }}
@@ -237,6 +286,73 @@ jobs:
           source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
           set -o pipefail
           scripts/android/build_apk.sh arm64-v8a apk-out 2>&1 | tee build-arm64-v8a.log
+
+      - name: Build unsigned arm64 Release preview APK
+        if: ${{ inputs.release_unsigned_arm64 }}
+        env:
+          COLOSSEUM_ANDROID_APK_FLAVOUR: release-unsigned
+          COLOSSEUM_ANDROID_BUILD: ${{ github.workspace }}/native/build-android
+          COLOSSEUM_ANDROID_PREVIEW_PACKAGE: ${{ inputs.release_preview_package }}
+          COLOSSEUM_ANDROID_VERSION_CODE: ${{ inputs.release_version_code }}
+          COLOSSEUM_CONTENT_API_URL: ${{ inputs.release_content_api_url }}
+          COLOSSEUM_ANDROID_CMAKE_ARGS: -DCMAKE_C_COMPILER_LAUNCHER=ccache -DCMAKE_CXX_COMPILER_LAUNCHER=ccache
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          export COLOSSEUM_NUVIO_ENGINE_PREFIX="$NUVIO_DIAG/nuvio-prefix"
+          set -o pipefail
+          scripts/android/build_apk.sh arm64-v8a apk-out-release-unsigned 2>&1 | tee build-release-unsigned.log
+          grep -q '^PACKAGING_GATE_OK tests=6 skipped=0' build-release-unsigned.log
+          grep -q '^ANDROID_RUNTIME_BUNDLE_OK' build-release-unsigned.log
+          grep -q '^APK_OPENSSL_RUNTIME_PAIR_OK' build-release-unsigned.log
+          grep -q '^UNSIGNED_APK_STRUCTURAL_CHECK_OK ' build-release-unsigned.log
+          grep -E '^(ANDROID_ABI|CMAKE_BUILD_TYPE|COLOSSEUM_ANDROID_NUVIO_BACKEND|COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC|COLOSSEUM_NUVIO_ENGINE_PREFIX|COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE|COLOSSEUM_ANDROID_PREVIEW_PACKAGE|COLOSSEUM_ANDROID_VERSION_CODE|COLOSSEUM_CONTENT_API_URL|QT_ANDROID_DEPLOYMENT_TYPE|QT_ANDROID_SIGN_APK):' \
+            native/build-android/release-unsigned/arm64-v8a/CMakeCache.txt | tee release-cmake-identity.txt
+          grep -q '^ANDROID_ABI:STRING=arm64-v8a$' release-cmake-identity.txt
+          grep -q '^CMAKE_BUILD_TYPE:STRING=Release$' release-cmake-identity.txt
+          grep -q '^COLOSSEUM_ANDROID_NUVIO_BACKEND:BOOL=ON$' release-cmake-identity.txt
+          grep -q '^COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC:BOOL=OFF$' release-cmake-identity.txt
+          grep -Fx "COLOSSEUM_ANDROID_PREVIEW_PACKAGE:STRING=$COLOSSEUM_ANDROID_PREVIEW_PACKAGE" release-cmake-identity.txt
+          grep -Fx "COLOSSEUM_ANDROID_VERSION_CODE:STRING=$COLOSSEUM_ANDROID_VERSION_CODE" release-cmake-identity.txt
+          grep -Fx "COLOSSEUM_CONTENT_API_URL:STRING=$COLOSSEUM_CONTENT_API_URL" release-cmake-identity.txt
+          grep -Fx "COLOSSEUM_NUVIO_ENGINE_PREFIX:PATH=$COLOSSEUM_NUVIO_ENGINE_PREFIX" release-cmake-identity.txt
+          grep -q '^COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE:STRING=$' release-cmake-identity.txt
+          grep -q '^QT_ANDROID_SIGN_APK:BOOL=OFF$' release-cmake-identity.txt
+
+      - name: Write unsigned Release provenance manifest
+        if: ${{ success() && inputs.release_unsigned_arm64 }}
+        env:
+          RELEASE_ENDPOINT: ${{ inputs.release_content_api_url }}
+        run: |
+          source "$COLOSSEUM_ANDROID_TOOLCHAIN/env.sh"
+          python3 scripts/android/release_apk.py write-provenance \
+            --repo . --build-dir native/build-android/release-unsigned/arm64-v8a \
+            --apk apk-out-release-unsigned/colosseum-arm64-v8a-release-unsigned.apk \
+            --verification apk-out-release-unsigned/release-verification.json \
+            --engine-stamp "$NUVIO_DIAG/nuvio-prefix/.colosseum-nuvio-hardened-stamp" \
+            --endpoint "$RELEASE_ENDPOINT" \
+            --source-before apk-out-release-unsigned/source-before.json \
+            --source-after apk-out-release-unsigned/source-after.json \
+            --branch-ref "$GITHUB_REF" --run-id "$GITHUB_RUN_ID" \
+            --output apk-out-release-unsigned/release-manifest.json
+          cat apk-out-release-unsigned/release-manifest.json >> "$GITHUB_STEP_SUMMARY"
+
+      - uses: actions/upload-artifact@v4
+        if: ${{ success() && inputs.release_unsigned_arm64 }}
+        with:
+          name: colosseum-arm64-v8a-release-unsigned-${{ github.run_id }}
+          path: |
+            apk-out-release-unsigned/colosseum-arm64-v8a-release-unsigned.apk
+            apk-out-release-unsigned/colosseum-arm64-v8a-release-unsigned.apk.sha256
+            apk-out-release-unsigned/release-verification.json
+            apk-out-release-unsigned/release-manifest.json
+            apk-out-release-unsigned/source-before.json
+            apk-out-release-unsigned/source-after.json
+            release-cmake-identity.txt
+            build-release-unsigned.log
+            nuvio-diag/engine-artifact-verify.log
+            nuvio-diag/engine-stamp.txt
+          retention-days: 14
+          if-no-files-found: error
 
       - name: Save compiler cache
         if: always()
@@ -246,11 +362,11 @@ jobs:
           key: android-ccache-v1-${{ github.sha }}
 
       - name: APK checksums
-        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
+        if: ${{ !inputs.nuvio_diagnostic_arm64 && !inputs.release_unsigned_arm64 }}
         run: cat apk-out/*.sha256 | tee -a "$GITHUB_STEP_SUMMARY"
 
       - uses: actions/upload-artifact@v4
-        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
+        if: ${{ !inputs.nuvio_diagnostic_arm64 && !inputs.release_unsigned_arm64 }}
         with:
           name: colosseum-x86_64-debug-apk
           path: |
@@ -258,7 +374,7 @@ jobs:
             apk-out/colosseum-x86_64-debug.apk.sha256
           if-no-files-found: error
       - uses: actions/upload-artifact@v4
-        if: ${{ !inputs.nuvio_diagnostic_arm64 }}
+        if: ${{ !inputs.nuvio_diagnostic_arm64 && !inputs.release_unsigned_arm64 }}
         with:
           name: colosseum-arm64-v8a-debug-apk
           path: |
@@ -276,7 +392,7 @@ jobs:
 
   emulator-smoke:
     needs: build
-    if: ${{ !inputs.nuvio_diagnostic_arm64 }}
+    if: ${{ !inputs.nuvio_diagnostic_arm64 && !inputs.release_unsigned_arm64 }}
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:

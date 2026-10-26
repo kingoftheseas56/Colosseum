@@ -218,6 +218,18 @@ endif()
 set_property(TARGET colosseum PROPERTY QT_QML_ROOT_PATH "${COLOSSEUM_ANDROID_QML_ROOT}")
 set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
     "${COLOSSEUM_ANDROID_PACKAGE_DIR}")
+# Optional explicit Android versionCode for controlled preview/release builds.
+# Empty preserves the existing Qt default on every current Debug lane.
+set(COLOSSEUM_ANDROID_VERSION_CODE "" CACHE STRING
+    "Explicit Android versionCode for a preview APK")
+if(NOT "${COLOSSEUM_ANDROID_VERSION_CODE}" STREQUAL "")
+    if(NOT COLOSSEUM_ANDROID_VERSION_CODE MATCHES "^[1-9][0-9]*$")
+        message(FATAL_ERROR "COLOSSEUM_ANDROID_VERSION_CODE must be a positive decimal integer")
+    endif()
+    if(COLOSSEUM_ANDROID_VERSION_CODE GREATER 2100000000)
+        message(FATAL_ERROR "COLOSSEUM_ANDROID_VERSION_CODE must be <= 2100000000")
+    endif()
+endif()
 # First-APK contract: one ABI per APK (the configured Qt kit's ABI: arm64-v8a for
 # devices, x86_64 for emulators) on Qt 6.11's Android 9/API 28 floor, compiled and
 # targeted against the installed API 36 platform.
@@ -229,6 +241,10 @@ set_target_properties(colosseum PROPERTIES
     QT_ANDROID_APP_NAME "Colosseum"
     QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
 )
+if(NOT "${COLOSSEUM_ANDROID_VERSION_CODE}" STREQUAL "")
+    set_property(TARGET colosseum PROPERTY
+        QT_ANDROID_VERSION_CODE "${COLOSSEUM_ANDROID_VERSION_CODE}")
+endif()
 # Qt's TLS plugin dlopens OpenSSL. The static libtorrent dependency alone
 # cannot provide these runtime libraries.
 set(COLOSSEUM_ANDROID_OPENSSL_LIB_DIR "${OPENSSL_ROOT_DIR}/lib" CACHE PATH

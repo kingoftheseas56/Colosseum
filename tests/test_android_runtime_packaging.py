@@ -42,7 +42,7 @@ REQUIRE_GATE = os.environ.get("COLOSSEUM_REQUIRE_PACKAGING_GATE") == "1"
 
 # Mirrors native/cmake/android.cmake; keep the two in step.
 QML_EXCLUDES = (
-    r"^reader2/Paper[.]qml$", r"^player2/", r"^player2host/", r"^feria/",
+    r"^reader2/Paper[.]qml$", r"^player2/", r"^player2host/", r"^feria/", r"^vinyl/",
     r"(^|/)Vault[^/]*[.](qml|js)$", r"^(TrackerApprovalWebView|ExtensionsSetupSheet)[.]qml$",
     r"(^|/)[.][^/]+",
 )
