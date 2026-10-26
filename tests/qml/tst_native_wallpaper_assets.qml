@@ -1,0 +1,107 @@
+import QtQuick
+import QtTest
+import "../../qml/update" as Updates
+import "../../qml/vinyl" as Vinyl
+import "../../qml/WallpaperApi.js" as Wallpapers
+import "../../qml" as App
+import "../../qml/account" as Accounts
+
+TestCase {
+    id: testCase
+    name: "NativeWallpaperAssets"
+    when: windowShown
+    width: 960; height: 540
+    property var view: null
+    readonly property string redImage: "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='red'/></svg>")
+    readonly property string blueImage: "data:image/svg+xml," + encodeURIComponent("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20' fill='blue'/></svg>")
+
+    QtObject {
+        id: content
+        property int generation: 1
+        property var assets: ({})
+        function assetUrl(relative) { return assets[relative] || "" }
+    }
+    Component {
+        id: gallery
+        Updates.UpdateLivingGallery {
+            width: 960; height: 540
+            contentStore: content
+        }
+    }
+    Component {
+        id: backdrop
+        Vinyl.VinylBackdrop {
+            width: 960; height: 540
+            contentStore: content
+        }
+    }
+    Component {
+        id: sagaPage
+        App.SagaUniversePage {
+            width: 960; height: 540
+            contentStore: content
+        }
+    }
+    Component {
+        id: accountFrame
+        Accounts.AccountPageFrame {
+            width: 960; height: 540
+            contentStore: content
+        }
+    }
+    function init() {
+        content.assets = ({"assets/wallpaper/captured-motion.jpg":redImage,
+                           "assets/wallpaper/cold-ripple.jpg":redImage})
+    }
+    function cleanup() {
+        if (view) { view.destroy(); view = null }
+    }
+    function test_gallery_uses_content_owner_and_refreshes_on_publication_change() {
+        view = gallery.createObject(testCase)
+        verify(view !== null)
+        compare(view.fallbackSource, redImage)
+        content.assets["assets/wallpaper/captured-motion.jpg"] = blueImage
+        compare(view.fallbackSource, redImage)
+        content.generation++
+        tryCompare(view, "fallbackSource", blueImage)
+    }
+    function test_vinyl_uses_the_same_content_owner() {
+        view = backdrop.createObject(testCase)
+        verify(view !== null)
+        compare(view.fallbackSource, redImage)
+        content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+        content.generation++
+        tryCompare(view, "fallbackSource", blueImage)
+    }
+    function test_default_and_saved_owned_wallpaper_use_published_asset() {
+        compare(Wallpapers.imageSource(null, content), redImage)
+        compare(Wallpapers.imageSource({image_url:"../assets/wallpaper/cold-ripple.jpg"}, content), redImage)
+        compare(Wallpapers.imageSource({image_url:"native:noirflow"}, content), "native:noirflow")
+        compare(Wallpapers.imageSource({image_url:"https://example.test/chosen.jpg"}, content),
+                "https://example.test/chosen.jpg")
+        content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+        content.generation++
+        compare(Wallpapers.imageSource(null, content), blueImage)
+    }
+    function test_page_fallbacks_follow_the_content_publication() {
+        for (const component of [sagaPage, accountFrame]) {
+            view = component.createObject(testCase)
+            verify(view !== null)
+            compare(view.fallbackWallpaperSource, redImage)
+            const image = findChild(view, "fallbackWallpaperImage")
+            verify(image !== null)
+            tryCompare(image, "status", Image.Ready)
+            content.assets["assets/wallpaper/cold-ripple.jpg"] = blueImage
+            content.assets["assets/wallpaper/captured-motion.jpg"] = blueImage
+            content.generation++
+            tryCompare(view, "fallbackWallpaperSource", blueImage)
+            tryCompare(image, "source", Qt.resolvedUrl(blueImage))
+            tryCompare(image, "status", Image.Ready)
+            view.contentStore = null
+            compare(view.fallbackWallpaperSource, "")
+            view.destroy()
+            view = null
+            init()
+        }
+    }
+}

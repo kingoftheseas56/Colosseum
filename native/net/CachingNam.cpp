@@ -173,9 +173,12 @@ QNetworkRequest CachingNam::prepareRequest(const QNetworkRequest &req) const {
         r.setRawHeader("User-Agent",
             "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
             "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
-    r.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                   QNetworkRequest::NoLessSafeRedirectPolicy);
-    if (m_useCache)
+    // Preserve an explicit caller fence (e.g. artist artwork's fixed origin).
+    // Unspecified QML image/XHR requests retain the existing defaults.
+    if (!r.attribute(QNetworkRequest::RedirectPolicyAttribute).isValid())
+        r.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
+                       QNetworkRequest::NoLessSafeRedirectPolicy);
+    if (m_useCache && !r.attribute(QNetworkRequest::CacheLoadControlAttribute).isValid())
         r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
     return r;
 }

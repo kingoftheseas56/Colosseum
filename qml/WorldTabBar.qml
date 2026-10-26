@@ -21,6 +21,7 @@ Item {
     property bool compact: false
     property var tabModel: []            // [{ key, label }, …]
     property string currentTab: ""
+    property bool focusOnPointer: true
     // Stem for each pill's objectName: "<tabPrefix>_<key>". Defaults to the historical
     // "worldTab" so existing consumers (Tankoban) are unchanged; a world with a tab key
     // another world also uses (e.g. both Tankoban and Biblio have a "library" tab) MUST
@@ -52,7 +53,7 @@ Item {
     function requestIndex(index, reason) {
         if (tabs.tabModel.length <= 0) return
         tabs.keyboardIndex = Math.max(0, Math.min(tabs.tabModel.length - 1, index))
-        if (reason !== undefined) tabs.forceActiveFocus(reason)
+        if (reason !== undefined && (reason !== Qt.MouseFocusReason || tabs.focusOnPointer)) tabs.forceActiveFocus(reason)
         tabs.tabRequested(tabs.tabModel[tabs.keyboardIndex].key)
     }
 
@@ -130,8 +131,8 @@ Item {
                     objectName: tabs.tabPrefix + "_" + pill.modelData.key
                     readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
-                    width: (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length)
-                    height: parent.height
+                    width: parent ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length) : 0
+                    height: parent ? parent.height : 0
                     radius: tabs.compact ? 11 : 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold
                          : (ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12)

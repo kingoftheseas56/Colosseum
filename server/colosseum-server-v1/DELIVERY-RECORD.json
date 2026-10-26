@@ -1,0 +1,35 @@
+{
+  "current_delivery": "Source checkpoint requested by the user and expressly confirmed on 2026-10-20 at 22:14:23 UTC; prepared after a current-content inspection. No current tool refusal occurred. This is not a retry of an unavailable historical payload.",
+  "source_basis": {
+    "public_repository": "https://github.com/kingoftheseas56/Colosseum",
+    "branch": "feature/colosseum-server-1.0",
+    "commit": "f32f84c963cec05e0b0c253ac5829f410dfe7854",
+    "tree": "785b8310fdf5b2257c5cf9c896b3e3fd24429b1d",
+    "new_m07_changes": 18
+  },
+  "content_assessment": "Fresh public baseline plus newly authored M07 edits/tests. No recovered unpublished H00/local-addon source, credentials, private-user-data payload, vendor binaries or malicious behavior found in reviewed inputs. Published H00 dependencies remain unchanged. Static inspection is not deployment security certification.",
+  "original_manifest_sha256": "43909ca3d160d474fe4397ecb373e1a0673f1670d1e711ca7e5ba64f75f252db",
+  "source_patch_sha256": "7d44314edacfea86dec345883898644508a09d9ace2ef96bcd23c7a0a55b45b0",
+  "original_test_result": "158/158 registered CTests; historical 149/150 baseline runs and isolated rerun are retained as raw receipts.",
+  "publication_state": "Prepared source package only. No GitHub commit/push, production merge, release or upload performed by the packaging task.",
+  "offline_build": false,
+  "exclusions": [
+    ".git and unrelated application/addon/FTP paths",
+    "unavailable old unpublished H00/local-addon corrections",
+    "SDKs, dependency archives, vendor executables/libraries",
+    "compiler outputs, caches and temporary HOME",
+    "credentials and generated TLS private keys",
+    "upstream Stremio server.js bundle; official pinned acquisition recipe included"
+  ],
+  "restore_validation": {
+    "result": "158/158 registered CTests passed",
+    "ctest_seconds": 113.12,
+    "build_steps": 236,
+    "source_inputs": "All 356 delivered project source/build-input files verified byte-identical to the fresh ZIP-restored build; no original project build cache or libraries reused. External installed SDK/dependency prefixes were reused, not bundled.",
+    "oracle": "Official pinned bytes independently downloaded and hash-verified by delivered acquisition script; 1312 modules indexed; global upstream entry not started.",
+    "server1_host_sha256": "03d67ba1646f87428619c4089bb70f37047e3968dea0f5d06536fbd317114434",
+    "binary_identity": "Exactly matches the original reviewed Linux binary; binary excluded from source archive.",
+    "restore_build_test_log_sha256": "6f657227652c429977ecbc8d016f5e3405b67059260d26d0ae20d46b7d04a918",
+    "recipe_review": "After the successful restoration run, packaging-only preflights were added for bare python and node aliases, and dependency extraction instructions clarified. No project source or CMake input changed."
+  }
+}

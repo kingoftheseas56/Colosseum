@@ -30,6 +30,9 @@
 #include <QtGlobal>
 #include <QUrl>
 #include <QUuid>
+#if !defined(Q_OS_ANDROID)
+#include "feria/FeriaBrowserOperations.h"
+#endif
 
 class SessionStore : public QObject {
     Q_OBJECT
@@ -37,7 +40,13 @@ class SessionStore : public QObject {
     Q_PROPERTY(QString activeId READ activeId NOTIFY activeChangedProp)
 
 public:
-    explicit SessionStore(QObject *parent = nullptr) : QObject(parent) {}
+    explicit SessionStore(QObject *parent = nullptr) : QObject(parent)
+    {
+#if !defined(Q_OS_ANDROID)
+        m_operations = new FeriaBrowserOperations(this);
+        m_operations->setStore(this);
+#endif
+    }
 
     int revision() const { return m_revision; }
     QString activeId() const { return m_activeId; }
@@ -265,6 +274,12 @@ public:
     Q_INVOKABLE QVariantMap browserIdentity(const QString &id) const {
         return get(id).value(QStringLiteral("browserIdentity")).toMap();
     }
+    // Engine-neutral operation/request seam. It adds no competing state: the
+    // close attempt below stays this store's ledger, and the seam only types
+    // and fences the operations adapters admit against it.
+#if !defined(Q_OS_ANDROID)
+    Q_INVOKABLE FeriaBrowserOperations *browserOperations() { return m_operations; }
+#endif
     Q_INVOKABLE QString beginBrowserClose(const QVariantMap &identity) {
         const int index = browserIdentityIndex(identity);
         if (index < 0) return {};
@@ -582,6 +597,11 @@ private:
         for (const QString &key : {QStringLiteral("providerId"), QStringLiteral("providerName"),
                                   QStringLiteral("mode"), QStringLiteral("logo")})
             if (target.contains(key)) result.insert(key, target.value(key).toString().left(2048));
+        // Admitted engine preference survives reopening so a saved space never
+        // reopens in a different engine partition by accident (contract v1).
+        const QString engineId = target.value(QStringLiteral("engineId")).toString();
+        if (engineId == QStringLiteral("qtwebengine") || engineId == QStringLiteral("webview2"))
+            result.insert(QStringLiteral("engineId"), engineId);
         const auto restoreId = target.value(QStringLiteral("restoreId"));
         if (restoreId.metaType().id() == QMetaType::QString && !restoreId.toString().isEmpty()
             && restoreId.toString().size() <= 100) result.insert(QStringLiteral("restoreId"), restoreId);
@@ -595,6 +615,8 @@ private:
     }
 
     static QString appTitle(const QString &app) {
+        if (app == QStringLiteral("vinyl"))
+            return QStringLiteral("Vinyl");
         if (app == QStringLiteral("tankoban"))
             return QStringLiteral("Tankoban");
         if (app == QStringLiteral("theatre"))
@@ -605,6 +627,8 @@ private:
     }
 
     static QString appIcon(const QString &app) {
+        if (app == QStringLiteral("vinyl"))
+            return QStringLiteral("../assets/icons/music.svg");
         if (app == QStringLiteral("tankoban"))
             return QStringLiteral("../assets/icons/manga.svg");
         if (app == QStringLiteral("theatre"))
@@ -712,5 +736,8 @@ private:
     quint64 m_browserEpoch = 0;
     quint64 m_browserPageSeq = 0;
     QVariantList m_closedBrowsers;
+#if !defined(Q_OS_ANDROID)
+    FeriaBrowserOperations *m_operations = nullptr;
+#endif
 };
 

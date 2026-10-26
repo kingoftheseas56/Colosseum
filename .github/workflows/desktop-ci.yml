@@ -217,6 +217,8 @@ jobs:
             colosseum `
             update_manifest_trust_harness `
             update_install_bridge_harness `
+            vinyl_availability_development vinyl_availability_qualification vinyl_availability_shipping_disabled `
+            feria_runtime_integration_test feria_operations_integration_test `
             --parallel 2 2>&1 | Tee-Object -FilePath $log
           $buildExit = $LASTEXITCODE
           if ($buildExit -ne 0) {
@@ -232,7 +234,7 @@ jobs:
         run: |
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir $env:COLOSSEUM_CI_BUILD `
-            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness)$' `
+            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|vinyl_availability_development|vinyl_availability_qualification|vinyl_availability_shipping_disabled|feria_runtime_integration|feria_operations_integration)$' `
             --output-on-failure
 
       - name: Analyze C++

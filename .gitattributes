@@ -13,3 +13,20 @@ resources/installed-chronicle/installed-manifest.json.sig binary
 # Linux launchers must remain executable by bash after Windows checkouts.
 tools/linux-release/*.sh text eol=lf
 tools/linux-release/AppRun text eol=lf
+
+# These checksummed online artwork sources were published with CRLF bytes.
+# Keep the source payload identical on Linux checkouts so release staging can
+# verify its SHA-256 before omitting the artwork from the installed package.
+assets/universes/dcau/environments/gotham-v11.svg text eol=crlf
+assets/universes/dcau/environments/justice-v11.svg text eol=crlf
+assets/universes/marks/attack-on-titan.svg text eol=crlf
+assets/universes/marks/avatar.svg text eol=crlf
+assets/universes/marks/naruto.svg text eol=crlf
+assets/universes/marks/studio-ghibli.svg text eol=crlf
+assets/universes/one-piece/east-blue/banners/SOURCES.txt text eol=crlf
+assets/universes/one-piece/east-blue/canon/SOURCES.txt text eol=crlf
+assets/universes/one-piece/east-blue/east-blue-atlas.svg text eol=crlf
+assets/universes/star-wars/marks/empire.svg text eol=crlf
+assets/universes/star-wars/marks/first-order.svg text eol=crlf
+assets/universes/star-wars/marks/rebel.svg text eol=crlf
+assets/universes/star-wars/marks/republic.svg text eol=crlf

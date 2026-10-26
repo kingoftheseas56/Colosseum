@@ -337,6 +337,16 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
     // fail() on a missing target (like the Task 3 reads). ui-wait-for is a READ: it
     // only observes a property, so it registers with addRead — its own timeout_ms
     // deadline (not a gate) is what guarantees it terminates.
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    addDrive(QStringLiteral("vinyl-test-profile"),
+             [this](const QJsonObject& p, Replier reply) {
+                 if (!m_vinylTestProfileHandler) {
+                     reply.fail("FIXTURE_UNAVAILABLE", QStringLiteral("Synthetic profile fixture is unavailable"));
+                     return;
+                 }
+                 reply.reply(m_vinylTestProfileHandler(p));
+             });
+#endif
     addDrive(QStringLiteral("ui-click"),
              [this](const QJsonObject& p, Replier reply) { cmdUiClick(p, std::move(reply)); });
     addDrive(QStringLiteral("ui-keypress"),

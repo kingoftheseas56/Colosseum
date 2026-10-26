@@ -1,0 +1,3 @@
+PASS production composition legacy-fallback: actual-port relative probe, legacy aliases, playlists, media streams, errors, aborted-probe PID cleanup
+PASS production composition hlsv2-enabled: actual-port relative probe, HLSv2 alias priority and independent legacy master
+Composition evidence: /workspace/shared/colosseum-m07-20261020/logs/runtime/legacy-composition-uxvw2ot2

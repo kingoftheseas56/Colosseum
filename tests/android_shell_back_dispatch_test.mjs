@@ -13,7 +13,7 @@ const policy = readFileSync(new URL('qml/ShellBackPolicy.js', root), 'utf8')
 const actionFor = new Function(policy + '\nreturn actionFor;')();
 const body = /function handleEscape\(\) \{([\s\S]*?)\n    \}\n/.exec(main)?.[1];
 assert.ok(body, `${fileURLToPath(root)}qml/Main.qml: handleEscape not found`);
-const dispatch = new Function('win', 'ShellBackPolicy', 'PlatformRuntime', 'Qt', 'theatreSeriesLayer', body);
+const dispatch = new Function('win', 'ShellBackPolicy', 'PlatformRuntime', 'Qt', 'theatreSeriesLayer', 'worldStack', body);
 
 function invoke(state) {
     const effects = [];
@@ -41,7 +41,7 @@ function invoke(state) {
         backgroundApplication: () => effects.push('backgroundApplication'),
     };
     const qt = { inputMethod: { hide: () => effects.push('dismissKeyboard') } };
-    dispatch(win, { actionFor }, runtime, qt, theatreSeriesLayer);
+    dispatch(win, { actionFor }, runtime, qt, theatreSeriesLayer, { current: 'Theatre' });
     return effects;
 }
 

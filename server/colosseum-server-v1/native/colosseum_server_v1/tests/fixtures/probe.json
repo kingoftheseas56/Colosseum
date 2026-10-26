@@ -1,0 +1,788 @@
+[
+  {
+    "kind": "hlsv2",
+    "input": {
+      "format": {
+        "duration": 100000000000000000000
+      },
+      "streams": [
+        {
+          "codec_type": "video",
+          "width": 100000000000000000000,
+          "height": 1e-06,
+          "bit_rate": 1e+21
+        }
+      ]
+    },
+    "expected": {
+      "format": {
+        "name": "unknown",
+        "duration": 100000000000000000000
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": -1,
+          "track": "video",
+          "codec": "unknown",
+          "streamBitRate": 1,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "width": 100000000000000000000,
+          "height": 0,
+          "frameRate": null,
+          "numberOfFrames": null,
+          "isHdr": false,
+          "isDoVi": false,
+          "hasBFrames": false,
+          "formatBitRate": 0,
+          "formatMaxBitRate": 0,
+          "bps": 0,
+          "numberOfBytes": 0,
+          "formatDuration": 100000000000000000000
+        }
+      ]
+    }
+  },
+  {
+    "kind": "hlsv2",
+    "input": {},
+    "expected": {
+      "format": {
+        "name": "unknown",
+        "duration": null
+      },
+      "streams": []
+    }
+  },
+  {
+    "kind": "hlsv2",
+    "input": {
+      "format": {
+        "duration": "N/A",
+        "format_name": 4
+      },
+      "streams": [
+        {}
+      ]
+    },
+    "expected": {
+      "format": {
+        "name": "unknown",
+        "duration": null
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": -1,
+          "track": "unknown",
+          "codec": "unknown",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1
+        }
+      ]
+    }
+  },
+  {
+    "kind": "hlsv2",
+    "input": {
+      "format": {
+        "format_name": "matroska,webm",
+        "duration": "12.345",
+        "bit_rate": "10000",
+        "max_bit_rate": "20000"
+      },
+      "streams": [
+        {
+          "index": 0,
+          "codec_type": "video",
+          "codec_name": "hevc",
+          "width": 1920,
+          "height": 1080,
+          "r_frame_rate": "24000/1001",
+          "nb_frames": "296",
+          "time_base": "1/1000",
+          "start_time": "0.05",
+          "start_pts": "50",
+          "has_b_frames": 2,
+          "color_space": "bt2020nc",
+          "color_transfer": "smpte2084",
+          "color_primaries": "bt2020",
+          "codec_tag_string": "dvhe",
+          "tags": {
+            "BPS": "15000",
+            "NUMBER_OF_BYTES": "20000"
+          }
+        },
+        {
+          "index": 1,
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "sample_rate": "48000",
+          "channels": 2,
+          "channel_layout": "stereo",
+          "tags": {
+            "title": "English",
+            "language": "eng"
+          }
+        },
+        {
+          "index": 3,
+          "codec_type": "audio",
+          "codec_name": "flac",
+          "sample_rate": 44100,
+          "channels": 6
+        },
+        {
+          "index": 4,
+          "codec_type": "subtitle",
+          "codec_name": "subrip",
+          "tags": {
+            "language": "jpn"
+          }
+        }
+      ]
+    },
+    "expected": {
+      "format": {
+        "name": "matroska,webm",
+        "duration": 12.345
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": 0,
+          "track": "video",
+          "codec": "hevc",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": 0.05,
+          "startTimeTs": 50,
+          "timescale": 1000,
+          "width": 1920,
+          "height": 1080,
+          "frameRate": 23.976023976023978,
+          "numberOfFrames": 296,
+          "isHdr": true,
+          "isDoVi": true,
+          "hasBFrames": true,
+          "formatBitRate": 10000,
+          "formatMaxBitRate": 20000,
+          "bps": 15000,
+          "numberOfBytes": 20000,
+          "formatDuration": 12.345
+        },
+        {
+          "id": 0,
+          "index": 1,
+          "track": "audio",
+          "codec": "aac",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "sampleRate": 48000,
+          "channels": 2,
+          "channelLayout": "stereo",
+          "title": "English",
+          "language": "eng"
+        },
+        {
+          "id": 1,
+          "index": 3,
+          "track": "audio",
+          "codec": "flac",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "sampleRate": 44100,
+          "channels": 6,
+          "channelLayout": "unknown",
+          "title": null,
+          "language": null
+        },
+        {
+          "id": 0,
+          "index": 4,
+          "track": "subtitle",
+          "codec": "subrip",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "title": null,
+          "language": "jpn"
+        }
+      ]
+    }
+  },
+  {
+    "kind": "hlsv2",
+    "input": {
+      "format": {
+        "duration": "-2.5x",
+        "bit_rate": "bad"
+      },
+      "streams": [
+        {
+          "index": "2tail",
+          "codec_type": "video",
+          "width": 0,
+          "height": -1,
+          "r_frame_rate": "0/0",
+          "time_base": "bad",
+          "has_b_frames": "1",
+          "bit_rate": "invalid"
+        },
+        {
+          "codec_type": "audio",
+          "sample_rate": -1,
+          "channels": 0
+        }
+      ]
+    },
+    "expected": {
+      "format": {
+        "name": "unknown",
+        "duration": -2.5
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": 2,
+          "track": "video",
+          "codec": "unknown",
+          "streamBitRate": null,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "width": 0,
+          "height": -1,
+          "frameRate": null,
+          "numberOfFrames": null,
+          "isHdr": false,
+          "isDoVi": false,
+          "hasBFrames": false,
+          "formatBitRate": null,
+          "formatMaxBitRate": 0,
+          "bps": 0,
+          "numberOfBytes": 0,
+          "formatDuration": -2.5
+        },
+        {
+          "id": 0,
+          "index": -1,
+          "track": "audio",
+          "codec": "unknown",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "sampleRate": -1,
+          "channels": 0,
+          "channelLayout": "unknown",
+          "title": null,
+          "language": null
+        }
+      ]
+    }
+  },
+  {
+    "kind": "hlsv2",
+    "input": {
+      "streams": [
+        {
+          "codec_type": "video"
+        },
+        {
+          "codec_type": "video"
+        },
+        {
+          "index": "2",
+          "codec_type": "audio"
+        },
+        {
+          "index": 2,
+          "codec_type": "audio"
+        },
+        {
+          "codec_type": 5
+        }
+      ]
+    },
+    "expected": {
+      "format": {
+        "name": "unknown",
+        "duration": null
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": -1,
+          "track": "video",
+          "codec": "unknown",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "width": null,
+          "height": null,
+          "frameRate": null,
+          "numberOfFrames": null,
+          "isHdr": false,
+          "isDoVi": false,
+          "hasBFrames": false,
+          "formatBitRate": 0,
+          "formatMaxBitRate": 0,
+          "bps": 0,
+          "numberOfBytes": 0,
+          "formatDuration": null
+        },
+        {
+          "id": 0,
+          "index": -1,
+          "track": "video",
+          "codec": "unknown",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "width": null,
+          "height": null,
+          "frameRate": null,
+          "numberOfFrames": null,
+          "isHdr": false,
+          "isDoVi": false,
+          "hasBFrames": false,
+          "formatBitRate": 0,
+          "formatMaxBitRate": 0,
+          "bps": 0,
+          "numberOfBytes": 0,
+          "formatDuration": null
+        },
+        {
+          "id": 0,
+          "index": 2,
+          "track": "audio",
+          "codec": "unknown",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "sampleRate": null,
+          "channels": null,
+          "channelLayout": "unknown",
+          "title": null,
+          "language": null
+        },
+        {
+          "id": 1,
+          "index": 2,
+          "track": "audio",
+          "codec": "unknown",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1,
+          "sampleRate": null,
+          "channels": null,
+          "channelLayout": "unknown",
+          "title": null,
+          "language": null
+        },
+        {
+          "id": 0,
+          "index": -1,
+          "track": "unknown",
+          "codec": "unknown",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1
+        }
+      ]
+    }
+  },
+  {
+    "kind": "hlsv2",
+    "input": {
+      "streams": [
+        {
+          "codec_type": "video",
+          "r_frame_rate": "25",
+          "time_base": "1000",
+          "width": "  +42px",
+          "height": "0x20",
+          "bit_rate": true
+        }
+      ],
+      "format": {
+        "duration": "Infinity"
+      }
+    },
+    "expected": {
+      "format": {
+        "name": "unknown",
+        "duration": null
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": -1,
+          "track": "video",
+          "codec": "unknown",
+          "streamBitRate": null,
+          "streamMaxBitRate": 0,
+          "startTime": null,
+          "startTimeTs": null,
+          "timescale": 1000,
+          "width": 42,
+          "height": 0,
+          "frameRate": 0.08,
+          "numberOfFrames": null,
+          "isHdr": false,
+          "isDoVi": false,
+          "hasBFrames": false,
+          "formatBitRate": 0,
+          "formatMaxBitRate": 0,
+          "bps": 0,
+          "numberOfBytes": 0,
+          "formatDuration": null
+        }
+      ]
+    }
+  },
+  {
+    "kind": "legacy",
+    "input": "",
+    "expected": {
+      "streams": []
+    }
+  },
+  {
+    "kind": "legacy",
+    "input": "Input #0, mov,mp4,m4a,3gp,3g2,mj2, from 'x':\n  Duration: 00:00:12.34, start: 0.000000, bitrate: 1234 kb/s\n  Stream #0:0(eng): Video: h264 (High), yuv420p, 1920x1080, 1234 kb/s, 23.98 fps (default)\n  Stream #0:2: Audio: aac, 48000 Hz, stereo, 128 kb/s\n",
+    "expected": {
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "h264",
+          "size": [
+            1920,
+            1080
+          ],
+          "stream": 0,
+          "default": true,
+          "bitrate": 1234000,
+          "fps": 23.98,
+          "lang": "eng"
+        },
+        null,
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "size": null,
+          "stream": 2,
+          "default": false,
+          "bitrate": 128000,
+          "fps": null
+        }
+      ],
+      "container": "mp4",
+      "duration": 12340,
+      "bitrate": 1234000
+    }
+  },
+  {
+    "kind": "legacy",
+    "input": "Input #0, matroska,webm, from 'x':\n  Duration: N/A\n  Stream #0:0: Subtitle: subrip\n",
+    "expected": {
+      "streams": [
+        {
+          "codec_type": "subtitle",
+          "codec_name": "subrip",
+          "size": null,
+          "stream": 0,
+          "default": false,
+          "bitrate": null,
+          "fps": null
+        }
+      ],
+      "container": "matroska"
+    }
+  },
+  {
+    "kind": "hlsv2",
+    "input": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "codec_tag_string": "mp4v",
+          "width": 160,
+          "height": 120,
+          "has_b_frames": 0,
+          "r_frame_rate": "25/1",
+          "time_base": "1/12800",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "bit_rate": "15120",
+          "nb_frames": "10",
+          "tags": {
+            "language": "und"
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "codec_tag_string": "mp4a",
+          "sample_rate": "44100",
+          "channels": 1,
+          "channel_layout": "mono",
+          "r_frame_rate": "0/0",
+          "time_base": "1/44100",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "bit_rate": "70941",
+          "nb_frames": "19",
+          "tags": {
+            "language": "und"
+          }
+        }
+      ],
+      "format": {
+        "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "duration": "0.400000",
+        "bit_rate": "124520"
+      }
+    },
+    "expected": {
+      "format": {
+        "name": "mov,mp4,m4a,3gp,3g2,mj2",
+        "duration": 0.4
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": 0,
+          "track": "video",
+          "codec": "mpeg4",
+          "streamBitRate": 15120,
+          "streamMaxBitRate": 0,
+          "startTime": 0,
+          "startTimeTs": 0,
+          "timescale": 12800,
+          "width": 160,
+          "height": 120,
+          "frameRate": 25,
+          "numberOfFrames": 10,
+          "isHdr": false,
+          "isDoVi": false,
+          "hasBFrames": false,
+          "formatBitRate": 124520,
+          "formatMaxBitRate": 0,
+          "bps": 0,
+          "numberOfBytes": 0,
+          "formatDuration": 0.4
+        },
+        {
+          "id": 0,
+          "index": 1,
+          "track": "audio",
+          "codec": "aac",
+          "streamBitRate": 70941,
+          "streamMaxBitRate": 0,
+          "startTime": 0,
+          "startTimeTs": 0,
+          "timescale": 44100,
+          "sampleRate": 44100,
+          "channels": 1,
+          "channelLayout": "mono",
+          "title": null,
+          "language": "und"
+        }
+      ]
+    },
+    "media": "tiny.mp4"
+  },
+  {
+    "kind": "legacy",
+    "input": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers\n  built with gcc 14 (Debian 14.2.0-19)\n  configuration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-libmfx --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared\n  libavutil      59. 39.100 / 59. 39.100\n  libavcodec     61. 19.101 / 61. 19.101\n  libavformat    61.  7.103 / 61.  7.103\n  libavdevice    61.  3.100 / 61.  3.100\n  libavfilter    10.  5.100 / 10.  5.100\n  libswscale      8.  3.100 /  8.  3.100\n  libswresample   5.  3.100 /  5.  3.100\n  libpostproc    58.  3.100 / 58.  3.100\nInput #0, mov,mp4,m4a,3gp,3g2,mj2, from 'tiny.mp4':\n  Metadata:\n    major_brand     : isom\n    minor_version   : 512\n    compatible_brands: isomiso2mp41\n    encoder         : Lavf61.7.103\n  Duration: 00:00:00.40, start: 0.000000, bitrate: 124 kb/s\n  Stream #0:0[0x1](und): Video: mpeg4 (Simple Profile) (mp4v / 0x7634706D), yuv420p, 160x120 [SAR 1:1 DAR 4:3], 15 kb/s, 25 fps, 25 tbr, 12800 tbn (default)\n      Metadata:\n        handler_name    : VideoHandler\n        vendor_id       : [0][0][0][0]\n        encoder         : Lavc61.19.101 mpeg4\n  Stream #0:1[0x2](und): Audio: aac (LC) (mp4a / 0x6134706D), 44100 Hz, mono, fltp, 70 kb/s (default)\n      Metadata:\n        handler_name    : SoundHandler\n        vendor_id       : [0][0][0][0]\nAt least one output file must be specified\n",
+    "expected": {
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "mpeg4",
+          "size": [
+            160,
+            120
+          ],
+          "stream": 0,
+          "default": false,
+          "bitrate": null,
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "size": null,
+          "stream": 1,
+          "default": true,
+          "bitrate": null,
+          "fps": null
+        }
+      ],
+      "container": "mp4",
+      "duration": 400,
+      "bitrate": 124000
+    },
+    "media": "tiny.mp4"
+  },
+  {
+    "kind": "hlsv2",
+    "input": {
+      "programs": [],
+      "stream_groups": [],
+      "streams": [
+        {
+          "index": 0,
+          "codec_name": "mpeg4",
+          "codec_type": "video",
+          "codec_tag_string": "[0][0][0][0]",
+          "width": 160,
+          "height": 120,
+          "has_b_frames": 0,
+          "r_frame_rate": "25/1",
+          "time_base": "1/1000",
+          "start_pts": 23,
+          "start_time": "0.023000",
+          "tags": {
+            "DURATION": "00:00:00.423000000"
+          }
+        },
+        {
+          "index": 1,
+          "codec_name": "aac",
+          "codec_type": "audio",
+          "codec_tag_string": "[0][0][0][0]",
+          "sample_rate": "44100",
+          "channels": 1,
+          "channel_layout": "mono",
+          "r_frame_rate": "0/0",
+          "time_base": "1/1000",
+          "start_pts": 0,
+          "start_time": "0.000000",
+          "tags": {
+            "DURATION": "00:00:00.423000000"
+          }
+        }
+      ],
+      "format": {
+        "format_name": "matroska,webm",
+        "duration": "0.423000",
+        "bit_rate": "107215"
+      }
+    },
+    "expected": {
+      "format": {
+        "name": "matroska,webm",
+        "duration": 0.423
+      },
+      "streams": [
+        {
+          "id": 0,
+          "index": 0,
+          "track": "video",
+          "codec": "mpeg4",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": 0.023,
+          "startTimeTs": 23,
+          "timescale": 1000,
+          "width": 160,
+          "height": 120,
+          "frameRate": 25,
+          "numberOfFrames": null,
+          "isHdr": false,
+          "isDoVi": false,
+          "hasBFrames": false,
+          "formatBitRate": 107215,
+          "formatMaxBitRate": 0,
+          "bps": 0,
+          "numberOfBytes": 0,
+          "formatDuration": 0.423
+        },
+        {
+          "id": 0,
+          "index": 1,
+          "track": "audio",
+          "codec": "aac",
+          "streamBitRate": 0,
+          "streamMaxBitRate": 0,
+          "startTime": 0,
+          "startTimeTs": 0,
+          "timescale": 1000,
+          "sampleRate": 44100,
+          "channels": 1,
+          "channelLayout": "mono",
+          "title": null,
+          "language": null
+        }
+      ]
+    },
+    "media": "tiny.mkv"
+  },
+  {
+    "kind": "legacy",
+    "input": "ffmpeg version 7.1.5-0+deb13u1 Copyright (c) 2000-2026 the FFmpeg developers\n  built with gcc 14 (Debian 14.2.0-19)\n  configuration: --prefix=/usr --extra-version=0+deb13u1 --toolchain=hardened --libdir=/usr/lib/x86_64-linux-gnu --incdir=/usr/include/x86_64-linux-gnu --arch=amd64 --enable-gpl --disable-stripping --disable-libmfx --disable-omx --enable-gnutls --enable-libaom --enable-libass --enable-libbs2b --enable-libcdio --enable-libcodec2 --enable-libdav1d --enable-libflite --enable-libfontconfig --enable-libfreetype --enable-libfribidi --enable-libglslang --enable-libgme --enable-libgsm --enable-libharfbuzz --enable-libmp3lame --enable-libmysofa --enable-libopenjpeg --enable-libopenmpt --enable-libopus --enable-librubberband --enable-libshine --enable-libsnappy --enable-libsoxr --enable-libspeex --enable-libtheora --enable-libtwolame --enable-libvidstab --enable-libvorbis --enable-libvpx --enable-libwebp --enable-libx265 --enable-libxml2 --enable-libxvid --enable-libzimg --enable-openal --enable-opencl --enable-opengl --disable-sndio --enable-libvpl --enable-libdc1394 --enable-libdrm --enable-libiec61883 --enable-chromaprint --enable-frei0r --enable-ladspa --enable-libbluray --enable-libcaca --enable-libdvdnav --enable-libdvdread --enable-libjack --enable-libpulse --enable-librabbitmq --enable-librist --enable-libsrt --enable-libssh --enable-libsvtav1 --enable-libx264 --enable-libzmq --enable-libzvbi --enable-lv2 --enable-sdl2 --enable-libplacebo --enable-librav1e --enable-pocketsphinx --enable-librsvg --enable-libjxl --enable-shared\n  libavutil      59. 39.100 / 59. 39.100\n  libavcodec     61. 19.101 / 61. 19.101\n  libavformat    61.  7.103 / 61.  7.103\n  libavdevice    61.  3.100 / 61.  3.100\n  libavfilter    10.  5.100 / 10.  5.100\n  libswscale      8.  3.100 /  8.  3.100\n  libswresample   5.  3.100 /  5.  3.100\n  libpostproc    58.  3.100 / 58.  3.100\nInput #0, matroska,webm, from 'tiny.mkv':\n  Metadata:\n    COMPATIBLE_BRANDS: isomiso2mp41\n    MAJOR_BRAND     : isom\n    MINOR_VERSION   : 512\n    ENCODER         : Lavf61.7.103\n  Duration: 00:00:00.42, start: 0.000000, bitrate: 107 kb/s\n  Stream #0:0: Video: mpeg4 (Simple Profile), yuv420p, 160x120 [SAR 1:1 DAR 4:3], 25 fps, 25 tbr, 1k tbn (default)\n      Metadata:\n        HANDLER_NAME    : VideoHandler\n        VENDOR_ID       : [0][0][0][0]\n        ENCODER         : Lavc61.19.101 mpeg4\n        DURATION        : 00:00:00.423000000\n  Stream #0:1: Audio: aac (LC), 44100 Hz, mono, fltp (default)\n      Metadata:\n        HANDLER_NAME    : SoundHandler\n        VENDOR_ID       : [0][0][0][0]\n        DURATION        : 00:00:00.423000000\nAt least one output file must be specified\n",
+    "expected": {
+      "streams": [
+        {
+          "codec_type": "video",
+          "codec_name": "mpeg4",
+          "size": [
+            160,
+            120
+          ],
+          "stream": 0,
+          "default": false,
+          "bitrate": null,
+          "fps": 25
+        },
+        {
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "size": null,
+          "stream": 1,
+          "default": true,
+          "bitrate": null,
+          "fps": null
+        }
+      ],
+      "container": "matroska",
+      "duration": 420,
+      "bitrate": 107000
+    },
+    "media": "tiny.mkv"
+  }
+]

@@ -75,6 +75,7 @@ function makeSession({ preErrorPaused = false, platform = 'android' } = {}) {
     starting: false,
     errored: false,
     fileReady: true,
+    audioHandoffPaused: false,
     statusMsg: '',
     resumeChoiceOpen: false,
     resumeChoiceSec: -1,

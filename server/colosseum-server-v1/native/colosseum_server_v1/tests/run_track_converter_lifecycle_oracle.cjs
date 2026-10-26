@@ -1,0 +1,16 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),{EventEmitter}=require('events');
+const e=require('../../../tools/server_lab/oracle/module_loader.cjs').extractModules(process.argv[2]);
+if(e.sha256!=='405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f')throw Error('wrong oracle');
+const modules=new Map();function load(id,overrides={}){if(id in overrides)return overrides[id];if(modules.has(id))return modules.get(id).exports;let m={exports:{}};modules.set(id,m);vm.runInNewContext('('+e.modules[id].source+')',{process:{env:{}},URL,Buffer,console,setTimeout,clearTimeout})(m,m.exports,i=>load(i,overrides));return m.exports;}
+let children=[];function spawn(opts){let c={opts,events:new EventEmitter(),exitCode:null,signalCode:null,wait:null,create:async()=>{},destroy(){this.killed=true;if(this.wait){this.wait.reject(Error('killed'));this.wait=null;}}};c.stream=c;children.push(c);return c;}
+const segment=()=>new Map([1,2,3].map(n=>[n,{sequenceNumber:n,seekTime:(n-1)*4000,duration:4000,buffer:null,cues:[],extraSegments:[]}]));
+const C=load(916,{1:{},5:require('path'),447:{mp4:{probe:{timescale:()=>({1:1000})},tools:{inspect:()=>[{type:'sidx',earliestPresentationTime:0,references:[{subsegmentDuration:4000}]}]}}},232(){},917:{predict:segment,retrieve:segment},919:{init:async()=>Buffer.from('init'),media:s=>new Promise((resolve,reject)=>s.wait={resolve,reject}),updateBaseMediaDecodeTime(){}},923:{},466:{media:()=>''},932:spawn});
+const input={ffmpeg:'ffmpeg',mediaURL:'fixture:test',forceTranscoding:true,stream:{track:'video',id:0,codec:'h264',timescale:1000},format:{duration:12,name:'mp4'},samples:[]};
+const tick=()=>new Promise(r=>setImmediate(r));const send=(c,b='data')=>{let w=c.wait;c.wait=null;if(!w)throw Error('no waiting read');w.resolve(Buffer.from(b));};const eof=(c,code)=>{c.exitCode=code;let w=c.wait;c.wait=null;w.reject(Error('stream ended'));c.events.emit('exit');};
+(async()=>{let result={};let c=new C(input);await c.initSegment();let p=c.mediaSegment(1);await tick();send(children.at(-1));await p;result.initialSpawnCount=children.length;let before=children.length;await c.mediaSegment(1);result.cacheReuses=children.length===before;p=c.mediaSegment(2);await tick();send(children.at(-1));await p;result.sequentialReuses=children.length===before;let canceled=c.mediaSegment(3).catch(e=>e.name);await tick();p=c.mediaSegment(1);await tick();result.displacedError=await canceled;send(children.at(-1));await p;c.destroy();children=[];
+c=new C(input);await c.initSegment();p=c.mediaSegment(1);await tick();eof(children.at(-1),0);await tick();result.retryBlank=children.at(-1).opts.blank===true;result.retrySpawnCount=children.length;send(children.at(-1));await p;c.destroy();children=[];
+c=new C(input);await c.initSegment();p=c.mediaSegment(1).catch(e=>e.message);await tick();eof(children.at(-1),0);await tick();eof(children.at(-1),0);result.failedRetryMessage=await p;result.failedRetrySpawnCount=children.length;c.destroy();
+children=[];c=new C(input);await c.initSegment();p=c.mediaSegment(1).catch(e=>e.name);await tick();c.destroy();result.destroyActiveError=await p;
+fs.writeFileSync(process.argv[3],JSON.stringify(result,null,2));console.log(result);
+})();

@@ -5,6 +5,9 @@
 // rows into "Cinemeta" / "Your addons" (addon attribution is the parity anatomy).
 // A row option is {key, text, sub} — sub is the owning addon, right-aligned.
 import QtQuick
+import QtQuick.Controls
+import QtQuick.Window
+import QtQml.Models
 
 Item {
     id: picker
@@ -12,6 +15,8 @@ Item {
     property var options: []                  // [{key,text,sub} | {header:"…"}]
     property string currentKey: ""
     property bool open: false
+    property bool wrapNavigation: false        // opt-in cyclic option navigation
+    property bool openOnDown: false            // opt-in combobox-style trigger
     property bool clearable: true             // an active filter shows an ✕ that resets it
     property Item focusReturn: null
     // Lanista identity stem, world-namespaced by the host ("" = unnamed): <stem>Pill and
@@ -48,12 +53,48 @@ Item {
             if (picker.selectable(i) && picker.options[i].key === picker.currentKey) return i
         return picker.nextSelectable(0, 1)
     }
+    onOpenChanged: {
+        if (open) {
+            pop.positionAtPill()
+            pop.open()
+            // Opening also restores the lazy list model. Select after that model
+            // reset, which otherwise replaces the saved selection with row zero.
+            Qt.callLater(function() {
+                if (!picker.open) return
+                list.currentIndex = picker.selectedOptionIndex()
+                if (list.currentIndex >= 0) list.positionViewAtIndex(list.currentIndex, ListView.Contain)
+                list.forceActiveFocus(Qt.PopupFocusReason)
+            })
+        } else {
+            pop.close()
+        }
+    }
+    onVisibleChanged: if (!visible) closePopup(false)
+    // Flickable scrolling changes an ancestor contentItem's position. Dismiss rather
+    // than leave an overlay detached from its trigger, without polling the scene.
+    Instantiator {
+        model: {
+            var ancestors = []
+            var item = picker
+            while (item) { ancestors.push(item); item = item.parent }
+            return ancestors
+        }
+        delegate: Connections {
+            required property var modelData
+            target: modelData
+            function onXChanged() { if (picker.open) picker.closePopup(false) }
+            function onYChanged() { if (picker.open) picker.closePopup(false) }
+        }
+    }
+    Connections {
+        target: picker.Window.window
+        function onWidthChanged() { if (picker.open) picker.closePopup(true) }
+        function onHeightChanged() { if (picker.open) picker.closePopup(true) }
+    }
+
     function openPopup(invoker) {
-        picker.focusReturn = invoker || null
+        picker.focusReturn = invoker || pillAction
         picker.open = true
-        list.currentIndex = picker.selectedOptionIndex()
-        if (list.currentIndex >= 0) list.positionViewAtIndex(list.currentIndex, ListView.Contain)
-        Qt.callLater(function() { list.forceActiveFocus(Qt.PopupFocusReason) })
     }
     function closePopup(restoreFocus) {
         const target = picker.focusReturn
@@ -138,12 +179,18 @@ Item {
         }
         KeyboardAction {
             id: pillAction
+            objectName: picker.automationName.length ? picker.automationName + "Action" : ""
+            spaceActivates: true
             anchors.fill: parent
             pointerEnabled: false
             accessibleName: picker.hasValue ? picker.current.text : picker.label
             accessibleDescription: "Open filter options"
             focusRadius: pill.radius
             onTriggered: picker.togglePopup(pillAction)
+            Keys.onDownPressed: event => {
+                if (picker.openOnDown) { picker.openPopup(pillAction); event.accepted = true }
+                else event.accepted = false
+            }
         }
         // clear hit-area — sits over the ✕ (declared after `ma`, so it wins the click there)
         MouseArea {
@@ -166,22 +213,57 @@ Item {
         }
     }
 
-    // popup — parented to the picker; z above siblings. Own MouseArea = click-swallower.
-    Rectangle {
+    // The shared popup lives in the window overlay, outside any clipped page Flickable.
+    Popup {
         id: pop
-        visible: picker.open
-        y: pill.height + 6
-        width: Math.max(picker.width, 280)
-        height: Math.min(380, list.contentHeight + 12)
-        radius: 13
-        z: 60
-        color: Qt.rgba(0.045, 0.05, 0.075, 0.97)
-        border.width: 1; border.color: theme.edge
-        MouseArea { anchors.fill: parent }   // swallow
+        objectName: picker.automationName.length ? picker.automationName + "Popup" : ""
+        parent: Overlay.overlay
+        popupType: Popup.Item
+        padding: 6
+        modal: true
+        dim: false
+        margins: 8
+        width: Math.min(Math.max(picker.width, 280), parent ? parent.width - 16 : 280)
+        // Delegate heights are fixed. ListView.contentHeight is estimated while
+        // delegates are being created, which can move a bottom-anchored popup
+        // across its trigger after opening or refreshing the options.
+        readonly property real desiredHeight: {
+            var total = 12
+            for (var i = 0; i < picker.options.length; ++i)
+                total += picker.options[i].header !== undefined ? 27 : 38
+            return Math.min(380, total)
+        }
+        property real anchorRoomHeight: 380
+        height: Math.min(desiredHeight, anchorRoomHeight)
+        onDesiredHeightChanged: if (picker.open) positionAtPill()
+        closePolicy: Popup.CloseOnEscape | Popup.CloseOnPressOutside
+        function positionAtPill() {
+            if (!parent) return
+            var point = pill.mapToItem(parent, 0, 0)
+            x = Math.max(8, Math.min(point.x, parent.width - width - 8))
+            var below = point.y + pill.height + 6
+            var roomBelow = Math.max(0, parent.height - 8 - below)
+            var roomAbove = Math.max(0, point.y - 6 - 8)
+            var placeBelow = desiredHeight <= roomBelow
+                || (desiredHeight > roomAbove && roomBelow >= roomAbove)
+            anchorRoomHeight = placeBelow ? roomBelow : roomAbove
+            var fittedHeight = Math.min(desiredHeight, anchorRoomHeight)
+            y = placeBelow ? below : Math.max(8, point.y - fittedHeight - 6)
+        }
+        onClosed: {
+            // An external host setting open=false must not steal its newly assigned focus.
+            if (picker.open) picker.closePopup(true)
+        }
+        background: Rectangle {
+            radius: 13
+            color: Qt.rgba(0.045, 0.05, 0.075, 0.97)
+            border.width: 1
+            border.color: theme.edge
+        }
 
-        ListView {
+        contentItem: ListView {
             id: list
-            anchors.fill: parent; anchors.margins: 6
+            objectName: picker.automationName.length ? picker.automationName + "List" : ""
             clip: true
             // Hidden pickers must not rebuild option delegates on catalogue refresh.
             // Selection and pill text remain bound to options above.
@@ -190,7 +272,7 @@ Item {
             keyNavigationEnabled: false
             boundsBehavior: Flickable.StopAtBounds
             Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_Escape) { picker.closePopup(true); event.accepted = true; return }
+                if (event.key === Qt.Key_Escape || event.key === Qt.Key_Back) { picker.closePopup(true); event.accepted = true; return }
                 if (event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab) { event.accepted = true; return }
                 var next = list.currentIndex
                 if (event.key === Qt.Key_Down) next = picker.nextSelectable(list.currentIndex + 1, 1)
@@ -200,7 +282,12 @@ Item {
                 else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
                     picker.choose(list.currentIndex); event.accepted = true; return
                 } else return
-                if (next >= 0) { list.currentIndex = next; list.positionViewAtIndex(next, ListView.Contain); event.accepted = true }
+                if (next < 0 && picker.wrapNavigation) {
+                    if (event.key === Qt.Key_Down) next = picker.nextSelectable(0, 1)
+                    else if (event.key === Qt.Key_Up) next = picker.nextSelectable(picker.options.length - 1, -1)
+                }
+                if (next >= 0) { list.currentIndex = next; list.positionViewAtIndex(next, ListView.Contain) }
+                event.accepted = true
             }
             delegate: Item {
                 id: opt

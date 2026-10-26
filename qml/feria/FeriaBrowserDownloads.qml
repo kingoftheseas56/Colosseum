@@ -11,10 +11,17 @@ import "../account" as Account
 
 Item {
     id: root
+    // Headless inspection of the existing Downloads panel, without changing its behaviour.
+    objectName: privateBrowsing ? "feriaPrivateDownloads" : "feriaRegularDownloads"
     // One instance per shared profile, owned by the session deck, never by a tab.
     required property var profile
     property var accountStore: null
     property bool privateBrowsing: false
+    // Native lifecycle owner, supplied by the session deck. Each download of a
+    // registered profile holds a work ticket against that profile, so the
+    // profile is not destroyed under it and a late completion cannot record
+    // into another account. Component doubles stay unmanaged (-1).
+    property var runtime: null
     property bool active: profile !== null
     property bool panelOpen: false
     property var items: []
@@ -40,15 +47,18 @@ Item {
         var privateDownload = privateBrowsing || !!profile.offTheRecord
         var sessionId = view ? String(view.accountSessionId || "") : ""
         var visitToken = view ? String(view.accountVisitToken || "") : ""
+        var work = runtime && runtime.hasProfile(profile) ? runtime.admitProfileWork(profile, "download") : -1
+        if (work === 0) { request.cancel(); return } // the profile is leaving
         var token = !privateDownload && sessionId.length && visitToken.length && accountStore
             && typeof accountStore.authorizeBrowserDownload === "function"
             ? accountStore.authorizeBrowserDownload(sessionId, visitToken) : ""
         var entry = downloadEntry.createObject(root, {
             request: request, privateDownload: privateDownload,
             metadataStore: accountStore, owningProfile: profile, downloadToken: token,
-            sessionId: sessionId, visitToken: visitToken
+            sessionId: sessionId, visitToken: visitToken, work: work
         })
         if (!entry) {
+            if (work > 0) runtime.releaseWork(work)
             if (token.length && typeof accountStore.cancelBrowserDownload === "function") accountStore.cancelBrowserDownload(token)
             request.cancel(); message(qsTr("Could not start this download.")); return
         }
@@ -64,6 +74,7 @@ Item {
             var entry = previous[i]
             if (entry.request && !entry.request.isFinished) entry.request.cancel()
             entry.releaseAuthorization()
+            entry.releaseWork()
             entry.request = null
             entry.destroy()
         }
@@ -88,6 +99,12 @@ Item {
             property bool privateDownload: false
             property string sessionId: ""
             property string visitToken: ""
+            property real work: -1
+            function workLive() { return work < 0 || (root.runtime && root.runtime.workValid(work)) }
+            function releaseWork() {
+                if (work > 0 && root.runtime) root.runtime.releaseWork(work)
+                if (work > 0) work = 0
+            }
             property bool recorded: false
             property bool metadataPending: false
             property bool notified: false
@@ -107,10 +124,10 @@ Item {
                 : paused ? qsTr("Paused") : qsTr("Downloading")
             function update() {
                 if (!request) return
-                if (request.state === WebEngineDownloadRequest.DownloadCancelled) releaseAuthorization()
+                if (request.state === WebEngineDownloadRequest.DownloadCancelled) { releaseAuthorization(); releaseWork() }
                 if (request.state === WebEngineDownloadRequest.DownloadCompleted && !recorded) {
                     if (!notified) { notified = true; root.message(qsTr("Downloaded %1.").arg(name)) }
-                    if (!privateDownload && downloadToken.length && root.active && owningProfile === root.profile
+                    if (!privateDownload && downloadToken.length && workLive() && root.active && owningProfile === root.profile
                             && metadataStore && metadataStore === root.accountStore && typeof metadataStore.recordBrowserDownload === "function") {
                         recorded = metadataStore.recordBrowserDownload({url: sourceUrl, path: path, fileName: name,
                             mimeType: request.mimeType, receivedBytes: request.receivedBytes,
@@ -124,6 +141,7 @@ Item {
                     } else recorded = true // Private/unowned downloads do not enter history.
                     metadataPending = false
                     releaseAuthorization()
+                    releaseWork()
                 }
             }
             function releaseAuthorization() {

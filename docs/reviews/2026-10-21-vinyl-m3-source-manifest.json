@@ -1,0 +1,172 @@
+{
+  "schemaVersion": 1,
+  "milestone": "M3 individual-file remote playback",
+  "verificationDate": "2026-10-21",
+  "status": "Development app playback accepted; whole-album CUE, main integration and release pending",
+  "baseCommit": "f3674c0f3a40a2d7dfb69017904a55e68a04b2b2",
+  "baselineManifest": "docs/reviews/2026-10-21-vinyl-m2-artwork-source-manifest.json",
+  "baselineManifestSha256": "84e29f854859f18cd63c6c631b37a3c72e528cea68aeada711d3778fa238f713",
+  "hashSemantics": "Raw working-file bytes before Git line-ending normalization; excludes this manifest. Evidence hashes are point-in-time receipts.",
+  "sourceDeltaCount": 26,
+  "sourceDelta": [
+    {
+      "rawSha256": "b567010fb200982e3d4d6aa9fcf0cf4b868d63ff9d889e4bba95d90e1d83aa4a",
+      "path": "docs/plans/2026-10-20-vinyl-development-roadmap.md"
+    },
+    {
+      "rawSha256": "e87ec41a3ec03896b72aaff94bb8aeb6b953f86afd0e91d5509331091e67e0e8",
+      "path": "docs/plans/2026-10-21-vinyl-m3-playback.md"
+    },
+    {
+      "rawSha256": "eb90b3fa88daaea95b69a3c828cb2276a326686da3d7166122bdc50ef349fcc8",
+      "path": "docs/reviews/2026-10-21-vinyl-m3-receiving.md"
+    },
+    {
+      "rawSha256": "3c088ea74be532f849f6989d8b972ee17aea961472a6f94f16a0acd5e0928062",
+      "path": "native/CMakeLists.txt"
+    },
+    {
+      "rawSha256": "8f5a5540d7deb641ee17152b1b47d832aa92854ff10cc1125c0e72b97fcf355f",
+      "path": "native/main.cpp"
+    },
+    {
+      "rawSha256": "0eb377d000ec6729114733d6c1742a64cd0717dfd5d472ed232d6321d68af94d",
+      "path": "native/player/streamserver.cpp"
+    },
+    {
+      "rawSha256": "7aa294eaa7017a288a8b5d889af78184c08cdbc8def28fe8506741435e5d7b30",
+      "path": "native/player/streamserver.h"
+    },
+    {
+      "rawSha256": "578f7ee8710a117a33c7817ba824aaff37f2eede2d5f48a02665c2dd46dcceb7",
+      "path": "native/torrent/MusicTorrentMatcher.cpp"
+    },
+    {
+      "rawSha256": "4c6055277476b3fabd563c59206e2fb72e82e73b2ffe12bb09b47d02a3715ba8",
+      "path": "native/torrent/MusicTorrentMatcher.h"
+    },
+    {
+      "rawSha256": "8644f16d2e74faa77bb2dd8ae34ae04ae1bccd8a1b734a8ecaf9818760ac37a8",
+      "path": "native/torrent/PirateBayIndexer.h"
+    },
+    {
+      "rawSha256": "8273c0f4638f4b47c3b7a1ecedd74f420e2c1a148d308e2ce84558d8ee7c10b2",
+      "path": "native/torrent/TankorentSearchService.cpp"
+    },
+    {
+      "rawSha256": "6d5e2e4152a34074937687614c46304af4b183cf4238b609dbf7ff25dbbda945",
+      "path": "native/vinyl/VinylBackendSession.cpp"
+    },
+    {
+      "rawSha256": "a2213e67d2d10194a6b3c3b73be16b0319e28a7a24a645691266d35bf3465907",
+      "path": "native/vinyl/VinylBackendSession.h"
+    },
+    {
+      "rawSha256": "a2cd6d531bfb4a76266f15e0e675d194d9fc886419303132a04fa272db9b572b",
+      "path": "native/vinyl/VinylCatalogueSource.cpp"
+    },
+    {
+      "rawSha256": "5c10e2cc22c3c48e170e7e91d6d08b45b9fd9ea660c44449b0ec8c65e48611c4",
+      "path": "native/vinyl/VinylCatalogueSource.h"
+    },
+    {
+      "rawSha256": "087270fbd98bc57932e97acb5ebb5e0f6d9d20b5d87e765d74130d16ad68c76f",
+      "path": "native/vinyl/VinylTorrentProvider.cpp"
+    },
+    {
+      "rawSha256": "9bf467484ed2f24062529676eeca12b06125dfabd281a0edc1712af5141f276f",
+      "path": "native/vinyl/VinylTorrentProvider.h"
+    },
+    {
+      "rawSha256": "0d252cd8199b41762ef6bb4e130475c465889a48963c71632c889b59623a8d38",
+      "path": "qml/vinyl/VinylLiveSession.qml"
+    },
+    {
+      "rawSha256": "ff6a631f0986f7eddae2a705679de7aefa45f88f3a3703287d01ed841943f17f",
+      "path": "tests/CMakeLists.txt"
+    },
+    {
+      "rawSha256": "19c6f89f961602b25b4dd98580de3da0b7dc430a7bd362163433bad528bcbf77",
+      "path": "tests/music_torrent_matcher_harness.cpp"
+    },
+    {
+      "rawSha256": "860f5222608d122164a2f8a1e1733553c773a93f64f488b6a912c30d1aa6174f",
+      "path": "tests/vinyl-catalogue/tst_catalogue_source.cpp"
+    },
+    {
+      "rawSha256": "2eba65e1d2b3a06a2a60feaacc98f58381425363fa8467d61a6d9c2430bc2ad4",
+      "path": "tests/vinyl-live/RemotePlaybackFlow.qml"
+    },
+    {
+      "rawSha256": "eff15f097f0d7b2c05ec0369521edb76d9e15a1a26d59cde5112c26ee0705719",
+      "path": "tests/vinyl-live/run-remote-playback-flow.ps1"
+    },
+    {
+      "rawSha256": "203dd039a3f332e06d45c2ec2b9bea3984c5abdcbc7524932727dc704b875674",
+      "path": "tests/vinyl-live/stream_contracts.cpp"
+    },
+    {
+      "rawSha256": "b4a90c4e724b60c60529e448a3375461f8761df7f0544b9ff5057c099a54f306",
+      "path": "tests/vinyl-native-session-bridge/runner.cpp"
+    },
+    {
+      "rawSha256": "1fb3b574b6f2b45e0554969039103ad75c2de8f65a9361d46aad0f98b02ea02f",
+      "path": "tests/vinyl-native-session-bridge/tst_remote_fallback.qml"
+    }
+  ],
+  "runtime": {
+    "qualificationFlags": false,
+    "fixtureFlags": false,
+    "reviewPid": 43232,
+    "qmlTreeSha256": "e82cb68b281f7c832adf4718762571d6f0b6ed26941a966891034e1856b0858e",
+    "exeSha256": "653f1055963e2f58f60f8b859fb3b7107f3439951a0603d47f568387b28a213a",
+    "profileTag": "vinyl-remote-8da537fa40314bf288b67be263affff6"
+  },
+  "evidenceRoot": "D:\\Colosseum-Vinyl-M3-20261021",
+  "evidence": [
+    {
+      "sha256": "1399e9866c417fccdf42112f31f6efcf094bca666e5cc848094ffd7aecf32c68",
+      "path": "app-build.log"
+    },
+    {
+      "sha256": "c2c0ccd50e2251656baa64125e038d4a15115e14784af8f542be22e80bd19a68",
+      "path": "focused-accepted-ctest.log"
+    },
+    {
+      "sha256": "290ee760317091a2cbd7a704f12911c6acd75a051161f38f85f67ade62758456",
+      "path": "native-fallback.log"
+    },
+    {
+      "sha256": "b68bde06682d7d5e750a9cf013c2d10747f34f9a7c11676f226dc3944a360ced",
+      "path": "runtime-receipt.json"
+    },
+    {
+      "sha256": "bfa953ab6290f89aacdc0c2268cab65b22ae6bf01712e6cd5aee1e44a45a77f7",
+      "path": "vinyl-remote-8da537fa40314bf288b67be263affff6/result.json"
+    },
+    {
+      "sha256": "2d71d1370b73329af1ae91790569f04177a0118efa6514b57309c8ca7856dc1c",
+      "path": "vinyl-remote-8da537fa40314bf288b67be263affff6/torrent.stderr.log"
+    },
+    {
+      "sha256": "8a34e96b0bbede0371d6df61c8647125e3eae0328d3c2862b20d7a28c75a5127",
+      "path": "vinyl-remote-8da537fa40314bf288b67be263affff6/fallback.stderr.log"
+    },
+    {
+      "sha256": "6f875e7bbcda2cd076e228d08354ed9c6a37370775347f60f719b75af8e6c96b",
+      "path": "vinyl-remote-8da537fa40314bf288b67be263affff6/torrent-playback.png"
+    },
+    {
+      "sha256": "78c2b357e6fe309148cb3e94b4a31cafe70049a24bd128a5578d2808c7f98ad3",
+      "path": "vinyl-remote-8da537fa40314bf288b67be263affff6/fallback-playback.png"
+    },
+    {
+      "sha256": "9cb4a1ad3c7d260ce0ffe622bddb010b1fc0d18e9a3475adb4d199257bfa089e",
+      "path": "vinyl-remote-8da537fa40314bf288b67be263affff6/review-playback.png"
+    },
+    {
+      "path": "vinyl-remote-8da537fa40314bf288b67be263affff6/review.stderr.snapshot.log",
+      "sha256": "2d29580dd9ebb971a955b4e686e212a8d8980f1670d41295c5d56d24f69da230"
+    }
+  ]
+}

@@ -13,7 +13,8 @@ def stage_api_content(stage, apply=False):
     stage = Path(stage).resolve(strict=True)
     if (stage / ".git").exists() or not (stage / "qml/Main.qml").is_file():
         raise ValueError("Expected an assembled package, not a Git checkout")
-    if not (stage / "native/build-msvc/colosseum.exe").is_file():
+    if not any((stage / path).is_file() for path in
+               ("native/build-msvc/colosseum.exe", "usr/bin/colosseum")):
         raise ValueError("Staged runtime missing")
     starter = stage / "assets/content-starter/bundle.json"
     bundle = json.loads(starter.read_text(encoding="utf-8"))

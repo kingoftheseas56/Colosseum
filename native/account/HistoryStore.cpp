@@ -272,8 +272,12 @@ bool HistoryStore::healthy(
 }
 
 QVariantList HistoryStore::records() const {
-    QVariantList result =
-        syncEntries();
+    // Presentation and local backup retain local-only music history. Cloud
+    // export has a separate filter in syncEntries().
+    QVariantList result;
+    result.reserve(m_records.size());
+    for (auto it = m_records.constBegin(); it != m_records.constEnd(); ++it)
+        result.append(it.value());
 
     std::sort(
         result.begin(),
@@ -682,9 +686,14 @@ QVariantList HistoryStore::syncEntries() const {
         m_records.keys();
     keys.sort();
 
-    for (const QString &key : keys)
-        result.append(
-            m_records.value(key));
+    for (const QString &key : keys) {
+        const QVariantMap record = m_records.value(key).toMap();
+        // Build 0.75 music IDs are local Vinyl occurrences, never cloud IDs.
+        // Future portable music providers require an explicit identity contract.
+        if (record.value(QStringLiteral("kind")).toString() == QLatin1String("music"))
+            continue;
+        result.append(record);
+    }
 
     return result;
 }

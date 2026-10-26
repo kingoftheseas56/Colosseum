@@ -136,6 +136,34 @@ struct FeriaProviderHost::Impl
         ComPtr<ICoreWebView2> webView;
     };
 
+    // A retained beforeunload dialog with its native deferral. The shared
+    // operation seam never sees these COM objects; adapters answer through
+    // the integer nativeToken.
+    struct RetainedDialog
+    {
+        int nativeToken = 0;
+        bool forClose = false;
+        bool completed = false;
+        ComPtr<ICoreWebView2ScriptDialogOpeningEventArgs> args;
+        ComPtr<ICoreWebView2Deferral> deferral;
+    };
+
+    // The captured close transaction. While active, the internal
+    // Navigate(about:blank) unload is part of the close: its navigation
+    // events never surface as user URL/history/restore updates.
+    struct CloseState
+    {
+        bool active = false;
+        QString operationId;
+        bool internalUnload = false;
+        bool internalStarted = false;
+        UINT64 internalNavId = 0;
+        bool awaitingDeparture = false; // Leave accepted, departure not yet proven
+    };
+    // A cancelled internal unload whose terminal callback is still in flight;
+    // it must never surface as a user-facing load outcome.
+    UINT64 suppressCompletionNavId = 0;
+
     explicit Impl(FeriaProviderHost *owner)
         : q(owner)
     {
@@ -155,15 +183,87 @@ struct FeriaProviderHost::Impl
     // Stop() can surface as OPERATION_CANCELED or as the underlying network
     // error (e.g. ERR_CONNECTION_ABORTED); the flag makes either benign.
     bool stopRequested = false;
+    // The completion being emitted was a native cancellation coerced to shell
+    // success; loadCancelled is announced immediately before it.
+    bool pendingCompletionCancelled = false;
     bool initializing = false;
     bool ready = false;
     bool visible = true;
     bool youtubeObserver = false;
+    QString documentTitle;
+    CloseState close;
+    std::map<int, RetainedDialog> dialogs;
+    int dialogSerial = 0;
+#ifdef FERIA_TEST_CONTROLS
+    // Test-build-only hooks: RED control for unsafe early disposal, trusted
+    // CDP input for fixtures, and process-failure injection. Production
+    // builds compile all three out entirely.
+    bool unsafeEarlyDispose = qEnvironmentVariable("FERIA_UNSAFE_EARLY_DISPOSE") == QStringLiteral("1");
+    bool testInputEnabled = qEnvironmentVariable("FERIA_ENABLE_TEST_INPUT") == QStringLiteral("1");
+#else
+    static constexpr bool unsafeEarlyDispose = false;
+    static constexpr bool testInputEnabled = false;
+#endif
 
     void log(const QString &message) const
     {
         qInfo().noquote() << "FERIA_A1_HOST" << message;
         emit q->hostLog(message);
+    }
+
+    void resetCloseState()
+    {
+        close = CloseState{};
+    }
+
+    // Complete every retained dialog deferral without Accept: the renderer
+    // must never wait on a host that has moved on. Draining denies unload.
+    void drainDialogs()
+    {
+        for (auto &entry : dialogs) {
+            if (entry.second.completed)
+                continue;
+            if (entry.second.deferral)
+                entry.second.deferral->Complete();
+            entry.second.completed = true;
+            log(QStringLiteral("DIALOG_DRAINED token=%1 forClose=%2")
+                    .arg(entry.second.nativeToken)
+                    .arg(entry.second.forClose ? QStringLiteral("true")
+                                               : QStringLiteral("false")));
+        }
+        dialogs.clear();
+    }
+
+    void invalidateClose(const QString &reason)
+    {
+        if (!close.active)
+            return;
+        const QString operationId = close.operationId;
+        drainDialogs();
+        resetCloseState();
+        log(QStringLiteral("CLOSE_INVALIDATED reason=%1").arg(reason));
+        emit q->closeInvalidated(reason);
+        Q_UNUSED(operationId);
+    }
+
+    // Shared body of the native ProcessFailed callback: a dead process can
+    // never answer a retained deferral, so dialogs drain before reporting.
+    // The browser process exiting kills the whole runtime (controller
+    // included) and is classified separately from renderer loss.
+    void handleProcessFailed(COREWEBVIEW2_PROCESS_FAILED_KIND kind)
+    {
+        const int kindValue = static_cast<int>(kind);
+        log(QStringLiteral("PROCESS_FAILED kind=%1").arg(kindValue));
+        const bool browser = kind == COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED;
+        const bool hadClose = close.active;
+        drainDialogs();
+        if (hadClose)
+            invalidateClose(browser ? QStringLiteral("browser-process-exited")
+                                    : QStringLiteral("renderer-process-failed"));
+        // Browser-process exit retires every live capability of this host;
+        // renderer loss leaves the controller alive for user recovery.
+        emit q->rendererLost(browser ? QStringLiteral("browser")
+                                     : QStringLiteral("renderer"));
     }
 
     void prepareDocumentScripts(ICoreWebView2 *view, bool observeYouTube,
@@ -230,12 +330,36 @@ struct FeriaProviderHost::Impl
                         reportBlocked(uri);
                     } else if (mainView) {
                         UINT64 navigationId = 0;
-                        if (SUCCEEDED(args->get_NavigationId(&navigationId)))
+                        const bool haveId = SUCCEEDED(args->get_NavigationId(&navigationId));
+                        if (close.active && close.internalUnload && !close.internalStarted
+                                && uri == QStringLiteral("about:blank")) {
+                            // The internal unload attempt of the captured close
+                            // operation. It is never a user-facing navigation:
+                            // no URL/history/restore emission, no document
+                            // generation advance above this host.
+                            if (haveId) {
+                                close.internalNavId = navigationId;
+                                close.internalStarted = true;
+                                currentNavigationId = navigationId;
+                            }
+                            log(QStringLiteral("CLOSE_INTERNAL_START id=%1")
+                                    .arg(QString::number(navigationId)));
+                            return S_OK;
+                        }
+                        if (close.active && close.internalStarted && haveId
+                                && navigationId != close.internalNavId) {
+                            // A competing navigation cannot be mistaken for the
+                            // close departure. Deny the retained dialog (which
+                            // cancels the internal attempt) and let the new
+                            // navigation proceed as an ordinary one.
+                            invalidateClose(QStringLiteral("competing-navigation"));
+                        }
+                        if (haveId)
                             currentNavigationId = navigationId;
                         // A fresh navigation supersedes any pending stop; its
                         // own failures must still surface honestly.
                         stopRequested = false;
-                        emit q->navigationStarted(uri);
+                        emit q->navigationStarted(uri, navigationId);
                     }
                     return S_OK;
                 }).Get(),
@@ -250,11 +374,49 @@ struct FeriaProviderHost::Impl
                     args->get_IsSuccess(&success);
                     if (mainView) {
                         UINT64 navigationId = 0;
-                        if (SUCCEEDED(args->get_NavigationId(&navigationId))
-                            && navigationId != currentNavigationId) {
+                        const bool haveId = SUCCEEDED(args->get_NavigationId(&navigationId));
+                        if (haveId && navigationId == suppressCompletionNavId) {
+                            suppressCompletionNavId = 0;
+                            log(QStringLiteral("INTERNAL_TERMINAL_SWALLOWED id=%1")
+                                    .arg(QString::number(navigationId)));
+                            return S_OK;
+                        }
+                        if (close.active && close.internalStarted && haveId
+                                && navigationId == close.internalNavId) {
+                            // Terminal of the internal unload navigation. This
+                            // is the only place close departure can be proven:
+                            // a successful completion whose resulting document
+                            // actually left the original URL. Accept, S_OK,
+                            // DOM readiness or a timer never qualify.
+                            const QString operationId = close.operationId;
+                            const UINT64 nativeNavId = close.internalNavId;
+                            if (success) {
+                                LPWSTR rawSource = nullptr;
+                                view->get_Source(&rawSource);
+                                const QString source = takeWideString(rawSource);
+                                if (source == QStringLiteral("about:blank")) {
+                                    resetCloseState();
+                                    log(QStringLiteral("CLOSE_DEPARTURE_VERIFIED id=%1")
+                                            .arg(QString::number(nativeNavId)));
+                                    emit q->closeDepartureVerified(operationId, nativeNavId);
+                                } else {
+                                    invalidateClose(
+                                        QStringLiteral("unexpected-internal-target"));
+                                }
+                            } else {
+                                invalidateClose(QStringLiteral("internal-unload-failed"));
+                            }
+                            // Either way this attempt is not a user-facing
+                            // load outcome.
+                            return S_OK;
+                        }
+                        bool cancelled = false;
+                        if (haveId && navigationId != currentNavigationId) {
                             // A newer navigation replaced this load; its own
-                            // events own the state, so this callback is noise.
+                            // events own the shell state, but the replaced
+                            // attempt's admitted operation still settles once.
                             log(QStringLiteral("NAV_SUPERSEDED id=%1").arg(navigationId));
+                            emit q->navigationSuperseded(navigationId);
                             return S_OK;
                         }
                         if (!success) {
@@ -265,11 +427,16 @@ struct FeriaProviderHost::Impl
                                 || stopRequested) {
                                 // Stop() or an in-page cancellation: the previous
                                 // page remains displayed and usable, which is not
-                                // a "could not open" failure.
+                                // a "could not open" failure for the shell — but
+                                // it is never successful intended-document load
+                                // proof, so the cancellation is announced
+                                // separately before the coerced completion.
+                                cancelled = true;
                                 success = TRUE;
                             }
                         }
                         stopRequested = false;
+                        pendingCompletionCancelled = cancelled;
                     }
                     LPWSTR raw = nullptr;
                     view->get_Source(&raw);
@@ -289,6 +456,14 @@ struct FeriaProviderHost::Impl
                         emit q->historyChanged(back != FALSE, forward != FALSE);
                         scheduleHistoryRefresh(150);
                         scheduleHistoryRefresh(500);
+                        if (pendingCompletionCancelled) {
+                            pendingCompletionCancelled = false;
+                            UINT64 cancelledNavId = 0;
+                            args->get_NavigationId(&cancelledNavId);
+                            log(QStringLiteral("LOAD_CANCELLED id=%1")
+                                    .arg(QString::number(cancelledNavId)));
+                            emit q->loadCancelled(cancelledNavId, uri);
+                        }
                         emit q->navigationCompleted(uri, success != FALSE);
                     }
                     return S_OK;
@@ -436,6 +611,14 @@ struct FeriaProviderHost::Impl
     {
         installNavigationPolicy(webView.Get(), true);
 
+        // The consented-close path owns script dialogs through the retained
+        // ScriptDialogOpening deferrals (the probe-qualified configuration):
+        // default dialogs are disabled so beforeunload raises the event we
+        // fence. Non-beforeunload dialogs are dismissed programmatically.
+        ComPtr<ICoreWebView2Settings> settings;
+        if (SUCCEEDED(webView->get_Settings(&settings)) && settings)
+            settings->put_AreDefaultScriptDialogsEnabled(FALSE);
+
         EventRegistrationToken token{};
         webView->add_HistoryChanged(
             Callback<ICoreWebView2HistoryChangedEventHandler>(
@@ -499,6 +682,88 @@ struct FeriaProviderHost::Impl
                     return openOwnedPopup(args);
                 }).Get(),
             &token);
+
+        webView->add_ScriptDialogOpening(
+            Callback<ICoreWebView2ScriptDialogOpeningEventHandler>(
+                [this, guard = QPointer<FeriaProviderHost>(q)](ICoreWebView2 *,
+                       ICoreWebView2ScriptDialogOpeningEventArgs *args) -> HRESULT {
+                    if (!guard) return S_OK;
+                    COREWEBVIEW2_SCRIPT_DIALOG_KIND kind{};
+                    if (FAILED(args->get_Kind(&kind)))
+                        return S_OK;
+                    if (kind != COREWEBVIEW2_SCRIPT_DIALOG_KIND_BEFOREUNLOAD) {
+                        // This slice owns beforeunload consent only. Other
+                        // script dialogs are dismissed programmatically so
+                        // the renderer is never left waiting; presenting them
+                        // belongs to the later request-bridge group.
+                        ComPtr<ICoreWebView2Deferral> other;
+                        if (SUCCEEDED(args->GetDeferral(&other)) && other)
+                            other->Complete();
+                        log(QStringLiteral("SCRIPT_DIALOG_DISMISSED kind=%1")
+                                .arg(static_cast<int>(kind)));
+                        return S_OK;
+                    }
+                    LPWSTR rawUri = nullptr;
+                    QString uri;
+                    if (SUCCEEDED(args->get_Uri(&rawUri)))
+                        uri = takeWideString(rawUri);
+                    ComPtr<ICoreWebView2Deferral> deferral;
+                    if (FAILED(args->GetDeferral(&deferral)) || !deferral) {
+                        log(QStringLiteral("DIALOG_DEFERRAL_FAILED"));
+                        return S_OK;
+                    }
+                    RetainedDialog dialog;
+                    dialog.nativeToken = ++dialogSerial;
+                    dialog.forClose = close.active && close.internalUnload;
+                    dialog.args = args;
+                    dialog.deferral = deferral;
+                    const int nativeToken = dialog.nativeToken;
+                    const bool forClose = dialog.forClose;
+                    dialogs.insert({nativeToken, std::move(dialog)});
+                    log(QStringLiteral("BEFOREUNLOAD token=%1 forClose=%2 uri=%3")
+                            .arg(QString::number(nativeToken),
+                                 forClose ? QStringLiteral("true") : QStringLiteral("false"),
+                                 uri));
+                    if (forClose)
+                        emit q->closeConsentRequested(nativeToken, uri);
+                    else
+                        emit q->unloadConsentRequested(nativeToken, uri);
+                    return S_OK;
+                }).Get(),
+            &token);
+
+        webView->add_DocumentTitleChanged(
+            Callback<ICoreWebView2DocumentTitleChangedEventHandler>(
+                [this, guard = QPointer<FeriaProviderHost>(q)](ICoreWebView2 *sender,
+                        IUnknown *) -> HRESULT {
+                    if (!guard) return S_OK;
+                    LPWSTR raw = nullptr;
+                    if (SUCCEEDED(sender->get_DocumentTitle(&raw))) {
+                        const QString title = takeWideString(raw);
+                        if (title != documentTitle) {
+                            documentTitle = title;
+                            emit q->titleChanged(title);
+                        }
+                    }
+                    return S_OK;
+                }).Get(),
+            &token);
+
+        ComPtr<ICoreWebView2_4> processView;
+        if (SUCCEEDED(webView.As(&processView))) {
+            processView->add_ProcessFailed(
+                Callback<ICoreWebView2ProcessFailedEventHandler>(
+                    [this, guard = QPointer<FeriaProviderHost>(q)](ICoreWebView2 *,
+                           ICoreWebView2ProcessFailedEventArgs *args) -> HRESULT {
+                        if (!guard) return S_OK;
+                        COREWEBVIEW2_PROCESS_FAILED_KIND kind{};
+                        if (FAILED(args->get_ProcessFailedKind(&kind)))
+                            return S_OK;
+                        handleProcessFailed(kind);
+                        return S_OK;
+                    }).Get(),
+                &token);
+        }
 
         controller->add_GotFocus(
             Callback<ICoreWebView2FocusChangedEventHandler>(
@@ -576,6 +841,9 @@ FeriaProviderHost::FeriaProviderHost(QObject *parent)
 
 FeriaProviderHost::~FeriaProviderHost()
 {
+    // No renderer may keep waiting on a host that is going away: drain first,
+    // then close the controllers.
+    m_impl->drainDialogs();
     if (m_impl->controller)
         m_impl->controller->Close();
     for (const auto &popup : m_impl->popups) {
@@ -865,6 +1133,206 @@ void FeriaProviderHost::pauseMedia(const QString &label)
             "return {count:m.length,paused:m.every(x=>x.paused),"
             "currentTime:m[0]?m[0].currentTime:null};})()"));
 }
+
+QString FeriaProviderHost::title() const
+{
+    return m_impl->documentTitle;
+}
+
+void FeriaProviderHost::requestClose(const QString &operationId)
+{
+    if (!m_impl->webView || !m_impl->ready || m_impl->close.active) {
+        m_impl->log(QStringLiteral("CLOSE_REQUEST_REJECTED ready=%1 busy=%2")
+                .arg(m_impl->ready ? QStringLiteral("true") : QStringLiteral("false"),
+                     m_impl->close.active ? QStringLiteral("true") : QStringLiteral("false")));
+        emit closeInvalidated(QStringLiteral("close-unavailable"));
+        return;
+    }
+    m_impl->close.active = true;
+    m_impl->close.operationId = operationId;
+    m_impl->close.internalUnload = true;
+    m_impl->close.internalStarted = false;
+    m_impl->close.internalNavId = 0;
+    m_impl->close.awaitingDeparture = false;
+    m_impl->log(QStringLiteral("CLOSE_REQUEST operation=%1").arg(operationId));
+    // Probe-qualified candidate stimulus: the internal about:blank navigation
+    // raises the beforeunload ScriptDialogOpening. Stay cancels it before
+    // NavigationStarting, so no navigation id exists for that attempt.
+    const HRESULT result = m_impl->webView->Navigate(L"about:blank");
+    if (FAILED(result)) {
+        m_impl->invalidateClose(QStringLiteral("navigate-dispatch-failed")
+                                    + QStringLiteral(" hr=") + hresultText(result));
+    }
+}
+
+void FeriaProviderHost::respondCloseRequest(int nativeToken, bool leave)
+{
+    auto found = m_impl->dialogs.find(nativeToken);
+    if (found == m_impl->dialogs.end() || found->second.completed) {
+        m_impl->log(QStringLiteral("CLOSE_ANSWER_STALE token=%1").arg(nativeToken));
+        return;
+    }
+    if (!found->second.forClose) {
+        m_impl->log(QStringLiteral("CLOSE_ANSWER_WRONG_KIND token=%1").arg(nativeToken));
+        return;
+    }
+    if (leave) {
+        // Native completion evidence is only claimed after the native calls
+        // actually succeeded; failures classify honestly as invalidation and
+        // keep the drain ownership with the host.
+        HRESULT acceptResult = S_OK;
+        if (found->second.args)
+            acceptResult = found->second.args->Accept();
+        HRESULT completeResult = S_OK;
+        if (found->second.deferral)
+            completeResult = found->second.deferral->Complete();
+        found->second.completed = true;
+        m_impl->dialogs.erase(found);
+        if (FAILED(acceptResult) || FAILED(completeResult)) {
+            m_impl->log(QStringLiteral("CLOSE_LEAVE_FAILED accept=%1 complete=%2")
+                    .arg(hresultText(acceptResult), hresultText(completeResult)));
+            m_impl->invalidateClose(QStringLiteral("leave-accept-failed"));
+            return;
+        }
+        m_impl->log(QStringLiteral("CLOSE_LEAVE_ACCEPTED token=%1").arg(nativeToken));
+        if (m_impl->unsafeEarlyDispose) {
+            // Test-only RED control: settle "departure" without the correlated
+            // navigation completion, the unsafe parity break the negative
+            // control must catch.
+            const QString operationId = m_impl->close.operationId;
+            m_impl->resetCloseState();
+            m_impl->log(QStringLiteral("CLOSE_UNSAFE_EARLY_DISPOSE"));
+            emit closeDepartureVerified(operationId, 0);
+            return;
+        }
+        // Leave is now pending until the correlated internal navigation
+        // completes and the original document is actually gone. No timer,
+        // Accept result or DOM event settles it here.
+        m_impl->close.awaitingDeparture = true;
+        return;
+    }
+    // Stay: complete the deferral without Accept. This runtime cancelled the
+    // internal navigation before NavigationStarting, so there is no navigation
+    // id or terminal for the denied attempt — the completed deferral itself is
+    // the explicit decision evidence for the captured operation.
+    HRESULT completeResult = S_OK;
+    if (found->second.deferral)
+        completeResult = found->second.deferral->Complete();
+    found->second.completed = true;
+    m_impl->dialogs.erase(found);
+    if (FAILED(completeResult)) {
+        m_impl->log(QStringLiteral("CLOSE_STAY_COMPLETE_FAILED hr=%1")
+                .arg(hresultText(completeResult)));
+        m_impl->invalidateClose(QStringLiteral("stay-deferral-complete-failed"));
+        return;
+    }
+    const bool hadInternalStart = m_impl->close.internalStarted;
+    m_impl->resetCloseState();
+    m_impl->log(QStringLiteral("CLOSE_STAY_RECORDED token=%1 internalStarted=%2")
+            .arg(QString::number(nativeToken),
+                 hadInternalStart ? QStringLiteral("true") : QStringLiteral("false")));
+    emit closeStayRecorded(nativeToken);
+}
+
+void FeriaProviderHost::respondUnloadRequest(int nativeToken, bool leave)
+{
+    auto found = m_impl->dialogs.find(nativeToken);
+    if (found == m_impl->dialogs.end() || found->second.completed) {
+        m_impl->log(QStringLiteral("UNLOAD_ANSWER_STALE token=%1").arg(nativeToken));
+        return;
+    }
+    if (found->second.forClose) {
+        m_impl->log(QStringLiteral("UNLOAD_ANSWER_WRONG_KIND token=%1").arg(nativeToken));
+        return;
+    }
+    HRESULT acceptResult = S_OK;
+    if (leave && found->second.args)
+        acceptResult = found->second.args->Accept();
+    HRESULT completeResult = S_OK;
+    if (found->second.deferral)
+        completeResult = found->second.deferral->Complete();
+    found->second.completed = true;
+    m_impl->dialogs.erase(found);
+    if (FAILED(acceptResult) || FAILED(completeResult)) {
+        m_impl->log(QStringLiteral("UNLOAD_ANSWER_FAILED accept=%1 complete=%2 token=%3")
+                .arg(hresultText(acceptResult), hresultText(completeResult),
+                     QString::number(nativeToken)));
+        emit unloadSettled(nativeToken, false);
+        return;
+    }
+    m_impl->log(QStringLiteral("UNLOAD_SETTLED token=%1 leave=%2")
+            .arg(QString::number(nativeToken),
+                 leave ? QStringLiteral("true") : QStringLiteral("false")));
+    emit unloadSettled(nativeToken, leave);
+}
+
+void FeriaProviderHost::cancelCloseOperation()
+{
+    if (!m_impl->close.active)
+        return;
+    // Deny any retained dialog (which also cancels the internal attempt) and
+    // stop an in-flight internal unload so the original document stays.
+    m_impl->drainDialogs();
+    const bool internalStarted = m_impl->close.internalStarted;
+    const UINT64 internalNavId = m_impl->close.internalNavId;
+    m_impl->resetCloseState();
+    if (internalStarted && m_impl->webView) {
+        m_impl->suppressCompletionNavId = internalNavId;
+        m_impl->stopRequested = true;
+        m_impl->webView->Stop();
+    }
+    m_impl->log(QStringLiteral("CLOSE_CANCELLED internalStarted=%1")
+            .arg(internalStarted ? QStringLiteral("true") : QStringLiteral("false")));
+}
+
+void FeriaProviderHost::drainPendingNativeRequests()
+{
+    m_impl->drainDialogs();
+}
+
+void FeriaProviderHost::simulateProcessFailureForTest(const QString &kind)
+{
+#ifdef FERIA_TEST_CONTROLS
+    if (!m_impl->testInputEnabled) {
+        m_impl->log(QStringLiteral("TEST_PROCESS_FAILURE_DISABLED"));
+        return;
+    }
+    m_impl->log(QStringLiteral("TEST_PROCESS_FAILURE kind=%1").arg(kind));
+    m_impl->handleProcessFailed(kind == QStringLiteral("browser")
+        ? COREWEBVIEW2_PROCESS_FAILED_KIND_BROWSER_PROCESS_EXITED
+        : COREWEBVIEW2_PROCESS_FAILED_KIND_RENDER_PROCESS_EXITED);
+#else
+    Q_UNUSED(kind);
+#endif
+}
+
+void FeriaProviderHost::dispatchTrustedClick(int x, int y)
+{
+    if (!m_impl->testInputEnabled || !m_impl->controller || !m_impl->webView) {
+        m_impl->log(QStringLiteral("TEST_INPUT_DISABLED"));
+        return;
+    }
+    // Probe-qualified trusted input path: native MoveFocus into the renderer
+    // first, then CDP Input.dispatchMouseEvent. No desktop mouse or keyboard.
+    m_impl->controller->MoveFocus(COREWEBVIEW2_MOVE_FOCUS_REASON_PROGRAMMATIC);
+    const QString pressed = QStringLiteral(
+        R"({"type":"mousePressed","x":%1,"y":%2,"button":"left","clickCount":1})").arg(x).arg(y);
+    const QString released = QStringLiteral(
+        R"({"type":"mouseReleased","x":%1,"y":%2,"button":"left","clickCount":1})").arg(x).arg(y);
+    for (const QString &parameters : {pressed, released}) {
+        const std::wstring wide = parameters.toStdWString();
+        m_impl->webView->CallDevToolsProtocolMethod(L"Input.dispatchMouseEvent", wide.c_str(),
+            Callback<ICoreWebView2CallDevToolsProtocolMethodCompletedHandler>(
+                [this, parameters](HRESULT error, LPCWSTR) -> HRESULT {
+                    if (FAILED(error))
+                        m_impl->log(QStringLiteral("TEST_INPUT_FAILED hr=%1 params=%2")
+                                .arg(hresultText(error), parameters));
+                    return S_OK;
+                }).Get());
+    }
+    m_impl->log(QStringLiteral("TEST_INPUT_CLICK x=%1 y=%2").arg(x).arg(y));
+}
+
 
 void FeriaProviderHost::clearSiteData(const QUrl &origin)
 {

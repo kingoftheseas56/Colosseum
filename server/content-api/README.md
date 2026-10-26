@@ -1,6 +1,16 @@
 # Colosseum content API
 
-The 1.1.9 no-account candidate uses semantic catalogue APIs for IMDb, MAL, Comics and Tankoban, versioned universe/tribute documents, and immutable artwork URLs. Identity, library, history, progress and preferences remain local Colosseum-owned state. Neon, Biblio migration, Feria and Vinyl services are outside this cutover.
+The standard 1.1.9 edition uses semantic catalogue APIs for IMDb, MAL, Comics and Tankoban, versioned universe/tribute documents, and immutable artwork URLs. Identity, library, history, progress and preferences remain Colosseum-owned state, with optional account synchronization. Core use and catalogue guest leases require no account. Feria and Vinyl remain behind Coming Soon.
+
+## Production configuration (1.1.9)
+
+`wrangler.production.jsonc` targets `colosseum-content-api` at `https://colosseum-content-api.colosseum-watchparty-relay.workers.dev`; `wrangler.jsonc` remains the separate staging target. The production config uses guest-rate-limit namespace 1002 and requires its separately provisioned `SESSION_SECRET`; no publication admin secret ships in the client.
+
+Production currently shares the existing source-pinned D1 snapshots with staging: LIBRARY `65fca568-24e4-4ca8-b5e3-ad366577a489` at revision `4ee62650692b3ca915a27478c1da718726ae543c8f31768596c29509d6535b2e`, plus the CATALOG and METADATA bindings declared in the config. Database names containing staging are intentional; these are not independently cloned production databases. Do not run migrations or change a shared readiness record in place.
+
+Assemble a fresh, fully verified public-static graph under `generated/content-production` before deploying with this config. Preserve the fine Tankoban lookup ranges, landing validity policy, and every previously published artwork URL. The publisher also includes the two neutral backgrounds `captured-motion.jpg` and `cold-ripple.jpg`; API packaging removes their original rasters, while cached validated content remains available offline. Add-on art and UI glyphs remain bundled.
+
+This configuration is a reproducible deployment target, not evidence that a particular source revision or publication is live. Retain the accepted preceding Worker/assets deployment and run bounded production postchecks after publishing. The following import and I01 sections are historical implementation records.
 
 ## 1.1.9 delivery and updates
 

@@ -21,6 +21,8 @@
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
+#include <QHash>
+#include <QPointer>
 
 // The Android facade shape (backend member + Android declarations) is active
 // on Android, and also on a host build that defines
@@ -37,6 +39,7 @@ class QProcess;
 class QNetworkAccessManager;
 class QTimer;
 class QFileSystemWatcher;
+class QNetworkReply;
 
 class StreamServer : public QObject
 {
@@ -46,6 +49,9 @@ class StreamServer : public QObject
     Q_PROPERTY(bool engineUnavailable READ engineUnavailable NOTIFY engineUnavailableChanged)
 public:
     explicit StreamServer(QObject *parent = nullptr);
+#if !defined(Q_OS_ANDROID) && !defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+    StreamServer(quint16 servicePort, QObject *parent);
+#endif
     ~StreamServer() override;
 
 #if defined(Q_OS_ANDROID) || defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
@@ -78,6 +84,15 @@ public:
     // into mpv. (PlayerPage.qml loads EVERY streamReady it hears.)
     Q_INVOKABLE void prefetch(const QString &infoHash, int fileIdx);
     Q_INVOKABLE void warmSource(const QString &infoHash, int fileIdx);
+
+    // Independent consumers admit an exact manifest/file without publishing the
+    // legacy global streamReady/fetchReady events. A token owns its manifest.
+#if !defined(Q_OS_ANDROID) && !defined(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+    virtual void requestManifest(const QString &token, const QString &infoHash);
+    virtual void requestMagnetManifest(const QString &token, const QString &infoHash, const QString &magnet);
+    virtual void requestFile(const QString &token, const QString &infoHash, int fileIdx);
+    virtual void cancelRequest(const QString &token);
+#endif
 
     // Bring the engine up BEFORE anything is played. It used to spawn lazily on the first play(), so
     // every session paid a cold start at the worst possible moment -- the instant Play was pressed. A
@@ -114,6 +129,9 @@ Q_SIGNALS:
     void streamReady(const QString &url, const QString &infoHash, int fileIdx);
     void fetchReady(const QString &url, const QString &infoHash, int fileIdx);
     void streamError(const QString &message);
+    void torrentManifestReady(const QString &token, const QString &infoHash, const QVariantList &files);
+    void torrentStreamReady(const QString &token, const QString &url, const QString &infoHash, int fileIdx);
+    void torrentRequestError(const QString &token, const QString &message);
     // keys: peers, unchoked, downloaded, downloadSpeed, streamProgress, streamLen
     void streamStats(const QString &infoHash, int fileIdx, const QVariantMap &stats);
     // Task-only (nuvio-glm-local-streaming-20261020): raised when a task
@@ -158,6 +176,20 @@ private:
     void recoverDeadServer(int failedPort); // retire the matching unreachable server and retry once
     void pollStats();                     // one stats.json GET; single-flight behind m_statsInflight
     void pushTunedSettings();             // raise the runtime's swarm caps, THEN flush pending streams
+    void startManifest(const QString &token, quint64 generation);
+    void failRequest(const QString &token, quint64 generation, const QString &message);
+    struct ScopedRequest {
+        quint64 generation = 0;
+        QString hash;
+        QString magnet;
+        QPointer<QNetworkReply> reply;
+        QVariantList files;
+        bool started = false;
+        int port = -1;
+    };
+    QHash<QString, ScopedRequest> m_scoped;
+    quint64 m_requestGeneration = 0;
+    quint16 m_servicePort = 11470;
 
     QProcess *m_proc = nullptr;
     QNetworkAccessManager *m_nam = nullptr;

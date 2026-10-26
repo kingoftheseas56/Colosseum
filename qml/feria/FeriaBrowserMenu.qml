@@ -16,15 +16,21 @@ Dialog {
     property var tabRows: []
     property var bookmarkRows: []
     property var historyRows: []
+    // Filtering, validation and duplicate rules are the account store's. The
+    // menu holds what was typed and the generation its rows were read under.
+    property string bookmarkQuery: ""
+    property string historyQuery: ""
+    property int bookmarkTotal: 0
+    property int historyTotal: 0
+    property int rowsGeneration: 0
+    property bool currentBookmarked: false
+    property string editingUrl: ""
+    property string editError: ""
     property var preferences: ({})
     property int savedTabCount: 0
     property string statusText: ""
     readonly property bool privateBrowsing: !!(deck && deck.activeEntry
         && deck.activeEntry.descriptor && deck.activeEntry.descriptor.privateBrowsing)
-    readonly property bool currentBookmarked: {
-        for (var row of bookmarkRows) if (String(row.url) === currentUrl) return true
-        return false
-    }
     signal navigateRequested(string url)
     signal focusAddressRequested()
     signal printRequested()
@@ -44,8 +50,12 @@ Dialog {
     // These are presentation projections; SessionStore and FeriaAccount own the state.
     function refreshRows() {
         tabRows = deck && deck.sessions ? deck.sessions.browsers() : []
-        bookmarkRows = accountStore ? accountStore.browserBookmarks || [] : []
-        historyRows = accountStore ? accountStore.browserHistory || [] : []
+        rowsGeneration = accountStore ? accountStore.browserGeneration : 0
+        bookmarkTotal = accountStore ? (accountStore.browserBookmarks || []).length : 0
+        historyTotal = accountStore ? (accountStore.browserHistory || []).length : 0
+        bookmarkRows = accountStore ? accountStore.searchBrowserBookmarks(bookmarkQuery) : []
+        historyRows = accountStore ? accountStore.searchBrowserHistory(historyQuery) : []
+        currentBookmarked = !!accountStore && accountStore.isBrowserBookmarked(currentUrl)
         preferences = accountStore ? accountStore.browserPreferences || ({}) : ({})
         savedTabCount = deck ? (typeof deck.restorableCountForProvider === "function"
             ? deck.restorableCountForProvider(providerId) : deck.restorableTabCount) : 0
@@ -53,6 +63,9 @@ Dialog {
     function openSection(nextSection) {
         section = ["tabs", "bookmarks", "history", "settings"].indexOf(nextSection) >= 0 ? nextSection : "tabs"
         statusText = ""
+        bookmarkSearch.text = ""
+        historySearch.text = ""
+        cancelEdit()
         refreshRows()
         open()
     }
@@ -62,16 +75,55 @@ Dialog {
         close()
         deck.newSpace(sourceId, isPrivate, true)
     }
-    function switchTab(id) { close(); deck.sessions.switchTo(id) }
+    function switchTab(id) { close(); deck.activate(id) }
     function closeTab(id) { deck.closeTab(id); refreshRows() }
     function navigate(url) { close(); navigateRequested(String(url)) }
     function setBookmark(url, title, saved) {
-        if (accountStore.setBrowserBookmark(url, title, saved) === false) {
+        if (accountStore.setBrowserBookmark(url, title, saved, rowsGeneration) === false) {
             notify("Couldn't update this bookmark.")
             return
         }
         refreshRows()
         notify(saved ? "Bookmark saved" : "Bookmark removed")
+    }
+    function removeBookmark(url) {
+        var removed = accountStore.removeBrowserBookmark(rowsGeneration, url)
+        if (editingUrl === String(url)) cancelEdit()
+        refreshRows()
+        notify(removed ? "Bookmark removed" : "Couldn't remove this bookmark.")
+    }
+    function beginEdit(row) {
+        editError = ""
+        editTitle.text = String(row.title || "")
+        editAddress.text = String(row.url)
+        editingUrl = String(row.url)
+        editTitle.forceActiveFocus()
+    }
+    function cancelEdit() { editingUrl = ""; editError = "" }
+    function saveEdit() {
+        var result = accountStore.editBrowserBookmark(rowsGeneration, editingUrl, editAddress.text, editTitle.text)
+        if (!result.ok) {
+            editError = ({
+                "invalid-url": "Enter a web address, like example.com.",
+                "duplicate": "Another bookmark already uses this address.",
+                "not-found": "This bookmark is no longer saved.",
+                "stale-account": "The account changed. Open Bookmarks again."
+            })[result.reason] || "Couldn't save this bookmark."
+            return
+        }
+        cancelEdit()
+        refreshRows()
+        notify("Bookmark updated")
+    }
+    function removeHistory(url) {
+        var removed = accountStore.removeBrowserHistoryEntry(rowsGeneration, url)
+        refreshRows()
+        notify(removed ? "Removed from history" : "Couldn't remove this page.")
+    }
+    function clearHistory() {
+        var cleared = accountStore.clearBrowserHistory(rowsGeneration)
+        refreshRows()
+        notify(cleared === false ? "Couldn't clear history." : "Browsing history cleared")
     }
     function setPreference(key, value) {
         if (accountStore.setBrowserPreference(key, value) === false)
@@ -79,7 +131,12 @@ Dialog {
         refreshRows()
     }
     onOpened: tabsSection.forceActiveFocus()
-    onCurrentUrlChanged: if (visible) close()
+    onCurrentUrlChanged: {
+        if (visible) close()
+        currentBookmarked = !!accountStore && accountStore.isBrowserBookmarked(currentUrl)
+    }
+    onSectionChanged: cancelEdit()
+    onClosed: cancelEdit()
     onProviderIdChanged: if (visible) close()
     onAccountStoreChanged: if (visible) close()
     Connections {
@@ -130,6 +187,27 @@ Dialog {
         font.family: theme.ui
         font.pixelSize: 12
         elide: Text.ElideRight
+    }
+    component HubField: TextField {
+        id: hubField
+        implicitHeight: 36
+        leftPadding: 12
+        rightPadding: 12
+        topPadding: 0
+        bottomPadding: 0
+        verticalAlignment: TextInput.AlignVCenter
+        color: theme.ink
+        placeholderTextColor: theme.inkDimmer
+        font.family: theme.ui
+        font.pixelSize: 13
+        selectByMouse: true
+        Accessible.name: placeholderText
+        background: Rectangle {
+            radius: 10
+            color: Qt.rgba(0.015, 0.018, 0.03, 0.68)
+            border.width: hubField.activeFocus ? 2 : 1
+            border.color: hubField.activeFocus ? theme.gold : theme.edge
+        }
     }
     contentItem: ColumnLayout {
         Accessible.name: "Browser tools"
@@ -266,15 +344,65 @@ Dialog {
             }
             ColumnLayout {
                 spacing: 10
-                HubButton {
-                    objectName: "feriaBrowserBookmarkCurrent"
-                    text: root.currentBookmarked ? "Remove current bookmark" : "Bookmark current page"
-                    enabled: /^https?:\/\//i.test(root.currentUrl)
-                    onClicked: root.setBookmark(root.currentUrl, root.currentTitle || root.currentUrl, !root.currentBookmarked)
+                RowLayout {
+                    Layout.fillWidth: true
+                    spacing: 8
+                    visible: !root.editingUrl.length
+                    HubField {
+                        id: bookmarkSearch
+                        objectName: "feriaBrowserBookmarkSearch"
+                        Layout.fillWidth: true
+                        placeholderText: "Search bookmarks"
+                        onTextChanged: { root.bookmarkQuery = text; root.refreshRows() }
+                    }
+                    HubButton {
+                        objectName: "feriaBrowserBookmarkCurrent"
+                        text: root.currentBookmarked ? "Remove current bookmark" : "Bookmark current page"
+                        enabled: /^https?:\/\//i.test(root.currentUrl)
+                        onClicked: root.setBookmark(root.currentUrl, root.currentTitle || root.currentUrl, !root.currentBookmarked)
+                    }
+                }
+                ColumnLayout {
+                    objectName: "feriaBrowserBookmarkEditor"
+                    Layout.fillWidth: true; Layout.fillHeight: true
+                    visible: root.editingUrl.length > 0
+                    spacing: 10
+                    HubLabel { text: "Edit bookmark"; color: theme.ink; font.pixelSize: 13 }
+                    HubField {
+                        id: editTitle
+                        objectName: "feriaBrowserBookmarkEditTitle"
+                        Layout.fillWidth: true
+                        placeholderText: "Name"
+                        maximumLength: 300
+                        onAccepted: root.saveEdit()
+                    }
+                    HubField {
+                        id: editAddress
+                        objectName: "feriaBrowserBookmarkEditAddress"
+                        Layout.fillWidth: true
+                        placeholderText: "Web address"
+                        inputMethodHints: Qt.ImhUrlCharactersOnly
+                        onAccepted: root.saveEdit()
+                    }
+                    HubLabel {
+                        objectName: "feriaBrowserBookmarkEditError"
+                        Layout.fillWidth: true
+                        visible: root.editError.length > 0
+                        text: root.editError
+                        color: theme.gold
+                        Accessible.name: text
+                    }
+                    RowLayout {
+                        spacing: 8
+                        HubButton { objectName: "feriaBrowserBookmarkEditSave"; text: "Save"; variant: "primary"; onClicked: root.saveEdit() }
+                        HubButton { objectName: "feriaBrowserBookmarkEditCancel"; text: "Cancel"; variant: "link"; onClicked: root.cancelEdit() }
+                    }
+                    Item { Layout.fillHeight: true }
                 }
                 ListView {
                     objectName: "feriaBrowserBookmarksList"
                     Layout.fillWidth: true; Layout.fillHeight: true
+                    visible: !root.editingUrl.length
                     clip: true
                     spacing: 4
                     model: root.bookmarkRows
@@ -297,25 +425,47 @@ Dialog {
                             HubLabel { Layout.fillWidth: true; text: modelData.url }
                         }
                         HubButton {
+                            objectName: "feriaBrowserBookmarkEdit_" + index
+                            text: "Edit"
+                            variant: "link"
+                            onClicked: root.beginEdit(modelData)
+                            Accessible.name: "Edit bookmark " + (modelData.title || modelData.url)
+                        }
+                        HubButton {
                             objectName: "feriaBrowserBookmarkRemove_" + index
                             text: "Remove"
                             variant: "link"
-                            onClicked: root.setBookmark(modelData.url, modelData.title || modelData.url, false)
+                            onClicked: root.removeBookmark(modelData.url)
                             Accessible.name: "Remove bookmark " + (modelData.title || modelData.url)
                         }
                     }
-                    HubLabel { anchors.centerIn: parent; visible: !root.bookmarkRows.length; text: "Save a page to find it here later." }
+                    HubLabel {
+                        objectName: "feriaBrowserBookmarksEmpty"
+                        anchors.centerIn: parent
+                        width: Math.min(implicitWidth, parent.width - 24)
+                        visible: !root.bookmarkRows.length
+                        text: root.bookmarkTotal ? "No bookmarks match \u201c" + root.bookmarkQuery.trim() + "\u201d."
+                                                 : "Save a page to find it here later."
+                    }
                 }
             }
             ColumnLayout {
                 spacing: 10
                 RowLayout {
-                    HubLabel { Layout.fillWidth: true; text: "Visited pages" }
+                    Layout.fillWidth: true
+                    spacing: 8
+                    HubField {
+                        id: historySearch
+                        objectName: "feriaBrowserHistorySearch"
+                        Layout.fillWidth: true
+                        placeholderText: "Search visited pages"
+                        onTextChanged: { root.historyQuery = text; root.refreshRows() }
+                    }
                     HubButton {
                         objectName: "feriaBrowserClearHistory"
                         text: "Clear history"
-                        enabled: root.historyRows.length > 0
-                        onClicked: { root.accountStore.clearBrowserHistory(); root.refreshRows(); root.notify("Browsing history cleared") }
+                        enabled: root.historyTotal > 0
+                        onClicked: root.clearHistory()
                     }
                 }
                 ListView {
@@ -325,22 +475,39 @@ Dialog {
                     spacing: 4
                     model: root.historyRows
                     ScrollBar.vertical: ScrollBar {}
-                    delegate: ColumnLayout {
+                    delegate: RowLayout {
                         required property var modelData
                         required property int index
                         width: ListView.view.width - 14
                         height: 58
-                        spacing: 0
-                        HubButton {
-                            objectName: "feriaBrowserHistory_" + index
+                        ColumnLayout {
                             Layout.fillWidth: true
-                            text: modelData.title || modelData.url
-                            variant: "link"
-                            onClicked: root.navigate(modelData.url)
+                            spacing: 0
+                            HubButton {
+                                objectName: "feriaBrowserHistory_" + index
+                                Layout.fillWidth: true
+                                text: modelData.title || modelData.url
+                                variant: "link"
+                                onClicked: root.navigate(modelData.url)
+                            }
+                            HubLabel { Layout.fillWidth: true; text: modelData.url }
                         }
-                        HubLabel { Layout.fillWidth: true; text: modelData.url }
+                        HubButton {
+                            objectName: "feriaBrowserHistoryRemove_" + index
+                            text: "Remove"
+                            variant: "link"
+                            onClicked: root.removeHistory(modelData.url)
+                            Accessible.name: "Remove from history " + (modelData.title || modelData.url)
+                        }
                     }
-                    HubLabel { anchors.centerIn: parent; visible: !root.historyRows.length; text: "Pages visited in regular tabs appear here." }
+                    HubLabel {
+                        objectName: "feriaBrowserHistoryEmpty"
+                        anchors.centerIn: parent
+                        width: Math.min(implicitWidth, parent.width - 24)
+                        visible: !root.historyRows.length
+                        text: root.historyTotal ? "No visited pages match \u201c" + root.historyQuery.trim() + "\u201d."
+                                                : "Pages visited in regular tabs appear here."
+                    }
                 }
             }
             ColumnLayout {

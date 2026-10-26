@@ -312,6 +312,8 @@ private slots:
         ExtensionsStore store(nullptr);
         const QVariantMap nyaa = findById(store.installed(), QStringLiteral("colosseum.well.nyaa"));
         QVERIFY2(!nyaa.isEmpty(), "colosseum.well.nyaa missing from the house seed");
+        QCOMPARE(nyaa.value(QStringLiteral("transportUrl")).toString(),
+                 QStringLiteral("colosseum://well/nyaa"));
         QVERIFY2(isRemovableWell(nyaa), "colosseum.well.nyaa is not classified as a removable well");
         QVERIFY2(!nyaa.value(QStringLiteral("enabled")).toBool(),
                  "colosseum.well.nyaa seeded ENABLED on a fresh install -- nyaa must ship dark");
@@ -368,7 +370,7 @@ private slots:
         const QVariantMap tankoyomi = findById(after, QStringLiteral("colosseum.well.tankoyomi"));
         QVERIFY(!tankoyomi.isEmpty());
         QCOMPARE(tankoyomi.value(QStringLiteral("transportUrl")).toString(),
-                 QStringLiteral("colosseum://well/tankoyomi"));
+                 QStringLiteral("https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json"));
         QCOMPARE(tankoyomi.value(QStringLiteral("manifest")).toMap()
                      .value(QStringLiteral("name")).toString(),
                  QStringLiteral("Tankoyomi"));
@@ -431,7 +433,274 @@ private slots:
         QFile verify(path);
         QVERIFY(verify.open(QIODevice::ReadOnly));
         QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
-                     .value(QStringLiteral("defaultsVersion")).toInt(), 14);
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 19);
+    }
+
+    void generation_14_worker_migration_preserves_tankoyomi_user_state()
+    {
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        int tankoyomiIndex = -1;
+        QJsonArray rows;
+        {
+            ExtensionsStore seeded(nullptr);
+            const QVariantList before = seeded.installed();
+            for (int i = 0; i < before.size(); ++i) {
+                if (before.at(i).toMap().value(QStringLiteral("id")).toString()
+                    == QStringLiteral("colosseum.well.tankoyomi")) {
+                    tankoyomiIndex = i;
+                    break;
+                }
+            }
+        }
+        QVERIFY(tankoyomiIndex >= 0);
+
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
+        in.close();
+        rows = root.value(QStringLiteral("extensions")).toArray();
+        QVERIFY(tankoyomiIndex < rows.size());
+        QJsonObject tankoyomi = rows.at(tankoyomiIndex).toObject();
+        tankoyomi.insert(QStringLiteral("transportUrl"), QStringLiteral("colosseum://well/tankoyomi"));
+        tankoyomi.insert(QStringLiteral("enabled"), true);
+        tankoyomi.insert(QStringLiteral("installedAt"), qint64(1700000001));
+        rows.replace(tankoyomiIndex, tankoyomi);
+
+        // Put the row at a distinctive rank and add a user-installed external addon.
+        // Generation 14 profiles stored order as the array's relative ask order.
+        if (tankoyomiIndex != 1) {
+            rows.removeAt(tankoyomiIndex);
+            rows.insert(1, tankoyomi);
+            tankoyomiIndex = 1;
+        }
+        const QString customUrl = QStringLiteral("https://custom.example/addon/manifest.json");
+        const QVariantMap custom = theatreFixture(customUrl, QStringLiteral("fixture.custom.external"));
+        rows.append(QJsonObject::fromVariantMap(custom));
+
+        QStringList expectedOrder;
+        for (const QJsonValue &value : rows)
+            expectedOrder.append(value.toObject().value(QStringLiteral("id")).toString());
+        root.insert(QStringLiteral("defaultsVersion"), 14);
+        root.insert(QStringLiteral("extensions"), rows);
+        QDir().mkpath(QFileInfo(path).absolutePath());
+        QFile out(path);
+        QVERIFY(out.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        out.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        out.close();
+
+        ExtensionsStore migrated(nullptr);
+        const QVariantList after = migrated.installed();
+        QStringList actualOrder;
+        for (const QVariant &value : after)
+            actualOrder.append(value.toMap().value(QStringLiteral("id")).toString());
+        QCOMPARE(actualOrder, expectedOrder);
+
+        const QVariantMap migratedTankoyomi = after.at(tankoyomiIndex).toMap();
+        QCOMPARE(migratedTankoyomi.value(QStringLiteral("id")).toString(),
+                 QStringLiteral("colosseum.well.tankoyomi"));
+        QCOMPARE(migratedTankoyomi.value(QStringLiteral("transportUrl")).toString(),
+                 QStringLiteral("https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json"));
+        QCOMPARE(migratedTankoyomi.value(QStringLiteral("enabled")).toBool(), true);
+        QCOMPARE(migratedTankoyomi.value(QStringLiteral("installedAt")).toLongLong(), qint64(1700000001));
+
+        const QVariantMap migratedCustom = findById(after, QStringLiteral("fixture.custom.external"));
+        QVERIFY(!migratedCustom.isEmpty());
+        QCOMPARE(migratedCustom.value(QStringLiteral("transportUrl")).toString(), customUrl);
+        QCOMPARE(migratedCustom.value(QStringLiteral("enabled")).toBool(), true);
+        QCOMPARE(migratedCustom.value(QStringLiteral("installedAt")).toLongLong(), qint64(1));
+
+        QFile verify(path);
+        QVERIFY(verify.open(QIODevice::ReadOnly));
+        QCOMPARE(QJsonDocument::fromJson(verify.readAll()).object()
+                     .value(QStringLiteral("defaultsVersion")).toInt(), 19);
+    }
+
+    void generation_14_custom_tankoyomi_url_is_not_overwritten()
+    {
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        int tankoyomiIndex = -1;
+        {
+            ExtensionsStore seeded(nullptr);
+            const QVariantList before = seeded.installed();
+            for (int i = 0; i < before.size(); ++i) {
+                if (before.at(i).toMap().value(QStringLiteral("id")).toString()
+                    == QStringLiteral("colosseum.well.tankoyomi")) {
+                    tankoyomiIndex = i;
+                    break;
+                }
+            }
+        }
+        QVERIFY(tankoyomiIndex >= 0);
+
+        QFile in(path);
+        QVERIFY(in.open(QIODevice::ReadOnly));
+        QJsonObject root = QJsonDocument::fromJson(in.readAll()).object();
+        in.close();
+        QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
+        QVERIFY(tankoyomiIndex < rows.size());
+        QJsonObject tankoyomi = rows.at(tankoyomiIndex).toObject();
+        const QString customUrl = QStringLiteral("https://reader.example/my-tankoyomi/manifest.json");
+        tankoyomi.insert(QStringLiteral("transportUrl"), customUrl);
+        tankoyomi.insert(QStringLiteral("enabled"), false);
+        tankoyomi.insert(QStringLiteral("installedAt"), qint64(1700000002));
+        rows.replace(tankoyomiIndex, tankoyomi);
+        root.insert(QStringLiteral("defaultsVersion"), 14);
+        root.insert(QStringLiteral("extensions"), rows);
+        QFile out(path);
+        QVERIFY(out.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        out.write(QJsonDocument(root).toJson(QJsonDocument::Indented));
+        out.close();
+
+        ExtensionsStore migrated(nullptr);
+        const QVariantMap after = findById(migrated.installed(), QStringLiteral("colosseum.well.tankoyomi"));
+        QVERIFY(!after.isEmpty());
+        QCOMPARE(after.value(QStringLiteral("transportUrl")).toString(), customUrl);
+        QCOMPARE(after.value(QStringLiteral("enabled")).toBool(), false);
+        QCOMPARE(after.value(QStringLiteral("installedAt")).toLongLong(), qint64(1700000002));
+        QCOMPARE(migrated.installed().at(tankoyomiIndex).toMap()
+                     .value(QStringLiteral("id")).toString(),
+                 QStringLiteral("colosseum.well.tankoyomi"));
+    }
+
+    void generation_15_tankorent_worker_migration_data()
+    {
+        QTest::addColumn<QString>("oldUrl");
+        QTest::addColumn<bool>("enabled");
+        for (bool enabled : {false, true}) {
+            QTest::newRow(enabled ? "builtin-enabled" : "builtin-disabled")
+                << QStringLiteral("colosseum://well/indexers") << enabled;
+            QTest::newRow(enabled ? "custom-enabled" : "custom-disabled")
+                << QStringLiteral("https://custom.example/tankorent/manifest.json") << enabled;
+        }
+    }
+
+    void generation_15_tankorent_worker_migration()
+    {
+        QFETCH(QString, oldUrl);
+        QFETCH(bool, enabled);
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        { ExtensionsStore seeded(nullptr); }
+        QFile input(path);
+        QVERIFY(input.open(QIODevice::ReadOnly));
+        QJsonObject root = QJsonDocument::fromJson(input.readAll()).object();
+        input.close();
+        QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
+        int at = -1;
+        for (int i = 0; i < rows.size(); ++i)
+            if (rows.at(i).toObject().value(QStringLiteral("id")) == QLatin1String("colosseum.well.indexers")) at = i;
+        QVERIFY(at >= 0);
+        QJsonObject row = rows.at(at).toObject();
+        row.insert(QStringLiteral("transportUrl"), oldUrl);
+        row.insert(QStringLiteral("enabled"), enabled);
+        row.insert(QStringLiteral("installedAt"), qint64(1700000016));
+        rows.removeAt(at);
+        rows.insert(1, row);
+        root.insert(QStringLiteral("extensions"), rows);
+        root.insert(QStringLiteral("defaultsVersion"), 15);
+        QFile output(path);
+        QVERIFY(output.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        output.write(QJsonDocument(root).toJson());
+        output.close();
+
+        ExtensionsStore migrated(nullptr);
+        const auto after = migrated.installed();
+        QCOMPARE(after.size(), rows.size());
+        for (int i = 0; i < rows.size(); ++i)
+            QCOMPARE(after.at(i).toMap().value(QStringLiteral("id")).toString(),
+                     rows.at(i).toObject().value(QStringLiteral("id")).toString());
+        const auto actual = after.at(1).toMap();
+        QCOMPARE(actual.value(QStringLiteral("transportUrl")).toString(),
+                 oldUrl.startsWith(QLatin1String("colosseum:"))
+                     ? QStringLiteral("https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json")
+                     : oldUrl);
+        QCOMPARE(actual.value(QStringLiteral("enabled")).toBool(), enabled);
+        QCOMPARE(actual.value(QStringLiteral("installedAt")).toLongLong(), qint64(1700000016));
+    }
+
+    void generation_16_17_18_nyaa_native_migration_data()
+    {
+        QTest::addColumn<int>("generation");
+        QTest::addColumn<QString>("oldUrl");
+        QTest::addColumn<bool>("enabled");
+        for (int generation : {16, 17, 18}) {
+            for (bool enabled : {false, true}) {
+                const QString suffix = enabled ? QStringLiteral("enabled") : QStringLiteral("disabled");
+                const QByteArray generationName = QByteArray("g") + QByteArray::number(generation);
+                const QByteArray nativeRow = QByteArray(generationName) + "-builtin-native-" + suffix.toLatin1();
+                const QByteArray workerRow = QByteArray(generationName) + "-builtin-worker-" + suffix.toLatin1();
+                const QByteArray renderRow = QByteArray(generationName) + "-builtin-render-" + suffix.toLatin1();
+                const QByteArray customRow = QByteArray(generationName) + "-custom-" + suffix.toLatin1();
+                QTest::newRow(nativeRow.constData())
+                    << generation << QStringLiteral("colosseum://well/nyaa") << enabled;
+                QTest::newRow(workerRow.constData())
+                    << generation
+                    << QStringLiteral("https://colosseum-nyaa.colosseum-watchparty-relay.workers.dev/manifest.json")
+                    << enabled;
+                QTest::newRow(renderRow.constData())
+                    << generation
+                    << QStringLiteral("https://colosseum-nyaa-metadata.onrender.com/manifest.json")
+                    << enabled;
+                QTest::newRow(customRow.constData())
+                    << generation << QStringLiteral("https://custom.example/nyaa/manifest.json") << enabled;
+            }
+        }
+    }
+
+    void generation_16_17_18_nyaa_native_migration()
+    {
+        QFETCH(int, generation);
+        QFETCH(QString, oldUrl);
+        QFETCH(bool, enabled);
+        const QString path = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)
+            + QStringLiteral("/extensions/installed.json");
+        { ExtensionsStore seeded(nullptr); }
+        QFile input(path);
+        QVERIFY(input.open(QIODevice::ReadOnly));
+        QJsonObject root = QJsonDocument::fromJson(input.readAll()).object();
+        input.close();
+        QJsonArray rows = root.value(QStringLiteral("extensions")).toArray();
+        int at = -1;
+        for (int i = 0; i < rows.size(); ++i)
+            if (rows.at(i).toObject().value(QStringLiteral("id")) == QLatin1String("colosseum.well.nyaa")) at = i;
+        QVERIFY(at >= 0);
+        QJsonObject row = rows.at(at).toObject();
+        row.insert(QStringLiteral("transportUrl"), oldUrl);
+        row.insert(QStringLiteral("enabled"), enabled);
+        row.insert(QStringLiteral("installedAt"), qint64(1700000017));
+        rows.removeAt(at);
+        rows.insert(1, row);
+        root.insert(QStringLiteral("extensions"), rows);
+        root.insert(QStringLiteral("defaultsVersion"), generation);
+        QFile output(path);
+        QVERIFY(output.open(QIODevice::WriteOnly | QIODevice::Truncate));
+        output.write(QJsonDocument(root).toJson());
+        output.close();
+
+        ExtensionsStore migrated(nullptr);
+        const auto after = migrated.installed();
+        QCOMPARE(after.size(), rows.size());
+        for (int i = 0; i < rows.size(); ++i)
+            QCOMPARE(after.at(i).toMap().value(QStringLiteral("id")).toString(),
+                     rows.at(i).toObject().value(QStringLiteral("id")).toString());
+        const auto actual = after.at(1).toMap();
+        QCOMPARE(actual.value(QStringLiteral("transportUrl")).toString(),
+                 oldUrl == QLatin1String("https://colosseum-nyaa-metadata.onrender.com/manifest.json")
+                         || oldUrl == QLatin1String("https://colosseum-nyaa.colosseum-watchparty-relay.workers.dev/manifest.json")
+                     ? QStringLiteral("colosseum://well/nyaa")
+                     : oldUrl);
+        QCOMPARE(actual.value(QStringLiteral("enabled")).toBool(), enabled);
+        QCOMPARE(actual.value(QStringLiteral("installedAt")).toLongLong(), qint64(1700000017));
+        QCOMPARE(actual.value(QStringLiteral("id")).toString(), QStringLiteral("colosseum.well.nyaa"));
+        QCOMPARE(actual.value(QStringLiteral("manifest")).toMap().value(QStringLiteral("id")).toString(),
+                 QStringLiteral("colosseum.well.nyaa"));
+
+        QFile migratedIndex(path);
+        QVERIFY(migratedIndex.open(QIODevice::ReadOnly));
+        const QJsonObject migratedRoot = QJsonDocument::fromJson(migratedIndex.readAll()).object();
+        QCOMPARE(migratedRoot.value(QStringLiteral("defaultsVersion")).toInt(), 19);
     }
 
     void configured_manifest_urls_keep_query_before_manifest_suffix()

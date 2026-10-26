@@ -1,0 +1,86 @@
+[
+  {
+    "target": "/hlsv2/missing/master.m3u8",
+    "status": 500,
+    "body": {
+      "error": {
+        "code": 1,
+        "message": "Failed to create hls converter: Invalid media url"
+      }
+    }
+  },
+  {
+    "target": "/hlsv2/dead/destroy?mediaURL=fixture%3Atest",
+    "status": 200,
+    "body": null
+  },
+  {
+    "target": "/hlsv2/dead/master.m3u8",
+    "status": 500,
+    "body": {
+      "error": {
+        "code": 10,
+        "message": "Failed to read hls playlist: MasterConverter is destroyed"
+      }
+    }
+  },
+  {
+    "target": "/hlsv2/dead/video0/init.mp4",
+    "status": 500,
+    "body": {
+      "error": {
+        "code": 20,
+        "message": "Failed to read init segment: MasterConverter is destroyed"
+      }
+    }
+  },
+  {
+    "target": "/hlsv2/dead/video0/segment1.m4s",
+    "status": 500,
+    "body": {
+      "error": {
+        "code": 30,
+        "message": "Failed to read media segment: MasterConverter is destroyed"
+      }
+    }
+  },
+  {
+    "target": "/hlsv2/dead/burn",
+    "status": 500,
+    "body": {
+      "error": {
+        "code": 40,
+        "message": "Failed to burn subtitles: MasterConverter is destroyed"
+      }
+    }
+  },
+  {
+    "target": "/hlsv2/status",
+    "status": 500,
+    "body": {
+      "error": {
+        "code": 200,
+        "message": "Failed to get status: MasterConverter is destroyed"
+      }
+    }
+  },
+  {
+    "target": "/hlsv2/probe?mediaURL=fixture%3Afail",
+    "status": 500,
+    "body": {
+      "error": {
+        "message": "Failed to probe media: Probe process exited with code: 7"
+      }
+    }
+  },
+  {
+    "target": "/hlsv2/invalid/master.m3u8?mediaURL=fixture%3Atest&maxAudioChannels=0",
+    "status": 500,
+    "body": {
+      "error": {
+        "code": 1,
+        "message": "Failed to create hls converter: Invalid audio channels"
+      }
+    }
+  }
+]

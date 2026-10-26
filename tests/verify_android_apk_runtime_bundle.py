@@ -35,7 +35,7 @@ def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
         if not name.startswith(QML_PREFIX):
             continue
         relative = name[len(QML_PREFIX):]
-        if (re.search(r"(^|/)(feria|player2|player2host)/", relative, re.I)
+        if (re.search(r"(^|/)(feria|vinyl|player2|player2host)/", relative, re.I)
                 or re.search(r"(^|/)Vault[^/]*\.(qml|js)$", relative)
                 or relative in {"reader2/Paper.qml", "TrackerApprovalWebView.qml", "ExtensionsSetupSheet.qml"}):
             failures.append(f"FORBIDDEN_QML_FILE {relative}")
@@ -43,7 +43,7 @@ def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
             text = data.decode("utf-8-sig")
             if re.search(r"^\s*(?:\.import|import)\s+QtWebEngine\b", text, re.M):
                 failures.append(f"FORBIDDEN_WEBENGINE_IMPORT {relative}")
-            if re.search(r'^\s*(?:\.import|import)\s+[^\n]*["/](?:feria|player2|player2host)(?:/|")', text, re.M | re.I):
+            if re.search(r'^\s*(?:\.import|import)\s+[^\n]*["/](?:feria|vinyl|player2|player2host)(?:/|")', text, re.M | re.I):
                 failures.append(f"FORBIDDEN_DESKTOP_IMPORT {relative}")
             for imported in re.findall(r'^\s*(?:\.import|import)\s+["\']([^"\']+)["\']', text, re.M):
                 if ":" in imported:

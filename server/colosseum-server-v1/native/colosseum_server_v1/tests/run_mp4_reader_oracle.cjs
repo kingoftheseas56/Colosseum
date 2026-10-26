@@ -1,0 +1,9 @@
+'use strict';
+const fs=require('fs'),vm=require('vm'),stream=require('stream');
+const {extractModules}=require('../../../tools/server_lab/oracle/module_loader.cjs');
+const e=extractModules(process.argv[2]);if(e.sha256!=='405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f')throw Error('identity');
+const cache={};const context=vm.createContext({require,Buffer,console,process,setTimeout,clearTimeout,setInterval,clearInterval});context.global=context;
+function load(id){if(cache[id])return cache[id].exports;const m={exports:{}};cache[id]=m;vm.runInContext('('+e.modules[id].source+')',context).call(m.exports,m,m.exports,load);return m.exports;}
+function box(type,payload,wide=false){const b=Buffer.alloc(wide?16:8);b.writeUInt32BE(wide?1:b.length+payload.length);b.write(type,4);if(wide)b.writeBigUInt64BE(BigInt(b.length+payload.length),8);return Buffer.concat([b,payload]);}
+(async()=>{const rows=[];for(const wide of [false,true])for(const target of ['moov','mdat'])for(const split of [1,2,3,7,8,9,15,16,31,1024]){const bytes=Buffer.concat([box('ftyp',Buffer.from('isom'),wide),box(target,Buffer.from('payload'),wide),box('free',Buffer.from('tail'),wide)]);const chunks=[];for(let p=0;p<bytes.length;p+=split)chunks.push(bytes.subarray(p,p+split));const input={hex:bytes.toString('hex'),type:target,split};const s=stream.Readable.from(chunks,{objectMode:false});let timer;try{let output=await Promise.race([load(468)(s,target),new Promise((_,reject)=>{timer=setTimeout(()=>reject(Error('reader stalled')),1000);})]);rows.push({kind:'readUntil',input,expected:output.toString('hex')});}catch(e){rows.push({kind:'readUntil',input,error:e.message});}finally{clearTimeout(timer);s.destroy();}}
+fs.writeFileSync(process.argv[3],JSON.stringify(rows,null,2));console.log(JSON.stringify({cases:rows.length,errors:rows.filter(r=>r.error),oracle:e.sha256},null,2));})();

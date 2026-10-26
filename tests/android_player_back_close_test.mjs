@@ -63,6 +63,40 @@ function functionBody(name) {
     return balancedBlock(main, openingBrace);
 }
 
+function requestPlayerEscapeFixture(host, status, item = null) {
+    const calls = [];
+    const movie = { id: 'movie-session-fallback', contentKind: 'movie' };
+    const Sessions = {
+        activeId: movie.id,
+        get: id => id === movie.id ? movie : null,
+    };
+    const playerLayer = { active: true, status, item };
+    const win = {
+        androidHost: host === 'android',
+        minimizePlayer: () => calls.push('minimizePlayer'),
+        closeSession: id => calls.push(['closeSession', id]),
+        // Preserve the same observable close-session result if production routes
+        // through its existing shell helper rather than calling closeSession directly.
+        closePlayerSession: () => calls.push(['closeSession', movie.id]),
+        closePlayer: () => calls.push('closePlayer'),
+    };
+    const requestPlayerEscape = new Function('win', 'Sessions', 'playerLayer',
+        `return (function requestPlayerEscape() ${functionBody('requestPlayerEscape')});`)(
+            win, Sessions, playerLayer);
+    return { calls, movie, playerLayer, win, requestPlayerEscape };
+}
+
+function errorPanelBackHandler() {
+    const marker = 'PlayerLoadFailure {';
+    const at = main.indexOf(marker);
+    assert.ok(at >= 0, 'production PlayerLoadFailure component not found');
+    const openingBrace = main.indexOf('{', at + marker.length - 1);
+    const block = balancedBlock(main, openingBrace);
+    const match = block.match(/onBackRequested:\s*([^\n]+)/);
+    assert.ok(match, 'production PlayerLoadFailure.onBackRequested handler not found');
+    return new Function('win', `return function onBackRequested() { ${match[1]}; };`);
+}
+
 function playerFunctionBody(name) {
     const marker = `function ${name}(`;
     const at = playerPage.indexOf(marker);
@@ -193,6 +227,46 @@ test('desktop and Windows Back still warm-minimize; explicit close and minimize 
         assert.deepEqual(player.calls, ['closePlayerSession'], `${host} explicit close`);
     }
 });
+
+for (const status of ['Loading', 'Error']) {
+    test(`Android ${status} movie Back closes the session when the Loader has no item`, () => {
+        const player = requestPlayerEscapeFixture('android', status);
+        player.requestPlayerEscape();
+        assert.deepEqual(player.calls, [['closeSession', player.movie.id]], `${status} no-item Back`);
+    });
+}
+
+for (const host of ['desktop', 'windows']) {
+    for (const status of ['Loading', 'Error']) {
+        test(`${host} ${status} movie Back still warm-minimizes with no Loader item`, () => {
+            const player = requestPlayerEscapeFixture(host, status);
+            player.requestPlayerEscape();
+            assert.deepEqual(player.calls, ['minimizePlayer'], `${host} ${status} no-item Back`);
+        });
+    }
+}
+
+test('requestPlayerEscape delegates to a loaded player before applying the host fallback', () => {
+    const calls = [];
+    const item = { requestEscape: () => calls.push('loadedPlayer.requestEscape') };
+    const player = requestPlayerEscapeFixture('android', 'Ready', item);
+    player.requestPlayerEscape();
+    assert.deepEqual(calls, ['loadedPlayer.requestEscape']);
+    assert.deepEqual(player.calls, []);
+});
+
+for (const host of ['android', 'desktop']) {
+    test(`PlayerLoadFailure Back uses the ${host} player escape policy`, () => {
+        const handler = errorPanelBackHandler();
+        const player = requestPlayerEscapeFixture(host, 'Error');
+        player.win.requestPlayerEscape = player.requestPlayerEscape;
+        handler(player.win)();
+        const expected = host === 'android'
+            ? [['closeSession', player.movie.id]]
+            : ['minimizePlayer'];
+        assert.deepEqual(player.calls, expected, `${host} PlayerLoadFailure Back`);
+    });
+}
 
 test('the production close helper routes an active movie through closeSession', () => {
     const calls = [];

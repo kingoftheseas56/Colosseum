@@ -1,0 +1,236 @@
+{
+  "schemaVersion": 1,
+  "milestone": "M0F",
+  "verificationDate": "2026-10-20",
+  "status": "accepted local native adoption; main integration and release pending",
+  "baseCommit": "93103589c126ee1e25f20089369ac2823f8f8cf0",
+  "baselineManifest": "docs/reviews/2026-10-20-vinyl-m0r-source-manifest.json",
+  "baselineManifestSha256": "20fce49ba36a08367cf4bcc084208c1e488c13208fedd3a79f3e82f9cb75e054",
+  "hashSemantics": "Raw working-file bytes used for receiving, before Git line-ending normalization. Delta is relative to baseCommit; unchanged backend is pinned by baselineManifest.",
+  "sourceDeltaCount": 36,
+  "sourceDelta": [
+    {
+      "path": "docs/plans/2026-10-20-vinyl-development-roadmap.md",
+      "rawSha256": "49db368f6c251a987fdcc993601b81d3e28499e95c331074d967606b8bed109c"
+    },
+    {
+      "path": "docs/reviews/2026-10-20-vinyl-m0f-receiving.md",
+      "rawSha256": "2d4159b48e9e397c1bc56a11d148f017794b121db0769f3c53415bd350f244ad"
+    },
+    {
+      "path": "native/account/ProfilePreferencesStore.cpp",
+      "rawSha256": "2cd4c1f977cd60c1f6505050c575a3262611462f5d2d8f54377e71c4c9c3f0c8"
+    },
+    {
+      "path": "native/account/ProfilePreferencesStore.h",
+      "rawSha256": "69abe268683e62756efd8c8d8bd57e3f5c3eeab091a156e9c8cd42e6237c21cf"
+    },
+    {
+      "path": "native/CMakeLists.txt",
+      "rawSha256": "0ef3037225524ff6bb0e76b7761e119bc0b359b193089d7150fac6e32d09e487"
+    },
+    {
+      "path": "native/main.cpp",
+      "rawSha256": "a6c14ed499a1ef8877340da183fde67784a39347046e7274c4865839986fe32e"
+    },
+    {
+      "path": "native/player/mpvitem.cpp",
+      "rawSha256": "ad2a6daa4d8f995f736f3df4519904ec0397329b1a33e5f736d18d22dacdf483"
+    },
+    {
+      "path": "native/player/mpvitem.h",
+      "rawSha256": "a55d739ea672827f92cad110ed07e3a72aca098cce0a540a11cb1f291f3928af"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.cpp",
+      "rawSha256": "636e87ce30d0749bf22aeac4b6c734113ec18a384753ef89f11e0919fa283ae6"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/artwork/test_artist_artwork.cpp",
+      "rawSha256": "1a7f251f8a2e448ab6a20e99cd920282aa6d2d613ef3fc426d3698e6bccb3d4e"
+    },
+    {
+      "path": "native/vinyl/backend/ba1-queue-core-prototype/VinylQueue.cpp",
+      "rawSha256": "3cb3b704ccf673468ed61dd6954a89868fa4b502cf1d8490230cfd06818f9e42"
+    },
+    {
+      "path": "native/vinyl/backend/ba1-queue-core-prototype/VinylQueue.h",
+      "rawSha256": "59b45c5606f114ef162c7e19acc6f76d5c0f98c714a2bbf08fc6f0620b993d37"
+    },
+    {
+      "path": "native/vinyl/backend/ba3-session-persistence-prototype/VinylSessionPersistence.cpp",
+      "rawSha256": "8432668c5bdbf32ab5aff16f70fd33603254f6a8e75b4b9ec252fc6ef7fe3a9b"
+    },
+    {
+      "path": "native/vinyl/backend/ba3-session-persistence-prototype/VinylSessionPersistence.h",
+      "rawSha256": "6297ebf82c9c57fcdc7d85ddd25a196c7a74c0d78f74890a7b920d442a5194d5"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/test_vinyl_listen_event_persistence.cpp",
+      "rawSha256": "6fec6be933c0a6278605ff7cf15a86332cc31df15128b810a83fb67b1115aa62"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/VinylListenEventPersistence.cpp",
+      "rawSha256": "2619ae9e733139c0d7f69cca96361faae73c579987e0ee978ec403d905328c0f"
+    },
+    {
+      "path": "native/vinyl/backend/bb5-source-resolution-session-prototype/SourceResolutionSession.cpp",
+      "rawSha256": "5f49a2250fda0660938edc7ced44412e846bd91fd8cc234c214b1e0e15515ff3"
+    },
+    {
+      "path": "native/vinyl/backend/bb5-source-resolution-session-prototype/test_source_resolution_session.cpp",
+      "rawSha256": "83faad054868cd60646f3f9b94c72cc2eb4bdfff5adac202fd55f9e248f40c01"
+    },
+    {
+      "path": "native/vinyl/backend/be-derivation-prototype/RecommendationDerivation.cpp",
+      "rawSha256": "48c8857f84d2835f12e5de6359c6c2f553d1fe2391d3b0ff96a856ade46a1ab8"
+    },
+    {
+      "path": "native/vinyl/backend/be-derivation-prototype/test_recommendation_derivation.cpp",
+      "rawSha256": "33f76006a0a2d464b5a63f8e87a340ac5ae29b2f5901d3d8040c8bf368216891"
+    },
+    {
+      "path": "native/vinyl/VinylBackendSession.cpp",
+      "rawSha256": "429e88b0c8e2efa54dd14cc1ace6dc077a4392854c89d0b5514ff1fd69590c05"
+    },
+    {
+      "path": "native/vinyl/VinylBackendSession.h",
+      "rawSha256": "d15298bbaf28b3eef23a29b13c117029116f9c9daec667f469f78514ff03f83e"
+    },
+    {
+      "path": "qml/vinyl/VinylLiveSession.qml",
+      "rawSha256": "d1f96a60480ca543fc5db97e31534481977d3c9d9ef0ae4d8d0c6a17baf317ff"
+    },
+    {
+      "path": "tests/auto/account/tst_vinyl_feedback_snapshot.cpp",
+      "rawSha256": "47f0fdd9fec6f521568bfddd3ad12a3d88309941098c70aabec18ecd0367f05c"
+    },
+    {
+      "path": "tests/auto/player/tst_mpvitem_native_events.cpp",
+      "rawSha256": "e700ad766f1881bd52e483e949127bc5ec0c6931512333660a7fb0175436641d"
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "rawSha256": "d983588011bac49d08fa984508beccaf50a7f80d8f18ef38eb5094b09b95120b"
+    },
+    {
+      "path": "tests/vinyl-backend/CMakeLists.txt",
+      "rawSha256": "239167ca33b0e9c75d4a2b643d885090670f285cd900eeb192b746d9b6107611"
+    },
+    {
+      "path": "tests/vinyl-backend/test_host_local_identity.cpp",
+      "rawSha256": "f1d8581357bab899dff234995fce46cdffe0c637b1982936739782daa4c34b39"
+    },
+    {
+      "path": "tests/vinyl-backend/verify_inventory.py",
+      "rawSha256": "ccc6a4f8929090024ce0df94918ed3c0aa9fa53d06c46179ad3854ca479d69dc"
+    },
+    {
+      "path": "tests/vinyl-live/ProductionNativeFlow.qml",
+      "rawSha256": "be944d7b5f4ea299e9436dd8c15503a27c727e005f41395c6087a50a36958a93"
+    },
+    {
+      "path": "tests/vinyl-live/run-production-native-flow.ps1",
+      "rawSha256": "c85e22f458726f44ac95f39d83fcc123b823740014f84821bf93e9a1df611899"
+    },
+    {
+      "path": "tests/vinyl-native-facade/CMakeLists.txt",
+      "rawSha256": "4a8a6cffd800cbdcbc2dab46a1902ff19d31cd1940c0c0731e1bd25d05ec603e"
+    },
+    {
+      "path": "tests/vinyl-native-facade/test_facade.cpp",
+      "rawSha256": "3c1fe9ed7313fc63957d5fddc169d483994066cd7a13c74ccf3e37c7425d3748"
+    },
+    {
+      "path": "tests/vinyl-native-session-bridge/CMakeLists.txt",
+      "rawSha256": "63882cc7336582ad10fdc702bfc65155cd21193b6486de3053e089fbe75e9f44"
+    },
+    {
+      "path": "tests/vinyl-native-session-bridge/runner.cpp",
+      "rawSha256": "435d4a6ff82db5a98fb4b7cc9d2dfceb548e886215dca7b15d6c2ef74b858cc0"
+    },
+    {
+      "path": "tests/vinyl-native-session-bridge/tst_native_source_session.qml",
+      "rawSha256": "06eb42097359e3798e15da5e5df60b135cb98f0675ae8b5ac98993bc73898f80"
+    }
+  ],
+  "platform": "Windows x64",
+  "qt": "6.11.1",
+  "configuration": "Release",
+  "qualificationFlag": false,
+  "syntheticFixturesFlag": false,
+  "appSha256": "bb1281801bd4269dae600a7451e07a2ddd37cd0927cc2a43a305ac3b3eb0e5e5",
+  "qmlManifestSha256": "3333eff6eb87b5d57f54e1949c5df4ca782d593bde8da7ce1646a04337fe1cbc",
+  "checks": {
+    "backendCtest": 48,
+    "backendFailed": 0,
+    "inventoryGuards": 6,
+    "appCtest": 3,
+    "appFailed": 0,
+    "nativeSourceQmlBridgePassed": 13,
+    "nativeSourceQmlBridgeFailed": 0,
+    "actualAppPhases": 3,
+    "actualAppExitCodes": [
+      0,
+      0,
+      0
+    ],
+    "listenSeconds": 11,
+    "audioOutput": "wasapi"
+  },
+  "evidenceRoot": "D:\\Colosseum-Vinyl-M0F-20261020",
+  "evidence": [
+    {
+      "path": "backend-ctest.log",
+      "rawSha256": "75e82eb0cb5948933a72725c398851d144e2413950adfc49d91e141a109545be"
+    },
+    {
+      "path": "backend-ctest.xml",
+      "rawSha256": "a99163009f9c3385b40884ff8cae5791189217e77867c6cae1d8d983b8fc32b8"
+    },
+    {
+      "path": "app-ctest-final.log",
+      "rawSha256": "2e021b9fdf413ba98c232a58788f33f5518be3e5afbf581b81dd1bc72983aebf"
+    },
+    {
+      "path": "app-ctest.xml",
+      "rawSha256": "84d67013db3c653392f6c754b0b6e5d31e820b2a3e5363949c3695dc30fe31b8"
+    },
+    {
+      "path": "bridge-tests-final.txt",
+      "rawSha256": "70a845b5242016a95d1543e7b7b6198276947d39a4cb3597e568c86911717a86"
+    },
+    {
+      "path": "pause-notify-red.txt",
+      "rawSha256": "fe2edc50e1c18dae23f89074b3c9c1eab26f5e65f55cf8a68a307b00417c93af"
+    },
+    {
+      "path": "pause-notify-green-build.log",
+      "rawSha256": "bb298b41a32f22293803b3deed4e677df247efd4ecff63b1f962f7b11b72cf2f"
+    },
+    {
+      "path": "bounded-coherent-build.log",
+      "rawSha256": "39033d8966116bc7982c03db29bb935e667f6a7bbdcb782a76c1a57afbe77cf1"
+    },
+    {
+      "path": "pause-notify-app-link.log",
+      "rawSha256": "7bfeb1c8fd5d981fca0734da0fde88523d0bd5611b421b23ad9b99866c00119a"
+    },
+    {
+      "path": "vinyl-m0f-7ef4193825e9439182409e76f5cf5e8e/result.json",
+      "rawSha256": "1c2b8f0fdb45ebe0759ec28caf2f5a55faaa5053f433b8ce8487c389a574b8dd"
+    },
+    {
+      "path": "vinyl-m0f-7ef4193825e9439182409e76f5cf5e8e/record.stderr.log",
+      "rawSha256": "4f9b87f6131299593fe99d458d07debd038ddcadb0e7f7d6fe90e47751a83b98"
+    },
+    {
+      "path": "vinyl-m0f-7ef4193825e9439182409e76f5cf5e8e/restore.stderr.log",
+      "rawSha256": "4a79eec88f0ce52e42769f36c313da8a7fcae4771a760206bdc7ac75d9f1fb85"
+    },
+    {
+      "path": "vinyl-m0f-7ef4193825e9439182409e76f5cf5e8e/empty.stderr.log",
+      "rawSha256": "5f68fad723fd93544573498000a676b8f52f80e15dae4b87a5581ebd78d632cb"
+    }
+  ]
+}

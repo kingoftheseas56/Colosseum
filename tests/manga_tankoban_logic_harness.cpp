@@ -52,6 +52,7 @@ QByteArray rssItem(const char* title, const char* uploader, const char* infoHash
                       "<channel><item><title>")
         + title
         + "</title>"
+          "<link>https://nyaa.si/download/1000008.torrent</link>"
           "<nyaa:seeders>60</nyaa:seeders><nyaa:leechers>2</nyaa:leechers>"
           "<nyaa:infoHash>"
         + infoHash
@@ -343,13 +344,15 @@ int main()
             "<?xml version=\"1.0\" encoding=\"UTF-8\"?>"
             "<rss version=\"2.0\" xmlns:nyaa=\"https://nyaa.si/xmlns/nyaa\">"
             "<channel><item><title>GB Vol 2</title>"
-            "<link>https://nyaa.si/download/abc.torrent</link>"
+            "<link>https://nyaa.si/download/1000008.torrent</link>"
+            "<nyaa:seeders>60</nyaa:seeders><nyaa:leechers>2</nyaa:leechers>"
             "<nyaa:infoHash>a1b2c3d4e5f60718293a4b5c6d7e8f9012345678</nyaa:infoHash>"
+            "<nyaa:uploader>1r0n</nyaa:uploader>"
             "</item></channel></rss>");
         const QList<MangaNyaaCandidate> parsed = MangaNyaaSource::parseRss(rss);
         require(parsed.size() == 1, "inline link item parses");
         require(parsed.front().torrentUrl
-                    == QStringLiteral("https://nyaa.si/download/abc.torrent"),
+                    == QStringLiteral("https://nyaa.si/download/1000008.torrent"),
                 "Nyaa RSS link retained as the .torrent metainfo URL");
     }
 

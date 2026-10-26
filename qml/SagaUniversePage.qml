@@ -17,6 +17,9 @@ Item {
 
     // shell contract (bookRequested is this template's own verb)
     property Item backdrop: null
+    property var contentStore: typeof Content !== "undefined" ? Content : null
+    readonly property string fallbackWallpaperSource: root.contentStore
+        ? (root.contentStore.generation, root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg")) : ""
     property string universeName: ""
     signal backRequested()
     signal minimizeRequested()
@@ -401,7 +404,8 @@ Item {
             visible: root.backdrop !== null
         }
         Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/cold-ripple.jpg"
+                objectName: "fallbackWallpaperImage"
+                source: root.fallbackWallpaperSource
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Image {
             id: worldWallpaper

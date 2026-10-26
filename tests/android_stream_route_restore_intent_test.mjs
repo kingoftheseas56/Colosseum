@@ -31,6 +31,10 @@ const playLocalBody = extract(/function playLocalFile\(target\) \{([\s\S]*?)\n  
 const playRemoteBody = extract(/function playRemoteUrl\(target\) \{([\s\S]*?)\n    \}\n/, "playRemoteUrl");
 const minimizeBody = extract(/function handleWindowMinimize\(\) \{([\s\S]*?)\n    \}\n/, "handleWindowMinimize");
 const resumeMinimizeBody = extract(/function resumeFromMinimize\(\) \{([\s\S]*?)\n    \}\n/, "resumeFromMinimize");
+const replayBody = extract(/function replayEndedPlayback\(\) \{([\s\S]*?)\n    \}\n/, "replayEndedPlayback");
+const audioRequestBody = extract(/function requestAudioPlayback\(\) \{([\s\S]*?)\n    \}\n/, "requestAudioPlayback");
+const replay = new Function("root", "Qt", "WatchPartySync", replayBody);
+const requestAudio = new Function("root", audioRequestBody);
 
 const restore = new Function("root", "mpv", "streamWatchdog", "Stream", "PlatformRuntime", "console", restoreBody);
 const onReady = new Function("root", "mpv", "Stream", "streamWatchdog", "url", "infoHash", "fileIdx", readyBody);
@@ -67,6 +71,9 @@ function makePlayback(positionSec, manuallyPaused) {
         currentPlaybackUrl: "http://127.0.0.1:11450/stream/old",
         starting: false,
         errored: false,
+        playbackEnded: false,
+        audioHandoffPaused: false,
+        playbackRequested() {},
         streamRouteRetired: () => true,
         selectedSubtitleRow: () => sidecar,
         addedOnlineUrls: {},
@@ -81,6 +88,8 @@ function makePlayback(positionSec, manuallyPaused) {
     if (clearRestore)
         root.clearStreamRouteRestore = () => clearRestore(root);
     root.resetRecoveryResume = () => resetRecoveryResume(root);
+    root.replayEndedPlayback = () => replay(root, { platform: { os: 'android' } }, undefined);
+    root.requestAudioPlayback = () => requestAudio(root);
     root.resetRecoveryWatch = () => resetRecoveryWatch(root);
     root.captureSelectedSidecarSubtitle = () => captureSelectedSubtitle(root, mpv);
     root.restoreSelectedSidecarSubtitle = subtitle => restoreSelectedSubtitle(root, mpv, quiet, subtitle);
@@ -239,7 +248,9 @@ if (clearBody) {
 // remains pause-then-resume, and never undoes a manual pause.
 {
     const root = { starting: false, errored: false, windowMinimized: true, pipMode: false,
+                   playbackEnded: false, audioHandoffPaused: false,
                    fileReady: true, autoPausedInactive: false, wakeChrome() {}, healAudio() {} };
+    root.replayEndedPlayback = () => replay(root, { platform: { os: 'windows' } }, undefined);
     const mpv = { pause: false };
     const minimize = new Function("root", "mpv", minimizeBody);
     const resume = new Function("root", "mpv", resumeMinimizeBody);

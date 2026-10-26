@@ -52,8 +52,12 @@ function fixture(saved = initialTabs, automatic = false) {
     const queued = [];
     const context = {
         accountStore, sessions, ready: true, quiescing: false, restoredProfile: false,
+        consentSurface: null, consentPresentation: null,
         entries: {}, activeEntry: null, closedTabs: [], policy: { storageRoot: "profile-a" },
         message() {},
+        // The deck is the native runtime's engine adapter; restore logic only
+        // needs it to attach and to refuse commands for these engine-less rows.
+        runtime: { attach() { return true; }, command() { return { accepted: false }; } },
         snapshotTimer: { stop() {}, restart() { context.persistTabs(); } },
         Qt: { callLater(callback) { queued.push(callback); } }
     };
@@ -127,3 +131,18 @@ captureFailure.accountStore.captureBrowserRestoreOffers = () => true;
 captureFailure.context.persistTabs();
 assert.equal(snapshotWritten, true, 'A successful capture retry must release current snapshot saving');
 console.log("PASS Feria manual-only previous-session restore, successful commit, profile isolation and retry/dismissal");
+
+// The merged deck must neither attach before readiness nor continue after refusal.
+const delayedInit = fixture();
+let attachments = 0;
+delayedInit.context.runtime.attach = () => { attachments++; return true; };
+delayedInit.context.ready = false;
+delayedInit.context.initializeRuntime();
+assert.equal(attachments, 0, 'Unready services cannot attach the engine adapter');
+delayedInit.context.ready = true;
+delayedInit.context.initializeRuntime();
+assert.equal(attachments, 1, 'Ready services attach through the native runtime');
+delayedInit.context.runtime.attach = () => false;
+delayedInit.context.captureRestoreSource = () => { throw Error('Refused adapter continued initialization'); };
+delayedInit.context.initializeRuntime();
+console.log('PASS deferred runtime attachment and refused-adapter initialization fence');

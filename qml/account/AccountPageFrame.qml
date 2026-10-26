@@ -8,6 +8,9 @@ Item {
     id: root
 
     property Item backdrop: null
+    property var contentStore: typeof Content !== "undefined" ? Content : null
+    readonly property string fallbackWallpaperSource: root.contentStore
+        ? (root.contentStore.generation, root.contentStore.assetUrl("assets/wallpaper/captured-motion.jpg")) : ""
     property string eyebrow: ""
     property string headline: ""
     property string detail: ""
@@ -52,9 +55,10 @@ Item {
         }
 
         Image {
+            objectName: "fallbackWallpaperImage"
             anchors.fill: parent
             visible: root.backdrop === null
-            source: "../../assets/wallpaper/captured-motion.jpg"
+            source: root.fallbackWallpaperSource
             fillMode: Image.PreserveAspectCrop
             cache: true
         }

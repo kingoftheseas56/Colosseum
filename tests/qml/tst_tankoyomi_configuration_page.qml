@@ -129,6 +129,32 @@ TestCase {
         verify(byName(page, "tankoyomiProviderLadder") !== null)
     }
 
+    function test_panel_contents_respect_insets_data() {
+        return [{tag: "desktop", width: 1280}, {tag: "stacked", width: 1024},
+                {tag: "narrow", width: 600}]
+    }
+
+    function test_panel_contents_respect_insets(data) {
+        page.width = data.width
+        wait(0)
+        var languages = byName(page, "tankoyomiLanguagePanel")
+        var providers = byName(page, "tankoyomiProviderPanel")
+        var checks = [
+            {item: byName(page, "tankoyomiLanguage_en"), panel: languages},
+            {item: byName(page, "tankoyomiDefaultLanguageSelector"), panel: languages},
+            {item: byName(page, "tankoyomiResetOrder"), panel: providers},
+            {item: byName(page, "tankoyomiProvider_es-one"), panel: providers}
+        ]
+        for (var i = 0; i < checks.length; ++i) {
+            var item = checks[i].item
+            var panel = checks[i].panel
+            var pos = item.mapToItem(panel, 0, 0)
+            verify(pos.x >= 19, item.objectName + " left inset")
+            verify(pos.x + item.width <= panel.width - 19,
+                   item.objectName + " right inset")
+        }
+    }
+
     function test_manifest_flags_render_for_every_supported_language() {
         compare(byName(page, "tankoyomiLanguageFlag_en").countryCode, "GB")
         compare(byName(page, "tankoyomiLanguageFlag_es").countryCode, "ES")

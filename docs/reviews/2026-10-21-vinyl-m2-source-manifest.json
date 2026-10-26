@@ -1,0 +1,227 @@
+{
+  "schemaVersion": 1,
+  "milestone": "M2",
+  "verificationDate": "2026-10-21",
+  "status": "development branch implementation and actual-app receiving accepted; main integration and release pending",
+  "baseCommit": "409f225fce3fd7dcca102b020de3358be56994d7",
+  "baselineManifest": "docs/reviews/2026-10-20-vinyl-m1-source-manifest.json",
+  "baselineManifestSha256": "1acf56ab8e0809b09bb011147c1e443cf29ef3072083d6ed7d8dcd950ecaa6bd",
+  "hashSemantics": "Raw working-file bytes used for receiving before Git line-ending normalization. Delta is relative to baseCommit; this manifest excludes itself.",
+  "sourceDeltaCount": 29,
+  "sourceDelta": [
+    {
+      "path": "docs/plans/2026-10-20-vinyl-development-roadmap.md",
+      "rawSha256": "77676e827cc5b5dca19026f5cba7782ae5736b8df1f442e104b5ca0ac8d4486b"
+    },
+    {
+      "path": "docs/plans/2026-10-20-vinyl-m2-implementation.md",
+      "rawSha256": "d3b6146c7e8de0bd31857a5b1242f527862d479f516cd559ec0618b48883e47e"
+    },
+    {
+      "path": "docs/reviews/2026-10-21-vinyl-m2-receiving.md",
+      "rawSha256": "8617006b32d307dad42862f61a197bd71ee92c6ea1093c79d62c842984b873b2"
+    },
+    {
+      "path": "native/CMakeLists.txt",
+      "rawSha256": "3c1b49580590f6ff31921d0a654924ec7dd24348cdd10a08458eaa6b39f7fa01"
+    },
+    {
+      "path": "native/CollectionStore.h",
+      "rawSha256": "51e4fd7a6d4c0c23318447866dd50de84015f352cc82887890c43e53d5b0b2b9"
+    },
+    {
+      "path": "native/main.cpp",
+      "rawSha256": "5025de92605339f0e374b38d236cb66fda30784d08c054962be6f049f6907cb2"
+    },
+    {
+      "path": "native/vinyl/VinylCatalogueSource.cpp",
+      "rawSha256": "2f78e56cc9bb612170b92d26ac59e0a77eca20faac31180d3ffccae2b7e470d8"
+    },
+    {
+      "path": "native/vinyl/VinylCatalogueSource.h",
+      "rawSha256": "3bb279f809e3bfb0c3435957bc30c920e8d186db9034e649ae3f96b4e4018542"
+    },
+    {
+      "path": "native/vinyl/VinylProvider.h",
+      "rawSha256": "b4c4cbaf69f98b6033617ca16d42832d0105502f3f130a1df04c2abc71658946"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistFullCategory.qml",
+      "rawSha256": "bd9ceddb0e2af5c6c09f47560a5bc9ea66ba5130a864cd1533cc04530ea0f8c3"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistPage.qml",
+      "rawSha256": "ca63c5df823ca9e12d16cc66c97141f17aac6aa76aa4fb4a391cf165ad66cf02"
+    },
+    {
+      "path": "qml/vinyl/VinylArtistSongs.qml",
+      "rawSha256": "3b8a350b2b133c5d15d08b2fa7fe6db947c8cc9bfb0ef0fdac50c3983087371d"
+    },
+    {
+      "path": "qml/vinyl/VinylLiveArtistData.qml",
+      "rawSha256": "796de070368b93b4a4b788ba19c5d53cd74de07e8d62e2770bc628055a06f89f"
+    },
+    {
+      "path": "qml/vinyl/VinylLiveSession.qml",
+      "rawSha256": "7373537460b868ff8ec9c26e4c6d0e1058f73f3c6f12921ad928e0c6711aaf6d"
+    },
+    {
+      "path": "qml/vinyl/VinylLiveWorld.qml",
+      "rawSha256": "f2eed55dda776180c709bbe56055d465f11553f0d90c66fe7777fb2d08b103ec"
+    },
+    {
+      "path": "qml/vinyl/VinylLiveWorldData.qml",
+      "rawSha256": "ef13f6d79838cf8aed7bb593d6c2c0cb511710d36bb9d46464a0777bde893e47"
+    },
+    {
+      "path": "qml/vinyl/VinylWorldButton.qml",
+      "rawSha256": "a7c612d5f329aa63a901815192d7cfc89aaae9863d4161209964be37b33da4ec"
+    },
+    {
+      "path": "scripts/vinyl/.gitignore",
+      "rawSha256": "44b27cc93f8d2e4cffae2ddc8085655001ed57da3b318dec853f12b7d04c374a"
+    },
+    {
+      "path": "scripts/vinyl/prepare-runtime.ps1",
+      "rawSha256": "2ad8fcb1f96e002777b33dccefe74d289328c465e8bfbc1d1fff680ad1d9681d"
+    },
+    {
+      "path": "scripts/vinyl/provider.py",
+      "rawSha256": "9ccc383d56ceba3a5e0e9ba694588471c89da16fc8642d0a994b444a9ffe786e"
+    },
+    {
+      "path": "scripts/vinyl/runtime-requirements.lock",
+      "rawSha256": "b331f544c449ab06237ccb3a1b6d3af6927389312428764b3e2f8a3fa4c29ea5"
+    },
+    {
+      "path": "tests/CMakeLists.txt",
+      "rawSha256": "823d637c1a08d8d5b7488e236103f2a2eef117777ac7440f11cb0913a7a7636b"
+    },
+    {
+      "path": "tests/vinyl-catalogue/fake_transport.py",
+      "rawSha256": "a247007165da4e123352dd6de64ad2c9955b0ca0159fc2ee83aeb82a5c9d2a55"
+    },
+    {
+      "path": "tests/vinyl-catalogue/tst_catalogue_source.cpp",
+      "rawSha256": "6b2b3c52cfa21cb11b314d9095399d30bf7d481789644adc807b2999ffe97903"
+    },
+    {
+      "path": "tests/vinyl-live/CatalogueFlow.qml",
+      "rawSha256": "7f6737e5d6a53c814d30f9239597f9315e63e224438844cfa5bd8b7bfc33c9eb"
+    },
+    {
+      "path": "tests/vinyl-live/run-catalogue-flow.ps1",
+      "rawSha256": "2e35ab0d58731549b4de66ee587eb95629a23ef71b40ce5a02928edbf3cba5eb"
+    },
+    {
+      "path": "tests/vinyl-live/test_catalogue_contract.py",
+      "rawSha256": "bcbe86bdffc848ceba39fc10250b62780b497dd5df3d384fa978626d47efef78"
+    },
+    {
+      "path": "tests/vinyl-live/test_provider.py",
+      "rawSha256": "6e37d43ad5141caf816d1d2159bf5cfdb45eca37bf5bd6c9156480f6aa1d1bc9"
+    },
+    {
+      "path": "tests/vinyl-local-session/tst_live_world.qml",
+      "rawSha256": "ec9759ad02b4107c8972cd33c61449a7984fa5904ce5bcc11cc6ca8f4245da49"
+    }
+  ],
+  "app": {
+    "sha256": "b4f0b8ae9f55f150085739a751631bfa80fe0db826ca3f8d9f800c38ff961afe",
+    "qmlTreeSha256": "7aaa96c8a63d9cc30aa9c3c2fcf9fc02e997d9b43f8f9ce2943ea8abb8c4621c",
+    "qualificationEnabled": false,
+    "fixturesEnabled": false
+  },
+  "catalogueAuthority": "YouTube Music primary; MusicBrainz optional enrichment",
+  "helperSha256": "9ccc383d56ceba3a5e0e9ba694588471c89da16fc8642d0a994b444a9ffe786e",
+  "runtimeLockSha256": "b331f544c449ab06237ccb3a1b6d3af6927389312428764b3e2f8a3fa4c29ea5",
+  "evidence": {
+    "root": "D:\\Colosseum-Vinyl-M2-20261020",
+    "files": [
+      {
+        "path": "catalogue-final-tests.log",
+        "sha256": "ba9882e9ac323861c4e47fd88f712e12a56b4bd76a6d541faec02026dfe5f209"
+      },
+      {
+        "path": "provider-final-tests.log",
+        "sha256": "4f43644679c9dd621161f862364ea891b36f1e0c7bbb05b28b5e59573e9b3162"
+      },
+      {
+        "path": "qualified-ctest-window-activation-failure.log",
+        "sha256": "b185e2b8310da31cf932ca38e1fc129f4c933e778b9b0261cb164ae52505b9e6"
+      },
+      {
+        "path": "qualified-ctest.log",
+        "sha256": "50b0535fcc63c3258aff90368fefbaade9933085a657c41782ea90ffda214c7f"
+      },
+      {
+        "path": "qualified-ctest.xml",
+        "sha256": "7a4bdcfd4031dea908334e61dd64f22b758834ad0302e3938b6d5942c267ee35"
+      },
+      {
+        "path": "runtime-lock-validation.log",
+        "sha256": "e56decfc8a81c2e17d60bd37ac5faf95c1708e3f50d9f3c2fe77e7bdadbaf55b"
+      },
+      {
+        "path": "vinyl-m0f-fba19f93f0674419b5da6895fa94d21a/result.json",
+        "sha256": "4d5f3bf0c6ea3a2ae77b5b0d0b24889b556a99dac62592da072379f70775b308"
+      },
+      {
+        "path": "vinyl-m1-25adf758180842d2b44d3e7b02fbea70/result.json",
+        "sha256": "a86f47daf8c43297a3d358b567dac91363a8df13840dd5d09ab68c827a0fe325"
+      },
+      {
+        "path": "vinyl-m2-5ecc60e82e7842468f7f961f667e4728/live.stderr.log",
+        "sha256": "3370e4ddbd171389829dfb3dea4a4e0c036dac83d13a0843d1e3aaae4ba47a55"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/live-album.png",
+        "sha256": "50a0a416fd948c81ae2d95b0a79fab4c3251c75720acc7f9597efe61021ed0a6"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/live-albums.png",
+        "sha256": "51b9613f9c4178ab892e3d01342f826bfa4575e7ba82115ee992eba8ac7d2190"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/live-live.png",
+        "sha256": "f2356c4af0cf46e164e445a8c4a2bfcb865960458c677a59f6e43abd5b40ab4b"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/live-narrow.png",
+        "sha256": "58d9fbc86cccb675456e01cfcad4330e5f54a8562eef586e335eb90326659201"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/live-singles.png",
+        "sha256": "d10edbf5ea7253e81b72b32a9cda097f09195aba971e6f8f9e84d42562715231"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/live-videos.png",
+        "sha256": "870b11b5b9fca4e7e1d8082d4f1d1870fcb77387809c3781dbcd33bf1f095492"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/offline-album.png",
+        "sha256": "123f21532997b1eed080ec7cc59bcb1b0c118c30d1d0c18727404b8a5f7cb92c"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/offline-albums.png",
+        "sha256": "bf250b32e1cd663ed27c3e9a9ee6877facf6b1f9e84cbb2c899f6926e27b17a0"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/offline-live.png",
+        "sha256": "166e25333a131c51c82a28365cc6a52e23b6a7114369dd0fd5667dc5da5b5d57"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/offline-singles.png",
+        "sha256": "bf250b32e1cd663ed27c3e9a9ee6877facf6b1f9e84cbb2c899f6926e27b17a0"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/offline-videos.png",
+        "sha256": "bf250b32e1cd663ed27c3e9a9ee6877facf6b1f9e84cbb2c899f6926e27b17a0"
+      },
+      {
+        "path": "vinyl-m2-9233489a00974f2a9445deca2b83be58/result.json",
+        "sha256": "b88bbcffca5a6f679c7aa0b515768f6d601c80f7f0245c6214243c0e025b1e1e"
+      }
+    ]
+  }
+}

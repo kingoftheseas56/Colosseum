@@ -1,0 +1,227 @@
+{
+  "retrievedAt": "2026-10-14",
+  "assets": [
+    {
+      "file": "artist-media/UCfM3zsQsOnfWNUppiycmBuw-hero.jpg",
+      "sourceUrl": "https://lh3.googleusercontent.com/JFI6JZrS-Lco4UdpqDfHY5Wgwy51VXWxmNdI7bCBU5CDlIpN6WWyisZ7MGlpjbrxEGYMFpsqoR_UwcE=w1440-h600-p-l90-rj",
+      "sha256": "86905ed10e6dabdac9ad98305d28556118d44561b5cdfacae5a73a3cff2fc190",
+      "bytes": 76368
+    },
+    {
+      "file": "artist-media/S9bCLPwzSC0.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/S9bCLPwzSC0/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mSiDx7lzu9jwREK6rxtQNEAdrxvw",
+      "sha256": "efa5af6bbd5c6284492466db30242f9b466be64a5b0205bdcddb3f1c34ac443b",
+      "bytes": 17599
+    },
+    {
+      "file": "artist-media/uelHwf8o7_U.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/uelHwf8o7_U/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kFZsru2E21p8T1AeI3VGYB_Mc35w",
+      "sha256": "619592e86498baef4178ab8980079b3c8be2f8e3b7db7e96502f2247570a164e",
+      "bytes": 15314
+    },
+    {
+      "file": "artist-media/YVkUvmDQ3HY.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/YVkUvmDQ3HY/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mSBEGmzXGXvBcmfxMOP5SIPj88hg",
+      "sha256": "0551117798cadfb54b547e9aae5ea28ed840c34beb889218381dc3ae9457b3f5",
+      "bytes": 19915
+    },
+    {
+      "file": "artist-media/xFYQQPAOz7Y.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/xFYQQPAOz7Y/hqdefault.jpg?sqp=-oaymwEWCOADEI4CIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mmDbaItqhvDxEqHivVwxwAyY_t9A",
+      "sha256": "ea4d2ab81f1656a700f99fbfa12c393b710e0814258641c48451da2ec8900fa7",
+      "bytes": 17248
+    },
+    {
+      "file": "artist-media/j5-yKhDd64s.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/j5-yKhDd64s/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3mb9lBf7lNeB_SuN05wjwXclpn_dg",
+      "sha256": "fe3c9b5b76a3f3466ac049190e6b6894f632f6db4d990b91cb6b61e77a349a9d",
+      "bytes": 18497
+    },
+    {
+      "file": "artist-media/eJO5HU_7_1w.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/eJO5HU_7_1w/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nW4q0qo1jLl_ARkaSI5WdP66gmEA",
+      "sha256": "de81a9242f1304c7f5e208bc2022a226047f78fe8bb1892f292765d657a792db",
+      "bytes": 25764
+    },
+    {
+      "file": "artist-media/UC1g7JmTw4Gv8W9YINg3M1FA.jpg",
+      "sourceUrl": "https://lh3.googleusercontent.com/7X19_I6_n_vrHdGqRp59wX2fOjpIAGCEle5pFDy86aon-NVFl89pgmFXfZhjm_YIFNkFVNRaxq0U4hc=w544-h544-p-l90-rj",
+      "sha256": "6bf90b2a9e238c4ae38a6f7d5ac2c6333d771a0393a84ede64809b571465fef9",
+      "bytes": 25334
+    },
+    {
+      "file": "artist-media/UCjiGsk3ePl9fajUfgNVFGBA.jpg",
+      "sourceUrl": "https://lh3.googleusercontent.com/ef0HldvFY8DG6TTtZhYJwvnBF9_PQsj141cgnJ8LN8M10H5PkiAUvkt1LmI0i4U7zYIKI4cckrDP46A=w544-h544-p-l90-rj",
+      "sha256": "0a164d7147a4b1373dedd7cf324708e94e6a738c84b04392f4289e06c326f27f",
+      "bytes": 14331
+    },
+    {
+      "file": "artist-media/UCA_77dmbsh_c3LnDly2-Q_Q.jpg",
+      "sourceUrl": "https://lh3.googleusercontent.com/x0bOmhlQBVZz0bYOxO3_O-ZRQpkZIM-wqX91gCvW_Tyb4m6Li-lvgIsS6NvfRWrDHI-Qfdmx35z7R3k=w544-h544-p-l90-rj",
+      "sha256": "dace599cd736c736bb3a70a8ec794ddb9034cf5b826afcc0ab0da540234c5a1b",
+      "bytes": 48405
+    },
+    {
+      "file": "artist-media/UC48nZNzBVu13HPwJ3upxQnQ.jpg",
+      "sourceUrl": "https://lh3.googleusercontent.com/SHHFY-NokHL38CoB0xEaM4SndJN0yZvgTC39VruFyilaR4CBbdYGoybZKz4rvl_mHLgaab4t7D4GyyVa=w544-h544-p-l90-rj",
+      "sha256": "b7e955cf0848be7e9130f302618637fd35dffc390f668df6d40529a2c44f9ca4",
+      "bytes": 59007
+    },
+    {
+      "file": "artist-media/UCztmP5OtijziqOMYuCixISQ.jpg",
+      "sourceUrl": "https://lh3.googleusercontent.com/0eGRSO_Kso1clrrTttEQWX0Gdnd3_wUwUTu23fAEftiB3PkUyIPdYXhIX4-peBQbiHkaOrVrgHY06w=w544-h544-p-l90-rj",
+      "sha256": "4948309923f87ae7e12486a48217da77858a294496955586c1e03bf2e4930020",
+      "bytes": 39449
+    },
+    {
+      "file": "artist-media/UCOcnYBwT1jb6EHlS0cwhNkA.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/ehmcEEYnAXMF6YKFGKmoYauiTTYjpzzNlFdD0keF9bYlrA3-4jecCyyKSavrjGEARNpMSJL2SITdzxrV=w544-h544-p-l90-rj",
+      "sha256": "76adcff323555b8d173d41ca419b7d6c20164d1e077077f13da4c835eb51f393",
+      "bytes": 125039
+    },
+    {
+      "file": "artist-media/UCVlWr_LN9y80smEMr0KTBOA-hero.jpg",
+      "sourceUrl": "https://lh3.googleusercontent.com/QxbV6wK_wcQWcBY9rBicZlsl1-gX5M6nGjfNN3BTzgknhaSJ6yhnHW7NmF4dTx0Ch9g9-VTD6YUD2crW=w1440-h600-p-l90-rj",
+      "sha256": "5ec50376dcac65cd5e6f82a2a4dec3aff9cfa2ed211fc543d611735fb1ccf60e",
+      "bytes": 70243
+    },
+    {
+      "file": "artist-media/Rliqa9PmgQw.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/Rliqa9PmgQw/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3l_L3yZg1E1h705JUblK2b-W-Z2lQ",
+      "sha256": "53cce259a578a5eeec94b7543c03333c7cd48b6679443341c709a2b19738a905",
+      "bytes": 42316
+    },
+    {
+      "file": "artist-media/ZwcElZ_ULAo.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/ZwcElZ_ULAo/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kmHFgS9wKTOeLV9lRnMz66vu8L4Q",
+      "sha256": "f04b19b44f637a36be7a05904afdde8e63d0fb8ecb44058113ffe4841f0ef91f",
+      "bytes": 39792
+    },
+    {
+      "file": "artist-media/0X7yOYZNWJI.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/0X7yOYZNWJI/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nMCEFl1RLoqho_Ct73lcHD_Noa-A",
+      "sha256": "03848535f7b4d0d14f5902b7358438678c695a6902ec9cd73b7731e093e0a02c",
+      "bytes": 41499
+    },
+    {
+      "file": "artist-media/zdLa2uJ8jw0.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/zdLa2uJ8jw0/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3kvCGzJCdQnJCBFIdMgaHziCpkh-w",
+      "sha256": "4ecf0846b83981a1a3e9188ec2fd69f32bafccc99a7aae30786a2b18ad6b6d30",
+      "bytes": 36241
+    },
+    {
+      "file": "artist-media/BHRhl-9C9tQ.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/BHRhl-9C9tQ/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3nxCCh-5Yt84UpZT1lNkeD_2itSKg",
+      "sha256": "bed96cc42a59c6cf28c4018ae2bdf7074c7595bc99f27b05f1d9a5dd28e80a66",
+      "bytes": 42833
+    },
+    {
+      "file": "artist-media/N0KfiOTSpxs.jpg",
+      "sourceUrl": "https://i.ytimg.com/vi/N0KfiOTSpxs/hqdefault.jpg?sqp=-oaymwEWCJADEOEBIAQqCggAEOADGC0guwJIWg&rs=AMzJL3n6zCXlMsRwVA73RH5aEaaOa7jGOQ",
+      "sha256": "380d5d23e8101b619d975a0ca4e4da1b913d6c08e2895058e2cf6418a4159297",
+      "bytes": 40798
+    },
+    {
+      "file": "artist-media/UCuL0StnzfmsjkdMi-pcsphg.jpg",
+      "sourceUrl": "https://yt3.ggpht.com/ytc/AIdro_nR8iyY-fNV2ZqeAV8surk7Lf1gB0pUgC2Ads53EALuLw=w544-h544-l90-rj-dcJYWSzTEH",
+      "sha256": "cfe9c7b98f8efae78ab27e91fb0d9c4dd8c24c90a79bb22dbe9a281e8743ed63",
+      "bytes": 87116
+    },
+    {
+      "file": "artist-media/UCLQiZGceMt_IvFVCMOq5TCQ.jpg",
+      "sourceUrl": "https://yt3.ggpht.com/ytc/AIdro_lNlmHeHlwCPvq1t6tEKVaXCuWqKoOxNJX9EnhHMhv6r8E=w544-h544-l90-rj-dcHWSQraUH",
+      "sha256": "f6b08f3fad209c1b0e9912905a5209f9ba89dd81bb8310ae34fa5c6a38ce85d5",
+      "bytes": 73251
+    },
+    {
+      "file": "artist-media/UCuMxwdL4DunKD08F7LDAJAw.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/Ers6WR0DqF6LbR2MDhtpXjhEKk2U9yq5U_p2syfwDL54x19Y3A3bJ8jrtNaaGuSwW-78ZeLX9-snQZDl=w544-h544-l90-rj",
+      "sha256": "54a67bd209bcc9972f37830275e4cd2e91fe6547f6846a90a48ec8a8b4dce096",
+      "bytes": 139046
+    },
+    {
+      "file": "artist-media/UCwZXrfslml6zv0BUv0S9_cg.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/5Z_WRYuOF75g1JG-6gCxtcHOjHA0yFnZ9fu-aJxy9scvggRF38qqk1KiqlkDsK44kVmYPdw-hXHJOU-6=w544-h544-l90-rj",
+      "sha256": "72591cfd2ff6befe62cf446747bb4571115d0997a73eff6268d0d0972b64fb4b",
+      "bytes": 87131
+    },
+    {
+      "file": "artist-media/UCDKh9Q6obDKRh66zVmzGcpg.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/wbKONK5EG5yP3-RLzACMmk86ljCwHVZSXrLUeS4uVXViS_YbKEFaOF9qBVSbvKfVnftnaJulq0ZhRpd-=w544-h544-l90-rj",
+      "sha256": "29946feebf487a9ee04fdd2c7f85b4034a38cd62f54e1eaca8f68b2ca2ad2b3a",
+      "bytes": 85148
+    },
+    {
+      "file": "artist-media/UCb9Ryvx3xg6WT0XfxuPIPRg.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/a90mgSMztkwBRwAKv609m1ViMJqzfpF7Q4JesYSmq3RMAq45tzutgMpr7T5Wd2E3Idlt6Uhft8Sdainzhw=w544-h544-l90-rj",
+      "sha256": "78cb2a6d380ba75407d789262d1f7a6944ede31f3a693796f5f44ad3ccc2e8c0",
+      "bytes": 117353
+    },
+    {
+      "file": "artist-media/cover-5dc1c28d581447565963.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/0FgNF2Pi4OMavoLM3QfkAjhv-EVRj41alnMyNs-x8CCB2U_dZYD8D0YYZ_rDQMp-uHF8c1jAkGALzoPc=w544-h544-l90-rj",
+      "sha256": "d0f820c82da57d70827d7db3ff1500d644711509e0f5153ff398a85f08c70feb",
+      "bytes": 87056
+    },
+    {
+      "file": "artist-media/cover-26754d2b40cae4181c65.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/1ecKTaGoX6fqHS38i_xeAQz5ue6C7hJdyd7geaEGkrAjSv01BcGCyyfZDuwfkc6ILC7aHW0CE5GfK_c=w544-h544-l90-rj",
+      "sha256": "fd5fbd82ab949b82136cb9de5b28ceaf871d77cff8e3544c9149d43bd63f6e10",
+      "bytes": 129753
+    },
+    {
+      "file": "artist-media/cover-0098708401378225e603.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/CQyUJawPkic5ab9xRAfLULZd4WaKLxdPsxZrKeV7KpNrCu_9TExzSEyl3QtWu516l8wQTlo8Jmjx-hfQ=w544-h544-l90-rj",
+      "sha256": "a5dca61afea399af361f47d093b0a909c06ef373e01a429a5592db9c021aa2a7",
+      "bytes": 161351
+    },
+    {
+      "file": "artist-media/cover-4955b7525cc6ae02dcbd.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/IUuZFSUqFLMQlejTtsnLM_cB16A0T1g-savL7DYbWz5NFh2-DOw5-v9_PREJt9keX48NSan-8yUQCPM=w544-h544-l90-rj",
+      "sha256": "6e70053dcaef2a021a5f94c8615a750bacd7c2d75f124bee4c5d57fb0eda82ea",
+      "bytes": 38620
+    },
+    {
+      "file": "artist-media/cover-04b322a67d8ef85bd2c0.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/XvlkHCNeuPMfq5lD2J3Iv9YjgMnG7Uy1M1gw5mCQQ8yXrF4FSS8Iyc5pRrjioJsU1J9yzcGBArRkqejYqA=w544-h544-l90-rj",
+      "sha256": "cad2f6452e40a6bf25706d219eb943bd35ee72a18a0c21c9b7fa0d63758d261e",
+      "bytes": 154856
+    },
+    {
+      "file": "artist-media/cover-8f2eed2e69edc934fbe6.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/Xx3dX1EJDirqwpfQL05uAgmKGYpzTcFDXjjHqjNpIhgY5MWTJRLSlOjaYVtup2Ku6gBYEqXoxw5aGKC3=w544-h544-l90-rj",
+      "sha256": "02742f08c361f584d3f27ec4b79f4028110aed5e38dbdf5a4a3719b5dba4f9a4",
+      "bytes": 74998
+    },
+    {
+      "file": "artist-media/cover-adf40cc9a2f24721cc8f.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/l3XtmunN_SczRxtnQ8U0mgYFPYtVJ3xOZsJAvUGatyNEgb5gL6zA-ByIHft8DIjJo2sWEShsuqbITNad=w544-h544-l90-rj",
+      "sha256": "d489bf40fd984f45a2e89180dd6b23d1e12a1acf852f6c9ca5f7097904e5fb20",
+      "bytes": 170353
+    },
+    {
+      "file": "artist-media/cover-26ca544507082a966d79.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/oWyLklmIlgBVjLy63kmFrXfgmzK8EIwpzyXneeLu3Ly6eqB_Usf7zZhZzo-LlwbxMx4WugYNW1Lp-ec=w544-h544-l90-rj",
+      "sha256": "0003c63b96d2354be8058e2958bcdb5ddd8ed2575fd4fc28a5187237b9aeb8bc",
+      "bytes": 105797
+    },
+    {
+      "file": "artist-media/cover-9ea46ff51c6dcf691c3e.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/t4q-b1JIIzrix-_T5uBcNSNKm6TrdwEhXjMiZkly1WNP3xktKSgST0wX2ODJepauplDhGLL37wsiT-Kt=w544-h544-l90-rj",
+      "sha256": "02742f08c361f584d3f27ec4b79f4028110aed5e38dbdf5a4a3719b5dba4f9a4",
+      "bytes": 74998
+    },
+    {
+      "file": "artist-media/cover-2167fe2315787d327cd8.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/vSp4185DLFCXyfsB5YsHR026V8JKTy9WaOar6DpxZmnP3Xift-M1t1jgtxquVfd_dinN19g3KToosT7S=w544-h544-l90-rj",
+      "sha256": "66d51379aa62732d5463821e9137348b0a71b982c6ecdf6f4d176ede4113ce8c",
+      "bytes": 87595
+    },
+    {
+      "file": "artist-media/cover-09299d40deb1204db6c0.jpg",
+      "sourceUrl": "https://yt3.googleusercontent.com/xIN67aenJGjjn7dl1SugpJFocYQiXMiYoFfaukVxJJ7NGhLZhm18n8Pr2-k7m8wr9-wJy5BdpMloqzS8=w544-h544-l90-rj",
+      "sha256": "7385c8d5131d85bed6b8def8a6dbe9c95bd5a6dfe0c1e4c4daf7f9d4736d0086",
+      "bytes": 111322
+    }
+  ]
+}

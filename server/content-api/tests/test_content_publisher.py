@@ -63,6 +63,25 @@ class ContentPublisherTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "missing or outside"):
             self.build()
 
+    def test_native_neutral_backgrounds_are_published_without_uploading_other_local_art(self):
+        backgrounds = ["captured-motion.jpg", "cold-ripple.jpg"]
+        for name in backgrounds:
+            Image.new("RGB", (40, 24), "green").save(self.native / "assets/wallpaper" / name)
+        private = self.native / "assets/wallpaper/unrelated-local.jpg"
+        Image.new("RGB", (40, 24), "yellow").save(private)
+        self.build()
+        bundle = json.loads((self.root / "starter/bundle.json").read_text())
+        assets = bundle["manifest"]["assets"]
+        for name in backgrounds:
+            relative = "assets/wallpaper/" + name
+            self.assertIn(relative, assets)
+            asset = assets[relative]
+            original = (self.native / relative).read_bytes()
+            self.assertEqual(asset["sourceSha256"], hashlib.sha256(original).hexdigest())
+            delivered = (self.root / "output" / asset["path"].lstrip("/")).read_bytes()
+            self.assertEqual(hashlib.sha256(delivered).hexdigest(), asset["sha256"])
+        self.assertNotIn("assets/wallpaper/unrelated-local.jpg", assets)
+
     def test_declared_traversal_is_rejected(self):
         (self.native / "private.png").write_bytes(b"private")
         self.documents["universes-roster"]["wallpaper"] = "../assets/../private.png"

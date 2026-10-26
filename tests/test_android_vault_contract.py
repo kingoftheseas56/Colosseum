@@ -33,24 +33,39 @@ def _application_sources(android):
     start = android_cmake.index("target_sources(colosseum")
     end = android_cmake.index("\n)", start) + 2
     declarations += "\nif(ANDROID)\n" + android_cmake[start:end] + "\nendif()\n"
-    # CMake itself evaluates the platform conditions. Only target creation is
-    # intercepted; no configure/package step or source-path resolution is needed.
+    # CMake evaluates the platform conditions and the target-aware source macros
+    # collect only colosseum's graph. The small library/link declarations added
+    # around the executable are inert here; no configure/package step runs.
     script = """macro(qt_add_executable name)
-set(sources ${ARGN})
+if("${name}" STREQUAL "colosseum")
+  set(colosseum_sources ${ARGN})
+endif()
 endmacro()
-macro(target_sources name visibility)
-list(APPEND sources ${ARGN})
+macro(target_sources target visibility)
+if("${target}" STREQUAL "colosseum")
+  list(APPEND colosseum_sources ${ARGN})
+endif()
 endmacro()
-""" + declarations + '\nfile(WRITE "${OUTPUT}" "${sources}")\n'
+macro(add_library target)
+endmacro()
+macro(target_link_libraries target)
+endmacro()
+macro(target_include_directories target)
+endmacro()
+""" + declarations + '\nfile(WRITE "${OUTPUT}" "${colosseum_sources}")\n'
     with tempfile.TemporaryDirectory(prefix="colosseum-vault-contract-") as directory:
         script_path = Path(directory) / "sources.cmake"
         output_path = Path(directory) / "sources.txt"
         script_path.write_text(script, encoding="utf-8")
-        subprocess.run(
+        result = subprocess.run(
             [_tool("CMAKE_COMMAND", "cmake"), f"-DANDROID={'TRUE' if android else 'FALSE'}",
              f"-DOUTPUT={output_path.as_posix()}", "-P", str(script_path)],
-            check=True, capture_output=True, text=True,
+            capture_output=True, text=True,
         )
+        if result.returncode:
+            raise AssertionError(
+                f"CMake source evaluation failed ({result.returncode}):\n{result.stderr}\n{result.stdout}"
+            )
         return set(output_path.read_text(encoding="utf-8").split(";"))
 
 
@@ -81,7 +96,7 @@ def _active_source(relative, android):
     if android:
         command += ["-DQ_OS_ANDROID"]
     return subprocess.run(command + ["-"], input=source, capture_output=True,
-                          text=True, check=True).stdout
+                          text=True, encoding="utf-8", check=True).stdout
 
 
 def test_android_has_no_vault_startup_or_bridge():

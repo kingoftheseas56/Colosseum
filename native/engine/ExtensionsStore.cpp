@@ -80,7 +80,7 @@ QString transportIdentity(const QString &transportUrl)
 //    removed from the app, so the row is pulled from every installed profile.
 // Bump this whenever a house row is added, retired, OR its manifest copy changes —
 // the migration re-runs once and now refreshes existing rows as well as adding new ones.
-constexpr int kHouseDefaultsVersion = 14;
+constexpr int kHouseDefaultsVersion = 19;
 }
 
 ExtensionsStore::ExtensionsStore(QNetworkAccessManager* nam, QObject* parent)
@@ -690,7 +690,7 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     add("colosseum.well.nyaa", "colosseum://well/nyaa", false,
         manifest("colosseum.well.nyaa", "Nyaa", "",
                  { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, false));
-    add("colosseum.well.tankoyomi", "colosseum://well/tankoyomi", false,
+    add("colosseum.well.tankoyomi", "https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json", false,
         manifest("colosseum.well.tankoyomi", "Tankoyomi",
                   "Language-aware chapter sources for Tankoban Chapter Mode.",
                   { QStringLiteral("stream") }, { QStringLiteral("manga") }, {}, true));
@@ -707,7 +707,7 @@ bool ExtensionsStore::appendHouseDefaults(bool onlyMissing)
     // OPEN, awaiting his ruling: the `audiobook` type below is a dead claim — the federated
     // search is only ever asked for "books" and "comics", never audiobooks. Left in place
     // rather than silently changed, because dropping it changes Biblio's roster.
-    add("colosseum.well.indexers", "colosseum://well/indexers", false,
+    add("colosseum.well.indexers", "https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json", false,
         manifest("colosseum.well.indexers", "Tankorent", "",
                  { QStringLiteral("stream") },
                  { QStringLiteral("comic"), QStringLiteral("book"), QStringLiteral("audiobook") },
@@ -806,8 +806,40 @@ void ExtensionsStore::migrateDefaults()
     const int legacyWeebCentralAt = indexOfId(QStringLiteral("colosseum.well.weebcentral.pages"));
     if (legacyWeebCentralAt >= 0 && indexOfId(QStringLiteral("colosseum.well.tankoyomi")) < 0) {
         m_items[legacyWeebCentralAt].insert(QStringLiteral("id"), QStringLiteral("colosseum.well.tankoyomi"));
-        m_items[legacyWeebCentralAt].insert(QStringLiteral("transportUrl"), QStringLiteral("colosseum://well/tankoyomi"));
+        m_items[legacyWeebCentralAt].insert(QStringLiteral("transportUrl"), QStringLiteral("https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json"));
         changed = true;
+    }
+
+    const int tankoyomiAt = indexOfId(QStringLiteral("colosseum.well.tankoyomi"));
+    if (tankoyomiAt >= 0 && m_items[tankoyomiAt].value(QStringLiteral("transportUrl")).toString()
+                               == QLatin1String("colosseum://well/tankoyomi")) {
+        m_items[tankoyomiAt].insert(QStringLiteral("transportUrl"),
+            QStringLiteral("https://colosseum-tankoyomi.colosseum-watchparty-relay.workers.dev/manifest.json"));
+        changed = true;
+    }
+
+    // Generation 16: move only the built-in Tankorent endpoint. Retain the
+    // extension identity, rank, user enablement and any custom transport URL.
+    const int tankorentAt = indexOfId(QStringLiteral("colosseum.well.indexers"));
+    if (tankorentAt >= 0 && m_items[tankorentAt].value(QStringLiteral("transportUrl")).toString()
+                               == QLatin1String("colosseum://well/indexers")) {
+        m_items[tankorentAt].insert(QStringLiteral("transportUrl"),
+            QStringLiteral("https://colosseum-tankorent.colosseum-watchparty-relay.workers.dev/manifest.json"));
+        changed = true;
+    }
+
+    // Generation 19: restore native Nyaa search for both prior hosted built-ins;
+    // preserve opt-in, order, timestamps and custom URLs.
+    const int nyaaAt = indexOfId(QStringLiteral("colosseum.well.nyaa"));
+    if (nyaaAt >= 0) {
+        const QString nyaaUrl = m_items[nyaaAt].value(QStringLiteral("transportUrl")).toString();
+        if (nyaaUrl == QLatin1String("https://colosseum-nyaa-metadata.onrender.com/manifest.json")
+            || nyaaUrl
+                == QLatin1String("https://colosseum-nyaa.colosseum-watchparty-relay.workers.dev/manifest.json")) {
+            m_items[nyaaAt].insert(QStringLiteral("transportUrl"),
+                QStringLiteral("colosseum://well/nyaa"));
+            changed = true;
+        }
     }
 
     for (const char* id : kRetiredIds) {

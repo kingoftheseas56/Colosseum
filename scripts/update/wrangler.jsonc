@@ -1,0 +1,26 @@
+{
+  "$schema": "../../server/content-api/node_modules/wrangler/config-schema.json",
+  "name": "colosseum-update-feed",
+  "main": "cloudflare_release_worker.mjs",
+  "account_id": "69049ce787cd73028c878bf0953946f6",
+  "compatibility_date": "2026-10-18",
+  "workers_dev": false,
+  "preview_urls": false,
+  // The wildcard admits query strings. The handler accepts only the exact
+  // feed and notes pathnames; other suffixes return404. All other website
+  // routes remain on the existing Pages deployment.
+  "routes": [
+    {
+      "pattern": "https://getcolosseum.world/updates/stable.json*",
+      "zone_name": "getcolosseum.world"
+    },
+    {
+      "pattern": "https://getcolosseum.world/releases/v1.1.9*",
+      "zone_name": "getcolosseum.world"
+    },
+    {
+      "pattern": "https://getcolosseum.world/releases/v1.1.10*",
+      "zone_name": "getcolosseum.world"
+    }
+  ]
+}

@@ -24,6 +24,7 @@
 #include <QMetaObject>
 #include <QObject>
 #include <QSettings>
+#include <QSet>
 #include <QStandardPaths>
 #include <QString>
 #include <QStringList>
@@ -31,10 +32,12 @@
 #include <QVariantList>
 #include <QVariantMap>
 #include <QThread>
+#include <QUuid>
 
 #include <algorithm>
 #include <memory>
 #include <functional>
+#include <cmath>
 
 namespace {
 // Isolation gate (2026-08-14 fix). See ProgressStore.h's progressStoreTaggedIniPath() for the
@@ -83,11 +86,15 @@ private:
         QJsonObject object;
         for (auto it = snapshot.constBegin(); it != snapshot.constEnd(); ++it)
             object.insert(it.key(), QJsonObject::fromVariantMap(it.value().toMap()));
+        const QString key = QStringLiteral("collection/entries");
+        const bool existed = m_settings->contains(key);
+        const QVariant previous = m_settings->value(key);
         m_settings->setValue(QStringLiteral("collection/entries"),
                              QJsonDocument(object).toJson(QJsonDocument::Compact));
         m_settings->sync();
         if (m_settings->status() == QSettings::NoError)
             return true;
+        if (existed) m_settings->setValue(key, previous); else m_settings->remove(key);
         if (error)
             *error = QStringLiteral("The Collection store could not be committed.");
         return false;
@@ -115,6 +122,71 @@ class CollectionStore : public QObject {
     Q_PROPERTY(bool healthy READ healthy NOTIFY healthChanged)
     Q_PROPERTY(QString persistenceError READ persistenceError NOTIFY healthChanged)
 public:
+    // Vinyl personal records share the profile-owned Collection transaction.
+    Q_INVOKABLE bool setVinylArtistSaved(const QVariantMap &artist, bool saved) {
+        const QString id = artist.value(QStringLiteral("id")).toString().trimmed();
+        const QString name = artist.value(QStringLiteral("name")).toString().trimmed();
+        if (id.isEmpty() || name.isEmpty() || id.size() > 4096 || name.size() > 512)
+            return false;
+        const QString key = mapKey(QStringLiteral("Vinyl"), id);
+        if (m_map.contains(key) && m_map.value(key).toMap().value(QStringLiteral("type")).toString() != QLatin1String("artist"))
+            return false;
+        if (!saved) return remove(QStringLiteral("Vinyl"), id);
+        auto payload=m_map.value(key).toMap().value(QStringLiteral("payload")).toMap();
+        payload.insert(QStringLiteral("artistId"),id);
+        const auto mbid=artist.value(QStringLiteral("externalIds")).toMap().value(QStringLiteral("musicbrainz")).toString();
+        if(!QUuid(mbid).isNull())payload.insert(QStringLiteral("externalIds"),QVariantMap{{QStringLiteral("musicbrainz"),mbid.toLower()}});
+        return add(QStringLiteral("Vinyl"), {{QStringLiteral("id"), id},
+            {QStringLiteral("type"), QStringLiteral("artist")},
+            {QStringLiteral("title"), name},
+            {QStringLiteral("payload"), payload}});
+    }
+
+    Q_INVOKABLE QString createVinylPlaylist(const QString &title, const QString &artistId,
+                                            const QVariantList &occurrences) {
+        if (title.trimmed().isEmpty() || title.size() > 512 || artistId.isEmpty()
+            || artistId.size() > 4096 || occurrences.isEmpty() || occurrences.size() > 4096)
+            return {};
+        QVariantList validated;
+        for (const auto &value : occurrences) {
+            const auto row = value.toMap();
+            QVariantMap clean;
+            for (const auto &key : {QStringLiteral("albumId"), QStringLiteral("editionId"), QStringLiteral("trackId")}) {
+                const QString id = row.value(key).toString();
+                if (id.isEmpty() || id.size() > 4096) return {};
+                clean.insert(key, id);
+            }
+            for (const auto &key : {QStringLiteral("discIndex"), QStringLiteral("trackIndex"), QStringLiteral("index")}) {
+                bool ok = false;
+                const double number = row.value(key).toDouble(&ok);
+                if (!ok || !std::isfinite(number) || number < 0 || number > 1000000 || number != int(number)) return {};
+                clean.insert(key, int(number));
+            }
+            const QString trackTitle = row.value(QStringLiteral("title")).toString();
+            if (trackTitle.size() > 4096) return {};
+            clean.insert(QStringLiteral("title"), trackTitle);
+            validated.append(clean);
+        }
+        const QString id = QStringLiteral("vinyl:playlist:") + QUuid::createUuid().toString(QUuid::WithoutBraces);
+        if (has(QStringLiteral("Vinyl"), id)) return {};
+        const QVariantMap payload{{QStringLiteral("version"), 1}, {QStringLiteral("artistId"), artistId},
+                                  {QStringLiteral("occurrences"), validated}};
+        return add(QStringLiteral("Vinyl"), {{QStringLiteral("id"), id},
+            {QStringLiteral("type"), QStringLiteral("playlist")},
+            {QStringLiteral("title"), title.trimmed()}, {QStringLiteral("payload"), payload}}) ? id : QString();
+    }
+
+    Q_INVOKABLE QVariantList vinylPlaylists(const QString &artistId = QString()) const {
+        QVariantList result;
+        for (const auto &value : items(QStringLiteral("Vinyl"))) {
+            const auto row = value.toMap();
+            if (row.value(QStringLiteral("type")).toString() == QLatin1String("playlist")
+                && (artistId.isEmpty() || row.value(QStringLiteral("payload")).toMap()
+                    .value(QStringLiteral("artistId")).toString() == artistId)) result.append(row);
+        }
+        return result;
+    }
+
     using RemoteCommitCallback = std::function<void(bool, const QString &)>;
 
     explicit CollectionStore(QObject *parent = nullptr)
@@ -212,6 +284,62 @@ public:
         next.remove(key);
         if (!save(next))
             return false;
+        m_map = next;
+        bump();
+        emit syncDirty();
+        return true;
+    }
+
+    // Publish one local import/refresh through this canonical owner. Validation
+    // precedes all mutation; one durable write commits the complete replacement.
+    Q_INVOKABLE bool replaceItems(const QString &world, const QStringList &removeIds,
+                                  const QVariantList &entries) {
+        constexpr qsizetype maxBatchItems = 4096;
+        if (world.trimmed().isEmpty() || !healthy()
+            || removeIds.size() > maxBatchItems || entries.size() > maxBatchItems)
+            return false;
+        QSet<QString> ids;
+        QVariantList validated;
+        validated.reserve(entries.size());
+        const qint64 now = QDateTime::currentMSecsSinceEpoch();
+        for (const QVariant &value : entries) {
+            if (value.metaType().id() != QMetaType::QVariantMap)
+                return false;
+            QVariantMap item = value.toMap();
+            const QString id = item.value(QStringLiteral("id")).toString();
+            if (id.trimmed().isEmpty() || ids.contains(id)
+                || item.value(QStringLiteral("type")).toString().trimmed().isEmpty())
+                return false;
+            ids.insert(id);
+            item.insert(QStringLiteral("world"), world);
+            if (!item.value(QStringLiteral("addedAt")).toLongLong())
+                item.insert(QStringLiteral("addedAt"), now);
+            validated.append(item);
+        }
+        for (const QString &id : removeIds)
+            if (id.trimmed().isEmpty())
+                return false;
+        QHash<QString, QVariant> next = m_map;
+        for (const QString &id : removeIds)
+            next.remove(mapKey(world, id));
+        for (const QVariant &value : validated) {
+            const QVariantMap item = value.toMap();
+            next.insert(mapKey(world, item.value(QStringLiteral("id")).toString()), item);
+        }
+        if (next == m_map)
+            return true;
+        // QSettings retains failed writes in memory. Restore its pending value,
+        // too, so a later destructor/sync cannot replay a rejected import.
+        const QString settingsKey = QStringLiteral("collection/entries");
+        const bool hadValue = m_settings->contains(settingsKey);
+        const QVariant previousValue = m_settings->value(settingsKey);
+        if (!save(next)) {
+            if (hadValue)
+                m_settings->setValue(settingsKey, previousValue);
+            else
+                m_settings->remove(settingsKey);
+            return false;
+        }
         m_map = next;
         bump();
         emit syncDirty();
@@ -417,11 +545,15 @@ private:
         QJsonObject obj;
         for (auto it = records.constBegin(); it != records.constEnd(); ++it)
             obj.insert(it.key(), QJsonObject::fromVariantMap(it.value().toMap()));
+        const QString key = QStringLiteral("collection/entries");
+        const bool existed = m_settings->contains(key);
+        const QVariant previous = m_settings->value(key);
         m_settings->setValue(QStringLiteral("collection/entries"),
                             QJsonDocument(obj).toJson(QJsonDocument::Compact));
         m_settings->sync();
         if (m_settings->status() == QSettings::NoError)
             return true;
+        if (existed) m_settings->setValue(key, previous); else m_settings->remove(key);
         m_persistenceError = QStringLiteral("The Collection store could not be committed.");
         emit healthChanged();
         emit persistenceFailed(m_persistenceError);

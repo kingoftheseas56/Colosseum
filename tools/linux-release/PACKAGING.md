@@ -1,8 +1,14 @@
-# Portable Linux candidate packaging
+# Linux candidate packaging
+
+For 1.1.9, `release-linux-deb.yml` builds the standard edition on Ubuntu 24.04 and creates an amd64 `.deb` for Ubuntu 24.04/Linux Mint 22. Vinyl and Feria qualification flags stay off. The workflow preserves exact source/binary/QML identity and dependency notices, then tests installation, normal-user X11 startup, natural exit and uninstall in a separate Ubuntu container without the build SDK. These checks do not qualify hardware acceleration, audio, providers or every Linux distribution. Artifacts remain review candidates; the workflow does not publish releases.
+
+`package_deb.py --stage CHECKED_APPDIR --output Colosseum-1.1.9-linux-amd64.deb` rechecks ELF closure and QML identity and rejects builds requiring glibc newer than 2.39. It installs the runtime under `/opt/colosseum`, a `/usr/bin/colosseum` launcher, menu entry and icon. Install with `sudo apt install ./Colosseum-1.1.9-linux-amd64.deb`; remove with `sudo apt remove colosseum`. User profiles are not removed. Updates remain manual. AppImage and RPM are separate future packaging targets, not products of this workflow.
+
+Both archive and Debian assembly require the production Content API origin and the standard accounts-capable edition. The shared checksummed content-staging policy removes migrated artwork and the four catalogue databases, while retaining native extension assets and metadata. The release version comes from `native/CMakeLists.txt`.
 
 `assemble.py` packages a fresh Release `colosseum` and its matching `qml-build.manifest`. It does not download dependencies, silently reuse an old alpha, or upload an artifact. Its destination must not exist. Supply the full compiled source commit; the release operator must verify it corresponds to the build.
 
-Requirements: Python 3.9+, GNU binutils (`readelf`), glibc `ldd`, `patchelf`, a complete Qt 6.11.1 SDK/runtime, and the compatible application dependency libraries. Python tooling has no third-party modules. All runtime executable inputs must be trusted artifacts from the authorized build or official distributions.
+Requirements: Python 3.11+, GNU binutils (`readelf`), glibc `ldd`, `patchelf`, a complete Qt 6.11.1 SDK/runtime, and the compatible application dependency libraries. Python tooling has no third-party modules. All runtime executable inputs must be trusted artifacts from the authorized build or official distributions.
 
 Example, with explicit caller-selected paths:
 
@@ -21,7 +27,7 @@ python3 check_package.py /path/Colosseum-1.1.8-linux-x86_64-candidate \
 
 Select a coherent FFmpeg family explicitly using repeated `--runtime-lib PATH`. The Qt SDK can ship FFmpeg SONAMEs that collide with the distro's FFmpeg/libmpv dependencies. The tested candidate recipe selects the Debian family (`libavcodec.so.61`, `libavdevice.so.61`, `libavfilter.so.10`, `libavformat.so.61`, `libavutil.so.59`, `libswresample.so.5`, `libswscale.so.8`, `libpostproc.so.58`) ahead of SDK resolution. This still requires actual QtMultimedia/mpv runtime testing; matching SONAME alone does not prove compatibility.
 
-Use repeated `--exclude-plugin plugins-relative/path.so` only for explicitly unused optional plugins; each exclusion is recorded in BUILD-IDENTITY.json. `--plugin-override plugins-relative/path.so=/path/rebuilt.so` records an explicitly rebuilt matching-Qt plugin. Both reject escaping paths and nonexistent targets. The candidate excludes unused non-SQLite database drivers and the serial-port NMEA backend.
+Use repeated `--exclude-plugin plugins-relative/path.so` only for explicitly unused optional plugins; each exclusion is recorded in BUILD-IDENTITY.json. `--plugin-override plugins-relative/path.so=/path/rebuilt.so` records an explicitly rebuilt matching-Qt plugin. Both reject escaping paths and nonexistent targets. The candidate excludes unused non-SQLite database drivers. Positioning backends are preserved for WebEngine geolocation; the matching Qt SerialPort SDK module supplies the NMEA backend dependency. The Debian package declares `ca-certificates` as a hard dependency: installed HTTPS (Qt OpenSSL and WebEngine) verifies against the distro-maintained system CA store, which must arrive with the package rather than as a recommendation.
 
 Use `--exclude-qml-module QtQuick3D` for the unused SDK SpatialAudio module when QtQuick3D is not installed; this is recorded explicitly. Only runtime QtWebEngineProcess is copied from libexec. Qt libraries are collected through actual ELF closure, excluding unrelated SDK tools/libraries.
 

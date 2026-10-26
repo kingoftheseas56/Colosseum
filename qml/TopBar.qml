@@ -21,7 +21,7 @@ Item {
     required property Item backdrop          // wallpaper to composite the pills' glass over
     property string activeMedium: ""         // "" = home / no selection
     property bool compactBrowserChrome: false
-    readonly property bool compactChrome: compactBrowserChrome || width < 1000
+    readonly property bool compactChrome: compactBrowserChrome || width < 1100
     property bool backOnly: false            // Extensions: only Back, no clock, pills or system icons
     // World roots keep the historical Home destination; nested surfaces can name their
     // owning world without inventing a second Back control.
@@ -273,9 +273,8 @@ Item {
         visible: !bar.backOnly
         backdrop: bar.backdrop
         anchors.verticalCenter: parent.verticalCenter
-        x: bar.compactChrome
-           ? leftChrome.width + 12 + Math.max(0, (systemChrome.x - leftChrome.width - 24 - width) / 2)
-           : (bar.width - width) / 2
+        x: Math.max(leftChrome.width + 12,
+                    Math.min((bar.width - width) / 2, systemChrome.x - width - 12))
         radius: 999
         width: pillsRow.implicitWidth + 14; height: 46
         Row {
@@ -287,7 +286,12 @@ Item {
             Pill { label: "Theatre" }
             Pill { label: "Universes" }
             Pill { label: "Feria"; comingSoon: true }
-            Pill { label: "Vinyl"; comingSoon: true }
+            Pill {
+                label: "Vinyl"
+                readonly property bool qualificationEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+                comingSoon: !qualificationEnabled
+                objectName: bar.visible && bar.lifecycleActive ? (qualificationEnabled ? "worldPillVinyl" : "modePill_Vinyl") : ""
+            }
         }
     }
 
@@ -302,7 +306,7 @@ Item {
         objectName: "topBarSystemChrome"
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: (bar.compactChrome || bar.width < 1200) ? 10 : 20
+        spacing: bar.width < 1000 ? 12 : (bar.width < 1200 ? 20 : 24)
         // Search — worlds only, except Universes (no search behaviour there yet).
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each

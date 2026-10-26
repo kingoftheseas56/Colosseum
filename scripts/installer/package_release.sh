@@ -58,6 +58,27 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
   exit 1
 fi
 
+# Qualification builds must never ship development-only gates or synthetic fixtures.
+for option in COLOSSEUM_ENABLE_VINYL_QUALIFICATION COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES; do
+  if grep -Eq "^${option}:BOOL=ON$" "$BUILD_DIR/CMakeCache.txt"; then
+    echo "refusing to package ${option}=ON build"
+    exit 1
+  fi
+done
+
+# 1.1.9 and 1.1.10 ship the qualified online catalogues in the one standard edition.
+# Reject an unconfigured/staging build before assembling any release payload.
+if [ "$VERSION" = "1.1.9" ] || [ "$VERSION" = "1.1.10" ]; then
+  grep -Fxq 'COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev' "$BUILD_DIR/CMakeCache.txt" \
+    || { echo "refusing $VERSION without its qualified production content API"; exit 1; }
+  grep -Fxq 'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF' "$BUILD_DIR/CMakeCache.txt" \
+    || { echo "refusing $VERSION without the standard accounts-capable edition"; exit 1; }
+fi
+if [ "$VERSION" = "1.1.10" ]; then
+  grep -Fxq 'COLOSSEUM_VINYL_IN_APP:BOOL=OFF' "$BUILD_DIR/CMakeCache.txt" \
+    || { echo "refusing 1.1.10 with Vinyl enabled or unspecified"; exit 1; }
+fi
+
 # API builds use semantic queries and never download whole catalogues. The
 # checksummed staging step below also removes the delivered tribute artwork.
 
@@ -157,8 +178,8 @@ INSTALLER_BYTES="$(wc -c < "$OUT" | tr -d '[:space:]')"
 # Size gate (1.1.2 lesson): that release shipped 647MB of build garbage vs 1.1.1's 211MB.
 # Refuse loudly rather than publish a bloated installer nobody eyeballed.
 MAX_INSTALLER_BYTES=$((300 * 1024 * 1024))
-# 1.1.9 bundles the four-sea atlas artwork. Its clean, complete runtime
-# needs a 350 MiB budget; retain the historical limit for other versions.
+# The integrated 1.1.9 desktop runtime has a 350 MiB ceiling. Published
+# artwork is stripped above; retain the historical limit for other versions.
 if [ "$VERSION" = "1.1.9" ]; then
   MAX_INSTALLER_BYTES=$((350 * 1024 * 1024))
 fi

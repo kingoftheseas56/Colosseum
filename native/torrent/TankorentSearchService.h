@@ -83,7 +83,7 @@ protected:
     // Hook for tests: subclasses (TestableSearchService in tests) override
     // this to inject MockTorrentIndexer instances. Default impl reads
     // QSettings + the media-type allowlist + per-id enabled flag and
-    // instantiates the real concrete indexer subclasses.
+    // instantiates the real Worker-backed source adapters.
     virtual QList<TorrentIndexer*> buildIndexersFor(const QString& mediaType,
                                                     const QString& sourceFilter);
 

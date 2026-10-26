@@ -479,6 +479,7 @@ class tst_history_sync final
     Q_OBJECT
 
 private slots:
+    void localMusicStaysOutOfCloudSnapshots();
     void ownerAccumulatesFirstLastAndCompletionFacts();
     void ownerPersistsAcrossRestart();
     void legacyCompletedOnlyRecordPromotesOnLoad();
@@ -1563,6 +1564,32 @@ stremioProvenanceRoundTripsAndSurvivesLegacyPartialMerge() {
         1,
         &error), qPrintable(error));
     QVERIFY(store.get(QStringLiteral("episode"), QStringLiteral("kitsu:alpha:s1:e0")).isEmpty());
+}
+
+void tst_history_sync::localMusicStaysOutOfCloudSnapshots() {
+    QTemporaryDir temp; QVERIFY(temp.isValid());
+    const QString path = temp.filePath("history.ini");
+    const QString item = QStringLiteral("[\"album\",\"edition\",0,0,\"track\"]");
+    {
+        HistoryStore store(path);
+        QVERIFY(store.recordActivityRange("music", item, 1000, 2000));
+        QVERIFY(store.markCompleted("music", item, 3000));
+        QVERIFY(store.markCompleted("movie", "movie-1", 4000));
+        QCOMPARE(store.records().size(), 2);
+        HistorySyncAdapter adapter(&store);
+        SyncAdapterExport snapshot;
+        QVERIFY(adapter.exportSnapshot(&snapshot));
+        QCOMPARE(snapshot.records.size(), 1);
+        QCOMPARE(snapshot.records.first().payload.toObject().value("kind").toString(), QString("movie"));
+    }
+    HistoryStore reopened(path);
+    QVERIFY(reopened.completed("music", item));
+    HistorySyncAdapter adapter(&reopened);
+    QVERIFY(reopened.remove("music", item));
+    SyncAdapterExport snapshot;
+    QVERIFY(adapter.exportSnapshot(&snapshot));
+    QCOMPARE(snapshot.records.size(), 1);
+    QCOMPARE(snapshot.records.first().payload.toObject().value("kind").toString(), QString("movie"));
 }
 
 QTEST_MAIN(tst_history_sync)
