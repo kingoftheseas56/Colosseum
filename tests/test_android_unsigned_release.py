@@ -2,6 +2,7 @@
 from __future__ import annotations
 import struct
 import os
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -35,8 +36,33 @@ class ReleaseConfigTests(unittest.TestCase):
         self.assertEqual(cfg.endpoint, release_apk.DEFAULT_ENDPOINT)
         args = release_apk.release_cmake_args(cfg)
         self.assertIn("-DCMAKE_BUILD_TYPE=Release", args)
-        self.assertIn("-DQT_ANDROID_SIGN_APK=OFF", args)
+        self.assertIn("-DQT_ANDROID_SIGN_APK:BOOL=OFF", args)
         self.assertIn("-DCOLOSSEUM_ANDROID_NUVIO_BACKEND=ON", args)
+
+    def test_release_qt_cache_arguments_are_typed_and_preserve_values(self):
+        cfg = release_apk.resolve_build_config("arm64-v8a", "/build", "/out", self.base())
+        args = release_apk.release_cmake_args(cfg)
+        deployment = "-DQT_ANDROID_DEPLOYMENT_TYPE:STRING=RELEASE"
+        signing = "-DQT_ANDROID_SIGN_APK:BOOL=OFF"
+        self.assertIn(deployment, args)
+        self.assertIn(signing, args)
+        cmake = shutil.which("cmake")
+        if not cmake:
+            self.skipTest("CMake is unavailable for the cache-type check")
+        with tempfile.TemporaryDirectory() as temp:
+            script = Path(temp) / "check_release_cache.cmake"
+            script.write_text(
+                'get_property(deploy_type CACHE QT_ANDROID_DEPLOYMENT_TYPE PROPERTY TYPE)\n'
+                'get_property(sign_type CACHE QT_ANDROID_SIGN_APK PROPERTY TYPE)\n'
+                'if(NOT "${deploy_type}" STREQUAL "STRING" OR NOT "${QT_ANDROID_DEPLOYMENT_TYPE}" STREQUAL "RELEASE")\n'
+                '  message(FATAL_ERROR "deployment cache type/value mismatch")\n'
+                'endif()\n'
+                'if(NOT "${sign_type}" STREQUAL "BOOL" OR NOT "${QT_ANDROID_SIGN_APK}" STREQUAL "OFF")\n'
+                '  message(FATAL_ERROR "signing cache type/value mismatch")\n'
+                'endif()\n', encoding="utf-8")
+            run = subprocess.run([cmake, deployment, signing, "-P", str(script)],
+                                 capture_output=True, text=True, check=False)
+        self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
 
     def test_release_validation_rejects_bad_mode_inputs_and_signing(self):
         cases = [

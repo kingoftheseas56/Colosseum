@@ -93,8 +93,8 @@ def release_cmake_args(config: BuildConfig) -> list[str]:
         raise ValueError("release CMake flags requested for non-release mode")
     return [
         "-DCMAKE_BUILD_TYPE=Release",
-        "-DQT_ANDROID_DEPLOYMENT_TYPE=RELEASE",
-        "-DQT_ANDROID_SIGN_APK=OFF",
+        "-DQT_ANDROID_DEPLOYMENT_TYPE:STRING=RELEASE",
+        "-DQT_ANDROID_SIGN_APK:BOOL=OFF",
         "-DCOLOSSEUM_ANDROID_NUVIO_BACKEND=ON",
         "-DCOLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC=OFF",
         f"-DCOLOSSEUM_NUVIO_ENGINE_PREFIX={config.engine_prefix}",
