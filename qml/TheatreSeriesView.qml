@@ -919,7 +919,7 @@ Item {
             page.onMetaLoaded();
             loading = false;
             revealGuard.stop();
-        });
+        }, itemData);
     }
 
     function onMetaLoaded() {

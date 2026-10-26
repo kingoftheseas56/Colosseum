@@ -257,9 +257,26 @@ function jikanQuery(path, params, done) {
     });
 }
 
+// Keep the exact movie identity and known presentation fields already supplied
+// by the catalogue when metadata providers cannot answer. This is a projection
+// of the caller's record, not a second cache or a substitute episode list.
+function catalogueMovieMeta(type, id, record) {
+    if (type !== "movie" || !/^tt[0-9]+$/.test(String(id || ""))
+            || !record || record.id !== id || record.type !== "movie"
+            || typeof record.name !== "string" || !record.name.trim().length)
+        return null;
+    var meta = {id: id, type: "movie", name: record.name};
+    if (typeof record.releaseInfo === "string") meta.releaseInfo = record.releaseInfo;
+    if (typeof record.imdbRating === "number" || typeof record.imdbRating === "string")
+        meta.imdbRating = record.imdbRating;
+    if (typeof record.poster === "string") meta.poster = record.poster;
+    return meta;
+}
+
 // Full Cinemeta meta for a detail page (incl. `videos[]` episodes for series).
 // type: "movie" | "series"; id: Cinemeta id e.g. "tt15239678". Calls done(meta) or done(null).
-function loadMeta(type, id, done) {
+// An optional exact movie catalogue record is used only after provider misses.
+function loadMeta(type, id, done, catalogueRecord) {
     if (!type || !id) { done(null); return; }
     if (String(id).match(/^(mal|kitsu|anilist|anidb):/)) {
         var enc = encodeURIComponent(id);
@@ -290,10 +307,13 @@ function loadMeta(type, id, done) {
         AddonClient.loadMetaFromExtensions(extensionsList, type, id, done);
         return;
     }
+    var catalogueFallback = catalogueMovieMeta(type, id, catalogueRecord);
     requestJson(CINEMETA + "/meta/" + sType + "/" + id + ".json", function(json) {
         if (json && json.meta) { done(json.meta); return; }
         // Cinemeta miss on a tt id — an extension may still know it
-        AddonClient.loadMetaFromExtensions(extensionsList, type, id, done);
+        AddonClient.loadMetaFromExtensions(extensionsList, type, id, function(meta) {
+            done(meta || catalogueFallback);
+        });
     });
 }
 
