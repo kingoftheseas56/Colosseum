@@ -4766,7 +4766,8 @@ Window {
             console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
                         + "  (booted=" + Player2Available + ")")
             item.backdrop = wall
-            item.backRequested.connect(win.minimizePlayer)
+            // Android has no taskbar to restore a warm movie; Back saves progress and releases it.
+            item.backRequested.connect(win.androidHost ? win.closePlayerSession : win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(win.closePlayerSession)
