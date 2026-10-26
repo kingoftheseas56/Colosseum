@@ -20,6 +20,47 @@ SearchSurface {
     commitOnDestruction: false
     historyStore: worldData.searchHistoryStore
     searchProvider: provider
+    bottomInset: artistPicker ? 88 : 0
+
+    Theme { id: footerTheme }
+    Glass {
+        objectName: "vinylArtistSelectionFooter"
+        anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        height: 88; z: 10; visible: page.artistPicker
+        backdrop: page.backdrop; radius: 0; tint: 0.12; scrim: 0.90
+        Column {
+            anchors.left: parent.left; anchors.leftMargin: page.phoneNarrow ? 16 : footerTheme.margin
+            anchors.right: selectionActions.left; anchors.rightMargin: 20
+            anchors.verticalCenter: parent.verticalCenter
+            spacing: 6
+            Text {
+                width: parent.width; text: "Choose at least "+page.worldData.minimumArtistCount+" artists"
+                color: footerTheme.ink; font.family: footerTheme.display
+                font.pixelSize: page.phoneNarrow ? 18 : 22; elide: Text.ElideRight
+            }
+            Text {
+                width: parent.width; text: page.worldData.pickerDraft.length+" selected"
+                color: footerTheme.inkDim; font.family: footerTheme.ui; font.pixelSize: 12
+            }
+        }
+        Row {
+            id: selectionActions
+            anchors.right: parent.right; anchors.rightMargin: page.phoneNarrow ? 16 : footerTheme.margin
+            anchors.verticalCenter: parent.verticalCenter; spacing: 12
+            VinylWorldButton {
+                objectName: "vinylSearchPickerCancel"
+                visible: page.worldData.onboardingState==="editing"
+                label: "Cancel artist selection"; symbol: "cancel"; backdrop: page.backdrop
+                onTriggered: page.worldData.cancelTasteEdit()
+            }
+            VinylWorldButton {
+                objectName: "vinylSearchPickerDone"
+                enabled: page.worldData.pickerDraft.length>=page.worldData.minimumArtistCount
+                label: "Continue"; symbol: "check"; selected: true; backdrop: page.backdrop
+                onTriggered: page.worldData.answerPicker()
+            }
+        }
+    }
 
     function captureState() {
         return {query: query, catalogue: session.captureCatalogue(),

@@ -65,6 +65,12 @@ Item {
             browsingSong:browsingSong,songAlbum:browseSong.album,songIndex:browseSong.trackIndex,songEdition:browseSong.editionId};
     }
     function pushRoute() {routeStack=routeStack.concat([captureRoute()]);}
+    function openArtistOnboarding() {
+        if(lifecycleActive && page==="home" && worldData.tastePickerOpen
+            && worldData.onboardingState==="draft" && !searchOpen)
+            enterDiscoverSearch(true,false);
+    }
+    onLifecycleActiveChanged: if(lifecycleActive) Qt.callLater(root.openArtistOnboarding)
     function enterDiscoverSearch(online,modeToggle) {
         if(searchOpen) return;
         if(session.browsing && session.browseOperation==="album") {
@@ -103,7 +109,7 @@ Item {
     }
     // A destination starts at a silent focus origin, as in Main's keyboard ignition.
     // Tab still enters the shared focus chain; opening a page never selects Back/Play.
-    function parkFocus() {root.forceActiveFocus(Qt.OtherFocusReason);}
+    function parkFocus() {if(!searchOpen)root.forceActiveFocus(Qt.OtherFocusReason);}
     function focusLibrary() {Qt.callLater(root.parkFocus);}
     function showHome() {
         var alreadyOnHome=world.currentTab==="home";
@@ -112,6 +118,7 @@ Item {
         if(alreadyOnHome) {worldData.selectTab("home");worldData.refreshHome();}
         page="home";
         world.parkPage(0);Qt.callLater(root.parkFocus);
+        Qt.callLater(root.openArtistOnboarding);
     }
     function openHomeDestination(tab,section,id) {
         if(tab==="discover"){root.enterDiscoverSearch(true,false);return;}
@@ -314,6 +321,7 @@ Item {
     Connections {
         target:worldData
         function onTastePickerOpenChanged() {
+            if(worldData.tastePickerOpen) Qt.callLater(root.openArtistOnboarding);
             if(!worldData.tastePickerOpen && root.artistSearchOpen) {
                 root.artistSearchOpen=false;
                 root.searchOpen=false;
@@ -366,7 +374,7 @@ Item {
             width:worldScroll.width
             height:Math.max(0,worldScroll.height-(dockedTabs.visible ? world.dockedInset : 0))
             clip:true
-            VinylWorld {id:world;y:-worldViewport.y;width:parent.width;worldData:worldData;backdrop:root.chromeBackdrop;pageFlick:worldScroll;dockedInset:70;dockedTabBar:dockedTabs;currentTab:"library";onCurrentTabChanged:if(root.worldVisible){root.page=currentTab;root.searchOpen=false;root.artistSearchOpen=false;}}
+            VinylWorld {id:world;y:-worldViewport.y;width:parent.width;worldData:worldData;backdrop:root.chromeBackdrop;pageFlick:worldScroll;dockedInset:70;dockedTabBar:dockedTabs;currentTab:"library";onCurrentTabChanged:if(root.worldVisible){root.page=currentTab;root.searchOpen=false;root.artistSearchOpen=false;Qt.callLater(root.openArtistOnboarding);}}
         }
     }
     Loader {

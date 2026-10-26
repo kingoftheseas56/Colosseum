@@ -22,6 +22,7 @@ Item {
     property url primaryIcon: ""
     property bool keepOpenOnActivation: false
     property bool commitOnDestruction: true
+    property real bottomInset: 0
     property alias query: queryInput.text
     property alias contentY: scroll.contentY
     property var results: searchProvider ? searchProvider.results : []
@@ -369,7 +370,7 @@ Item {
         anchors.top: field.bottom; anchors.topMargin: surf.phoneNarrow ? 20 : 30
         anchors.left: parent.left; anchors.leftMargin: surf.phoneNarrow ? 16 : theme.margin
         anchors.right: parent.right; anchors.rightMargin: surf.phoneNarrow ? 16 : theme.margin
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 8
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 8 + surf.bottomInset
         clip: true
         contentWidth: width
         contentHeight: content.implicitHeight + 30

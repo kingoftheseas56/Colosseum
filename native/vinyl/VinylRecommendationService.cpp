@@ -93,23 +93,25 @@ void VinylRecommendationService::setProfileActive(bool value){if(m_active==value
 void VinylRecommendationService::loadPreferences() {
     if(!m_active||m_committing)return;
     m_saved=m_preferences?uniqueArtists(plain(m_preferences->property("vinylTasteArtists")).toList()):QVariantList();
-    m_state=m_preferences&&m_preferences->property("vinylTasteAnswered").toBool()?"answered":"unanswered";
+    m_state=m_preferences&&m_preferences->property("vinylTasteAnswered").toBool()
+        &&m_saved.size()>=MinimumArtistCount?"answered":"unanswered";
     m_draft=m_saved;homeSeedsChanged();emit stateChanged();
 }
 void VinylRecommendationService::setSuggestions(const QVariantList &values){m_suggestions=uniqueArtists(values);if(m_query.isEmpty()&&m_results.value("status")!="loading"){m_results["items"]=m_suggestions;emit resultsChanged();}}
 void VinylRecommendationService::beginHomeVisit(){if(!m_active||m_scope.isEmpty())return;visitHome();if(m_state=="unanswered"){m_state="draft";m_draft=m_saved;emit stateChanged();searchArtists("");}}
 void VinylRecommendationService::beginTasteEdit(){if(!m_active)return;cancelSearch();m_draft=m_saved;m_state="editing";m_error.clear();emit stateChanged();searchArtists("");}
-void VinylRecommendationService::cancelTasteEdit(){if(m_state!="editing")return;cancelSearch();m_draft=m_saved;m_state="answered";m_error.clear();emit stateChanged();}
+void VinylRecommendationService::cancelTasteEdit(){if(m_state!="editing")return;cancelSearch();m_draft=m_saved;m_state=m_saved.size()>=MinimumArtistCount?"answered":"unanswered";m_error.clear();emit stateChanged();}
 void VinylRecommendationService::toggleDraftArtist(const QVariantMap &value) {
     if(!m_active||(m_state!="draft"&&m_state!="editing"))return;
     const auto row=artist(value);if(row.isEmpty())return;const auto key=row.value("key");
-    for(int i=0;i<m_draft.size();++i)if(m_draft[i].toMap().value("key")==key){m_draft.removeAt(i);emit stateChanged();return;}
+    for(int i=0;i<m_draft.size();++i)if(m_draft[i].toMap().value("key")==key){m_draft.removeAt(i);m_error.clear();emit stateChanged();return;}
     if(m_draft.size()>=512){m_error="The artist selection limit has been reached.";emit stateChanged();return;}
     m_draft.append(row);m_error.clear();emit stateChanged();
 }
 bool VinylRecommendationService::commitTaste(bool skip) {
     if(!m_active||!m_preferences||(m_state!="draft"&&m_state!="editing"))return false;
-    auto rows=skip?QVariantList():m_draft;
+    auto rows=uniqueArtists(skip?QVariantList():m_draft);
+    if(rows.size()<MinimumArtistCount){m_error=QStringLiteral("Choose at least %1 artists.").arg(MinimumArtistCount);emit stateChanged();return false;}
     for(auto &value:rows){auto row=value.toMap();row.remove("id");row.remove("title");row.remove("cover");value=row;}
     bool saved=false;m_committing=true;
     if(m_preferences->metaObject()->indexOfMethod("setVinylTasteSelections(bool,QVariantList)")>=0)
