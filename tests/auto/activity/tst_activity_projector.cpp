@@ -239,6 +239,7 @@ class tst_activity_projector : public QObject {
     Q_OBJECT
 
 private slots:
+    void musicHasDistinctTypedProjectionAndOccurrenceCompletion();
     // 1. Golden fixture parity.
     void goldenPair_data();
     void goldenPair();
@@ -519,6 +520,40 @@ void tst_activity_projector::lifetimeCompletionDedupeIgnoresLaterReCompletion() 
     const QJsonObject september = ActivityProjector::projectMonth(events, QStringLiteral("2026-09"));
     QCOMPARE(september.value(QStringLiteral("completedCount")).toInt(), 0);
     QCOMPARE(september.value(QStringLiteral("activeDays")).toInt(), 1); // re-completion still an active day
+}
+
+void tst_activity_projector::musicHasDistinctTypedProjectionAndOccurrenceCompletion() {
+    const auto at = localMs(2026, 8, 15, 10, 0, 0);
+    const auto music = playbackEvent("music", "m", "vinyl", "music", "vinyl:album", "occurrence-1", "Track", at, 20000);
+    const auto book = playbackEvent("book", "b", "biblio", "audiobook", "biblio:book", "chapter", "Book", at, 10000);
+    const auto result = ActivityProjector::projectMonth(QJsonArray{music, book}, "2026-08");
+    QCOMPARE(result.value("listenSeconds").toInt(), 30);
+    QCOMPARE(result.value("watchSeconds").toInt(), 0);
+    bool foundMusic = false, foundBook = false;
+    for (const auto value : result.value("highlights").toArray()) {
+        const auto row = value.toObject();
+        if (row.value("role") == "music") {
+            foundMusic = true;
+            QCOMPARE(row.value("world").toString(), QString("vinyl"));
+            QCOMPARE(row.value("kind").toString(), QString("music"));
+            QCOMPARE(row.value("listenSeconds").toInt(), 20);
+        }
+        if (row.value("role") == "audiobook") {
+            foundBook = true;
+            QCOMPARE(row.value("world").toString(), QString("biblio"));
+            QCOMPARE(row.value("listenSeconds").toInt(), 10);
+        }
+    }
+    QVERIFY(foundMusic && foundBook);
+    for (const auto value : result.value("recentActivity").toArray())
+        QCOMPARE(value.toObject().value("verb").toString(), QString("listened"));
+    const auto first = completionEvent("eof1", "m1", "vinyl", "music", "vinyl:album", "occurrence-1", "Track", at, "eof");
+    const auto replay = completionEvent("eof2", "m2", "vinyl", "music", "vinyl:album", "occurrence-1", "Track", at + 1, "eof");
+    const auto otherEdition = completionEvent("eof3", "m3", "vinyl", "music", "vinyl:album", "occurrence-2", "Track", at + 2, "eof");
+    QCOMPARE(ActivityProjector::projectMonth(QJsonArray{first, replay, otherEdition}, "2026-08").value("completedCount").toInt(), 2);
+    auto wrongWorld = music;
+    wrongWorld["world"] = "biblio";
+    QVERIFY_EXCEPTION_THROWN(ActivityProjector::validateEvent(wrongWorld), std::exception);
 }
 
 QTEST_GUILESS_MAIN(tst_activity_projector)

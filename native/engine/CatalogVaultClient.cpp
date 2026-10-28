@@ -16,6 +16,9 @@
 namespace {
 
 constexpr auto kUserAgent = "Colosseum/CatalogVault";
+// A transfer that stops moving (the app backgrounded on a phone, a dropped link) used to sit
+// with fetching==true forever. No bytes for this long ends it as an ordinary failure.
+constexpr int kTransferTimeoutMs = 30000;
 
 const QStringList& knownAssets()
 {
@@ -197,9 +200,17 @@ void CatalogVaultClient::setManagedNames(const QStringList& names)
     m_managedNamesSet = true;
 }
 
+void CatalogVaultClient::setTankobanApiEnabled(bool enabled)
+{
+    m_tankobanApiEnabled = enabled;
+}
+
 QStringList CatalogVaultClient::managedAssetNames() const
 {
-    return m_managedNamesSet ? m_managedNames : knownAssets();
+    QStringList names = m_managedNamesSet ? m_managedNames : knownAssets();
+    if (m_tankobanApiEnabled)
+        names.removeAll(QStringLiteral("tankoban_catalog.db"));
+    return names;
 }
 
 bool CatalogVaultClient::allFourFilesPresent() const
@@ -293,6 +304,7 @@ void CatalogVaultClient::fetchManifest()
     request.setRawHeader("User-Agent", kUserAgent);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setTransferTimeout(kTransferTimeoutMs);
     QNetworkReply* reply = m_nam->get(request);
     connect(reply, &QNetworkReply::finished, this, [this, reply] { onManifestReply(reply); });
 }
@@ -333,11 +345,12 @@ void CatalogVaultClient::onManifestReply(QNetworkReply* reply)
         return;
     }
 
+    const QStringList managedNames = managedAssetNames();
     QHash<QString, AssetInfo> byName;
     for (const QJsonValue& value : root.value(QStringLiteral("assets")).toArray()) {
         const QJsonObject asset = value.toObject();
         const QString name = asset.value(QStringLiteral("name")).toString();
-        if (!knownAssets().contains(name))
+        if (!managedNames.contains(name))
             continue;
         AssetInfo info;
         info.name = name;
@@ -352,7 +365,7 @@ void CatalogVaultClient::onManifestReply(QNetworkReply* reply)
 
     QVector<AssetInfo> toDownload;
     QHash<QString, qint64> finalSizes;
-    for (const QString& name : managedAssetNames()) {
+    for (const QString& name : managedNames) {
         const QString path = m_vaultDir + QLatin1Char('/') + name;
         const bool existsLocally = QFile::exists(path);
         finalSizes.insert(name, existsLocally ? QFileInfo(path).size() : 0);
@@ -426,6 +439,7 @@ void CatalogVaultClient::startNetworkDownload(int queueIndex)
     request.setRawHeader("User-Agent", kUserAgent);
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                          QNetworkRequest::NoLessSafeRedirectPolicy);
+    request.setTransferTimeout(kTransferTimeoutMs);
     QNetworkReply* reply = m_nam->get(request);
     m_downloadReply = reply;
 

@@ -21,6 +21,9 @@ Item {
     property real viewportTop: 0              // viewport top in TheatreCatalogPage-local coordinates
     property real viewportHeight: 0           // 0 → viewport unknown; mount as an offscreen fallback
     property bool editMode: false
+    // The owning Column can postpone first residency until it has positioned every inserted row.
+    // Standalone consumers retain their original immediate/unknown-viewport behavior.
+    property bool geometryReady: true
     property real activationViewports: 1.0
     property real retentionViewports: 2.0
 
@@ -54,6 +57,9 @@ Item {
         return bottom >= bandTop && top <= bandBottom;
     }
     function evaluateResidency() {
+        // Retain existing mounted rails during incremental layout changes; newly inserted
+        // hosts must not mount against the default y=0 before their Column has laid out.
+        if (!shelf.geometryReady) return;
         if (shelf.viewportHeight <= 0) {          // viewport unknown → mount (offscreen fallback)
             shelf.railLoaded = true;
             return;
@@ -80,6 +86,7 @@ Item {
         }
     }
 
+    onGeometryReadyChanged: shelf.evaluateResidency()
     onViewportTopChanged: shelf.evaluateResidency()
     onViewportHeightChanged: shelf.evaluateResidency()
     onYChanged: shelf.evaluateResidency()

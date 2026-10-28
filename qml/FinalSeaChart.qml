@@ -1,10 +1,12 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Shapes
 import "OnePieceFinalSeaAtlasData.js" as Atlas
 
 Item {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     width: 1680
     height: 960
     clip: true
@@ -39,13 +41,13 @@ Item {
 
     function routeInk(group) {
         var result = ""
-        for (var i = 0; i < Atlas.routeLegs.length; ++i) {
-            var leg = Atlas.routeLegs[i]
+        for (var i = 0; i < (root.universeContentGeneration, Atlas.routeLegs).length; ++i) {
+            var leg = (root.universeContentGeneration, Atlas.routeLegs)[i]
             var category = leg.route
             if (leg.kind === "ascent") category = "vertical"
             if (category !== group) continue
-            var a = Atlas.location(leg.from)
-            var b = Atlas.location(leg.to)
+            var a = (root.universeContentGeneration, Atlas.location)(leg.from)
+            var b = (root.universeContentGeneration, Atlas.location)(leg.to)
             if (!a || !b) continue
             result += "M" + a.x * 1680 + " " + a.y * 960 + " C"
                     + leg.c1[0] * 1680 + " " + leg.c1[1] * 960 + " "
@@ -413,11 +415,11 @@ Item {
     // Supporting Elbaf landmarks.
     Repeater {
         model: [
-            Atlas.location("land-of-gods"),
-            Atlas.location("elbaf-underworld"),
-            Atlas.location("owl-library"),
-            Atlas.location("walrus-school"),
-            Atlas.location("aurust-castle")
+            (root.universeContentGeneration, Atlas.location)("land-of-gods"),
+            (root.universeContentGeneration, Atlas.location)("elbaf-underworld"),
+            (root.universeContentGeneration, Atlas.location)("owl-library"),
+            (root.universeContentGeneration, Atlas.location)("walrus-school"),
+            (root.universeContentGeneration, Atlas.location)("aurust-castle")
         ]
         delegate: FinalSeaLandform {
             required property var modelData
@@ -433,7 +435,7 @@ Item {
 
     // Location labels.
     Repeater {
-        model: Atlas.locations
+        model: (root.universeContentGeneration, Atlas.locations)
         delegate: Text {
             required property var modelData
             visible: modelData.label.length > 0

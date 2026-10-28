@@ -1,4 +1,5 @@
 #include "streamserver.h"
+#include "StreamRuntimeIntegrity.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -6,6 +7,7 @@
 #include <QFileInfo>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QJsonArray>
 #include <QNetworkAccessManager>
 #include <QNetworkReply>
 #include <QNetworkRequest>
@@ -17,6 +19,8 @@
 #include <QTcpServer>
 #include <QTimer>
 #include <QUrl>
+#include <QUrlQuery>
+#include <memory>
 
 namespace {
 
@@ -53,6 +57,9 @@ QString prepareRuntimeScript(const QString &runtimeDir, const QString &cacheDir,
     if (!script.contains("11470"))
         return {};
 
+    if (!StreamRuntimeIntegrity::apply(script))
+        qWarning("[stream] unrecognized runtime: peer integrity guard was not applied");
+
     // Disable the bundle's fixed-range retry, then update every internal default-port URL.
     // Replace 11474 first so a selected port with those digits cannot be rewritten twice.
     script.replace("11474", QByteArray::number(port));
@@ -69,13 +76,19 @@ QString prepareRuntimeScript(const QString &runtimeDir, const QString &cacheDir,
 } // namespace
 
 StreamServer::StreamServer(QObject *parent)
-    : QObject(parent)
+    : StreamServer(11470, parent)
+{
+}
+
+StreamServer::StreamServer(quint16 servicePort, QObject *parent)
+    : QObject(parent), m_servicePort(servicePort)
 {
     m_nam = new QNetworkAccessManager(this);
 }
 
 StreamServer::~StreamServer()
 {
+    for (const auto &token : m_scoped.keys()) cancelRequest(token);
     if (m_proc) {
         // Teardown is not a startup failure. Disconnect lifecycle callbacks before
         // stopping the owned runtime so an intentional exit cannot emit the
@@ -109,9 +122,13 @@ void StreamServer::markEngineUnavailable(const QString &message)
 {
     // Requests queued before a terminal startup failure belong to the failed
     // attempt. Do not replay them later if the installation is repaired.
+    const bool notifyLegacy = !m_pending.isEmpty() || m_scoped.isEmpty();
     m_pending.clear();
+    const auto requests = m_scoped;
+    for (auto it = requests.cbegin(); it != requests.cend(); ++it)
+        failRequest(it.key(), it->generation, message);
     setEngineUnavailable(true);
-    Q_EMIT streamError(message);
+    if (notifyLegacy) Q_EMIT streamError(message);
 }
 
 QString StreamServer::findRuntimeDir() const
@@ -156,6 +173,150 @@ void StreamServer::warmUp()
     ensureStarted();
 }
 
+void StreamServer::cancelRequest(const QString &token)
+{
+    auto it = m_scoped.find(token);
+    if (it == m_scoped.end()) return;
+    const auto reply = it->reply;
+    m_scoped.erase(it);
+    if (reply) { reply->disconnect(this); reply->abort(); reply->deleteLater(); }
+    // The shared runtime owns its swarm/disk cache. Never remove an engine here:
+    // Theatre, downloads or an adopted external service may still be using it.
+}
+
+void StreamServer::failRequest(const QString &token, quint64 generation, const QString &message)
+{
+    const auto it = m_scoped.constFind(token);
+    if (it == m_scoped.cend() || it->generation != generation) return;
+    cancelRequest(token);
+    Q_EMIT torrentRequestError(token, message);
+}
+
+void StreamServer::requestManifest(const QString &token, const QString &infoHash)
+{
+    requestMagnetManifest(token, infoHash, {});
+}
+
+void StreamServer::requestMagnetManifest(const QString &token, const QString &infoHash, const QString &magnet)
+{
+    cancelRequest(token);
+    if (token.isEmpty() || token.size() > 128 || m_scoped.size() >= 32) {
+        QTimer::singleShot(0, this, [this, token] {
+            if (!m_scoped.contains(token)) Q_EMIT torrentRequestError(token, QStringLiteral("Invalid or excess torrent request."));
+        });
+        return;
+    }
+    const auto hash = infoHash.toLower();
+    const auto generation = ++m_requestGeneration;
+    ScopedRequest request; request.hash = hash; request.generation = generation; request.magnet = magnet;
+    m_scoped.insert(token, request);
+    const QUrl magnetUrl(magnet);
+    if (!QRegularExpression(QStringLiteral("^[0-9a-f]{40}$")).match(hash).hasMatch()
+        || (!magnet.isEmpty() && (magnet.size()>8192 || magnetUrl.scheme()!="magnet"
+            || QUrlQuery(magnetUrl).queryItemValue("xt").toLower()!=QStringLiteral("urn:btih:")+hash))) {
+        QTimer::singleShot(0, this, [this, token, generation] { failRequest(token, generation, QStringLiteral("Invalid torrent hash.")); });
+        return;
+    }
+    QTimer::singleShot(30000, this, [this, token, generation] {
+        const auto it = m_scoped.constFind(token);
+        if (it != m_scoped.cend() && it->generation == generation && it->files.isEmpty())
+            failRequest(token, generation, QStringLiteral("Torrent metadata timed out."));
+    });
+    if (ready()) startManifest(token, generation);
+    else ensureStarted();
+}
+
+void StreamServer::startManifest(const QString &token, quint64 generation)
+{
+    auto it = m_scoped.find(token);
+    if (it == m_scoped.end() || it->generation != generation || it->started || !ready()) return;
+    it->started = true; it->port = m_port;
+    const auto hash = it->hash;
+    const int requestPort = it->port;
+    const QUrl endpoint(QStringLiteral("http://127.0.0.1:%1/%2/create").arg(m_port).arg(hash));
+    QNetworkRequest request(endpoint);
+    request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
+    request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(20000);
+    const auto payload=it->magnet.isEmpty()?QByteArrayLiteral("{}"):
+        QJsonDocument(QJsonObject{{"torrent",it->magnet}}).toJson(QJsonDocument::Compact);
+    auto *reply = m_nam->post(request, payload);
+    it->reply = reply;
+    auto bytes = std::make_shared<QByteArray>();
+    connect(reply, &QNetworkReply::readyRead, this, [reply, bytes] {
+        bytes->append(reply->readAll());
+        if (bytes->size() > 4 * 1024 * 1024) reply->abort();
+    });
+    connect(reply, &QNetworkReply::finished, this, [this, token, generation, reply, bytes, hash, endpoint, requestPort] {
+        auto current = m_scoped.find(token);
+        if (current == m_scoped.end() || current->generation != generation || current->reply != reply) return;
+        const auto networkError = reply->error();
+        bytes->append(reply->readAll()); current->reply = nullptr;
+        reply->deleteLater();
+        if (networkError == QNetworkReply::ConnectionRefusedError) {
+            // The listener can disappear after readiness. Keep this token and
+            // generation pending until the shared server recovery path is done.
+            current->started = false;
+            current->port = -1;
+            if (m_port == requestPort)
+                recoverDeadServer(requestPort);
+            else if (m_port > 0)
+                startManifest(token, generation);
+            else
+                ensureStarted();
+            return;
+        }
+        if (networkError != QNetworkReply::NoError || reply->url() != endpoint
+            || reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt() != 200
+            || reply->attribute(QNetworkRequest::RedirectionTargetAttribute).isValid()
+            || bytes->size() > 4 * 1024 * 1024) {
+            failRequest(token, generation, QStringLiteral("Torrent metadata is unavailable.")); return;
+        }
+        QJsonParseError error;
+        const auto document = QJsonDocument::fromJson(*bytes, &error);
+        const auto object = document.object();
+        const auto identity = object.value(QStringLiteral("infoHash")).toString();
+        const auto files = object.value(QStringLiteral("files")).toArray();
+        if (error.error != QJsonParseError::NoError || !document.isObject()
+            || (!identity.isEmpty() && identity.toLower() != hash) || files.isEmpty() || files.size() > 20000) {
+            failRequest(token, generation, QStringLiteral("Torrent file manifest is invalid.")); return;
+        }
+        QVariantList admitted;
+        for (int index = 0; index < files.size(); ++index) {
+            auto row = files[index].toObject().toVariantMap();
+            QString path = row.value(QStringLiteral("path"), row.value(QStringLiteral("name"))).toString();
+            path.replace(QLatin1Char('\\'), QLatin1Char('/'));
+            if (path.isEmpty() || path.size() > 2048 || QDir::isAbsolutePath(path)
+                || path.contains(QChar::Null) || path.split('/').contains(QStringLiteral(".."))
+                || QRegularExpression(QStringLiteral("^[A-Za-z]:")).match(path).hasMatch()
+                || row.value(QStringLiteral("length")).toLongLong() <= 0) {
+                failRequest(token, generation, QStringLiteral("Torrent file manifest is invalid.")); return;
+            }
+            row.insert(QStringLiteral("fileIdx"), index);
+            row.insert(QStringLiteral("path"), path);
+            admitted.append(row);
+        }
+        current->files = admitted;
+        // A validated scoped response is health evidence even when the
+        // best-effort /settings request failed. A later outage is independent.
+        m_consecutiveHealthRestarts = 0;
+        Q_EMIT torrentManifestReady(token, hash, admitted);
+    });
+}
+
+void StreamServer::requestFile(const QString &token, const QString &infoHash, int fileIdx)
+{
+    const auto it = m_scoped.constFind(token);
+    if (it == m_scoped.cend() || it->hash != infoHash.toLower() || it->files.isEmpty()
+        || fileIdx < 0 || fileIdx >= it->files.size() || it->port != m_port || !ready()) {
+        Q_EMIT torrentRequestError(token, QStringLiteral("The selected torrent file was not admitted for this request."));
+        return;
+    }
+    const auto hash = it->hash;
+    const auto url = streamUrl(hash, fileIdx);
+    Q_EMIT torrentStreamReady(token, url, hash, fileIdx);
+}
+
 void StreamServer::ensureStarted()
 {
     if (m_proc || m_starting || m_port > 0)
@@ -172,13 +333,13 @@ void StreamServer::ensureStarted()
     // :11470 — a child launch just dies on the port clash (the exact silent
     // failure that stalled season downloads, diagnosed 2026-07-05). Probe, and
     // only spawn our own runtime when nobody answers.
-    QNetworkRequest probe(QUrl(QStringLiteral("http://127.0.0.1:11470/settings")));
+    QNetworkRequest probe(QUrl(QStringLiteral("http://127.0.0.1:%1/settings").arg(m_servicePort)));
     probe.setTransferTimeout(1500);
     QNetworkReply *r = m_nam->get(probe);
     connect(r, &QNetworkReply::finished, this, [this, r]() {
         r->deleteLater();
         if (r->error() == QNetworkReply::NoError) {
-            m_port = 11470;
+            m_port = m_servicePort;
             setEngineUnavailable(false);
             m_starting = false;
             qInfo("[stream] adopted the running Stremio server on port %d", m_port);
@@ -365,6 +526,9 @@ void StreamServer::flushPending()
     m_pending.clear();
     for (const Pending &p : pend)
         registerThenReady(p.infoHash, p.fileIdx, p.fetch);
+    const auto requests = m_scoped;
+    for (auto it = requests.cbegin(); it != requests.cend(); ++it)
+        if (!it->started) startManifest(it.key(), it->generation);
 }
 
 void StreamServer::registerThenReady(const QString &infoHash, int fileIdx, bool fetch)

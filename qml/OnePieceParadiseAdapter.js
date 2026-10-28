@@ -1,4 +1,5 @@
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 var BADGE_ROOT = "../assets/universes/one-piece/paradise/badges/";
 var BANNER_ROOT = "../assets/universes/one-piece/paradise/banners/";
@@ -54,6 +55,9 @@ function _copyArray(values) {
 }
 
 function artForArc(arc) {
+    var content = typeof ContentApi !== "undefined" ? ContentApi.document("tribute-one-piece-paradise") : {};
+    var key = typeof arc === "string" ? arc : (arc && arc.id);
+    if (content.artByArc && content.artByArc[key]) return ContentApi.resolveAssets(content.artByArc[key]);
     if (!arc || typeof arc.id !== "string") return null;
     return _asset(arc.id);
 }

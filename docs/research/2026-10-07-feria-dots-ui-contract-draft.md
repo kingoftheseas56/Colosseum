@@ -10,7 +10,7 @@ Hemanth wants a complete functional browser inside Feria's site-as-app experienc
 
 The main goal is a strong browser foundation with Chrome-like correctness and reliability over a narrower Feria scope. QtWebEngine/Chromium remains the engine basis under evaluation; the task strengthens its application integration, not merely the visual shell. Supported browsing needs dependable navigation, independent pages, request ownership, privacy, lifecycle and recovery. A mock or source-copy count is not completion evidence. These prototypes should become reviewable functional candidates toward that foundation.
 
-Standardize observable behavior, actions and lifetime ownership, not a generic Browser Tools drawer. A simple reference frontend proves the shared interface; app skins can change afterward. See the [current assignment](2026-10-07-dots-feria-inspection-brief.md) for baseline and batch scope. Keep category numbers from the [donor comparison](2026-10-07-feria-browser-donor-quality-comparison.md); old winners are candidates, not mandatory selections.
+Standardize observable behavior, actions and lifetime ownership, not a generic Browser Tools drawer. A simple reference frontend proves the shared interface; app skins can change afterward. The original assignment brief remains available in [Git history](https://github.com/kingoftheseas56/Colosseum/blob/e2803b890e1e3965d27db3332a40cc6403a370a8/docs/research/2026-10-07-dots-feria-inspection-brief.md) for its historical baseline and batch scope. Keep category numbers from the [donor comparison](2026-10-07-feria-browser-donor-quality-comparison.md); old winners are candidates, not mandatory selections.
 
 ## Locked
 

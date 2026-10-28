@@ -37,7 +37,7 @@ Item {
         var records = deck.sessions.browsers()
         if (!records.length) return
         var current = records.findIndex(function(record) { return record.id === deck.sessions.activeId })
-        deck.sessions.switchTo(records[(current + step + records.length) % records.length].id)
+        deck.activate(records[(current + step + records.length) % records.length].id)
     }
     Shortcut {
         sequence: "Ctrl+T"
@@ -501,6 +501,7 @@ Item {
                 canGoForward: root.engineCanGoForward
                 loading: root.pageLoading
                 browserReady: root.browserReady
+                accountStore: root.controller.accountStore
                 onBackRequested: root.pageBack()
                 onForwardRequested: root.pageForward()
                 onReloadRequested: root.reloadOrStop()
@@ -639,6 +640,10 @@ Item {
             if (!root.retained && controller.accountStore) controller.accountStore.setMediaCaptureBlocked(blocked, visitToken)
         }
         function onPlaybackObserved(sample) { root.receivePlayback(sample) }
+        // The page's own title. Playback samples carry one only while activity is
+        // being recorded, so a private tab, or any tab with recording paused,
+        // showed no title at all after it navigated.
+        function onTitleChanged() { if (root.browserItem) root.pageTitle = root.browserItem.title }
         function onResumeUnavailable() { controller.setToast("The saved page is open. Use the provider's controls to restore your position.") }
         function onStarted(location) {
             FeriaBrowserPolicy.rememberOrigin(controller.hostApp, location)

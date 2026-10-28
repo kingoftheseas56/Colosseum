@@ -310,6 +310,7 @@ private slots:
     void adoptionCopiesOnlyWhenDestinationHasNoSettings();
     void accountlessCatalogueProjectionIsSafeAndInert();
     void connectAvailabilityTracksNativeAuthenticationAction();
+    void connectionGateDoesNotLeakAcrossProviders();
     void safeDtoKeysMatchAllowlist();
     void connectedCardUsesSafeLabelAndEffectiveCapabilities();
     void importReviewUsesOpaqueIdsAndRevalidatesRevision();
@@ -505,7 +506,11 @@ void TrackerSyncCenterTest::connectAvailabilityTracksNativeAuthenticationAction(
     QVERIFY(simklDossier.value(QStringLiteral("available")).toBool());
     QVERIFY(!simklDossier.value(QStringLiteral("connectEnabled")).toBool());
 
-    fixture.model->setConnectAvailable(true);
+    fixture.model->setConnectionAvailabilitySource([](TrackerProviderId providerId) {
+        return providerId == TrackerProviderId::Simkl
+            ? TrackerSyncCenterModel::ConnectAvailability::Ready
+            : TrackerSyncCenterModel::ConnectAvailability::ProviderServiceUnavailable;
+    });
     simklDossier = fixture.model->providerDossier(QStringLiteral("simkl"));
     QVERIFY(simklDossier.value(QStringLiteral("connectEnabled")).toBool());
 
@@ -522,9 +527,73 @@ void TrackerSyncCenterTest::connectAvailabilityTracksNativeAuthenticationAction(
     }
     QVERIFY(sawSimkl);
 
-    fixture.model->setConnectAvailable(false);
+    fixture.model->setConnectionAvailabilitySource([](TrackerProviderId) {
+        return TrackerSyncCenterModel::ConnectAvailability::ProviderServiceUnavailable;
+    });
     QVERIFY(!fixture.model->providerDossier(QStringLiteral("simkl"))
                  .value(QStringLiteral("connectEnabled")).toBool());
+}
+
+void TrackerSyncCenterTest::connectionGateDoesNotLeakAcrossProviders()
+{
+    TrackerSyncCenterFixture fixture;
+    QVERIFY(fixture.valid());
+    const auto capabilities = simklCapabilities();
+    fixture.model = fixture.makeModel({
+        {TrackerProviderId::Simkl, QStringLiteral("SIMKL"), capabilities, true},
+        {TrackerProviderId::Mal, QStringLiteral("MyAnimeList"), capabilities, true},
+        {TrackerProviderId::Trakt, QStringLiteral("Trakt"), capabilities, true}});
+    using Availability = TrackerSyncCenterModel::ConnectAvailability;
+    Availability gates[] = {
+        Availability::CredentialStorageUnavailable,
+        Availability::CredentialStorageUnavailable,
+        Availability::CredentialStorageUnavailable
+    };
+    fixture.model->setConnectionAvailabilitySource([&gates](TrackerProviderId id) {
+        return gates[static_cast<int>(id)];
+    });
+    for (int index = 0; index < 3; ++index) {
+        const QString keys[] = {QStringLiteral("simkl"), QStringLiteral("mal"),
+                                QStringLiteral("trakt")};
+        const QString key = keys[index];
+        for (const QString &candidate : keys) {
+            const QVariantMap dossier = fixture.model->providerDossier(candidate);
+            QVERIFY(dossier.value(QStringLiteral("available")).toBool());
+            QVERIFY(!dossier.value(QStringLiteral("connectEnabled")).toBool());
+            QCOMPARE(dossier.value(QStringLiteral("connectUnavailableReason")).toString(),
+                     QStringLiteral("credential_storage_unavailable"));
+        }
+        const quint64 before = fixture.model->revision();
+        gates[index] = Availability::Ready;
+        fixture.model->refresh();
+        QVERIFY(fixture.model->revision() > before);
+        for (const QString &candidate : keys) {
+            const bool ready = candidate == key;
+            const QVariantMap dossier = fixture.model->providerDossier(candidate);
+            QCOMPARE(dossier.value(QStringLiteral("connectEnabled")).toBool(), ready);
+            QCOMPARE(dossier.value(QStringLiteral("connectUnavailableReason")).toString(),
+                     ready ? QString() : QStringLiteral("credential_storage_unavailable"));
+            bool found = false;
+            for (const QVariant &value : fixture.model->catalogue()) {
+                const QVariantMap card = value.toMap();
+                if (card.value(QStringLiteral("providerKey")).toString() != candidate)
+                    continue;
+                found = true;
+                QCOMPARE(card.value(QStringLiteral("connectEnabled")).toBool(), ready);
+                QCOMPARE(card.value(QStringLiteral("connectUnavailableReason")).toString(),
+                         ready ? QString() : QStringLiteral("credential_storage_unavailable"));
+            }
+            QVERIFY(found);
+        }
+        gates[index] = Availability::ProviderServiceUnavailable;
+        fixture.model->refresh();
+        const QVariantMap serviceFailure = fixture.model->providerDossier(key);
+        QVERIFY(!serviceFailure.value(QStringLiteral("connectEnabled")).toBool());
+        QCOMPARE(serviceFailure.value(QStringLiteral("connectUnavailableReason")).toString(),
+                 QStringLiteral("connection_service_unavailable"));
+        gates[index] = Availability::CredentialStorageUnavailable;
+        fixture.model->refresh();
+    }
 }
 
 void TrackerSyncCenterTest::connectedCardUsesSafeLabelAndEffectiveCapabilities()
@@ -571,7 +640,8 @@ void TrackerSyncCenterTest::safeDtoKeysMatchAllowlist()
     QCOMPARE(catalogue.size(), 3);
     QCOMPARE(keys(catalogue.first().toMap()), keySet({
         "providerKey", "providerName", "available", "status", "capabilities",
-        "connected", "pendingWork", "waitingCount", "unresolvedCount", "connectEnabled"}));
+        "connected", "pendingWork", "waitingCount", "unresolvedCount", "connectEnabled",
+        "connectUnavailableReason"}));
 
     const QVariantList reviews = fixture.model->importReviews();
     QCOMPARE(reviews.size(), 1);
@@ -589,7 +659,7 @@ void TrackerSyncCenterTest::safeDtoKeysMatchAllowlist()
 
     const QVariantMap dossier = fixture.model->providerDossier(QStringLiteral("simkl"));
     QCOMPARE(keys(dossier), keySet({"found", "revision", "providerKey", "providerName",
-        "available", "status", "connected", "accountLabel", "capabilities",
+        "available", "connectUnavailableReason", "status", "connected", "accountLabel", "capabilities",
         "lastSuccessfulSyncAtMs", "waitingCount", "pendingCount", "unresolvedCount",
         "knownUnsentCount", "unknownOutcomeCount", "importedHistoryCount",
         "importedProgressCount", "importedDataRemovalPreview", "pullAutomatically",

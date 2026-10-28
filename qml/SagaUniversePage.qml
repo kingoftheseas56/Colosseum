@@ -3,6 +3,7 @@
 // Brotherhood/agents/colosseum-universe-saga-organised-mock.html, measured at 1280x720.
 // Spec: docs/superpowers/specs/2026-10-04-colosseum-saga-universe-template-design.md.
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Controls
 import "SagaApi.js" as Saga
 import "ComicsApi.js" as ComicsApi
@@ -10,10 +11,15 @@ import "Universes.js" as UDB
 
 Item {
     id: root
+    onUniverseContentGenerationChanged: reload()
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     anchors.fill: parent
 
     // shell contract (bookRequested is this template's own verb)
     property Item backdrop: null
+    property var contentStore: typeof Content !== "undefined" ? Content : null
+    readonly property string fallbackWallpaperSource: root.contentStore
+        ? (root.contentStore.generation, root.contentStore.assetUrl("assets/wallpaper/cold-ripple.jpg")) : ""
     property string universeName: ""
     signal backRequested()
     signal minimizeRequested()
@@ -37,7 +43,7 @@ Item {
     readonly property string uiFace: sagaUi.name
     readonly property string displayFace: sagaDisplay.name
     property bool reducedMotion: true
-    readonly property var guide: UDB.configFor(root.universeName || root.uni.name)
+    readonly property var guide: (root.universeContentGeneration, UDB.configFor)(root.universeName || root.uni.name)
     // an anime universe (curated manga list) is the same page with the read form in manga:
     // the hero kicker reads ANIME, the read row and blocks say MANGA, and the read form
     // opens Tankoban. One variation per TYPE, never per franchise — all data-driven.
@@ -309,7 +315,7 @@ Item {
     readonly property var stills: root.works.filter(function(item) {
         return !root.isBook(item) && root.canOpen(item) && !!item.art
     }).slice(0, 4)
-    readonly property var siblings: UDB.universes.concat(UDB.archive).filter(function(u) {
+    readonly property var siblings: (root.universeContentGeneration, UDB.universes).concat((root.universeContentGeneration, UDB.archive)).filter(function(u) {
         return u.category === "saga" && !!u.wallpaper && u.name !== (root.universeName || root.uni.name)
     }).slice(0, 4)
 
@@ -398,7 +404,8 @@ Item {
             visible: root.backdrop !== null
         }
         Image { anchors.fill: parent; visible: root.backdrop === null
-                source: "../assets/wallpaper/cold-ripple.jpg"
+                objectName: "fallbackWallpaperImage"
+                source: root.fallbackWallpaperSource
                 fillMode: Image.PreserveAspectCrop; cache: true }
         Image {
             id: worldWallpaper

@@ -1,0 +1,9 @@
+node_modules/
+dist/
+.wrangler/
+.dev.vars*
+.publisher/
+worker-configuration.d.ts
+__pycache__/
+
+generated/

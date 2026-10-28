@@ -8,15 +8,20 @@
 #define COLOSSEUM_MPVITEM_H
 
 #include <QElapsedTimer>
+#include <QMutex>
 #include <MpvAbstractItem>
 #include <QTimer>
 #include <QStringList>
 #include <QVariantList>
 #include <QVariantMap>
+#include <memory>
+#include <atomic>
+
+#include "playerbackendcontract.h"
 
 class QProcess;
 
-class MpvItem : public MpvAbstractItem
+class MpvItem : public MpvAbstractItem, public PlayerBackendContract
 {
     Q_OBJECT
 public:
@@ -31,9 +36,11 @@ public:
         // Batch stats reads encode their property INDEX in the reply id: StatsBatch + i.
         // Kept far above the small ids so the switch in onAsyncReply stays clean.
         StatsBatch = 100,
-        DecodedDimensions = 1000,
     };
     Q_ENUM(AsyncIds)
+
+    Q_PROPERTY(QVariantMap capabilities READ capabilities CONSTANT)
+    QVariantMap capabilities() const override;
 
     Q_PROPERTY(QString mediaTitle READ mediaTitle NOTIFY mediaTitleChanged)
     QString mediaTitle();
@@ -107,6 +114,11 @@ public:
     Q_PROPERTY(QUrl currentUrl READ currentUrl NOTIFY currentUrlChanged)
     QUrl currentUrl() const;
 
+    // Monotonic generation for the current load request. Native event replies
+    // carry this value so consumers can reject work from a replaced stream.
+    Q_PROPERTY(quint64 playbackGeneration READ playbackGeneration NOTIFY playbackGenerationChanged)
+    quint64 playbackGeneration() const;
+
     // Decoded-frame truth (Agent Visibility Phase 2, Slice J1-Video-Seam, 2026-08-13):
     // the SAME two mpv properties MediaAdmissionProbe.cpp:59-60 observes on its own
     // headless handle ("dwidth"/"dheight"), mirrored here on the LIVE playing instance
@@ -145,7 +157,25 @@ public:
     // requires a Referer/Origin actually plays. loadFile clears the field, so headers set here can
     // never leak into a later plain load. (Theatre House HTTP Source, slice 1.)
     Q_INVOKABLE void loadFileWithHeaders(const QString &url, const QVariantMap &headers);
+    // Backend-neutral PlayerItem contract used by shared QML. Android supplies the
+    // same surface without inheriting MpvQt.
+    Q_INVOKABLE void loadSource(const QString &url);
+    Q_INVOKABLE void loadSource(const QString &url, const QVariantMap &headers) override;
+    Q_INVOKABLE void stopPlayback() override;
+    Q_INVOKABLE void setHostLifecycleState(const QString &state) override;
+    Q_INVOKABLE void setAudioFocusState(const QString &state) override;
+    Q_INVOKABLE void releaseVideoSurface() override;
+    Q_INVOKABLE void restoreVideoSurface() override;
+    Q_INVOKABLE void applyPlaybackProfile();
+    Q_INVOKABLE void refreshAudioOutput();
+    Q_INVOKABLE QVariant playbackStat(const QString &name);
     Q_INVOKABLE void seekExact(double value);
+    // Token-aware counterpart for native playback adapters. Runs on MpvQt's
+    // existing controller thread and reports whether libmpv accepted the seek.
+    Q_INVOKABLE void seekExactTracked(double seconds, quint64 requestSerial);
+    // Fence native observations already produced on the decoder thread, even
+    // when their queued GUI delivery crosses a new command in the same clock tick.
+    Q_INVOKABLE quint64 nativeObservationSerial() const { return m_decodeEvents->observationSerial.load(); }
     Q_INVOKABLE void seekStep(double delta);
     Q_INVOKABLE void frameStep();
     Q_INVOKABLE void frameBackStep();
@@ -176,6 +206,7 @@ public:
 Q_SIGNALS:
     void mediaTitleChanged();
     void currentUrlChanged();
+    void playbackGenerationChanged();
     void positionChanged();
     void durationChanged();
     void pauseChanged();
@@ -200,6 +231,11 @@ Q_SIGNALS:
     void fileLoaded();
     void endFile(QString reason);
     void playbackError(QString code, QString message);
+    void nativePlaybackEvent(const QString &kind, qint64 entryId,
+                             double positionSeconds, double durationSeconds,
+                             quint64 loadGeneration, qint64 monotonicMs, quint64 observationSerial);
+    void trackedSeekReply(quint64 requestSerial, bool success, quint64 loadGeneration,
+                          quint64 observationFence);
     void videoReconfig();
     void decodedDimensionsChanged();
     // One aggregated stats map (mpv property names as keys) per requestPlaybackStatsAsync()
@@ -207,7 +243,12 @@ Q_SIGNALS:
     void playbackStatsReady(QVariantMap stats);
 
 private:
+    friend class tst_journey_play_video;
     void setupConnections();
+    void handlePlaybackEvent(const mpv_event &event);
+    void emitNativePlaybackEvent(const QString &kind, qint64 entryId,
+                                 quint64 generation);
+    void refreshDecodedDimensions();
     // Shared body of loadFile / loadFileWithHeaders: update currentUrl, emit, issue `loadfile`.
     void issueLoadFile(const QString &file);
     void onPropertyChanged(const QString &property, const QVariant &value);
@@ -233,7 +274,6 @@ private:
     QVariantMap m_statsBatchValues;
     int m_statsBatchPending = 0;
     void onAsyncReply(const QVariant &data, mpv_event event);
-    void refreshDecodedDimensions();
     QString formatTime(const double time) const;
     QVariantList tracksForType(const QString &type) const;
     QString stringifyId(const QVariant &value) const;
@@ -254,10 +294,29 @@ private:
     double m_duration{0.0};
     QString m_formattedDuration;
     QUrl m_currentUrl;
+    // generation is advanced on the GUI thread; event state belongs exclusively
+    // to MpvQt's controller thread, at the ordered load-command boundary.
+    quint64 m_decodeGeneration{0};
+    struct DecodeEvents {
+        std::atomic<quint64> observationSerial{0};
+        QObject *eventSource{nullptr}; // controller-thread owned native client
+        quint64 reopenSeekSerial{0};
+        // Also fences a running direct adapter against derived destruction.
+        QMutex lifetime;
+        MpvItem *target{nullptr};
+        quint64 generation{0};
+        qint64 expectedEntry{-1};
+        qint64 streamEntry{-1};
+        bool acceptNextEntry{false};
+        bool started{false};
+        bool loaded{false};
+        bool reconfigured{false};
+    };
+    std::shared_ptr<DecodeEvents> m_decodeEvents{std::make_shared<DecodeEvents>()};
+    QThread *m_decodeWorker{nullptr}; // owned by MpvAbstractItem, outlives derived destructor
+    void setDecodedDimensions(int width, int height);
     int m_decodedWidth{0};
     int m_decodedHeight{0};
-    int m_decodedRefreshId = static_cast<int>(AsyncIds::DecodedDimensions);
-    bool m_decodedRefreshEnabled = false;
     QVariantList m_trackList;
     QVariantList m_chapters;
     double m_cacheTime = 0.0;

@@ -6,7 +6,6 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
-import "../feria" as Feria
 import "../SystemFocusContainment.js" as SystemFocusContainment
 
 Rectangle {
@@ -52,9 +51,19 @@ Rectangle {
     property string initial: "?"
     property string activeSection: "profile"
     property Item focusReturnItem: null
-    readonly property var railSections: feriaOnly ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : [
+    // No Feria section on Android: qml/feria/ is not shipped there, so neither the rail
+    // entry nor the feriaContent Loader may reference it (feriaOnly itself is unreachable).
+    property bool feriaEnabled: false
+    readonly property bool feriaSectionAvailable: Qt.platform.os !== "android" && feriaEnabled
+    readonly property var railSections: feriaOnly && feriaSectionAvailable ? [{ id: "feria", label: qsTr("Feria"), glyph: "▣" }] : feriaSectionAvailable ? [
         { id: "profile", label: qsTr("Profile"), glyph: "◌" },
         { id: "feria", label: qsTr("Feria"), glyph: "▣" },
+        { id: "security", label: qsTr("Security"), glyph: "◇" },
+        { id: "devices", label: qsTr("Devices"), glyph: "▣" },
+        { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
+        { id: "privacy", label: qsTr("Data & privacy"), glyph: "◫" }
+    ] : [
+        { id: "profile", label: qsTr("Profile"), glyph: "◌" },
         { id: "security", label: qsTr("Security"), glyph: "◇" },
         { id: "devices", label: qsTr("Devices"), glyph: "▣" },
         { id: "recovery", label: qsTr("Recovery"), glyph: "↶" },
@@ -125,7 +134,7 @@ Rectangle {
     // Theatre worlds) derives its scope from searchMode.toLowerCase(), and Main.qml only
     // ever sets searchMode to "Tankoban" or "Theatre". No "all"/"home"/"world" scope exists
     // in production use — E2 clears exactly these three, nothing else.
-    readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre"]
+    readonly property var privacySearchHistoryScopes: ["biblio", "tankoban", "theatre", "vinyl"]
 
     // E2: aggregate local search-history clear via the real SearchHistoryStore owner.
     onPrivacyClearSearchHistoryRequested: {
@@ -202,7 +211,7 @@ Rectangle {
     function open(section, invoker, context) {
         if (!root.visible) {
             rememberInvoker(invoker)
-            feriaOnly = context === "feria"
+            feriaOnly = context === "feria" && feriaSectionAvailable
         }
         activeSection = feriaOnly ? "feria"
             : railSections.some(function(row) { return row.id === section }) ? section : "profile"
@@ -500,13 +509,20 @@ Rectangle {
                 active: root.visible && root.feriaController !== null
                     && root.activeSection === "feria"
                 visible: active
-                sourceComponent: Feria.PorticoCombinedParityAccountView {
-                    controller: root.feriaController
-                    embedded: true
-                    servicesOnly: true
+                // String source (desktop-only path) so the Android bundle, which ships no
+                // qml/feria/, never parses PorticoCombinedParityAccountView.qml.
+                source: "../feria/PorticoCombinedParityAccountView.qml"
+                onLoaded: {
+                    item.embedded = true
+                    item.servicesOnly = true
+                    root.configureFeriaContent()
                 }
-                onLoaded: root.configureFeriaContent()
                 onActiveChanged: if (!active) root.releaseFeriaContent()
+                Binding {
+                    target: feriaContent.item
+                    property: "controller"
+                    value: root.feriaController
+                }
             }
 
             AccountSecurityPage {

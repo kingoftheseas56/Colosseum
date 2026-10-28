@@ -14,6 +14,7 @@
 //
 // [Agent 2 (Claude), biblio]
 import QtQuick
+import QtQuick.Window
 import "Reader2Logic.js" as L
 
 Item {
@@ -92,6 +93,37 @@ Item {
     // Any of the three overlays open pins the chrome shown; Esc closes whichever is open
     // (ReaderShell's cascade). Search counts too, so Esc dismisses it via closeAnyPanel.
     readonly property bool anyPanelOpen: panelOpen || appearanceOpen || searchOpen
+    // Android: the bars are native windows above the scene; a full-screen sheet lives in the
+    // scene, so the bars step aside while one is open. Always false elsewhere.
+    readonly property bool sheetCoversBars: Qt.platform.os === "android" && anyPanelOpen
+    // A sheet hides the page on Android, so picking a destination must return to it. The jump
+    // runs while the sheet still covers the page; the sheet closes when the reader reports the
+    // new location (or after a short fallback). Revealing the WebView in the same beat as the
+    // jump loses the jump.
+    property bool leavingSheet: false
+    function leaveSheetOnPick() {
+        if (Qt.platform.os !== "android" || !anyPanelOpen) return
+        leavingSheet = true
+        leaveSheetTimer.restart()
+    }
+    function finishLeaveSheet() {
+        if (!leavingSheet) return
+        leavingSheet = false
+        leaveSheetTimer.stop()
+        closeAnyPanel()
+    }
+    Timer { id: leaveSheetTimer; interval: 4000; onTriggered: chrome.finishLeaveSheet() }
+    Connections {
+        target: chrome
+        enabled: chrome.leavingSheet
+        function onPercentChanged() { chrome.finishLeaveSheet() }
+        function onPageInChapterChanged() { chrome.finishLeaveSheet() }
+        function onChapterLabelChanged() { chrome.finishLeaveSheet() }
+        function onCurrentTocIndexChanged() { chrome.finishLeaveSheet() }
+    }
+    // The tap that opens a sheet lands in a bar's native window, which then hides; give the
+    // main window focus so the sheet's fields receive keys and the soft keyboard.
+    onSheetCoversBarsChanged: if (sheetCoversBars && chrome.Window.window) chrome.Window.window.requestActivate()
 
     // ---- signals up ----
     signal backRequested()
@@ -251,12 +283,18 @@ Item {
     // covers the central text column where selection happens.
 
     // ---------- 2. edge page-turn zones (~11% each side) ----------
-    ReaderKeyboardArea {
-        id: leftEdge
+    // On Android the WebView handles taps itself (paper_glue touchTaps: outer quarters turn
+    // the page), so these zones get no native window there and swipes from the edge still
+    // reach the book.
+    ReaderOverlay {
+        overlayActive: Qt.platform.os !== "android"
         anchors.left: parent.left
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: parent.width * 0.11
+        ReaderKeyboardArea {
+        id: leftEdge
+        anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         keyboardTabStop: false
         onClicked: chrome.prevRequested()
@@ -271,12 +309,16 @@ Item {
             Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         }
     }
-    ReaderKeyboardArea {
-        id: rightEdge
+    }
+    ReaderOverlay {
+        overlayActive: Qt.platform.os !== "android"
         anchors.right: parent.right
         anchors.top: parent.top
         anchors.bottom: parent.bottom
         width: parent.width * 0.11
+        ReaderKeyboardArea {
+        id: rightEdge
+        anchors.fill: parent
         cursorShape: Qt.PointingHandCursor
         keyboardTabStop: false
         onClicked: chrome.nextRequested()
@@ -290,6 +332,7 @@ Item {
             opacity: chrome.awake ? 0.26 : 0
             Behavior on opacity { NumberAnimation { duration: 250; easing.type: Easing.OutCubic } }
         }
+    }
     }
 
     // ---------- 3. reveal scrims (paint-only, never block input) ----------
@@ -321,6 +364,7 @@ Item {
         id: topBar
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         shown: chrome.awake
+        overlayActive: shown && !chrome.sheetCoversBars
         title: chrome.title
         author: chrome.author
         chapterLabel: chrome.chapterLabel
@@ -339,6 +383,7 @@ Item {
         id: bottomRail
         anchors.bottom: parent.bottom; anchors.left: parent.left; anchors.right: parent.right
         shown: chrome.awake
+        overlayActive: shown && !chrome.sheetCoversBars
         fraction: chrome.percent / 100
         pageInChapter: chrome.pageInChapter
         pagesInChapter: chrome.pagesInChapter
@@ -789,10 +834,10 @@ Item {
 
         onCloseRequested: chrome.closePanel()
         onTabSelected: (tab) => { chrome.activeTab = tab; chrome.tabSelected(tab) }
-        onTocActivated: (href) => chrome.tocActivated(href)
-        onBookmarkActivated: (cfi) => chrome.bookmarkActivated(cfi)
+        onTocActivated: (href) => { chrome.tocActivated(href); chrome.leaveSheetOnPick() }
+        onBookmarkActivated: (cfi) => { chrome.bookmarkActivated(cfi); chrome.leaveSheetOnPick() }
         onBookmarkDeleted: (id) => chrome.bookmarkDeleted(id)
-        onHighlightActivated: (cfi) => chrome.highlightActivated(cfi)
+        onHighlightActivated: (cfi) => { chrome.highlightActivated(cfi); chrome.leaveSheetOnPick() }
         onFollowToggled: (on) => chrome.followToggled(on)
         onAudioPlayToggled: chrome.audioPlayToggled()
         onAudioSpeedCycled: chrome.audioSpeedCycled()
@@ -825,7 +870,7 @@ Item {
         capped: chrome.searchCapped
         lastQuery: chrome.searchLastQuery
         onSubmitted: (q) => chrome.searchSubmitted(q)
-        onResultActivated: (cfi) => chrome.searchResultActivated(cfi)
+        onResultActivated: (cfi) => { chrome.searchResultActivated(cfi); chrome.leaveSheetOnPick() }
         onCloseRequested: chrome.closeSearch()
     }
 }

@@ -10,6 +10,7 @@
 // the payload still renders; a section left empty by that is removed entirely, because an
 // empty row is a lie about what the universe holds.
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 var KINDS = { video: true, manga: true, comic: true, book: true };
 
@@ -53,6 +54,7 @@ function validate(payload) {
 // bundled files, so a hit is a hit forever. That stops being true once §5.5's HTTPS
 // server can push a revision — this cache becomes a real policy question then, not now.
 var _cache = {};
+ContentApi.register(function() { _cache = {}; });
 
 // The payload reader. QML installs the C++ one at startup; tests inject a fake.
 var _reader = null;
@@ -66,12 +68,13 @@ function load(extensionId, done) {
     if (_cache[extensionId]) { done(_cache[extensionId]); return; }
     var file = fileFor(extensionId);
     if (!file) { done(null); return; }
-    if (!_reader) {
+    var remote = ContentApi.document("universe-" + file);
+    if (!_reader && !remote.universe) {
         console.warn("UniverseExtApi: no reader installed — call setReader() at startup; "
                      + "every universe will render empty until you do.");
         done(null); return;
     }
-    var text = _reader(file) || "";
+    var text = remote.universe ? JSON.stringify(ContentApi.resolveAssets(remote)) : (_reader(file) || "");
     var parsed = null;
     try { parsed = text ? JSON.parse(text) : null; } catch (e) { parsed = null; }
     if (!parsed) { done(null); return; }        // failures are NOT cached — next call retries

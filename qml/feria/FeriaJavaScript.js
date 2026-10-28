@@ -2,8 +2,11 @@
 
 // Engine callbacks outlive document epochs. Keep their entry point outside a
 // disposable QML context and sever all view/application references on terminal.
-function ticket(owner, id, epoch, callback) {
-    return {owner:owner, id:id, epoch:epoch, callback:callback, valid:true}
+// `work` is the native ticket FeriaBrowserRuntime admitted for this script: it
+// decides whether the result may still act. This object only keeps the QML
+// callback reachable and severable.
+function ticket(owner, id, work, callback) {
+    return {owner:owner, id:id, work:work, callback:callback, valid:true}
 }
 function invalidate(ticket) {
     ticket.valid = false

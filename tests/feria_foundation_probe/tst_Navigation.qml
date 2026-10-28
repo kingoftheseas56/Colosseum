@@ -180,6 +180,27 @@ Item {
                 && deck.entries[b].browser.title === "Fixture /home" }, 15000)
             compare(String(deck.entries[b].browser.url), FixtureUrl + "/home")
         }
+        function test_explicitlyUnavailableEngineBlocksVisibly() {
+            // In this Qt-only harness the WebView2 module is not registered:
+            // an explicit webview2 request must block the space visibly with
+            // no browser allocated and no silent Qt fallback. The descriptor
+            // and its engine partition survive for a capable build.
+            var id = Sessions.openBrowser({providerId: "mangaplus", providerName: "Reading",
+                url: FixtureUrl + "/plain", startUrl: FixtureUrl + "/plain",
+                engineId: "webview2", mode: "read"}, true, false, true)
+            verify(id.length > 0)
+            var entry = deck.entries[id]
+            tryVerify(function() { return entry !== undefined }, 5000)
+            verify(entry.engineBlocked)
+            verify(!entry.usesWebView2)
+            verify(!entry.browser, "No engine may be allocated for a blocked request")
+            verify(entry.errorText.length > 0, "The blocked state must be visible")
+            compare(String(Sessions.get(id).target.engineId), "webview2",
+                    "The explicit engine descriptor is preserved")
+            verify(!deck.newSpace(id, false, true),
+                   "New spaces from a blocked space must not allocate either")
+            Sessions.close(id)
+        }
         function test_captureRealEngine() {
             if (!Fixture.evidenceRoot.length) skip("No explicit capture directory")
             var a = open("/a")

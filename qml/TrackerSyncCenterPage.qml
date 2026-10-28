@@ -25,7 +25,7 @@ Item {
     property string connectionProviderName: String(selectedDossier.providerName || "tracker")
     // MyAnimeList approval is a web sign-in with no device code, so it runs
     // inside the app rather than in the outside browser.
-    readonly property bool embeddedApproval: selectedProviderKey === "mal"
+    readonly property bool embeddedApproval: Qt.platform.os !== "android" && selectedProviderKey === "mal"
                                              && trackerConnector
                                              && trackerConnector.phase === "awaiting_approval"
                                              && trackerConnector.verificationUrl.length > 0
@@ -268,8 +268,10 @@ Item {
         if (status === "Owner unavailable") return "Needs attention"
         return status || "Unknown"
     }
-    function platformUnavailable(providerKey, available) {
-        return Qt.platform.os === "linux" && available !== true
+    function platformUnavailable(providerKey, available, reason) {
+        return Qt.platform.os === "linux"
+                && (available !== true || reason === "credential_storage_unavailable"
+                    || reason === "profile_unavailable")
                 && (providerKey === "trakt" || providerKey === "simkl" || providerKey === "mal")
     }
     // Linux has no secure tracker vault. Missing Windows registrations retain
@@ -279,13 +281,21 @@ Item {
                 || (providerKey === "mal" && available !== true
                     && !platformUnavailable(providerKey, available))
     }
-    function providerStatus(providerKey, status, available) {
-        if (platformUnavailable(providerKey, available))
+    function providerStatus(providerKey, status, available, reason, connected) {
+        if (connected === true)
+            return displayStatus(status)
+        if (platformUnavailable(providerKey, available, reason))
             return "Unavailable on Linux"
         if (providerKey === "trakt" && available !== true)
             return stremioConnected && stremioState.hasTrakt === true ? "Linked" : "Not linked"
         if (comingSoon(providerKey, available))
             return "Coming soon"
+        if (reason === "credential_storage_unavailable")
+            return "Credential storage unavailable"
+        if (reason === "connection_service_unavailable")
+            return "Connection unavailable"
+        if (reason === "profile_unavailable")
+            return "Profile unavailable"
         return displayStatus(status)
     }
 
@@ -2400,7 +2410,8 @@ Item {
                             activeFocusOnTab: true
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
                                              + root.providerStatus(modelData.providerKey, modelData.status,
-                                                                  modelData.available)
+                                                                  modelData.available, modelData.connectUnavailableReason,
+                                                                  modelData.connected)
                             onClicked: root.openDossier(modelData.providerKey, catalogueCard)
 
                             background: Rectangle {
@@ -2461,20 +2472,19 @@ Item {
                                         id: catalogueStateText
                                         objectName: "trackerCatalogueStatus_" + catalogueCard.modelData.providerKey
                                         anchors.centerIn: parent
-                                        text: root.platformUnavailable(catalogueCard.modelData.providerKey,
-                                                                       catalogueCard.modelData.available)
-                                              || (catalogueCard.modelData.providerKey === "trakt"
-                                               && catalogueCard.modelData.available !== true)
-                                              || root.comingSoon(catalogueCard.modelData.providerKey,
-                                                                 catalogueCard.modelData.available)
-                                              ? root.providerStatus(catalogueCard.modelData.providerKey,
-                                                                    catalogueCard.modelData.status,
-                                                                    catalogueCard.modelData.available)
-                                              : catalogueCard.modelData.available
+                                        text: catalogueCard.modelData.available === true
+                                              && !root.platformUnavailable(catalogueCard.modelData.providerKey,
+                                                                           catalogueCard.modelData.available,
+                                                                           catalogueCard.modelData.connectUnavailableReason)
+                                              && !catalogueCard.modelData.connectUnavailableReason
                                               ? (catalogueCard.modelData.connected ? "Connected"
                                                  : (catalogueCard.modelData.pendingWork === true
                                                     ? "Needs attention" : "Connect"))
-                                              : "Unavailable in this build"
+                                              : root.providerStatus(catalogueCard.modelData.providerKey,
+                                                                    catalogueCard.modelData.status,
+                                                                    catalogueCard.modelData.available,
+                                                                    catalogueCard.modelData.connectUnavailableReason,
+                                                                    catalogueCard.modelData.connected)
                                         color: catalogueCard.modelData.available
                                                ? (catalogueCard.modelData.pendingWork === true
                                                   ? theme.gold : theme.inkDim)
@@ -2654,7 +2664,9 @@ Item {
                                         objectName: "trackerDossierStatus"
                                         text: root.providerStatus(root.selectedProviderKey,
                                                                   root.selectedDossier.status,
-                                                                  root.selectedDossier.available)
+                                                                  root.selectedDossier.available,
+                                                                  root.selectedDossier.connectUnavailableReason,
+                                                                  root.selectedDossier.connected)
                                         color: root.selectedDossier.status === "Attention" ? theme.gold : theme.ink
                                         font.family: theme.ui
                                         font.pixelSize: 14
@@ -2670,9 +2682,17 @@ Item {
                                     }
                                 }
                                 Text {
+                                    objectName: "trackerConnectExplanation"
                                     text: root.platformUnavailable(root.selectedProviderKey,
-                                                                   root.selectedDossier.available)
+                                                                   root.selectedDossier.available,
+                                                                   root.selectedDossier.connectUnavailableReason)
                                           ? "Tracker connections are Windows-only for now. Colosseum's local progress and History remain available."
+                                          : root.selectedDossier.connectUnavailableReason === "credential_storage_unavailable"
+                                          ? "Secure credential storage is unavailable. Tracker connections cannot start. Colosseum's local Progress and History remain available."
+                                          : root.selectedDossier.connectUnavailableReason === "connection_service_unavailable"
+                                          ? "This tracker's connection service is unavailable. Colosseum's local Progress and History remain available."
+                                          : root.selectedDossier.connectUnavailableReason === "profile_unavailable"
+                                          ? "Choose an available Colosseum profile before connecting a tracker. Local Progress and History remain available."
                                           : root.selectedProviderKey === "trakt"
                                           && root.selectedDossier.available !== true
                                           ? (root.stremioConnected && root.stremioState.hasTrakt === true
@@ -2723,8 +2743,15 @@ Item {
                                     enabled: root.selectedDossier.connectEnabled === true
                                              && root.selectedDossier.available === true
                                     text: root.platformUnavailable(root.selectedProviderKey,
-                                                                   root.selectedDossier.available)
+                                                                   root.selectedDossier.available,
+                                                                   root.selectedDossier.connectUnavailableReason)
                                           ? "Unavailable on Linux"
+                                          : root.selectedDossier.connectUnavailableReason === "credential_storage_unavailable"
+                                          ? "Secure storage unavailable"
+                                          : root.selectedDossier.connectUnavailableReason === "connection_service_unavailable"
+                                          ? "Connection unavailable"
+                                          : root.selectedDossier.connectUnavailableReason === "profile_unavailable"
+                                          ? "Profile unavailable"
                                           : root.selectedProviderKey === "trakt"
                                           && root.selectedDossier.available !== true
                                           ? "Via your Stremio account"
@@ -2735,8 +2762,15 @@ Item {
                                           ? "Reconnect to recover pending work"
                                           : (root.selectedDossier.available ? "Connect" : "Not available")
                                     Accessible.name: root.platformUnavailable(root.selectedProviderKey,
-                                                                              root.selectedDossier.available)
+                                                                              root.selectedDossier.available,
+                                                                              root.selectedDossier.connectUnavailableReason)
                                                      ? "Unavailable on Linux"
+                                                     : root.selectedDossier.connectUnavailableReason === "credential_storage_unavailable"
+                                                     ? "Secure credential storage unavailable"
+                                                     : root.selectedDossier.connectUnavailableReason === "connection_service_unavailable"
+                                                     ? "Tracker connection service unavailable"
+                                                     : root.selectedDossier.connectUnavailableReason === "profile_unavailable"
+                                                     ? "Profile unavailable"
                                                      : root.selectedProviderKey === "trakt"
                                                      && root.selectedDossier.available !== true
                                                      ? "Via your Stremio account"
@@ -2753,7 +2787,10 @@ Item {
                                                      : "Provider unavailable in this build"
                                     Layout.alignment: Qt.AlignLeft
                                     onClicked: {
-                                        if (!root.trackerConnector)
+                                        if (!root.trackerConnector
+                                            || root.selectedDossier.connectEnabled !== true
+                                            || root.selectedDossier.available !== true
+                                            || root.selectedDossier.connectUnavailableReason)
                                             return
                                         root.connectionPanelOpen = true
                                         if (!root.trackerConnector.beginConnection(root.selectedProviderKey))

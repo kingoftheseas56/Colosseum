@@ -1,8 +1,10 @@
 # Colosseum Agent Instructions
 
+This file guides contributors and coding agents working in Colosseum. The instructions are self-contained and do not require access to private tools, accounts, or project memory.
+
 ## Authority
-- Follow the user's current task first.
-- Use canonical Brotherhood Event Memory proactively when relevant prior decisions, work, verification, integrations or blockers could affect the task; follow the installed `brotherhood-event-memory` skill with targeted queries (limit 3-5), compact summaries and exact-event expansion only as needed. Reuse relevant results already in context. Do not automatically preload `MEMORY.md` or dump all history.
+- Follow the current task and repository contribution requirements first.
+- Use repository files, current source, and documented decisions as shared evidence. Consult relevant documentation, issues, pull requests, or Git history when earlier decisions materially affect the task; do not require private memory integrations.
 - Use live source, tests, build files, and runtime evidence for implementation facts.
 - Treat plans, handoffs, recaps, and Git history as optional context; read them only when the task requires them.
 - Do not preload documentation, skills, or historical context "just in case."
@@ -15,6 +17,8 @@
 - Colosseum owns canonical state for identity, library, history, progress, and preferences; external services may enrich or synchronize it but do not silently become authority.
 - Prefer local-first behavior and graceful cached/offline operation where practical.
 - Keep providers replaceable and medium-aware rather than allowing one provider to define the product architecture.
+- Deploy only actual configurable, independently updatable addon systems, such as Tankoyomi and Tankorent, through Workers. A source enable/disable toggle alone does not make a built-in integration a deployable addon.
+- Keep individual built-in sources native, including Nyaa, AudioBookBay, LibGen and GetComics. Downloads, libtorrent, hash verification, file indexing and canonical local state remain native even when an addon runs through Workers.
 - Before creating a new store, cache, resolver, history system, identity system, player, database, or extension mechanism, check whether Colosseum already owns that truth and extend the existing owner when practical.
 - Do not lower the intended product end state merely because a shortcut is easier to implement.
 
@@ -53,13 +57,13 @@
 
 ## Working-tree safety
 - Preserve unrelated modified, staged, and untracked work.
-- After completing and verifying a task, commit and push only your own work by default, unless Hemanth asks otherwise. Leave unrelated changes out of the commit.
+- Commit only changes belonging to the current task, using a branch or fork authorized for the work. Push only when the requested workflow or repository maintainer authorizes it; never assume permission to push to a shared branch.
 - Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task.
 - Do not commit credentials, tokens, machine-specific paths, local databases, caches, logs, screenshots, or build output unless they are intentional repository artifacts.
 
 ## Verification
-- Hemanth testing is an optional acceptance ritual, never a prerequisite for completing otherwise verified work. Offer a short, relevant checklist when useful; do not require Hemanth to pilot the app.
-- For recent implementations, record outstanding human/live-provider checks and their actual results. Skipped or unrecorded checks remain unverified; automated, agent-runtime, and Hemanth-tested evidence stay distinct.
+- Do not require manual acceptance testing when automated or agent-runtime checks adequately verify the requested outcome. Offer a short, relevant human-test checklist when useful.
+- For recent implementations, record outstanding human/live-provider checks and their actual results. Skipped or unrecorded checks remain unverified; automated, agent-runtime, and human-tested evidence stay distinct.
 - Start with the smallest meaningful check for the changed surface.
 - Broaden testing only when affected dependencies, failures, risk, or the task itself justify it.
 - Do not run full builds, full suites, runtime harnesses, or broad searches by default.

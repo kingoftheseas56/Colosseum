@@ -1,0 +1,956 @@
+import QtQuick
+import Colosseum.Player
+import Colosseum.Activity
+import Colosseum.Vinyl 1.0
+
+// UI adapter over the existing mpv and profile Progress/Collection owners.
+// Fixture presentation data never enters this path.
+Item {
+    id: root
+    objectName: "vinylLiveSession"
+    property var emptyEdition: ({id:"", name:"", title:"", artist:"", artists:[], artistIds:[], year:"", cover:"", about:"", discs:[[]], credits:[]})
+    property var shownEdition: emptyEdition
+    readonly property var activeQueueRow: queueIndex>=0 && queueIndex<queue.length ? queue[queueIndex] : null
+    readonly property var playingEdition: activeQueueRow ? activeQueueRow.edition : emptyEdition
+    readonly property string shownEditionId: shownEdition.id
+    readonly property string shownAlbumId: shownEdition.albumId || shownEdition.id
+    readonly property string playingEditionId: playingEdition.id
+    readonly property var editions: {
+        if(!shownEdition.sourceAlbum) return [];
+        var result=normalizeEditions(shownEdition.sourceAlbum);
+        (shownEdition.sourceAlbum.providerEditions || []).forEach(function(e){if(e.browseId!==shownEdition.browseId)result.push({id:e.browseId,browseId:e.browseId,title:e.title});});
+        return result;
+    }
+    property int shownDisc: 0
+    readonly property int playingDisc: activeQueueRow ? activeQueueRow.discIndex : 0
+    readonly property int playingIndex: activeQueueRow ? activeQueueRow.trackIndex : -1
+    readonly property var tracks: shownEdition.discs[shownDisc] || []
+    readonly property var playingTrack: (playingEdition.discs[playingDisc] || [])[playingIndex] || ({title:"", seconds:0})
+    readonly property var queue: plainData(backend.rows) || []
+    readonly property int queueIndex: backend.activeIndex
+    readonly property bool canPrevious: queueIndex>0 || (queueIndex>=0 && repeatMode==="all")
+    readonly property bool canNext: (queueIndex>=0 && queueIndex+1<queue.length) || (queueIndex>=0 && repeatMode==="all")
+    property int queueSerial: 0
+    readonly property bool shuffleEnabled: backend.shuffled
+    readonly property string repeatMode: backend.repeatMode
+    property var unshuffledIds: []
+    property int queueRequest: -1
+    property var pendingCataloguePlay: null
+    property string queueAlbumId: ""
+    property bool queueInsertNext: false
+    property var pendingEnqueues: []
+    readonly property var player: backend.player
+    readonly property bool loaded: backend.loaded
+    readonly property real resumeSeconds: backend.position
+    readonly property bool seekPending: backend.seekPending
+    readonly property real position: backend.position
+    readonly property real measuredDuration: backend.duration
+    readonly property real duration: backend.duration
+    property alias paused: backend.paused
+    readonly property string sourceState: backend.sourceState
+    readonly property string qualityLabel: playingEdition.origin==="youtube-music"
+        ? (sourceState==="resolving" ? "Resolving audio…" : backend.qualityLabel==="Local audio" ? "Audio source" : backend.qualityLabel)
+        : backend.qualityLabel
+    readonly property string error: backend.error
+    property string browseError: ""
+    property bool browsing: false
+    property var results: []
+    readonly property bool pagedSearchSupported: !!source && source.cataloguePageVersion === 1
+    property string searchQuery: ""
+    property bool searchComplete: false
+    property int searchGeneration: 0
+    property string searchRevision: ""
+    property int searchOffset: 0
+    property var searchBuffer: []
+    property int browseRequest: -1
+    property string browseOperation: ""
+    property string browseValue: ""
+    property int playRequest: -1
+    property var source: typeof VinylCatalogueSource !== "undefined" ? VinylCatalogueSource : (typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null)
+    property var onlineArtists: []
+    property var onlineAlbums: []
+    property bool searchingOnline: false
+    property string catalogueNotice: ""
+    readonly property var catalogueKinds: ["albums","artists","songs","playlists"]
+    property string catalogueQuery: ""
+    property var cataloguePages: ({})
+    property var catalogueRequests: ({})
+    property var catalogueOwner: null
+    property int playlistPageRequest: -1
+    property string playlistPageError: ""
+    property var playlistPageCursor: ({})
+    readonly property bool playlistPageLoading: playlistPageRequest>=0
+    readonly property bool playlistHasMore: !!shownEdition.sourceAlbum && Object.keys(shownEdition.sourceAlbum.nextCursor || {}).length>0
+    function cancelCatalogueRequests() {
+        var owner=catalogueOwner;catalogueRequests={};catalogueOwner=null;
+        if(owner)(catalogueKinds || []).forEach(kind=>owner.cancel("search-"+kind));
+    }
+    function clearCatalogue() {cancelCatalogueRequests();cataloguePages={};catalogueQuery="";}
+    function captureCatalogue() {return plainData({query:catalogueQuery,pages:cataloguePages});}
+    function restoreCatalogue(state) {
+        cancelCatalogueRequests();catalogueQuery=state && state.query || "";
+        cataloguePages=plainData(state && state.pages || {});syncCatalogueAliases();
+    }
+    function syncCatalogueAliases() {
+        onlineAlbums=(cataloguePages.albums || {}).records || [];
+        onlineArtists=((cataloguePages.artists || {}).items || []).map(item=>({id:item.id,name:item.title,cover:item.cover,origin:"youtube-music"}));
+    }
+    function requestCataloguePage(kind,more) {
+        if(!profileActive || shuttingDown || !source || catalogueKinds.indexOf(kind)<0 || !catalogueQuery || catalogueRequests[kind])return;
+        var page=cataloguePages[kind] || {},cursor=more ? page.nextCursor || {} : {};
+        if(more && !Object.keys(cursor).length)return;
+        var pages=Object.assign({},cataloguePages);pages[kind]=Object.assign({},page,{error:""});cataloguePages=pages;
+        catalogueOwner=source;
+        var id=source.request("search-"+kind,"cataloguePage",catalogueQuery,{kind:kind,cursor:cursor});
+        if(id<0){pages=Object.assign({},cataloguePages);pages[kind]=Object.assign({},page,{error:"Catalogue search is unavailable. Retry."});cataloguePages=pages;return;}
+        var requests=Object.assign({},catalogueRequests);requests[kind]={id:id,cursor:cursor};catalogueRequests=requests;
+        browseOperation="catalogueSearch";browsing=true;
+    }
+    function acceptCataloguePage(lane,id,data,failure) {
+        var kind=lane.slice(7),pending=catalogueRequests[kind];
+        if(!pending || pending.id!==id)return;
+        var requests=Object.assign({},catalogueRequests);delete requests[kind];catalogueRequests=requests;
+        if(browseOperation==="catalogueSearch")browsing=Object.keys(requests).length>0;
+        var prior=cataloguePages[kind] || {},offset=pending.cursor.offset || 0;
+        if(!failure && (!data || data.version!==1 || data.query!==catalogueQuery || data.kind!==kind || data.source!=="youtube-music"
+            || !Array.isArray(data.items) || !Array.isArray(data.records) || data.items.length>200 || data.records.length>200
+            || data.offset!==offset || !Number.isInteger(data.nextOffset) || data.nextOffset<offset || data.nextOffset>10000
+            || typeof data.complete!=="boolean" || !data.nextCursor || typeof data.nextCursor!=="object" || Array.isArray(data.nextCursor)
+            || (data.complete!==!Object.keys(data.nextCursor).length)
+            || (Object.keys(data.nextCursor).length && (data.nextCursor.token===pending.cursor.token || data.complete!==false || data.nextCursor.offset!==data.nextOffset))))
+            failure="The catalogue page is invalid. Retry the search.";
+        var pages=Object.assign({},cataloguePages);
+        if(failure)pages[kind]=Object.assign({},prior,{error:failure});
+        else {
+            var seen=new Set(),items=[],records=[],known=new Set();
+            (offset ? (prior.items || []).concat(data.items) : data.items).forEach(item=>{if(item && typeof item.id==="string" && !seen.has(item.id)){seen.add(item.id);items.push(item);}});
+            (offset ? (prior.records || []).concat(data.records) : data.records).forEach(record=>{if(record && typeof record.id==="string" && !known.has(record.id)){known.add(record.id);records.push(record);}});
+            pages[kind]=Object.assign({},data,{items:items,records:records,error:"",cached:!!data._cached});
+        }
+        cataloguePages=pages;syncCatalogueAliases();catalogueNotice="";
+    }
+    function cancelPlaylistPage() {playlistPageRequest=-1;playlistPageCursor={};if(source)source.cancel("playlist-page");}
+    function loadMorePlaylist() {
+        if(!profileActive || shuttingDown || !source || playlistPageLoading || !playlistHasMore)return;
+        var album=shownEdition.sourceAlbum;playlistPageError="";playlistPageCursor=plainData(album.nextCursor);
+        playlistPageRequest=source.request("playlist-page","playlistPage",album.playlistId,{cursor:playlistPageCursor});
+        if(playlistPageRequest<0)playlistPageError="The playlist page could not be loaded. Retry.";
+    }
+    function acceptPlaylistPage(id,data,failure) {
+        if(id!==playlistPageRequest)return;
+        playlistPageRequest=-1;var album=shownEdition.sourceAlbum,offset=(album.tracks || []).length;
+        if(!failure && (!data || data.id!==album.id || data.offset!==offset || !Array.isArray(data.tracks)
+            || data.tracks.length>200 || data.nextOffset!==offset+data.tracks.length || data.nextOffset>10000 || !validAlbum(data)
+            || typeof data.complete!=="boolean" || !data.nextCursor || typeof data.nextCursor!=="object" || Array.isArray(data.nextCursor)
+            || (data.complete!==!Object.keys(data.nextCursor).length)
+            || (Object.keys(data.nextCursor).length && (data.nextCursor.token===playlistPageCursor.token || data.nextCursor.offset!==data.nextOffset))))
+            failure="The playlist changed or its page is invalid. Open it again.";
+        if(failure){playlistPageError=failure;return;}
+        var merged=Object.assign({},album,{tracks:album.tracks.concat(data.tracks),nextCursor:data.nextCursor,complete:data.complete,totalTracks:data.totalTracks,omittedTracks:data.omittedTracks || 0});
+        shownEdition=normalize(merged);refreshSource();playlistPageError="";
+    }
+    readonly property var discoveryKeys: ["new-releases","trending","artists","charts"]
+    property var discoverySections: ({})
+    property var discoveryRequests: ({})
+    property var discoveryOwner: null
+    property bool discoveryStarted: false
+    property real discoveryRequestedAt: 0
+    readonly property bool discoveryLoading: Object.keys(discoveryRequests).length>0
+    function cancelDiscovery() {
+        var owner=discoveryOwner;
+        discoveryRequests={};discoveryOwner=null;
+        if(owner)discoveryKeys.forEach(key=>owner.cancel("discover-"+key));
+    }
+    function clearDiscovery() {cancelDiscovery();discoverySections={};discoveryStarted=false;discoveryRequestedAt=0;}
+    function requestDiscovery(refresh) {
+        if(shuttingDown || !profileActive || !source || (discoveryStarted && !refresh && Date.now()-discoveryRequestedAt<900000))return;
+        if(source.discoveryVersion!==1)return;
+        cancelDiscovery();discoveryOwner=source;discoveryStarted=true;discoveryRequestedAt=Date.now();
+        discoveryKeys.forEach(function(key){
+            var sections=Object.assign({},discoverySections),prior=sections[key] || {};
+            sections[key]=Object.assign({},prior,{error:""});discoverySections=sections;
+            var request=source.request("discover-"+key,"discover",key,{refresh:!!refresh});
+            if(request>=0){var requests=Object.assign({},discoveryRequests);requests[key]=request;discoveryRequests=requests;}
+            else {sections=Object.assign({},discoverySections);sections[key]=Object.assign({},prior,{error:"Music discovery is unavailable. Retry the catalogue."});discoverySections=sections;}
+        });
+    }
+    function acceptDiscovery(lane,id,data,failure) {
+        var key=lane.slice(9);
+        if(discoveryKeys.indexOf(key)<0 || discoveryRequests[key]!==id)return;
+        var requests=Object.assign({},discoveryRequests);delete requests[key];discoveryRequests=requests;
+        var sections=Object.assign({},discoverySections),prior=sections[key] || {};
+        if(!failure && (!data || data.version!==1 || data.key!==key || data.source!=="youtube-music"
+            || !Array.isArray(data.items) || !Array.isArray(data.records) || data.items.length>40 || data.records.length>40))
+            failure="The discovery shelf is invalid. Retry the catalogue.";
+        sections[key]=failure ? Object.assign({},prior,{error:failure})
+            : Object.assign({},data,{error:data._cacheError || "",cached:!!data._cached});
+        discoverySections=sections;
+    }
+    function searchCatalogue(query,kind,refresh) {
+        if(shuttingDown || !profileActive || !source) return;
+        if(source.catalogueSearchVersion===1) {
+            query=String(query || "").trim();kind=kind || "albums";
+            if(!query){cancelBrowse();clearCatalogue();return;}
+            if(query!==catalogueQuery || refresh) {
+                cancelBrowse();catalogueQuery=query;cataloguePages={};syncCatalogueAliases();browseError="";searchingOnline=true;
+                catalogueKinds.forEach(k=>requestCataloguePage(k,false));
+            }else if(!cataloguePages[kind] || cataloguePages[kind].error)requestCataloguePage(kind,false);
+            return;
+        }
+        cancelBrowse();browseError="";searchingOnline=true;browsing=true;browseOperation="catalogueSearch";
+        browseRequest=source.request("browse","catalogueSearch",String(query || "").trim());
+        if(browseRequest<0) {browsing=false;browseError="Catalogue search is unavailable.";}
+    }
+    property var collectionStore: typeof Collection !== "undefined" ? Collection : null
+    property var progressStore: typeof Progress !== "undefined" ? Progress : null
+    property var activitySink: typeof ProfileActivity !== "undefined" ? ProfileActivity : null
+    property var activityPreferences: typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
+    property string personalError: ""
+    readonly property bool personalEnabled: profileActive && !shuttingDown && !!collectionStore && collectionStore.healthy!==false
+    readonly property var personalRecords: {
+        var revision=collectionStore ? collectionStore.revision : 0;
+        var generation=profileGeneration;
+        var scope=backend.profileScope;
+        var owner=backend.collectionStore;
+        if(!profileActive || shuttingDown)return {songs:[],playlists:[]};
+        return typeof backend.personalRecords==="function" ? plainData(backend.personalRecords()) : {songs:[],playlists:[]};
+    }
+    readonly property var playingPersonalRow: activeQueueRow || ({})
+    readonly property bool songIsSaved: songSaved(playingPersonalRow)
+    signal playlistAddRequested(var rows)
+    function personalCommand(operation,args) {
+        var result=personalEnabled && typeof backend.mutatePersonal==="function"
+            ? plainData(backend.mutatePersonal(operation,plainData(args || {}))) : {ok:false,error:"Your music library is unavailable."};
+        personalError=result.ok ? "" : result.error || "The music library could not be updated.";
+        if(result.ok) refreshLibrary();
+        return result;
+    }
+    function songSaved(row) {
+        var revision=collectionStore ? collectionStore.revision : 0;
+        var id=typeof backend.personalSongId==="function" ? backend.personalSongId(plainData(row || {})) : "";
+        return !!id && !!collectionStore && collectionStore.has("Vinyl",id);
+    }
+    function toggleSongSaved(row) {return personalCommand("saveSong",{row:row,saved:!songSaved(row)}).ok;}
+    function togglePlayingSongSaved() {return toggleSongSaved(playingPersonalRow);}
+    function addPlayingSongToPlaylist() {addRowsToPlaylist([playingPersonalRow]);}
+    function addRowsToPlaylist(rows) {
+        if(!personalEnabled || !rows || !rows.length)return;
+        if(rows.some(row=>!personalRowAvailable(row))) {personalError="Some selected songs are unavailable. Add the available songs individually.";return;}
+        personalError="";playlistAddRequested(rows);
+    }
+    function shownTrackRow(index) {return index>=0 && index<tracks.length ? rowFor(shownEdition,shownDisc,index) : null;}
+    function shownAlbumRows() {return editionRows(shownEdition);}
+    function personalRowAvailable(row) {return !!row && typeof backend.personalRowAvailable==="function" && backend.personalRowAvailable(plainData(row));}
+    function playPersonalRows(rows,shuffleOrder,index) {
+        if(!personalEnabled || !rows || !rows.length)return false;
+        snapshot();cancelQueueRequest();refreshSource();
+        var ok=backend.replaceRows(plainData(rows),index===undefined ? 0 : index,!!shuffleOrder);snapshot();return ok;
+    }
+    function createPlaylistFromSongs(title,songs,artistId) {
+        var rows=[];
+        songs.forEach(function(song){
+            if(!song.album || !validAlbum(song.album))return;
+            var edition=normalizeEditions(song.album).find(function(e){return e.id===song.editionId;}) || normalize(song.album);
+            var flat=editionRows(edition),row=Number.isInteger(song.index) ? flat[song.index] : null;
+            if(row && song.track && row.trackId===song.track.id)rows.push(row);
+        });
+        if(rows.length!==songs.length){personalError="Some tracks are unavailable. Open their release and try again.";return "";}
+        var result=personalCommand("createPlaylist",{name:title,rows:rows,artistId:artistId || ""});return result.ok ? result.id : "";
+    }
+    VinylBackendSession {
+        id: backend
+        objectName: "vinylBackendSession"
+        source: root.source
+        surface: root
+        collectionStore: root.collectionStore
+        preferences: root.activityPreferences
+        profileScope: typeof VinylProfileScope !== "undefined" ? VinylProfileScope : "local-test"
+        onPlaybackRequested: {root.manualNoteLine=-1;root.videoShown=false;root.playbackRequested();}
+        onPlaybackEnding: natural => root.activityEnd(natural)
+        onDiscontinuity: seconds => root.activityDiscontinuity(seconds)
+    }
+    onLoadedChanged: { if(loaded) activityBegin(); }
+    readonly property bool activityEnabled: profileActive && !shuttingDown && activitySink!==null
+        && (!activityPreferences || activityPreferences.keepActivityHistory!==false)
+    property bool activityActive: false
+    property string activitySessionId: ""
+    property var activityMusicIdentity: ({})
+    property string activityMusicOrigin: "manual"
+    property var activityRecorder: activityTracker
+    ActivityPlaybackTracker {
+        id: activityTracker
+        objectName: "vinylActivityTracker"
+        sink: root.activityEnabled ? root.activitySink : null
+    }
+    function activityBegin() {
+        if(activityActive || !activityEnabled || !loaded || !player || playingIndex<0) return;
+        try {
+            if(!activitySink.newSessionId) return;
+            var row=queue[queueIndex];if(!row) return;
+            activitySessionId=activitySink.newSessionId();
+            activityMusicIdentity=backend.listeningIdentity();activityMusicOrigin=backend.listeningOrigin;
+            activityRecorder.begin({world:"vinyl",kind:"music",titleKey:row.albumId,
+                itemKey:JSON.stringify([row.albumId,row.editionId,row.discIndex,row.trackIndex,row.trackId]),
+                title:playingTrack.title,itemLabel:playingEdition.name,cover:"",syncable:false,source:"vinyl_session"},activitySessionId);
+            backend.beginListeningFacts();activityActive=true;activityDiscontinuity(position);
+            recordMusicAction("start");
+            activityRecorder.playbackStateChanged(!paused,Math.round(position*1000),Math.round(duration*1000));
+        } catch(failure) {console.warn("Vinyl Activity begin",failure);activityActive=false;}
+    }
+    function activitySample(consuming) {
+        if(!activityActive || !activityEnabled || !player || !loaded) return;
+        var advancing=!seekPending && sourceState==="playing" && (consuming===undefined ? !paused : consuming);
+        try {
+            var qualified=backend.qualifyListeningSample(advancing);
+            activityRecorder.sample(Math.round(position*1000),Math.round(duration*1000),1000,qualified);
+        } catch(failure) {console.warn("Vinyl Activity sample",failure);}
+    }
+    function activityDiscontinuity(seconds) {
+        if(!activityActive) return;
+        try {activityRecorder.discontinuity(Math.round(seconds*1000),Math.round(duration*1000),1000);} catch(failure) {}
+    }
+    function activityEnd(natural) {
+        if(!activityActive) return;
+        activitySample();
+        try {
+            if(natural) activityRecorder.naturalEof(Math.round(position*1000),Math.round(duration*1000));
+            activityRecorder.endSession(Math.round(position*1000),Math.round(duration*1000));
+        } catch(failure) {}
+        recordMusicAction(natural ? "natural-eof" : backend.playbackEndingReason || "stop");
+        backend.endListeningFacts(natural);
+        activityActive=false;
+    }
+    function recordMusicAction(action) {
+        if(!activityEnabled || !activityActive || !activitySessionId || !activitySink
+            || typeof activitySink.recordMusicAction!=="function" || !activityMusicIdentity.entityRef)return;
+        var row=queue[queueIndex];if(!row)return;
+        var fact=Object.assign({},activityMusicIdentity,{sessionId:activitySessionId,world:"vinyl",kind:"music",
+            titleKey:row.albumId,itemKey:JSON.stringify([row.albumId,row.editionId,row.discIndex,row.trackIndex,row.trackId]),
+            title:playingTrack.title,itemLabel:playingEdition.name,cover:"",syncable:false,source:"vinyl_session",
+            utcOffsetMinutes:-new Date().getTimezoneOffset(),atMs:Date.now(),action:action,origin:activityMusicOrigin,
+            positionMs:Math.max(0,Math.round(position*1000)),durationMs:Math.max(0,Math.round(duration*1000))});
+        activitySink.recordMusicAction(fact);
+    }
+    function scheduleActivityBegin() {
+        var sink=activitySink, scope=profileGeneration, generation=epoch;
+        Qt.callLater(function() {
+            if(root.activitySink===sink && root.profileGeneration===scope && root.epoch===generation)
+                root.activityBegin();
+        });
+    }
+    onActivityEnabledChanged: {if(!activityEnabled) activityEnd(false);else scheduleActivityBegin();}
+    // The native tracker discards the old sink's buffered identity on rebinding.
+    // Never flush an old logical session through a newly bound profile sink.
+    onActivitySinkChanged: {activityActive=false;scheduleActivityBegin();}
+    Connections {
+        target: root.activitySink
+        ignoreUnknownSignals: true
+        function onRetentionEnabledChanged(enabled) {root.activityActive=false;if(enabled) root.scheduleActivityBegin();}
+        function onResetCommitted(generation,atMs) {root.activityActive=false;root.scheduleActivityBegin();}
+        function onResetApplied(generation,atMs) {root.activityActive=false;root.scheduleActivityBegin();}
+    }
+    readonly property string sourceKind: backend.sourceKind
+    readonly property string fallbackReason: backend.fallbackReason
+    property bool audioAdvanced: false
+    property int epoch: 0
+    // Import callbacks use this profile-only generation; track changes must not invalidate imports.
+    property int profileGeneration: 0
+    readonly property string profileScope: backend.profileScope
+    property bool resetting: false
+    property bool shuttingDown: false
+    property bool profileActive: true
+    readonly property string persistenceError: progressStore && progressStore.healthy === false
+        ? (progressStore.persistenceError || "Music progress could not be saved.") : ""
+    property bool saved: false
+    property var library: []
+    readonly property bool hasLyrics: lyrics.length > 0
+    readonly property bool hasNotes: Object.keys(notes).length > 0
+    readonly property bool hasVideo: false
+    readonly property var credits: shownEdition.credits || []
+    readonly property var playingCredits: creditGroups(playingTrack.credits || playingEdition.credits || [])
+    readonly property var lyrics: lyricLines(playingTrack.lyrics)
+    readonly property var notes: noteGroups(playingTrack.notes || playingEdition.notes)
+    readonly property var videos: []
+    readonly property var moreAlbums: []
+    readonly property var information: shownEdition.id ? [["source","Source",shownEdition.origin==="local" ? "Local library" : "Music catalogue"],["tracks","Tracks",totalTracks(shownEdition)],["length","Length",shownEdition.length || "Unknown"]] : []
+    readonly property bool timedLyrics: lyrics.length > 0 && lyrics.every(l => typeof l.time === "number")
+    readonly property int currentLineIndex: {
+        if (!timedLyrics) return -1;
+        var found=-1; for(var i=0;i<lyrics.length;++i) if(lyrics[i].time<=position) found=i;
+        return found;
+    }
+    property int manualNoteLine: -1
+    readonly property int activeNoteLine: {
+        if(manualNoteLine>=0 && notes[manualNoteLine]) return manualNoteLine;
+        if(!autoNotes || !hasNotes) return -1;
+        var keys=Object.keys(notes).map(Number).sort((a,b)=>a-b);
+        if(!timedLyrics) return keys[0];
+        var found=-1;keys.forEach(index=>{if(index<=currentLineIndex) found=index;});return found;
+    }
+    property bool lyricsShown: false
+    property bool autoNotes: false
+    property bool videoShown: false
+    signal editionSelected()
+    signal albumOpened()
+    signal artistRequested(string name)
+    signal queueRequested()
+    signal playbackRequested()
+    function artwork(url) { return url || ""; }
+    function formatTime(seconds) {
+        seconds = Math.max(0, Math.floor(seconds || 0));
+        return Math.floor(seconds / 60) + ":" + ("0" + seconds % 60).slice(-2);
+    }
+    function totalTracks(e) { return (e.discs || []).reduce((n,d) => n+d.length,0); }
+    function sectionVisible(key) {
+        return key === "about" ? !!shownEdition.about : key === "credits" ? credits.length>0 :
+            key === "editions" ? editions.length>1 : key === "information" ? information.length>0 : false;
+    }
+    function selectDisc(index) { if (Number.isInteger(index) && index>=0 && index<shownEdition.discs.length) shownDisc=index; }
+    function selectEdition(id) {
+        var e=editions.find(e => e.id===id); if(!e) return;
+        if(!e.discs && e.browseId) {openAlbum(e.browseId);return;}
+        shownEdition=e;shownDisc=0;editionSelected();
+    }
+    function trackArtists(index) { var t=tracks[index];return t && t.artist !== shownEdition.artist ? t.artist : ""; }
+    function isPlayingTrack(index) { return shownEditionId===playingEditionId && shownDisc===playingDisc && playingIndex===index; }
+    function creditGroups(value) {
+        if (!Array.isArray(value)) return value ? [{role:"Credits",names:[String(value)]}] : [];
+        return value.filter(v=>v && (typeof v==="string" || typeof v==="object")).map(v => typeof v === "string" ? {role:"Credits",names:[v]} : {role:v.role || "Credits",names:v.names || [v.name || ""]});
+    }
+    function lyricLines(value) {
+        if (typeof value === "string") return value.split("\n").filter(l => l.trim()).map(l => ({text:l}));
+        return Array.isArray(value) ? value.filter(l=>l && typeof l.text==="string").map(l=>{var line={text:l.text};var time=typeof l.time==="number" ? l.time : l.at;if(typeof time==="number" && isFinite(time) && time>=0) line.time=time;return line;}) : [];
+    }
+    function noteGroups(value) {
+        var input=typeof value==="string" ? {0:value} : value, result={};
+        if(!input || typeof input!=="object" || Array.isArray(input)) return result;
+        Object.keys(input).forEach(key=>{
+            if(!/^\d+$/.test(key)) return;
+            var values=Array.isArray(input[key]) ? input[key] : [input[key]];
+            var notes=values.map(n=>typeof n==="string" ? {text:n} : n).filter(n=>n && typeof n.text==="string" && n.text.length);
+            if(notes.length) result[key]=notes;
+        });return result;
+    }
+    function toggleLyrics() { if(hasLyrics) lyricsShown=!lyricsShown; }
+    function toggleNotes() { if(hasNotes) {autoNotes=!autoNotes;lyricsShown=true;} }
+    function toggleVideo() {}
+    function showNotes(index) { if(notes[index]) {manualNoteLine=index;lyricsShown=true;} }
+    function seekToLine(index) { if(timedLyrics && lyrics[index]) seek(lyrics[index].time); }
+    function noteWindow(index) {
+        if(!timedLyrics || !lyrics[index]) return 0;
+        for(var i=index+1;i<lyrics.length;++i) if(notes[i]) return Math.max(0,(lyrics[i].time-lyrics[index].time)*1000);
+        return Math.max(0,(duration-lyrics[index].time)*1000);
+    }
+    function plainData(value) {
+        // QVariantList/QStringList arrive as Qt sequence wrappers, not JS Arrays.
+        // Materialize their JSON data shape once at the adapter boundary; ordinary
+        // malformed {0:...,length:...} objects remain objects and fail validation.
+        try {return JSON.parse(JSON.stringify(value));} catch(error) {return null;}
+    }
+    function validAlbum(album) {
+        album=plainData(album);
+        if(!album || typeof album.id!=="string" || !album.id.length || !Array.isArray(album.tracks)) return false;
+        if(album.artists!==undefined && !Array.isArray(album.artists)) return false;
+        var es=album.editions===undefined ? [album] : album.editions;
+        if(!Array.isArray(es) || !es.length) es=[album];
+        return es.every(e=>e && Array.isArray(e.tracks) && e.tracks.every(t=>t && typeof t.id==="string" && t.id.length && (t.artists===undefined || (Array.isArray(t.artists) && t.artists.every(a=>typeof a==="string"))) && (t.disc===undefined || (Number.isInteger(t.disc) && t.disc>0 && t.disc<=1000)) && (t.seconds===undefined || (typeof t.seconds==="number" && isFinite(t.seconds) && t.seconds>=0))));
+    }
+    function normalizeEditions(album) {
+        album=plainData(album);
+        if (!album || !album.id) return [];
+        var es=Array.isArray(album.editions) && album.editions.length ? album.editions : [{id:album.id,title:album.title,tracks:album.tracks || []}];
+        return es.map(e => normalize(album,e));
+    }
+    function normalize(album,edition) {
+        album=plainData(album);edition=edition ? plainData(edition) : null;
+        edition=edition || (Array.isArray(album.editions) && album.editions.length ? album.editions[0] : album);
+        var artists=album.artists || [], ts=Array.isArray(edition.tracks) ? edition.tracks : [];
+        var discNumbers=[];
+        ts.forEach(t => {var d=Math.max(1,Number(t.disc)||1);if(discNumbers.indexOf(d)<0) discNumbers.push(d);});
+        discNumbers.sort((a,b)=>a-b);if(!discNumbers.length) discNumbers=[1];
+        var discs=discNumbers.map(d => ts.filter(t => Math.max(1,Number(t.disc)||1)===d).map(t => ({
+            id:t.id,title:t.title || "Untitled track",artist:(t.artists || artists).join(" · "),seconds:Number(t.seconds)||0,
+            artists:(t.artists || artists).slice(),artistIds:(t.artistIds || []).slice(),
+            available:t.available!==false,localPath:t.localPath || "",externalIds:t.externalIds || {},
+            disc:d,number:t.number || 0,lyrics:t.lyrics,notes:t.notes,credits:t.credits})));
+        var seconds=ts.reduce((n,t)=>n+(Number(t.seconds)||0),0);
+        return {id:edition.id || album.id,albumId:album.id,browseId:album.browseId || album.id,origin:album.origin || "local",
+            sourceAlbum:album,name:album.title || "Untitled audio",title:edition.title || album.title || "Untitled audio",subtitle:edition.title || album.title || "Untitled audio",
+            artist:artists.join(" · "),year:album.year || "",cover:album.cover || "",about:typeof album.about==="string" ? album.about : (typeof album.notes==="string" ? album.notes : ""),
+            artists:artists.slice(),artistIds:(album.artistIds || []).slice(),
+            notes:album.notes || "",credits:creditGroups(edition.credits || album.credits || []),discNumbers:discNumbers,
+            length:seconds>0 ? formatTime(seconds) : "",discs:discs};
+    }
+    property int importIdentityGeneration: 0
+    property var pendingIdentityPaths: []
+    property var pendingImportCeremony: null
+    property var pendingIdentitySource: null
+    signal identityDecisionRequested(var ceremony)
+    signal importFinished(var outcome)
+    property bool importing: false
+    property int importProcessed: 0
+    property int importTotal: 0
+    property int importRequest: -1
+    property int importProfileGeneration: -1
+    property var importPaths: []
+    property var importSource: null
+    onSourceChanged: {if(importSource && importSource!==source) cancelImport();clearDiscovery();clearCatalogue();}
+    function cancelImport() {
+        var owner=importSource;
+        importRequest=-1;importing=false;importPaths=[];importSource=null;
+        if(owner && owner.cancelImport) owner.cancelImport();
+    }
+    function importFilesAsync(paths) {
+        if(shuttingDown || !profileActive) return -1;
+        cancelImport();cancelImportIdentity();browseError="";
+        if(!source || !source.startImport) {importFiles(paths);return 1;}
+        importSource=source;importPaths=Array.prototype.slice.call(paths);
+        importProfileGeneration=profileGeneration;importProcessed=0;importTotal=0;importing=true;
+        importRequest=source.startImport(paths);
+        if(importRequest<0) {cancelImport();browseError="The local import could not start.";}
+        return importRequest;
+    }
+    function cancelImportIdentity(userCancelled) {
+        if(userCancelled && pendingImportCeremony)
+            browseError="Import cancelled. Open local music and choose these files again when you are ready to decide their identity.";
+        importIdentityGeneration++;pendingIdentityPaths=[];pendingImportCeremony=null;pendingIdentitySource=null;
+    }
+    function decideImportIdentity(relationship, choice) {
+        if(shuttingDown || !profileActive || !pendingImportCeremony
+                || pendingImportCeremony.relationship!==relationship) return false;
+        if(source!==pendingIdentitySource) {
+            browseError="The audio source changed. Open the files again to retry.";cancelImportIdentity();return false;
+        }
+        if(!source || !source.decideImportIdentity || !source.decideImportIdentity(relationship,choice)) {
+            browseError="The identity decision could not be saved. Import the audio again to retry.";
+            cancelImportIdentity();return false;
+        }
+        var paths=pendingIdentityPaths.slice();cancelImportIdentity();
+        // The shared dialog closes after emitting its choice. Retry on the next turn
+        // so another file's ceremony cannot be hidden by that close.
+        var generation=profileGeneration, importGeneration=importIdentityGeneration, importSource=source;
+        Qt.callLater(function() {
+            if(!root.shuttingDown && root.profileActive && generation===root.profileGeneration
+                    && importGeneration===root.importIdentityGeneration && importSource===root.source) root.importFilesAsync(paths);
+        });
+        return true;
+    }
+    function importFiles(paths) {
+        if(shuttingDown || !profileActive) return {imported:0,errors:[]};
+        cancelImport();
+        cancelImportIdentity();
+        if (!source || !source.importFiles) {
+            browseError="Local audio import is unavailable.";
+            return {imported:0,errors:[browseError]};
+        }
+        return applyImportResult(plainData(source.importFiles(paths)),paths);
+    }
+    function applyImportResult(result,paths) {
+        if(!result) {browseError="The local import returned invalid data.";return {imported:0,errors:[browseError]};}
+        var errors=(result.errors || []).slice();
+        var albums=result.albums || [];
+        var count=0, replaced=result.replacedManifestPaths || [], removeIds=(result.replacedAlbumIds || []).slice();
+        var entries=albums.map(album=>{
+            var prior=library.find(entry=>entry.id===album.id);
+            if(!prior) prior=library.find(entry=>removeIds.indexOf(entry.id)>=0
+                && (entry.payload && entry.payload.album && entry.payload.album.tracks || []).some(track=>
+                    (album.tracks || []).some(next=>next.id===track.id)));
+            return {id:album.id,type:"album",title:album.title,cover:album.cover || "",
+                artist:(album.artists || []).join(" · "),browseId:album.id,
+                payload:{version:1,album:album,saved:!prior || !prior.payload || prior.payload.saved!==false}};
+        });
+        library.forEach(entry=>{var old=entry.payload && entry.payload.album;
+            if(old && replaced.indexOf(old.manifestPath)>=0 && !albums.some(a=>a.id===old.id)) removeIds.push(entry.id);});
+        if(entries.length || removeIds.length) {
+            if(collectionStore && typeof collectionStore.replaceItems==="function") {
+                if(collectionStore.replaceItems("Vinyl",removeIds,entries)) count=entries.length;
+                else errors.push("The local import could not be saved. Your previous library was kept.");
+            } else if(replaced.length) errors.push("This import requires atomic library updates, which are unavailable.");
+            else entries.forEach(entry=>{
+                if(collectionStore && collectionStore.add("Vinyl",entry)) count++;
+                else errors.push("The local album could not be saved to your library.");
+            });
+        }
+        refreshLibrary();
+        browseError=errors.join("\n");
+        var ceremonies=result.identityCeremonies || [];
+        if(ceremonies.length) {
+            pendingIdentityPaths=Array.prototype.slice.call(paths);
+            pendingImportCeremony=ceremonies[0];pendingIdentitySource=source;
+            identityDecisionRequested(pendingImportCeremony);
+        }
+        var outcome={imported:count>0 ? (result.importedTracks===undefined ? count : result.importedTracks) : 0,albums:count,errors:errors,pendingIdentity:ceremonies.length>0};
+        importFinished(outcome);
+        return outcome;
+    }
+    function refreshSource() {
+        if(source && source.setCollectionStore) source.setCollectionStore(collectionStore);
+        if (!source || !source.setAlbums) return;
+        // Native setAlbums accumulates track sources across entries, while the last
+        // album/track with a canonical ID wins. Retain distinct session snapshots
+        // FIRST, then current Collection records LAST: omitted queued recordings
+        // remain resolvable without replacing fresh browse metadata or paths.
+        var records=[], seen=new Set();
+        function retain(album) {if(album && !seen.has(album)) {records.push(album);seen.add(album);}}
+        retain(shownEdition.sourceAlbum);retain(playingEdition.sourceAlbum);
+        queue.forEach(r=>retain(r.edition.sourceAlbum));
+        records=records.concat(library);
+        source.setAlbums(records);
+    }
+    function cancelBrowse() {
+        // Invalidate first: a replaceable adapter may complete synchronously during cancellation.
+        browseRequest=-1;browsing=false;browseOperation="";cancelCatalogueRequests();cancelPlaylistPage();
+        searchGeneration++;searchComplete=false;searchBuffer=[];searchRevision="";searchOffset=0;
+        if (source) source.cancel("browse");
+    }
+    function search(query) {
+        if(shuttingDown || !profileActive) return;
+        cancelBrowse();searchQuery=String(query || "").trim();results=[];
+        if (!source) {browseError="Local audio is unavailable.";return;}
+        refreshSource();browseError="";browsing=true;browseOperation="search";
+        requestSearchPage();
+    }
+    function requestSearchPage() {
+        if(pagedSearchSupported)
+            browseRequest=source.request("browse","search",searchQuery,
+                {pageSize:64,offset:searchOffset,revision:searchRevision});
+        else browseRequest=source.request("browse","search",searchQuery);
+        if(browseRequest<0) {browsing=false;browseError="The local search could not be requested.";}
+    }
+    function acceptSearchPage(data) {
+        var valid=data && Array.isArray(data.items) && data.items.length<=64
+            && typeof data.revision==="string" && data.revision.length>0
+            && (!searchRevision || searchRevision===data.revision)
+            && typeof data.complete==="boolean" && Number.isInteger(data.nextOffset)
+            && (data.complete ? data.nextOffset===-1 : data.items.length>0 && data.nextOffset===searchOffset+data.items.length);
+        var seen=new Set(searchBuffer.map(a=>a.id));
+        if(valid) for(var i=0;i<data.items.length;i++) {
+            var a=data.items[i];
+            if(!validAlbum(a) || seen.has(a.id)) {valid=false;break;}
+            seen.add(a.id);
+        }
+        if(!valid) {browsing=false;searchBuffer=[];browseError="The local catalogue page is invalid or changed. Retry the search.";return;}
+        searchRevision=data.revision;searchBuffer=searchBuffer.concat(data.items);
+        if(data.complete) {results=searchBuffer;searchBuffer=[];searchComplete=true;browsing=false;return;}
+        searchOffset=data.nextOffset;
+        var generation=searchGeneration, owner=source;
+        Qt.callLater(function() {
+            if(root.searchGeneration===generation && root.source===owner && root.profileActive
+                && !root.shuttingDown && root.browseOperation==="search") root.requestSearchPage();
+        });
+    }
+    function openAlbum(browseId) {
+        if(shuttingDown || !profileActive) return;
+        cancelBrowse();
+        playlistPageError="";
+        if (!source) {browseError="Local audio is unavailable.";return;}
+        refreshSource();browseError=""; browsing=true; browseOperation="album";browseValue=browseId;
+        browseRequest=source.request("browse","album",browseId);
+    }
+    function refreshLibrary() {
+        if (!collectionStore) {library=[];saved=false;return;}
+        library=(plainData(collectionStore.items("Vinyl")) || []).filter(e => e.payload && e.payload.album);
+        refreshSource();
+        var selected=library.find(entry=>entry.id===shownAlbumId);
+        saved=!!selected && selected.payload.saved!==false;
+    }
+    function toggleSaved() {
+        if (!shownEditionId || !collectionStore || shuttingDown || !profileActive) return;
+        var prior=library.find(entry=>entry.id===shownAlbumId);
+        var entry=prior ? Object.assign({},prior) : {
+            id:shownAlbumId,type:"album",title:shownEdition.name,cover:shownEdition.cover,
+            browseId:shownEdition.browseId,artist:shownEdition.artist,
+            payload:{version:1,album:shownEdition.sourceAlbum}};
+        // Imported metadata remains the local catalogue; saving is membership,
+        // not deletion of the only owned browse/source record.
+        var ok=backend.setSavedAlbum(entry,!saved);
+        if (!ok) browseError="The album could not be saved. Try again.";
+        refreshLibrary();
+    }
+    function showPlayingAlbum() { shownEdition=playingEdition;shownDisc=playingDisc;refreshLibrary();editionSelected(); }
+    function rowFor(e,d,i) {
+        // Queue occurrence IDs are assigned by the native queue on insertion.
+        // This projection is also read from bindings and must have no mutation.
+        var t=e.discs[d][i];return {albumId:e.albumId || e.id,editionId:e.id,
+            discNumber:(e.discNumbers || [])[d] || d+1,discIndex:d,trackIndex:i,trackId:t.id,
+            title:t.title,artist:t.artist,seconds:t.seconds,cover:e.cover,track:t,edition:e};
+    }
+    function editionRows(e) {var rows=[];e.discs.forEach((d,di)=>d.forEach((t,i)=>rows.push(rowFor(e,di,i))));return rows;}
+    function playableRows(rows) {return rows.filter(r=>r && r.track && r.track.available!==false);}
+    function albumTrackRow(album,index,editionId) {
+        album=plainData(album);
+        if(!validAlbum(album) || !Number.isInteger(index) || index<0)return null;
+        var raw=(album.editions || []).find(e=>e.id===editionId) || (album.editions || [])[0] || album;
+        if(editionId && editionId!==(raw.id || album.id))return null;
+        var track=(raw.tracks || [])[index];if(!track)return null;
+        var edition=normalize(album,raw),disc=Math.max(1,Number(track.disc)||1);
+        var di=edition.discNumbers.indexOf(disc),ti=raw.tracks.slice(0,index).filter(t=>Math.max(1,Number(t.disc)||1)===disc).length;
+        return di>=0 ? rowFor(edition,di,ti) : null;
+    }
+    function playShownAlbum() {playAlbum(shownEdition.sourceAlbum,undefined,shownEditionId);}
+    function enqueueSong(album,index,editionId,playNext) {
+        var row=albumTrackRow(album,index,editionId);
+        if(!row || row.track.available===false){browseError="This song is unavailable.";return false;}
+        return appendRows([row],!!playNext);
+    }
+    function enqueuePlayingSong(playNext) {
+        if(!activeQueueRow){browseError="No song is selected.";return false;}
+        return appendRows([activeQueueRow],!!playNext);
+    }
+    function cancelQueueRequest() {queueRequest=-1;pendingCataloguePlay=null;pendingEnqueues=[];if(source) source.cancel("queue");}
+    function playCatalogueAlbum(id,shuffleOrder,index,trackId) {
+        if(shuttingDown || !profileActive || !source) return;
+        cancelQueueRequest();browseError="";refreshSource();queueAlbumId=id;
+        pendingCataloguePlay={shuffle:!!shuffleOrder,index:index===undefined ? -1 : index,trackId:trackId || ""};queueRequest=source.request("queue","album",id);
+        if(queueRequest<0){pendingCataloguePlay=null;browseError="This catalogue release could not be loaded.";}
+    }
+    function playTrack(index) { startQueue(index,false); }
+    function playAlbum(album,index,editionId) {
+        if(shuttingDown || !profileActive) return;
+        if(!validAlbum(album)) return;
+        if(album.type==="Playlist" && album.complete!==true) {
+            playCatalogueAlbum(album.id,false,index,index===undefined ? "" : (album.tracks[index] || {}).id);return;
+        }
+        var edition=editionId ? normalizeEditions(album).find(e=>e.id===editionId) : normalize(album);
+        if(!edition) return;
+        var rows=playableRows(editionRows(edition)),selected=index===undefined ? rows[0] : albumTrackRow(album,index,editionId);
+        var at=selected ? rows.findIndex(r=>r.discIndex===selected.discIndex && r.trackIndex===selected.trackIndex) : -1;
+        if(at<0){browseError="This song is unavailable.";return;}
+        if(rows.length>10000){browseError="This collection exceeds the queue limit.";return;}
+        snapshot();cancelQueueRequest();refreshSource();browseError="";backend.replaceRows(rows,at,false);snapshot();
+    }
+    function shuffleAlbum(album) {if(!validAlbum(album)) return;if(album.type==="Playlist"&&album.complete!==true){playCatalogueAlbum(album.id,true);return;}playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
+    function playSongs(songs,shuffleOrder) {
+        if(shuttingDown || !profileActive) return;
+        if(!Array.isArray(songs)) return;
+        if(songs.length>10000){browseError="This collection exceeds the queue limit.";return;}
+        var rows=[], cache=new Map();
+        songs.forEach(song=>{
+            if(!song || !song.album || !song.album.id) return;
+            var cacheKey=JSON.stringify([song.album.id,song.editionId || ""]), prepared=cache.get(cacheKey);
+            if(!prepared) {
+                if(!validAlbum(song.album)) return;
+                var edition=song.editionId ? normalizeEditions(song.album).find(e=>e.id===song.editionId) : normalize(song.album);
+                if(!edition) return;
+                var flat=[], byId=new Map();
+                edition.discs.forEach((disc,d)=>disc.forEach((track,i)=>{var ref={d:d,i:i};flat.push(ref);if(!byId.has(track.id)) byId.set(track.id,ref);}));
+                prepared={edition:edition,flat:flat,byId:byId};cache.set(cacheKey,prepared);
+            }
+            var ref=Number.isInteger(song.index) ? prepared.flat[song.index] : (song.track && song.track.id ? prepared.byId.get(song.track.id) : null);
+            if(ref && song.track && song.track.id && prepared.edition.discs[ref.d][ref.i].id!==song.track.id) return;
+            if(ref && prepared.edition.discs[ref.d][ref.i].available!==false) rows.push(rowFor(prepared.edition,ref.d,ref.i));
+        });
+        if(!rows.length){browseError="No available songs could be played.";return;}
+        snapshot();cancelQueueRequest();refreshSource();browseError="";backend.replaceRows(rows,0,!!shuffleOrder);snapshot();
+    }
+    function togglePause() {if(playingIndex>=0) paused=!paused;}
+    function shuffle() { startQueue(0,true); }
+    function startQueue(index,shuffleOrder) {
+        if(shuttingDown || !profileActive) return;
+        if(!Number.isInteger(index) || index<0 || index>=tracks.length) return;
+        var allRows=editionRows(shownEdition),chosen=allRows.find(r=>r.discIndex===shownDisc && r.trackIndex===index);
+        var rows=playableRows(allRows),selected=shuffleOrder ? 0 : rows.indexOf(chosen);
+        if(selected<0 || !rows.length){browseError="This song is unavailable.";return;}
+        if(rows.length>10000) {browseError="This collection exceeds the queue limit.";return;}
+        var album=shownEdition.sourceAlbum || {};
+        if(album.type==="Playlist" && album.complete!==true) {
+            playCatalogueAlbum(album.id,shuffleOrder,shuffleOrder ? undefined : allRows.indexOf(chosen),shuffleOrder ? "" : chosen.trackId);return;
+        }
+        snapshot();cancelQueueRequest();refreshSource();
+        browseError="";backend.replaceRows(rows,selected,!!shuffleOrder);snapshot();
+    }
+    function enqueueTrack(index,playNext) {
+        if(shuttingDown || !profileActive) return;
+        if(!Number.isInteger(index) || index<0 || index>=tracks.length) return;
+        if(tracks[index].available===false){browseError="This song is unavailable.";return;}
+        appendRows([rowFor(shownEdition,shownDisc,index)],playNext);
+    }
+    function enqueueAlbum(albumId,playNext) {
+        if(shuttingDown || !profileActive) return;
+        if(typeof albumId!=="string" || !albumId.length) return;
+        if(pendingEnqueues.length>=128) {browseError="Please wait for the queued releases to finish loading.";return;}
+        var edition=albumId===shownAlbumId ? shownEdition : null;
+        if(edition && edition.sourceAlbum.type==="Playlist" && edition.sourceAlbum.complete!==true)edition=null;
+        pendingEnqueues=pendingEnqueues.concat([{albumId:albumId,playNext:!!playNext,edition:edition}]);
+        dispatchNextEnqueue();
+    }
+    function dispatchNextEnqueue() {
+        if(shuttingDown || !profileActive) return;
+        if(queueRequest>=0) return;
+        while(pendingEnqueues.length) {
+            var job=pendingEnqueues[0];pendingEnqueues=pendingEnqueues.slice(1);
+            if(job.edition) {appendRows(playableRows(editionRows(job.edition)),job.playNext);continue;}
+            if(!source) {browseError="Local audio is unavailable.";continue;}
+            queueInsertNext=job.playNext;queueAlbumId=job.albumId;queueRequest=source.request("queue","album",job.albumId);
+            if(queueRequest>=0) return;
+            browseError="The album could not be queued.";
+        }
+    }
+    function appendRows(rows,playNext) {
+        if(rows.length>Math.max(0,10000-queue.length)){browseError="The queue is full. Remove some tracks and try again.";return false;}
+        if(!backend.appendRows(rows,playNext)){browseError="The tracks could not be queued.";return false;}
+        browseError="";refreshSource();snapshot();return true;
+    }
+    function playQueue(index,skipSnapshot) {
+        if(!skipSnapshot) snapshot();
+        backend.playQueue(index);snapshot();
+    }
+    function removeQueue(index) {snapshot();backend.removeQueue(index);snapshot();}
+    function moveQueue(from,to) {backend.moveQueue(from,to);snapshot();}
+    function clearQueue() {snapshot();cancelQueueRequest();backend.clearQueue();snapshot();}
+    function setShuffle(enabled) {backend.setShuffle(enabled);snapshot();}
+    function cycleRepeat() {backend.cycleRepeat();snapshot();}
+    function checkpointSummary(checkpoint) {
+        return profileActive && !shuttingDown ? plainData(backend.checkpointSummary(plainData(checkpoint || {}))) : {};
+    }
+    function resumeSavedCheckpoint(entry) {
+        if(!profileActive || shuttingDown)return false;
+        var checkpoint=entry && entry.resume;
+        if(!checkpointSummary(checkpoint).row){browseError="This listening session is no longer available.";return false;}
+        snapshot();
+        if(!backend.restoreCheckpoint(plainData(checkpoint))){browseError="This listening session could not be restored.";return false;}
+        refreshSource();browseError="";paused=false;snapshot();return true;
+    }
+    function next(delta) {snapshot();backend.next(delta);snapshot();}
+    function retry() {refreshSource();backend.retry();}
+    function seek(seconds) {activitySample();backend.seek(seconds);}
+    onPausedChanged: {
+        if(resetting || shuttingDown || !profileActive) return;
+        if(activityActive) {
+            if(paused) activitySample(true);
+            activityDiscontinuity(position);
+            try {activityRecorder.playbackStateChanged(!paused,Math.round(position*1000),Math.round(duration*1000));} catch(failure) {}
+        }
+        snapshot();
+    }
+    function snapshot() {
+        if(resetting || shuttingDown || !profileActive || !progressStore) return;
+        var resume=backend.checkpoint();
+        if(!resume.backendState) return;
+        if(playingEditionId && playingIndex>=0) progressStore.recordSilent({kind:"music",id:playingEditionId,title:playingTrack.title,
+            caption:playingEdition.name,sub:playingTrack.artist,cover:playingEdition.cover,
+            progress:duration>0 ? position/duration : 0,resume:resume});
+        progressStore.recordSilent({kind:"music-session",id:"vinyl",resume:resume});
+    }
+    function restore(entry) {
+        if(shuttingDown || !profileActive) return;
+        if (!progressStore) return;
+        var stored=!entry && progressStore.get ? plainData(progressStore.get("music-session","vinyl")) : null;
+        var singleton=stored && stored.kind==="music-session" && stored.id==="vinyl";
+        var recent=plainData(entry ? [entry] : singleton ? [stored] : progressStore.recent("music",1)) || [];
+        if (!recent.length) return;
+        var r=recent[0].resume;
+        if(r && r.version===3) {
+            if(backend.restoreCheckpoint(r)) {
+                if(queueIndex>=0) {shownEdition=playingEdition;shownDisc=playingDisc;}
+                else if(queue.length) shownEdition=queue[0].edition;
+                refreshLibrary();editionSelected();
+            }
+            return;
+        }
+        if (!r || [1,2].indexOf(r.version)<0 || !Array.isArray(r.queue) || r.queue.length>10000) return;
+        var qi=r.queueIndex, rows=r.queue;
+        if(!Number.isInteger(qi)||qi< -1||qi>=rows.length||!Number.isFinite(r.position)) return;
+        if(!rows.length) {
+            if(!singleton || qi!==-1) return;
+            backend.restoreLegacy([],-1,false,[],["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off",0,0);
+            return;
+        }
+        if(qi===-1 && !singleton) return;
+        if(r.version===2 && Array.isArray(r.editionTable)) {
+            if(rows.some(row=>!row || !Number.isInteger(row.editionKey) || row.editionKey<0 || row.editionKey>=r.editionTable.length || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !r.editionTable[row.editionKey] || !Array.isArray(r.editionTable[row.editionKey].discs) || !Array.isArray(r.editionTable[row.editionKey].discs[row.discIndex]) || !r.editionTable[row.editionKey].discs[row.discIndex][row.trackIndex])) return;
+            rows=rows.map(row=>{var full=rowFor(r.editionTable[row.editionKey],row.discIndex,row.trackIndex);full.queueId=row.queueId;return full;});
+        }
+        if(r.version===1) {
+            if(!r.edition) return;
+            var ts=(r.edition.discs || [])[0];
+            if(!ts || rows.some(i=>!Number.isInteger(i)||i<0||i>=ts.length)) return;
+            rows=rows.map(i=>rowFor(r.edition,0,i));
+        }
+        if(rows.some(row=>!row || !row.edition || !row.edition.discs || !Number.isInteger(row.discIndex) || !Number.isInteger(row.trackIndex) || !(row.edition.discs[row.discIndex] || [])[row.trackIndex] || row.trackId!==row.edition.discs[row.discIndex][row.trackIndex].id) || (qi>=0 && rows[qi].trackId!==r.trackId)) return;
+        var remapped=Object.create(null);
+        var migrated=rows.map(row=>{var copy=Object.assign({},row);copy.queueId="queue:"+(++queueSerial);remapped[row.queueId]=copy.queueId;return copy;});
+        var order=Array.isArray(r.unshuffledIds) ? r.unshuffledIds.map(id=>remapped[id]).filter(id=>!!id) : migrated.map(row=>row.queueId);
+        if(order.length!==migrated.length) order=migrated.map(row=>row.queueId);
+        if(backend.restoreLegacy(migrated,qi,!!r.shuffleEnabled,order,
+            ["off","all","one"].indexOf(r.repeatMode)>=0 ? r.repeatMode : "off",
+            r.completed ? 0 : Math.max(0,r.position),Math.max(0,Number(r.duration)||0))) {
+            shownEdition=qi>=0 ? playingEdition : rows[0].edition;shownDisc=playingDisc;
+            refreshLibrary();editionSelected();snapshot();
+        }
+    }
+
+    function clearProfile() {
+        if(shuttingDown) return;
+        profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
+        resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();clearDiscovery();clearCatalogue();
+        shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
+        shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";personalError="";
+        resetting=false;
+        if(source && source.setAlbums) source.setAlbums([]);
+    }
+    function suspendPlayback(reason) {if(shuttingDown || !profileActive) return;snapshot();backend.suspend();cancelQueueRequest();}
+    function shutdown() {
+        if(shuttingDown) return;
+        cancelImport();snapshot();activityEnd(false);shuttingDown=true;resetting=true;
+        browseRequest=-1;queueRequest=-1;pendingEnqueues=[];backend.shutdown();cancelBrowse();cancelQueueRequest();clearDiscovery();clearCatalogue();
+    }
+    Connections {
+        target: root.source
+        ignoreUnknownSignals: true
+        function onImportProgress(id,processed,total,fileName) {
+            if(id===root.importRequest && root.importSource===root.source && root.importProfileGeneration===root.profileGeneration) {
+                root.importProcessed=processed;root.importTotal=total;
+            }
+        }
+        function onImportCompleted(id,result) {
+            if(root.shuttingDown || !root.profileActive || id!==root.importRequest
+                || root.importSource!==root.source || root.importProfileGeneration!==root.profileGeneration) return;
+            var paths=root.importPaths.slice();root.importRequest=-1;root.importing=false;root.importPaths=[];root.importSource=null;
+            root.applyImportResult(root.plainData(result),paths);
+        }
+        function onCompleted(lane,id,data,failure) {
+            if(root.shuttingDown || root.resetting || !root.profileActive) return;
+            data=root.plainData(data);
+            if(lane.indexOf("search-")===0){root.acceptCataloguePage(lane,id,data,failure);return;}
+            if(lane==="playlist-page"){root.acceptPlaylistPage(id,data,failure);return;}
+            if(lane.indexOf("discover-")===0){root.acceptDiscovery(lane,id,data,failure);return;}
+            if (lane==="browse" && id>=0 && id===root.browseRequest) {
+                root.browseRequest=-1;root.browseError=failure;
+                if (failure) {root.browsing=false;root.searchBuffer=[];return;}
+                if(root.browseOperation==="catalogueSearch") {
+                    root.browsing=false;root.onlineArtists=data.artists || [];root.onlineAlbums=data.albums || [];
+                    root.catalogueNotice=(data._cached ? "Offline · cached catalogue. " : "") + "Showing catalogue search matches; search is limited.";
+                    return;
+                }
+                if (root.browseOperation==="search") {
+                    if(root.pagedSearchSupported) root.acceptSearchPage(data);
+                    else {root.results=Array.isArray(data) ? data : [];root.searchComplete=true;root.browsing=false;}
+                    return;
+                }
+                root.browsing=false;
+                if(root.validAlbum(data) && (data.id===root.browseValue || data.browseId===root.browseValue)) {root.shownEdition=root.normalize(data);root.shownDisc=0;root.refreshLibrary();root.editionSelected();root.albumOpened();}
+                else root.browseError="The local album record is invalid.";
+            } else if(lane==="queue" && id>=0 && id===root.queueRequest) {
+                root.queueRequest=-1;
+                var play=root.pendingCataloguePlay;root.pendingCataloguePlay=null;
+                if(failure || !root.validAlbum(data) || (data.id!==root.queueAlbumId && data.browseId!==root.queueAlbumId)) root.browseError=failure || "The queued album is invalid.";
+                else if(data.type==="Playlist"&&data.complete!==true)root.browseError="The full playlist could not be loaded.";
+                else if(play) {
+                    if(play.trackId && (!data.tracks[play.index] || data.tracks[play.index].id!==play.trackId))root.browseError="The playlist order changed. Open it again before playing.";
+                    else if(play.shuffle)root.shuffleAlbum(data);else root.playAlbum(data,play.index<0 ? undefined : play.index);
+                }
+                else root.appendRows(root.playableRows(root.editionRows(root.normalize(data))),root.queueInsertNext);
+                if(!play)root.dispatchNextEnqueue();
+
+            }
+        }
+        function onProfileLeaving() { root.clearProfile(); }
+        function onProfileEntered() { backend.profileScope=typeof VinylProfileScope!=="undefined" ? VinylProfileScope : "local-test";root.profileActive=true;root.restore();root.refreshLibrary(); }
+        function onCheckpointRequested() { root.snapshot(); }
+        function onShuttingDown() { root.shutdown(); }
+    }
+    Timer {objectName:"vinylProgressTimer";interval:5000;repeat:true;running:!root.shuttingDown && !root.resetting && root.loaded;onTriggered:{root.activitySample();root.snapshot();}}
+    Component.onCompleted: {restore();refreshLibrary();}
+    Component.onDestruction: { cancelImport();cancelDiscovery();cancelCatalogueRequests();cancelPlaylistPage();if(source) source.cancel("browse");backend.shutdown(); }
+}

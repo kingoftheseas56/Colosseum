@@ -39,13 +39,91 @@
 #include <tlhelp32.h>
 #endif
 
+#ifdef Q_OS_WIN
+// Input-driven cases need this process to own the foreground. Windows denies
+// activation to a window whose process was started by a background launcher,
+// which fails focus waits for reasons unrelated to the code under test.
+// Opt-in (FERIA_FIXTURE_FOREGROUND=1): each top-level window claims the
+// foreground once, on its first exposure. Activation between this process's
+// own windows is then decided by the code under test, as on a user's desktop.
+class ForegroundClaim : public QObject {
+public:
+    using QObject::QObject;
+    static void claim(QWindow *window) {
+        const HWND target = reinterpret_cast<HWND>(window->winId());
+        const HWND current = GetForegroundWindow();
+        if (current == target) return;
+        const DWORD self = GetCurrentThreadId();
+        const DWORD owner = current ? GetWindowThreadProcessId(current, nullptr) : 0;
+        if (owner && owner != self) AttachThreadInput(owner, self, TRUE);
+        SetForegroundWindow(target);
+        BringWindowToTop(target);
+        if (owner && owner != self) AttachThreadInput(owner, self, FALSE);
+    }
+protected:
+    bool eventFilter(QObject *object, QEvent *event) override {
+        auto *window = qobject_cast<QWindow *>(object);
+        if (event->type() == QEvent::Expose && window && window->isTopLevel()
+            && window->isExposed() && !window->property("_feriaForegroundClaimed").toBool()) {
+            window->setProperty("_feriaForegroundClaimed", true);
+            claim(window);
+        }
+        return false;
+    }
+};
+#endif
+
+#ifdef Q_OS_WIN
+// No debugger or Qt symbols are assumed on a test machine. An unhandled
+// native exception is reported as module+offset frames so a crash during
+// teardown is attributable to a binary instead of being an opaque exit code.
+static void describeAddress(const char *label, void *address) {
+    HMODULE module = nullptr;
+    wchar_t path[MAX_PATH] = L"?";
+    if (GetModuleHandleExW(GET_MODULE_HANDLE_EX_FLAG_FROM_ADDRESS | GET_MODULE_HANDLE_EX_FLAG_UNCHANGED_REFCOUNT,
+                           static_cast<LPCWSTR>(address), &module) && module)
+        GetModuleFileNameW(module, path, MAX_PATH);
+    const wchar_t *name = wcsrchr(path, L'\\');
+    fprintf(stderr, "FERIA_CRASH %s %ls+0x%llx\n", label, name ? name + 1 : path,
+            static_cast<unsigned long long>(static_cast<char *>(address) - reinterpret_cast<char *>(module)));
+}
+static LONG WINAPI reportCrash(EXCEPTION_POINTERS *info) {
+    fprintf(stderr, "FERIA_CRASH code 0x%08lx\n", info->ExceptionRecord->ExceptionCode);
+    describeAddress("at", info->ExceptionRecord->ExceptionAddress);
+    void *frames[48];
+    const USHORT count = CaptureStackBackTrace(0, 48, frames, nullptr);
+    for (USHORT i = 0; i < count; ++i) describeAddress("frame", frames[i]);
+    fflush(stderr);
+    return EXCEPTION_CONTINUE_SEARCH;
+}
+#endif
+
 class FeriaRuntimeFixture : public QObject {
     Q_OBJECT
 public:
     Q_PROPERTY(QString evidenceRoot READ evidenceRoot CONSTANT)
     Q_PROPERTY(QString downloadRoot READ downloadRoot CONSTANT)
+    Q_PROPERTY(QString journey READ journey CONSTANT)
     QString evidenceRoot() const { return qEnvironmentVariable("FERIA_SESSION_EVIDENCE_DIR"); }
     QString downloadRoot() const { return m_temp.filePath("downloads"); }
+    // Journey runs (--journey) are whole-process scenarios that end through
+    // the application's own exit path instead of the QuickTest teardown.
+    QString journey() const { return qEnvironmentVariable("FERIA_JOURNEY"); }
+    // A caller-owned root lets two processes share one disposable profile, to
+    // prove what survives a clean restart. Default: a per-process temp dir.
+    QString profileRoot(const QString &name) const {
+        const QString root = qEnvironmentVariable("FERIA_FIXTURE_ROOT");
+        return root.isEmpty() ? m_temp.filePath(name) : QDir(root).filePath(name);
+    }
+    FeriaBrowserPolicy *policy() const { return m_policy; }
+    bool journeyPassed() const { return m_journeyPassed; }
+    Q_INVOKABLE void finish(bool passed, const QString &detail) {
+        if (m_journeyFinished) return;
+        m_journeyFinished = true;
+        m_journeyPassed = passed;
+        qInfo().noquote() << "FERIA_JOURNEY_RESULT" << (passed ? "PASS" : "FAIL") << detail;
+        QCoreApplication::exit(passed ? 0 : 1);
+    }
     Q_INVOKABLE QByteArray downloadedContent(const QString &path) const {
         if (!QDir::cleanPath(path).startsWith(downloadRoot() + '/')) return {};
         QFile file(path);
@@ -139,7 +217,7 @@ public:
         return item->window()->grabWindow().save(QDir(evidenceRoot()).filePath(name));
     }
     Q_INVOKABLE void switchProfile(const QString &name) {
-        const QString root = m_temp.filePath(name);
+        const QString root = profileRoot(name);
         m_sessions->setBrowserProfile(root);
         m_account->setStoragePath(root + QStringLiteral("/account.json"));
         m_policy->setStorageRoot(root + QStringLiteral("/browser"));
@@ -151,6 +229,10 @@ public slots:
         QSettings::setDefaultFormat(QSettings::IniFormat);
         QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, m_temp.filePath("settings"));
         if (!evidenceRoot().isEmpty()) QDir().mkpath(evidenceRoot());
+#ifdef Q_OS_WIN
+        if (qEnvironmentVariable("FERIA_FIXTURE_FOREGROUND") == QStringLiteral("1"))
+            QCoreApplication::instance()->installEventFilter(new ForegroundClaim(QCoreApplication::instance()));
+#endif
         QDir().mkpath(downloadRoot());
         connect(&m_server, &QTcpServer::newConnection, this, [this] {
             while (m_server.hasPendingConnections()) {
@@ -172,6 +254,89 @@ public slots:
                     QByteArray mime("text/html");
                     if (path.startsWith("/reopen-redirect") && ++m_routeHits[path] > 1) {
                         socket->write("HTTP/1.1 302 Found\r\nLocation: /hosting\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/redirect") {
+                        socket->write("HTTP/1.1 302 Found\r\nLocation: /b\r\nContent-Length: 0\r\nConnection: close\r\n\r\n");
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    // Set 5 service discovery: private loopback-only origins and dummy credentials.
+                    if (path == "/services-login-post") {
+                        const bool valid = requestBody.contains("username=reader")
+                            && requestBody.contains("password=fixture-pass");
+                        socket->write((valid ? QByteArray("HTTP/1.1 303 See Other\r\nLocation: /services-login\r\n"
+                            "Set-Cookie: feria_fixture_auth=ok; Path=/; Max-Age=3600; HttpOnly; SameSite=Lax\r\n")
+                            : QByteArray("HTTP/1.1 403 Forbidden\r\n"))
+                            + "Content-Length: 0\r\nConnection: close\r\n\r\n");
+                        qInfo().noquote() << "SERVICES_LOGIN_POST accepted=" << valid;
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/services-login") {
+                        const bool signedIn = buffer.left(headerEnd).contains("feria_fixture_auth=ok");
+                        body = signedIn ? QByteArray("<!doctype html><title>services:signed-in</title>"
+                            "<p id='signed-in'>Session retained</p>")
+                            : QByteArray("<!doctype html><title>services:sign-in</title>"
+                            "<form id='login' method='post' action='/services-login-post' autocomplete='on'>"
+                            "<input id='username' name='username' autocomplete='username'>"
+                            "<input id='password' name='password' type='password' autocomplete='current-password'>"
+                            "<button type='submit'>Fixture login</button></form>");
+                        qInfo().noquote() << "SERVICES_LOGIN_PAGE signedIn=" << signedIn;
+                    } else if (path.startsWith("/services-autofill")) {
+                        body = "<!doctype html><title>services:form</title>"
+                            "<form method='get' action='/services-autofill' autocomplete='on'>"
+                            "<input id='topic' name='topic' type='text' autocomplete='on'>"
+                            "<button type='submit'>Submit</button></form>";
+                    } else if (path == "/services-resource-page") {
+                        body = "<!doctype html><title>services:pending</title>"
+                            "<img id='resource' src='http://localhost:"
+                            + QByteArray::number(m_server.serverPort())
+                            + "/services-tracker-pixel' onload=\"document.title='services:loaded'\" "
+                            "onerror=\"document.title='services:failed'\">";
+                    } else if (path == "/services-tracker-pixel") {
+                        qInfo().noquote() << "SERVICES_RESOURCE_HIT host=localhost";
+                        body = QByteArray::fromBase64("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==");
+                        mime = "image/png";
+                    } else if (path == "/services-media") {
+                        body = R"HTML(<!doctype html><title>services:media</title>
+<audio id="serviceAudio" loop src="/tone.wav" preload="auto"></audio>
+<script>
+window.serviceActions = {play:0,pause:0,seekto:0,nexttrack:0,previoustrack:0};
+if (navigator.mediaSession && window.MediaMetadata) {
+  navigator.mediaSession.metadata = new MediaMetadata({title:"Fixture song",artist:"Fixture artist",album:"Feria"});
+  ["play","pause","seekto","nexttrack","previoustrack"].forEach(function(action) {
+    try { navigator.mediaSession.setActionHandler(action,function(details) {
+      window.serviceActions[action]++;
+      var audio=document.getElementById("serviceAudio");
+      if (action==="pause") audio.pause();
+      if (action==="play") audio.play().catch(function(){});
+      if (action==="seekto" && details.seekTime != null) audio.currentTime=details.seekTime;
+    }); } catch (_) {}
+  });
+}
+</script>)HTML";
+                    }
+                    // Service fixture branches are terminal. Never let the
+                    // later generic /a fallback replace their HTML or PNG.
+                    if (path.startsWith("/services-")) {
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: " + mime
+                            + "\r\nContent-Length: " + QByteArray::number(body.size())
+                            + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/auth") {
+                        // HTTP Basic challenge: the page exists only for reader:fixture-pass.
+                        const bool authorized = buffer.left(headerEnd).contains(
+                            "Authorization: Basic " + QByteArray("reader:fixture-pass").toBase64());
+                        body = authorized ? "<!doctype html><title>Fixture /auth granted</title><p>Signed in.</p>"
+                                          : "<!doctype html><title>Fixture /auth refused</title><p>Sign-in required.</p>";
+                        socket->write((authorized ? QByteArray("HTTP/1.1 200 OK\r\n")
+                                                  : QByteArray("HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"Fixture\"\r\n"))
+                            + "Content-Type: text/html\r\nContent-Length: " + QByteArray::number(body.size())
+                            + "\r\nConnection: close\r\n\r\n" + body);
                         socket->disconnectFromHost();
                         return;
                     }
@@ -215,6 +380,34 @@ public slots:
                         socket->disconnectFromHost();
                         return;
                     }
+                    if (path == "/daily-document.pdf" || path == "/daily-attachment.pdf") {
+                        // Pure ASCII, valid one-page PDF with computed xref offsets.
+                        body = "%PDF-1.4\n";
+                        QByteArray offsets[6];
+                        auto appendObject = [&](int id, const QByteArray &payload) {
+                            offsets[id] = QByteArray::number(body.size()).rightJustified(10, '0');
+                            body += QByteArray::number(id) + " 0 obj\n" + payload + "\nendobj\n";
+                        };
+                        appendObject(1, "<< /Type /Catalog /Pages 2 0 R >>");
+                        appendObject(2, "<< /Type /Pages /Kids [3 0 R] /Count 1 >>");
+                        appendObject(3, "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 5 0 R >> >> /Contents 4 0 R >>");
+                        const QByteArray text("BT /F1 24 Tf 72 700 Td (Feria daily PDF fixture) Tj ET\n");
+                        appendObject(4, "<< /Length " + QByteArray::number(text.size()) + " >>\nstream\n" + text + "endstream");
+                        appendObject(5, "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>");
+                        const qsizetype xref = body.size();
+                        body += "xref\n0 6\n0000000000 65535 f \n";
+                        for (int id = 1; id <= 5; ++id) body += offsets[id] + " 00000 n \n";
+                        body += "trailer\n<< /Size 6 /Root 1 0 R >>\nstartxref\n"
+                            + QByteArray::number(xref) + "\n%%EOF\n";
+                        const QByteArray disposition = path == "/daily-attachment.pdf"
+                            ? QByteArray("Content-Disposition: attachment; filename=daily-attachment.pdf\r\n")
+                            : QByteArray{};
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/pdf\r\n"
+                            + disposition + "Content-Length: " + QByteArray::number(body.size())
+                            + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->disconnectFromHost();
+                        return;
+                    }
                     if (path == "/download") {
                         body = "Colosseum browser download fixture\n";
                         socket->write("HTTP/1.1 200 OK\r\nContent-Type: application/octet-stream\r\n"
@@ -226,7 +419,29 @@ public slots:
                         });
                         return;
                     }
-                    if (path == "/tone.wav") {
+                    if (path == "/daily-image.png") {
+                        body = QByteArray::fromBase64(
+                            "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVQIHWP4z8DwHwAFgAI/ScL/nwAAAABJRU5ErkJggg==");
+                        socket->write("HTTP/1.1 200 OK\r\nContent-Type: image/png\r\n"
+                            "Content-Length: " + QByteArray::number(body.size())
+                            + "\r\nConnection: close\r\n\r\n" + body);
+                        socket->disconnectFromHost();
+                        return;
+                    }
+                    if (path == "/daily") {
+                        body = R"HTML(<!doctype html><html><head><title>Fixture daily</title></head>
+<body style="background:#173044;color:white;font:16px sans-serif">
+<div id="blank" style="position:absolute;left:25px;top:18px;width:170px;height:30px">Blank space</div>
+<a id="dailyLink" href="/b" style="position:absolute;left:25px;top:80px;width:180px;height:35px;color:white">Daily fixture link</a>
+<img id="dailyImage" alt="Fixture image" width="90" height="70"
+ style="position:absolute;left:25px;top:140px"
+ src="/daily-image.png">
+<textarea id="dailyEdit" spellcheck="true" style="position:absolute;left:25px;top:235px;width:300px;height:80px">spelingg wurd</textarea>
+<p id="dailyText" style="position:absolute;left:25px;top:340px;width:450px;height:50px">Selected daily context menu sentence.</p>
+<input id="dailyInput" style="position:absolute;left:25px;top:420px;width:300px;height:40px" value="plain input">
+</body></html>)HTML";
+                    } else if (path == "/tone.wav") {
+
                         mime = "audio/wav";
                         QDataStream out(&body, QIODevice::WriteOnly);
                         out.setByteOrder(QDataStream::LittleEndian);
@@ -259,7 +474,9 @@ public slots:
                 connect(socket, &QTcpSocket::disconnected, socket, &QObject::deleteLater);
             }
         });
-        if (!m_server.listen(QHostAddress::LocalHost, 0)) qFatal("Fixture listener failed");
+        if (!m_server.listen(QHostAddress::LocalHost,
+                quint16(qEnvironmentVariableIntValue("FERIA_FIXTURE_PORT"))))
+            qFatal("Fixture listener failed");
     }
     void qmlEngineAvailable(QQmlEngine *engine) {
         m_sessions = new SessionStore(engine);
@@ -280,13 +497,30 @@ private:
     SessionStore *m_sessions = nullptr;
     FeriaAccountStore *m_account = nullptr;
     FeriaBrowserPolicy *m_policy = nullptr;
+    bool m_journeyFinished = false;
+    bool m_journeyPassed = false;
 };
 int main(int argc, char **argv) {
+#ifdef Q_OS_WIN
+    SetUnhandledExceptionFilter(reportCrash);
+#endif
+    // Match native/main.cpp: select Basic before QGuiApplication is created.
+    if (!qEnvironmentVariableIsSet("QT_QUICK_CONTROLS_STYLE")) qputenv("QT_QUICK_CONTROLS_STYLE", QByteArrayLiteral("Basic"));
     QtWebEngineQuick::initialize();
     qInfo().noquote() << "Runtime versions: Qt" << qVersion()
         << "WebEngine" << qWebEngineVersion()
         << "Chromium" << qWebEngineChromiumVersion()
         << "security-patch" << qWebEngineChromiumSecurityPatchVersion();
+#ifdef Q_OS_WIN
+    // Which engine binaries this run actually loaded: a result on the stock
+    // kit says nothing about a codec-enabled deployment, and the reverse.
+    for (const wchar_t *name : {L"Qt6Core.dll", L"Qt6Quick.dll", L"Qt6WebEngineQuick.dll", L"Qt6WebEngineCore.dll"}) {
+        wchar_t path[MAX_PATH] = {};
+        if (const HMODULE module = GetModuleHandleW(name); module && GetModuleFileNameW(module, path, MAX_PATH))
+            qInfo().noquote() << "Runtime module:" << QString::fromWCharArray(path);
+    }
+    qInfo().noquote() << "Runtime helper:" << qEnvironmentVariable("QTWEBENGINEPROCESS_PATH", QStringLiteral("(default beside Qt6WebEngineCore)"));
+#endif
     FeriaRuntimeFixture setup;
     if (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--preview") {
         QGuiApplication app(argc, argv);
@@ -313,6 +547,45 @@ int main(int argc, char **argv) {
             QTimer::singleShot(20000, &app, [] { QCoreApplication::exit(5); });
         }
         return app.exec();
+    }
+    if (argc == 3 && QString::fromLocal8Bit(argv[1]) == "--journey") {
+        QGuiApplication app(argc, argv);
+        setup.applicationAvailable();
+        // Observe the actual destruction order instead of trusting the code
+        // that requests it: a profile must never go while a view remains.
+        int profileBeforeView = 0;
+        int profiles = 0;
+        int verdict = 2;
+        bool drained = false;
+        {
+            QQmlApplicationEngine engine;
+            setup.qmlEngineAvailable(&engine);
+            FeriaBrowserRuntime *runtime = setup.policy()->runtime();
+            // Same hook as native/main.cpp: engines leave in order at exit.
+            QObject::connect(&app, &QCoreApplication::aboutToQuit, runtime, &FeriaBrowserRuntime::shutdown);
+            QObject::connect(runtime, &FeriaBrowserRuntime::profileCountChanged, &app, [&, runtime] {
+                if (runtime->profileCount() < profiles && runtime->viewCount() > 0) ++profileBeforeView;
+                profiles = runtime->profileCount();
+            });
+            engine.load(QUrl::fromLocalFile(QFileInfo(QString::fromLocal8Bit(argv[2])).absoluteFilePath()));
+            if (engine.rootObjects().isEmpty()) return 2;
+            QTimer::singleShot(120000, &app, [] {
+                qCritical("FERIA_JOURNEY_RESULT FAIL deadline");
+                QCoreApplication::exit(5);
+            });
+            verdict = app.exec();
+            // exec() has flushed deferred deletions: every engine object the
+            // adapter retired is gone now, before the QML engine is torn down.
+            drained = runtime->viewCount() == 0 && runtime->profileCount() == 0;
+            qInfo().noquote() << "FERIA_JOURNEY_EXIT views" << runtime->viewCount()
+                << "profiles" << runtime->profileCount() << "profileBeforeView" << profileBeforeView;
+        }
+        // The QML engine is gone. Anything it still had to destroy went in
+        // object-tree order, which this counter also saw.
+        qInfo().noquote() << "FERIA_JOURNEY_TEARDOWN profileBeforeView" << profileBeforeView;
+        if (verdict != 0) return verdict;
+        if (!setup.journeyPassed()) return 6;
+        return drained && profileBeforeView == 0 ? 0 : 3;
     }
     return quick_test_main_with_setup(argc, argv, "feria_foundation", nullptr, &setup);
 }

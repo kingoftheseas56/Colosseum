@@ -1,9 +1,11 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import "OnePieceEastBlueAtlasData.js" as EastBlueAtlasData
 
 FocusScope {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     objectName: "onePieceUniversePage"
     anchors.fill: parent
     focus: true
@@ -65,8 +67,8 @@ FocusScope {
         routed.seaId = "east-blue"
         routed.seaLabel = "East Blue"
         routed.sagaLabel = "East Blue"
-        routed.heroSource = EastBlueAtlasData.bannerSource(arc.id)
-        routed.heroFallbackSource = EastBlueAtlasData.canonMarker(arc.id).poster
+        routed.heroSource = (root.universeContentGeneration, EastBlueAtlasData.bannerSource)(arc.id)
+        routed.heroFallbackSource = (root.universeContentGeneration, EastBlueAtlasData.canonMarker)(arc.id).poster
         root.arcRequested(routed)
     }
 

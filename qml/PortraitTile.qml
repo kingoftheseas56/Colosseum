@@ -15,6 +15,7 @@
 import QtQuick
 import QtQuick.Effects
 import "CatalogueVisualMetrics.js" as Metrics
+import "PosterSourcePolicy.js" as PosterPolicy
 
 Item {
     id: tile
@@ -25,6 +26,11 @@ Item {
     property real progress: -1        // < 0 → no progress bar
     property real posterWidth: Metrics.gallery.posterWidth // opt-in larger universe shelves; default unchanged
     property url cover: ""            // remote cover art; the c1→c2 tint shows through until it loads (or if it fails)
+    property var coverCandidates: []
+    readonly property string posterIdentity: JSON.stringify(PosterPolicy.candidates(String(cover),coverCandidates))
+    readonly property var posterSources: JSON.parse(posterIdentity)
+    property int posterIndex: 0
+    onPosterIdentityChanged: posterIndex = 0
     property bool keyboardEnabled: true
     property bool keyboardFocused: false
     signal clicked()
@@ -50,13 +56,15 @@ Item {
         Behavior on color { ColorAnimation { duration: 220 } }
     }
 
-    // ── the in-tile content (gradient tint + remote cover + caption + progress) rendered ONLY
-    //    through the single rounded MultiEffect mask, so the corners are genuinely cropped. The old
-    //    rectangular clip let cover art paint over the border; this never can. ──
+    // ── the in-tile content (gradient tint + remote cover + caption + progress).
+    //    Preserve the genuine rounded MultiEffect crop on GPU renderers. The Qt software
+    //    renderer cannot paint shader effects, so draw these children directly there;
+    //    only that fallback has rectangular artwork corners (the rounded frame remains).
+    readonly property bool softwareRendering: tile.GraphicsInfo.api === GraphicsInfo.Software
     Item {
         id: content
         anchors.fill: parent
-        layer.enabled: true
+        layer.enabled: !tile.softwareRendering
         layer.effect: MultiEffect {
             maskEnabled: true
             maskSource: maskShape
@@ -72,12 +80,11 @@ Item {
             }
         }
         // remote cover art — async + cached; decode-capped (≤2× the rendered poster) so memory is
-        // bounded. Fades in over the tint on ready; one clean retry on error, then the tint stays.
+        // bounded. An unavailable owned asset tries its preserved original once.
         Image {
             id: art
-            property bool retried: false
             anchors.fill: parent
-            source: tile.cover
+            source: tile.posterIndex < tile.posterSources.length ? tile.posterSources[tile.posterIndex] : ""
             asynchronous: true
             cache: true
             fillMode: Image.PreserveAspectCrop
@@ -87,10 +94,8 @@ Item {
             sourceSize.height: Math.ceil(tile.height * 2)
             opacity: status === Image.Ready ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 220 } }
-            onStatusChanged: if (status === Image.Error && !retried && ("" + tile.cover).length) {
-                retried = true
-                var s = tile.cover; source = ""; source = s   // one clean retry, then the tint stays
-            }
+            onStatusChanged: if (status === Image.Error && tile.posterIndex + 1 < tile.posterSources.length)
+                tile.posterIndex += 1
         }
         // caption — inside the tile, readable over ANY cover art thanks to the outline
         Text {

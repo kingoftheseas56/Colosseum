@@ -11,16 +11,17 @@ import QtQuick.Controls
 import QtCore
 import QtQuick.Dialogs
 import "account"
-import "feria" as Feria
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
 import "UniverseExtApi.js" as UniverseApi
+import "UniverseContentApi.js" as UniverseContent
 import "Universes.js" as UniverseCanon
 import "ExtensionsCatalog.js" as ExtCatalog
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
+import "CatalogDelivery.js" as CatalogDelivery
 import "ComicResolve.js" as Resolve
 import "AddonClient.js" as AddonClient
 import "Subtitles.js" as Subtitles
@@ -30,6 +31,7 @@ import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
 import "ShellBackPolicy.js" as ShellBackPolicy
+import "WallpaperApi.js" as Wallpapers
 
 Window {
     id: win
@@ -44,14 +46,30 @@ Window {
     property bool applicationQuitReady: false
     property string applicationQuitError: ""
 
+    function completeApplicationQuit() {
+        if (!applicationQuitPending || applicationQuitReady) return
+        applicationQuitReady = true
+        console.info("[quit] Feria drained")
+        Qt.callLater(function() { Qt.quit() })
+    }
+    function failApplicationQuit(reason) {
+        if (!applicationQuitPending) return
+        applicationQuitPending = false
+        applicationQuitError = reason
+        console.warn("[quit] Waiting for Feria: " + reason)
+    }
     function requestApplicationQuit() {
         if (applicationQuitPending) return
         applicationQuitPending = true
         applicationQuitError = ""
+        // Android never loads the browser deck. Do not instantiate it just to quit.
+        if (!feriaAvailable || !feriaSessionDeck.item) {
+            completeApplicationQuit()
+            return
+        }
         // Keep the event loop alive until Feria retires its views, then profiles.
-        console.info("[quit] Closing Feria; views=" + FeriaBrowserPolicy.runtimeViewCount
-                     + " profiles=" + FeriaBrowserPolicy.runtimeProfileCount)
-        feriaSessionDeck.startQuiescence(true)
+        console.info("[quit] Closing Feria sessions")
+        feriaSessionDeck.item.startQuiescence(true)
     }
     onClosing: function(event) {
         if (applicationQuitReady) return
@@ -76,7 +94,86 @@ Window {
     }
 
     property string currentSurface: "Home"
+    readonly property bool feriaComingSoon: true
+    property bool feriaRuntimeReady: false
+    readonly property alias televisionMode: phoneShell.televisionMode
+    property var vinylWorld: null
+    property var pendingVinylResume: null
+    property bool audioHandoffBusy: false
+    property string audioOwner: ""
+    property bool vinylProfileActive: true
+    property int vinylShellGeneration: 0
+    // Arbitration lives at the shell; engines retain their own queues and resume state.
+    function claimAudio(owner) {
+        if (win.audioHandoffBusy) return
+        win.audioHandoffBusy = true
+        try {
+            win.audioOwner = owner
+            if (owner !== "vinyl" && win.vinylWorld)
+                win.vinylWorld.session.suspendPlayback("audio-handoff")
+            if (owner !== "audiobook") audioSession.suspendForAudioHandoff()
+            if (owner !== "theatre") {
+                win.pendingPlayerOpen = null
+                if (playerLayer.item) {
+                    if (playerLayer.item.suspendForAudioHandoff)
+                        playerLayer.item.suspendForAudioHandoff()
+                    else if (playerLayer.item.suspendForMinimize)
+                        playerLayer.item.suspendForMinimize()
+                }
+            }
+        } finally { win.audioHandoffBusy = false }
+    }
+    function requestTheatreAudio() {
+        win.claimAudio("theatre")
+        if (playerLayer.item && playerLayer.item.requestAudioPlayback)
+            playerLayer.item.requestAudioPlayback()
+    }
+    function registerVinylSession() {
+        if (!win.vinylEnabled || !win.vinylProfileActive) return
+        Sessions.openOrSwitch({ appType: "vinyl", contentKind: "music", title: "Vinyl",
+                                target: { id: "vinyl-session" } })
+    }
+    function leaveVinylProfile() {
+        win.vinylProfileActive = false
+        win.vinylShellGeneration++
+        win.pendingVinylResume = null
+        win.pendingPlayerOpen = null
+        win.audioOwner = ""
+        if (win.vinylWorld) win.vinylWorld.session.suspendPlayback("profile-leaving")
+        audioSession.stop()
+        if (playerLayer.item) {
+            if (playerLayer.item.suspendForAudioHandoff) playerLayer.item.suspendForAudioHandoff()
+            playerLayer.item.stop()
+        }
+        win.warmPlayerSessionId = ""
+        win.playerOpen = false
+        var records = Sessions.list()
+        for (var i = 0; i < records.length; i++)
+            if (["music", "movie", "book"].indexOf(records[i].contentKind) >= 0)
+                win.closeSession(records[i].id)
+    }
+    readonly property bool vinylEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled
+    function openVinylResume(entry, play) {
+        if (!vinylEnabled || !vinylProfileActive) return
+        pendingVinylResume = { entry: entry, play: play, generation: vinylShellGeneration }
+        openWorld("Vinyl")
+        applyVinylResume()
+    }
+    function applyVinylResume() {
+        if (!vinylWorld || !pendingVinylResume) return
+        var pending = pendingVinylResume
+        pendingVinylResume = null
+        if (!vinylProfileActive || pending.generation !== vinylShellGeneration) return
+        vinylWorld.session.snapshot()
+        vinylWorld.session.restore(pending.entry)
+        vinylWorld.page = pending.play ? "song" : "album"
+        if (pending.play) vinylWorld.session.paused = false
+    }
     property var feriaReturnSnapshot: null
+    // Feria is desktop-only (its deck rides QtWebEngine, which Android does not ship).
+    // Every Feria surface below is a string-source Loader gated on this flag, so nothing
+    // under qml/feria/ is parsed on Android.
+    readonly property bool feriaAvailable: Qt.platform.os !== "android"
     readonly property bool worldWarmerEnabled: (typeof DevWorldWarmer !== "undefined") && DevWorldWarmer
     property var pendingIdentityRoute: null
     // The Biblio detail layer is owned by this shell. Keep one route-local
@@ -95,7 +192,11 @@ Window {
     readonly property var searchLayerRef: searchLayer
     readonly property var vaultLayerRef: vaultLayer
     property bool reducedMotion: false     // single shell motion preference seam for Update surfaces
-    property string wallpaperSource: "../assets/wallpaper/cold-ripple.jpg"
+    readonly property string defaultWallpaperSource: typeof Content !== "undefined"
+        ? (Content.generation, Wallpapers.imageSource(null, Content)) : ""
+    property string wallpaperSource: win.defaultWallpaperSource
+    onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
+    property alias androidHost: phoneShell.androidHost
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -189,6 +290,11 @@ Window {
         }
     }
 
+    Connections {
+        target: typeof Content !== "undefined" ? Content : null
+        function onGenerationChanged() { UniverseContent.reload(Content.generation) }
+    }
+
     // Arc 41 semantic keyboard authority. Commands hold meaning and metadata; the shell's
     // Shortcut objects below only deliver the physical chord into this registry-backed action.
     KeyboardRegistry {
@@ -265,7 +371,6 @@ Window {
         icon: "back.svg"
         onTriggered: win.handleEscape()
     }
-
     function setGuiStallContext(operation, surface) {
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext(operation, surface)
@@ -291,6 +396,12 @@ Window {
         interval: 2500
         repeat: false
         onTriggered: {
+            if (win.androidHost && worldStack.current !== "" && !win.immersiveSurfaceOpen) {
+                // Android always stands in a world: do the post-frame work, skip the Home board.
+                auxiliaryFontsReady = true
+                postFrameStartupWork.start()
+                return
+            }
             if (worldStack.current !== "" || win.immersiveSurfaceOpen) {
                 startupIdleWorkArmed = false
                 win.armStartupIdleWork()
@@ -300,6 +411,30 @@ Window {
             postFrameStartupWork.start()
             win.armHomeIntroWidgets()
             win.armHomeContinueRail()
+        }
+    }
+    // Hosted catalogues only: queue Tankoban Discover's first page and filter lists while the
+    // boot splash is up, so the first Manga/Comics Discover open reads the query cache instead
+    // of waiting on two sequential static-shard round trips. Same native calls and arguments
+    // as TankobanDiscoverApi's default view ("popular", no filters, first 24). A local SQLite
+    // catalogue reports source "local" and is skipped, so nothing runs SQL on the GUI thread.
+    function warmTankobanDiscover() {
+        var x = !!contentPreferences.showExplicit
+        function remote(catalog) {
+            return catalog && catalog.remoteEnabled && typeof catalog.discoverPageFilteredState === "function"
+                && catalog.discoverPageFilteredState("popular", [], x, 0, 24).source === "remote"
+        }
+        var mal = typeof MalCatalog !== "undefined" ? MalCatalog : null
+        if (remote(mal)) {
+            mal.cachedDiscoverFilters("genre", x)
+            mal.cachedDiscoverFilters("demographic", x)
+            mal.discoverPageFiltered("popular", [], x, 0, 24)
+        }
+        var comics = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null
+        if (remote(comics)) {
+            for (var axis of ["genre", "publisher", "format", "availability"])
+                comics.discoverFilters(axis, x)
+            comics.discoverPageFiltered("popular", [], x, 0, 24)
         }
     }
     function armStartupIdleWork() {
@@ -360,6 +495,10 @@ Window {
                        homeReadingDeskLoader, homeVaultWidgetLoader]
         var sources = ["Bookshelf.qml", "TheatreStrip.qml",
                        "ReadingDesk.qml", "VaultHomeWidget.qml"]
+        if (win.androidHost) {
+            loaders.pop()
+            sources.pop()
+        }
         if (homeIntroWidgetCursor >= loaders.length) {
             homeIntroWidgetsLoaded = true
             return
@@ -373,7 +512,7 @@ Window {
     function homeIntroWidgetSettled(loader) {
         if (homeIntroPendingLoader !== loader) return
         homeIntroPendingLoader = null
-        if (homeIntroWidgetCursor >= 4) {
+        if (homeIntroWidgetCursor >= (win.androidHost ? 3 : 4)) {
             homeIntroWidgetsLoaded = true
             return
         }
@@ -459,6 +598,7 @@ Window {
     function wallpaperWorldForSession(rec) {
         var appType = rec && rec.appType ? ("" + rec.appType).toLowerCase() : ""
         var contentKind = rec && rec.contentKind ? ("" + rec.contentKind).toLowerCase() : ""
+        if (contentKind === "music") return "Vinyl"
         if (contentKind === "browser") return "Feria"
         if (appType === "theatre" || contentKind === "movie") return "Theatre"
         if (appType === "tankoban" || contentKind === "comic") return "Tankoban"
@@ -467,7 +607,7 @@ Window {
     }
     function refreshWallpaper() {
         var pick = pickFor(currentSurface)
-        wallpaperSource = pick && pick.image_url ? pick.image_url : "../assets/wallpaper/cold-ripple.jpg"
+        wallpaperSource = Wallpapers.imageSource(pick, typeof Content !== "undefined" ? Content : null)
     }
     function setWallpaperPick(world, pick) {
         wallpaperSettings[wallpaperKey(world)] = typeof pick === "string" ? pick : JSON.stringify(pick || {})
@@ -586,8 +726,15 @@ Window {
         // transport off the GUI thread's JS). Installed once, here, because a .pragma library
         // holds one shared instance per QML engine. FIRST in this handler on purpose: the dev
         // harnesses below can `return` early, and a universe with no reader renders empty.
-        if (typeof Extensions !== "undefined")
-            UniverseApi.setReader(function (f) { return Extensions.universePayload(f) })
+        if (typeof Content !== "undefined") {
+            UniverseContent.setAssetResolver(function (path) { return Content.assetUrl(path) })
+            UniverseContent.setReader(function (key) { return Content.document(key) })
+            UniverseContent.reload(Content.generation)
+            UniverseApi.setReader(function (file) { return JSON.stringify(Content.document("universe-" + file)) })
+        } else if (typeof Extensions !== "undefined") {
+            UniverseApi.setReader(function (file) { return Extensions.universePayload(file) })
+        }
+        Qt.callLater(win.warmTankobanDiscover)
         // Efficiency gate: play a given local file through the real player as soon as the shell is
         // up, so both backends can be measured under identical conditions.
         if (typeof DevAbbaClip !== "undefined" && String(DevAbbaClip).length > 0) {
@@ -601,7 +748,9 @@ Window {
                     + "  (booted=" + Player2Available + ")")
         // Native state owns the startup presentation and shows the window; the fallback
         // keeps a bare QML run (harnesses) fullscreen as before.
-        if (typeof WindowMode !== "undefined")
+        if (phoneShell.initializeWindow(typeof WindowMode !== "undefined" ? WindowMode : null))
+            ;
+        else if (typeof WindowMode !== "undefined")
             WindowMode.initializeShell(win)
         else
             win.showFullScreen()
@@ -767,6 +916,7 @@ Window {
             feriaActive: feriaLayer.open,
             vaultActive: vaultLayer.active,
             downloadsActive: downloadsLayer.active,
+            profileActive: phoneShell.profileActive,
             bookActive: bookLayer.active,
             theatreSeriesActive: theatreSeriesLayer.active,
             westernActive: westernLayer.active,
@@ -853,10 +1003,13 @@ Window {
             universeLayer.item.requestEscape()
     }
     function cancelPendingIdentityCeremony() {
+        if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport && win.vinylWorld)
+            win.vinylWorld.session.cancelImportIdentity(true)
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
     }
     function handleEscape() {
+        win.cancelCatalogueRoute();
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
         case "consume": return
@@ -890,6 +1043,7 @@ Window {
             return
         case "vault": if (vaultLayer.item && vaultLayer.item.handleBack) vaultLayer.item.handleBack(); else win.closeVaultPage(); return
         case "downloads": win.closeDownloadsPage(); return
+        case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
         case "theatreSeries": win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
@@ -910,7 +1064,11 @@ Window {
         case "biblioGenreIndex": win.closeBiblioGenreIndex(); return
         case "genre": win.closeGenre(); return
         case "genreIndex": win.closeGenreIndex(); return
-        case "world": win.closeWorld(); return
+        case "world":
+            if (worldStack.current === "Vinyl" && win.vinylWorld
+                    && win.vinylWorld.goBack && win.vinylWorld.goBack()) return
+            win.closeWorld()
+            return
         default: win.goHomeTop(); return   // "homeTop": Back never quits (Ctrl+Q does)
         }
     }
@@ -933,6 +1091,8 @@ Window {
         anchors.fill: parent
         z: 100000
         TapHandler {
+            // acceptedButtons filters mouse buttons only; touch would otherwise trigger Back.
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
             acceptedButtons: Qt.BackButton
             onTapped: escapeCommand.invoke("mouseBack")
         }
@@ -1066,12 +1226,26 @@ Window {
     // Home or between modes just toggles visibility. So returning to a mode shows the already-loaded
     // world with its covers INTACT instead of re-downloading them. Real mode pages route to their
     // own QML; unbuilt modes fall back to DemoWorld.qml.
+    // This ordered registry is also the Android shell's world-tab source. Registering a future
+    // world here therefore adds its tab without a second navigation list.
+    readonly property var worldDefinitions: [
+        { name: "Theatre",  source: "TheatreWorld.qml",  icon: "../assets/icons/projector-theatre.svg" },
+        { name: "Tankoban", source: "TankobanWorld.qml", icon: "../assets/icons/comic-book.svg" },
+        { name: "Biblio",   source: "BiblioWorld.qml",   icon: "../assets/icons/book-library.svg" },
+        { name: "Universes", source: "UniversesWorld.qml", icon: "../assets/icons/universes-atom.svg" }
+    ]
     function worldSourceFor(medium) {
-        if (medium === "Tankoban") return "TankobanWorld.qml"
-        if (medium === "Theatre") return "TheatreWorld.qml"
-        if (medium === "Biblio") return "BiblioWorld.qml"
-        if (medium === "Universes") return "UniversesWorld.qml"
+        if (medium === "Vinyl" && vinylEnabled) return "vinyl/VinylLiveWorld.qml"
+        for (var i = 0; i < win.worldDefinitions.length; ++i)
+            if (win.worldDefinitions[i].name === medium)
+                return win.worldDefinitions[i].source
         return "DemoWorld.qml"
+    }
+    function ensureFeriaRuntime() {
+        if (win.feriaComingSoon !== false || !win.feriaAvailable) return false
+        if (!win.feriaRuntimeReady)
+            win.feriaRuntimeReady = true
+        return true
     }
     function parkFeria(preserveSnapshot) {
         var preserve = preserveSnapshot !== false
@@ -1098,15 +1272,19 @@ Window {
         feriaReturnSnapshot = null
         return true
     }
-    function openWorld(medium) {
+    function openWorld(medium) { win.cancelCatalogueRoute();
+        // These worlds are not available in this release, including through indirect callers.
+        var requestedWorld = String(medium || "").trim().toLowerCase()
+        if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || (requestedWorld === "vinyl" && !win.vinylEnabled)) return
         if (medium === "Feria") { win.openFeriaPage(); return }
-        win.parkFeria(true)
+        if (win.parkFeria) win.parkFeria(true)
         var found = false
         for (var i = 0; i < openModes.count; i++)
             if (openModes.get(i).mode === medium) { found = true; break }
         if (!found) openModes.append({ mode: medium })   // first visit → create its keep-alive Loader
         worldStack.current = medium
         currentSurface = medium
+        phoneShell.recordWorldOpened(medium)
         setGuiStallContext("navigate", String(medium))
         refreshWallpaper()
     }
@@ -1133,6 +1311,8 @@ Window {
         }
     }
     function closeWorld() {
+        if (win.androidHost) return
+        win.cancelCatalogueRoute();
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
         currentSurface = "Home"
@@ -1248,16 +1428,30 @@ Window {
             seriesLayer.item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
         }
     }
+    // Only canonical MAL series keys may cross into the remote catalogue seam.
+    // Reject suffixes, other namespaces and out-of-range IDs rather than guessing.
+    function canonicalMalId(seriesId) {
+        var sid = String(seriesId || "")
+        var match = /^mal:([1-9][0-9]*)$/.exec(sid)
+        if (!match || match[0] !== sid) return ""
+        var id = Number(match[1])
+        return Number.isInteger(id) && id <= 2147483647 ? match[1] : ""
+    }
     function restoreSeriesEditionProfile(seriesId) {
         var sid = String(seriesId || "")
-        if (sid !== "mal:13:color") { clearSeriesEditionProfile(); return }
+        if (sid !== "mal:13:color") {
+            var malId = canonicalMalId(sid)
+            if (malId.length) applySeriesEditionProfile(null, malId)
+            else clearSeriesEditionProfile()
+            return
+        }
         applySeriesEditionProfile({
             malId: "13", seriesId: sid, sourceSearchTitle: "One Piece Colored",
             sourceSearchAliases: ["One Piece Digital Colored Comics"],
             sourceRequiredMarkers: ["colored", "full color", "full colour"]
         }, "13")
     }
-    function openSeries(title, malId, profile, requestedVolumeNumber) {
+    function openSeries(title, malId, profile, requestedVolumeNumber) { if (win.cancelCatalogueRoute) win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
@@ -1287,7 +1481,7 @@ Window {
     }
 
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
-    function openSeriesAt(title, seriesId, chapterId) {
+    function openSeriesAt(title, seriesId, chapterId) { win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
@@ -1307,7 +1501,33 @@ Window {
     // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
     //      every shared kind:"comic" route below tells the two lanes apart. ----
+    property int _catalogueRouteGeneration: 0
+    property var _catalogueRouteCancel: null
+    function cancelCatalogueRoute() {
+        _catalogueRouteGeneration++;
+        if (typeof _catalogueRouteCancel === "function") _catalogueRouteCancel();
+        _catalogueRouteCancel = null;
+    }
+    function catalogueRouteSnapshot() {
+        return String(currentSurface) + "|" + JSON.stringify(win.shellEscapeState());
+    }
     function openWestern(d) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            var title = (d && d.title) || "";
+            var hit = win.comicsDbHit(title);
+            if (CatalogDelivery.available(catalog)) catalog.exactMatches(title);
+            return hit;
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openWesternReady(d, false);
+        });
+    }
+    function _openWesternReady(d, skipGcd) {
         westernLayer.baked = null
         if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         // DB-first (Hemanth 2026-07-15): the catalog series view is THE series
@@ -1322,7 +1542,7 @@ Window {
         // catalogue redirect (spec 2026-07-17): exactly ONE run bears this title ->
         // its run-scoped page. Multiple same-name runs -> the live shelf keeps the
         // whole-franchise view; never guess a run.
-        if (typeof ComicsCatalog !== "undefined" && ComicsCatalog.ready()) {
+        if (!skipGcd && typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog)) {
             var ex = ComicsCatalog.exactMatches((d && d.title) || "")
             if (ex.length === 1) {
                 win.openGcdSeries({ gcdId: ex[0].gcdId, title: (d && d.title) || "",
@@ -1344,7 +1564,7 @@ Window {
         if (!westernLayer.tagSlug.length && westernLayer.item) westernLayer.item.resolve()
     }
     // open a western series AND jump straight into the reader (Continue / session resume)
-    function openWesternAt(title, tagSlug, chapterId) {
+    function openWesternAt(title, tagSlug, chapterId) { win.cancelCatalogueRoute();
         westernLayer.baked = null
         if (westernLayer.active && westernLayer.item) westernLayer.item.bakedReleases = null
         westernLayer.title = title || ""
@@ -1357,7 +1577,7 @@ Window {
             westernLayer.item.openChapterId = chapterId || ""
         } else westernLayer.active = true
     }
-    function closeWestern() { westernLayer.active = false }
+    function closeWestern() { win.cancelCatalogueRoute(); westernLayer.active = false }
 
     // ---- catalogue run page: the western shelf in baked mode (spec 2026-07-17).
     //      d: { gcdId, title?, cover?, resumeChapterId? } ----
@@ -1389,16 +1609,31 @@ Window {
     }
 
     function openGcdSeries(d) {
-        if (typeof ComicsCatalog === "undefined" || !ComicsCatalog.ready()) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            if (!CatalogDelivery.available(catalog)) return null;
+            var id = Number((d && d.gcdId) || 0);
+            return { series: catalog.series(id), downloads: catalog.downloadsFor(id) };
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openGcdSeriesReady(d);
+        });
+    }
+    function _openGcdSeriesReady(d) {
+        if (typeof ComicsCatalog === "undefined" || !CatalogDelivery.available(ComicsCatalog)) {
             if (_openPinnedGcdSeries(d)) return
-            if (d && d.title) win.openWestern({ title: d.title })
+            if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
         var gcdId = Number((d && d.gcdId) || 0)
         var s = ComicsCatalog.series(gcdId)
         if (!s || s.gcdId === undefined) {
             if (_openPinnedGcdSeries(d)) return
-            if (d && d.title) win.openWestern({ title: d.title })
+            if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
         var rows = ComicsCatalog.downloadsFor(gcdId)
@@ -1457,7 +1692,7 @@ Window {
                  packRole: String(r.packRole || ""), packOrder: Number(r.packOrder || 0),
                  packId: String(r.id || ""), pages: Number(r.pages || 0) }
     }
-    function openPackSeries(d) {
+    function openPackSeries(d) { win.cancelCatalogueRoute();
         var seriesId = String((d && d.seriesId) || "")
         if (!seriesId.length) { console.warn("pack: openPackSeries — no seriesId"); return }
         var pv = (typeof Comics !== "undefined") ? Comics.packVolumes(seriesId) : { mains: [], extras: [] }
@@ -1522,6 +1757,44 @@ Window {
         } else westernLayer.active = true
     }
 
+    // A pinned cross-run GetComics collection is not a live tag search. Resolve its
+    // durable first-post key back to the bundled Universe's exact curated post list.
+    function reopenPinnedUniverseComic(id, title, cover) {
+        var match = /^gc:posts:([1-9][0-9]*)$/.exec(String(id || ""))
+        if (!match) return false
+        var stems = ["com.colosseum.universe.onepiece",
+                     "com.colosseum.universe.dcau",
+                     "com.colosseum.universe.starwars"]
+        var matched = false
+        var outstanding = stems.length
+        for (var i = 0; i < stems.length; ++i) {
+            UniverseApi.load(stems[i], function(payload) {
+                if (!matched && payload) {
+                    var sections = payload.sections || []
+                    for (var si = 0; si < sections.length && !matched; ++si) {
+                        if (sections[si].kind !== "comic") continue
+                        var entries = sections[si].entries || []
+                        for (var ei = 0; ei < entries.length; ++ei) {
+                            var entry = entries[ei]
+                            if (String((entry.posts || [])[0] || "") !== match[1]) continue
+                            matched = true
+                            win.openUniverseComic({
+                                title: entry.title || title, year: entry.year || "",
+                                cover: entry.cover || cover, posts: entry.posts,
+                                gcdId: entry.gcdId || 0, gcdIds: entry.gcdIds || []
+                            })
+                            break
+                        }
+                    }
+                }
+                outstanding--
+                if (!outstanding && !matched)
+                    console.warn("Saved universe comic is no longer bundled:", id)
+            })
+        }
+        return true
+    }
+
     // ---- comic series: a LOCG catalogue series' issue list (GetComics content attached).
     //      Opened from search (data.locg), the world Top-Comics row, or a publisher grid. ----
     // catalog lookup with on-demand ingest: Main never imports the multi-MB
@@ -1534,6 +1807,20 @@ Window {
     }
 
     function openComicSeries(d) {
+        win.cancelCatalogueRoute();
+        var generation = _catalogueRouteGeneration;
+        var snapshot = win.catalogueRouteSnapshot();
+        var catalog = typeof ComicsCatalog !== "undefined" ? ComicsCatalog : null;
+        _catalogueRouteCancel = CatalogDelivery.wait(catalog, function() {
+            if (!CatalogDelivery.available(catalog)) return null;
+            return catalog.curatedSeries(String((d && d.id) || "").replace(/^locg:/, ""));
+        }, function() {
+            if (generation !== _catalogueRouteGeneration || snapshot !== win.catalogueRouteSnapshot()) return;
+            _catalogueRouteCancel = null;
+            win._openComicSeriesReady(d);
+        });
+    }
+    function _openComicSeriesReady(d) {
         comicSeriesLayer.locgSid = (d && d.id) || ""
         comicSeriesLayer.locgMeta = (d && d.locgMeta) || ({})
         comicSeriesLayer.title = (d && d.title) || ""
@@ -1546,7 +1833,7 @@ Window {
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
         } else comicSeriesLayer.active = true
     }
-    function closeComicSeries() { comicSeriesLayer.active = false }
+    function closeComicSeries() { win.cancelCatalogueRoute(); comicSeriesLayer.active = false }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -1580,7 +1867,7 @@ Window {
 
 
     // ---- Theatre detail: its own layer (Cinemeta meta + Torrentio sources), parallel to series ----
-    function openTheatreSeries(item) {
+    function openTheatreSeries(item) { win.cancelCatalogueRoute();
         theatreSeriesLayer.pendingItem = item
         if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
         else theatreSeriesLayer.active = true
@@ -1659,9 +1946,11 @@ Window {
             return
         }
         if (p.kind === "direct") {
-            if (win.playerOpen)
+            if (win.playerOpen) {
+                win.requestTheatreAudio()
                 playerLayer.item.playTorrent(p.infoHash, p.fileIdx, p.title, p.backdrop, p.subType, p.subId,
                                              p.candidates || [], p.context || ({}))
+            }
             return
         }
         if (p.kind === "watchParty" && win.playerOpen)
@@ -1698,6 +1987,33 @@ Window {
         || (seriesLayer.active && seriesLayer.item && seriesLayer.item.openChapterId.length > 0)
         || (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length > 0)
         || (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length > 0)
+
+    // Full-window pages opened from browsing own the canvas while they are active. Downloads is
+    // deliberately excluded because it is the Profile destination and keeps shell navigation.
+    readonly property bool fullWindowPageOpen:
+        theatreSeriesLayer.active
+        || bookLayer.active
+        || seriesLayer.active
+        || westernLayer.active
+        || comicSeriesLayer.active
+        || locgPublisherLayer.active
+        || comicIndexLayer.active
+        || comicBoardLayer.active
+        || genreLayer.active
+        || genreIndexLayer.active
+        || biblioGenreLayer.active
+        || biblioGenreIndexLayer.active
+        || theatreGenreLayer.active
+        || theatreGenreIndexLayer.active
+        || searchLayer.active
+        || worldSearchLayer.active
+        || universeLayer.active
+        || universeHallLayer.active
+        || onePieceArcLayer.active
+        || vaultLayer.active
+        || continueSeeAllLayer.active
+
+    readonly property alias wideWorldNavigationLeftInset: phoneShell.wideWorldNavigationLeftInset
 
     // ---- season-download resolver: a promoted queue job carries only the episode's
     //      stream id; we pick the rank-best Torrentio stream and feed back the local
@@ -1830,6 +2146,7 @@ Window {
     Connections {
         target: win
         function onPlayerOpenChanged() {
+            if (win.playerOpen) win.claimAudio("theatre")
             if (win.playerOpen || !win.pendingResolves.length)
                 return
             var p = win.pendingResolves.shift()
@@ -1839,6 +2156,7 @@ Window {
 
     // ---- Feria: streaming world, entered from the shared selector ----
     function openFeriaPage() {
+        if (!win.ensureFeriaRuntime()) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
         vaultLayer.active = false
@@ -1909,7 +2227,9 @@ Window {
             Qt.callLater(historyStatsLayer.item.takeKeyboardFocus)
     }
     function openYourFeriaPage(section) {
+        if (!win.ensureFeriaRuntime()) return
         if (!feriaLayer.open) win.openFeriaPage()
+        if (!feriaLayer.item) return
         accountCenter.close()
         feriaLayer.item.accountTab = ["history", "highlights", "stats"].indexOf(section) >= 0 ? section : "history"
         yourFeriaLayer.open = true
@@ -1949,6 +2269,7 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
+        if (win.androidHost) return
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -1989,11 +2310,12 @@ Window {
         anchors.fill: parent
         z: 58.5
         property bool open: false
-        active: open && feriaLayer.open && feriaLayer.item !== null
+        active: !win.feriaComingSoon && open && feriaLayer.open && feriaLayer.item !== null
         visible: active
         onActiveChanged: if (!active) open = false
-        sourceComponent: Feria.YourFeriaPage { controller: feriaLayer.item }
+        source: "feria/YourFeriaPage.qml"
         onLoaded: {
+            item.controller = feriaLayer.item
             item.backRequested.connect(win.closeYourFeriaPage)
             item.settingsRequested.connect(function() { feriaLayer.item.openApps() })
             item.takeKeyboardFocus()
@@ -2234,6 +2556,7 @@ Window {
                                       streamCandidates || [], playbackContext || ({}))
             return
         }
+        win.requestTheatreAudio()
         playerLayer.item.playTorrent(infoHash, fileIdx, title, backdrop, subType, subId,
                                      streamCandidates || [], playbackContext || ({}))
     }
@@ -2260,6 +2583,7 @@ Window {
             return true
         }
         var candidate = { "infoHash": hash, "fileIdx": fileIdx }
+        win.requestTheatreAudio()
         playerLayer.item.playTorrent(hash, fileIdx, "Watch Party", "", "", "",
                                     [candidate], { "watchPartyJoin": true })
         return true
@@ -2570,7 +2894,7 @@ Window {
         return target.activeFocus === true || (snapshot.owner && snapshot.owner.activeFocus === true)
     }
 
-    function openBook(b) {
+    function openBook(b) { win.cancelCatalogueRoute();
         win.pendingBookReturn = null
         if (!bookLayer.active)
             win.bookReturnSnapshot = win._captureBookReturn()
@@ -2612,7 +2936,7 @@ Window {
 
     // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
     //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
-    function openSearch() {
+    function openSearch() { win.cancelCatalogueRoute();
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Search")
         var w = worldStack.current
@@ -2657,6 +2981,7 @@ Window {
     //  resume (center play/read icon):
     function resumeContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, true); return }
         var r = entry.resume || ({})
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
@@ -2709,6 +3034,7 @@ Window {
 
     function detailContinue(entry) {
         if (!entry) return
+        if (entry.kind === "music") { win.openVinylResume(entry, false); return }
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
         var title = entry.title || entry.caption || presentation.title || ""
@@ -2755,8 +3081,9 @@ Window {
         } else if (entry.kind === "tankoban") {
             // detail = the manga series page; Tankoban Mode restores itself from the
             // service's per-series flag once the id resolves.
-            win.openSeries(title)
+            win.openSeries(title, canonicalMalId(entry.id))
         } else if (entry.kind === "manga" || entry.kind === "comic") {
+            if (win.reopenPinnedUniverseComic(entry.id, title, entry.cover || "")) return
             if (String(entry.id || "").indexOf("gc:") === 0)
                 win.openWestern({ title: title, tag: String(entry.id).slice(3) })
             else if (String(entry.id || "").indexOf("gcd:") === 0)
@@ -2766,7 +3093,7 @@ Window {
                 // retired-source or unknown comic id — honest no-op (preset-pages source cut 2026-07-12);
                 // comics open only via the gc: lane, so a stale id never opens the manga page
                 console.log("[route] ignoring unknown comic id:", entry.id)
-            else win.openSeries(title)                                   // manga → the chapter-list series page
+            else win.openSeries(title, canonicalMalId(entry.id))                                   // manga → the chapter-list series page
         } else if (entry.kind === "book") {
             win.openBook(entry.resume && entry.resume.book ? entry.resume.book : entry)
         }
@@ -2774,7 +3101,7 @@ Window {
 
     // A Collection tile always opens the DETAIL surface (saved is a bookmark, not a
     // promise it's downloaded/started). Routes by world + saved snapshot; the gc:/gcd:/
-    // locg: prefixes pick the comics lane; manga reopens BY TITLE.
+    // locg: prefixes pick the comics lane; manga keeps its canonical MAL identity.
     function openCollectionEntry(e) {
         if (!e || !e.world) return
         var id = String(e.id || "")
@@ -2784,7 +3111,8 @@ Window {
         } else if (e.world === "biblio") {
             win.openBook((e.payload && e.payload.book) || e)
         } else if (e.world === "tankoban") {
-            if (e.type === "manga") { win.openSeries(e.title || id); return }
+            if (win.reopenPinnedUniverseComic(id, e.title || "", e.cover || "")) return
+            if (e.type === "manga") { win.openSeries(e.title || id, canonicalMalId(id)); return }
             if (id.indexOf("locg:") === 0) {
                 win.openComicSeries({ "id": id, "title": e.title || "", "cover": e.cover || "",
                                       "locgMeta": (e.payload && e.payload.locgMeta) || null })
@@ -2887,6 +3215,12 @@ Window {
     }
     function decidePendingIdentity(choice) {
         var pending = win.pendingIdentityRoute
+        if (pending && pending.vinylImport) {
+            win.pendingIdentityRoute = null
+            identityCeremonyDialog.close()
+            if (win.vinylWorld) win.vinylWorld.session.decideImportIdentity(pending.relationship || "", choice)
+            return
+        }
         if (!pending || typeof LocalLaunch === "undefined") return
         if (!LocalLaunch.decideIdentityCeremony(pending.relationship || "", choice)) return
         win.pendingIdentityRoute = null
@@ -2926,7 +3260,7 @@ Window {
     // A loose local comic has no series page — open it in the standalone Vault reader host
     // (vaultComicLayer) as a taskbar comic session keyed to its content id.
     function openVaultComic(path, vaultId, title) {
-        if (!path) return
+        if (win.androidHost || !path) return
         Sessions.openOrSwitch({
             "appType": "tankoban", "contentKind": "comic", "title": title || "Comic",
             "target": { "vaultPath": path, "id": vaultId || ("vault-file:" + path), "title": title || "" }
@@ -3039,11 +3373,13 @@ Window {
     function activateMovieSession(rec) {
         if (!rec || !rec.id || !playerLayer.item)
             return
+        win.claimAudio("theatre")
         var t = rec.target || ({})
         var st = rec.savedState || ({})
         if (win.warmPlayerSessionId === rec.id) {
             playerLayer.item.resumeFromMinimize()
         } else {
+            win.requestTheatreAudio()
             if (t.localPath && String(t.localPath).length)
                 playerLayer.item.playLocalFile(t)
             else if (t.streamUrl && String(t.streamUrl).length) {
@@ -3073,7 +3409,14 @@ Window {
 
     function activateSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "music") {
+            if (!win.vinylEnabled || !win.vinylProfileActive) return
+            win.openWorld("Vinyl")
+            // The kept-alive Vinyl owner alone restores queue/position; taskbar is presentation.
+            return
+        }
         if (rec.contentKind === "browser") {
+            if (!win.ensureFeriaRuntime()) return
             if (!win.activeBrowserSessionId.length) win.browserReturnToFeria = feriaLayer.open
             win.activeBrowserSessionId = rec.id
             feriaLayer.open = true
@@ -3159,10 +3502,15 @@ Window {
             if (bookReaderLayer.active && bookReaderLayer.item) {
                 bookReaderLayer.item.bookMeta = bookReaderLayer.bookMeta
                 bookReaderLayer.item.openBook(t.path)
-                if (bookReaderLayer.bookMeta.openAudio)
+                if (bookReaderLayer.bookMeta.openAudio) {
+                    var audioPanelGeneration = win.vinylShellGeneration
+                    var audioPanelSessionId = rec.id
                     Qt.callLater(function() {
-                        if (bookReaderLayer.item) bookReaderLayer.item.openAudioPanel()
+                        if (win.vinylProfileActive && win.vinylShellGeneration === audioPanelGeneration
+                                && Sessions.activeId === audioPanelSessionId && bookReaderLayer.item)
+                            bookReaderLayer.item.openAudioPanel()
                     })
+                }
             } else bookReaderLayer.active = true
             // book precision: the reader restores its own saved position on reopen (resume seam).
         }
@@ -3172,6 +3520,7 @@ Window {
     // capture the live outgoing surface's state (called BEFORE teardown).
     function captureSession(rec) {
         if (!rec || !rec.id) return ({})
+        if (rec.contentKind === "music") return { page: win.vinylWorld ? win.vinylWorld.page : "library" }
         if (rec.contentKind === "movie" && playerLayer.item && playerLayer.item.captureState) return playerLayer.item.captureState()
         if (rec.contentKind === "comic") {
             // one comic surface hosts the reader at a time — capture from whichever is live
@@ -3185,6 +3534,10 @@ Window {
     // tear the outgoing surface down. Player: stop media but KEEP the mpv host (use-after-free guard).
     function teardownSession(rec) {
         if (!rec || !rec.id) return
+        if (rec.contentKind === "music") {
+            if (win.vinylWorld) win.vinylWorld.session.suspendPlayback("session-parked")
+            return
+        }
         if (rec.contentKind === "browser") {
             // activeId's property signal already selects the incoming entry.
             // Tear down presentation on the outgoing record, never its sibling.
@@ -3333,7 +3686,8 @@ Window {
         visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         backdrop: wall
         activeMedium: ""
-        x: theme.margin; y: 30
+        androidHost: win.androidHost
+        x: theme.margin; y: 18
         width: win.width - theme.margin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
@@ -3363,9 +3717,10 @@ Window {
     // Chrome-free desktop interaction for developer-windowed mode. Reuses the existing TopBar
     // as the drag surface (no titlebar added) and self-disables in fullscreen. See WindowBehavior.qml.
     WindowBehavior {
+        visible: !win.androidHost
         shell: win
         dragSurface: topbar
-        controller: WindowMode
+        controller: win.androidHost ? null : WindowMode
     }
 
     // Kept as a Component so Progress.recent() and the ContinueTile delegates are not evaluated
@@ -3387,6 +3742,26 @@ Window {
                         .concat(a.filter(function(e) { return e.watched === true }))
             })())
             property bool hasResumeItems: contItems.length > 0
+            property int currentIndex: contItems.length > 0 ? 0 : -1
+            onContItemsChanged: currentIndex = contItems.length > 0
+                                                ? Math.max(0, Math.min(currentIndex, contItems.length - 1)) : -1
+            function ensureCurrentVisible() {
+                var item = contRepeater.itemAt(currentIndex)
+                if (!item) return
+                var maxX = Math.max(0, contFlick.contentWidth - contFlick.width)
+                if (item.x < contFlick.contentX)
+                    contFlick.contentX = Math.max(0, item.x)
+                else if (item.x + item.width > contFlick.contentX + contFlick.width)
+                    contFlick.contentX = Math.min(maxX, item.x + item.width - contFlick.width)
+            }
+            function navigate(delta) {
+                if (contItems.length === 0) return false
+                var next = Math.max(0, Math.min(contItems.length - 1, currentIndex + delta))
+                if (next === currentIndex) return false
+                currentIndex = next
+                ensureCurrentVisible()
+                return true
+            }
             visible: hasResumeItems
             // same header as the world Continue rows — "See all ›" visibly present, not hover-gated
             WidgetHeader {
@@ -3401,17 +3776,35 @@ Window {
                 clip: true
                 flickableDirection: Flickable.HorizontalFlick
                 boundsBehavior: Flickable.StopAtBounds
+                activeFocusOnTab: win.televisionMode && contCol.hasResumeItems
+                Accessible.role: Accessible.List
+                Accessible.name: "Continue"
+                Keys.onPressed: (event) => {
+                    if (!win.televisionMode) return
+                    if (event.key === Qt.Key_Left) event.accepted = contCol.navigate(-1)
+                    else if (event.key === Qt.Key_Right) event.accepted = contCol.navigate(1)
+                    else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
+                             || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
+                        if (contCol.currentIndex >= 0 && contCol.currentIndex < contCol.contItems.length)
+                            win.resumeContinue(contCol.contItems[contCol.currentIndex])
+                        event.accepted = true
+                    }
+                }
                 Row {
                     id: contRow
                     spacing: 18
                     Repeater {
+                        id: contRepeater
                         model: contCol.contItems
                         delegate: ContinueTile {
                             required property var modelData
+                            required property int index
                             variant: "home"
                             entry: modelData
                             backdrop: wall
                             track: page.contentY + contFlick.contentX
+                            focusManagedByCollection: true
+                            keyboardFocused: contFlick.activeFocus && index === contCol.currentIndex
                             onResumeRequested: win.resumeContinue(modelData)
                             onDetailRequested: win.detailContinue(modelData)
                             onRemoveRequested: Progress.forget(modelData.kind, modelData.id)
@@ -3429,8 +3822,9 @@ Window {
         z: 0
         visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
         anchors.left: parent.left; anchors.right: parent.right
-        y: 96
-        height: win.height - 96
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
+        y: topbar.y + topbar.height + 10
+        height: win.height - y
         contentWidth: width
         contentHeight: contentCol.implicitHeight + 40
         clip: true
@@ -3445,18 +3839,59 @@ Window {
                     homeTopSpatialNav.moveFrom(fromItem, key)
             }
         }
-        Keys.onPressed: function(event) { homePageSpatialNav.handle(event) }
         Keys.onReleased: function(event) { homePageSpatialNav.handleRelease(event) }
         // the HOME page never had the eased wheel — the one surface scrolled most was the
         // one raw Flickable left (Hemanth: rough on the hand, 2026-07-12)
         ScrollGlide { id: homeGlide; flick: page }
 
+        function isInsidePage(item) {
+            var p = item
+            while (p) {
+                if (p === page) return true
+                p = p.parent
+            }
+            return false
+        }
+        function revealFocusedItem(item) {
+            if (!item || !page.isInsidePage(item)) return
+            var point = item.mapToItem(page, 0, 0)
+            if (point.y < 18)
+                page.contentY = Math.max(0, page.contentY + point.y - 18)
+            else if (point.y + item.height > page.height - 18)
+                page.contentY = Math.min(Math.max(0, page.contentHeight - page.height),
+                                         page.contentY + point.y + item.height - page.height + 18)
+        }
+        function moveVerticalFocus(forward) {
+            var from = win.activeFocusItem
+            if (!from || !page.isInsidePage(from)) return false
+            var target = from.nextItemInFocusChain(forward)
+            var guard = 0
+            while (target && target !== from && guard++ < 96) {
+                if (target.visible && target.enabled && target.activeFocusOnTab) {
+                    target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                    page.revealFocusedItem(target)
+                    return true
+                }
+                target = target.nextItemInFocusChain(forward)
+            }
+            return false
+        }
+        Keys.priority: Keys.AfterItem
+        Keys.onPressed: (event) => {
+            if (win.televisionMode && event.key === Qt.Key_Up)
+                event.accepted = page.moveVerticalFocus(false)
+            else if (win.televisionMode && event.key === Qt.Key_Down)
+                event.accepted = page.moveVerticalFocus(true)
+            else
+                homePageSpatialNav.handle(event)
+        }
+
         Column {
             id: contentCol
             x: theme.margin
-            width: win.width - theme.margin * 2
+            width: page.width - theme.margin * 2
             topPadding: 10
-            spacing: 30
+            spacing: 32
 
             // ---- 2. UNIVERSE HERO — full-bleed banner + left scrim (the original treatment,
             //      restored by Hemanth's call 2026-07-12: "should have a full banner, just like
@@ -3468,7 +3903,7 @@ Window {
                 id: hero
                 backdrop: wall
                 track: page.contentY
-                width: parent.width; height: 340; radius: 20
+                width: parent.width; height: 360; radius: 20
                 tint: 0.06
 
                 SwipeView {
@@ -3489,8 +3924,11 @@ Window {
                                 anchors.fill: parent; radius: hero.radius; clip: true
                                 color: "#1a1410"
                                 Image {
+                                    objectName: "homeUniverseBannerArt"
                                     anchors.fill: parent
-                                    source: slide.modelData.banner
+                                    property string readySource: ""
+                                    onStatusChanged: if (status === Image.Ready) readySource = String(source)
+                                    source: page.visible || readySource === String(slide.modelData.banner || "") ? (slide.modelData.banner || "") : ""
                                     asynchronous: true; cache: true
                                     fillMode: Image.PreserveAspectCrop
                                     opacity: status === Image.Ready ? 1 : 0
@@ -3509,7 +3947,9 @@ Window {
 
                             // content over the scrim (chips row retired — ratified 2026-07-12)
                             Column {
-                                anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 44
+                                anchors.left: parent.left; anchors.bottom: parent.bottom
+                                anchors.margins: 44
+                                width: Math.min(620, parent.width - anchors.leftMargin * 2)
                                 spacing: 12
                                 Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
                                 Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
@@ -3554,6 +3994,15 @@ Window {
                                             onClicked: win.openUniverse(slide.modelData.extensionId,
                                                                         slide.modelData.name)
                                         }
+                                        KeyboardAction {
+                                            anchors.fill: parent
+                                            pointerEnabled: false
+                                            focusEnabled: win.televisionMode && slide.visible
+                                            accessibleName: "Explore " + slide.modelData.name
+                                            focusRadius: 12
+                                            onTriggered: win.openUniverse(slide.modelData.extensionId,
+                                                                          slide.modelData.name)
+                                        }
                                     }
                                 }
                             }
@@ -3576,6 +4025,7 @@ Window {
                 // and Tribute (Hemanth 2026-10-05; the old Hall is no longer linked from here)
                 // — quiet, top-right, gold on hover
                 Item {
+                    id: hallDoor
                     z: 5
                     anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 20
                     width: hallRow.implicitWidth + 8; height: 28
@@ -3605,6 +4055,14 @@ Window {
                         id: hallMa; anchors.fill: parent
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: win.openWorld("Universes")
+                    }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        pointerEnabled: false
+                        focusEnabled: win.televisionMode
+                        accessibleName: "Hall of Worlds"
+                        focusRadius: 8
+                        onTriggered: win.openUniverseHall()
                     }
                 }
             }
@@ -3700,6 +4158,39 @@ Window {
         }
     }
 
+    // Android readiness is the presented initial world, not merely a live process
+    // or the native splash. Emit once after its real Loader has an item.
+    property bool androidWorldReadyReported: false
+    property bool androidLocalOnboardingReported: false
+    Timer {
+        interval: 100
+        repeat: true
+        running: win.androidHost && !win.androidWorldReadyReported
+        onTriggered: {
+            if (!win.visible || boot.visible) return
+            if (accountHost.visible) {
+                if (!win.androidLocalOnboardingReported
+                        && typeof AccountController !== "undefined" && AccountController
+                        && AccountController.mode === "signedOut"
+                        && AccountController.onboardingRequired) {
+                    win.androidLocalOnboardingReported = true
+                    console.info("[boot] local onboarding visible")
+                }
+                return
+            }
+            if (worldStack.current === "") return
+            for (var i = 0; i < worldRepeater.count; ++i) {
+                var loader = worldRepeater.itemAt(i)
+                if (loader && loader.mode === worldStack.current && loader.visible
+                        && loader.status === Loader.Ready && loader.item) {
+                    win.androidWorldReadyReported = true
+                    console.info("[boot] android world ready: " + loader.mode)
+                    return
+                }
+            }
+        }
+    }
+
     // ---- world pages: one keep-alive Loader PER visited mode, stacked over the home on the SAME
     //      wallpaper. worldStack.current picks which is visible; "" = home. Kept alive so covers
     //      don't re-fetch on return (the home's top bar + scroll hide while a world is up). ----
@@ -3743,14 +4234,24 @@ Window {
     Item {
         id: worldStack
         anchors.fill: parent
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
         Repeater {
             id: worldRepeater
             model: openModes
             delegate: Loader {
+                id: worldLoader
                 required property string mode
                 anchors.fill: parent
                 visible: worldStack.current === mode && !win.immersiveSurfaceOpen
+                // Android builds a world page for several seconds on first entry. Say so
+                // instead of leaving a bare wallpaper; desktop is unchanged.
+                Text {
+                    anchors.centerIn: parent
+                    visible: Qt.platform.os === "android" && worldLoader.status !== Loader.Ready
+                    text: qsTr("Loading %1…").arg(worldLoader.mode)
+                    color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
+                }
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
                 active: false
@@ -3759,9 +4260,15 @@ Window {
                 // (below) builds it hidden ahead of the first click.
                 asynchronous: true
                 Component.onCompleted: {
-                    setSource(win.worldSourceFor(mode), {
+                    // showExplicitContent too: otherwise Tankoban Discover's first page is
+                    // fetched with the WorldPage default and refetched when onLoaded binds it.
+                    var initialProperties = {
                         "lifecycleActive": worldStack.current === mode && !win.immersiveSurfaceOpen
-                    })
+                    }
+                    // Vinyl's local catalogue does not expose the WorldPage filter.
+                    if (mode !== "Vinyl")
+                        initialProperties.showExplicitContent = contentPreferences.showExplicit
+                    setSource(win.worldSourceFor(mode), initialProperties)
                     active = true
                 }
                 onLoaded: {
@@ -3769,10 +4276,35 @@ Window {
                         item.lifecycleActive = Qt.binding(function() {
                             return worldStack.current === mode && !win.immersiveSurfaceOpen
                         })
+                    phoneShell.attachHostedItem(item)
                     item.medium = mode
                     item.backdrop = wall
                     item.homeRequested.connect(win.closeWorld)
                     item.mediumSelected.connect(win.openWorld)
+                    if (mode === "Vinyl") {
+                        item.accountClicked.connect(function(anchorRight, anchorBottom) {
+                            accountFlyout.toggleAt(anchorRight, anchorBottom)
+                        })
+                        win.vinylWorld = item
+                        item.shellDockRight = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.leftEdge + taskbar.closedWidth : 0
+                        })
+                        item.shellDockBottomExtent = Qt.binding(function() {
+                            return taskbar.visible ? taskbar.bottomGap + taskbar.closedSize : 0
+                        })
+                        item.minimizeClicked.connect(win.minimizeShell)
+                        item.fullscreenClicked.connect(win.toggleFullscreenShell)
+                        item.powerClicked.connect(function() { win.requestApplicationQuit() })
+                        item.playbackRequested.connect(function() {
+                            if (!win.vinylProfileActive) return
+                            win.claimAudio("vinyl")
+                            win.registerVinylSession()
+                        })
+                        item.homeLanding = true
+                        item.showHome()
+                        win.applyVinylResume()
+                        return
+                    }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
                     item.bookRequested.connect(win.openBook)
@@ -3853,6 +4385,30 @@ Window {
                 }
             }
         }
+    }
+
+    PhoneShellHost {
+        id: phoneShell
+        window: win
+        worldStack: worldStack
+        topbar: topbar
+        page: page
+        contentCol: contentCol
+        hero: hero
+        hallDoor: hallDoor
+        homeBookshelfLoader: homeBookshelfLoader
+        homeTheatreStripLoader: homeTheatreStripLoader
+        homeReadingDeskLoader: homeReadingDeskLoader
+        homeVaultWidgetLoader: homeVaultWidgetLoader
+        downloadsLayer: downloadsLayer
+        extensionsLayer: extensionsLayer
+        historyStatsLayer: historyStatsLayer
+        syncCenterLayer: syncCenterLayer
+        stremioPanel: stremioPanel
+        accountFlyout: accountFlyout
+        wall: wall
+        escapeCommand: escapeCommand
+        fullWindowPageOpen: win.fullWindowPageOpen
     }
 
     Loader {
@@ -4320,6 +4876,8 @@ Window {
             console.log("[player] backend = " + (win.usePlayer2 ? "PLAYER 2" : "mpv (player 1)")
                         + "  (booted=" + Player2Available + ")")
             item.backdrop = wall
+            if (item.playbackRequested)
+                item.playbackRequested.connect(function() { win.claimAudio("theatre") })
             item.backRequested.connect(win.minimizePlayer)
             item.minimizeRequested.connect(win.minimizePlayer)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
@@ -4374,7 +4932,29 @@ Window {
     // Loader) so playback survives the reader opening/closing. The READER is the only
     // audiobook surface (standalone player retired 2026-07-18): its HUD transport pill
     // and Audio tab both drive this session. ----
-    AudiobookSession { id: audioSession }
+    AudiobookSession {
+        id: audioSession
+        objectName: "vinylHandoffAudiobook"
+        onPlaybackRequested: win.claimAudio("audiobook")
+    }
+
+    Connections {
+        target: win.vinylWorld ? win.vinylWorld.session : null
+        function onIdentityDecisionRequested(ceremony) {
+            if (!win.vinylProfileActive) return
+            win.pendingIdentityRoute = Object.assign({}, ceremony, {vinylImport:true})
+            identityCeremonyDialog.ceremony = ceremony
+            identityCeremonyDialog.open()
+        }
+    }
+    Connections {
+        target: typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null
+        function onProfileLeaving() {
+            if (win.pendingIdentityRoute && win.pendingIdentityRoute.vinylImport) win.cancelPendingIdentityCeremony()
+            win.leaveVinylProfile()
+        }
+        function onProfileEntered() { win.vinylProfileActive = true }
+    }
 
     Loader {
         id: bookReaderLayer
@@ -4415,8 +4995,10 @@ Window {
         property string archivePath: ""
         property string vaultId: ""
         property string title: "Comic"
-        source: "comicreader/VaultComicReader.qml"
+        source: win.androidHost ? "" : "comicreader/VaultComicReader.qml"
         onLoaded: {
+            // archivePath opens the reader synchronously. Supply its progress key
+            // first so the first load can restore the saved page.
             item.vaultId = vaultComicLayer.vaultId
             item.title = vaultComicLayer.title
             item.archivePath = vaultComicLayer.archivePath
@@ -4506,6 +5088,7 @@ Window {
         id: downloadsLayer
         objectName: "downloadsLayer"
         anchors.fill: parent
+        anchors.leftMargin: win.wideWorldNavigationLeftInset
         z: 56     // taskbar full-page: ABOVE every browsing/detail page (universe 52, series/book 53)
                   // so clicking Downloads always lands on top — below only the immersive surfaces
                   // (book reader 58, player 60). Was 52: any detail page silently covered it.
@@ -4517,6 +5100,7 @@ Window {
         asynchronous: true
         source: "DownloadsPage.qml"
         onLoaded: {
+            phoneShell.attachHostedItem(item)
             item.backdrop = wall
             item.backRequested.connect(win.closeDownloadsPage)
             item.minimizeRequested.connect(win.minimizeShell)
@@ -4550,7 +5134,7 @@ Window {
         // frames so opening the folder door does not synchronously block the world underneath.
         // The open/close paths tolerate item being null until onLoaded (see vaultBack()).
         asynchronous: true
-        source: "VaultPage.qml"
+        source: win.androidHost ? "" : "VaultPage.qml"
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
@@ -4722,21 +5306,34 @@ Window {
         objectName: "feriaLayer"
         anchors.fill: parent
         z: 58
+        enabled: win.feriaRuntimeReady
         property bool open: false
         onOpenChanged: {
+            if (open && !win.ensureFeriaRuntime()) {
+                open = false
+                return
+            }
             if (!open && win.currentSurface === "Feria") {
                 win.currentSurface = worldStack.current || "Home"
                 win.refreshWallpaper()
             }
         }
-        active: open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0)
-        visible: open
+        active: win.feriaAvailable && !win.feriaComingSoon && win.feriaRuntimeReady
+            && (open || accountCenter.visible || (Sessions.revision, Sessions.browsers().length > 0))
+        visible: open && active
         source: "feria/FeriaWorld.qml"
         Binding {
             target: feriaLayer.item
             property: "lifecycleActive"
             value: feriaLayer.open
             when: feriaLayer.item !== null
+        }
+        Binding {
+            target: feriaLayer.item
+            property: "browserDeck"
+            // A Binding, not an onLoaded assignment: the deck Loader may complete after
+            // this layer's item when a browser session restores at startup.
+            value: feriaSessionDeck.item
         }
         Binding {
             target: feriaLayer.item
@@ -4748,9 +5345,8 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.sharedAccount = true
-            item.browserDeck = feriaSessionDeck
             item.browserOpenRequested.connect(function(descriptor, fresh, navigate) {
-                var id = Sessions.openBrowser(descriptor, fresh, navigate)
+                var id = feriaSessionDeck.open(descriptor, fresh, navigate)
                 if (!id.length) { item.setToast("Browser session is unavailable for this profile."); return }
                 item.activateBrowserRecord(Sessions.get(id))
                 if (navigate) Qt.callLater(function() {
@@ -4790,37 +5386,67 @@ Window {
         function onProfileChanged() { win.feriaReturnSnapshot = null }
     }
 
-    Feria.FeriaSessionDeck {
+    // The deck is a string-source Loader so Android (no Feria, no QtWebEngine) never
+    // parses FeriaSessionDeck.qml. Shell-side faces below stay null-safe while inactive.
+    Loader {
         id: feriaSessionDeck
-        sessions: Sessions
-        accountStore: FeriaAccount
-        policy: FeriaBrowserPolicy
-        fullSizeSurface: feriaFullSizeSurface
+        objectName: "feriaSessionDeck"
+        active: win.feriaAvailable && !win.feriaComingSoon && win.feriaRuntimeReady
+        // Required properties must exist during construction; onLoaded is too late.
+        // Defer until the native enabledChanged handler has exposed Feria services.
+        function loadBrowserDeck() {
+            if (!active || item) return
+            setSource("feria/FeriaSessionDeck.qml", {
+                sessions: Sessions, accountStore: FeriaAccount, policy: FeriaBrowserPolicy
+            })
+        }
+        onActiveChanged: {
+            if (active) Qt.callLater(loadBrowserDeck)
+            else source = ""
+        }
+        Component.onCompleted: if (active) Qt.callLater(loadBrowserDeck)
         z: 58.5
         readonly property rect viewport: feriaLayer.item ? feriaLayer.item.browserViewport
                                                         : Qt.rect(0, 160, win.width, win.height - 160)
         x: viewport.x; y: viewport.y; width: viewport.width; height: viewport.height
-        displayed: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
-            && feriaLayer.item.hostSessionId.length > 0
-        suppressed: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
-            || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
-        onMessage: function(id, text) {
-            if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+        // Forwarded faces for shell references (feriaConsentSurface geometry, session teardown).
+        readonly property var activeEntry: item ? item.activeEntry : null
+        readonly property var embeddedConsent: item ? item.embeddedConsent : false
+        readonly property var embeddedDiagnostic: item ? item.embeddedDiagnostic : ""
+        readonly property var entries: item ? item.entries : ({})
+        function open(descriptor, fresh, navigate) {
+            return item ? item.open(descriptor, fresh, navigate) : ""
         }
-        onQuiesced: {
-            if (!win.applicationQuitPending) return
-            win.applicationQuitReady = true
-            console.info("[quit] Feria drained; views=" + FeriaBrowserPolicy.runtimeViewCount
-                         + " profiles=" + FeriaBrowserPolicy.runtimeProfileCount)
-            Qt.callLater(function() { Qt.quit() })
+        function closeTab(id) { if (item) item.closeTab(id) }
+        function restoreSession(id) { if (item) item.restoreSession(id) }
+        function navigateSession(id, url, position, locator, ctx) { if (item) item.navigateSession(id, url, position, locator, ctx) }
+        Binding {
+            target: feriaSessionDeck.item
+            property: "displayed"
+            value: feriaLayer.open && feriaLayer.item && feriaLayer.item.viewState === "host"
+                && feriaLayer.item.hostSessionId.length > 0
         }
-        onQuiescenceFailed: function(reason) {
-            if (!win.applicationQuitPending) return
-            win.applicationQuitPending = false
-            win.applicationQuitError = reason
-            console.warn("[quit] Waiting for Feria: " + reason)
+        Binding {
+            target: feriaSessionDeck.item
+            property: "suppressed"
+            value: taskbar.open || yourFeriaLayer.active || accountCenter.visible || accountFlyout.visible
+                || accountHost.visible || watchPartyJoinSheet.opened || openRecentPanel.visible
         }
-        Component.onCompleted: attachConsentSurface(feriaConsentSurface)
+        onLoaded: {
+            item.fullSizeSurface = feriaFullSizeSurface
+            item.message.connect(function(id, text) {
+                if (Sessions.activeId === id && feriaLayer.item) feriaLayer.item.setToast(text)
+            })
+            item.attachConsentSurface(feriaConsentSurface)
+        }
+    }
+
+    // Connect to the lazy deck before a request starts quiescence (it may finish
+    // synchronously when there are no browser sessions).
+    Connections {
+        target: feriaSessionDeck.item
+        function onQuiesced() { win.completeApplicationQuit() }
+        function onQuiescenceFailed(reason) { win.failApplicationQuit(reason) }
     }
 
     // Permanent hosts outlive the Feria Loader. Max moves the live page here;
@@ -4979,6 +5605,7 @@ Window {
         id: taskbar
         z: 900
         visible: !win.immersiveSurfaceOpen
+            && !win.androidHost
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
         onVisibleChanged: if (!visible) open = false
@@ -5048,13 +5675,7 @@ Window {
         id: openMediaDialog
         title: "Open Media"
         fileMode: FileDialog.OpenFiles
-        nameFilters: [
-            "Media files (*.cbz *.cbr *.epub *.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
-            "Comics (*.cbz *.cbr)",
-            "Books (*.epub)",
-            "Video (*.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
-            "All files (*)"
-        ]
+        nameFilters: phoneShell.openMediaNameFilters
         onAccepted: {
             var arr = []
             for (var i = 0; i < selectedFiles.length; i++) arr.push("" + selectedFiles[i])
@@ -5256,7 +5877,7 @@ Window {
     }
 
     // Slice 21: launch sessions use the same seedable ceremony component as VaultPage.
-    VaultIdentityCeremonyDialog {
+    LocalIdentityDialog {
         id: identityCeremonyDialog
         anchors.centerIn: parent
         z: 960
@@ -5351,7 +5972,7 @@ Window {
         objectName: "bootSplash"
         anchors.fill: parent
         z: 1000
-        onFinished: bootFade.start()
+        onFinished: { phoneShell.enterAndroidStartWorld(); bootFade.start() }
         NumberAnimation { id: bootFade; target: boot; property: "opacity"; to: 0; duration: 400
             onFinished: boot.visible = false }
     }
@@ -5361,12 +5982,12 @@ Window {
             if (boot.visible)
                 return
             win.armStartupIdleWork()
-            // The splash can make the shell's dead-focus recovery park focus on the
-            // invisible keyboard ignition item after onboarding has already seeded its
-            // first action. Hand focus back to the topmost startup surface once it is
-            // actually revealed so Enter/Space work immediately on cold launch.
+            // Onboarding is the topmost startup surface and must retain first focus. Otherwise
+            // Android TV enters through TopBar; desktop dead-focus recovery keeps Arc 41 ignition.
             if (accountHost.visible)
                 accountHost.focusFirstInside()
+            else if (win.televisionMode)
+                Qt.callLater(function() { topbar.focusFirst() })
             else if (win.keyboardFocusDead)
                 keyboardIgnition.forceActiveFocus()
         }
@@ -5377,6 +5998,7 @@ Window {
         id: accountCenter
         objectName: "accountCenter"
         feriaController: feriaLayer.item
+        feriaEnabled: win.feriaAvailable && !win.feriaComingSoon
         onFeriaActivityRequested: function(section) { win.openYourFeriaPage(section) }
         controller: typeof AccountController !== "undefined" ? AccountController : null
         recoveryPresenter: typeof AccountRecoveryPresenter !== "undefined" ? AccountRecoveryPresenter : null

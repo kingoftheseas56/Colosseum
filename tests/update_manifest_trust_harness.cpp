@@ -72,6 +72,41 @@ int main()
       "artwork": []
     })json";
     require(parseManifest(valid, &error).has_value(), "valid schema parses after trust seam");
+    const QByteArray firstPartyNotes = replaced(
+        valid, "https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.0",
+        "https://getcolosseum.world/releases/v1.1.0");
+    require(parseManifest(firstPartyNotes, &error).has_value(),
+            "first-party release notes are accepted for the 1.1.9 updater");
+
+    // Optional signed edition ordering: present-and-valid parses into the
+    // manifest; absent stays 0; zero/negative/fractional/string forms are
+    // rejected so a corrupted feed cannot silently reorder editions.
+    {
+        const auto sequenced = parseManifest(
+            replaced(valid, "\"version\": \"1.1.0\",",
+                     "\"version\": \"1.1.0\",\n      \"sequence\": 7,"),
+            &error);
+        require(sequenced.has_value() && sequenced->sequence == 7,
+                "manifest sequence parses into the signed ordering field");
+        const auto unsequenced = parseManifest(valid, &error);
+        require(unsequenced.has_value() && unsequenced->sequence == 0,
+                "manifest without sequence stays legacy-ordered");
+        const QList<QByteArray> invalidSequence = {
+            replaced(valid, "\"version\": \"1.1.0\",",
+                     "\"version\": \"1.1.0\",\n      \"sequence\": 0,"),
+            replaced(valid, "\"version\": \"1.1.0\",",
+                     "\"version\": \"1.1.0\",\n      \"sequence\": -3,"),
+            replaced(valid, "\"version\": \"1.1.0\",",
+                     "\"version\": \"1.1.0\",\n      \"sequence\": 2.5,"),
+            replaced(valid, "\"version\": \"1.1.0\",",
+                     "\"version\": \"1.1.0\",\n      \"sequence\": \"3\","),
+            replaced(valid, "\"version\": \"1.1.0\",",
+                     "\"version\": \"1.1.0\",\n      \"sequence\": 2147483648,"),
+        };
+        for (const QByteArray& bad : invalidSequence)
+            require(!parseManifest(bad, &error).has_value(),
+                    "invalid manifest sequence value rejected");
+    }
 
     const QList<QByteArray> invalid = {
         replaced(valid, "1.1.0", "1.1"),
@@ -88,7 +123,11 @@ int main()
         replaced(valid, "\"artwork\": []", "\"artwork\": [{\"asset\": \"feature.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}, {\"asset\": \"feature.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"} ]"),
         replaced(valid, "\"artwork\": []", "\"artwork\": [{\"asset\": \"foo/bar.png\", \"sha256\": \"0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef\"}]"),
         replaced(valid, "\"size\": 123", "\"size\": 9223372036854775808"),
-        replaced(valid, "kingoftheseas56/Colosseum", "another-owner/another-repo")
+        replaced(valid, "kingoftheseas56/Colosseum", "another-owner/another-repo"),
+        replaced(firstPartyNotes, "https://getcolosseum.world/releases/v1.1.0",
+                 "https://getcolosseum.world.evil.example/releases/v1.1.0"),
+        replaced(firstPartyNotes, "https://getcolosseum.world/releases/v1.1.0",
+                 "https://getcolosseum.world/releases/v1.1.1")
     };
     for (const QByteArray& invalidJson : invalid)
         require(!parseManifest(invalidJson, &error).has_value(), "invalid manifest rejected");

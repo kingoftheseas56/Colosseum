@@ -35,6 +35,8 @@ Item {
     property var detail: ({})
     property string identityStateOfRow: "" // the grid row's own state, for the Identify/Un-identify choice
     property string mediaKind: ""
+    property bool rowIsFileDetail: false
+    readonly property bool isFileDetail: rowIsFileDetail || !!(detail && detail.isFileDetail)
     // S7 watched-verb inputs (see the signal's own block below for the full contract).
     property string rowVaultId: ""           // the opened row's vault id ("vault:"-prefixed; "" otherwise)
     property bool rowIsWatched: false        // the live ProgressStore.watchedMark === 1 state
@@ -101,9 +103,19 @@ Item {
             event.accepted = true
         }
     }
+    // A file can have no playable copy and no group actions. Keep the keyboard loop
+    // on the remaining watched action or Close rather than a hidden Hide control.
+    readonly property Item firstAction: playKey.enabled ? playKey.keyboardAction
+        : hideKey.visible ? hideKey.keyboardAction
+        : markWatchedKey.visible ? markWatchedKey.keyboardAction
+        : markUnwatchedKey.visible ? markUnwatchedKey.keyboardAction : closeAction.keyboardAction
+    readonly property Item lastAction: hideKey.visible ? hideKey.keyboardAction
+        : markUnwatchedKey.visible ? markUnwatchedKey.keyboardAction
+        : markWatchedKey.visible ? markWatchedKey.keyboardAction
+        : revealKey.visible ? revealKey.keyboardAction
+        : playKey.enabled ? playKey.keyboardAction : closeAction.keyboardAction
     onVisibleChanged: if (visible) Qt.callLater(function() {
-        if (playKey.enabled) playKey.keyboardAction.forceActiveFocus(Qt.TabFocusReason)
-        else hideKey.keyboardAction.forceActiveFocus(Qt.TabFocusReason)
+        if (sheet.visible) sheet.firstAction.forceActiveFocus(Qt.TabFocusReason)
     })
 
     function copiesHeldLabel(n) { return n + (n === 1 ? " copy held" : " copies held") }
@@ -196,16 +208,25 @@ Item {
                         onTriggered: sheet.playRequested(sheet.playPath)
                     }
                     VaultAction {
+                        id: revealKey
                         objectName: "vaultBrowseSheetReveal"; text: "Reveal in Explorer"
+                        nextFocus: sheet.isFileDetail && !markWatchedKey.visible && !markUnwatchedKey.visible
+                            ? closeAction.keyboardAction : null
                         visible: !!sheet.playPath; onTriggered: sheet.revealRequested(sheet.playPath)
                     }
                     VaultAction {
+                        id: markWatchedKey
                         objectName: "vaultBrowseSheetMarkWatched"; text: "Mark watched"
+                        nextFocus: sheet.isFileDetail ? closeAction.keyboardAction : null
+                        previousFocus: sheet.isFileDetail && !revealKey.visible ? closeAction.keyboardAction : null
                         visible: sheet.rowVaultId.length > 0 && !sheet.rowIsWatched
                         onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, true)
                     }
                     VaultAction {
+                        id: markUnwatchedKey
                         objectName: "vaultBrowseSheetMarkUnwatched"; text: "Mark unwatched"
+                        nextFocus: sheet.isFileDetail ? closeAction.keyboardAction : null
+                        previousFocus: sheet.isFileDetail && !revealKey.visible ? closeAction.keyboardAction : null
                         visible: sheet.rowVaultId.length > 0 && sheet.rowIsWatched
                         onTriggered: sheet.markWatchedRequested(sheet.rowVaultId, false)
                     }
@@ -225,6 +246,7 @@ Item {
                             readonly property string whereText: modelData.where || ""
                             readonly property string sizeText: modelData.sizeText || ""
                             readonly property bool away: !!modelData.away
+                            readonly property bool unavailable: sheet.isFileDetail && modelData.available === false
                             width: parent.width; height: copyInfo.implicitHeight + 28; radius: 6
                             color: theme.glassTint; border.width: 1; border.color: theme.edge
                             Column {
@@ -236,7 +258,7 @@ Item {
                                     width: parent.width; spacing: 16
                                     Text { text: copyDelegate.quality || "Quality unknown"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
                                     Text { text: copyDelegate.sizeText; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                                    Text { text: copyDelegate.away ? "Drive not connected" : "Available"; color: copyDelegate.away ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                                    Text { text: copyDelegate.away ? "Drive not connected" : copyDelegate.unavailable ? "Unavailable" : "Available"; color: copyDelegate.away || copyDelegate.unavailable ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
                                 }
                                 Text { width: parent.width; text: copyDelegate.modelData.path || copyDelegate.whereText; wrapMode: Text.WrapAnywhere; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
                                 Text {
@@ -275,16 +297,16 @@ Item {
                     width: parent.width; spacing: 10
                     VaultAction {
                         objectName: "vaultBrowseSheetIdentify"; text: "Identify…"
-                        visible: sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"
+                        visible: !sheet.isFileDetail && (sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving")
                         onTriggered: sheet.identifyRequested(sheet.detail.key || "")
                     }
-                    VaultAction { objectName: "vaultBrowseSheetIdentifyAgain"; text: "Identify again"; quiet: true; visible: sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"; onTriggered: sheet.identifyAgainRequested(sheet.detail.key || "") }
+                    VaultAction { objectName: "vaultBrowseSheetIdentifyAgain"; text: "Identify again"; quiet: true; visible: !sheet.isFileDetail && (sheet.identityStateOfRow === "uncertain" || sheet.identityStateOfRow === "resolving"); onTriggered: sheet.identifyAgainRequested(sheet.detail.key || "") }
                     VaultAction {
                         objectName: "vaultBrowseSheetUnidentify"; text: "Un-identify"; quiet: true
-                        visible: sheet.identityStateOfRow === "identified"
+                        visible: !sheet.isFileDetail && sheet.identityStateOfRow === "identified"
                         onTriggered: sheet.unidentifyRequested(sheet.detail.key || "")
                     }
-                    VaultAction { id: hideKey; objectName: "vaultBrowseSheetHide"; text: "Hide"; quiet: true; nextFocus: closeAction.keyboardAction; onTriggered: sheet.hideRequested(sheet.detail.key || "") }
+                    VaultAction { id: hideKey; objectName: "vaultBrowseSheetHide"; text: "Hide"; quiet: true; visible: !sheet.isFileDetail; nextFocus: closeAction.keyboardAction; onTriggered: sheet.hideRequested(sheet.detail.key || "") }
                 }
             }
         }
@@ -293,8 +315,8 @@ Item {
             objectName: "vaultBrowseSheetClose"
             anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
             width: 32; height: 32; text: "×"; accessibleName: "Close Vault details"; quiet: true
-            nextFocus: playKey.enabled ? playKey.keyboardAction : hideKey.keyboardAction
-            previousFocus: hideKey.keyboardAction
+            nextFocus: sheet.firstAction
+            previousFocus: sheet.lastAction
             onTriggered: sheet.backRequested()
         }
     }

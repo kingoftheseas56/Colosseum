@@ -588,6 +588,17 @@ QtObject {
             check(L.speedLabel(1.5) === "1.5×", "speedLabel: 1.5 -> 1.5×")
             check(L.speedLabel(1.25) === "1.25×", "speedLabel: 1.25 -> 1.25×")
 
+            check(typeof L.durableBookKey === "function", "durable book identity helper exists")
+            if (typeof L.durableBookKey === "function") {
+                check(L.durableBookKey("pathA", {id: "vault:stable"}, "android") === "vault:stable",
+                      "Android Vault book uses stable identity")
+                check(L.durableBookKey("pathB", {id: "vault:stable"}, "android") === "vault:stable",
+                      "provider reauthorization does not change the book key")
+                check(L.durableBookKey("desktop-key", {id: "vault:stable"}, "windows") === "desktop-key",
+                      "desktop keeps its existing path key")
+                check(L.durableBookKey("path-key", {id: "catalog-title"}, "android") === "path-key",
+                      "non-Vault sources keep existing identity")
+            }
             console.log(fails ? "VERDICT: FAIL" : "VERDICT: PASS")
             Qt.exit(fails ? 1 : 0)
         } catch (e) {

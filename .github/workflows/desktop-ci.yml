@@ -1,8 +1,6 @@
 name: desktop-ci
 
 on:
-  push:
-  pull_request:
   workflow_dispatch:
 
 permissions:
@@ -59,9 +57,9 @@ jobs:
       security-events: write
     env:
       VCPKG_TAG: "2026.07.29"
-      MPV_RELEASE: "20260814"
-      MPV_VERSION: "20260814-git-7b8915bc1d"
-      MPV_SHA256: "0af22b28e920620036d3ae08fd9283156dc9af0420bf4df84b0e02282094599c"
+      # Upstream retains weekly SourceForge archives; GitHub keeps only 30 tags.
+      MPV_VERSION: "20261011-git-accb7b2821"
+      MPV_SHA256: "cf63b4ce66e03e5e70acf2648cbc3177656c77c5b9583e16d83efc58801182b7"
       MPVQT_VERSION: "1.2.0"
       MPVQT_SHA256: "8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb"
       LLVM_VERSION: "22.1.8"
@@ -131,8 +129,10 @@ jobs:
         run: |
           $archive = Join-Path $env:RUNNER_TEMP "mpv-dev.7z"
           $extract = Join-Path $env:RUNNER_TEMP "libmpv"
-          $uri = "https://github.com/shinchiro/mpv-winbuild-cmake/releases/download/$env:MPV_RELEASE/mpv-dev-x86_64-$env:MPV_VERSION.7z"
-          Invoke-WebRequest -Uri $uri -OutFile $archive
+          $uri = "https://downloads.sourceforge.net/project/mpv-player-windows/libmpv/mpv-dev-x86_64-$env:MPV_VERSION.7z"
+          # curl.exe follows the binary mirror redirect instead of the HTML download page.
+          curl.exe --fail --location --retry 2 --retry-delay 5 --connect-timeout 30 --max-time 180 --output $archive $uri
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
           $hash = (Get-FileHash $archive -Algorithm SHA256).Hash.ToLowerInvariant()
           if ($hash -ne $env:MPV_SHA256) { throw "libmpv checksum mismatch" }
           New-Item -ItemType Directory -Force -Path $extract | Out-Null
@@ -217,6 +217,8 @@ jobs:
             colosseum `
             update_manifest_trust_harness `
             update_install_bridge_harness `
+            vinyl_availability_development vinyl_availability_qualification vinyl_availability_shipping_disabled `
+            feria_runtime_integration_test feria_operations_integration_test `
             --parallel 2 2>&1 | Tee-Object -FilePath $log
           $buildExit = $LASTEXITCODE
           if ($buildExit -ne 0) {
@@ -232,7 +234,7 @@ jobs:
         run: |
           $env:PATH = "$env:QT_ROOT_DIR\bin;$env:PATH"
           ctest --test-dir $env:COLOSSEUM_CI_BUILD `
-            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness)$' `
+            -R 'colosseum\.(update_manifest_trust_harness|update_install_bridge_harness|vinyl_availability_development|vinyl_availability_qualification|vinyl_availability_shipping_disabled|feria_runtime_integration|feria_operations_integration)$' `
             --output-on-failure
 
       - name: Analyze C++
@@ -386,7 +388,8 @@ jobs:
           source="$RUNNER_TEMP/mpvqt-source"
           build="$RUNNER_TEMP/mpvqt-build"
           install="$RUNNER_TEMP/mpvqt-install"
-          curl --fail --location --retry 3 \
+          curl --fail --location --retry 3 --retry-all-errors \
+            --retry-delay 5 --connect-timeout 30 --max-time 180 \
             "https://download.kde.org/stable/mpvqt/mpvqt-$MPVQT_VERSION.tar.xz" \
             --output "$archive"
           echo "$MPVQT_SHA256  $archive" | sha256sum --check --strict
@@ -521,7 +524,7 @@ jobs:
       - uses: actions/checkout@v7
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.26"
+          go-version: "1.26.9"
       # Reachability-aware gate: govulncheck fails only when a vulnerability is
       # actually CALLED by the code (unlike a plain version scanner). The known
       # unreachable advisory (x/crypto/openpgp) does NOT fail the gate; a newly

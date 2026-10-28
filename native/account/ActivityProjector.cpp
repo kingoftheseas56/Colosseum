@@ -6,6 +6,7 @@
 #include <QMetaType>
 #include <QRegularExpression>
 #include <QSet>
+#include <QUuid>
 #include <QVariant>
 #include <QVector>
 
@@ -39,20 +40,22 @@ namespace {
 bool isValidType(const QString &value) {
     return value == QLatin1String("playback_delta")
         || value == QLatin1String("reading_delta")
-        || value == QLatin1String("media_completed");
+        || value == QLatin1String("media_completed")
+        || value == QLatin1String("music_action");
 }
 
 bool isValidWorld(const QString &value) {
     return value == QLatin1String("theatre")
         || value == QLatin1String("tankoban")
-        || value == QLatin1String("biblio");
+        || value == QLatin1String("biblio")
+        || value == QLatin1String("vinyl");
 }
 
 bool isValidKind(const QString &value) {
     static const QSet<QString> kinds{
         QStringLiteral("movie"), QStringLiteral("episode"), QStringLiteral("manga_chapter"),
         QStringLiteral("comic_issue"), QStringLiteral("tankoban_volume"), QStringLiteral("book"),
-        QStringLiteral("audiobook")};
+        QStringLiteral("audiobook"), QStringLiteral("music")};
     return kinds.contains(value);
 }
 
@@ -79,6 +82,8 @@ void validateWorldKind(const QString &world, const QString &kind) {
         return;
     if (world == QLatin1String("biblio")
         && (kind == QLatin1String("book") || kind == QLatin1String("audiobook")))
+        return;
+    if (world == QLatin1String("vinyl") && kind == QLatin1String("music"))
         return;
     fail(QStringLiteral("invalid world/kind combination"));
 }
@@ -138,6 +143,71 @@ qint64 requireInteger(const QJsonObject &obj, const QString &key) {
         fail(QStringLiteral("invalid %1").arg(key));
     }
     return parsed;
+}
+
+qint64 requireNonnegativeSafeInteger(const QJsonObject &obj, const QString &key) {
+    constexpr qint64 kMaxSafeInteger = 9007199254740991LL;
+    const qint64 parsed = requireInteger(obj, key);
+    if (parsed < 0 || parsed > kMaxSafeInteger)
+        fail(QStringLiteral("invalid %1").arg(key));
+    return parsed;
+}
+
+bool isValidRecommendationEntityKind(const QString &kind) {
+    static const QSet<QString> kinds{
+        QStringLiteral("artist"), QStringLiteral("release_group"), QStringLiteral("release"),
+        QStringLiteral("release_track"), QStringLiteral("recording"), QStringLiteral("work")};
+    return kinds.contains(kind);
+}
+
+void validateRecommendationEntityRef(const QJsonValue &rawValue,
+                                     const QString &expectedKind = QString()) {
+    if (!rawValue.isObject())
+        fail(QStringLiteral("invalid entityRef"));
+    const QJsonObject ref = rawValue.toObject();
+    const QString identity = requireString(ref, QStringLiteral("identity"));
+    const QString kind = requireString(ref, QStringLiteral("kind"));
+    if (!isValidRecommendationEntityKind(kind)
+        || (!expectedKind.isEmpty() && kind != expectedKind))
+        fail(QStringLiteral("invalid entityRef"));
+
+    const QStringList keys = ref.keys();
+    if (identity == QLatin1String("canonical")) {
+        if (keys.size() != 3 || !keys.contains(QStringLiteral("mbid")))
+            fail(QStringLiteral("invalid entityRef"));
+        const QString mbid = requireString(ref, QStringLiteral("mbid"));
+        const QUuid uuid = QUuid::fromString(mbid);
+        if (uuid.isNull()
+            || uuid.toString(QUuid::WithoutBraces).toLower() != mbid)
+            fail(QStringLiteral("invalid entityRef"));
+        return;
+    }
+
+    if (identity != QLatin1String("provider")
+        || keys.size() != 4
+        || !keys.contains(QStringLiteral("providerId"))
+        || !keys.contains(QStringLiteral("itemId")))
+        fail(QStringLiteral("invalid entityRef"));
+
+    const QString providerId = requireString(ref, QStringLiteral("providerId"));
+    const QString itemId = requireString(ref, QStringLiteral("itemId"));
+    if (providerId.size() > 128 || providerId != providerId.toLower()
+        || itemId.size() > 1024 || itemId.trimmed() != itemId)
+        fail(QStringLiteral("invalid entityRef"));
+    for (qsizetype i = 0; i < providerId.size(); ++i) {
+        const QChar ch = providerId.at(i);
+        const bool alpha = ch >= QLatin1Char('a') && ch <= QLatin1Char('z');
+        const bool digit = ch >= QLatin1Char('0') && ch <= QLatin1Char('9');
+        const bool punctuation = ch == QLatin1Char('.') || ch == QLatin1Char('_')
+            || ch == QLatin1Char(':') || ch == QLatin1Char('-');
+        if ((!alpha && !digit && !punctuation)
+            || (i == 0 && !alpha && !digit))
+            fail(QStringLiteral("invalid entityRef"));
+    }
+    for (const QChar ch : itemId) {
+        if (ch.isNull() || ch.category() == QChar::Other_Control)
+            fail(QStringLiteral("invalid entityRef"));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -272,7 +342,7 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
 
     if (ev.type == QLatin1String("playback_delta")) {
         if (!(ev.kind == QLatin1String("movie") || ev.kind == QLatin1String("episode")
-              || ev.kind == QLatin1String("audiobook")))
+              || ev.kind == QLatin1String("audiobook") || ev.kind == QLatin1String("music")))
             fail(QStringLiteral("invalid playback kind"));
         ev.startAtMs = requireInteger(obj, QStringLiteral("startAtMs"));
         ev.endAtMs = requireInteger(obj, QStringLiteral("endAtMs"));
@@ -328,6 +398,41 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
             fail(QStringLiteral("reflowable pageKeys must be empty"));
         if (ev.pageKeys.isEmpty() && ev.progressMicros == 0)
             fail(QStringLiteral("empty reading_delta"));
+    } else if (ev.type == QLatin1String("music_action")) {
+        if (ev.world != QLatin1String("vinyl") || ev.kind != QLatin1String("music"))
+            fail(QStringLiteral("invalid music_action world/kind"));
+        if (ev.syncable)
+            fail(QStringLiteral("music_action must be local-only"));
+        ev.atMs = requireInteger(obj, QStringLiteral("atMs"));
+        if (!ownerTimestamp(ev.atMs))
+            fail(QStringLiteral("invalid music_action timestamp"));
+
+        const QString action = requireString(obj, QStringLiteral("action"));
+        static const QSet<QString> actions{
+            QStringLiteral("start"), QStringLiteral("skip"), QStringLiteral("natural-eof"),
+            QStringLiteral("stop"), QStringLiteral("failure")};
+        if (!actions.contains(action))
+            fail(QStringLiteral("invalid music_action action"));
+        const QString origin = requireString(obj, QStringLiteral("origin"));
+        static const QSet<QString> origins{
+            QStringLiteral("manual"), QStringLiteral("album-continuation"),
+            QStringLiteral("autoplay")};
+        if (!origins.contains(origin))
+            fail(QStringLiteral("invalid music_action origin"));
+
+        requireNonnegativeSafeInteger(obj, QStringLiteral("positionMs"));
+        requireNonnegativeSafeInteger(obj, QStringLiteral("durationMs"));
+        validateRecommendationEntityRef(obj.value(QStringLiteral("entityRef")));
+
+        if (obj.contains(QStringLiteral("artistRefs"))) {
+            const QJsonValue artistRefsValue = obj.value(QStringLiteral("artistRefs"));
+            if (!artistRefsValue.isArray() || artistRefsValue.toArray().size() > 64)
+                fail(QStringLiteral("invalid artistRefs"));
+            for (const QJsonValue &artistRef : artistRefsValue.toArray())
+                validateRecommendationEntityRef(artistRef, QStringLiteral("artist"));
+        }
+        if (obj.contains(QStringLiteral("releaseRef")))
+            validateRecommendationEntityRef(obj.value(QStringLiteral("releaseRef")));
     } else { // media_completed
         ev.atMs = requireInteger(obj, QStringLiteral("atMs"));
         if (!ownerTimestamp(ev.atMs))
@@ -535,6 +640,7 @@ struct TitleStats {
     QString kind;
     qint64 watchMs = 0;
     qint64 listenMs = 0;
+    qint64 musicMs = 0;
     qint64 tankobanPages = 0;
     qint64 bookPages = 0;
     qint64 progressMicros = 0;
@@ -544,6 +650,7 @@ struct TitleStats {
     qint64 latestTankobanAtMs = -1;
     qint64 latestBookAtMs = -1;
     qint64 latestAudioAtMs = -1;
+    qint64 latestMusicAtMs = -1;
     qint64 latestCompletionAtMs = -1;
 
     bool hasRepTheatre = false;
@@ -660,13 +767,14 @@ private:
 // Highlights (mirrors compareMetric / makeHighlight / buildHighlights)
 // ---------------------------------------------------------------------------
 
-enum class HighlightRole { Theatre, Tankoban, BiblioEbook, Audiobook, Completion, Recent };
+enum class HighlightRole { Theatre, Tankoban, BiblioEbook, Audiobook, Music, Completion, Recent };
 
 QString roleName(HighlightRole role) {
     switch (role) {
     case HighlightRole::Theatre: return QStringLiteral("theatre");
     case HighlightRole::Tankoban: return QStringLiteral("tankoban");
     case HighlightRole::BiblioEbook: return QStringLiteral("biblio_ebook");
+    case HighlightRole::Music: return QStringLiteral("music");
     case HighlightRole::Audiobook: return QStringLiteral("audiobook");
     case HighlightRole::Completion: return QStringLiteral("completion");
     case HighlightRole::Recent: return QStringLiteral("recent");
@@ -734,6 +842,10 @@ Highlight makeHighlight(const TitleStats &stats, HighlightRole role) {
             kind = QStringLiteral("audiobook");
         }
         break;
+    case HighlightRole::Music:
+        world = QStringLiteral("vinyl");
+        kind = QStringLiteral("music");
+        break;
     case HighlightRole::Completion:
         if (stats.hasRepCompletion) {
             world = stats.repCompletionWorld;
@@ -755,7 +867,7 @@ Highlight makeHighlight(const TitleStats &stats, HighlightRole role) {
     highlight.world = world;
     highlight.kind = kind;
     highlight.watchSeconds = stats.watchMs / 1000;
-    highlight.listenSeconds = stats.listenMs / 1000;
+    highlight.listenSeconds = (stats.listenMs + stats.musicMs) / 1000;
     highlight.pagesRead = stats.tankobanPages + stats.bookPages;
     highlight.progressMicros = stats.progressMicros;
     highlight.completedCount = stats.completionCount;
@@ -805,6 +917,8 @@ QJsonArray buildHighlights(const QVector<TitleStats> &all) {
          [](const TitleStats &s) { return s.progressMicros > 0 || s.bookPages > 0; }},
         {HighlightRole::Audiobook, &TitleStats::listenMs, &TitleStats::latestAudioAtMs, nullptr,
          [](const TitleStats &s) { return s.listenMs > 0; }},
+        {HighlightRole::Music, &TitleStats::musicMs, &TitleStats::latestMusicAtMs, nullptr,
+         [](const TitleStats &s) { return s.musicMs > 0; }},
         {HighlightRole::Completion, &TitleStats::completionCount, &TitleStats::latestCompletionAtMs,
          nullptr, [](const TitleStats &s) { return s.completionCount > 0; }},
     };
@@ -860,7 +974,7 @@ QString recentVerb(const Moment &moment) {
         return QStringLiteral("completed");
     if (moment.kind == QLatin1String("movie") || moment.kind == QLatin1String("episode"))
         return QStringLiteral("watched");
-    if (moment.kind == QLatin1String("audiobook"))
+    if (moment.kind == QLatin1String("audiobook") || moment.kind == QLatin1String("music"))
         return QStringLiteral("listened");
     return QStringLiteral("read");
 }
@@ -951,6 +1065,12 @@ QJsonObject projectMonth(const QJsonArray &events, const QString &monthKey) {
                     }
                 }
 
+                if (event.world == QLatin1String("vinyl") && event.kind == QLatin1String("music")) {
+                    listenMs += segment.activeMs;
+                    stats.musicMs += segment.activeMs;
+                    stats.latestMusicAtMs = std::max(stats.latestMusicAtMs, atMs);
+                }
+
                 activeDates.insert(segment.localDate);
                 Moment &moment = moments.momentFor(event, segment.localDate);
                 if (event.world == QLatin1String("theatre"))
@@ -961,6 +1081,11 @@ QJsonObject projectMonth(const QJsonArray &events, const QString &monthKey) {
             }
             continue;
         }
+
+        // Local Vinyl intent/action evidence is retained for recommendation
+        // readers, but it does not contribute listening time or month activity.
+        if (event.type == QLatin1String("music_action"))
+            continue;
 
         const LocalParts parts = localParts(event.atMs, event.utcOffsetMinutes);
         if (parts.monthKey != monthKey)

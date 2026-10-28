@@ -7,6 +7,7 @@
 // Missing/invalid db => ready()==false and every accessor returns empty (the app
 // runs on without the catalogue — it is pipeline-deployed, not shipped).
 #include <QObject>
+#include "CatalogRemote.h"
 #include <QHash>
 #include <QSqlDatabase>
 #include <QVariantList>
@@ -14,6 +15,8 @@
 
 class ComicsCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(int revision READ revision NOTIFY revisionChanged)
+    Q_PROPERTY(bool remoteEnabled READ remoteEnabled NOTIFY revisionChanged)
     // No Q_PROPERTY(ready) here on purpose — see MalCatalog.h for the full note
     // (data-vault Slice 4, 2026-08-22 fix): it collided with the Q_INVOKABLE of the
     // same name and broke every `.ready()` call site in QML.
@@ -21,6 +24,19 @@ public:
     explicit ComicsCatalog(const QString& dbPath, QObject* parent = nullptr);
     ~ComicsCatalog() override;
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Service availability is distinct from complete local SQLite readiness.
+    Q_INVOKABLE bool available() const { return m_ok || m_remote->available(); }
+    bool remoteEnabled() const { return m_remote->enabled(); }
+    int revision() const { return m_remote->revision(); }
+    Q_INVOKABLE bool remotePending() const { return m_remote->pending(); }
+    Q_INVOKABLE QString remoteQueryKey(const QString& method, const QVariantList& args) const { return m_remote->queryKey(method, args); }
+    Q_INVOKABLE QVariantMap landing(const QString& tab) const { return m_ok ? QVariantMap{} : m_remote->read(QStringLiteral("landing"), {tab}, QVariantMap{}).toMap(); }
+    Q_INVOKABLE QVariantMap landingState(const QString& tab) const { auto state=m_remote->queryState(QStringLiteral("landing"), {tab}, QVariantMap{}); state.insert(QStringLiteral("source"),m_ok?QStringLiteral("local"):QStringLiteral("remote")); return state; }
+    Q_INVOKABLE bool remoteWaiting() const { return m_remote->waiting(); }
+    void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& cachePath = {}) {
+        m_remote->configure(nam, endpoint, cachePath);
+    }
+
     // Data-vault Slice 2 (2026-08-22): reopen at a fresh path — see MalCatalog.
     // Unlike the other three seams, ComicsCatalog has no ../../ dev fallback
     // ladder — the caller (main.cpp) resolves the full path first.
@@ -31,6 +47,7 @@ public:
     // ranked: exact-title class first, then prefix, then contains; downloads DESC within class
     // rows: {gcdId,title,year,yearEnded,publisher,cover,downloads}
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 30) const;
+    Q_INVOKABLE QVariantMap searchState(const QString& text, int limit = 30) const;
     // {postId,title,link,date,kind,method,fanMade,yearStart,mirrors:[{url,host,label}]} date DESC
     Q_INVOKABLE QVariantList downloadsFor(int gcdId) const;
     // every series whose title equals text (case-insensitive), downloads DESC —
@@ -98,6 +115,16 @@ public:
                                                  const QVariantList& filters,
                                                  bool includeExplicit,
                                                  int offset, int limit) const;
+    // Exact CatalogRemote query snapshot. Inspecting state never starts a request.
+    Q_INVOKABLE QVariantMap discoverPageFilteredState(const QString& catalogId,
+                                                      const QVariantList& filters,
+                                                      bool includeExplicit,
+                                                      int offset, int limit) const;
+    // Explicit retry of this failed page key; does not restart unrelated pages.
+    Q_INVOKABLE bool retryDiscoverPageFiltered(const QString& catalogId,
+                                               const QVariantList& filters,
+                                               bool includeExplicit,
+                                               int offset, int limit);
 
     // --- shelf (browse-landing) — same row shape as search() ---
     // kind: "stocked" | "publisher" (arg=publisher) | "decade" (arg="2010" -> [2010,2019])
@@ -107,11 +134,17 @@ public:
     Q_INVOKABLE QVariantList shelf(const QString& kind, const QString& arg, int limit) const;
 signals:
     void readyChanged();
+    void revisionChanged();
+    void catalogueSourceChanged();
+    void requestFailed(QString method, QString reason);
+    // Subscribers must compare this key to discoverPageFilteredState(...).key.
+    void remoteQueryChanged(QString key);
 
 private:
     bool openAt(const QString& dbPath);
     QVariantList discoverFiltersUncached(const QString& axis) const;
 
+    CatalogRemote* m_remote;
     QSqlDatabase m_db;
     QString m_conn;
     bool m_ok = false;    // discoverFilters() answers per axis/explicit flag, computed once per opened database:

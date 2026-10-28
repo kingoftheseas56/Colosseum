@@ -16,9 +16,12 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QMetaObject>
+#include <QPointer>
 #include <QQmlApplicationEngine>
 #include <QQmlNetworkAccessManagerFactory>
+#if !defined(Q_OS_ANDROID)
 #include <QtWebEngineQuick/QtWebEngineQuick>
+#endif
 #include <QQmlContext>
 #include <QQuickItem>
 #include <QQuickWindow>
@@ -52,16 +55,21 @@
 #include "account/RatingsReviewsController.h"
 #include "account/RatingsReviewsDelivery.h"
 #include "account/ProfilePreferencesStore.h"
+#if !defined(Q_OS_ANDROID)
 #include "update/UpdateCache.h"
 #include "update/UpdateDownload.h"
 #include "update/UpdateInstallBridge.h"
 #include "update/UpdateReleaseClient.h"
 #include "update/UpdateService.h"
-#include "update/UpdateUserAgent.h"
 #include "update/UpdateTrust.h"
+#endif
+#include "update/UpdateUserAgent.h"
+#include "bootstrap/ApplicationShutdown.h"
 #include "work/BackgroundActivityRegistry.h"
 #include "work/BackgroundWorkCoordinator.h"
 #include "work/ForegroundPriorityGovernor.h"
+#include "platform/BackgroundDownloadBridge.h"
+#include "platform/PlatformRuntime.h"
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
 #include "devtools/LanistaServer.h"
@@ -69,6 +77,7 @@
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
 #include "engine/CatalogVaultClient.h"
+#include "engine/SourceContentStore.h"
 #include "engine/ComicsCatalog.h"
 #include "engine/MalCatalog.h"
 #include "engine/TankobanCatalog.h"
@@ -84,6 +93,7 @@
 #include "bootstrap/QmlModuleGuards.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
+#if !defined(Q_OS_ANDROID)
 #include "engine/LocalLaunch.h"
 #include "engine/VaultPageStore.h"
 #include "engine/VaultIndex.h"
@@ -95,10 +105,15 @@
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "engine/VaultForensics.h"
+#endif
+#if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
+#endif
 #include "net/LoopbackPinProxy.h"
 #include "net/Ipv4PinStore.h"
 #include "net/PinProxyFactory.h"
+#include "net/CachingNam.h"
+#include "net/CoverDelivery.h"
 #include "net/PosterScoreboard.h"
 #include "net/PosterTimingProbe.h"
 #include "FrameTimingProbe.h"
@@ -114,12 +129,19 @@
 #include "comicreader/ComicReaderCore.h"
 #include "comicreader/ComicReaderProvider.h"
 #include "engine/ComicCoverProvider.h"
+#if !defined(Q_OS_ANDROID)
 #include "engine/VaultBookCoverProvider.h"
+#endif
 #include "player/caststore.h"
 #include "player/downloadstore.h"
 #include "player/livestore.h"
+#if defined(Q_OS_ANDROID)
+#include "platform/android/AndroidBootstrap.h"
+#else
 #include "player/mpvitem.h"
 #include "player/seekthumbnailer.h"
+#include "player/windowmodestore.h"
+#endif
 #include "player/powerstore.h"
 #include "player/roomstore.h"
 #include "watchparty/WatchPartyPlayerSync.h"
@@ -127,8 +149,8 @@
 #include "watchparty/WatchPartyServiceEndpoint.h"
 #include "watchparty/WatchPartyUiController.h"
 #include "player/streamserver.h"
-#include "player/windowmodestore.h"
 #include "torrent/TankorentSearchService.h"
+#include "vinyl/VinylTorrentProvider.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
@@ -136,9 +158,22 @@
 // unconditionally in main(). It sat inside the COLOSSEUM_PLAYER2 block below for weeks and
 // compiled only because P2 was always linked — the first stock (P2-off) build broke on it.
 #include "ScrollProbe.h"     // diagnostic wheel-input probe (env-gated; see header)
+#if !defined(Q_OS_ANDROID)
 #include "feria/PorticoComposition.h"
 #include "feria/FeriaBrowserPolicy.h"
+#include "feria/FeriaBrowserRuntime.h"
 #include "feria/FeriaAccountStore.h"
+#include "vinyl/VinylProvider.h"
+#include "vinyl/VinylCatalogueSource.h"
+#include "vinyl/VinylLocalSource.h"
+#include "vinyl/VinylBackendSession.h"
+#include "vinyl/VinylRecommendationService.h"
+#include "vinyl/VinylAvailability.h"
+#if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+#include "devtools/VinylTestProfileController.h"
+#include "account/ActivityStore.h"
+#endif
+#endif
 #include "GuiStallProbe.h"   // diagnostic GUI-thread stall probe (env-gated; see header)
 // Player 2 LAST on purpose: its D3D11 headers drag in <windows.h>, and anything that pulls in the
 // old WinSock.h before boost/asio (libtorrent, above) wants winsock2.h fails the build outright.
@@ -177,305 +212,6 @@ private:
     int m_sendCount = 0;
 };
 #endif
-
-// gzip = 10-byte header (+ optional fields) + raw DEFLATE + 8-byte trailer.
-// Strip the header, raw-inflate with miniz's tinfl. Empty on any malformation.
-static QByteArray gunzip(const QByteArray &in) {
-    if (in.size() < 18 || static_cast<quint8>(in[0]) != 0x1f
-        || static_cast<quint8>(in[1]) != 0x8b)
-        return {};
-    int idx = 10;
-    const quint8 flg = static_cast<quint8>(in[3]);
-    if (flg & 0x04) { // FEXTRA
-        const int xlen = static_cast<quint8>(in[idx]) | (static_cast<quint8>(in[idx + 1]) << 8);
-        idx += 2 + xlen;
-    }
-    if (flg & 0x08) { while (idx < in.size() && in[idx] != 0) ++idx; ++idx; } // FNAME
-    if (flg & 0x10) { while (idx < in.size() && in[idx] != 0) ++idx; ++idx; } // FCOMMENT
-    if (flg & 0x02) idx += 2;                                                 // FHCRC
-    if (idx >= in.size() - 8)
-        return {};
-    size_t outLen = 0;
-    void *out = tinfl_decompress_mem_to_heap(in.constData() + idx,
-                                             static_cast<size_t>(in.size() - idx - 8), &outLen, 0);
-    if (!out)
-        return {};
-    QByteArray result(static_cast<const char *>(out), static_cast<int>(outLen));
-    mz_free(out);
-    return result;
-}
-
-// Transparent gzip-decompressing reply. api.jikan.moe's origin returns 504 for
-// Qt's default multi-codec Accept-Encoding but 200 for a plain "gzip" request —
-// and Qt does NOT auto-decompress a manually-set encoding, so we buffer the inner
-// reply and gunzip it before QML's XMLHttpRequest reads responseText. No Q_OBJECT:
-// only inherited QNetworkReply signals are emitted (matches this file's style).
-class GunzipReply : public QNetworkReply {
-public:
-    explicit GunzipReply(QNetworkReply *inner) : m_inner(inner) {
-        m_inner->setParent(this);
-        setOperation(m_inner->operation());
-        setRequest(m_inner->request());
-        setUrl(m_inner->url());
-        setOpenMode(QIODevice::ReadOnly);
-        QObject::connect(m_inner, &QNetworkReply::finished, this, [this] { finalize(); });
-    }
-    void abort() override { m_inner->abort(); }
-    qint64 bytesAvailable() const override {
-        return QNetworkReply::bytesAvailable() + (m_buffer.size() - m_pos);
-    }
-    bool isSequential() const override { return true; }
-
-protected:
-    qint64 readData(char *data, qint64 maxlen) override {
-        const qint64 avail = m_buffer.size() - m_pos;
-        if (avail <= 0)
-            return m_done ? -1 : 0;
-        const qint64 n = qMin(maxlen, avail);
-        memcpy(data, m_buffer.constData() + m_pos, n);
-        m_pos += n;
-        return n;
-    }
-
-private:
-    void finalize() {
-        setAttribute(QNetworkRequest::HttpStatusCodeAttribute,
-                     m_inner->attribute(QNetworkRequest::HttpStatusCodeAttribute));
-        setAttribute(QNetworkRequest::HttpReasonPhraseAttribute,
-                     m_inner->attribute(QNetworkRequest::HttpReasonPhraseAttribute));
-        const auto pairs = m_inner->rawHeaderPairs();
-        for (const auto &h : pairs) {
-            if (qstricmp(h.first.constData(), "Content-Encoding") == 0
-                || qstricmp(h.first.constData(), "Content-Length") == 0)
-                continue;
-            setRawHeader(h.first, h.second);
-        }
-        const QByteArray raw = m_inner->readAll();
-        const QByteArray enc = m_inner->rawHeader("Content-Encoding");
-        if (qstricmp(enc.constData(), "gzip") == 0) {
-            const QByteArray plain = gunzip(raw);
-            m_buffer = plain.isEmpty() ? raw : plain; // fall back to raw if gunzip fails
-        } else {
-            m_buffer = raw;
-        }
-        setHeader(QNetworkRequest::ContentLengthHeader, m_buffer.size());
-        if (m_inner->error() != QNetworkReply::NoError)
-            setError(m_inner->error(), m_inner->errorString());
-        m_done = true;
-        emit metaDataChanged();
-        if (m_inner->error() != QNetworkReply::NoError)
-            emit errorOccurred(m_inner->error());
-        emit readyRead();
-        setFinished(true);
-        emit finished();
-    }
-
-    QNetworkReply *m_inner;
-    QByteArray m_buffer;
-    qint64 m_pos = 0;
-    bool m_done = false;
-};
-
-class CachingNam : public QNetworkAccessManager {
-public:
-    // useCache=false gives a pin+UA NAM with NO disk cache / no PreferCache — for live
-    // lanes (torrent search) where a stale cached response would freeze seeder counts.
-    CachingNam(QStringList pinnedHosts, Ipv4PinStore *pinStore,
-               QObject *parent = nullptr, bool useCache = true,
-               PosterScoreboard *scoreboard = nullptr,
-               BiblioImageDiag *imageDiag = nullptr,
-               PosterTimingProbe *posterTiming = nullptr)
-        : QNetworkAccessManager(parent),
-          m_pinnedHosts(std::move(pinnedHosts)),
-          m_pinStore(pinStore),
-          m_useCache(useCache),
-          m_scoreboard(scoreboard),
-          m_imageDiag(imageDiag),
-          m_posterTiming(posterTiming) {
-        if (m_useCache) {
-            auto *cache = new QNetworkDiskCache(this);
-            const QString dir = QStandardPaths::writableLocation(QStandardPaths::CacheLocation)
-                                + QStringLiteral("/colosseum-images");
-            QDir().mkpath(dir);
-            cache->setCacheDirectory(dir);
-            cache->setMaximumCacheSize(qint64(1024) * 1024 * 1024);
-            setCache(cache);
-        }
-    }
-
-protected:
-    QNetworkReply *createRequest(Operation op, const QNetworkRequest &req, QIODevice *outgoing) override {
-        QNetworkRequest r(req);
-        QUrl u = r.url();
-        const QString host = u.host();
-        const int timingId = m_posterTiming ? m_posterTiming->networkStart(req.url(), host) : 0;
-
-        if (m_pinnedHosts.contains(host)) {
-            r.setRawHeader("Host", host.toUtf8());
-            r.setPeerVerifyName(host);
-            // HTTP/2 MUST stay OFF for URL-rewrite-pinned hosts: rewriting the URL to
-            // the IPv4 literal below makes h2's :authority the IP, which servers like
-            // metahub reject ("HTTP/2 protocol error"), forcing a slower failed-h2→h1
-            // retry (confirmed 2026-07-23). metahub itself no longer reaches this path
-            // — it's pinned at the CONNECTION layer by the loopback concierge (spec
-            // 2026-07-23), keeping its hostname so h2 works. This branch now governs
-            // the JSON hosts and the concierge-unavailable fallback only.
-            r.setAttribute(QNetworkRequest::Http2AllowedAttribute, false);
-
-            const QString ipv4 = m_pinStore ? m_pinStore->pinForHost(host) : QString();
-            if (!ipv4.isEmpty()) {
-                u.setHost(ipv4);
-                r.setUrl(u);
-            }
-        }
-
-        // Stamp a browser UA on every request that doesn't carry one. The old comment here
-        // claimed QML XHRs set their own browser UA — they never could: User-Agent is a
-        // restricted XHR header Qt silently DROPS, so every QML request actually went out as
-        // "Colosseum/0.1". That identity started 403-ing at LOCG (2026-07-12, "LOCG OFFLINE")
-        // and is the long-suspected Fandom-images failure. The browser UA is the fix at the
-        // one layer that CAN set it. (C++ engines run their own NAMs and set their own UA.)
-        if (r.header(QNetworkRequest::UserAgentHeader).isNull())
-            r.setRawHeader("User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
-                "(KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36");
-        r.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
-                       QNetworkRequest::NoLessSafeRedirectPolicy);
-        if (m_useCache)
-            r.setAttribute(QNetworkRequest::CacheLoadControlAttribute, QNetworkRequest::PreferCache);
-
-        // Jikan's origin proxy returns 504 for Qt's default multi-codec Accept-Encoding
-        // (br/zstd) but 200 for a plain "gzip" — this silently emptied every Jikan-fed
-        // surface (genre index / Jump registry / Theatre anime). Force gzip and hand the
-        // reply through GunzipReply, which decompresses it since Qt won't for a manual
-        // encoding. Scoped to api.jikan.moe so nothing else changes shape.
-        if (host == QLatin1String("api.jikan.moe")) {
-            r.setRawHeader("Accept-Encoding", "gzip");
-            QNetworkReply *inner = QNetworkAccessManager::createRequest(op, r, outgoing);
-            watch(host, inner, timingId);   // INNER reply carries the attributes
-            if (m_imageDiag) m_imageDiag->track(inner, req.url());
-            evictOnFailure(inner, r.url());
-            return new GunzipReply(inner);
-        }
-        QNetworkReply *reply = QNetworkAccessManager::createRequest(op, r, outgoing);
-        watch(host, reply, timingId);
-        // Per-URL diagnostics keyed by the PRE-rewrite URL — the one QML's Image
-        // asked for, so a card's `source` property matches its rows exactly.
-        if (m_imageDiag) m_imageDiag->track(reply, req.url());
-        // The key is the url AFTER any pin rewrite — that is what the cache stored under.
-        evictOnFailure(reply, r.url());
-        return reply;
-    }
-
-private:
-    QStringList m_pinnedHosts;
-    Ipv4PinStore *m_pinStore = nullptr;
-    bool m_useCache = true;
-    PosterScoreboard *m_scoreboard = nullptr;
-    BiblioImageDiag *m_imageDiag = nullptr;
-    PosterTimingProbe *m_posterTiming = nullptr;
-
-    void watch(const QString &host, QNetworkReply *reply, int timingId) {
-        PosterScoreboard *scoreboard = m_scoreboard;
-        if (!scoreboard && !timingId) return;
-        PosterTimingProbe *posterTiming = m_posterTiming;
-        std::shared_ptr<qint64> received;
-        if (timingId) {
-            received = std::make_shared<qint64>(-1);
-            QObject::connect(reply, &QNetworkReply::requestSent, [posterTiming, timingId] {
-                posterTiming->requestSent(timingId);
-            });
-            QObject::connect(reply, &QNetworkReply::metaDataChanged, [posterTiming, timingId] {
-                posterTiming->responseHeaders(timingId);
-            });
-            QObject::connect(reply, &QNetworkReply::downloadProgress,
-                             [received](qint64 bytes, qint64) { *received = bytes; });
-        }
-        // No receiver context on purpose: the lambda runs on the reply's own thread and
-        // record() is mutex-guarded. `host` is the ORIGINAL hostname — reply->url() may
-        // carry the rewritten IPv4 literal for URL-pinned hosts.
-        QObject::connect(reply, &QNetworkReply::finished, [scoreboard, posterTiming, timingId, received, host, reply] {
-            const int status =
-                reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
-            const QVariant clen = reply->header(QNetworkRequest::ContentLengthHeader);
-            const qint64 bytes = received && *received >= 0 ? *received
-                : (clen.isValid() ? clen.toLongLong() : reply->bytesAvailable());
-            if (scoreboard)
-                scoreboard->record(host, status, ct, bytes,
-                                   reply->error() != QNetworkReply::NoError);
-            if (timingId) {
-                const bool cached = reply->attribute(QNetworkRequest::SourceIsFromCacheAttribute).toBool();
-                const QString protocol = cached ? QStringLiteral("cache")
-                    : (reply->attribute(QNetworkRequest::Http2WasUsedAttribute).toBool()
-                        ? QStringLiteral("h2") : QStringLiteral("h1"));
-                posterTiming->networkDone(timingId, bytes, ct, protocol,
-                                          cached ? QStringLiteral("hit") : QStringLiteral("miss"), status);
-            }
-        });
-    }
-
-    // Self-heal: never let a bad answer become a permanent one.
-    //
-    // The disk cache below is what made a transient outage look like a broken app. During
-    // the dead-AAAA ISP stall the wallpaper and cover requests failed, those failures were
-    // written into the cache, and every launch afterwards served them back with NO network
-    // request and NO error — so the KDE Plasma shelf and the comics covers stayed blank for
-    // days while the URLs, the CDN, the proxy, the pin and the delegate were all provably
-    // fine. Found 2026-07-26 by parking the cache directory and watching the shelf return.
-    //
-    // So: anything that does not classify as Arrived is evicted on the spot, and the next
-    // load refetches. The reply's own bytes are untouched — this only stops the failure
-    // being remembered. Bound to `this` deliberately, unlike watch() above: remove() runs
-    // on the NAM's own thread, where its cache lives.
-    void evictOnFailure(QNetworkReply *reply, const QUrl &cacheKey) {
-        if (!m_useCache)
-            return;
-        const bool webp = m_scoreboard && m_scoreboard->webpDecoderPresent();
-        QObject::connect(reply, &QNetworkReply::finished, this, [this, reply, cacheKey, webp] {
-            const int status =
-                reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
-            const QString ct = reply->header(QNetworkRequest::ContentTypeHeader).toString();
-            const bool netErr = reply->error() != QNetworkReply::NoError;
-            const bool bad = PosterScoreboard::classify(status, ct, netErr, webp)
-                             != PosterScoreboard::Bucket::Arrived;
-            // A 200 that declares an EMPTY body is the case classify() cannot see: it is
-            // not a transport error and not an undecodable format, so it scores as Arrived
-            // — and then gets cached as zero bytes and served back forever as a blank tile.
-            // Judged only from a valid Content-Length; bytesAvailable() is unreliable here
-            // because the image loader may already have drained the reply.
-            const QVariant clen = reply->header(QNetworkRequest::ContentLengthHeader);
-            const bool emptyBody = status == 200 && clen.isValid() && clen.toLongLong() <= 0;
-            if (!bad && !emptyBody)
-                return;
-            if (QAbstractNetworkCache *c = cache())
-                c->remove(cacheKey);
-        });
-    }
-};
-
-class CachingNamFactory : public QQmlNetworkAccessManagerFactory {
-public:
-    CachingNamFactory(QStringList pinnedHosts, Ipv4PinStore *pinStore,
-                      PosterScoreboard *scoreboard, BiblioImageDiag *imageDiag = nullptr,
-                      PosterTimingProbe *posterTiming = nullptr)
-        : m_pinnedHosts(std::move(pinnedHosts)),
-          m_pinStore(pinStore),
-          m_scoreboard(scoreboard),
-          m_imageDiag(imageDiag), m_posterTiming(posterTiming) {}
-
-    QNetworkAccessManager *create(QObject *parent) override {
-        return new CachingNam(m_pinnedHosts, m_pinStore, parent, /*useCache=*/true,
-                              m_scoreboard, m_imageDiag, m_posterTiming);
-    }
-
-private:
-    QStringList m_pinnedHosts;
-    Ipv4PinStore *m_pinStore = nullptr;
-    PosterScoreboard *m_scoreboard = nullptr;   // owned by the app, outlives every NAM
-    BiblioImageDiag *m_imageDiag = nullptr;     // same ownership contract as the scoreboard
-    PosterTimingProbe *m_posterTiming = nullptr;
-};
 
 // Dev-only QML live-reloader: watches the qml/ tree and reloads the root window
 // on save, so editing QML feels like Electron's `npm run dev`. Constructed ONLY
@@ -575,7 +311,9 @@ int main(int argc, char *argv[]) {
     // Not compiled in: there is nothing to boot, and the old player is the only engine present.
     QQuickWindow::setGraphicsApi(QSGRendererInterface::OpenGL);
 #endif
+#if !defined(Q_OS_ANDROID)
     QtWebEngineQuick::initialize();
+#endif
 
     // Qt Quick Controls style: the default on Windows is the NATIVE style, which refuses to
     // customize a control's contentItem/background — so HouseScrollBar's overrides were IGNORED
@@ -613,6 +351,17 @@ int main(int argc, char *argv[]) {
             + qEnvironmentVariable("COLOSSEUM_APPDATA_TAG"));
     }
 
+    const QString instanceAppData =
+        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+#if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+    // Refuse a misconfigured synthetic launch before constructing personal stores
+    // or installing the application log. The fixture must prepare its own root.
+    if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
+        && !VinylTestProfileController(instanceAppData, {}, {}).enabled()) {
+        qCritical("Vinyl synthetic fixture launch containment check failed.");
+        return 2;
+    }
+#endif
     // Install the rolling log after final identity selection so test launches write only
     // inside their disposable AppData sibling. Real launches reconcile the legacy root
     // afterwards, which makes any migration warning durable instead of stderr-only.
@@ -622,8 +371,6 @@ int main(int argc, char *argv[]) {
     // duplicate launches from racing the account refresh-token rotation and local sync stores.
     // Tagged test sessions have a different application name/AppDataLocation and therefore a
     // separate lock by design.
-    const QString instanceAppData =
-        QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
     ColosseumInstanceLock instanceLock(instanceAppData);
     if (!instanceLock.tryAcquire()) {
         if (instanceLock.wasBlockedByExistingInstance()) {
@@ -647,9 +394,16 @@ int main(int argc, char *argv[]) {
               qUtf8Printable(appDataMigration.logPath));
     }
 
-    // The video player surface (mpv), reached from QML as `import Colosseum.Player`.
+    QString startupManifestPathOverride;
+#if defined(Q_OS_ANDROID)
+    if (!Colosseum::Platform::bootstrapAndroidStartup(instanceAppData, &startupManifestPathOverride))
+        return -1;
+#else
+    // Shared QML binds to PlayerItem; each host supplies its native playback engine.
+    qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "PlayerItem");
     qmlRegisterType<MpvItem>("Colosseum.Player", 1, 0, "MpvItem");
     qmlRegisterType<SeekThumbnailer>("Colosseum.Player", 1, 0, "SeekThumbnailer");
+#endif
 #ifdef COLOSSEUM_PLAYER2
     // The Player 2 backend, opt-in (build flag COLOSSEUM_PLAYER2_IN_APP). Registering the types costs
     // nothing at runtime — the engine is only constructed if QML instantiates Player2Page.
@@ -670,22 +424,31 @@ int main(int argc, char *argv[]) {
     QObject backendServices(&app);
     QQmlApplicationEngine engine;
 
-    // Auto-update is a post-first-paint service.  It has its own network manager,
-    // cache, and installer bridge so release traffic never shares a catalogue lane
-    // and no check can block construction of the QML tree.
-    auto *updateNam = new QNetworkAccessManager(&backendServices);
+    // One host/platform facade for lifecycle, Android Back, safe insets,
+    // keyboard visibility, permissions/SAF requests and capability truth.
+    // Product navigation remains in Main.qml; this object only forwards OS events.
+    auto *platformRuntime = new Colosseum::Platform::Runtime(&app);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("PlatformRuntime"), platformRuntime);
+
+    // Shared catalogue networking exists on every host. Desktop updater traffic
+    // may reuse it, but Android does not construct updater/installer services.
+    auto *catalogNam = new QNetworkAccessManager(&app);
+
+#if !defined(Q_OS_ANDROID)
+    // Auto-update is a post-first-paint desktop service. It reuses the plain
+    // catalogue network manager but keeps its own cache and installer bridge.
     auto updateCacheOwner = std::make_unique<Colosseum::Update::UpdateCache>(
         Colosseum::Update::UpdateCache::productionRoot());
     auto *updateCache = updateCacheOwner.get();
     auto *updateDownloader = new Colosseum::Update::UpdateDownload(
-        updateNam, std::move(updateCacheOwner), &backendServices);
+        catalogNam, std::move(updateCacheOwner), &app);
     Colosseum::Update::ReleaseClientConfig updateConfig;
     updateConfig.latestReleaseUrl = QUrl(
-        QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest"));
-    updateConfig.repository = QStringLiteral("kingoftheseas56/Colosseum");
+        QStringLiteral("https://getcolosseum.world/updates/stable.json"));
     updateConfig.publicKey = QByteArray(Colosseum::Update::embeddedUpdatePublicKey().data(),
                                         Colosseum::Update::embeddedUpdatePublicKey().size());
-    Colosseum::Update::UpdateReleaseClient updateClientStorage(updateNam, updateConfig, &app);
+    Colosseum::Update::UpdateReleaseClient updateClientStorage(catalogNam, updateConfig, &app);
     auto *updateClient = &updateClientStorage;
     Colosseum::Update::UpdateInstallBridge updateBridgeStorage(&app);
     auto *updateBridge = &updateBridgeStorage;
@@ -734,10 +497,12 @@ int main(int argc, char *argv[]) {
         const auto launch = updateBridge->prepare(installer, target, error);
         return launch.has_value() && updateBridge->launchDetached(*launch, error);
     };
-    // Installer waits on /WAITPID=<our PID>; queue the quit so it runs after
-    // this call stack (and any QML state signals from setState) unwind.
-    updateHooks.requestShutdown = [&app] { QTimer::singleShot(0, &app, &QCoreApplication::quit); };
-    updateHooks.fetchArtwork = [updateNam](const QString&, const QUrl& url, qint64 cap,
+    // Installer waits on /WAITPID=<our PID>; the shell must drain browsers
+    // before ending the event loop, just as it does for a user-requested quit.
+    updateHooks.requestShutdown = [&app, &engine] {
+        Colosseum::Bootstrap::requestApplicationShutdown(app, engine);
+    };
+    updateHooks.fetchArtwork = [catalogNam](const QString&, const QUrl& url, qint64 cap,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkCompleted done,
                                            Colosseum::Update::UpdateServiceHooks::ArtworkFailed failed) {
         if (!url.isValid() || url.scheme() != QLatin1String("https")) {
@@ -748,7 +513,7 @@ int main(int argc, char *argv[]) {
         request.setRawHeader("User-Agent", Colosseum::Update::updateUserAgent());
         request.setAttribute(QNetworkRequest::RedirectPolicyAttribute,
                              QNetworkRequest::NoLessSafeRedirectPolicy);
-        QNetworkReply *reply = updateNam->get(request);
+        QNetworkReply *reply = catalogNam->get(request);
         const auto bytes = std::make_shared<QByteArray>();
         const auto settled = std::make_shared<bool>(false);
         QObject::connect(reply, &QNetworkReply::readyRead, reply, [reply, bytes, settled, cap, failed] {
@@ -880,9 +645,11 @@ int main(int argc, char *argv[]) {
 #endif
     if (!installedUpdateEligible && !updateTestingBuild)
         qInfo("[update] automatic checks disabled (source/dev build or missing installed layout)");
+#endif
     QString startupLayoutError;
     const auto startupLayout = resolveStartupLayout(
-        QCoreApplication::arguments(), QCoreApplication::applicationDirPath(), &startupLayoutError);
+        QCoreApplication::arguments(), QCoreApplication::applicationDirPath(),
+        &startupLayoutError, startupManifestPathOverride);
     if (!startupLayout) {
         qCritical("[boot] startup layout rejected: %s", qUtf8Printable(startupLayoutError));
         return -1;
@@ -952,28 +719,31 @@ int main(int argc, char *argv[]) {
     // HTTP/2 negotiates (SNI / cert / :authority all correct → the whole poster wall
     // multiplexes over ONE connection), while a loopback CONNECT concierge pins the
     // CONNECTION to metahub's IPv4 — dodging the dead-IPv6 stall the URL-rewrite pin
-    // exists for. If the concierge can't bind, metahub stays URL-rewrite-pinned
-    // (today's slower HTTP/1.1 path); posters never break.
-    const QSet<QString> metahubHosts = {
-        QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space")
+    // exists for. GetComics now takes this same connection-pin path so its
+    // persistent cache key remains the original URL. If binding fails, both
+    // retain the existing URL-rewrite/HTTP1.1 fallback.
+    const QSet<QString> connectionPinnedHosts = {
+        QStringLiteral("live.metahub.space"), QStringLiteral("images.metahub.space"),
+        // Keep the canonical GetComics URL as the QNetworkDiskCache key.
+        QStringLiteral("getcomics.org")
     };
     auto *concierge = new LoopbackPinProxy(pinStore, &backendServices);
     const bool conciergeOk = concierge->start();
     if (conciergeOk)
-        qInfo("[net] connection concierge on 127.0.0.1:%u (metahub -> HTTP/2)", concierge->port());
+        qInfo("[net] connection concierge on 127.0.0.1:%u (metahub + GetComics hostname-preserved)", concierge->port());
     else
-        qWarning("[net] concierge could not bind -> metahub falls back to URL-pin + HTTP/1.1");
+        qWarning("[net] concierge could not bind -> metahub + GetComics fall back to URL-pin + HTTP/1.1");
     QNetworkProxyFactory::setApplicationProxyFactory(
-        new PinProxyFactory(metahubHosts, pinStore,
+        new PinProxyFactory(connectionPinnedHosts, pinStore,
                             conciergeOk ? concierge->port() : quint16(0), conciergeOk));
 
-    // When the concierge is up, metahub leaves the URL-rewrite pin set (its URL keeps
-    // the hostname, h2 stays on, the proxy carries the connection). Everything else —
-    // and metahub in the fallback — keeps today's URL-rewrite pin.
+    // When the concierge is up, metahub and GetComics keep their hostnames for
+    // TLS/h2 and canonical image-cache keys; the proxy pins their connections.
+    // On concierge failure, both retain the existing URL-rewrite fallback.
     QStringList namPinnedHosts = pinnedHosts;
     if (conciergeOk)
         namPinnedHosts.erase(std::remove_if(namPinnedHosts.begin(), namPinnedHosts.end(),
-            [&](const QString &h){ return metahubHosts.contains(h); }), namPinnedHosts.end());
+            [&](const QString &h){ return connectionPinnedHosts.contains(h); }), namPinnedHosts.end());
     // Felt-speed Stage 0: the poster scoreboard. Counts every reply on the QML image
     // NAM; dumped at quit so a real run answers "did the posters actually arrive?"
     // with numbers instead of a shrug. The webp check is the dev-hack scar made loud:
@@ -1025,9 +795,25 @@ int main(int argc, char *argv[]) {
     auto *posterTiming = new PosterTimingProbe(posterTimingEnabled, &backendServices);
     auto frameTiming = std::make_shared<FrameTimingProbe>(frameProbeEnabled);
     if (posterTimingEnabled) app.installEventFilter(posterTiming);
+    // App-wide cover delivery state: per-host admission cap + durable Retry-After
+    // ledger shared by every cache-enabled NAM the factory creates (the engine
+    // creates NAMs on multiple threads). Loaded before the factory is installed;
+    // flushed synchronously on shutdown. Metadata only — not an image cache.
+    auto *coverState = new CoverDeliveryState(&backendServices);
+    const QString coverLedgerPath =
+        QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation)
+        + QStringLiteral("/net/image-retry.json");
+    if (coverState->loadLedger(coverLedgerPath))
+        qInfo("[cover] retry ledger loaded: %s", qUtf8Printable(coverLedgerPath));
+    else
+        qWarning("[cover] retry ledger unreadable/corrupt at %s; starting empty",
+                 qUtf8Printable(coverLedgerPath));
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, coverState, [coverState] {
+        coverState->saveLedgerNow();
+    });
     engine.setNetworkAccessManagerFactory(
         new CachingNamFactory(namPinnedHosts, pinStore, scoreboard, imageDiag,
-                              posterTimingEnabled ? posterTiming : nullptr));
+                              posterTimingEnabled ? posterTiming : nullptr, coverState));
     engine.rootContext()->setContextProperty(QStringLiteral("NetScoreboard"), scoreboard);
     engine.rootContext()->setContextProperty(QStringLiteral("BiblioImageDiag"), imageDiag);
     QObject::connect(&app, &QCoreApplication::aboutToQuit, scoreboard, [scoreboard] {
@@ -1097,6 +883,9 @@ int main(int argc, char *argv[]) {
     // storage, not part of the old reader.
     auto *reader2Bridge = new Reader2Bridge(&backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Reader2Bridge"), reader2Bridge);
+#ifdef Q_OS_ANDROID
+    Colosseum::Platform::installAndroidEngineBindings(&engine, reader2Bridge, &app);
+#endif
 
     // From-scratch native Comic Reader backend (Agent 1, plan 2026-07-23, Task 7)
     // exposed to QML as `ComicReaderCore`: the ONE orchestrator over the five pure
@@ -1117,6 +906,7 @@ int main(int argc, char *argv[]) {
     // have no loose page file for the library grid to point at. Engine takes
     // ownership via addImageProvider, same as the comicreader provider above.
     engine.addImageProvider(QStringLiteral("comiccover"), new Colosseum::ComicCoverProvider());
+#if !defined(Q_OS_ANDROID)
     // image://vaultbookcover/ (Vault Slice 17 foundation): stateless bounded EPUB cover decode.
     engine.addImageProvider(QStringLiteral("vaultbookcover"),
                             new Colosseum::VaultBookCoverProvider());
@@ -1192,6 +982,7 @@ int main(int argc, char *argv[]) {
         }
         vaultVideoEnrichRerun = false;
         QList<VaultIndex::FileRow> todo;
+#if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
@@ -1208,6 +999,7 @@ int main(int argc, char *argv[]) {
         (void)QtConcurrent::run([vaultEnricher, todo, cancel]() {
             vaultEnricher->enrich(todo, cancel);
         });
+#endif
     };
     // An immersive surface opening mid-pass cancels the pass between files (the probe
     // itself admits no cancellation; the enrich loop guard does) and reruns on close.
@@ -1259,12 +1051,14 @@ int main(int argc, char *argv[]) {
                 && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
         }
+#if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
+#endif
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
             if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
@@ -1305,7 +1099,9 @@ int main(int argc, char *argv[]) {
                         r.errorState = QStringLiteral("corrupt");
                         r.errorDetail = cf.errorDetail;
                     }
-                } else if (r.kind == QLatin1String("video")) {
+                }
+#if !defined(Q_OS_ANDROID)
+                else if (r.kind == QLatin1String("video")) {
                     const MediaAdmissionProbe::Result admission =
                         MediaAdmissionProbe::probe(r.path);
                     switch (admission.verdict) {
@@ -1330,7 +1126,9 @@ int main(int argc, char *argv[]) {
                         r.errorState = QStringLiteral("rejected");
                         r.errorDetail = admission.detail;
                     }
-                } else if (r.kind == QLatin1String("book")) {
+                }
+#endif
+                else if (r.kind == QLatin1String("book")) {
                     r.format = QFileInfo(r.path).suffix().toLower();
                     const VaultEnricher::BookFacts book = VaultEnricher::readBookFacts(r.path);
                     if (book.ok) {
@@ -1357,6 +1155,7 @@ int main(int argc, char *argv[]) {
     // Enrich an already-indexed library once at boot too, so covers appear on a relaunch
     // without re-adding the folder (a fresh index published this run enriches via the signal).
     runVaultCoverEnrichment();
+#endif
 
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.
@@ -1442,25 +1241,93 @@ int main(int argc, char *argv[]) {
     const CatalogPathResolution imdbRes =
         resolveCatalogPath(QStringLiteral("data/imdb_catalog.db"), QStringLiteral("imdb_catalog.db"));
 
+    QUrl contentEndpoint;
+#ifdef COLOSSEUM_CONTENT_API_URL
+    contentEndpoint = QUrl(QStringLiteral(COLOSSEUM_CONTENT_API_URL));
+#endif
+    // Opt-in loopback qualification of the actual app, never the daily profile.
+    // No arbitrary remote origin, visible window, default IPC or account override.
+    const QString testCatalogueOrigin = qEnvironmentVariable("COLOSSEUM_TEST_CATALOGUE_ORIGIN");
+    if (!testCatalogueOrigin.isEmpty()) {
+        const QUrl testOrigin(testCatalogueOrigin);
+        const bool isolatedFixture = isolatedAppData
+            && qEnvironmentVariable("COLOSSEUM_APPDATA_TAG").startsWith(QLatin1String("i05-static-"))
+            && qEnvironmentVariable("COLOSSEUM_LANISTA_PIPE").startsWith(QLatin1String("i05-static-"))
+            && qEnvironmentVariableIntValue("COLOSSEUM_LANISTA_DRIVE") == 1
+            && qEnvironmentVariable("QT_QPA_PLATFORM") == QLatin1String("offscreen");
+        if (!isolatedFixture || !testOrigin.isValid() || testOrigin.scheme() != QLatin1String("http")
+            || testOrigin.host() != QLatin1String("127.0.0.1") || testOrigin.port() <= 0
+            || !testOrigin.userInfo().isEmpty() || !testOrigin.path().isEmpty()
+            || !testOrigin.query().isEmpty() || !testOrigin.fragment().isEmpty())
+            qFatal("Invalid isolated static catalogue qualification origin");
+        contentEndpoint = testOrigin;
+        if (qEnvironmentVariableIntValue("COLOSSEUM_TEST_CATALOGUE_OFFLINE") == 1) {
+            // The fixture controller stops its own listener before this run.
+            const QNetworkProxy offlineProxy(QNetworkProxy::HttpProxy,
+                testOrigin.host(), quint16(testOrigin.port()));
+            QNetworkProxy::setApplicationProxy(offlineProxy);
+            catalogNam->setProxy(offlineProxy);
+            qInfo("I05_OFFLINE process HTTP proxy points at the stopped fixture listener");
+        }
+        QObject::connect(catalogNam, &QNetworkAccessManager::finished, &backendServices,
+            [](QNetworkReply* reply) {
+                qInfo().noquote() << "I05_NETWORK" << reply->url().host() << reply->url().path()
+                    << reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+            });
+    }
+    const bool contentApiConfigured = contentEndpoint.isValid() && !contentEndpoint.isEmpty()
+        && contentEndpoint.userInfo().isEmpty() && contentEndpoint.query().isEmpty()
+        && contentEndpoint.fragment().isEmpty() && (contentEndpoint.scheme() == QLatin1String("https")
+            || (contentEndpoint.scheme() == QLatin1String("http")
+                && (contentEndpoint.host() == QLatin1String("127.0.0.1") || contentEndpoint.host() == QLatin1String("localhost"))));
+    // A configured API owns catalogue delivery, including upgrades retaining old DBs.
+    // Existing local files are preserved but cannot shadow server revisions.
+
     // Availability-first SQLite catalogue (spec 2026-07-17): read-only seam; the db
     // is pipeline-deployed to data/ (cwd = repo root) on dev machines, vault-fed elsewhere.
-    auto *comicsCatalog = new ComicsCatalog(comicsRes.path, &backendServices);
+    auto *comicsCatalog = new ComicsCatalog(contentApiConfigured ? QString() : comicsRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ComicsCatalog"), comicsCatalog);
 
     // Baked MyAnimeList catalog (genre-page revival 2026-07-18): same doctrine —
     // read-only seam, script-built db in data/, dormant when absent (live ladder runs).
-    auto *malCatalog = new MalCatalog(malRes.path, &backendServices);
+    auto *malCatalog = new MalCatalog(contentApiConfigured ? QString() : malRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("MalCatalog"), malCatalog);
 
     // Baked Tankoban volume catalogue (catalogue-independence Slice 1, 2026-08-20): same
     // doctrine as MalCatalog — read-only seam, script-built db in data/, dormant when absent.
     auto *tankobanCatalog = new TankobanCatalog(tankobanRes.path, &backendServices);
+#ifdef COLOSSEUM_CONTENT_API_URL
+    tankobanCatalog->configureRemote(catalogNam, contentEndpoint,
+                                    catalogVaultDir + QStringLiteral("/tankoban_remote_v1.json"));
+#endif
     engine.rootContext()->setContextProperty(QStringLiteral("TankobanCatalog"), tankobanCatalog);
-    auto* imdbCatalog = new ImdbCatalog(imdbRes.path, &backendServices);
+    auto* imdbCatalog = new ImdbCatalog(contentApiConfigured ? QString() : imdbRes.path, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("ImdbCatalog"), imdbCatalog);
+
+    if (contentApiConfigured) {
+        comicsCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/comics_api_v1.json"));
+        malCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/mal_api_v1.json"));
+        imdbCatalog->configureRemote(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/imdb_api_v1.json"));
+    }
+    auto* sourceContent = new SourceContentStore(&backendServices);
+    sourceContent->configure(catalogNam, contentEndpoint, catalogVaultDir + QStringLiteral("/content_api_v1.json"),
+                             QDir::current().filePath(QStringLiteral("assets/content-starter/bundle.json")));
+    engine.rootContext()->setContextProperty(QStringLiteral("Content"), sourceContent);
+    // configure() synchronizes the bundle through the shared freshness policy.
+    // A second forced boot refresh would revalidate even a just-checked cache.
+    auto* contentRefreshTimer = new QTimer(sourceContent);
+    contentRefreshTimer->setInterval(15 * 60 * 1000);
+    QObject::connect(contentRefreshTimer, &QTimer::timeout, sourceContent, [&app, sourceContent] {
+        if (app.applicationState() == Qt::ApplicationActive) sourceContent->refresh();
+    });
+    contentRefreshTimer->start();
+
+
+#if !defined(Q_OS_ANDROID)
     auto *vaultIdentifier = new VaultIdentifier(vaultIndex, comicsCatalog, malCatalog,
                                                  imdbCatalog, &backendServices);
     vaultLibrary->setIdentifier(vaultIdentifier);
+#endif
 
     // CatalogVaultClient (Slice 1) only manages the names that did NOT resolve via a
     // dev-machine override above. On Hemanth's dev machine, all four data/*.db files are
@@ -1480,9 +1347,17 @@ int main(int argc, char *argv[]) {
     // takes the zero-network devOverridden branch before ever building a request. Caught
     // live in Slice 4's first-launch runtime session (an empty AppData + no reachable
     // data/ never fetched at all — WAIT_TIMEOUT on catalogVaultState.fetching==true).
-    auto *catalogVaultClient = new CatalogVaultClient(updateNam, catalogVaultDir,
+    auto *catalogVaultClient = new CatalogVaultClient(catalogNam, catalogVaultDir,
         QStringLiteral("https://api.github.com/repos/kingoftheseas56/Colosseum-Data"), &backendServices);
+    // API builds never recover from outages by downloading a whole catalogue
+    // through GitHub REST. Empty is an explicitly managed empty set.
+#ifdef COLOSSEUM_CONTENT_API_URL
+    catalogManagedNames.clear();
+#endif
     catalogVaultClient->setManagedNames(catalogManagedNames);
+    // This follows validated configuration, never request health: API outages must
+    // keep using cached/local Tankoban data without reviving the GitHub bulk download.
+    catalogVaultClient->setTankobanApiEnabled(tankobanCatalog->remoteEnabled());
     engine.rootContext()->setContextProperty(QStringLiteral("CatalogVault"), catalogVaultClient);
 
     // aboutToReplace fires synchronously right before a fresh download is renamed over an
@@ -1506,10 +1381,29 @@ int main(int argc, char *argv[]) {
         else if (name == QStringLiteral("imdb_catalog.db")) imdbCatalog->reopen(path);
     });
 
+    // A failed pass (an offline first launch, a transfer that died while the app was in the
+    // background) used to stay failed until the next app start, leaving Discover empty with no
+    // trace in the log. The client schedules nothing itself (its contract), so the retry lives
+    // here: 30 s, doubling, five tries per run.
+    auto *catalogVaultRetry = new QTimer(catalogVaultClient);
+    catalogVaultRetry->setSingleShot(true);
+    QObject::connect(catalogVaultRetry, &QTimer::timeout,
+                     catalogVaultClient, &CatalogVaultClient::checkAndFetch);
+    const auto catalogVaultAttempts = std::make_shared<int>(0);
+    QObject::connect(catalogVaultClient, &CatalogVaultClient::fetchFailed, &app,
+                     [catalogVaultRetry, catalogVaultAttempts](const QString& name, const QString& error) {
+        qWarning("[catalog-vault] fetch failed (%s): %s", qUtf8Printable(name), qUtf8Printable(error));
+        if (*catalogVaultAttempts >= 5) return;
+        catalogVaultRetry->start(30000 << (*catalogVaultAttempts)++);
+    });
+    QObject::connect(catalogVaultClient, &CatalogVaultClient::allFresh, &app,
+                     [catalogVaultAttempts](const QString&) { *catalogVaultAttempts = 0; });
+
     // Kick once, off the cold-launch critical path — never blocks boot. A no-op (zero
     // network) when every catalog is dev-overridden, per the comment above.
     QTimer::singleShot(0, catalogVaultClient, [catalogVaultClient] { catalogVaultClient->checkAndFetch(); });
 
+#if !defined(Q_OS_ANDROID)
     // Agent Visibility Phase 2, Slice F1-Bridge: the live, app-owned Vault forensic
     // projection (F1-Core). Composes vaultLibrary only (F0's named safe seam,
     // docs/visibility/vault-forensic-owner-thread.md §10) — no second SQLite
@@ -1517,6 +1411,7 @@ int main(int argc, char *argv[]) {
     // so it shares vaultLibrary's GUI-thread lifetime; wired into LanistaServer below.
     VaultForensics vaultForensicsStorage(vaultLibrary, &app);
     auto *vaultForensics = &vaultForensicsStorage;
+#endif
 
     // BiblioCatalog Discover/Explore keyless daily refresh service (spec
     // 2026-08-01, plan 2026-08-03 Task 4): a writable per-user SQLite cache
@@ -1618,6 +1513,14 @@ int main(int argc, char *argv[]) {
                                               tankobanVolumes, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("LocalDownloads"), localDownloads);
 
+    // OS-facing download progress seam. Android owns the notification/service
+    // implementation; Colosseum publishes only the unified active-job snapshot.
+    auto *platformDownloads = new Colosseum::Platform::BackgroundDownloadBridge(
+        localDownloads, &app);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("PlatformDownloads"), platformDownloads);
+
+#if !defined(Q_OS_ANDROID)
     // Slice 18 — the synthetic downloads root: derives VaultIndex::FileRows from
     // Colosseum's own download backbones (videos + CBZ comics + CBZ tankoban
     // volumes + epub/pdf books) so the Vault shelves them as ONE quiet, pre-
@@ -1631,6 +1534,7 @@ int main(int argc, char *argv[]) {
     vaultLibrary->setDownloadsRoot(vaultDownloadsRoot, vaultDownloadsRootPath);
     // Heal stale derived Vault rows once per process after every download backbone is wired.
     QTimer::singleShot(0, vaultLibrary, [vaultLibrary]() { vaultLibrary->republishAtBoot(); });
+#endif
 
     // Extension registry (Stremio-protocol addons) exposed to QML as `Extensions`.
     // Spec: Brotherhood docs/superpowers/specs/2026-07-05-colosseum-extensions-store-design.md.
@@ -1716,7 +1620,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("ForegroundPriority"),
                                              foregroundPriority);
     QObject::connect(foregroundPriority, &work::ForegroundPriorityGovernor::pressureChanged,
-                     &app, [backgroundWork, biblioCatalog, vaultLibrary,
+                     &app, [backgroundWork, biblioCatalog,
+#if !defined(Q_OS_ANDROID)
+                            vaultLibrary,
+#endif
                             catalogVaultClient](int pressure) {
         work::Pressure nativePressure = work::Pressure::Normal;
         if (pressure >= work::ForegroundPriorityGovernor::Suspended)
@@ -1729,7 +1636,9 @@ int main(int argc, char *argv[]) {
         const bool immersive = pressure >= work::ForegroundPriorityGovernor::Suspended;
         biblioCatalog->setForegroundPriorityActive(foregroundBusy);
         biblioCatalog->setBackgroundWorkSuspended(immersive);
+#if !defined(Q_OS_ANDROID)
         vaultLibrary->setImmersive(foregroundBusy);
+#endif
         catalogVaultClient->setForegroundPressure(pressure);
     });
 
@@ -1764,9 +1673,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("WatchPartyUi"),
                                              watchPartyUi);
 
-    // Native player window modes exposed to QML as `WindowMode` for PiP/fullscreen parity.
-    auto *windowMode = new WindowModeStore(&backendServices);
+#if !defined(Q_OS_ANDROID)
+    auto *windowMode = new WindowModeStore(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("WindowMode"), windowMode);
+#endif
 
     // Playback power-inhibit exposed to QML as `Power`, matching Harbor's play-only
     // OS/display sleep prevention.
@@ -1792,6 +1702,17 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("Player2Available"), false);
 #endif
 
+    // Build edition identity (1.1.9 no-account edition): surfaces the compiled
+    // edition to QML and diagnostics so edition-specific behavior and future
+    // update targeting have one authoritative in-process source.
+#ifdef COLOSSEUM_NO_ACCOUNT_EDITION
+    engine.rootContext()->setContextProperty(QStringLiteral("ColosseumEdition"),
+                                             QStringLiteral("no-account"));
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("ColosseumEdition"),
+                                             QStringLiteral("standard"));
+#endif
+
     // Account + personal-profile runtime (Bundle 8C adoption, 2026-08-16).
     // AccountRuntime owns the personal store runtime, which is now the SOLE
     // owner/binder of the Progress/Collection/SearchHistory/AudioPairing context
@@ -1802,6 +1723,29 @@ int main(int argc, char *argv[]) {
     // designed. Replaces the four raw store constructions this block used to
     // hold — the split-brain risk of two owners binding the same QML names is
     // closed by construction.
+#if !defined(Q_OS_ANDROID)
+    // Vinyl uses the existing canonical local identity and profile-owned stores.
+    // Register checkpoint callbacks before AccountRuntime installs store shutdown writers.
+    int vinylResolutionDelayMs = 0;
+#if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+    vinylResolutionDelayMs = VinylTestProfileController(instanceAppData, {}, {}).resolutionDelayMs();
+#endif
+    auto *vinylLocalSource = new VinylLocalSource(vaultIdentity, &backendServices, vinylResolutionDelayMs);
+    qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl", 1, 0, "VinylBackendSession");
+    qmlRegisterType<VinylRecommendationService>("Colosseum.Vinyl", 1, 0, "VinylRecommendationService");
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     vinylLocalSource, &VinylLocalSource::shuttingDown);
+    // Prefer the assembled app's helper/runtime; source-tree launches retain an
+    // explicit resource-root fallback. Never resolve Python through PATH.
+    const auto vinylBundledHelper = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("scripts/vinyl/provider.py");
+    auto *vinylProvider = new VinylProvider(
+        QFileInfo::exists(vinylBundledHelper) ? vinylBundledHelper :
+            QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
+                .absoluteFilePath("scripts/vinyl/provider.py"), &backendServices);
+    QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                     vinylProvider, &VinylProvider::shuttingDown);
+    auto *vinylCatalogueSource = new VinylCatalogueSource(vinylLocalSource, vinylProvider, nullptr, &backendServices);
+#endif
     auto *accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
@@ -1971,39 +1915,97 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("ScrollProbeEnabled"), scrollProbeEnabled);
     GuiStallProbeBridge guiStallProbe(&app);
     engine.rootContext()->setContextProperty(QStringLiteral("GuiStallProbe"), &guiStallProbe);
+    engine.rootContext()->setContextProperty(QStringLiteral("CatalogueTraceEnabled"),
+        qEnvironmentVariableIntValue("COLOSSEUM_CATALOGUE_TRACE") == 1);
 
     // Startup qualification is opt-in and intentionally marks only coarse boundaries. Keeping
     // the context explicit makes GUI_STALL_PROBE output distinguish boot work from later playback
     // stalls without adding work to every event delivery.
     app.setStallContext(QStringLiteral("startup"), QStringLiteral("qml-load"));
-    PorticoComposition feriaDiscovery;
-    feriaDiscovery.exposeTo(engine.rootContext());
-    auto *feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
-    engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
-    auto *feriaAccount = new FeriaAccountStore(&engine);
-    auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime, sessions] {
-        const auto &profile = accountRuntime->profileStores()->activeProfile();
-        QString root = profile.profileRoot();
-        if (profile.kind() == ProfilePaths::Kind::LegacyLocal)
-            root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
-        sessions->setBrowserProfile(root);
-        feriaAccount->setStoragePath(root.isEmpty() ? QString() : root + QStringLiteral("/feria/account.json"));
-        feriaBrowserPolicy->setStorageRoot(root.isEmpty() ? QString() : root + QStringLiteral("/feria/browser"));
-    };
-    bindFeriaProfile();
-    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
-                     feriaAccount, [feriaAccount, feriaBrowserPolicy, sessions] {
-                         sessions->setBrowserProfile({});
-                         feriaAccount->setStoragePath({});
-                         feriaBrowserPolicy->setStorageRoot({});
-                     });
-    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
-                     feriaAccount, bindFeriaProfile);
-    engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
+#if !defined(Q_OS_ANDROID)
     FeriaBrowserPolicy::registerTypes();
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), static_cast<QObject *>(nullptr));
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), static_cast<QObject *>(nullptr));
+    std::unique_ptr<PorticoComposition> feriaDiscovery;
+    FeriaBrowserPolicy *feriaBrowserPolicy = nullptr;
+    FeriaAccountStore *feriaAccount = nullptr;
+    auto ensureFeriaRuntime = [&app, &engine, &feriaDiscovery, &feriaBrowserPolicy, &feriaAccount, accountRuntime, sessions]() {
+        if (feriaDiscovery)
+            return;
+        feriaDiscovery = std::make_unique<PorticoComposition>();
+        feriaDiscovery->exposeTo(engine.rootContext());
+        feriaBrowserPolicy = new FeriaBrowserPolicy(&engine);
+        QObject::connect(&app, &QCoreApplication::aboutToQuit,
+                         feriaBrowserPolicy->runtime(), &FeriaBrowserRuntime::shutdown);
+        feriaAccount = new FeriaAccountStore(&engine);
+        auto bindFeriaProfile = [feriaAccount, feriaBrowserPolicy, accountRuntime, sessions] {
+            const auto &profile = accountRuntime->profileStores()->activeProfile();
+            QString root = profile.profileRoot();
+            if (profile.kind() == ProfilePaths::Kind::LegacyLocal)
+                root = QStandardPaths::writableLocation(QStandardPaths::AppLocalDataLocation);
+            sessions->setBrowserProfile(root);
+            feriaAccount->setStoragePath(root.isEmpty() ? QString() : root + QStringLiteral("/feria/account.json"));
+            feriaBrowserPolicy->setStorageRoot(root.isEmpty() ? QString() : root + QStringLiteral("/feria/browser"));
+        };
+        bindFeriaProfile();
+        QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                         feriaAccount, [feriaAccount, feriaBrowserPolicy, sessions] {
+                             sessions->setBrowserProfile({});
+                             feriaAccount->setStoragePath({});
+                             feriaBrowserPolicy->setStorageRoot({});
+                         });
+        QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                         feriaAccount, bindFeriaProfile);
+        engine.rootContext()->setContextProperty(QStringLiteral("FeriaBrowserPolicy"), feriaBrowserPolicy);
+        engine.rootContext()->setContextProperty(QStringLiteral("FeriaAccount"), feriaAccount);
+    };
+#endif
+#if !defined(Q_OS_ANDROID)
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylCatalogueSource"), vinylCatalogueSource);
+    vinylCatalogueSource->setArtworkNetworkManager(engine.networkAccessManager());
+    vinylCatalogueSource->setTorrentProvider(new VinylTorrentProvider(engine.networkAccessManager(),stream,&backendServices));
+    const auto bindVinylScope = [&engine, accountRuntime] {
+        engine.rootContext()->setContextProperty(QStringLiteral("VinylProfileScope"),
+            accountRuntime->profileStores()->activeProfile().profileId());
+    };
+    bindVinylScope();
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     &engine, bindVinylScope);
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylProvider"), vinylProvider);
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylLiveEnabled"),
+        Colosseum::vinylLiveEnabled());
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
+                     vinylLocalSource, &VinylLocalSource::checkpointRequested);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     vinylLocalSource, &VinylLocalSource::profileLeaving);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     vinylLocalSource, &VinylLocalSource::profileEntered);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
+                     vinylProvider, &VinylProvider::checkpointRequested);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
+                     vinylProvider, &VinylProvider::profileLeaving);
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     vinylProvider, &VinylProvider::profileEntered);
+#else
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylLiveEnabled"), false);
+#endif
     engine.load(QUrl::fromLocalFile(qmlPath));
     if (engine.rootObjects().isEmpty())
         return -1;
+#if defined(Q_OS_ANDROID)
+    qInfo("[boot] Main.qml loaded");
+#else
+    if (auto *feriaLayerItem = engine.rootObjects().constFirst()->findChild<QQuickItem *>(QStringLiteral("feriaLayer"))) {
+        QObject::connect(feriaLayerItem, &QQuickItem::enabledChanged, &engine,
+                         [feriaLayerItem, &ensureFeriaRuntime] {
+            if (feriaLayerItem->isEnabled())
+                ensureFeriaRuntime();
+        });
+        if (feriaLayerItem->isEnabled())
+            ensureFeriaRuntime();
+    }
+#endif
 
     // Main has initialized the built-in types. Later player imports must reuse
     // that registration instead of resolving another QtQuick plugin instance.
@@ -2036,31 +2038,46 @@ int main(int argc, char *argv[]) {
         }
     }
 #endif
+    QObject::connect(platformRuntime, &Colosseum::Platform::Runtime::backRequested,
+                     rootObject, [rootObject] {
+        if (!QMetaObject::invokeMethod(rootObject, "handleEscape", Qt::QueuedConnection))
+            qWarning("[platform] root QML does not expose handleEscape()");
+    });
+#if !defined(Q_OS_ANDROID)
+    const auto acknowledgeFirstFrame = [&app, &guiStallProbe, updateBridge,
+                                        launchArguments, biblioCatalog](const QString &context) {
+        app.setStallContext(QStringLiteral("startup"), context);
+        app.markFirstFrame();
+        guiStallProbe.notifyFirstFrame();
+        updateBridge->acknowledgeHealthyBoot(launchArguments);
+        QTimer::singleShot(0, biblioCatalog, [biblioCatalog] { biblioCatalog->refreshIfDue(); });
+    };
+#else
+    const auto acknowledgeFirstFrame = [&app, &guiStallProbe,
+                                        biblioCatalog](const QString &context) {
+        app.setStallContext(QStringLiteral("startup"), context);
+        app.markFirstFrame();
+        guiStallProbe.notifyFirstFrame();
+        QTimer::singleShot(0, biblioCatalog, [biblioCatalog] { biblioCatalog->refreshIfDue(); });
+    };
+#endif
+
     if (auto* rootWindow = qobject_cast<QQuickWindow*>(rootObject)) {
+#ifdef Q_OS_ANDROID
+        Colosseum::Platform::attachAndroidRootWindow(rootWindow);
+#endif
+        platformRuntime->attachWindow(rootWindow);
         if (posterTimingEnabled) posterTiming->attach(rootWindow);
         if (frameProbeEnabled)
             QObject::connect(rootWindow, &QQuickWindow::frameSwapped, &app,
                              [frameTiming] { frameTiming->recordSwap(); }, Qt::DirectConnection);
-        QObject::connect(rootWindow, &QQuickWindow::frameSwapped, updateBridge,
-                         [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {
-            app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame"));
-            app.markFirstFrame();
-            guiStallProbe.notifyFirstFrame();
-            updateBridge->acknowledgeHealthyBoot(launchArguments);
-            QTimer::singleShot(0, biblioCatalog, [biblioCatalog] {
-                biblioCatalog->refreshIfDue();
-            });
+        QObject::connect(rootWindow, &QQuickWindow::frameSwapped, &app,
+                         [acknowledgeFirstFrame] {
+            acknowledgeFirstFrame(QStringLiteral("first-frame"));
         }, Qt::SingleShotConnection);
     } else {
-        QTimer::singleShot(0, updateBridge,
-                           [&app, &guiStallProbe, updateBridge, launchArguments, biblioCatalog] {
-            app.setStallContext(QStringLiteral("startup"), QStringLiteral("first-frame-fallback"));
-            app.markFirstFrame();
-            guiStallProbe.notifyFirstFrame();
-            updateBridge->acknowledgeHealthyBoot(launchArguments);
-            QTimer::singleShot(0, biblioCatalog, [biblioCatalog] {
-                biblioCatalog->refreshIfDue();
-            });
+        QTimer::singleShot(0, &app, [acknowledgeFirstFrame] {
+            acknowledgeFirstFrame(QStringLiteral("first-frame-fallback"));
         });
     }
 
@@ -2085,16 +2102,179 @@ int main(int argc, char *argv[]) {
         });
     }
 
+#if !defined(Q_OS_ANDROID)
     if (installedUpdateEligible && !updateTestingBuild)
         QTimer::singleShot(0, updates, &Colosseum::Update::UpdateService::startAutomaticChecks);
+#endif
 
     // Lanista dev-control bridge — ALWAYS ON for reads/grabs (Hemanth, spec
     // 2026-08-01 §3). Local named pipe only, never a network port. Driving and
     // mutation commands gate on env INSIDE the server, per command.
     LanistaServer lanistaServerStorage(&engine, &app);
     auto *lanistaServer = &lanistaServerStorage;
+#if !defined(Q_OS_ANDROID)
     // F1-Bridge: hand the bridge the live forensic projection constructed above.
     lanistaServer->setVaultForensics(vaultForensics);
+#if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+    // Synthetic-only fixture: no account authentication or arbitrary profile
+    // identifier is exposed. Existing profile activation observers still run;
+    // use only fresh credential-free, extension-free synthetic profiles.
+    // The controller additionally
+    // requires the explicit launch gate and a marked, isolated temporary root.
+    const QPointer<ProfileStoreRuntime> vinylFixtureStores(accountRuntime->profileStores());
+    const QString vinylFixtureA = QStringLiteral("11111111-1111-4111-8111-111111111175");
+    const QString vinylFixtureB = QStringLiteral("11111111-1111-4111-8111-111111111176");
+    struct VinylFixtureWriteObservation {
+        quint64 generation = 0;
+        bool accepted = false, pendingBeforeSwitch = false, completed = false;
+        bool succeeded = false, ownerRetired = false, armed = false;
+        bool identityMatched = false, writeError = false;
+        double priorPosition = -1, finalPosition = -1;
+    };
+    const auto vinylWriteObservation = std::make_shared<VinylFixtureWriteObservation>();
+    const auto armVinylPendingWrite = [vinylFixtureStores, vinylWriteObservation](bool shutdown) {
+        if (!vinylFixtureStores || vinylWriteObservation->armed) return false;
+        const QPointer<ProgressStore> outgoing(vinylFixtureStores->progressStore());
+        if (!outgoing || outgoing->get("music-session", "vinyl").isEmpty()) return false;
+        const quint64 generation = vinylWriteObservation->generation + 1;
+        *vinylWriteObservation = VinylFixtureWriteObservation{};
+        vinylWriteObservation->generation = generation;
+        vinylWriteObservation->armed = true;
+        const auto report = [vinylWriteObservation](const char *phase) {
+            const auto &o = *vinylWriteObservation;
+            qInfo().noquote() << "VinylPendingWrite" << QJsonDocument(QJsonObject{
+                {"phase", QString::fromLatin1(phase)}, {"accepted", o.accepted},
+                {"pendingBefore", o.pendingBeforeSwitch}, {"completed", o.completed},
+                {"succeeded", o.succeeded}, {"ownerRetired", o.ownerRetired},
+                {"identityMatched", o.identityMatched}, {"writeError", o.writeError},
+                {"priorPosition", o.priorPosition}, {"finalPosition", o.finalPosition}
+            }).toJson(QJsonDocument::Compact);
+        };
+        QObject::connect(outgoing, &QObject::destroyed, qApp,
+            [vinylWriteObservation, generation, report] {
+                if (vinylWriteObservation->generation != generation) return;
+                vinylWriteObservation->ownerRetired = true;
+                report("retired");
+            });
+        const auto boundary = [outgoing, vinylWriteObservation, generation, report] {
+            if (!outgoing || vinylWriteObservation->generation != generation) return;
+            vinylWriteObservation->armed = false;
+            auto session = outgoing->get("music-session", "vinyl");
+            auto resume = session.value("resume").toMap();
+            const auto queue = resume.value("queue").toList();
+            const auto editions = resume.value("editionTable").toList();
+            const int index = resume.value("queueIndex", -1).toInt();
+            const int edition = index >= 0 && index < queue.size()
+                ? queue.at(index).toMap().value("editionKey", -1).toInt() : -1;
+            const QString id = edition >= 0 && edition < editions.size()
+                ? editions.at(edition).toMap().value("id").toString() : QString();
+            auto music = outgoing->get("music", id);
+            const auto musicResume = music.value("resume").toMap();
+            const double prior = resume.value("position", -1).toDouble();
+            const double duration = resume.value("duration").toDouble();
+            if (id.isEmpty() || music.isEmpty() || prior < 0 || duration <= 7.5
+                || resume.value("trackId").toString().isEmpty()
+                || musicResume.value("trackId") != resume.value("trackId")
+                || musicResume.value("position") != resume.value("position")) {
+                vinylWriteObservation->writeError = true;
+                report("invalid-existing-checkpoint");
+                return;
+            }
+            outgoing->flush(); // The older checkpoint precedes the distinct final write.
+            vinylWriteObservation->identityMatched = true;
+            vinylWriteObservation->priorPosition = prior;
+            const double finalPosition = prior == 6.25 ? 7.5 : 6.25;
+            vinylWriteObservation->finalPosition = finalPosition;
+            resume.insert("position", finalPosition);
+            session.insert("resume", resume);
+            music.insert("resume", resume);
+            music.insert("progress", finalPosition / duration);
+            outgoing->recordSilent(music);
+            outgoing->recordSilent(session);
+            vinylWriteObservation->accepted = outgoing->requestDurableReceipt(
+                [vinylWriteObservation, generation, report](bool committed, const QString &error) {
+                    if (vinylWriteObservation->generation != generation) return;
+                    vinylWriteObservation->completed = true;
+                    vinylWriteObservation->succeeded = committed;
+                    vinylWriteObservation->writeError = !error.isEmpty();
+                    report("completed");
+                });
+            vinylWriteObservation->pendingBeforeSwitch = vinylWriteObservation->accepted
+                && !vinylWriteObservation->completed;
+            report("pending");
+        };
+        if (shutdown) {
+            QObject::connect(qApp, &QCoreApplication::aboutToQuit, outgoing,
+                             boundary, Qt::SingleShotConnection);
+        } else {
+            QObject::connect(vinylFixtureStores, &ProfileStoreRuntime::storesAboutToChange,
+                             outgoing, boundary, Qt::SingleShotConnection);
+        }
+        report("armed");
+        return true;
+    };
+    auto vinylFixture = std::make_shared<VinylTestProfileController>(
+        instanceAppData,
+        [vinylFixtureStores, vinylFixtureA, vinylFixtureB, armVinylPendingWrite, instanceAppData](
+            const QString &alias, bool withPendingWrite) {
+            if (!vinylFixtureStores) return false;
+            const QString targetId = alias == QLatin1String("A") ? vinylFixtureA : vinylFixtureB;
+            if (withPendingWrite && vinylFixtureStores->activeProfile().profileId() == targetId)
+                return false; // A pending-switch witness may not be a same-profile no-op.
+            if (alias == QLatin1String("A") || alias == QLatin1String("B")) {
+                const auto targetPaths = ProfilePaths::account(targetId, instanceAppData);
+                if (!targetPaths || !QDir().mkpath(targetPaths->profileRoot())) return false;
+            }
+            if (withPendingWrite && !armVinylPendingWrite(false)) return false;
+            QString error; // Never return store paths or detailed errors over this fixture.
+            if (alias == QLatin1String("local"))
+                return vinylFixtureStores->activateLocalOnlyProfile(&error);
+            if (alias == QLatin1String("A") || alias == QLatin1String("B"))
+            {
+                // Exercise the existing departure boundary explicitly: account A
+                // cannot activate B directly. This fixture performs A -> local -> B.
+                const auto &current = vinylFixtureStores->activeProfile();
+                if (current.kind() == ProfilePaths::Kind::Account
+                    && current.profileId() != targetId
+                    && !vinylFixtureStores->activateLocalOnlyProfile(&error)) return false;
+                return vinylFixtureStores->activateAccountProfile(targetId, &error);
+            }
+            return false;
+        },
+        [vinylFixtureStores, vinylFixtureA, vinylFixtureB, vinylWriteObservation] {
+            VinylTestProfileController::Status status;
+            if (!vinylFixtureStores) return status;
+            status.pendingWriteAccepted = vinylWriteObservation->accepted;
+            status.pendingBeforeSwitch = vinylWriteObservation->pendingBeforeSwitch;
+            status.pendingWriteCompleted = vinylWriteObservation->completed;
+            status.pendingWriteSucceeded = vinylWriteObservation->succeeded;
+            status.pendingOwnerRetired = vinylWriteObservation->ownerRetired;
+            status.pendingWriteArmed = vinylWriteObservation->armed;
+            status.pendingIdentityMatched = vinylWriteObservation->identityMatched;
+            status.pendingWriteError = vinylWriteObservation->writeError;
+            status.pendingPriorPosition = vinylWriteObservation->priorPosition;
+            status.pendingFinalPosition = vinylWriteObservation->finalPosition;
+            const auto &profile = vinylFixtureStores->activeProfile();
+            if (profile.kind() == ProfilePaths::Kind::LocalOnly
+                || profile.kind() == ProfilePaths::Kind::LegacyLocal)
+                status.alias = QStringLiteral("local");
+            else if (profile.kind() == ProfilePaths::Kind::Account) {
+                if (profile.profileId() == vinylFixtureA) status.alias = QStringLiteral("A");
+                if (profile.profileId() == vinylFixtureB) status.alias = QStringLiteral("B");
+            }
+            status.collectionHealthy = vinylFixtureStores->collectionStore()
+                && vinylFixtureStores->collectionStore()->healthy();
+            status.progressHealthy = vinylFixtureStores->progressStore()
+                && vinylFixtureStores->progressStore()->healthy();
+            status.activityHealthy = vinylFixtureStores->activityStore()
+                && vinylFixtureStores->activityStore()->healthy();
+            return status;
+        }, [armVinylPendingWrite] { return armVinylPendingWrite(true); });
+    lanistaServer->setVinylTestProfileHandler([vinylFixture](const QJsonObject &request) {
+        return vinylFixture->execute(request);
+    });
+#endif
+#endif // !Q_OS_ANDROID: Vault diagnostics and synthetic Vinyl profile seam
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {

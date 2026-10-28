@@ -36,6 +36,7 @@
 //
 // Home / universe domain (Agent 5) — kept OUT of the shared, contended Catalog.js on purpose.
 .pragma library
+.import "UniverseContentApi.js" as ContentApi
 
 // The 2026-07-12 expansion (Hemanth commission): every entry below is LIVE in the carousel and
 // opens a real universe page. All ride the generic name/query-driven template except Marvel
@@ -1201,7 +1202,8 @@ var PRIMARY = {
 
 function markFor(name) {
     var m = MARKS[name];
-    return m ? { logo: "../assets/universes/marks/" + m[0], shape: m[1] } : { logo: "", shape: "" };
+    var rawLogo = m ? ("../assets/universes/marks/" + m[0]) : "";
+    return m ? { logo: /^https:\/\//.test(m[0]) ? m[0] : (typeof ContentApi !== "undefined" ? ContentApi.asset(rawLogo) : rawLogo), shape: m[1] } : { logo: "", shape: "" };
 }
 
 function worldRoster(installed) {
@@ -1215,7 +1217,7 @@ function worldRoster(installed) {
         var cfg = configFor(shelf[i].name);
         var mark = markFor(shelf[i].name);
         var entry = { extensionId: shelf[i].extensionId, name: shelf[i].name,
-                      banner: shelf[i].banner || cfg.wallpaper || cfg.banner || "",
+                      banner: cfg.galleryBanner || (typeof ContentApi !== "undefined" ? ContentApi.asset(shelf[i].banner || "") : (shelf[i].banner || "")) || cfg.wallpaper || cfg.banner || "",
                       logo: mark.logo || shelf[i].logo || "", logoShape: mark.shape,
                       primary: PRIMARY[shelf[i].name] || null,
                       blurb: cfg.blurb || "", chips: cfg.chips || [] };
@@ -1256,13 +1258,24 @@ var FACETS = [
     { key: "series", label: "Series", match: /show|series/i },
     { key: "comics", label: "Comics", match: /comic|graphic/i }
 ];
+// Older cached roster revisions encoded RegExp as {}; retain their matching rules.
+var _facetMatchers = {};
+for (var _facetIndex = 0; _facetIndex < FACETS.length; ++_facetIndex)
+    _facetMatchers[FACETS[_facetIndex].key] = FACETS[_facetIndex].match;
 function holds(entry, key) {
     if (entry && entry.primary) return entry.primary.indexOf(key) >= 0;
     var chips = (entry && entry.chips) || [];
     for (var f = 0; f < FACETS.length; f++) {
         if (FACETS[f].key !== key) continue;
+        var matcher = FACETS[f].match;
+        if (!matcher || typeof matcher.test !== "function") {
+            try {
+                matcher = matcher && typeof matcher.source === "string"
+                        ? new RegExp(matcher.source, matcher.flags || "") : _facetMatchers[key];
+            } catch (_) { matcher = _facetMatchers[key]; }
+        }
         for (var i = 0; i < chips.length; i++)
-            if (FACETS[f].match.test(String(chips[i].t))) return true;
+            if (matcher && matcher.test(String(chips[i].t))) return true;
     }
     return false;
 }
@@ -1290,7 +1303,7 @@ function tributes(installed) {
             var cfg = configFor(u.name);
             return { extensionId: u.extensionId, name: u.name, at: at,
                      standard: !!(cfg.shelves || cfg.manga || cfg.sagaGrid),
-                     banner: u.banner || cfg.banner || "", blurb: cfg.blurb || "" };
+                     banner: cfg.tributeBanner || (typeof ContentApi !== "undefined" ? ContentApi.asset(u.banner || "") : (u.banner || "")) || cfg.banner || "", blurb: cfg.blurb || "" };
         })
         .sort(function(x, y) { return rank(x.name) - rank(y.name) || x.at - y.at; });
 }
@@ -1676,3 +1689,20 @@ var shelfOverlays = {
     }
 })();
 // ═══ END GENERATED: THE SHELVES ═══
+
+// Bundled values above are the offline starter snapshot.
+function syncContent() {
+    if (typeof ContentApi === "undefined") return;
+    var data = ContentApi.document("universes-roster");
+    if (!data || !Object.keys(data).length) return;
+    data = ContentApi.resolveAssets(data);
+    if (data.universes !== undefined && (Array.isArray(universes) ? Array.isArray(data.universes) : typeof data.universes === typeof universes)) universes = data.universes;
+    if (data.archive !== undefined && (Array.isArray(archive) ? Array.isArray(data.archive) : typeof data.archive === typeof archive)) archive = data.archive;
+    if (data.placeholders !== undefined && (Array.isArray(placeholders) ? Array.isArray(data.placeholders) : typeof data.placeholders === typeof placeholders)) placeholders = data.placeholders;
+    if (data.MARKS !== undefined && (Array.isArray(MARKS) ? Array.isArray(data.MARKS) : typeof data.MARKS === typeof MARKS)) MARKS = data.MARKS;
+    if (data.PRIMARY !== undefined && (Array.isArray(PRIMARY) ? Array.isArray(data.PRIMARY) : typeof data.PRIMARY === typeof PRIMARY)) PRIMARY = data.PRIMARY;
+    if (data.FACETS !== undefined && (Array.isArray(FACETS) ? Array.isArray(data.FACETS) : typeof data.FACETS === typeof FACETS)) FACETS = data.FACETS;
+    if (data.TRIBUTE_ORDER !== undefined && (Array.isArray(TRIBUTE_ORDER) ? Array.isArray(data.TRIBUTE_ORDER) : typeof data.TRIBUTE_ORDER === typeof TRIBUTE_ORDER)) TRIBUTE_ORDER = data.TRIBUTE_ORDER;
+    if (data.shelfOverlays !== undefined && (Array.isArray(shelfOverlays) ? Array.isArray(data.shelfOverlays) : typeof data.shelfOverlays === typeof shelfOverlays)) shelfOverlays = data.shelfOverlays;
+}
+if (typeof ContentApi !== "undefined") ContentApi.register(syncContent);

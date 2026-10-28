@@ -1,0 +1,4 @@
+{"oracle":"405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f","cases":286,"output":"/workspace/shared/colosseum-m07-20261020/verification-render/legacy-render-dynamic.json"}
+PASS 286 pinned legacy render cases; 0 mismatches
+(node:20) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)

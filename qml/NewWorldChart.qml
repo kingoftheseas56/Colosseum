@@ -1,5 +1,6 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import QtQuick.Shapes
 import "OnePieceNewWorldAtlasData.js" as Atlas
 import "OnePieceNewWorldData.js" as Story
@@ -7,6 +8,7 @@ import "OnePieceNewWorldAdapter.js" as Adapter
 
 Item {
     id: root
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     width: 1680
     height: 960
     clip: true
@@ -46,7 +48,7 @@ Item {
         return result
     }
     function bridgeInk() {
-        var forest = Atlas.location("green-bit"), city = Atlas.location("dressrosa")
+        var forest = (root.universeContentGeneration, Atlas.location)("green-bit"), city = (root.universeContentGeneration, Atlas.location)("dressrosa")
         var x = forest.x * 1680, top = forest.y * 960 + forest.h / 2
         var bottom = city.y * 960 - city.h / 2
         var path = "M" + (x - 3) + " " + top + "V" + bottom + " M" + (x + 3) + " " + top + "V" + bottom
@@ -56,15 +58,15 @@ Item {
     }
     function routeInk(group) {
         var result = ""
-        for (var i = 0; i < Atlas.routeLegs.length; ++i) {
-            var leg = Atlas.routeLegs[i]
+        for (var i = 0; i < (root.universeContentGeneration, Atlas.routeLegs).length; ++i) {
+            var leg = (root.universeContentGeneration, Atlas.routeLegs)[i]
             var category = leg.route
             if (leg.kind === "ascent" || leg.kind === "descent" || leg.kind === "waterfall-ascent") category = "vertical"
             else if (leg.kind === "mirror-transit") category = "mirror"
             else if (leg.kind === "inland-journey" || leg.kind === "return") category = "inland"
             if (category !== group) continue
-            var a = Atlas.location(leg.from)
-            var b = Atlas.location(leg.to)
+            var a = (root.universeContentGeneration, Atlas.location)(leg.from)
+            var b = (root.universeContentGeneration, Atlas.location)(leg.to)
             if (!a || !b) continue
             result += "M" + a.x * 1680 + " " + a.y * 960 + " C"
                     + leg.c1[0] * 1680 + " " + leg.c1[1] * 960 + " "
@@ -168,7 +170,7 @@ Item {
     Text { x: 182; y: 648; width: 315; text: "10,000 m beneath the Red Line"; color: "#7c775c"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true; horizontalAlignment: Text.AlignHCenter }
 
     Repeater {
-        model: Atlas.regions
+        model: (root.universeContentGeneration, Atlas.regions)
         delegate: Item {
             id: region
             required property var modelData
@@ -250,7 +252,7 @@ Item {
         }
     }
     Repeater {
-        model: Atlas.locations
+        model: (root.universeContentGeneration, Atlas.locations)
         delegate: NewWorldLandform {
             required property var modelData
             objectName: "newWorldLandform-" + modelData.id
@@ -272,7 +274,7 @@ Item {
         }
     }
     Repeater {
-        model: Atlas.locations
+        model: (root.universeContentGeneration, Atlas.locations)
         delegate: Text {
             id: label
             required property var modelData
@@ -320,13 +322,13 @@ Item {
         OnePieceRoundBadge {
             objectName: "newWorldReverieContextBadge"
             width: 84; height: 84
-            source: Qt.resolvedUrl(Adapter.contextArt(Story.worldContext).badgeSource)
+            source: Qt.resolvedUrl((root.universeContentGeneration, Adapter.contextArt)((root.universeContentGeneration, Story.worldContext)).badgeSource)
             Accessible.ignored: true
         }
         Text {
             anchors.verticalCenter: parent.verticalCenter
             width: 245
-            text: Story.worldContext.title.toUpperCase()
+            text: (root.universeContentGeneration, Story.worldContext).title.toUpperCase()
             color: "#8b704b"; font.family: root.bodyFamily; font.pixelSize: 12
             wrapMode: Text.WordWrap
         }

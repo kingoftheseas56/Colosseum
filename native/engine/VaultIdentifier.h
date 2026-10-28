@@ -1,6 +1,7 @@
 #pragma once
 
 #include <QObject>
+#include <QSet>
 #include <QString>
 #include <QVariantMap>
 
@@ -60,6 +61,9 @@ public:
     bool recordAmbiguous(const QString& groupKey, int candidateCount);
 
 private:
+    void retryPending();
+    mutable QSet<QString> m_pendingGroups;
+    bool m_retryScheduled = false;
     VaultIndex* m_index = nullptr;
     ComicsCatalog* m_comics = nullptr;
     MalCatalog* m_mal = nullptr;

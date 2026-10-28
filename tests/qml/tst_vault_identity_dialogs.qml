@@ -4,15 +4,21 @@ import QtQuick.Window
 import "../../qml" as Colosseum
 
 TestCase {
+    id: test
     name: "VaultIdentityDialogs"
+    property var pendingOwner: null
+    property int cancellations: 0
     when: windowShown
 
-    Window { id: testWindow; width: 720; height: 520; visible: true }
+    width:720; height:520
+    Item { id: opener; objectName:"identityOpener"; focus:true }
     property var dialog
 
     Component {
         id: dialogComponent
-        Colosseum.VaultIdentityCeremonyDialog {}
+        Colosseum.VaultIdentityCeremonyDialog {
+            onCancelRequested: {test.pendingOwner=null;test.cancellations++;close();}
+        }
     }
 
     SignalSpy {
@@ -22,15 +28,37 @@ TestCase {
     }
 
     function initTestCase() {
-        dialog = dialogComponent.createObject(testWindow)
+        dialog = dialogComponent.createObject(test)
         verify(dialog !== null)
     }
 
     function cleanup() {
         if (dialog) dialog.close()
-        choiceSpy.clear()
+        choiceSpy.clear();pendingOwner=null;cancellations=0
     }
 
+    function openPending(type) {
+        pendingOwner={relationship:"pending",type:type};opener.forceActiveFocus();
+        dialog.openCeremony(pendingOwner);tryCompare(dialog,"opened",true);wait(0);
+    }
+    function test_escape_cancels_pending_owner_and_restores_focus_data() {
+        return [{tag:"changed",type:"changed-content"},{tag:"copy",type:"likely-copy"}];
+    }
+    function test_escape_cancels_pending_owner_and_restores_focus(data) {
+        openPending(data.type);keyClick(Qt.Key_Escape);tryCompare(dialog,"visible",false);
+        compare(pendingOwner,null);compare(cancellations,1);compare(choiceSpy.count,0);
+        tryCompare(opener,"activeFocus",true);
+        openPending(data.type);verify(dialog.visible);verify(pendingOwner!==null);
+    }
+    function test_pointer_cancel_clears_owner_without_decision() {
+        openPending("changed-content");var button=findChild(dialog.contentItem,"vaultCancelIdentity");verify(button!==null);
+        mouseClick(button,button.width/2,button.height/2);tryCompare(dialog,"visible",false);
+        compare(pendingOwner,null);compare(cancellations,1);compare(choiceSpy.count,0);tryCompare(opener,"activeFocus",true);
+    }
+    function test_keyboard_tab_cancel_clears_owner_without_decision() {
+        openPending("likely-copy");keyClick(Qt.Key_Tab);keyClick(Qt.Key_Tab);keyClick(Qt.Key_Return);
+        tryCompare(dialog,"visible",false);compare(pendingOwner,null);compare(cancellations,1);compare(choiceSpy.count,0);
+    }
     function test_changed_content_dialog_renders_and_emits() {
         dialog.ceremony = {
             type: "changed-content",

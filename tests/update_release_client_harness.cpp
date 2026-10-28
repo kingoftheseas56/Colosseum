@@ -91,6 +91,7 @@ public:
     QByteArray manifestBody = validManifest();
     QByteArray signatureBody = hex(kValidSignature);
     QByteArray latestRequest;
+    QByteArray feedRequest;
     QByteArray manifestRequest;
     QByteArray signatureRequest;
     QByteArray installerRequest;
@@ -154,8 +155,12 @@ protected:
             const QByteArray requestLine = lineEnd >= 0 ? request.left(lineEnd) : request;
             const QList<QByteArray> parts = requestLine.split(' ');
             const QByteArray path = parts.size() > 1 ? parts.at(1) : QByteArray{};
-            if (path == "/repos/kingoftheseas56/Colosseum/releases/latest") {
-                latestRequest = request;
+            if (path == "/repos/kingoftheseas56/Colosseum/releases/latest"
+                || path == "/updates/stable.json") {
+                if (path == "/updates/stable.json")
+                    feedRequest = request;
+                else
+                    latestRequest = request;
                 if (holdLatest)
                     return;
                 if (!redirectLocation.isEmpty()) {
@@ -199,11 +204,14 @@ private:
     }
 };
 
-ReleaseClientConfig configFor(const FixtureServer& server, bool automaticInstallerSupported = true)
+ReleaseClientConfig configFor(const FixtureServer& server,
+                              bool automaticInstallerSupported = true,
+                              bool firstPartyFeed = false)
 {
     ReleaseClientConfig config;
     config.latestReleaseUrl = QUrl(server.baseUrl()
-        + QStringLiteral("/repos/kingoftheseas56/Colosseum/releases/latest"));
+        + (firstPartyFeed ? QStringLiteral("/updates/stable.json")
+                          : QStringLiteral("/repos/kingoftheseas56/Colosseum/releases/latest")));
     config.publicKey = QByteArray(
         reinterpret_cast<const char*>(kUpdateTestPublicKey.data()),
         static_cast<qsizetype>(kUpdateTestPublicKey.size()));
@@ -214,9 +222,11 @@ ReleaseClientConfig configFor(const FixtureServer& server, bool automaticInstall
 }
 
 ReleaseCheckResult check(QNetworkAccessManager& nam, FixtureServer& server,
-                         const QString& priorEtag = {}, bool automaticInstallerSupported = true)
+                         const QString& priorEtag = {}, bool automaticInstallerSupported = true,
+                          bool firstPartyFeed = false)
 {
-    UpdateReleaseClient client(&nam, configFor(server, automaticInstallerSupported));
+    UpdateReleaseClient client(&nam, configFor(server, automaticInstallerSupported,
+                                               firstPartyFeed));
     ReleaseCheckResult result;
     bool called = false;
     QEventLoop loop;
@@ -295,6 +305,16 @@ int main(int argc, char** argv)
             "GitHub API version header sent");
     require(server.latestRequest.contains("User-Agent: Colosseum/9.8.7"),
             "installed-version user agent sent");
+
+    const ReleaseCheckResult firstParty = check(nam, server, {}, true, true);
+    require(firstParty.status == ReleaseCheckResult::Status::Valid,
+            "first-party JSON envelope accepts a valid signed manifest");
+    require(firstParty.assetUrls.size() == 3,
+            "first-party feed preserves all signed release asset URLs");
+    require(server.feedRequest.contains("Accept: application/json"),
+            "first-party feed uses standard JSON Accept");
+    require(!server.feedRequest.contains("X-Github-Api-Version:"),
+            "first-party feed omits the GitHub-specific API version header");
 
     server.returnNotModified = true;
     const ReleaseCheckResult notModified = check(nam, server, valid.etag);

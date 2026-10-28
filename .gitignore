@@ -11,6 +11,8 @@ tools/
 /tools/*
 !/tools/colosseum-harness/
 !/tools/colosseum-harness/**
+!/tools/linux-release/
+!/tools/linux-release/**
 # ...but native/tools/ is lanista's CLI SOURCE (lanista.cpp, LanistaHash.*), not scratch.
 # The unanchored tools/ rule above also matches native/tools/ — carve it back in so
 # the CLI source can be tracked normally.

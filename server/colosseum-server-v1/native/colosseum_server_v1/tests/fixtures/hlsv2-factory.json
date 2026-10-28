@@ -1,0 +1,120 @@
+[
+  {
+    "options": {
+      "mediaURL": "a",
+      "profile": [
+        "x",
+        "y"
+      ],
+      "maxWidth": [
+        "1200",
+        "900"
+      ],
+      "maxAudioChannels": [
+        1,
+        2
+      ],
+      "videoCodecs": [
+        [
+          1,
+          2
+        ],
+        true
+      ]
+    },
+    "query": "mediaURL=a&maxAudioChannels=1&maxAudioChannels=2&videoCodecs=&videoCodecs=true&profile=x&profile=y&maxWidth=1200&maxWidth=900"
+  },
+  {
+    "options": {
+      "mediaURL": "a",
+      "maxAudioChannels": 100000000000000000000
+    },
+    "query": "mediaURL=a&maxAudioChannels=100000000000000000000"
+  },
+  {
+    "options": {
+      "mediaURL": "a",
+      "maxAudioChannels": 1e+21
+    },
+    "query": "mediaURL=a&maxAudioChannels=1e%2B21"
+  },
+  {
+    "options": {
+      "mediaURL": "a",
+      "maxAudioChannels": 0.000001
+    },
+    "query": "mediaURL=a&maxAudioChannels=0.000001"
+  },
+  {
+    "options": {
+      "mediaURL": "a",
+      "maxAudioChannels": 1.0000000000000002
+    },
+    "query": "mediaURL=a&maxAudioChannels=1.0000000000000002"
+  },
+  {
+    "options": {},
+    "error": "Invalid media url"
+  },
+  {
+    "options": {
+      "mediaURL": ""
+    },
+    "error": "Invalid media url"
+  },
+  {
+    "options": {
+      "mediaURL": 2
+    },
+    "error": "Invalid media url"
+  },
+  {
+    "options": {
+      "mediaURL": "file:a",
+      "maxAudioChannels": 0
+    },
+    "error": "Invalid audio channels"
+  },
+  {
+    "options": {
+      "mediaURL": "file:a",
+      "maxAudioChannels": -2
+    },
+    "error": "Invalid audio channels"
+  },
+  {
+    "options": {
+      "mediaURL": "file:a"
+    },
+    "query": "mediaURL=file%3Aa"
+  },
+  {
+    "options": {
+      "mediaURL": "http://example/a?x=1&b=2",
+      "maxAudioChannels": 2,
+      "forceTranscoding": true,
+      "videoCodecs": [
+        "h264",
+        "hevc"
+      ],
+      "audioCodecs": [
+        "aac"
+      ],
+      "profile": "x y",
+      "maxWidth": "1200"
+    },
+    "query": "mediaURL=http%3A%2F%2Fexample%2Fa%3Fx%3D1%26b%3D2&maxAudioChannels=2&forceTranscoding=1&videoCodecs=h264&videoCodecs=hevc&audioCodecs=aac&profile=x%20y&maxWidth=1200"
+  },
+  {
+    "options": {
+      "mediaURL": "file:a",
+      "maxAudioChannels": null,
+      "videoCodecs": [],
+      "audioCodecs": [
+        "a b",
+        "a'b!"
+      ]
+    },
+    "query": "mediaURL=file%3Aa&audioCodecs=a%20b&audioCodecs=a'b!"
+  }
+]

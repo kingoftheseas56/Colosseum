@@ -79,10 +79,12 @@ colosseum_register_harness(background_work_coordinator_harness unit)
 colosseum_register_harness(foreground_priority_governor_harness unit;responsiveness)
 colosseum_register_harness(background_activity_registry_harness unit)
 colosseum_register_harness(background_work_composition_harness unit;composition)
+colosseum_register_harness(platform_services_harness unit;platform)
 colosseum_register_harness(progress_store_harness        unit)
 colosseum_register_harness(collection_store_harness      unit)
 colosseum_register_harness(cbz_archive_harness           unit)
 colosseum_register_harness(poster_scoreboard_harness     unit)
+colosseum_register_harness(cover_delivery_harness        unit;network;cover)
 colosseum_register_harness(loopback_pin_proxy_harness    unit;network)
 colosseum_register_harness(pin_proxy_factory_harness     unit;network)
 colosseum_register_harness(startup_layout_harness        unit;bootstrap)
@@ -103,6 +105,9 @@ colosseum_register_harness(reader2_autoattach_harness    unit;reader2)
 # overlay, and service candidate selection. The network runtime probe remains
 # intentionally unregistered; these harnesses cover the no-network boundary.
 colosseum_register_harness(tankoyomi_script_provider_transport_harness unit;tankoyomi;network)
+colosseum_register_harness(tankoyomi_worker_transport_harness unit;tankoyomi;network)
+colosseum_register_harness(tankorent_worker_transport_harness unit;torrent;network)
+colosseum_register_harness(manga_nyaa_worker_harness unit;torrent;network)
 colosseum_register_harness(tankoyomi_page_security_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_provider_attempt_timeout_harness unit;tankoyomi;network)
 colosseum_register_harness(tankoyomi_series_matcher_harness unit;tankoyomi)
@@ -112,6 +117,16 @@ colosseum_register_harness(tankoyomi_configuration_store_harness unit;tankoyomi)
 colosseum_register_harness(tankoyomi_service_configuration_harness unit;tankoyomi)
 
 if(WIN32)
+    add_test(NAME colosseum.tankoban_discover_async_preservation
+        COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"
+                -platform offscreen
+                "${CMAKE_CURRENT_SOURCE_DIR}/tankoban_discover_async_preservation_harness.qml")
+    set_tests_properties(colosseum.tankoban_discover_async_preservation PROPERTIES
+        LABELS "unit;tankoban;discover;windows"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_BACKEND=software;QSG_RENDER_LOOP=basic;QT_QUICK_CONTROLS_STYLE=Basic"
+        PASS_REGULAR_EXPRESSION "F1_COMPREHENSIVE_OK"
+        TIMEOUT 60)
+
     add_test(NAME colosseum.reader2_logic
         COMMAND "$<TARGET_FILE_DIR:Qt6::Core>/qml.exe"
                 -platform offscreen
@@ -183,6 +198,12 @@ add_test(NAME colosseum.qttest.qml_module_guard COMMAND tst_qml_module_guard)
 set_tests_properties(colosseum.qttest.qml_module_guard PROPERTIES
     LABELS "unit;player;bootstrap" TIMEOUT 30 ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
 set(CMAKE_AUTOMOC ON)
+
+add_executable(application_shutdown_test application_shutdown_test.cpp)
+target_include_directories(application_shutdown_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+target_link_libraries(application_shutdown_test PRIVATE Qt6::Core Qt6::Qml)
+add_test(NAME colosseum.application_shutdown_test COMMAND application_shutdown_test)
+set_tests_properties(colosseum.application_shutdown_test PROPERTIES LABELS "unit;feria;update" TIMEOUT 10)
 
 add_executable(feria_session_ownership_test feria_session_ownership_test.cpp
     "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
@@ -512,6 +533,42 @@ set_tests_properties(colosseum.world_lifecycle_contract PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# Android phone immersive-navigation contract: the browsing tab bar follows the existing
+# player/book/comic immersive authority instead of becoming a second full-canvas owner.
+add_test(NAME colosseum.phone_immersive_nav_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_phone_immersive_nav.ps1")
+set_tests_properties(colosseum.phone_immersive_nav_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android phone keyboard-avoidance contract: QtActivity resizes above the IME and the narrow
+# browsing tab bar stands down while the software keyboard owns the reduced viewport.
+add_test(NAME colosseum.phone_keyboard_avoidance_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_phone_keyboard_avoidance.ps1")
+set_tests_properties(colosseum.phone_keyboard_avoidance_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android wide-navigation contract: narrow screens keep the bottom bar while landscape
+# tablets/open foldables use the same registry and routes from a left rail.
+add_test(NAME colosseum.wide_android_navigation_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_wide_android_navigation.ps1")
+set_tests_properties(colosseum.wide_android_navigation_contract PROPERTIES
+    LABELS "unit;android;navigation;windows"
+    TIMEOUT 120)
+
+# Android symbol fallback contract: one coverage-qualified application font is registered
+# only on Android, while existing QML symbol use sites remain platform-neutral.
+add_test(NAME colosseum.android_symbol_fallback_contract
+         COMMAND powershell.exe -NoProfile -ExecutionPolicy Bypass -File
+                 "${CMAKE_CURRENT_SOURCE_DIR}/test_android_symbol_fallback.ps1")
+set_tests_properties(colosseum.android_symbol_fallback_contract PROPERTIES
+    LABELS "unit;android;fonts;windows"
+    TIMEOUT 120)
+
 # Search backpressure contract: surface exits and superseded queries abort transport while
 # generation guards reject any callback that races with cancellation.
 add_test(NAME colosseum.search_cancellation_contract
@@ -689,6 +746,36 @@ set_tests_properties(colosseum.qttest.vault_stores PROPERTIES
 # volumes + epub/pdf books). Backbone calls go through QMetaObject::invokeMethod
 # (the same path QML uses), so the test drives the real derivation with QObject
 # fakes. Pure Qt6::Core, GUILESS; QTemporaryDir isolation, no net.
+# Android Vault provider snapshot -> shared index contract. Pure Qt/SQLite; no Android SDK needed.
+add_executable(tst_vault_android_index_adapter
+    auto/vault/tst_vault_android_index_adapter.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidIndexAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultAndroidStorageBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultLocation.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultStoreIo.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_vault_android_index_adapter PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vault_android_index_adapter PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vault_android_index_adapter PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_vault_android_index_adapter POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "$<TARGET_FILE_DIR:tst_vault_android_index_adapter>")
+add_test(NAME colosseum.qttest.vault_android_index_adapter
+         COMMAND tst_vault_android_index_adapter)
+set_tests_properties(colosseum.qttest.vault_android_index_adapter PROPERTIES
+    LABELS "unit;qttest;android;vault"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 add_executable(tst_vault_downloads_root
     auto/vault/tst_vault_downloads_root.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
@@ -775,8 +862,11 @@ add_executable(tst_tankoban_catalog
     auto/tankoban/tst_tankoban_catalog.cpp
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/TankobanCatalog.h")
+target_sources(tst_tankoban_catalog PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h")
 target_include_directories(tst_tankoban_catalog PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_tankoban_catalog PRIVATE Qt6::Core Qt6::Sql Qt6::Network Qt6::Test)
 set_target_properties(tst_tankoban_catalog PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_tankoban_catalog POST_BUILD
@@ -872,6 +962,8 @@ set_tests_properties(colosseum.qttest.vault_scanner PROPERTIES
 # QTemporaryDir index + real small fixture trees per run.
 add_executable(tst_vault_browse_away
     auto/vault/tst_vault_browse_away.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultBrowseAway.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
@@ -1050,7 +1142,7 @@ add_executable(tst_vault_mal_match
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
 target_include_directories(tst_vault_mal_match PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_mal_match PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_mal_match PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_mal_match POST_BUILD
@@ -1106,7 +1198,7 @@ add_executable(tst_vault_identifier
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ImdbCatalog.h")
 target_include_directories(tst_vault_identifier PRIVATE "${COLOSSEUM_NATIVE_DIR}")
-target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+target_link_libraries(tst_vault_identifier PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
 set_target_properties(tst_vault_identifier PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_custom_command(TARGET tst_vault_identifier POST_BUILD
@@ -1582,6 +1674,29 @@ set_tests_properties(colosseum.qttest.player1_selftest_bridge PROPERTIES
 # offscreen gate.
 find_package(Qt6 REQUIRED COMPONENTS QuickTest Qml Quick)
 add_executable(colosseum_qml_tests qml/quicktest_main.cpp)
+add_executable(vault_browse_restore_qml_tests qml/vault_browse_restore_main.cpp)
+target_compile_definitions(vault_browse_restore_qml_tests PRIVATE
+    COLOSSEUM_VAULT_BROWSE_FIXTURE="${CMAKE_CURRENT_SOURCE_DIR}/qml/fixtures/VaultBrowseRestoreFixture.qml")
+target_link_libraries(vault_browse_restore_qml_tests PRIVATE
+    Qt6::Core Qt6::QuickTest Qt6::Qml Qt6::Quick Qt6::Gui)
+set_target_properties(vault_browse_restore_qml_tests PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    add_custom_command(TARGET vault_browse_restore_qml_tests POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            $<TARGET_RUNTIME_DLLS:vault_browse_restore_qml_tests>
+            "${CMAKE_CURRENT_BINARY_DIR}/.."
+        COMMAND ${CMAKE_COMMAND} -E make_directory "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QWindowsIntegrationPlugin>" "${CMAKE_CURRENT_BINARY_DIR}/../platforms"
+        COMMAND_EXPAND_LISTS)
+endif()
+add_test(NAME colosseum.qml.vault_offline_restore
+    COMMAND vault_browse_restore_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_vault_offline_restore.qml")
+set_tests_properties(colosseum.qml.vault_offline_restore PROPERTIES
+    LABELS "qml"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
 colosseum_add_tracker_sync_center_sources(colosseum_qml_tests)
 target_include_directories(colosseum_qml_tests PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
@@ -1618,6 +1733,57 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
 
+add_test(NAME colosseum.qml.native_wallpaper_assets
+         COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_native_wallpaper_assets.qml")
+set_tests_properties(colosseum.qml.native_wallpaper_assets PROPERTIES
+    LABELS "qml;content;release"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+# Vinyl donor regression registry: explicit source suites, not a historical total.
+# These run the real shared runner and preserve its isolated settings setup.
+# Presentation fixtures are test-only; native local playback has separate contracts.
+foreach(vinyl_suite IN ITEMS
+    vinyl_album_page
+    vinyl_artist_header
+    vinyl_artist_model_replacement
+    vinyl_artist_page
+    vinyl_artist_photo_layers
+    vinyl_artist_repair
+    vinyl_artist_scrollbars
+    vinyl_artist_shared_picker
+    vinyl_discover_page
+    vinyl_home_page
+    vinyl_local_controls
+    vinyl_live_artist
+    vinyl_note_picker
+    vinyl_page_data
+    vinyl_personal_state
+    vinyl_song_page
+    vinyl_world_journeys
+    vinyl_world_lists
+    vinyl_world_navigation
+    vinyl_world_visual
+    discover_picker
+    discover_sidebar
+)
+    add_test(NAME "colosseum.qml.${vinyl_suite}"
+        COMMAND colosseum_qml_tests -input
+            "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_${vinyl_suite}.qml")
+    set_tests_properties("colosseum.qml.${vinyl_suite}" PROPERTIES
+        LABELS "qml;vinyl;regression"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+        TIMEOUT 120)
+endforeach()
+
+add_test(NAME colosseum.qml.account_flyout_local_privacy
+    COMMAND colosseum_qml_tests -input
+        "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_account_flyout_local_privacy.qml")
+set_tests_properties(colosseum.qml.account_flyout_local_privacy PROPERTIES
+    LABELS "qml;privacy;vinyl;regression"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
 add_test(NAME colosseum.qml.tracker_sync_center
          COMMAND colosseum_qml_tests -input
                  "${CMAKE_CURRENT_SOURCE_DIR}/qml/tracker_sync_center")
@@ -1625,6 +1791,21 @@ set_tests_properties(colosseum.qml.tracker_sync_center PROPERTIES
     LABELS "qml;windows;tracker;sync-center"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 120)
+
+# Isolated production-component regressions: run on both platforms without
+# depending on the Windows-only aggregate QML suite or live catalogue services.
+foreach(catalogue_regression IN ITEMS
+        comics_shelf_residency_harness
+        discover_page_flow_pagination_harness
+        tst_tankoban_focus_refresh_regression)
+    add_test(NAME colosseum.qml.${catalogue_regression}
+             COMMAND colosseum_qml_tests -input
+                     "${CMAKE_CURRENT_SOURCE_DIR}/${catalogue_regression}.qml")
+    set_tests_properties(colosseum.qml.${catalogue_regression} PROPERTIES
+        LABELS "unit;qml;catalogue"
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
+        TIMEOUT 90)
+endforeach()
 
 # Function 0006: imported Tankoban Progress must reach the real active ComicReaderShell.
 add_test(NAME colosseum.comicreader_sync_resume
@@ -1899,7 +2080,6 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
@@ -1916,6 +2096,13 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
     "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_sources(account_first_light PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp")
 target_include_directories(account_first_light PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(account_first_light PRIVATE
@@ -2045,7 +2232,6 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
@@ -2184,7 +2370,6 @@ add_executable(tst_account_identity
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
@@ -2361,6 +2546,25 @@ add_custom_command(TARGET tst_consumption_history POST_BUILD
             "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
             "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
 add_test(NAME colosseum.qttest.consumption_history COMMAND tst_consumption_history)
+get_target_property(vinyl_music_activity_sources tst_consumption_history SOURCES)
+list(REMOVE_ITEM vinyl_music_activity_sources auto/consumption_history/tst_consumption_history.cpp)
+add_library(vinyl_test_activity_owners STATIC ${vinyl_music_activity_sources})
+target_include_directories(vinyl_test_activity_owners PUBLIC "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_test_activity_owners PUBLIC Qt6::Core Qt6::Sql)
+set_target_properties(vinyl_test_activity_owners PROPERTIES AUTOMOC ON)
+add_executable(tst_vinyl_music_actions auto/account/tst_vinyl_music_actions.cpp ${vinyl_music_activity_sources})
+target_include_directories(tst_vinyl_music_actions PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vinyl_music_actions PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_vinyl_music_actions PROPERTIES AUTOMOC ON RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.vinyl_music_actions COMMAND tst_vinyl_music_actions)
+set_tests_properties(colosseum.qttest.vinyl_music_actions PROPERTIES LABELS "vinyl;activity;history;unit" TIMEOUT 60)
+add_executable(vinyl_recommendation_history_test vinyl_recommendation_history_test.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
+target_include_directories(vinyl_recommendation_history_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_recommendation_history_test PRIVATE colosseum_vinyl_backend vinyl_test_activity_owners Qt6::Test)
+set_target_properties(vinyl_recommendation_history_test PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.vinyl_recommendation_history COMMAND vinyl_recommendation_history_test)
+set_tests_properties(colosseum.vinyl_recommendation_history PROPERTIES LABELS "vinyl;recommendations;history;unit" TIMEOUT 60)
 set_tests_properties(colosseum.qttest.consumption_history PROPERTIES
     LABELS "unit;qttest;activity;history;profile"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
@@ -2467,6 +2671,265 @@ set_tests_properties(colosseum.qttest.account_service_endpoint PROPERTIES
     LABELS "unit;qttest"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 30)
+
+
+# ── No-account edition gate (1.1.9) — exists only in edition builds ────
+# Proves the edition seams against the real classes: endpoint suppression
+# (zero constructible account-service traffic), the accountFeaturesAvailable
+# QML gate, and the prepareForQml local-only settlement with a counting
+# transport. Standard builds never compile this target.
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+add_executable(tst_no_account_edition
+    auto/no_account_edition/tst_no_account_edition.cpp
+    support/account/MemoryAccountCredentialStore.h
+    support/account/MemoryAccountOneTimeSecretSink.h
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountOneTimeSecretSink.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_compile_definitions(tst_no_account_edition PRIVATE
+    COLOSSEUM_NO_ACCOUNT_EDITION=1)
+target_include_directories(tst_no_account_edition PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}"
+    "${CMAKE_CURRENT_SOURCE_DIR}/support/account")
+target_link_libraries(tst_no_account_edition PRIVATE
+    Qt6::Core
+    Qt6::Sql
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_no_account_edition PRIVATE User32)
+endif()
+set_target_properties(tst_no_account_edition PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_edition POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E make_directory
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers"
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::QSQLiteDriverPlugin>"
+            "${CMAKE_CURRENT_BINARY_DIR}/../sqldrivers/")
+add_test(NAME colosseum.qttest.no_account_edition
+         COMMAND tst_no_account_edition)
+set_tests_properties(colosseum.qttest.no_account_edition PROPERTIES
+    LABELS "unit;qttest;windows"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+endif()
+
+
+# Real-runtime startup proof for the no-account edition (1.1.9 review
+# finding 4): the REAL AccountRuntime/ProfileStoreRuntime/coordinator chain
+# through prepareForQml() across fresh, populated, remembered-credential,
+# pending-deletion and storage-failure startups, with a loopback listener
+# proving zero account-service requests. Same source closure as the
+# attachment runtime test; edition builds only.
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+add_executable(tst_no_account_runtime
+    auto/no_account_edition/tst_no_account_runtime.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountBootstrapStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountController.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountDeviceIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountLifecycleCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRecoveryKeyPresenter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountServiceEndpoint.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivitySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CollectionSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/CoreStateSyncProjection.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/DownloadIntentSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/FirstAccountProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountAttachmentReceipt.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistorySyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/LegacyPersonalStateStorage.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileAdoption.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileContext.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDelivery.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryOutbox.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryReceiptStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioCodec.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioTheatreImporter.h"
+    "${COLOSSEUM_NATIVE_DIR}/third_party/miniz/miniz.c"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SharedPcProfileCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncAdapterRegistry.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncHybridClock.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/WatchStateSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerHistoryEvidenceStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerLifecycleCoordinator.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/ExtensionsStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/SearchHistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h")
+target_include_directories(tst_no_account_runtime PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_no_account_runtime PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Network
+    Qt6::Qml
+    Qt6::Sql
+    Qt6::Test)
+if(WIN32)
+    target_link_libraries(tst_no_account_runtime PRIVATE
+        Advapi32
+        User32)
+endif()
+set_target_properties(tst_no_account_runtime PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_no_account_runtime POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Gui>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+
+target_compile_definitions(tst_no_account_runtime PRIVATE
+    COLOSSEUM_NO_ACCOUNT_EDITION=1)
+add_test(NAME colosseum.qttest.no_account_runtime
+         COMMAND tst_no_account_runtime)
+set_tests_properties(colosseum.qttest.no_account_runtime PROPERTIES
+    LABELS "unit;qttest;windows;edition"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen"
+    TIMEOUT 240)
+endif()
 
 
 # ── First-account local-state adoption (Bundle 4B, Slice 11A) ─────────
@@ -2590,6 +3053,8 @@ add_executable(tst_account_attachment_coordinator
     "${COLOSSEUM_NATIVE_DIR}/account/SyncStateStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncEngine.h")
+target_compile_definitions(tst_account_attachment_coordinator PRIVATE
+    COLOSSEUM_ACCOUNT_RECEIPT_TESTING)
 target_include_directories(tst_account_attachment_coordinator PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_account_attachment_coordinator PRIVATE
@@ -3434,7 +3899,6 @@ add_executable(tst_stremio_sync
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
-    "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountCredentialStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStore.h")
 target_include_directories(tst_stremio_sync PRIVATE
@@ -3559,6 +4023,36 @@ set_tests_properties(colosseum.qttest.profile_preferences_sync PROPERTIES
     LABELS "unit;qttest;sync;domain;preferences"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 180)
+
+add_executable(vinyl_taste_selections_test
+    auto/account/tst_vinyl_taste_selections.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h")
+target_include_directories(vinyl_taste_selections_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_taste_selections_test PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(vinyl_taste_selections_test PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.qttest.vinyl_taste_selections COMMAND vinyl_taste_selections_test)
+set_tests_properties(colosseum.qttest.vinyl_taste_selections PROPERTIES
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" TIMEOUT 120 LABELS "vinyl;preferences")
+
+add_executable(tst_vinyl_feedback_snapshot
+    auto/account/tst_vinyl_feedback_snapshot.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h")
+target_include_directories(tst_vinyl_feedback_snapshot PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_vinyl_feedback_snapshot PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_vinyl_feedback_snapshot PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.qttest.vinyl_feedback_snapshot
+         COMMAND tst_vinyl_feedback_snapshot)
+set_tests_properties(colosseum.qttest.vinyl_feedback_snapshot PROPERTIES
+    LABELS "unit;qttest;vinyl;preferences"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
 
 
 # ── Tankoban reader-preference codec/adapter contract (Bundle 8C) ──
@@ -4445,8 +4939,14 @@ set_tests_properties(colosseum.qttest.tracker_sync_center PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
 
+foreach(_account_runtime_target IN ITEMS account_first_light tst_account_attachment_runtime)
+    target_sources(${_account_runtime_target} PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp")
+endforeach()
+
 foreach(_tracker_profile_target IN ITEMS
         account_first_light
+        reader2_profile_runtime_harness
         tst_privacy_policy
         tst_account_attachment_runtime
         tst_account_adoption
@@ -4455,3 +4955,398 @@ foreach(_tracker_profile_target IN ITEMS
         tst_ratings_reviews_journey)
     colosseum_add_tracker_delivery_runtime_sources(${_tracker_profile_target})
 endforeach()
+# Edition-only target (does not exist in standard builds): same tracker
+# delivery closure so the real ProfileStoreRuntime link-completes.
+if(COLOSSEUM_NO_ACCOUNT_EDITION)
+    target_sources(tst_no_account_runtime PRIVATE
+        "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp")
+    colosseum_add_tracker_delivery_runtime_sources(tst_no_account_runtime)
+endif()
+
+# B1 merged-tree transport ownership: master has additional focused catalogue
+# targets in this directory. Match the native graph's transport dependencies
+# without adding them to tests that do not compile a catalogue implementation.
+get_property(_test_catalogue_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_test_catalogue_target IN LISTS _test_catalogue_targets)
+    get_target_property(_test_catalogue_sources ${_test_catalogue_target} SOURCES)
+    if("${_test_catalogue_sources}" MATCHES "engine/(MalCatalog|ImdbCatalog|ComicsCatalog)\\.cpp"
+       AND NOT "${_test_catalogue_sources}" MATCHES "engine/CatalogRemote\\.cpp")
+        target_sources(${_test_catalogue_target} PRIVATE
+            "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp"
+            "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.h")
+        list(APPEND _test_catalogue_sources "${COLOSSEUM_NATIVE_DIR}/engine/CatalogRemote.cpp")
+    endif()
+    if("${_test_catalogue_sources}" MATCHES "engine/(CatalogRemote|TankobanCatalog)\\.cpp")
+        if(NOT "${_test_catalogue_sources}" MATCHES "engine/StaticCatalogueResolver\\.cpp")
+            target_sources(${_test_catalogue_target} PRIVATE
+                "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.cpp"
+                "${COLOSSEUM_NATIVE_DIR}/engine/StaticCatalogueResolver.h")
+        endif()
+        target_link_libraries(${_test_catalogue_target} PRIVATE Qt6::Network)
+    endif()
+endforeach()
+
+# Preserved Vinyl provider-independent contracts. No public provider or seed is run.
+add_executable(music_torrent_matcher_harness
+    music_torrent_matcher_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentMatcher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentQueryPlanner.cpp")
+target_include_directories(music_torrent_matcher_harness PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(music_torrent_matcher_harness PRIVATE Qt6::Core)
+add_test(NAME colosseum.music_torrent_matcher COMMAND music_torrent_matcher_harness)
+set_tests_properties(colosseum.music_torrent_matcher PROPERTIES LABELS "unit;vinyl" TIMEOUT 60)
+
+add_executable(vinyl_stream_contracts vinyl-live/stream_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h")
+target_include_directories(vinyl_stream_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_stream_contracts PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_test(NAME colosseum.vinyl_stream_contracts COMMAND vinyl_stream_contracts)
+set_tests_properties(colosseum.vinyl_stream_contracts PROPERTIES LABELS "unit;vinyl;stream" TIMEOUT 60)
+
+add_executable(vinyl_torrent_provider_contracts vinyl-live/torrent_provider_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylTorrentProvider.cpp" "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylTorrentProvider.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentMatcher.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentQueryPlanner.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/PirateBayIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/ExtTorrentsIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentsCsvIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentsCsvIndexer.h"
+    "${COLOSSEUM_NATIVE_DIR}/torrent/KnabenIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/KnabenIndexer.h")
+target_include_directories(vinyl_torrent_provider_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_torrent_provider_contracts PRIVATE Qt6::Core Qt6::Network Qt6::Test)
+add_test(NAME colosseum.vinyl_torrent_provider_contracts COMMAND vinyl_torrent_provider_contracts)
+set_tests_properties(colosseum.vinyl_torrent_provider_contracts PROPERTIES LABELS "unit;vinyl;torrent" TIMEOUT 60)
+
+# Local source contract uses the same VaultIdentity implementation as the native app.
+add_executable(vinyl_local_source_harness
+    vinyl_local_source_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp")
+set_target_properties(vinyl_local_source_harness PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_local_source_harness PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_local_source_harness PRIVATE Qt6::Core Libmpv::Libmpv)
+add_test(NAME colosseum.vinyl_local_source COMMAND vinyl_local_source_harness)
+set_tests_properties(colosseum.vinyl_local_source PROPERTIES
+    LABELS "unit;vinyl;local;identity" TIMEOUT 60)
+
+set(VINYL_TEST_FFMPEG "" CACHE FILEPATH "ffmpeg used only to generate temporary Vinyl test audio")
+add_executable(vinyl_catalogue_source_test
+    vinyl-catalogue/tst_catalogue_source.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylCatalogueSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylCatalogueSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+set_target_properties(vinyl_catalogue_source_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_catalogue_source_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(vinyl_catalogue_source_test PRIVATE VINYL_FAKE_TRANSPORT="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-catalogue/fake_transport.py")
+target_link_libraries(vinyl_catalogue_source_test PRIVATE colosseum_vinyl_backend Qt6::Core Qt6::Gui Qt6::Network Qt6::Test Libmpv::Libmpv)
+if(MSVC)
+    target_compile_options(vinyl_catalogue_source_test PRIVATE /utf-8)
+endif()
+add_test(NAME colosseum.vinyl_catalogue_source COMMAND vinyl_catalogue_source_test)
+set_tests_properties(colosseum.vinyl_catalogue_source PROPERTIES TIMEOUT 60 LABELS "vinyl;catalogue;native-adapter")
+if(NOT VINYL_TEST_FFMPEG)
+    find_program(_vinyl_test_ffmpeg NAMES ffmpeg ffmpeg.exe)
+    if(_vinyl_test_ffmpeg)
+        set(VINYL_TEST_FFMPEG "${_vinyl_test_ffmpeg}")
+    endif()
+endif()
+add_executable(vinyl_tagged_import_harness
+    vinyl-tagged-import/tst_vinyl_tagged_import.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+set_target_properties(vinyl_tagged_import_harness PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_tagged_import_harness PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_tagged_import_harness PRIVATE Qt6::Core Qt6::Test Libmpv::Libmpv)
+add_test(NAME colosseum.vinyl_tagged_import COMMAND vinyl_tagged_import_harness)
+set_tests_properties(colosseum.vinyl_tagged_import PROPERTIES
+    LABELS "vinyl;local;metadata" TIMEOUT 120
+    ENVIRONMENT "VINYL_TEST_FFMPEG=${VINYL_TEST_FFMPEG}")
+
+# Local session state machine uses its dedicated fake MpvItem module only.
+add_executable(vinyl_native_session_bridge
+    vinyl-native-session-bridge/runner.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
+set_target_properties(vinyl_native_session_bridge PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_native_session_bridge PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_native_session_bridge PRIVATE colosseum_vinyl_app colosseum_vinyl_backend vinyl_test_activity_owners
+    Qt6::Core Qt6::Qml Qt6::Quick Qt6::QuickTest MpvQt::MpvQt)
+target_compile_definitions(vinyl_native_session_bridge PRIVATE
+    VINYL_CONTRACT_IMPORTS="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+if(MSVC)
+    target_compile_options(vinyl_native_session_bridge PRIVATE /utf-8)
+    target_compile_options(vinyl_local_source_harness PRIVATE /utf-8)
+    target_compile_options(vinyl_tagged_import_harness PRIVATE /utf-8)
+endif()
+add_test(NAME colosseum.qml.vinyl_native_session_bridge
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-session-bridge"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_native_session_bridge PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 60)
+add_test(NAME colosseum.qml.vinyl_live_world_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_live_world.qml")
+add_test(NAME colosseum.qml.vinyl_personal_library_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_personal_library.qml")
+add_test(NAME colosseum.qml.vinyl_home_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_home_flow.qml")
+add_test(NAME colosseum.qml.vinyl_personalized_home_native
+    COMMAND vinyl_native_session_bridge
+         -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_personalized_home.qml")
+set_tests_properties(colosseum.qml.vinyl_personalized_home_native PROPERTIES
+    LABELS "qml;vinyl;recommendations;native-adapter" TIMEOUT 90
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+foreach(onboarding_case IN ITEMS artist_onboarding artist_onboarding_service)
+    add_test(NAME colosseum.qml.vinyl_${onboarding_case}_native COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_${onboarding_case}.qml")
+    set_tests_properties(colosseum.qml.vinyl_${onboarding_case}_native PROPERTIES
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+        TIMEOUT 120 LABELS "vinyl;qml;onboarding")
+endforeach()
+add_test(NAME colosseum.qml.vinyl_discovery_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_discovery.qml")
+add_test(NAME colosseum.qml.vinyl_catalogue_pages_native
+    COMMAND vinyl_native_session_bridge
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_catalogue_pages.qml")
+foreach(vinyl_playback_case IN ITEMS player_seek playback_queue playback_actions)
+    add_test(NAME colosseum.qml.vinyl_${vinyl_playback_case}_native
+        COMMAND vinyl_native_session_bridge
+            -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/tst_${vinyl_playback_case}.qml")
+    set_tests_properties(colosseum.qml.vinyl_${vinyl_playback_case}_native PROPERTIES
+        LABELS "qml;vinyl;playback;native-adapter" TIMEOUT 120
+        ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+endforeach()
+set_tests_properties(colosseum.qml.vinyl_catalogue_pages_native PROPERTIES
+    LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 90
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+set_tests_properties(colosseum.qml.vinyl_discovery_native PROPERTIES
+    LABELS "qml;vinyl;catalogue;native-adapter" TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+set_tests_properties(colosseum.qml.vinyl_home_native PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+set_tests_properties(colosseum.qml.vinyl_personal_library_native PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 60
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+set_tests_properties(colosseum.qml.vinyl_live_world_native PROPERTIES
+    LABELS "qml;vinyl;local;native-adapter" TIMEOUT 120
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic")
+
+add_test(NAME colosseum.qml.vinyl_local_session
+    COMMAND colosseum_qml_tests
+        -input "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session"
+        -import "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-local-session/imports")
+set_tests_properties(colosseum.qml.vinyl_local_session PROPERTIES
+    LABELS "qml;vinyl;local;session"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
+    TIMEOUT 120)
+
+find_program(COLOSSEUM_VINYL_TEST_NODE NAMES node)
+if(COLOSSEUM_VINYL_TEST_NODE)
+    add_test(NAME colosseum.vinyl_runtime_integrity
+        COMMAND "${COLOSSEUM_VINYL_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-live/runtime_integrity.test.mjs")
+    set_tests_properties(colosseum.vinyl_runtime_integrity PROPERTIES
+        LABELS "unit;vinyl;stream" TIMEOUT 30)
+    add_test(NAME colosseum.vinyl_shell_back
+        COMMAND "${COLOSSEUM_VINYL_TEST_NODE}" "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_shell_back_test.mjs")
+    set_tests_properties(colosseum.vinyl_shell_back PROPERTIES
+        LABELS "unit;vinyl;shell" TIMEOUT 30)
+endif()
+
+# Shared search privacy scope contract; static Node assertions, no native UI claim.
+if(COLOSSEUM_VINYL_TEST_NODE)
+    add_test(NAME colosseum.vinyl_search_privacy
+        COMMAND "${COLOSSEUM_VINYL_TEST_NODE}"
+            "${CMAKE_CURRENT_SOURCE_DIR}/vinyl_search_privacy_test.mjs"
+            "${CMAKE_CURRENT_SOURCE_DIR}/..")
+    set_tests_properties(colosseum.vinyl_search_privacy PROPERTIES
+        LABELS "unit;vinyl;privacy" TIMEOUT 30)
+endif()
+
+# Integration safety of dormant worlds uses the production owners, not provider journeys.
+foreach(variant development qualification shipping_disabled)
+    add_executable(vinyl_availability_${variant} vinyl_availability_harness.cpp)
+    target_include_directories(vinyl_availability_${variant} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+    target_link_libraries(vinyl_availability_${variant} PRIVATE Qt6::Core)
+    if(variant STREQUAL "shipping_disabled")
+        target_compile_definitions(vinyl_availability_${variant} PRIVATE
+            COLOSSEUM_VINYL_IN_APP=0 COLOSSEUM_ENABLE_VINYL_QUALIFICATION=1)
+    else()
+        target_compile_definitions(vinyl_availability_${variant} PRIVATE COLOSSEUM_VINYL_IN_APP=1)
+        if(variant STREQUAL "qualification")
+            target_compile_definitions(vinyl_availability_${variant} PRIVATE COLOSSEUM_ENABLE_VINYL_QUALIFICATION=1)
+        endif()
+    endif()
+    add_test(NAME colosseum.vinyl_availability_${variant} COMMAND vinyl_availability_${variant})
+endforeach()
+find_package(Qt6 REQUIRED COMPONENTS Test)
+foreach(owner runtime operations)
+    add_executable(feria_${owner}_integration_test feria_${owner}_test.cpp
+        "${CMAKE_CURRENT_SOURCE_DIR}/../native/SessionStore.h")
+    target_include_directories(feria_${owner}_integration_test PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../native")
+    target_link_libraries(feria_${owner}_integration_test PRIVATE feria_discovery Qt6::Test)
+endforeach()
+# The donor's unsafe-fence negative control needs its separate FERIA_TEST_CONTROLS
+# library. Production-owner integration runs all fourteen ordinary contract cases.
+add_test(NAME colosseum.feria_runtime_integration COMMAND feria_runtime_integration_test
+    testIdentitySurvivesNavigationAndAllowsDuplicateUrls
+    testLifecyclePhasesFollowEngineAndCanonicalClose
+    testWorkIsBoundToDocumentAndRedeemsOnce
+    testRendererLossStartsNewEngineGeneration
+    testAccountSwitchRejectsOldWorkAndCommands
+    testReplacementInstanceFencesPreviousView
+    testViewIsNeverReboundAndActivityHasOneView
+    testCommandsRequireCurrentLeaseAndPhase
+    testNavigateIsValidatedBeforeDispatch
+    testCloseWithoutEngineUsesTheCloseLedger
+    testOpenIsValidatedAndKeepsOpenOrSwitch
+    testViewsRetireBeforeProfiles
+    testShutdownRefusesWorkAndRunsAdapterOnce
+    testAdmissionIsRefusedOffTheOwnerThread)
+add_test(NAME colosseum.feria_operations_integration COMMAND feria_operations_integration_test)
+
+# M0F: the same native facade and existing player implementation used by the app.
+if(TARGET colosseum_vinyl_app)
+    foreach(vinyl_check IN ITEMS facade mpv_events)
+        if(vinyl_check STREQUAL "facade")
+            set(vinyl_check_source "${CMAKE_CURRENT_SOURCE_DIR}/vinyl-native-facade/test_facade.cpp")
+        else()
+            set(vinyl_check_source "${CMAKE_CURRENT_SOURCE_DIR}/auto/player/tst_mpvitem_native_events.cpp")
+        endif()
+        add_executable(tst_vinyl_native_${vinyl_check} "${vinyl_check_source}"
+            "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+            "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
+            "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h")
+        target_include_directories(tst_vinyl_native_${vinyl_check} PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+        target_compile_definitions(tst_vinyl_native_${vinyl_check} PRIVATE
+            VAULT_FIXTURES_DIR="${CMAKE_CURRENT_SOURCE_DIR}/fixtures/vault")
+        target_link_libraries(tst_vinyl_native_${vinyl_check} PRIVATE
+            colosseum_vinyl_app colosseum_vinyl_backend vinyl_test_activity_owners
+            Qt6::Core Qt6::Gui Qt6::Network Qt6::Quick Qt6::Test MpvQt::MpvQt)
+        set_target_properties(tst_vinyl_native_${vinyl_check} PROPERTIES
+            RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+        add_test(NAME colosseum.qttest.vinyl_native_${vinyl_check}
+            COMMAND tst_vinyl_native_${vinyl_check})
+        set_tests_properties(colosseum.qttest.vinyl_native_${vinyl_check} PROPERTIES
+            LABELS "vinyl;qttest" TIMEOUT 45
+            ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+            ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Core>")
+    endforeach()
+endif()
+
+add_executable(vinyl_personal_library_contracts vinyl_personal_library_harness.cpp
+    "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h")
+set_target_properties(vinyl_personal_library_contracts PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_personal_library_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_personal_library_contracts PRIVATE colosseum_vinyl_app vinyl_test_activity_owners Qt6::Test Qt6::Quick MpvQt::MpvQt)
+add_test(NAME colosseum.vinyl_personal_library COMMAND vinyl_personal_library_contracts)
+set_tests_properties(colosseum.vinyl_personal_library PROPERTIES LABELS "vinyl;personal;qttest" TIMEOUT 45
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1")
+
+# Recommendation backend contract mains remain standalone executables.
+add_executable(vinyl_be1_contract_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be1-recommendation-candidate-prototype/test_recommendation_candidate_contract.cpp")
+target_link_libraries(vinyl_be1_contract_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be1_contract COMMAND vinyl_be1_contract_test)
+
+add_executable(vinyl_be2_state_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be2-feedback-taste-state-prototype/test_feedback_taste_state.cpp")
+target_link_libraries(vinyl_be2_state_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be2_state COMMAND vinyl_be2_state_test)
+
+add_executable(vinyl_be2_persistence_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be2-feedback-taste-state-prototype/test_feedback_taste_persistence.cpp")
+target_link_libraries(vinyl_be2_persistence_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be2_persistence COMMAND vinyl_be2_persistence_test)
+
+add_executable(vinyl_derivation_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be-derivation-prototype/test_recommendation_derivation.cpp")
+target_link_libraries(vinyl_derivation_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_derivation COMMAND vinyl_derivation_test)
+
+add_executable(vinyl_be3_ranker_test
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/be3-deterministic-ranker-prototype/test_deterministic_ranker.cpp")
+target_link_libraries(vinyl_be3_ranker_test PRIVATE colosseum_vinyl_backend Qt6::Core)
+add_test(NAME colosseum.vinyl_be3_ranker COMMAND vinyl_be3_ranker_test)
+
+add_executable(vinyl_recommendation_contracts_test vinyl_recommendation_contracts.cpp)
+add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_test.cpp)
+target_sources(vinyl_recommendation_service_test PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHome.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
+set_target_properties(vinyl_recommendation_service_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_recommendation_service_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_recommendation_service_test PRIVATE colosseum_vinyl_backend vinyl_test_activity_owners Qt6::Qml Qt6::Test)
+add_test(NAME colosseum.vinyl_recommendation_service COMMAND vinyl_recommendation_service_test)
+set_tests_properties(colosseum.vinyl_recommendation_service PROPERTIES ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" LABELS "vinyl;recommendations;unit" TIMEOUT 60)
+if(MSVC)
+    target_compile_options(vinyl_recommendation_service_test PRIVATE /utf-8)
+endif()
+set_target_properties(vinyl_recommendation_contracts_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_recommendation_contracts_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_recommendation_contracts_test PRIVATE colosseum_vinyl_backend Qt6::Test)
+add_test(NAME colosseum.vinyl_recommendation_contracts COMMAND vinyl_recommendation_contracts_test)
+set_tests_properties(
+    colosseum.vinyl_be1_contract colosseum.vinyl_be2_state colosseum.vinyl_be2_persistence
+    colosseum.vinyl_derivation colosseum.vinyl_be3_ranker colosseum.vinyl_recommendation_contracts
+    PROPERTIES ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1" LABELS "vinyl;recommendations;unit" TIMEOUT 60)
+
+if(MSVC)
+    foreach(vinyl_recommendation_target IN ITEMS
+            vinyl_be1_contract_test
+            vinyl_be2_state_test
+            vinyl_be2_persistence_test
+            vinyl_derivation_test
+            vinyl_be3_ranker_test
+            vinyl_recommendation_contracts_test)
+        target_compile_options(${vinyl_recommendation_target} PRIVATE /utf-8)
+    endforeach()
+endif()
+
+# Account vault consumers share the platform-selected implementation.
+get_property(_account_vault_test_targets DIRECTORY PROPERTY BUILDSYSTEM_TARGETS)
+foreach(_account_vault_test_target IN LISTS _account_vault_test_targets)
+    get_target_property(_account_vault_sources ${_account_vault_test_target} SOURCES)
+    if("${_account_vault_sources}" MATCHES "account/(AccountCredentialStoreFactory\\.cpp|WindowsAccountCredentialStore\\.h)")
+        target_link_libraries(${_account_vault_test_target} PRIVATE colosseum_account_credentials)
+    endif()
+endforeach()
+add_executable(tst_account_secure_storage account_secure_storage/tst_account_secure_storage.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/AccountCredentialStoreFactory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AndroidAccountCredentialStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/AndroidJniSecureStorageBackend.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/platform/PlatformKind.cpp")
+if(WIN32)
+    target_sources(tst_account_secure_storage PRIVATE "${COLOSSEUM_NATIVE_DIR}/account/WindowsAccountSensitiveClipboard.cpp")
+    target_link_libraries(tst_account_secure_storage PRIVATE User32)
+endif()
+target_link_libraries(tst_account_secure_storage PRIVATE colosseum_account_credentials Qt6::Test)
+add_test(NAME colosseum.qttest.account_secure_storage COMMAND tst_account_secure_storage)
+set_tests_properties(colosseum.qttest.account_secure_storage PROPERTIES LABELS "unit;account;security")

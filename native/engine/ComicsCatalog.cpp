@@ -12,6 +12,26 @@
 #include <utility>
 #include <vector>
 
+namespace {
+// The page read, state inspection and explicit retry must describe the same
+// *unnormalized* wire request, including the original fallback map.
+struct ComicsPageQuery {
+    QString method;
+    QVariantList args;
+    QVariantMap empty;
+};
+
+ComicsPageQuery comicsPageQuery(const QString& catalogId, const QVariantList& filters,
+                               bool includeExplicit, int offset, int limit) {
+    return {QStringLiteral("discoverPageFiltered"),
+            QVariantList{catalogId, filters, includeExplicit, offset, limit},
+            QVariantMap{{QStringLiteral("items"), QVariantList{}},
+                        {QStringLiteral("nextOffset"), std::max(0, offset)},
+                        {QStringLiteral("exhausted"), true},
+                        {QStringLiteral("freshness"), QStringLiteral("bundled")}}};
+}
+} // namespace
+
 bool ComicsCatalog::openAt(const QString& dbPath) {
     m_filterCache.clear();
     if (!QFileInfo::exists(dbPath)) {
@@ -34,6 +54,11 @@ bool ComicsCatalog::openAt(const QString& dbPath) {
 
 ComicsCatalog::ComicsCatalog(const QString& dbPath, QObject* parent) : QObject(parent) {
     m_conn = QStringLiteral("comics_catalog_%1").arg(reinterpret_cast<quintptr>(this));
+    m_remote = new CatalogRemote(QStringLiteral("comics"), this);
+    connect(m_remote, &CatalogRemote::changed, this, &ComicsCatalog::revisionChanged);
+    connect(m_remote, &CatalogRemote::sourceChanged, this, &ComicsCatalog::catalogueSourceChanged);
+    connect(m_remote, &CatalogRemote::failed, this, &ComicsCatalog::requestFailed);
+    connect(m_remote, &CatalogRemote::queryChanged, this, &ComicsCatalog::remoteQueryChanged);
     m_ok = openAt(dbPath);
 }
 
@@ -86,6 +111,7 @@ static bool catalogTableExists(const QSqlDatabase& db, const QString& name) {
 }
 
 QVariantMap ComicsCatalog::series(int gcdId) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("series"), QVariantList{gcdId}, QVariantMap{}).toMap();
     QVariantMap out;
     if (!m_ok) return out;
     QSqlQuery q(m_db);
@@ -111,7 +137,18 @@ QVariantMap ComicsCatalog::series(int gcdId) const {
     return out;
 }
 
+QVariantMap ComicsCatalog::searchState(const QString& text, int limit) const
+{
+    if (m_ok) return {{"source", "local"}, {"key", QString()}, {"enabled", false},
+        {"status", "success"}, {"pending", false}, {"waiting", false},
+        {"cached", false}, {"error", QString()}, {"retryable", false}};
+    auto state = m_remote->queryState(QStringLiteral("search"), QVariantList{text, limit}, QVariantList{});
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
 QVariantList ComicsCatalog::search(const QString& text, int limit) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("search"), QVariantList{text, limit}, QVariantList{}).toList();
     QVariantList out;
     const QString t = text.trimmed();
     if (!m_ok || t.isEmpty()) return out;
@@ -158,6 +195,7 @@ QVariantList ComicsCatalog::search(const QString& text, int limit) const {
 }
 
 QVariantList ComicsCatalog::downloadsFor(int gcdId) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("downloadsFor"), QVariantList{gcdId}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok) return out;
     QSqlQuery q(m_db);
@@ -209,6 +247,7 @@ QVariantList ComicsCatalog::downloadsFor(int gcdId) const {
 }
 
 QVariantList ComicsCatalog::exactMatches(const QString& text) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("exactMatches"), QVariantList{text}, QVariantList{}).toList();
     QVariantList out;
     const QString t = text.trimmed();
     if (!m_ok || t.isEmpty()) return out;
@@ -237,6 +276,7 @@ QVariantList ComicsCatalog::exactMatches(const QString& text) const {
 // --- curated catalog (locg_id-keyed) ---
 
 bool ComicsCatalog::curatedReady() const {
+    if (!m_ok) return m_remote->read(QStringLiteral("curatedReady"), QVariantList{}, false).toBool();
     if (!m_ok) return false;
     QSqlQuery q(m_db);
     if (!q.exec(QStringLiteral("select 1 from curated_series limit 1"))) return false;
@@ -244,6 +284,7 @@ bool ComicsCatalog::curatedReady() const {
 }
 
 QVariantList ComicsCatalog::curatedRanked() const {
+    if (!m_ok) return m_remote->read(QStringLiteral("curatedRanked"), QVariantList{}, QVariantList{}).toList();
     QVariantList out;
     if (!curatedReady()) return out;
     QSqlQuery q(m_db);
@@ -269,6 +310,7 @@ QVariantList ComicsCatalog::curatedRanked() const {
 }
 
 QVariantMap ComicsCatalog::curatedSeries(const QString& locgId) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("curatedSeries"), QVariantList{locgId}, QVariantMap{}).toMap();
     QVariantMap out;
     if (!curatedReady() || locgId.isEmpty()) return out;
     QSqlQuery q(m_db);
@@ -374,6 +416,7 @@ QVariantMap ComicsCatalog::curatedSeries(const QString& locgId) const {
 }
 
 QVariantMap ComicsCatalog::curatedCoverage(const QString& locgId) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("curatedCoverage"), QVariantList{locgId}, QVariantMap{}).toMap();
     QVariantMap out;
     if (!curatedReady() || locgId.isEmpty()
         || !catalogTableExists(m_db, QStringLiteral("curated_series_coverage")))
@@ -401,6 +444,7 @@ QVariantMap ComicsCatalog::curatedCoverage(const QString& locgId) const {
 }
 
 QVariantMap ComicsCatalog::curatedByNorm(const QString& normTitle) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("curatedByNorm"), QVariantList{normTitle}, QVariantMap{}).toMap();
     QVariantMap out;
     const QString t = normTitle.trimmed();
     if (!curatedReady() || t.isEmpty()) return out;
@@ -418,6 +462,7 @@ QVariantMap ComicsCatalog::curatedByNorm(const QString& normTitle) const {
 }
 
 QVariantList ComicsCatalog::curatedGenreShelves(int maxCovers) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("curatedGenreShelves"), QVariantList{maxCovers}, QVariantList{}).toList();
     QVariantList out;
     if (!curatedReady()) return out;
     QSqlQuery q(m_db);
@@ -451,6 +496,7 @@ QVariantList ComicsCatalog::curatedGenreShelves(int maxCovers) const {
 }
 
 bool ComicsCatalog::curatedHasDownloadable(const QString& locgId) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("curatedHasDownloadable"), QVariantList{locgId}, false).toBool();
     if (!curatedReady() || locgId.isEmpty()) return false;
     QSqlQuery q(m_db);
     if (catalogTableExists(m_db, QStringLiteral("curated_source"))) {
@@ -471,6 +517,7 @@ bool ComicsCatalog::curatedHasDownloadable(const QString& locgId) const {
 // --- shelf (browse-landing) ---
 
 QVariantList ComicsCatalog::shelf(const QString& kind, const QString& arg, int limit) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("shelf"), QVariantList{kind, arg, limit}, QVariantList{}).toList();
     QVariantList out;
     if (!m_ok) return out;
     QString where;
@@ -578,6 +625,7 @@ struct DiscoRow {
 } // namespace
 
 QVariantList ComicsCatalog::discoverFilters(const QString& axis, bool includeExplicit) const {
+    if (!m_ok) return m_remote->read(QStringLiteral("discoverFilters"), QVariantList{axis, includeExplicit}, QVariantList{}).toList();
     const QString cacheKey = axis + (includeExplicit ? QStringLiteral("|x") : QStringLiteral("|"));
     const auto cached = m_filterCache.constFind(cacheKey);
     if (cached != m_filterCache.constEnd())
@@ -652,8 +700,42 @@ QVariantMap ComicsCatalog::discoverPage(const QString& catalogId, const QString&
     return discoverPageFiltered(catalogId, filters, includeExplicit, offset, limit);
 }
 
+QVariantMap ComicsCatalog::discoverPageFilteredState(const QString& catalogId,
+                                                      const QVariantList& filters,
+                                                      bool includeExplicit, int offset, int limit) const {
+    if (m_ok) {
+        // Local SQLite remains authoritative, including a local catalogue
+        // without a ready curated table. Do not even inspect remote state.
+        return {{QStringLiteral("source"), QStringLiteral("local")},
+                {QStringLiteral("status"), QStringLiteral("success")},
+                {QStringLiteral("key"), QString()},
+                {QStringLiteral("enabled"), false},
+                {QStringLiteral("pending"), false},
+                {QStringLiteral("waiting"), false},
+                {QStringLiteral("cached"), false},
+                {QStringLiteral("retryable"), false},
+                {QStringLiteral("error"), QString()}};
+    }
+    const auto query = comicsPageQuery(catalogId, filters, includeExplicit, offset, limit);
+    auto state = m_remote->queryState(query.method, query.args, query.empty);
+    state.insert(QStringLiteral("source"), QStringLiteral("remote"));
+    return state;
+}
+
+bool ComicsCatalog::retryDiscoverPageFiltered(const QString& catalogId,
+                                               const QVariantList& filters,
+                                               bool includeExplicit, int offset, int limit) {
+    if (m_ok) return false;
+    const auto query = comicsPageQuery(catalogId, filters, includeExplicit, offset, limit);
+    return m_remote->retry(query.method, query.args, query.empty);
+}
+
 QVariantMap ComicsCatalog::discoverPageFiltered(const QString& catalogId, const QVariantList& filters,
-                                                bool /*includeExplicit*/, int offset, int limit) const {
+                                                bool includeExplicit, int offset, int limit) const {
+    if (!m_ok) {
+        const auto query = comicsPageQuery(catalogId, filters, includeExplicit, offset, limit);
+        return m_remote->read(query.method, query.args, query.empty).toMap();
+    }
     const int lim = std::clamp(limit, 1, kPageLimitMax);
     const int off = std::max(0, offset);
     auto pack = [&](const QVariantList& items, int total) {

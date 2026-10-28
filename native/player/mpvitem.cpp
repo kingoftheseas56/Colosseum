@@ -11,13 +11,68 @@
 #include <QProcess>
 #include <QRegularExpression>
 #include <QSet>
+#include <QThread>
 #include <QUuid>
 #include <QStandardPaths>
 #include <QUrl>
 #include <QtMath>
+#include <chrono>
+#include <functional>
 
 #include "mpvproperties.h"
 #include "http_header_fields.h"
+
+namespace {
+qint64 monotonicMillisecondsSinceEpoch() noexcept
+{
+    return std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+}
+
+// A second client on the SAME core preserves the native playback event payloads
+// which MpvQt 1.2.0 discards. Do not consume MpvQt's own event queue.
+class PlaybackEvents final : public QObject
+{
+public:
+    PlaybackEvents(MpvController *controller, std::function<void(const mpv_event &)> handler)
+        : QObject(controller), m_handler(std::move(handler))
+    {
+        m_client = mpv_create_client(controller->mpv(), "colosseum-playback");
+        if (!m_client)
+            qFatal("Could not create native playback event client");
+        if (mpv_request_event(m_client, MPV_EVENT_SEEK, 1) < 0
+            || mpv_request_event(m_client, MPV_EVENT_PLAYBACK_RESTART, 1) < 0) {
+            qFatal("Could not subscribe to native playback seek events");
+        }
+        mpv_set_wakeup_callback(m_client, [](void *context) {
+            auto *self = static_cast<PlaybackEvents *>(context);
+            QMetaObject::invokeMethod(self, [self] { self->drain(); }, Qt::QueuedConnection);
+        }, this);
+    }
+
+    ~PlaybackEvents() override
+    {
+        // libmpv serializes callback replacement with invocation on this client.
+        // The QObject context remains alive until callbacks have been unregistered.
+        mpv_set_wakeup_callback(m_client, nullptr, nullptr);
+        mpv_destroy(m_client);
+    }
+
+    void drain()
+    {
+        for (;;) {
+            const auto *event = mpv_wait_event(m_client, 0);
+            if (event->event_id == MPV_EVENT_NONE)
+                break;
+            m_handler(*event);
+        }
+    }
+
+private:
+    mpv_handle *m_client{nullptr};
+    std::function<void(const mpv_event &)> m_handler;
+};
+}
 
 MpvItem::MpvItem(QQuickItem *parent)
     : MpvAbstractItem(parent)
@@ -92,8 +147,39 @@ MpvItem::MpvItem(QQuickItem *parent)
     connect(&m_gifTimer, &QTimer::timeout, this, &MpvItem::gifCaptureFrame);
 }
 
+QVariantMap MpvItem::capabilities() const
+{
+    QVariantMap caps;
+    caps.insert(QStringLiteral("frameStepping"), true);
+    caps.insert(QStringLiteral("frameCapture"), true);
+    caps.insert(QStringLiteral("gifCapture"), true);
+    caps.insert(QStringLiteral("audioDelay"), true);
+    caps.insert(QStringLiteral("subtitleDelay"), true);
+    caps.insert(QStringLiteral("videoTransform"), true);
+    caps.insert(QStringLiteral("loudnessNormalization"), true);
+    caps.insert(QStringLiteral("playbackStats"), true);
+    caps.insert(QStringLiteral("subtitleStyling"), true);
+    caps.insert(QStringLiteral("audioOutputRefresh"), true);
+    caps.insert(QStringLiteral("pictureInPicture"), true);
+    return caps;
+}
+
 MpvItem::~MpvItem()
 {
+    // Retire the target under the same lock held by direct native adapters.
+    // No in-flight adapter can touch derived state after this scope exits.
+    {
+        QMutexLocker lock(&m_decodeEvents->lifetime);
+        m_decodeEvents->target = nullptr;
+    }
+    // MpvQt 1.2.0 MpvAbstractItem::~MpvAbstractItem quits and joins the
+    // worker AFTER this derived destructor. Its QThread is a child of this item
+    // and therefore still alive here, even if finished already deleted the
+    // controller. Never dereference/post to that cross-thread controller here.
+    // The shared state survives in PlaybackEvents; callbacks after retirement
+    // see null, and the lock above has joined any callback already using us.
+    Q_ASSERT(QThread::currentThread() == thread());
+    Q_ASSERT(m_decodeWorker && m_decodeWorker != QThread::currentThread());
     // App quitting mid-encode: our parented QProcess would otherwise be killed mid-write,
     // leaving a truncated .gif posing as a saved clip and an orphaned %TEMP% frames dir.
     if (m_gifEncoding && m_gifEncodeProc) {
@@ -109,42 +195,183 @@ MpvItem::~MpvItem()
 
 void MpvItem::setupConnections()
 {
-    connect(mpvController(), &MpvController::propertyChanged,
+    auto *controller = mpvController();
+    m_decodeWorker = controller->thread();
+    const auto state = m_decodeEvents;
+    state->target = this;
+    connect(controller, &MpvController::propertyChanged,
             this, &MpvItem::onPropertyChanged, Qt::QueuedConnection);
-
-    connect(mpvController(), &MpvController::fileStarted,
-            this, [this] {
-        m_decodedRefreshEnabled = false;
-        Q_EMIT fileStarted();
+    connect(controller, &MpvController::asyncReply,
+            this, &MpvItem::onAsyncReply, Qt::QueuedConnection);
+    QMetaObject::invokeMethod(controller, [controller, state] {
+        state->eventSource = new PlaybackEvents(controller, [state](const mpv_event &event) {
+            QMutexLocker lock(&state->lifetime);
+            if (state->target)
+                state->target->handlePlaybackEvent(event);
+        });
     }, Qt::QueuedConnection);
+}
 
-    connect(mpvController(), &MpvController::fileLoaded,
-            this, [this] {
-        m_decodedRefreshEnabled = true;
+void MpvItem::refreshDecodedDimensions()
+{
+    const auto &state = *m_decodeEvents;
+    if (!state.started || !state.loaded || state.streamEntry != state.expectedEntry)
+        return;
+    auto *controller = mpvController();
+    // The VO can retain its last frame for an audio-only replacement. Track
+    // selection is a guard, not a source of either coordinate. Both coordinates
+    // come from ONE native map: dw/dh are the documented dwidth/dheight aliases.
+    const bool hasVideo = !controller->getProperty(QStringLiteral("current-tracks/video")).toMap().isEmpty();
+    const auto params = hasVideo
+        ? controller->getProperty(QStringLiteral("video-out-params")).toMap() : QVariantMap();
+    const int width = params.value(QStringLiteral("dw")).toInt();
+    const int height = params.value(QStringLiteral("dh")).toInt();
+    const auto generation = state.generation;
+    QMetaObject::invokeMethod(this, [this, generation, width, height] {
+        if (generation == m_decodeGeneration)
+            setDecodedDimensions(width > 0 && height > 0 ? width : 0,
+                                 width > 0 && height > 0 ? height : 0);
+    }, Qt::QueuedConnection);
+}
+
+void MpvItem::handlePlaybackEvent(const mpv_event &event)
+{
+    Q_ASSERT(QThread::currentThread() == m_decodeWorker);
+    auto &state = *m_decodeEvents;
+    const auto generation = state.generation;
+    if (event.event_id == MPV_EVENT_START_FILE) {
+        state.streamEntry = static_cast<mpv_event_start_file *>(event.data)->playlist_entry_id;
+        // Preserve mpv's playlist expansion/automatic advancement within this
+        // request. Only a matching END can authorize a successor; a replacement
+        // boundary revokes that authorization before issuing the new command.
+        if (state.acceptNextEntry)
+            state.expectedEntry = state.streamEntry;
+        state.acceptNextEntry = false;
+        state.started = state.expectedEntry >= 0 && state.streamEntry == state.expectedEntry;
+        state.loaded = false;
+        state.reconfigured = false;
+        if (state.started) {
+            QMetaObject::invokeMethod(this, [this, generation] {
+                if (generation == m_decodeGeneration)
+                    Q_EMIT fileStarted();
+            }, Qt::QueuedConnection);
+        }
+        return;
+    }
+    if (event.event_id == MPV_EVENT_END_FILE) {
+        const auto &end = *static_cast<mpv_event_end_file *>(event.data);
+        // END_FILE carries its OWN identity, including a late replacement stop,
+        // EOF or error. It must never reset a newer stream's state.
+        if (end.playlist_entry_id != state.expectedEntry || !state.started)
+            return;
+        state.acceptNextEntry = end.reason == MPV_END_FILE_REASON_REDIRECT
+            || end.reason == MPV_END_FILE_REASON_EOF || end.reason == MPV_END_FILE_REASON_ERROR;
+        state.started = false;
+        state.loaded = false;
+        state.reconfigured = false;
+        const QString reason = end.reason == MPV_END_FILE_REASON_EOF ? QStringLiteral("eof")
+            : end.reason == MPV_END_FILE_REASON_STOP ? QStringLiteral("stop")
+            : end.reason == MPV_END_FILE_REASON_ERROR ? QStringLiteral("error") : QString();
+        if (reason.isEmpty())
+            return;
+        emitNativePlaybackEvent(QStringLiteral("ended-") + reason,
+                                end.playlist_entry_id, generation);
+        QMetaObject::invokeMethod(this, [this, generation, reason] {
+            if (generation != m_decodeGeneration)
+                return;
+            setDecodedDimensions(0, 0);
+            Q_EMIT endFile(reason);
+            if (reason == QLatin1String("error"))
+                Q_EMIT playbackError(QStringLiteral("unknown"), reason);
+        }, Qt::QueuedConnection);
+        return;
+    }
+    if (event.event_id == MPV_EVENT_SEEK
+        || event.event_id == MPV_EVENT_PLAYBACK_RESTART) {
+        if (!state.started || state.streamEntry < 0
+            || state.streamEntry != state.expectedEntry) {
+            return;
+        }
+        emitNativePlaybackEvent(
+            event.event_id == MPV_EVENT_SEEK ? QStringLiteral("seek-start")
+                                             : QStringLiteral("restart"),
+            state.streamEntry, generation);
+        return;
+    }
+    // Untagged-event invariant, verified against linked mpv 7b8915bc1:
+    // loadfile.c:1766/1999/2073/2136/2239-2259 serializes START, LOADED,
+    // video-chain teardown and END before playing the next entry. video.c:
+    // 86/135/171/1047/1184 and command.c:8321 notify on that serialized core;
+    // command.c:8151-8159 broadcasts synchronously. client.c:716-748 appends
+    // under the client lock; :921-942 pops FIFO. No old producer posts a delayed
+    // LOADED/RECONFIG after the next START. Teardown/idle RECONFIG can occur
+    // outside START/END and is rejected here. This is per-client, not across
+    // MpvQt's property client. See native_queue_entry_order's backlog assertions.
+    // URL equality is deliberately irrelevant, including A -> B -> A.
+    if (!state.started || state.streamEntry != state.expectedEntry)
+        return;
+    if (event.event_id == MPV_EVENT_FILE_LOADED) {
+        state.loaded = true;
+        emitNativePlaybackEvent(QStringLiteral("loaded"), state.streamEntry, generation);
+        QMetaObject::invokeMethod(this, [this, generation] {
+            if (generation == m_decodeGeneration)
+                Q_EMIT fileLoaded();
+        }, Qt::QueuedConnection);
+        if (state.reconfigured)
+            refreshDecodedDimensions();
+        if (const auto serial = state.reopenSeekSerial) {
+            state.reopenSeekSerial = 0;
+            const auto fence = state.observationSerial.load();
+            // loadfile's start option already positions the new demuxer. A
+            // redundant seek here can block behind its first network read again.
+            // Record the real FILE_LOADED boundary, then require a decoded
+            // restart at the requested target in the session's seek ledger.
+            emitNativePlaybackEvent(QStringLiteral("seek-loaded"), state.streamEntry, generation);
+            QMetaObject::invokeMethod(this, [this, generation, serial, fence] {
+                if (generation == m_decodeGeneration)
+                    Q_EMIT trackedSeekReply(serial, true, generation, fence);
+            }, Qt::QueuedConnection);
+        }
+    } else if (event.event_id == MPV_EVENT_VIDEO_RECONFIG) {
+        state.reconfigured = true;
         refreshDecodedDimensions();
-        Q_EMIT fileLoaded();
-    }, Qt::QueuedConnection);
+        QMetaObject::invokeMethod(this, [this, generation] {
+            if (generation == m_decodeGeneration)
+                Q_EMIT videoReconfig();
+        }, Qt::QueuedConnection);
+    }
+}
 
-    connect(mpvController(), &MpvController::endFile,
-            this, [this](const QString &reason) {
-        m_decodedRefreshEnabled = false;
-        Q_EMIT endFile(reason);
-        if (reason == QLatin1String("error") || reason == QLatin1String("other")) {
-            // Installed MpvQt exposes only the coarse end-file reason string here;
-            // it does not forward mpv_event_end_file.error. Report that limitation
-            // honestly instead of manufacturing network/codec/decode classifications.
-            Q_EMIT playbackError(QStringLiteral("unknown"), reason);
+void MpvItem::emitNativePlaybackEvent(const QString &kind, qint64 entryId,
+                                     quint64 generation)
+{
+    Q_ASSERT(QThread::currentThread() == m_decodeWorker);
+    auto *controller = mpvController();
+    const qint64 monotonicMs = monotonicMillisecondsSinceEpoch();
+    const quint64 observationSerial = ++m_decodeEvents->observationSerial;
+    double position = controller->getProperty(MpvProperties::self()->Position).toDouble();
+    double duration = controller->getProperty(MpvProperties::self()->Duration).toDouble();
+    if (!qIsFinite(position) || position < 0.0)
+        position = 0.0;
+    if (!qIsFinite(duration) || duration < 0.0)
+        duration = 0.0;
+
+    QMetaObject::invokeMethod(this, [this, kind, entryId, position, duration,
+                                     generation, monotonicMs, observationSerial] {
+        if (generation == m_decodeGeneration) {
+            Q_EMIT nativePlaybackEvent(kind, entryId, position, duration,
+                                       generation, monotonicMs, observationSerial);
         }
     }, Qt::QueuedConnection);
+}
 
-    connect(mpvController(), &MpvController::videoReconfig,
-            this, [this] {
-        refreshDecodedDimensions();
-        Q_EMIT videoReconfig();
-    }, Qt::QueuedConnection);
-
-    connect(mpvController(), &MpvController::asyncReply,
-            this, &MpvItem::onAsyncReply, Qt::QueuedConnection);
+void MpvItem::setDecodedDimensions(int width, int height)
+{
+    if (m_decodedWidth == width && m_decodedHeight == height)
+        return;
+    m_decodedWidth = width;
+    m_decodedHeight = height;
+    Q_EMIT decodedDimensionsChanged();
 }
 
 void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
@@ -222,23 +449,6 @@ void MpvItem::onPropertyChanged(const QString &property, const QVariant &value)
         m_coreSeeking = value.toBool();
         Q_EMIT coreSeekingChanged();
 
-    } else if (property == QLatin1String("dwidth")) {
-        // dwidth/dheight arrive as two independent property-change events for the same
-        // decode moment; each is applied and notified as it lands rather than paired,
-        // matching MediaAdmissionProbe.cpp:125-141's own dw/dh bookkeeping.
-        const int next = static_cast<int>(value.toLongLong());
-        if (next != m_decodedWidth) {
-            m_decodedWidth = next;
-            Q_EMIT decodedDimensionsChanged();
-        }
-
-    } else if (property == QLatin1String("dheight")) {
-        const int next = static_cast<int>(value.toLongLong());
-        if (next != m_decodedHeight) {
-            m_decodedHeight = next;
-            Q_EMIT decodedDimensionsChanged();
-        }
-
     } else if (property == QLatin1String("chapter-list")) {
         QVariantList out;
         const QVariantList raw = value.toList();
@@ -262,16 +472,6 @@ void MpvItem::onAsyncReply(const QVariant &data, mpv_event event)
 {
     // Stats batch replies encode their property index above the small enum ids.
     const int replyId = static_cast<int>(event.reply_userdata);
-    if (replyId >= static_cast<int>(AsyncIds::DecodedDimensions)) {
-        // A newer load/reconfiguration invalidates older dimension replies.
-        if (m_decodedRefreshEnabled && event.error >= 0) {
-            if (replyId == m_decodedRefreshId)
-                onPropertyChanged(QStringLiteral("dwidth"), data);
-            else if (replyId == m_decodedRefreshId + 1)
-                onPropertyChanged(QStringLiteral("dheight"), data);
-        }
-        return;
-    }
     const int batchBase = static_cast<int>(AsyncIds::StatsBatch);
     if (replyId >= batchBase && replyId < batchBase + m_statsBatchProperties.size()) {
         m_statsBatchValues.insert(m_statsBatchProperties.at(replyId - batchBase), data);
@@ -292,18 +492,6 @@ void MpvItem::onAsyncReply(const QVariant &data, mpv_event event)
         Q_UNUSED(data)
         break;
     }
-}
-
-void MpvItem::refreshDecodedDimensions()
-{
-    if (!m_decodedRefreshEnabled)
-        return;
-    // libmpv need not repeat unchanged dwidth/dheight notifications after a
-    // same-size reload. Read those exact decoded properties after load/reconfig,
-    // without taking the mpv core lock synchronously on the GUI thread.
-    m_decodedRefreshId += 2;
-    getPropertyAsync(QStringLiteral("dwidth"), m_decodedRefreshId);
-    getPropertyAsync(QStringLiteral("dheight"), m_decodedRefreshId + 1);
 }
 
 QString MpvItem::formatTime(const double time) const
@@ -340,10 +528,23 @@ void MpvItem::loadFileWithHeaders(const QString &url, const QVariantMap &headers
     issueLoadFile(url);
 }
 
+void MpvItem::loadSource(const QString &url)
+{
+    loadFile(url);
+}
+
+void MpvItem::loadSource(const QString &url, const QVariantMap &headers)
+{
+    if (headers.isEmpty())
+        loadFile(url);
+    else
+        loadFileWithHeaders(url, headers);
+}
+
 void MpvItem::issueLoadFile(const QString &file)
 {
-    m_decodedRefreshEnabled = false;
-    m_decodedRefreshId += 2;
+    const auto generation = ++m_decodeGeneration;
+    Q_EMIT playbackGenerationChanged();
     auto url = QUrl::fromUserInput(file);
     if (m_currentUrl != url) {
         m_currentUrl = url;
@@ -352,19 +553,81 @@ void MpvItem::issueLoadFile(const QString &file)
 
     // A fresh `loadfile ... replace` starts a brand-new decode every time this runs, even when
     // the URL is unchanged (a replay). mpv only fires dwidth/dheight property-change events on a
-    // VALUE CHANGE, so a same-size reload would otherwise never re-announce them — leaving the
-    // stale prior dimensions reading "decoded" before the new file has decoded anything. Reset
-    // here, before the command goes out, so decodedWidth/decodedHeight always start at zero for
+    // VALUE CHANGE. The videoReconfig handler refreshes equal-size replacements; reset
+    // before the command goes out so stale prior dimensions cannot read "decoded" and
+    // decodedWidth/decodedHeight always start at zero for
     // this load (J1-Video-Seam's "ready_resets_on_unload"-style guarantee, at the native layer).
-    if (m_decodedWidth != 0 || m_decodedHeight != 0) {
-        m_decodedWidth = 0;
-        m_decodedHeight = 0;
-        Q_EMIT decodedDimensionsChanged();
-    }
+    setDecodedDimensions(0, 0);
 
-    command(QStringList() << QStringLiteral("loadfile")
-                          << m_currentUrl.toString(QUrl::PreferLocalFile)
-                          << QStringLiteral("replace"));
+    auto *controller = mpvController();
+    const auto state = m_decodeEvents;
+    const QString path = m_currentUrl.toString(QUrl::PreferLocalFile);
+    QMetaObject::invokeMethod(controller, [controller, state, generation, path] {
+        state->generation = generation;
+        state->expectedEntry = -1;
+        state->acceptNextEntry = false;
+        state->started = false;
+        state->loaded = false;
+        state->reconfigured = false;
+        state->reopenSeekSerial = 0;
+        const auto result = controller->command(
+            {QStringLiteral("loadfile"), path, QStringLiteral("replace")}).toMap();
+        state->expectedEntry = result.value(QStringLiteral("playlist_entry_id"), -1).toLongLong();
+        // Older libmpv versions do not return the inserted id. loadfile is
+        // synchronous: fall back to one replacement-playlist snapshot, never
+        // URL equality or an index read separately from the entry id.
+        if (state->expectedEntry < 0) {
+            const auto playlist = controller->getProperty(QStringLiteral("playlist")).toList();
+            if (playlist.size() == 1)
+                state->expectedEntry = playlist.first().toMap().value(QStringLiteral("id"), -1).toLongLong();
+        }
+    }, Qt::QueuedConnection);
+}
+
+void MpvItem::stopPlayback()
+{
+    command(QStringList() << QStringLiteral("stop"));
+}
+
+void MpvItem::setHostLifecycleState(const QString &state)
+{
+    Q_UNUSED(state)
+}
+
+void MpvItem::setAudioFocusState(const QString &state)
+{
+    Q_UNUSED(state)
+}
+
+void MpvItem::releaseVideoSurface()
+{
+    // MpvQt owns the desktop QQuickItem surface lifecycle.
+}
+
+void MpvItem::restoreVideoSurface()
+{
+    // MpvQt owns the desktop QQuickItem surface lifecycle.
+}
+
+void MpvItem::applyPlaybackProfile()
+{
+    setProperty(QStringLiteral("scale"), QStringLiteral("bilinear"));
+    setProperty(QStringLiteral("cscale"), QStringLiteral("bilinear"));
+    setProperty(QStringLiteral("dscale"), QStringLiteral("bilinear"));
+    setProperty(QStringLiteral("dither"), QStringLiteral("no"));
+    setProperty(QStringLiteral("correct-downscaling"), QStringLiteral("no"));
+    setProperty(QStringLiteral("linear-downscaling"), QStringLiteral("no"));
+    setProperty(QStringLiteral("sigmoid-upscaling"), QStringLiteral("no"));
+    setProperty(QStringLiteral("hdr-compute-peak"), QStringLiteral("no"));
+}
+
+void MpvItem::refreshAudioOutput()
+{
+    const QString aid = audioTrack();
+    if (aid.isEmpty())
+        return;
+    setProperty(MpvProperties::self()->AudioId, QStringLiteral("no"));
+    setProperty(MpvProperties::self()->AudioId, aid);
 }
 
 void MpvItem::seekExact(double value)
@@ -373,6 +636,79 @@ void MpvItem::seekExact(double value)
                           << QString::number(qMax(0.0, value), 'f', 3)
                           << QStringLiteral("absolute")
                           << QStringLiteral("exact"));
+}
+
+void MpvItem::seekExactTracked(double seconds, quint64 requestSerial)
+{
+    const quint64 generation = m_decodeGeneration;
+    const auto state = m_decodeEvents;
+    auto *controller = mpvController();
+    const double target = qMax(0.0, seconds);
+    const bool remote = m_currentUrl.scheme() == QLatin1String("http")
+        || m_currentUrl.scheme() == QLatin1String("https");
+    const auto resource = m_currentUrl.toString(QUrl::FullyEncoded);
+    QMetaObject::invokeMethod(controller,
+        [controller, state, generation, requestSerial, target, remote, resource] {
+            // Drain older native events on their own thread BEFORE taking the
+            // command boundary. Their GUI deliveries may still be queued.
+            if (state->eventSource)
+                static_cast<PlaybackEvents *>(state->eventSource)->drain();
+            // Keep the same lifetime fence used by PlaybackEvents while touching
+            // the item or queuing a reply. The command runs on the controller
+            // thread and is rejected if this load has gone stale.
+            QMutexLocker lock(&state->lifetime);
+            auto *targetItem = state->target;
+            if (!targetItem)
+                return;
+
+            bool success = state->generation == generation
+                && state->expectedEntry >= 0;
+            const quint64 observationFence = state->observationSerial.load();
+            if (success) {
+                if (remote) {
+                    // A demuxer blocked reading the old range cannot service a
+                    // normal seek, even for a reported cached target. Reopen
+                    // this same resource at the target before read-ahead starts.
+                    // Keep core headers/pause and the logical load generation;
+                    // the new native entry remains bound to the same work token.
+                    state->expectedEntry = -1;
+                    state->acceptNextEntry = state->started = state->loaded = state->reconfigured = false;
+                    state->reopenSeekSerial = requestSerial;
+                    const auto result = controller->command(
+                        {QStringLiteral("loadfile"), resource, QStringLiteral("replace"),
+                         QStringLiteral("-1"), QStringLiteral("start=%1").arg(target, 0, 'f', 3)});
+                    state->expectedEntry = result.toMap().value(QStringLiteral("playlist_entry_id"), -1).toLongLong();
+                    if (state->expectedEntry < 0) {
+                        const auto playlist = controller->getProperty(QStringLiteral("playlist")).toList();
+                        if (playlist.size() == 1)
+                            state->expectedEntry = playlist.first().toMap().value(QStringLiteral("id"), -1).toLongLong();
+                    }
+                    success = (result.metaType() != QMetaType::fromType<ErrorReturn>()
+                        || result.value<ErrorReturn>().error >= 0) && state->expectedEntry >= 0;
+                    if (success) return; // FILE_LOADED acknowledges the positioned replacement.
+                    state->reopenSeekSerial = 0;
+                }
+                if (success) {
+                    const QVariant result = controller->command(
+                        QStringList{QStringLiteral("seek"),
+                                    QString::number(target, 'f', 3),
+                                    QStringLiteral("absolute"),
+                                    QStringLiteral("exact")});
+                    if (result.metaType() == QMetaType::fromType<ErrorReturn>())
+                        success = result.value<ErrorReturn>().error >= 0;
+                }
+            }
+
+            QMetaObject::invokeMethod(targetItem,
+                [targetItem, requestSerial, success, generation, observationFence] {
+                    // A reply can outlive a replacement load. Never let it
+                    // complete work for the newer stream.
+                    if (generation == targetItem->m_decodeGeneration) {
+                        Q_EMIT targetItem->trackedSeekReply(requestSerial, success,
+                                                            generation, observationFence);
+                    }
+                }, Qt::QueuedConnection);
+        }, Qt::QueuedConnection);
 }
 
 void MpvItem::seekStep(double delta)
@@ -429,6 +765,27 @@ void MpvItem::setAudioNormalization(const QString &mode)
     }
     // "off" / anything else -> empty -> no audio filter.
     setProperty(QStringLiteral("af"), af);
+}
+
+QVariant MpvItem::playbackStat(const QString &name)
+{
+    QString key;
+    if (name == QStringLiteral("videoBitrate")) key = QStringLiteral("video-bitrate");
+    else if (name == QStringLiteral("audioBitrate")) key = QStringLiteral("audio-bitrate");
+    else if (name == QStringLiteral("decoderDroppedFrames")) key = QStringLiteral("decoder-frame-drop-count");
+    else if (name == QStringLiteral("outputDroppedFrames")) key = QStringLiteral("frame-drop-count");
+    else if (name == QStringLiteral("estimatedFps")) key = QStringLiteral("estimated-vf-fps");
+    else if (name == QStringLiteral("containerFps")) key = QStringLiteral("container-fps");
+    else if (name == QStringLiteral("videoCodec")) key = QStringLiteral("video-codec");
+    else if (name == QStringLiteral("audioCodec")) key = QStringLiteral("audio-codec");
+    else if (name == QStringLiteral("hardwareDecoder")) key = QStringLiteral("hwdec-current");
+    else if (name == QStringLiteral("bufferingPercent")) key = QStringLiteral("cache-buffering-state");
+    else if (name == QStringLiteral("width")) key = QStringLiteral("width");
+    else if (name == QStringLiteral("height")) key = QStringLiteral("height");
+    else if (name == QStringLiteral("audioChannelCount")) key = QStringLiteral("audio-params/channel-count");
+    else if (name == QStringLiteral("videoTransfer")) key = QStringLiteral("video-params/transfer");
+    else return {};
+    return mpvProperty(key);
 }
 
 QVariant MpvItem::mpvProperty(const QString &name)
@@ -830,6 +1187,11 @@ QString MpvItem::formattedPosition() const
 QUrl MpvItem::currentUrl() const
 {
     return m_currentUrl;
+}
+
+quint64 MpvItem::playbackGeneration() const
+{
+    return m_decodeGeneration;
 }
 
 int MpvItem::decodedWidth() const

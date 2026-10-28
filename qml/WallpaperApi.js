@@ -17,6 +17,16 @@
 var WALLHAVEN = "https://wallhaven.cc/api/v1";
 var PAGE_LIMIT = 24;   // Wallhaven serves 24/page
 
+// Owned stills are online assets, including the default and legacy saved picks.
+// Provider URLs and native QML scenes retain their existing identity.
+function imageSource(pick, contentStore) {
+    var source = pick && pick.image_url ? String(pick.image_url)
+                                       : "../assets/wallpaper/cold-ripple.jpg";
+    if (source.indexOf("../assets/") === 0)
+        return contentStore ? contentStore.assetUrl(source.substring(3)) : "";
+    return source;
+}
+
 // ---- Colosseum-native living wallpapers (2026-07-18) ----
 // Designed in-house, drawn live by QML — separate from the searchable pool.
 // image_url carries the "native:" route Main resolves to a scene file.

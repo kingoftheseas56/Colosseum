@@ -22,12 +22,19 @@ Item {
     property int loaderCalls: 0
     property var lastPush: null
     property var fakeImdbMarker: ({ ready: function() { return false; } })
+    property var demandKeys: []
+    property var fakeController: ({
+        setVisible: function(keys) { h.demandKeys = keys.slice(); },
+        cancel: function() {}
+    })
 
     function houseRow(key, title, placement, ranked) {
-        return { key: key, title: title, placement: placement, ranked: ranked === true,
-                 sourceKind: "house", sourceLabel: "Colosseum",
-                 items: [{ id: "i-" + key, title: "Item " + key, cover: "" }],
-                 seeAllPin: { pageKey: "movies", sourceKind: "house", rowKey: key } };
+        var r = { key: key, title: title, placement: placement, ranked: ranked === true,
+                  sourceKind: "house", sourceLabel: "Colosseum",
+                  items: [{ id: "i-" + key, title: "Item " + key, cover: "" }],
+                  seeAllPin: { pageKey: "movies", sourceKind: "house", rowKey: key } };
+        if (key === "top-10") r.liveFacts = true;
+        return r;
     }
     function extRow(key, name, placement, kind) {
         return { key: key, title: name, placement: placement, ranked: false,
@@ -55,6 +62,8 @@ Item {
         h.loaderCalls += 1;
         h.loaderOptions = options;
         h.lastPush = push;
+        if (typeof options.onFactsController === "function")
+            options.onFactsController(h.fakeController);
         push({ pageKey: pageKey, generation: options.generation, rows: h.rowsPartial(), loading: true, error: "" });
         push({ pageKey: pageKey, generation: options.generation, rows: h.rowsFull(), loading: false, error: "" });
     }
@@ -166,6 +175,8 @@ Item {
 
             // top of page: some shelves live, but far fewer than the total
             page.viewportTop = 0;
+            page._updateFactsDemand();
+            ok(h.demandKeys.indexOf("top-10") !== -1, "near Top 10 requests title facts");
             var liveTop = page.liveShelfCount;
             ok(liveTop > 0, "some shelves are live at the top, got " + liveTop);
             ok(liveTop < total, "live shelves are bounded below total at the top (" + liveTop + " < " + total + ")");
@@ -173,7 +184,11 @@ Item {
             var hBefore = page.implicitHeight;
 
             // move to the bottom: the live SET changes without ballooning to every row
+            var callsBeforeDemand = h.loaderCalls;
             page.viewportTop = page.implicitHeight;   // scroll far down
+            page._updateFactsDemand();
+            ok(h.demandKeys.indexOf("top-10") === -1, "far-away live shelf stops demanding facts");
+            ok(h.loaderCalls === callsBeforeDemand, "viewport movement never reloads the catalogue");
             var liveBottom = page.liveShelfCount;
             ok(liveBottom > 0, "some shelves are live at the bottom, got " + liveBottom);
             ok(liveBottom < total, "live shelves stay bounded below total at the bottom (" + liveBottom + " < " + total + ")");

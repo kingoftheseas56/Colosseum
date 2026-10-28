@@ -441,6 +441,7 @@ QVariantMap TrackerSyncCenterModel::providerDossier(const QString &providerKey)
             {QStringLiteral("providerKey"), trackerProviderKey(*providerId)},
             {QStringLiteral("providerName"), provider->displayName},
             {QStringLiteral("available"), provider->available},
+            {QStringLiteral("connectUnavailableReason"), connectUnavailableReason(*provider)},
             {QStringLiteral("status"), current
                     ? providerState(*current, counts)
                     : (provider->available ? QStringLiteral("Not connected")
@@ -477,8 +478,7 @@ QVariantMap TrackerSyncCenterModel::providerDossier(const QString &providerKey)
                     && capabilities.testFlag(TrackerProviderCapability::Scrobble)},
             // Match the catalogue/card gate: a provider is connectable only
             // when this profile owns a live native authentication action.
-            {QStringLiteral("connectEnabled"), provider->available
-                    && m_connectAvailable && m_profileAvailable},
+            {QStringLiteral("connectEnabled"), connectUnavailableReason(*provider).isEmpty()},
             {QStringLiteral("pendingWork"), current
                     && current->state == TrackerConnectionState::Disconnected
                     && (counts.pending > 0 || counts.unresolved > 0)},
@@ -1175,11 +1175,29 @@ void TrackerSyncCenterModel::refresh()
     refreshRevision();
 }
 
-void TrackerSyncCenterModel::setConnectAvailable(bool available)
+QString TrackerSyncCenterModel::connectUnavailableReason(
+    const TrackerProviderDescriptor &provider) const
 {
-    if (m_connectAvailable == available)
-        return;
-    m_connectAvailable = available;
+    if (!provider.available)
+        return QStringLiteral("provider_unavailable");
+    if (!m_profileAvailable)
+        return QStringLiteral("profile_unavailable");
+    if (!m_connectionAvailabilitySource)
+        return QStringLiteral("connection_service_unavailable");
+    switch (m_connectionAvailabilitySource(provider.providerId)) {
+    case ConnectAvailability::Ready:
+        return {};
+    case ConnectAvailability::CredentialStorageUnavailable:
+        return QStringLiteral("credential_storage_unavailable");
+    case ConnectAvailability::ProviderServiceUnavailable:
+        return QStringLiteral("connection_service_unavailable");
+    }
+    return QStringLiteral("connection_service_unavailable");
+}
+
+void TrackerSyncCenterModel::setConnectionAvailabilitySource(ConnectionAvailabilitySource source)
+{
+    m_connectionAvailabilitySource = std::move(source);
     refreshRevision();
 }
 
@@ -1926,8 +1944,8 @@ QVariantMap TrackerSyncCenterModel::connectionCard(const TrackerConnection &conn
             {QStringLiteral("unresolvedCount"), counts.unresolved},
             {QStringLiteral("capabilities"), capabilityKeys(capabilities)},
             {QStringLiteral("available"), provider && provider->available},
-            {QStringLiteral("connectEnabled"), provider && provider->available
-                    && m_connectAvailable && m_profileAvailable},
+            {QStringLiteral("connectEnabled"), provider
+                    && connectUnavailableReason(*provider).isEmpty()},
             {QStringLiteral("syncEnabled"), isConnected && provider && provider->available
                     && m_settings && m_settings->globalSettings().trackerSyncEnabled
                     && ownerHealthy() && syncAllHandlerAvailable()},
@@ -1951,6 +1969,7 @@ QVariantMap TrackerSyncCenterModel::providerCatalogueCard(
     return {{QStringLiteral("providerKey"), trackerProviderKey(provider.providerId)},
             {QStringLiteral("providerName"), provider.displayName},
             {QStringLiteral("available"), provider.available},
+            {QStringLiteral("connectUnavailableReason"), connectUnavailableReason(provider)},
             {QStringLiteral("status"), provider.available
                     ? (isConnected ? providerState(*connection, providerCounts(*connection))
                                    : (pausedWork ? QStringLiteral("Attention")
@@ -1961,8 +1980,7 @@ QVariantMap TrackerSyncCenterModel::providerCatalogueCard(
             {QStringLiteral("pendingWork"), pausedWork},
             {QStringLiteral("waitingCount"), counts.waiting},
             {QStringLiteral("unresolvedCount"), counts.unresolved},
-            {QStringLiteral("connectEnabled"), provider.available
-                    && m_connectAvailable && m_profileAvailable}};
+            {QStringLiteral("connectEnabled"), connectUnavailableReason(provider).isEmpty()}};
 }
 
 QVariantList TrackerSyncCenterModel::buildConnectedTrackers() const
@@ -2172,6 +2190,13 @@ QByteArray TrackerSyncCenterModel::snapshotFingerprint() const
 {
     QJsonObject root;
     root.insert(QStringLiteral("profileAvailable"), m_profileAvailable);
+    QJsonArray connectionGates;
+    for (const TrackerProviderDescriptor &provider : m_catalogue) {
+        connectionGates.append(QJsonObject{
+            {QStringLiteral("provider"), trackerProviderKey(provider.providerId)},
+            {QStringLiteral("reason"), connectUnavailableReason(provider)}});
+    }
+    root.insert(QStringLiteral("connectionGates"), connectionGates);
     root.insert(QStringLiteral("ownerHealthy"), ownerHealthy());
     root.insert(QStringLiteral("titleSearchAvailable"), titleMatchAvailable());
     QJsonArray titleCandidates;

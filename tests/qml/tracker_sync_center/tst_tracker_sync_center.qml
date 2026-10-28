@@ -33,12 +33,16 @@ TestCase {
             verify(!("payload" in row))
             assertKeys(row, [
                 "providerKey", "providerName", "available", "status", "capabilities",
-                "connected", "pendingWork", "waitingCount", "unresolvedCount", "connectEnabled"])
+                "connected", "pendingWork", "waitingCount", "unresolvedCount", "connectEnabled",
+                "connectUnavailableReason"])
+            compare(row.connectEnabled, false)
+            compare(row.connectUnavailableReason, "provider_unavailable")
         }
 
         var dossier = TrackerSyncCenter.providerDossier("simkl")
         compare(dossier.found, true)
         compare(dossier.available, false)
+        compare(dossier.connectUnavailableReason, "provider_unavailable")
         verify(!("remoteAccountId" in dossier))
         verify(!("token" in dossier))
         assertKeys(dossier, [
@@ -50,7 +54,7 @@ TestCase {
             "sendProgressEnabled", "sendSettingEnabled", "exportReviewed",
             "exportReviewEnabled", "livePlaybackTrackingEnabled",
             "livePlaybackSettingEnabled", "connectEnabled", "pendingWork", "syncEnabled",
-            "disconnectEnabled", "cleanupEnabled", "removeImportedEnabled",
+            "disconnectEnabled", "cleanupEnabled", "removeImportedEnabled", "connectUnavailableReason",
             "removeImportedPending", "disconnectInFlight"])
     }
 

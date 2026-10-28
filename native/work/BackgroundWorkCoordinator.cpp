@@ -127,7 +127,13 @@ void BackgroundWorkCoordinator::reprioritize(const QString &id, int priority)
 
 void BackgroundWorkCoordinator::setPressure(Pressure pressure)
 {
-    m_pressure.store(static_cast<int>(pressure));
+    {
+        // Both worker waits inspect pressure while holding m_mutex. Publish
+        // under the same lock so resuming cannot notify between a false
+        // predicate check and the worker atomically entering its wait.
+        std::lock_guard<std::mutex> lock(m_mutex);
+        m_pressure.store(static_cast<int>(pressure));
+    }
     m_cv.notify_all();
 }
 

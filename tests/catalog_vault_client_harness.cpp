@@ -12,6 +12,9 @@
 // (zero network, immediate allFresh) — the shape main.cpp relies on when every catalog
 // resolves via its dev-machine override.
 //
+// Tankoban API-mode cases prove zero release discovery for a Tankoban-only managed
+// set and preserve legacy fallback bytes while the other three catalogues still refresh.
+//
 // House convention: require() prints "FAIL: <msg>" and exits 1; one PASS line per case;
 // sentinel CATALOG_VAULT_CLIENT_OK on success.
 #include "engine/CatalogVaultClient.h"
@@ -80,6 +83,7 @@ public:
     QHash<QString, QByteArray> assetBytes;
     QString truncateName; // non-empty: that asset's download is cut mid-stream
     int requestCount = 0;
+    QStringList requestedPaths;
 
     QString baseUrl() const { return QStringLiteral("http://127.0.0.1:%1").arg(serverPort()); }
 
@@ -100,6 +104,7 @@ protected:
             const QList<QByteArray> parts = requestLine.split(' ');
             const QByteArray path = parts.size() > 1 ? parts.at(1) : QByteArray{};
             ++requestCount;
+            requestedPaths.append(QString::fromUtf8(path));
 
             if (path == "/releases/latest") {
                 writeResponse(socket, 200, buildLatestJson(), {});
@@ -166,11 +171,13 @@ struct RunResult {
 };
 
 RunResult runWithManaged(QNetworkAccessManager& nam, const QString& vaultDir, const QString& apiBase,
-                         const QStringList* managedNames, int idleTimeoutMs = 1200)
+                         const QStringList* managedNames, int idleTimeoutMs = 1200,
+                         bool tankobanApiEnabled = false)
 {
     CatalogVaultClient client(&nam, vaultDir, apiBase);
     if (managedNames)
         client.setManagedNames(*managedNames);
+    client.setTankobanApiEnabled(tankobanApiEnabled);
     RunResult r;
     QObject::connect(&client, &CatalogVaultClient::allFresh, [&](QString tag) {
         r.allFreshCalled = true;
@@ -435,6 +442,86 @@ int main(int argc, char** argv)
     require(foregroundFresh, "(i) deferred pass resumes when foreground pressure returns Normal");
     require(server.requestCount >= 2, "(i) resumed pass fetched manifest and managed asset");
     pass("(i) foreground pressure defers and resumes a new pass");
+
+    // API mode has no bulk Tankoban owner, even if it is the only missing file.
+    // Exercise both an empty install and an already-downloaded read-only fallback.
+    const QString tankobanName = QStringLiteral("tankoban_catalog.db");
+    const QStringList tankobanOnly{tankobanName};
+    const QByteArray legacyTankoban("existing-read-only-tankoban-fallback");
+    for (const bool hasLegacyDatabase : {false, true}) {
+        QTemporaryDir dirJ;
+        require(dirJ.isValid(), "(j) API-only temp vault created");
+        const QString legacyPath = dirJ.filePath(tankobanName);
+        if (hasLegacyDatabase)
+            writeFile(legacyPath, legacyTankoban);
+        server.requestCount = 0;
+        server.requestedPaths.clear();
+        const RunResult j = runWithManaged(nam, dirJ.path(), server.baseUrl(),
+                                          &tankobanOnly, 1200, true);
+        require(j.allFreshCalled, "(j) API-only Tankoban completes synchronously");
+        require(server.requestCount == 0,
+                "(j) API-only Tankoban performs no GitHub release discovery or downloads");
+        require(j.fetchingSequence.isEmpty() && j.events.isEmpty() && j.failedNames.isEmpty(),
+                "(j) API-only Tankoban is never managed or replaced");
+        require(!QFile::exists(dirJ.filePath(QStringLiteral("state.json"))),
+                "(j) API-only Tankoban does not create bulk-vault state");
+        require(!anyDownloadingResidue(dirJ.path()), "(j) no Tankoban download temp file");
+        if (hasLegacyDatabase) {
+            QFile legacy(legacyPath);
+            require(legacy.open(QIODevice::ReadOnly) && legacy.readAll() == legacyTankoban,
+                    "(j) existing Tankoban fallback bytes remain untouched");
+        } else {
+            require(!QFile::exists(legacyPath), "(j) no Tankoban database acquired");
+        }
+    }
+    pass("(j) Tankoban API-only mode makes zero release requests and preserves fallback");
+
+    // Default and explicit mixed managed lists both retain the other three catalogues.
+    // A changing release must never replace the existing Tankoban fallback.
+    for (const bool explicitNames : {false, true}) {
+        QTemporaryDir dirK;
+        require(dirK.isValid(), "(k) mixed API-mode temp vault created");
+        const QString legacyPath = dirK.filePath(tankobanName);
+        writeFile(legacyPath, legacyTankoban);
+        server.tag = QStringLiteral("v6.0.0");
+        server.assetBytes = fixtureBytesFor(server.tag);
+        server.requestCount = 0;
+        server.requestedPaths.clear();
+        const RunResult k = runWithManaged(nam, dirK.path(), server.baseUrl(),
+                                          explicitNames ? &knownNames() : nullptr, 1200, true);
+        require(k.allFreshCalled && k.failedNames.isEmpty(), "(k) other catalogues update in API mode");
+        require(server.requestCount == 4, "(k) only one manifest and three database downloads");
+        require(!server.requestedPaths.contains(QStringLiteral("/download/") + tankobanName),
+                "(k) mixed release does not request Tankoban bytes");
+        require(!k.events.contains(QStringLiteral("about:") + tankobanName)
+                    && !k.events.contains(QStringLiteral("updated:") + tankobanName),
+                "(k) mixed release never swaps Tankoban fallback");
+        for (const QString& name : knownNames()) {
+            QFile file(dirK.filePath(name));
+            require(file.open(QIODevice::ReadOnly), "(k) catalogue file remains available");
+            require(file.readAll() == (name == tankobanName ? legacyTankoban : server.assetBytes.value(name)),
+                    "(k) other catalogues download and Tankoban fallback is unchanged");
+        }
+        QFile state(dirK.filePath(QStringLiteral("state.json")));
+        require(state.open(QIODevice::ReadOnly), "(k) mixed vault state exists");
+        const QJsonObject assets = QJsonDocument::fromJson(state.readAll()).object()
+                                      .value(QStringLiteral("assets")).toObject();
+        require(assets.size() == 3 && !assets.contains(tankobanName),
+                "(k) Tankoban is absent from bulk-vault managed state");
+        state.close();
+        // A failed release check cannot regain ownership of the legacy database.
+        server.close();
+        QFile::remove(dirK.filePath(QStringLiteral("state.json")));
+        const RunResult failed = runWithManaged(nam, dirK.path(), server.baseUrl(),
+                                               explicitNames ? &knownNames() : nullptr, 600, true);
+        require(failed.events.isEmpty() && failed.failedNames.isEmpty(),
+                "(k) release failure leaves existing mixed cache alone");
+        QFile legacy(legacyPath);
+        require(legacy.open(QIODevice::ReadOnly) && legacy.readAll() == legacyTankoban,
+                "(k) release failure preserves Tankoban fallback bytes");
+        require(server.listen(QHostAddress::LocalHost), "(k) fixture resumes after release failure");
+    }
+    pass("(k) API mode excludes Tankoban while other catalogue downloads stay unchanged");
 
     std::cout << "CATALOG_VAULT_CLIENT_OK\n";
     return 0;

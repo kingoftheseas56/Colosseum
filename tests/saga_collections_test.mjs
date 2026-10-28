@@ -3,10 +3,20 @@ import fs from 'node:fs';
 import vm from 'node:vm';
 
 const load = (path, context = {}) => {
-    vm.createContext(context);
+    const env = {
+        ContentApi: {
+            register() {},
+            document() { return {}; },
+            asset(value) { return value; },
+            resolveAssets(value) { return value; }
+        },
+        UniverseExt: { load(_id, done) { done(null); } },
+        ...context
+    };
+    vm.createContext(env);
     vm.runInContext(fs.readFileSync(new URL(path, import.meta.url), 'utf8')
-        .replace(/^\.(?:pragma|import).*$/gm, ''), context);
-    return context;
+        .replace(/^\.(?:pragma|import).*$/gm, ''), env);
+    return env;
 };
 const db = load('../qml/Universes.js');
 const lookups = [];

@@ -49,11 +49,16 @@ class QQmlApplicationEngine;
 class QQuickItem;
 class QQuickWindow;
 class LanistaEventLog;
+#if !defined(Q_OS_ANDROID)
 class VaultForensics;
+#endif
 
 class LanistaServer : public QObject
 {
     Q_OBJECT
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    std::function<QJsonObject(const QJsonObject&)> m_vinylTestProfileHandler;
+#endif
 public:
     explicit LanistaServer(QQmlApplicationEngine* engine, QObject* parent = nullptr);
     // Out-of-line (defined in the .cpp) ONLY so the unique_ptr<LanistaEventLog>
@@ -77,6 +82,7 @@ public:
     QString runDir() const { return m_runDir; }
     QString ensureRunDir();
 
+#if !defined(Q_OS_ANDROID)
     // F1-Bridge (2026-08-13): wires the live, app-owned VaultForensics projection
     // (F1-Core) into the "vault-forensics" command below. Non-owning — main.cpp
     // parents the real VaultForensics to &app alongside every other Vault object
@@ -85,6 +91,13 @@ public:
     // e.g. lanista_harness's bare QML-scene fixture — in which case the command
     // answers VAULT_FORENSICS_UNAVAILABLE rather than dereferencing null.
     void setVaultForensics(VaultForensics* forensics) { m_vaultForensics = forensics; }
+#endif
+#ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
+    void setVinylTestProfileHandler(std::function<QJsonObject(const QJsonObject&)> handler) {
+        m_vinylTestProfileHandler = std::move(handler);
+    }
+#endif
+
 
     static constexpr const char* kSchema = "colosseum.dev.v1.0";
 
@@ -247,12 +260,14 @@ private:
     QJsonObject cmdEventsTail(const QJsonObject& p) const;
     QJsonObject cmdLogMark(const QJsonObject& p) const;
 
+#if !defined(Q_OS_ANDROID)
     // F1-Bridge — one Read-gated call onto F1-Core's bounded Vault projection.
     // Fallible on "no owner bound" (harness/no-Vault context), so it owns the
     // Replier and fail()s or reply()s itself, exactly like the Task 3/9 reads.
     // Const: it only ever calls VaultForensics::queryMarshalled(), a const
     // method — no server state is touched.
     void cmdVaultForensics(const QJsonObject& p, Replier reply) const;
+#endif
 
     // NOTE (Tasks 2-3 targeting): these see ROOT objects only. A QML-declared
     // secondary Window, a Popup with its own window, or anything not reachable
@@ -329,8 +344,10 @@ private:
     // unique_ptr so the always-on bridge's lone event log is freed with the server
     // rather than leaked (this class parents everything else to Qt).
     std::unique_ptr<LanistaEventLog> m_events;
+#if !defined(Q_OS_ANDROID)
     // F1-Bridge: non-owning, see setVaultForensics()'s comment above.
     VaultForensics* m_vaultForensics = nullptr;
+#endif
     int m_idleTimeoutMs = 0;
     int m_grabTimeoutMs = 0;   // ctor resolves: COLOSSEUM_LANISTA_GRAB_MS, else
                                // kGrabTimeoutMs. Always lands positive (0 is not

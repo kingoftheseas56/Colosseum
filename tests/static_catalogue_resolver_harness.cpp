@@ -1,0 +1,1555 @@
+#include "engine/StaticCatalogueResolver.h"
+#include "engine/CatalogRemote.h"
+#include "engine/TankobanCatalog.h"
+#include <QCoreApplication>
+#include <QCryptographicHash>
+#include <QDir>
+#include <QDateTime>
+#include <QElapsedTimer>
+#include <QFile>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
+#include <QNetworkAccessManager>
+#include <QProcess>
+#include <QSharedPointer>
+#include <QSet>
+#include <QTcpServer>
+#include <QTcpSocket>
+#include <QTemporaryDir>
+#include <QTimer>
+#include <QThread>
+#include <iostream>
+#include <cstdlib>
+#include <mutex>
+#include <condition_variable>
+static std::mutex traceMutex;
+static std::mutex parseGateMutex;
+static std::condition_variable parseGateCv;
+static QString parseGateHash;
+static bool parseGateArmed = false, parseGateEntered = false, parseGateReleased = true;
+static QList<QJsonObject> traceRows;
+static QtMessageHandler tracePreviousHandler = nullptr;
+static void captureCatalogueTrace(QtMsgType type, const QMessageLogContext& context, const QString& message) {
+    if (message.startsWith("CATALOGUE_TRACE ")) {
+        const auto row = QJsonDocument::fromJson(message.mid(16).toUtf8()).object();
+        {
+            std::lock_guard<std::mutex> lock(traceMutex);
+            traceRows.append(row);
+        }
+        // Deliberately park only the actual background parser at this real
+        // disk read. No sleeps, mocked decode, or GUI-thread waiting.
+        if (row.value("event") == "json_parse_begin" && row.value("source") == "disk") {
+            std::unique_lock<std::mutex> lock(parseGateMutex);
+            if (parseGateArmed && row.value("fileHash") == parseGateHash) {
+                parseGateArmed = false;
+                parseGateEntered = true;
+                parseGateCv.notify_all();
+                parseGateCv.wait(lock, [] { return parseGateReleased; });
+            }
+        }
+    }
+    if (tracePreviousHandler) tracePreviousHandler(type, context, message);
+    else std::cerr << message.toStdString() << '\n';
+}
+static void require(bool v, const char *why) {
+    if (!v) {
+        std::cerr << "FAIL " << why << '\n';
+        std::exit(1);
+    }
+}
+template <class F> static void until(F done) {
+    QElapsedTimer t;
+    t.start();
+    while (!done() && t.elapsed() < 15000)
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
+    require(done(), "bounded async completion");
+}
+static QByteArray json(const QJsonObject &v) {
+    return QJsonDocument(v).toJson(QJsonDocument::Compact);
+}
+static QString hash(const QByteArray &b) {
+    return QString::fromLatin1(QCryptographicHash::hash(b, QCryptographicHash::Sha256).toHex());
+}
+int staticCatalogueProbe(const QString &, const QString &, const QString &);
+int main(int argc, char **argv) {
+    QCoreApplication app(argc, argv);
+    if (argc == 5 && (QString::fromLocal8Bit(argv[1]) == "--offline-landing"
+                      || QString::fromLocal8Bit(argv[1]) == "--warm-landing")) {
+        QNetworkAccessManager warmNam;
+        const bool warm = QString::fromLocal8Bit(argv[1]) == "--warm-landing";
+        CatalogRemote remote("imdb");
+        remote.configure(warm ? &warmNam : nullptr, QUrl(QString::fromLocal8Bit(argv[2])),
+                         QString::fromLocal8Bit(argv[3]));
+        require(remote.available(), "offline landing owner is available from persisted cache");
+        const auto bundle = remote.read("landing", {"movies"}, QVariantMap()).toMap();
+        require(bundle.value("tab") == "movies" && !remote.pending(),
+                "offline restart restores valid landing without fetching");
+        const auto rows = remote.read("titleCatalog", {QVariantMap(), 0, 24}, QVariantList()).toList();
+        require(!rows.isEmpty() && rows.first().toMap().value("title") ==
+                    QString::fromLocal8Bit(argv[4]) && !remote.pending(),
+                "offline landing child cache is immediately available");
+        std::cout << "PASS separate-process landing offline restoration\n";
+        return 0;
+    }
+    if (argc == 5 && QString::fromLocal8Bit(argv[1]) == "--offline") {
+        auto *resolver = StaticCatalogueResolver::shared(
+            nullptr, QUrl(QString::fromLocal8Bit(argv[2])), QString::fromLocal8Bit(argv[3]), &app);
+        bool done = false;
+        StaticCatalogueResolver::Outcome result;
+        resolver->resolve("imdb", "titleCatalog", {QVariantMap(), 0, 24}, &app, [&](auto value) {
+            result = value;
+            done = true;
+        });
+        until([&] { return done; });
+        require(result.status == StaticCatalogueResolver::Status::Prepared &&
+                    result.result.toArray().at(0).toObject().value("title") ==
+                        QString::fromLocal8Bit(argv[4]),
+                "separate offline process reconstructs result only from verified files");
+        std::cout << "PASS separate-process static offline restoration\n";
+        return 0;
+    }
+    if (argc == 5 && QString::fromLocal8Bit(argv[1]) == "--publication")
+        return staticCatalogueProbe(QString::fromLocal8Bit(argv[2]),
+                                    QString::fromLocal8Bit(argv[3]),
+                                    QString::fromLocal8Bit(argv[4]));
+    QTemporaryDir temp;
+    QNetworkAccessManager nam;
+    QTcpServer server;
+    require(server.listen(QHostAddress::LocalHost), "fixture listens");
+    const QUrl origin(QStringLiteral("http://127.0.0.1:%1").arg(server.serverPort()));
+    QHash<QString, QByteArray> files;
+    QString pub = hash("publication-one"), source(64, 'a'), leaf;
+    int gets = 0, posts = 0;
+    bool offline = false, holdLeaf = false, rotateMissing = false;
+    int retiredStatus = 404;
+    QString rotatedLabel = "publication-hot-update";
+    bool delayBuckets = false;
+    int liveBuckets = 0, peakBuckets = 0;
+    QSet<QString> delayedPaths;
+    QList<QPointer<QTcpSocket>> held;
+    QVariantList measured;
+    auto publish = [&](const QString &label, const QString &landingFault = QString()) {
+        pub = hash(label.toUtf8());
+        const QString prefix = "/catalogue/" + pub + "/";
+        const QByteArray raw =
+            QJsonDocument(QJsonArray{QJsonObject{{"title", label}}}).toJson(QJsonDocument::Compact);
+        leaf = prefix + "shared/" + hash(raw) + ".json";
+        files[leaf] = raw;
+        QJsonObject child{{"method", "titleCatalog"},
+                          {"args", QJsonArray{QJsonObject(), 0, 24}},
+                          {"result", QJsonDocument::fromJson(raw).array()}};
+        if (landingFault == "shape") child["result"] = QJsonObject();
+        if (landingFault == "args") child["args"] = QJsonArray();
+        QJsonArray queries{child};
+        if (landingFault == "duplicate") queries.append(child);
+        const auto today = QDateTime::currentDateTimeUtc().date();
+        const auto landingRaw = json({{"version", 1}, {"dataset", "imdb"}, {"tab", "movies"},
+            {"validFrom", today.addDays(-2).toString(Qt::ISODate)},
+            {"validUntil", (landingFault == "date" ? today.addDays(-1) : today.addDays(1)).toString(Qt::ISODate)},
+            {"queries", queries}});
+        const auto landingPath = prefix + "shared/" + hash(landingRaw) + ".json";
+        files[landingPath] = landingRaw;
+        QJsonObject fixed{{"[\"imdb\",\"titleCatalog\",[{},0,24]]", leaf}};
+        if (landingFault != "absent")
+            fixed["[\"imdb\",\"landing\",[\"movies\"]]"] = landingPath;
+        const QString tankKey = "[\"tankoban\",\"series\",[13]]";
+        QJsonArray volumes;
+        for (int n = 1; n <= 113; ++n)
+            volumes.append(
+                QJsonObject{{"number", QString::number(n)}, {"cover", ""}, {"name", ""}});
+        const auto tankRaw = json(
+            {{tankKey,
+              QJsonObject{{"apiVersion", 1},
+                          {"ready", true},
+                          {"sourceHash", source},
+                          {"seriesInfo", QJsonObject{{"volumeCount", 113}, {"countBasis", "mal"}}},
+                          {"volumes", volumes}}}});
+        const QString tankPath = prefix + "shared/" + hash(tankRaw) + ".json";
+        files[tankPath] = tankRaw;
+        QJsonObject index{{"version", 1},
+                          {"schemaVersion", 1},
+                          {"revision", pub},
+                          {"sourceRevision", source},
+                          {"lists", QJsonObject()},
+                          {"listBuckets", QJsonObject()},
+                          {"lookups", QJsonObject{{hash(tankKey.toUtf8()).left(2), tankPath}}},
+                          {"search", QJsonObject()},
+                          {"tankobanSourceHash", source},
+                          {"fixed", fixed}};
+        const auto bytes = json(index);
+        const auto path = prefix + "index-" + hash(bytes) + ".json";
+        files[path] = bytes;
+        files["/catalogue/current.json"] =
+            json({{"schemaVersion", 1},
+                  {"revision", pub},
+                  {"sourceRevision", source},
+                  {"index",
+                   QJsonObject{{"path", path}, {"sha256", hash(bytes)}, {"bytes", bytes.size()}}}});
+    };
+    QString factsPath;
+    auto publishFacts = [&](const QString &label, const QString &fault = QString()) {
+        publish(label);
+        const QString prefix = "/catalogue/" + pub + "/";
+        const double changedRating = label == "facts-two" ? 9.7 : 8.4;
+        const bool nullable = fault.startsWith("nullable");
+        const auto identity = [&](const QString &id, QJsonValue rating, QJsonValue votes, bool anime,
+                                  int ordinal) {
+            return QJsonObject{{"identity", QJsonObject{{"title", id}, {"rating", rating},
+                                                       {"votes", votes}, {"isAnime", anime}}},
+                               {"ordinal", ordinal}};
+        };
+        const QJsonArray sourceRows{
+            QJsonArray{"tt0000001", QJsonValue(QJsonValue::Null), 0,
+                       identity("tt0000001", changedRating, 100, false, 2)},
+            QJsonArray{"tt0000002", QJsonValue(QJsonValue::Null), 0,
+                       identity("tt0000002", 9.1, 220, true, 0)},
+            QJsonArray{"tt0000003", QJsonValue(QJsonValue::Null), 0,
+                       identity("tt0000003", nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(7.5),
+                                nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(80), false, 1)}};
+        const auto genericRaw = QJsonDocument(sourceRows).toJson(QJsonDocument::Compact);
+        const QString genericPath = prefix + "shared/" + hash(genericRaw) + ".json";
+        files[genericPath] = genericRaw;
+        QJsonArray tuples{
+            QJsonArray{"tt0000001", changedRating, 100, false, 2},
+            QJsonArray{"tt0000002", 9.1, 220, true, 0},
+            QJsonArray{"tt0000003", nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(7.5),
+                       nullable ? QJsonValue(QJsonValue::Null) : QJsonValue(80), false, 1}};
+        if (fault == "corrupt-tuple")
+            tuples[1] = QJsonArray{"tt0000002", 9.1, QStringLiteral("220"), true, 0};
+        const auto factsRaw = QJsonDocument(tuples).toJson(QJsonDocument::Compact);
+        factsPath = prefix + "shared/" + hash(factsRaw) + ".json";
+        files[factsPath] = factsRaw;
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        const auto oldIndexPath = entry.value("index").toObject().value("path").toString();
+        auto index = QJsonDocument::fromJson(files.value(oldIndexPath)).object();
+        index["search"] = QJsonObject{{"imdb",
+                           QJsonObject{{"keys", QJsonArray{QJsonObject{{"path", genericPath},
+                                                                      {"first", "tt0000001"},
+                                                                      {"last", "tt0000003"}}}},
+                                       {"names", QJsonArray()}}}};
+        if (fault != "absent" && fault != "nullable-legacy") {
+            QJsonObject block{{"path", factsPath}, {"first", "tt0000001"},
+                              {"last", "tt0000003"}};
+            if (fault == "bad-declaration")
+                block["first"] = "tt0000004";
+            index["facts"] = fault == "absent-field"
+                ? QJsonObject()
+                : QJsonObject{{"imdb",
+                              QJsonObject{{"version", fault == "bad-version" ? 2 : 1},
+                                          {"blocks", fault == "empty-directory" ? QJsonArray()
+                                                                        : QJsonArray{block}}}}};
+        }
+        if (fault == "split-blocks" || fault == "split-malformed-first") {
+            // A valid two-shard facts publication exposes redundant rescanning:
+            // the second Need must not revalidate the first complete tuple block.
+            const auto firstRow = fault == "split-malformed-first"
+                ? QJsonValue(QJsonArray{"tt0000001", 8.4, QStringLiteral("bad-votes"), false, 2})
+                : tuples.at(0);
+            const auto firstRaw = QJsonDocument(QJsonArray{firstRow, tuples.at(1)})
+                                      .toJson(QJsonDocument::Compact);
+            const auto lastRaw = QJsonDocument(QJsonArray{tuples.at(2)})
+                                     .toJson(QJsonDocument::Compact);
+            const auto firstPath = prefix + "shared/" + hash(firstRaw) + ".json";
+            const auto lastPath = prefix + "shared/" + hash(lastRaw) + ".json";
+            files[firstPath] = firstRaw;
+            files[lastPath] = lastRaw;
+            if (fault == "split-malformed-first")
+                files.remove(lastPath); // Must not be requested after earlier malformed shard.
+            const auto ranges = QJsonArray{
+                QJsonObject{{"path", firstPath}, {"first", "tt0000001"}, {"last", "tt0000002"}},
+                QJsonObject{{"path", lastPath}, {"first", "tt0000003"}, {"last", "tt0000003"}}};
+            auto search = index.value("search").toObject();
+            auto sourceImdb = search.value("imdb").toObject();
+            sourceImdb["keys"] = ranges;
+            search["imdb"] = sourceImdb;
+            index["search"] = search;
+            auto factsRoot = index.value("facts").toObject();
+            auto imdbFacts = factsRoot.value("imdb").toObject();
+            imdbFacts["blocks"] = ranges;
+            factsRoot["imdb"] = imdbFacts;
+            index["facts"] = factsRoot;
+        }
+        const auto indexRaw = json(index);
+        const auto path = prefix + "index-" + hash(indexRaw) + ".json";
+        files[path] = indexRaw;
+        files["/catalogue/current.json"] =
+            json({{"schemaVersion", 1}, {"revision", pub}, {"sourceRevision", source},
+                  {"index", QJsonObject{{"path", path}, {"sha256", hash(indexRaw)},
+                                        {"bytes", indexRaw.size()}}}});
+    };
+    // Independently constructed additive publication: V1 aligned block remains
+    // present and valid, and each hash prefix selects its content-addressed rows.
+    auto publishBucketFacts = [&](const QString &label, const QString &fault = QString()) {
+        publish(label);
+        const QString prefix = "/catalogue/" + pub + "/";
+        QJsonArray rows, generic;
+        QHash<QString, QJsonArray> grouped;
+        const int rowCount = label == "bucket-chunk" ? 140 : 80;
+        for (int n = 1; n <= rowCount; ++n) {
+            const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+            const QJsonValue rating = n == 3 && fault == "nullable"
+                ? QJsonValue(QJsonValue::Null)
+                : QJsonValue(n == 1 && label.endsWith("-new") ? 9.7 : 8.4);
+            const QJsonValue votes = n == 3 && fault == "nullable"
+                ? QJsonValue(QJsonValue::Null) : QJsonValue(100 + n);
+            const bool anime = (n % 2) == 0;
+            const QJsonArray tuple{id, rating, votes, anime, n - 1};
+            rows.append(tuple);
+            grouped[hash(id.toUtf8()).left(2)].append(tuple);
+            generic.append(QJsonArray{id, QJsonValue(QJsonValue::Null), 0,
+                QJsonObject{{"identity", QJsonObject{{"title", id}, {"rating", rating},
+                    {"votes", votes}, {"isAnime", anime}}}, {"ordinal", n - 1}}});
+        }
+        const auto genericRaw = QJsonDocument(generic).toJson(QJsonDocument::Compact);
+        const auto genericPath = prefix + "shared/" + hash(genericRaw) + ".json";
+        files[genericPath] = genericRaw;
+        const auto factsRaw = QJsonDocument(rows).toJson(QJsonDocument::Compact);
+        const auto alignedPath = prefix + "shared/" + hash(factsRaw) + ".json";
+        files[alignedPath] = factsRaw;
+        const auto first = QStringLiteral("tt0000001");
+        const auto last = QStringLiteral("tt%1").arg(rowCount, 7, 10, QLatin1Char('0'));
+        const QJsonArray sourceRefs{QJsonObject{{"path", genericPath},
+                                                {"first", first}, {"last", last}}};
+        const QJsonArray factRefs{QJsonObject{{"path", alignedPath},
+                                              {"first", first}, {"last", last}}};
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        auto index = QJsonDocument::fromJson(
+            files.value(entry.value("index").toObject().value("path").toString())).object();
+        index["search"] = QJsonObject{{"imdb", QJsonObject{
+            {"keys", sourceRefs}, {"names", QJsonArray()}}}};
+        const QByteArray emptyRaw("[]");
+        const auto emptyPath = prefix + "shared/" + hash(emptyRaw) + ".json";
+        files[emptyPath] = emptyRaw;
+        QJsonObject mappings;
+        for (int n = 0; n < 256; ++n)
+            mappings[QString::number(n, 16).rightJustified(2, QLatin1Char('0'))] = emptyPath;
+        auto install = [&](const QString &key, const QByteArray &raw) {
+            const auto path = prefix + "shared/" + hash(raw) + ".json";
+            files[path] = raw;
+            mappings[key] = path;
+        };
+        auto keys = grouped.keys();
+        std::sort(keys.begin(), keys.end());
+        for (const auto &key : keys)
+            install(key, QJsonDocument(grouped.value(key)).toJson(QJsonDocument::Compact));
+        if (fault == "wrong-prefix")
+            mappings[keys.at(0)] = mappings.value(keys.at(1));
+        if (fault == "shared-nonempty")
+            mappings[keys.at(1)] = mappings.value(keys.at(0));
+        if (fault == "bad-votes" || fault == "bad-rating" ||
+            fault == "bad-ordinal" || fault == "duplicate-tuple" ||
+            fault == "bad-rows-type" || fault == "bad-json" || fault == "bad-utf8") {
+            auto changed = grouped.value(keys.first());
+            auto firstTuple = changed.first().toArray();
+            if (fault == "bad-votes") firstTuple[2] = QStringLiteral("invalid");
+            if (fault == "bad-rating") firstTuple[1] = QStringLiteral("invalid");
+            if (fault == "bad-ordinal") firstTuple[4] = -1;
+            if (fault == "bad-votes" || fault == "bad-rating" || fault == "bad-ordinal")
+                changed[0] = firstTuple;
+            if (fault == "duplicate-tuple") changed.append(changed.first());
+            const auto raw = fault == "bad-rows-type" ? QByteArray("{}")
+                : fault == "bad-json" ? QByteArray("[")
+                : fault == "bad-utf8" ? QByteArray(1, char(0xff))
+                : QJsonDocument(changed).toJson(QJsonDocument::Compact);
+            install(keys.first(), raw);
+        }
+        if (fault == "unsorted") {
+            for (const auto &key : keys) {
+                auto changed = grouped.value(key);
+                if (changed.size() < 2) continue;
+                const auto a = changed.at(0);
+                changed[0] = changed.at(1);
+                changed[1] = a;
+                install(key, QJsonDocument(changed).toJson(QJsonDocument::Compact));
+                break;
+            }
+        }
+        if (fault == "missing-file")
+            files.remove(mappings.value(keys.first()).toString());
+        if (fault == "hash-mismatch")
+            files[mappings.value(keys.first()).toString()] = "{}";
+        if (fault == "missing-key") mappings.remove("ff");
+        if (fault == "unsafe-unselected") mappings["ff"] = "/etc/passwd";
+        if (fault == "non-string-key") mappings["ff"] = QJsonArray();
+        QJsonObject hashDirectory{{"version", fault == "unsupported" ? 2 : 1},
+            {"keyHash", fault == "wrong-keyhash" ? "md5" : "sha256-utf8"},
+            {"prefixChars", fault == "wrong-width" ? 3 : 2},
+            {"paths", mappings}};
+        auto imdb = QJsonObject{{"version", 1}, {"blocks", factRefs},
+                                {"hashBuckets", hashDirectory}};
+        if (fault == "bad-v1-roster")
+            imdb["blocks"] = QJsonArray();
+        index["facts"] = QJsonObject{{"imdb", imdb}};
+        const auto indexRaw = json(index);
+        const auto indexPath = prefix + "index-" + hash(indexRaw) + ".json";
+        files[indexPath] = indexRaw;
+        files["/catalogue/current.json"] = json({
+            {"schemaVersion", 1}, {"revision", pub}, {"sourceRevision", source},
+            {"index", QJsonObject{{"path", indexPath}, {"sha256", hash(indexRaw)},
+                                   {"bytes", indexRaw.size()}}}});
+        delayedPaths.clear();
+        for (const auto &key : keys)
+            delayedPaths.insert(mappings.value(key).toString());
+    };
+    publish("publication-one");
+    QObject::connect(&server, &QTcpServer::newConnection, &app, [&] {
+        while (server.hasPendingConnections()) {
+            auto *s = server.nextPendingConnection();
+            auto data = QSharedPointer<QByteArray>::create();
+            QObject::connect(s, &QTcpSocket::disconnected, s, &QObject::deleteLater);
+            QObject::connect(s, &QTcpSocket::readyRead, s, [&, s, data] {
+                data->append(s->readAll());
+                const int split = data->indexOf("\r\n\r\n");
+                if (split < 0)
+                    return;
+                const auto header = data->left(split);
+                int length = 0;
+                for (const auto &line : header.split('\n'))
+                    if (line.toLower().startsWith("content-length:"))
+                        length = line.mid(15).trimmed().toInt();
+                if (data->size() < split + 4 + length)
+                    return;
+                s->disconnect(SIGNAL(readyRead()));
+                const QString path = QString::fromUtf8(header.split(' ').value(1));
+                QByteArray body;
+                int status = 200;
+                if (header.startsWith("POST ")) {
+                    ++posts;
+                    if (path == "/v1/guest/session")
+                        body = json({{"token", "fixture"}, {"expiresAt", "2099-01-01T00:00:00Z"}});
+                    else {
+                        const auto req = QJsonDocument::fromJson(data->mid(split + 4)).object();
+                        body = json({{"apiVersion", 1},
+                                     {"revision", source},
+                                     {"method", path.mid(path.lastIndexOf('/') + 1)},
+                                     {"result", QJsonArray{QJsonObject{{"title", "worker"}}}}});
+                    }
+                } else {
+                    ++gets;
+                    if (offline) {
+                        s->disconnectFromHost();
+                        return;
+                    }
+                    if (files.contains(path))
+                        body = files[path];
+                    else
+                        status = 404;
+                }
+                if (rotateMissing && path == leaf) {
+                    rotateMissing = false;
+                    publish(rotatedLabel);
+                    status = retiredStatus;
+                    body.clear();
+                }
+                if (holdLeaf && path == leaf) {
+                    held.append(s);
+                    return;
+                }
+                const QByteArray etag = '"' + hash(body).toLatin1() + '"';
+                if (path == "/catalogue/current.json" &&
+                    header.contains("If-None-Match: " + etag)) {
+                    status = 304;
+                    body.clear();
+                }
+                auto respond = [s, status, etag, body] {
+                    if (s->state() != QAbstractSocket::ConnectedState)
+                        return;
+                    s->write("HTTP/1.1 " + QByteArray::number(status) + " OK\r\nETag: " + etag +
+                             "\r\nContent-Type: application/json\r\nContent-Length: " +
+                             QByteArray::number(body.size()) + "\r\nConnection: close\r\n\r\n" + body);
+                    s->disconnectFromHost();
+                };
+                if (delayBuckets && delayedPaths.contains(path)) {
+                    ++liveBuckets;
+                    peakBuckets = std::max(peakBuckets, liveBuckets);
+                    QObject::connect(s, &QTcpSocket::disconnected, &app, [&] {
+                        --liveBuckets;
+                    });
+                    QTimer::singleShot(65, s, respond);
+                } else {
+                    respond();
+                }
+            });
+        }
+    });
+    auto *r = StaticCatalogueResolver::shared(&nam, origin, temp.path(), &app);
+    QObject::connect(r, &StaticCatalogueResolver::measured, &app,
+                     [&](const QString &dataset, const QString &method, const QVariantMap &m) {
+                         auto row = m;
+                         row["dataset"] = dataset;
+                         row["method"] = method;
+                         measured.append(row);
+                     });
+    // Dedicated cache roots keep these counts independent of the legacy leaf tests.
+    const QVariantList landingArgs{QStringLiteral("movies")};
+    const QVariantList landingChildArgs{QVariantMap(), 0, 24};
+    const auto landingCache = temp.filePath("landing/remote.json");
+    {
+        CatalogRemote landing("imdb");
+        landing.configure(&nam, origin, landingCache);
+        const int before = gets, beforePosts = posts;
+        landing.read("landing", landingArgs, QVariantMap());
+        until([&] { return !landing.pending(); });
+        const auto state = landing.queryState("landing", landingArgs, QVariantMap());
+        require(state.value("status") == "success" && state.value("cached").toBool(),
+                "native landing completes with typed success");
+        require(gets == before + 3 && posts == beforePosts,
+                "cold landing fetches entry, index and exactly one bundle leaf");
+        const auto childState = landing.queryState("titleCatalog", landingChildArgs, QVariantList());
+        require(childState.value("status") == "success" && childState.value("cached").toBool(),
+                "landing hydrates exact titleCatalog query cache");
+        const int primedGets = gets;
+        const auto rows = landing.read("titleCatalog", landingChildArgs, QVariantList()).toList();
+        require(!rows.isEmpty() && rows.first().toMap().value("title") == "publication-one"
+                    && !landing.pending() && gets == primedGets && posts == beforePosts,
+                "primed individual query needs no GET, guest lease or Worker POST");
+    } // Destructor flushes the complete cache before the separate-process restart.
+    QProcess landingRestart;
+    landingRestart.start(QCoreApplication::applicationFilePath(),
+        {"--offline-landing", origin.toString(QUrl::FullyEncoded), landingCache, "publication-one"});
+    require(landingRestart.waitForFinished(15000)
+                && landingRestart.exitStatus() == QProcess::NormalExit && landingRestart.exitCode() == 0
+                && landingRestart.readAllStandardOutput().contains("PASS separate-process landing offline restoration"),
+            "landing offline restart completes cleanly");
+    QProcess warmRestart;
+    warmRestart.start(QCoreApplication::applicationFilePath(),
+        {"--warm-landing", origin.toString(QUrl::FullyEncoded), landingCache, "publication-one"});
+    require(warmRestart.waitForFinished(15000) && warmRestart.exitStatus() == QProcess::NormalExit
+                && warmRestart.exitCode() == 0,
+            "warm separate process restores fresh validated landing without scheduling network");
+    // Model a bounded persisted cache where an older child was evicted but its
+    // newer landing remains. No 256 network requests are needed to construct it.
+    QFile cacheFile(landingCache);
+    require(cacheFile.open(QIODevice::ReadOnly), "saved landing cache opens");
+    auto cachedObject = QJsonDocument::fromJson(cacheFile.readAll()).object(); cacheFile.close();
+    auto cachedEntries = cachedObject.value("entries").toObject();
+    CatalogRemote identity("imdb");
+    cachedEntries.remove(identity.queryKey("titleCatalog", landingChildArgs));
+    auto olderLanding = cachedEntries.value(identity.queryKey("landing", landingArgs)).toObject();
+    olderLanding["fetchedAt"] = QDateTime::currentDateTimeUtc().addSecs(-60).toString(Qt::ISODate);
+    cachedEntries[identity.queryKey("landing", landingArgs)] = olderLanding;
+    for (int n = 0; n < 255; ++n) {
+        const QVariantList args{QVariantMap{{"genre", QString::number(n)}}, 0, 24};
+        cachedEntries[identity.queryKey("titleCatalog", args)] = QJsonObject{
+            {"method", "titleCatalog"}, {"result", QJsonArray()}, {"revision", source},
+            {"fetchedAt", QDateTime::currentDateTimeUtc().addSecs(-1).toString(Qt::ISODate)}, {"etag", ""}};
+    }
+    require(cachedEntries.size() == 256, "eviction fixture fills the 256-entry cache cap");
+    cachedObject["entries"] = cachedEntries;
+    const auto evictedCache = temp.filePath("landing/evicted.json");
+    QFile evictedFile(evictedCache);
+    require(evictedFile.open(QIODevice::WriteOnly), "evicted fixture opens");
+    evictedFile.write(json(cachedObject)); evictedFile.close();
+    {
+        CatalogRemote evicted("imdb"); evicted.configure(nullptr, origin, evictedCache);
+        require(evicted.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "missing",
+                "evicted child initially absent");
+        const int before = gets, beforePosts = posts;
+        evicted.read("landing", landingArgs, QVariantMap());
+        const auto rows = evicted.read("titleCatalog", landingChildArgs, QVariantList()).toList();
+        require(evicted.queryState("landing", landingArgs, QVariantMap()).value("cached").toBool(),
+                "priming retains the older landing working set under entry pressure");
+        require(!rows.isEmpty() && rows.first().toMap().value("title") == "publication-one"
+                    && !evicted.pending() && gets == before && posts == beforePosts,
+                "cached landing re-primes an independently evicted child without I/O");
+    }
+    for (const auto &fault : {QStringLiteral("date"), QStringLiteral("duplicate"),
+                              QStringLiteral("shape"), QStringLiteral("args"), QStringLiteral("absent")}) {
+        publish("landing-fault-" + fault, fault);
+        CatalogRemote rejected("imdb");
+        rejected.configure(&nam, origin, temp.filePath("landing-fault-" + fault + "/remote.json"));
+        const int beforePosts = posts;
+        rejected.read("landing", landingArgs, QVariantMap());
+        until([&] { return !rejected.pending(); });
+        const auto state = rejected.queryState("landing", landingArgs, QVariantMap());
+        require(state.value("status") == "failure" && !state.value("cached").toBool()
+                    && state.value("error") == ((fault=="duplicate"||fault=="shape"||fault=="args")?"INVALID_LANDING":"STATIC_NOT_PREPARED")
+                    && posts == beforePosts,
+                "invalid or absent landing fails without calling old Worker APIs");
+        require(rejected.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "missing",
+                "invalid date, duplicate child, bad result shape or absent bundle cannot prime children");
+    }
+    publish("publication-one");
+    auto resolve = [&](StaticCatalogueResolver *owner, const QString &method = "titleCatalog",
+                       const QVariantList &args = QVariantList{QVariantMap(), 0, 24},
+                       const QString &dataset = QStringLiteral("imdb")) {
+        bool done = false;
+        StaticCatalogueResolver::Outcome out;
+        owner->resolve(dataset, method, args, &app, [&](auto v) {
+            out = v;
+            done = true;
+        });
+        require(!done, "completion is deferred");
+        until([&] { return done; });
+        return out;
+    };
+    // Compact facts have their own publication and cache fixture; existing
+    // catalogue/landing regression paths below remain unchanged.
+    // Explicit QVariant wrapping avoids QList copy-initialization flattening the argument.
+    const auto factArguments = [](const QVariantList &ids) {
+        return QVariantList{QVariant::fromValue(ids)};
+    };
+    const auto factsArgs = factArguments({QStringLiteral("tt0000002"),
+                                         QStringLiteral("tt0000002a"),
+                                         QStringLiteral("tt0000001"),
+                                         QStringLiteral("tt0000002")});
+    const auto factsJsonArgs = QJsonArray::fromVariantList(factsArgs);
+    require(factsJsonArgs.size() == 1 && factsJsonArgs.first().isArray() &&
+                factsJsonArgs.first().toArray().size() == 4,
+            "fixture sends one actual nested ID-list API argument");
+    const QJsonObject expectedFacts{
+        {"tt0000001", QJsonObject{{"rating", 8.4}, {"votes", 100}, {"isAnime", false}}},
+        {"tt0000002", QJsonObject{{"rating", 9.1}, {"votes", 220}, {"isAnime", true}}}};
+    publishFacts("facts-one");
+    auto *facts = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("facts-cache"), &app);
+    const auto factsCold = resolve(facts, "titleFacts", factsArgs);
+    require(factsCold.status == StaticCatalogueResolver::Status::Prepared &&
+                factsCold.result.toObject() == expectedFacts,
+            "compact known/unknown/mixed/duplicate/ordered IDs preserve titleFacts JSON");
+    require(resolve(facts, "titleFacts", factArguments({})).status ==
+                StaticCatalogueResolver::Status::Prepared &&
+                resolve(facts, "titleFacts", factArguments({})).result.toObject().isEmpty(),
+            "compact valid empty selection is prepared empty");
+    const auto unknown = resolve(facts, "titleFacts",
+                                 factArguments({QStringLiteral("tt9999999")}));
+    require(unknown.status == StaticCatalogueResolver::Status::Prepared &&
+                unknown.result.toObject().isEmpty(),
+            "compact unknown-only IDs are prepared empty without unrelated shard downloads");
+    const int factsColdGets = gets;
+    require(resolve(facts, "titleFacts", factsArgs).result.toObject() == expectedFacts &&
+                gets == factsColdGets,
+            "compact facts warm query reuses verified shared files");
+    const auto title = resolve(facts, "titlePresentation", {QStringLiteral("tt0000001")});
+    require(title.status == StaticCatalogueResolver::Status::Prepared &&
+                title.result.toObject().value("title") == "tt0000001",
+            "compact facts do not divert full generic titlePresentation identities");
+    const int beforeFactsOffline = gets;
+    auto *factsOffline = StaticCatalogueResolver::shared(
+        nullptr, origin, temp.filePath("facts-cache"), &app);
+    const auto offlineFacts = resolve(factsOffline, "titleFacts", factsArgs);
+    require(offlineFacts.status == StaticCatalogueResolver::Status::Prepared &&
+                offlineFacts.result.toObject() == expectedFacts && gets == beforeFactsOffline,
+            "fresh offline resolver restores compact facts without HTTP");
+    publishFacts("facts-two");
+    facts->refresh();
+    const auto switchedFacts = resolve(facts, "titleFacts", factsArgs);
+    require(switchedFacts.status == StaticCatalogueResolver::Status::Prepared &&
+                switchedFacts.publication != factsCold.publication &&
+                switchedFacts.result.toObject().value("tt0000001").toObject().value("rating") == 9.7,
+            "compact facts revision switch drops old result for same IDs");
+    for (const auto &fault : {QStringLiteral("corrupt-tuple"), QStringLiteral("bad-version"),
+                              QStringLiteral("bad-declaration"), QStringLiteral("empty-directory"),
+                              QStringLiteral("hash"), QStringLiteral("missing")}) {
+        publishFacts("facts-fault-" + fault, fault);
+        if (fault == "hash") files[factsPath] = "{}";
+        if (fault == "missing") files.remove(factsPath);
+        auto *invalid = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("facts-invalid-" + fault), &app);
+        const int beforePosts = posts;
+        require(resolve(invalid, "titleFacts", factsArgs).status ==
+                    StaticCatalogueResolver::Status::Failure && posts == beforePosts,
+                "advertised invalid facts tuple/declaration/hash/missing shard fails hard");
+    }
+    publishFacts("facts-legacy", "absent");
+    auto *legacy = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("facts-legacy"), &app);
+    require(resolve(legacy, "titleFacts", factsArgs).status ==
+                StaticCatalogueResolver::Status::Prepared &&
+                resolve(legacy, "titleFacts", factsArgs).result.toObject() == expectedFacts,
+            "only absent optional facts directory falls back to generic identity lookup");
+    publishFacts("facts-absent-field", "absent-field");
+    auto *missingField = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("facts-absent-field"), &app);
+    require(resolve(missingField, "titleFacts", factsArgs).result.toObject() == expectedFacts,
+            "missing facts.imdb field alone retains the generic fallback");
+    for (const auto &mode : {QStringLiteral("nullable"), QStringLiteral("nullable-legacy")}) {
+        publishFacts("facts-" + mode, mode);
+        auto *nullableFacts = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("facts-" + mode), &app);
+        const auto nullableResult = resolve(nullableFacts, "titleFacts",
+                                           factArguments({QStringLiteral("tt0000003")}));
+        const QJsonObject expectedNulls{{"tt0000003", QJsonObject{
+            {"rating", QJsonValue(QJsonValue::Null)}, {"votes", QJsonValue(QJsonValue::Null)},
+            {"isAnime", false}}}};
+        require(nullableResult.status == StaticCatalogueResolver::Status::Prepared &&
+                    nullableResult.result.toObject() == expectedNulls,
+                "compact and legacy facts preserve null rating/votes, not numeric zero");
+    }
+    publishFacts("facts-two-shards", "split-blocks");
+    const auto splitArgs = factArguments({QStringLiteral("tt0000001"),
+                                          QStringLiteral("tt0000003")});
+    const QJsonObject expectedSplit{
+        {"tt0000001", QJsonObject{{"rating", 8.4}, {"votes", 100}, {"isAnime", false}}},
+        {"tt0000003", QJsonObject{{"rating", 7.5}, {"votes", 80}, {"isAnime", false}}}};
+    const auto splitCache = temp.filePath("facts-split-cache");
+    auto *split = StaticCatalogueResolver::shared(&nam, origin, splitCache, &app);
+    const int splitGets = gets;
+    const auto splitCold = resolve(split, "titleFacts", splitArgs);
+    require(splitCold.status == StaticCatalogueResolver::Status::Prepared &&
+                splitCold.result.toObject() == expectedSplit && gets > splitGets,
+            "two-block cold compact lookup returns both exact identities");
+    require(splitCold.metrics.value("validatedFactsTuples").toULongLong() == 3,
+            "cold compact rows are validated exactly once across two async shard loads");
+    const int splitWarmGets = gets;
+    const auto splitWarm = resolve(split, "titleFacts", splitArgs);
+    require(splitWarm.result.toObject() == expectedSplit && gets == splitWarmGets &&
+                splitWarm.metrics.value("validatedFactsTuples").toULongLong() == 3,
+            "two-block warm lookup preserves JSON without repeated tuple validation");
+    QObject splitOfflineOwner;
+    auto *splitOffline = StaticCatalogueResolver::shared(
+        nullptr, origin, splitCache, &splitOfflineOwner);
+    const auto splitDisk = resolve(splitOffline, "titleFacts", splitArgs);
+    require(splitDisk.status == StaticCatalogueResolver::Status::Prepared &&
+                splitDisk.result.toObject() == expectedSplit && gets == splitWarmGets &&
+                splitDisk.metrics.value("validatedFactsTuples").toULongLong() == 3 &&
+                splitDisk.metrics.value("diskFiles").toInt() >= 2,
+            "fresh offline disk lookup verifies each compact shard once without HTTP");
+
+    publishFacts("facts-split-malformed", "split-malformed-first");
+    auto *splitInvalid = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("facts-split-invalid"), &app);
+    const int invalidBefore = gets;
+    const auto malformedFirst = resolve(splitInvalid, "titleFacts", splitArgs);
+    require(malformedFirst.status == StaticCatalogueResolver::Status::Failure &&
+                malformedFirst.error == "STATIC_INVALID_FACTS_TUPLE" &&
+                gets == invalidBefore + 3,
+            "malformed first compact block fails before requesting missing later shard");
+
+    // Bucket-mode golden and negative fixture: the immutable V1 tests above
+    // remain serial and unchanged; these exercise only the additive facility.
+    QVariantList allBucketIds;
+    QJsonObject expectedBuckets;
+    QSet<QString> populatedPrefixes;
+    for (int n = 1; n <= 80; ++n) {
+        const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+        allBucketIds.append(id);
+        populatedPrefixes.insert(hash(id.toUtf8()).left(2));
+        expectedBuckets[id] = QJsonObject{{"rating", 8.4}, {"votes", 100 + n},
+                                           {"isAnime", (n % 2) == 0}};
+    }
+    const auto allBucketArgs = factArguments(allBucketIds);
+    publishBucketFacts("bucket-good");
+    const auto bucketCache = temp.filePath("facts-bucket-cache");
+    auto *bucketResolver = StaticCatalogueResolver::shared(&nam, origin, bucketCache, &app);
+    const int beforeBucket = gets;
+    const auto bucketCold = resolve(bucketResolver, "titleFacts", allBucketArgs);
+    require(bucketCold.status == StaticCatalogueResolver::Status::Prepared &&
+            bucketCold.result.toObject() == expectedBuckets &&
+            bucketCold.metrics.value("factsMode") == "hashBuckets-v1" &&
+            bucketCold.metrics.value("bucketSelectedPrefixes").toInt() ==
+                populatedPrefixes.size() &&
+            bucketCold.metrics.value("bucketUniquePaths").toInt() >= 30 &&
+            bucketCold.metrics.value("bucketPeakPending").toInt() >= 2 &&
+            bucketCold.metrics.value("bucketPeakPending").toInt() <= 4 &&
+            bucketCold.metrics.value("validatedFactsTuples").toULongLong() == 80 &&
+            gets > beforeBucket + 2,
+            "hash buckets select and validate exact tuples with bounded acquisition");
+    const int bucketGets = gets;
+    const auto bucketWarm = resolve(bucketResolver, "titleFacts", allBucketArgs);
+    require(bucketWarm.status == StaticCatalogueResolver::Status::Prepared &&
+            bucketWarm.result == bucketCold.result && gets == bucketGets &&
+            bucketWarm.metrics.value("networkFiles").toInt() == 0,
+            "bucket warm memory has identical JSON and zero network I/O");
+    QObject bucketDiskOwner;
+    auto *bucketDisk = StaticCatalogueResolver::shared(
+        nullptr, origin, bucketCache, &bucketDiskOwner);
+    const auto bucketOffline = resolve(bucketDisk, "titleFacts", allBucketArgs);
+    require(bucketOffline.status == StaticCatalogueResolver::Status::Prepared &&
+            bucketOffline.result == bucketCold.result && gets == bucketGets &&
+            bucketOffline.metrics.value("diskFiles").toInt() >=
+                bucketCold.metrics.value("bucketUniquePaths").toInt() &&
+            bucketOffline.metrics.value("networkFiles").toInt() == 0,
+            "fresh independent NAM=null owner verifies actual disk bucket files");
+    QVariantList emptyBucketIds;
+    QSet<QString> emptyPrefixes;
+    for (int n = 9000000; n < 9010000 && emptyBucketIds.size() < 12; ++n) {
+        const auto id = QStringLiteral("tt%1").arg(n);
+        const auto key = hash(id.toUtf8()).left(2);
+        if (populatedPrefixes.contains(key) || emptyPrefixes.contains(key)) continue;
+        emptyBucketIds.append(id);
+        emptyPrefixes.insert(key);
+    }
+    require(emptyBucketIds.size() == 12, "fixture has distinct unpopulated prefixes");
+    const auto emptyBucketResult = resolve(
+        bucketResolver, "titleFacts", factArguments(emptyBucketIds));
+    require(emptyBucketResult.status == StaticCatalogueResolver::Status::Prepared &&
+            emptyBucketResult.result.toObject().isEmpty() &&
+            emptyBucketResult.metrics.value("bucketSelectedPrefixes").toInt() == 12 &&
+            emptyBucketResult.metrics.value("bucketUniquePaths").toInt() == 1 &&
+            emptyBucketResult.metrics.value("bucketAdmissions").toInt() == 1,
+            "twelve empty prefixes reuse one verified asset and count it once");
+
+    publishBucketFacts("bucket-nullable", "nullable");
+    auto *nullableBucket = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-nullable"), &app);
+    const auto nullableBucketOut = resolve(nullableBucket, "titleFacts",
+        factArguments({QStringLiteral("tt0000003"), QStringLiteral("tt9999999"),
+                       QStringLiteral("tt0000003"), QStringLiteral("tt0000001")}));
+    require(nullableBucketOut.status == StaticCatalogueResolver::Status::Prepared &&
+            nullableBucketOut.result.toObject().size() == 2 &&
+            nullableBucketOut.result.toObject().value("tt0000003").toObject().value("rating").isNull() &&
+            nullableBucketOut.result.toObject().value("tt0000003").toObject().value("votes").isNull(),
+            "bucket null numbers, unknown keys and duplicated ordered keys preserve V1 output");
+
+    publishBucketFacts("bucket-chunk");
+    auto *chunkBucket = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-chunk"), &app);
+    QVariantList chunkIds;
+    QJsonObject expectedChunk;
+    for (int n = 1; n <= 140; ++n) {
+        const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+        chunkIds.append(id);
+        expectedChunk[id] = QJsonObject{{"rating", 8.4}, {"votes", n + 100},
+                                        {"isAnime", (n % 2) == 0}};
+    }
+    const auto chunkOut = resolve(chunkBucket, "titleFacts", factArguments(chunkIds));
+    require(chunkOut.status == StaticCatalogueResolver::Status::Prepared &&
+            chunkOut.result.toObject() == expectedChunk &&
+            chunkOut.metrics.value("bucketUniquePaths").toInt() > 80 &&
+            chunkOut.metrics.value("bucketPeakPending").toInt() <= 4,
+            "140-key hash query preserves cross-100 chunk semantics and bounded I/O");
+
+    // Hash buckets are bounded by bytes, not the aligned V1 block's 2048 rows.
+    // This complete publication keeps its V1 source/facts blocks <=2048 while
+    // 2100 valid source IDs happen to share one SHA prefix.
+    publishBucketFacts("bucket-dense-contract");
+    {
+        const QString prefix = "/catalogue/" + pub + "/";
+        const auto targetPrefix = hash(QByteArrayLiteral("tt0000001")).left(2);
+        QJsonArray denseRows, sourceRefs, factRefs;
+        for (int n = 1; denseRows.size() < 2100; ++n) {
+            const auto id = QStringLiteral("tt%1").arg(n, 7, 10, QLatin1Char('0'));
+            if (hash(id.toUtf8()).left(2) == targetPrefix)
+                denseRows.append(QJsonArray{id, 8.4, 101, false, denseRows.size()});
+        }
+        auto put = [&](const QJsonArray &rows) {
+            const auto raw = QJsonDocument(rows).toJson(QJsonDocument::Compact);
+            const auto path = prefix + "shared/" + hash(raw) + ".json";
+            files[path] = raw;
+            return path;
+        };
+        for (qsizetype offset = 0; offset < denseRows.size(); offset += 2048) {
+            QJsonArray compact, generic;
+            const auto end = std::min(offset + 2048, denseRows.size());
+            for (auto n = offset; n < end; ++n) {
+                const auto tuple = denseRows.at(n).toArray();
+                compact.append(tuple);
+                generic.append(QJsonArray{tuple.at(0), QJsonValue(QJsonValue::Null), 0,
+                    QJsonObject{{"identity", QJsonObject{{"rating", 8.4}, {"votes", 101},
+                        {"isAnime", false}}}, {"ordinal", n}}});
+            }
+            const auto first = compact.first().toArray().at(0).toString();
+            const auto last = compact.last().toArray().at(0).toString();
+            sourceRefs.append(QJsonObject{{"path", put(generic)}, {"first", first}, {"last", last}});
+            factRefs.append(QJsonObject{{"path", put(compact)}, {"first", first}, {"last", last}});
+        }
+        const auto oldEntry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        auto index = QJsonDocument::fromJson(files.value(
+            oldEntry.value("index").toObject().value("path").toString())).object();
+        auto search = index.value("search").toObject();
+        auto imdbSearch = search.value("imdb").toObject();
+        imdbSearch["keys"] = sourceRefs;
+        search["imdb"] = imdbSearch;
+        index["search"] = search;
+        QJsonObject mappings;
+        const auto emptyPath = put(QJsonArray());
+        for (int n = 0; n < 256; ++n)
+            mappings[QString::number(n, 16).rightJustified(2, QLatin1Char('0'))] = emptyPath;
+        mappings[targetPrefix] = put(denseRows);
+        index["facts"] = QJsonObject{{"imdb", QJsonObject{{"version", 1}, {"blocks", factRefs},
+            {"hashBuckets", QJsonObject{{"version", 1}, {"keyHash", "sha256-utf8"},
+                {"prefixChars", 2}, {"paths", mappings}}}}}};
+        const auto indexRaw = json(index);
+        const auto indexPath = prefix + "index-" + hash(indexRaw) + ".json";
+        files[indexPath] = indexRaw;
+        files["/catalogue/current.json"] = json({{"schemaVersion", 1}, {"revision", pub},
+            {"sourceRevision", source}, {"index", QJsonObject{{"path", indexPath},
+                {"sha256", hash(indexRaw)}, {"bytes", indexRaw.size()}}}});
+        auto *dense = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("bucket-dense-contract"), &app);
+        const auto result = resolve(dense, "titleFacts", factArguments({QStringLiteral("tt0000001")}));
+        require(result.status == StaticCatalogueResolver::Status::Prepared &&
+                    result.result.toObject().size() == 1 &&
+                    result.metrics.value("validatedFactsTuples").toULongLong() == 2100,
+                "valid hash bucket may exceed V1 aligned block row count without weakening validation");
+    }
+
+    publishBucketFacts("bucket-failure-stops-prefetch");
+    {
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        const auto index = QJsonDocument::fromJson(files.value(
+            entry.value("index").toObject().value("path").toString())).object();
+        const auto mappings = index.value("facts").toObject().value("imdb").toObject()
+            .value("hashBuckets").toObject().value("paths").toObject();
+        for (const auto &key : populatedPrefixes)
+            files.remove(mappings.value(key).toString());
+        auto *missingBuckets = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("bucket-failure-stops-prefetch"), &app);
+        const int before = gets, beforeWorker = posts;
+        const auto failed = resolve(missingBuckets, "titleFacts", allBucketArgs);
+        std::cerr << "ROOT missing-bucket requests=" << (gets - before) << '\n';
+        require(failed.status == StaticCatalogueResolver::Status::Failure &&
+                    failed.error == "STATIC_HTTP_404" && posts == beforeWorker &&
+                    gets - before <= 12,
+                "failed bucket stops fresh admissions while preserving one metadata refresh and four pending loads");
+    }
+
+    for (const auto &fault : {QStringLiteral("bad-v1-roster"), QStringLiteral("unsupported"),
+                              QStringLiteral("missing-key"), QStringLiteral("wrong-keyhash"),
+                              QStringLiteral("wrong-width"), QStringLiteral("unsafe-unselected"),
+                              QStringLiteral("non-string-key"), QStringLiteral("wrong-prefix"),
+                              QStringLiteral("shared-nonempty"), QStringLiteral("bad-votes"),
+                              QStringLiteral("bad-rating"), QStringLiteral("bad-ordinal"),
+                              QStringLiteral("duplicate-tuple"), QStringLiteral("unsorted"),
+                              QStringLiteral("bad-rows-type"), QStringLiteral("bad-json"),
+                              QStringLiteral("bad-utf8"), QStringLiteral("missing-file"),
+                              QStringLiteral("hash-mismatch")}) {
+        publishBucketFacts("bucket-fault-" + fault, fault);
+        auto *bad = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("bucket-fault-" + fault), &app);
+        const int before = gets, beforeWorker = posts;
+        const auto result = resolve(bad, "titleFacts", allBucketArgs);
+        require(result.status == StaticCatalogueResolver::Status::Failure &&
+                posts == beforeWorker,
+                "advertised invalid bucket directory/body never falls back or succeeds");
+        if (fault == "unsafe-unselected" || fault == "missing-key" ||
+            fault == "non-string-key" || fault == "unsupported" ||
+            fault == "wrong-keyhash" || fault == "wrong-width" || fault == "bad-v1-roster")
+            require(result.error == "STATIC_INVALID_FACTS_DECLARATION" &&
+                    gets == before + 2,
+                    "malformed roster, even unrequested, fails before any unsafe asset I/O");
+        if (fault == "wrong-prefix" || fault == "shared-nonempty")
+            require(result.error == "STATIC_INVALID_FACTS_TUPLE",
+                    "same hash-verified nonempty body cannot pass two prefix contexts");
+        if (fault == "hash-mismatch")
+            require(result.error == "STATIC_HASH_MISMATCH",
+                    "bucket content hash is mandatory");
+        if (fault == "missing-file")
+            require(result.error == "STATIC_HTTP_404", "missing bucket never returns empty");
+    }
+
+    publishBucketFacts("bucket-concurrent");
+    delayBuckets = true;
+    liveBuckets = peakBuckets = 0;
+    auto *concurrent = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-concurrent"), &app);
+    QVariantList firstHalf, secondHalf;
+    for (int n = 0; n < allBucketIds.size(); ++n)
+        (n < 40 ? firstHalf : secondHalf).append(allBucketIds.at(n));
+    bool firstDone = false, secondDone = false;
+    StaticCatalogueResolver::Outcome firstOut, secondOut;
+    concurrent->resolve("imdb", "titleFacts", factArguments(firstHalf), &app,
+                        [&](auto out) { firstOut = out; firstDone = true; });
+    concurrent->resolve("imdb", "titleFacts", factArguments(secondHalf), &app,
+                        [&](auto out) { secondOut = out; secondDone = true; });
+    until([&] { return firstDone && secondDone; });
+    delayBuckets = false;
+    require(firstOut.status == StaticCatalogueResolver::Status::Prepared &&
+            secondOut.status == StaticCatalogueResolver::Status::Prepared &&
+            firstOut.result.toObject().size() == 40 &&
+            secondOut.result.toObject().size() == 40 &&
+            peakBuckets >= 2 && peakBuckets <= 4 &&
+            firstOut.metrics.value("bucketPeakPending").toInt() <= 4 &&
+            secondOut.metrics.value("bucketPeakPending").toInt() <= 4,
+            "real delayed loopback proves overlapping jobs share global four transfers");
+
+    publishBucketFacts("bucket-cancel");
+    delayBuckets = true;
+    liveBuckets = peakBuckets = 0;
+    auto *bucketCancelResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-cancel"), &app);
+    bool cancelledCallback = false;
+    const auto cancelId = bucketCancelResolver->resolve("imdb", "titleFacts", allBucketArgs, &app,
+        [&](auto) { cancelledCallback = true; });
+    until([&] { return liveBuckets >= 2; });
+    bucketCancelResolver->cancel(cancelId);
+    until([&] { return liveBuckets == 0; });
+    QCoreApplication::processEvents();
+    delayBuckets = false;
+    require(!cancelledCallback, "mid-prefetch cancellation suppresses callbacks");
+
+    publishBucketFacts("bucket-switch-old");
+    delayBuckets = true;
+    liveBuckets = peakBuckets = 0;
+    auto *switching = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("bucket-switch"), &app);
+    bool oldDone = false, newDone = false;
+    StaticCatalogueResolver::Outcome oldOut, newOut;
+    switching->resolve("imdb", "titleFacts", allBucketArgs, &app,
+        [&](auto out) { oldOut = out; oldDone = true; });
+    until([&] { return liveBuckets >= 2; });
+    publishBucketFacts("bucket-switch-new");
+    const auto latestPub = pub;
+    delayBuckets = false;
+    switching->refresh();
+    switching->resolve("imdb", "titleFacts", allBucketArgs, &app,
+        [&](auto out) { newOut = out; newDone = true; });
+    until([&] { return oldDone && newDone; });
+    require(oldOut.status == StaticCatalogueResolver::Status::Prepared &&
+            newOut.status == StaticCatalogueResolver::Status::Prepared &&
+            oldOut.publication == latestPub && newOut.publication == latestPub &&
+            oldOut.result.toObject().value("tt0000001").toObject().value("rating") == 9.7 &&
+            newOut.result.toObject().value("tt0000001").toObject().value("rating") == 9.7,
+            "source revision invalidates in-flight old buckets and fences callbacks");
+
+    // Additive fine-range directory: a covered series key is served by the
+    // range file alone; every miss (uncovered, covered-but-absent, absent
+    // field) keeps the coarse bucket authoritative; malformed declarations
+    // fail closed before any payload read; hand-packed manga shards stay
+    // inside the 56 KiB budget and are read once per cold lookup.
+    auto publishRanges = [&](const QString &label, const QString &fault = QString()) {
+        publish("ranges-" + label);
+        const QString prefix = "/catalogue/" + pub + "/";
+        const QString tankKey = "[\"tankoban\",\"series\",[13]]";
+        const QString otherKey = "[\"tankoban\",\"series\",[7]]";
+        const auto envelope = [&](int volumeCount) {
+            QJsonArray volumes;
+            for (int n = 1; n <= 3; ++n)
+                volumes.append(
+                    QJsonObject{{"number", QString::number(n)}, {"cover", ""}, {"name", ""}});
+            return QJsonObject{{"apiVersion", 1},
+                               {"ready", true},
+                               {"sourceHash", source},
+                               {"seriesInfo",
+                                QJsonObject{{"volumeCount", volumeCount}, {"countBasis", "mal"}}},
+                               {"volumes", volumes}};
+        };
+        const auto fineRaw =
+            json(fault == "covered-missing" ? QJsonObject{{otherKey, envelope(7)}}
+                                            : QJsonObject{{tankKey, envelope(113)}});
+        const QString finePath = prefix + "shared/" + hash(fineRaw) + ".json";
+        files[finePath] = fineRaw;
+        const auto coarseRaw =
+            json(QJsonObject{{tankKey, envelope(113)}, {otherKey, envelope(7)}});
+        const QString coarsePath = prefix + "shared/" + hash(coarseRaw) + ".json";
+        files[coarsePath] = coarseRaw;
+        const auto entry = QJsonDocument::fromJson(files["/catalogue/current.json"]).object();
+        const auto oldIndexPath = entry.value("index").toObject().value("path").toString();
+        auto index = QJsonDocument::fromJson(files.value(oldIndexPath)).object();
+        index["lookups"] = QJsonObject{{hash(tankKey.toUtf8()).left(2), coarsePath},
+                                       {hash(otherKey.toUtf8()).left(2), coarsePath}};
+        if (fault == "manga") {
+            const auto recordsRaw =
+                "[" + json(QJsonObject{{"identity", QJsonObject{{"id", 13}, {"title", "One Piece"}}},
+                                       {"normal", QJsonObject{{"mal_id", 13},
+                                                              {"synopsis", QString(50000, QLatin1Char('x'))}}}}) +
+                "]";
+            const QString recordsPath = prefix + "shared/" + hash(recordsRaw) + ".json";
+            files[recordsPath] = recordsRaw;
+            const auto keysRaw =
+                QJsonDocument(QJsonArray{QJsonValue(QJsonArray{13, recordsPath, 0})})
+                    .toJson(QJsonDocument::Compact);
+            const QString keysPath = prefix + "shared/" + hash(keysRaw) + ".json";
+            files[keysPath] = keysRaw;
+            index["search"] = QJsonObject{
+                {"manga",
+                 QJsonObject{{"names", QJsonArray()},
+                             {"keys", QJsonArray{QJsonObject{
+                                          {"path", keysPath}, {"first", 13}, {"last", 13}}}}}}};
+        } else if (fault != "absent-field") {
+            const QJsonObject ref{{"first", tankKey}, {"last", tankKey}, {"path", finePath}};
+            if (fault == "bad-version")
+                index["lookupRanges"] = QJsonObject{{"version", 2}, {"ranges", QJsonArray{ref}}};
+            else if (fault == "bad-order")
+                index["lookupRanges"] =
+                    QJsonObject{{"version", 1},
+                                {"ranges", QJsonArray{QJsonObject{{"first", otherKey},
+                                                                  {"last", otherKey},
+                                                                  {"path", finePath}},
+                                                      ref}}};
+            else
+                index["lookupRanges"] = QJsonObject{{"version", 1}, {"ranges", QJsonArray{ref}}};
+        }
+        if (fault == "coarse-missing")
+            files.remove(coarsePath); // Any coarse read for the covered key must fail.
+        const auto bytes = json(index);
+        const auto path = prefix + "index-" + hash(bytes) + ".json";
+        files[path] = bytes;
+        files["/catalogue/current.json"] =
+            json({{"schemaVersion", 1},
+                  {"revision", pub},
+                  {"sourceRevision", source},
+                  {"index",
+                   QJsonObject{{"path", path}, {"sha256", hash(bytes)}, {"bytes", bytes.size()}}}});
+    };
+    publishRanges("fine-only", "coarse-missing");
+    auto *fineResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-fine-only"), &app);
+    const auto fineOut = resolve(fineResolver, "series", {13}, "tankoban");
+    require(fineOut.status == StaticCatalogueResolver::Status::Prepared &&
+                fineOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 113 &&
+                fineOut.metrics.value("networkFiles").toInt() == 3,
+            "covered series key is served by the fine range file alone");
+
+    publishRanges("uncovered");
+    auto *gapResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-uncovered"), &app);
+    const auto gapOut = resolve(gapResolver, "series", {7}, "tankoban");
+    require(gapOut.status == StaticCatalogueResolver::Status::Prepared &&
+                gapOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 7 &&
+                gapOut.metrics.value("networkFiles").toInt() == 3,
+            "uncovered series key keeps the coarse bucket authoritative");
+
+    publishRanges("covered-missing", "covered-missing");
+    auto *missingResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-covered-missing"), &app);
+    const auto missingOut = resolve(missingResolver, "series", {13}, "tankoban");
+    require(missingOut.status == StaticCatalogueResolver::Status::Prepared &&
+                missingOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 113 &&
+                missingOut.metrics.value("networkFiles").toInt() == 4,
+            "covered-but-absent series key falls back to the coarse bucket");
+
+    for (const auto &fault : {QStringLiteral("bad-version"), QStringLiteral("bad-order")}) {
+        publishRanges("malformed-" + fault, fault);
+        auto *badResolver = StaticCatalogueResolver::shared(
+            &nam, origin, temp.filePath("ranges-" + fault), &app);
+        const int before = gets, beforeWorker = posts;
+        const auto bad = resolve(badResolver, "series", {13}, "tankoban");
+        require(bad.status == StaticCatalogueResolver::Status::Failure &&
+                    bad.error == "STATIC_INVALID_LOOKUP_RANGES_DECLARATION" &&
+                    gets == before + 2 && posts == beforeWorker,
+                "malformed fine range declaration fails before any payload read");
+    }
+
+    publishRanges("absent-field", "absent-field");
+    auto *legacyResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-absent"), &app);
+    const auto legacyOut = resolve(legacyResolver, "series", {13}, "tankoban");
+    require(legacyOut.status == StaticCatalogueResolver::Status::Prepared &&
+                legacyOut.result.toObject().value("seriesInfo").toObject().value("volumeCount").toInt() == 113 &&
+                legacyOut.metrics.value("networkFiles").toInt() == 3,
+            "absent fine directory keeps the plain coarse lookup");
+
+    publishRanges("manga-shards", "manga");
+    auto *mangaResolver = StaticCatalogueResolver::shared(
+        &nam, origin, temp.filePath("ranges-manga"), &app);
+    const auto mangaCold = resolve(mangaResolver, "mangaById", {13}, "mal");
+    require(mangaCold.status == StaticCatalogueResolver::Status::Prepared &&
+                mangaCold.result.toObject().value("mal_id").toInt() == 13 &&
+                mangaCold.result.toObject().value("synopsis").toString().size() == 50000 &&
+                mangaCold.metrics.value("networkFiles").toInt() == 4 &&
+                mangaCold.metrics.value("largestFileBytes").toLongLong() > 40000 &&
+                mangaCold.metrics.value("largestFileBytes").toLongLong() <= 57344 &&
+                mangaCold.metrics.value("networkBytes").toLongLong() <= 2 * 57344,
+            "manga cold by-id reads exactly one key shard and one record shard inside the budget");
+    const int mangaGets = gets;
+    const auto mangaWarm = resolve(mangaResolver, "mangaById", {13}, "mal");
+    require(mangaWarm.status == StaticCatalogueResolver::Status::Prepared &&
+                mangaWarm.result == mangaCold.result &&
+                mangaWarm.metrics.value("networkFiles").toInt() == 0 && gets == mangaGets,
+            "warm manga by-id serves identical JSON without network I/O");
+
+    publish("publication-one");
+    auto first = resolve(r);
+    require(first.status == StaticCatalogueResolver::Status::Prepared &&
+                first.result.toArray().at(0).toObject().value("title") == "publication-one",
+            "prepared exact result");
+    require(posts == 0, "prepared uses no guest or Worker POST");
+    {
+        const auto originalTrace = qgetenv("COLOSSEUM_CATALOGUE_TRACE");
+        qunsetenv("COLOSSEUM_CATALOGUE_TRACE");
+        traceRows.clear();
+        tracePreviousHandler = qInstallMessageHandler(captureCatalogueTrace);
+        require(resolve(r).status == StaticCatalogueResolver::Status::Prepared && traceRows.isEmpty(),
+                "catalogue timeline diagnostics are silent by default");
+        qputenv("COLOSSEUM_CATALOGUE_TRACE", "1");
+        auto* traced = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("trace"), &app);
+        require(resolve(traced).status == StaticCatalogueResolver::Status::Prepared,
+                "diagnostics preserve prepared result behavior");
+        {
+            CatalogRemote tracedRemote("imdb");
+            tracedRemote.configure(&nam, origin, temp.filePath("trace/remote.json"));
+            tracedRemote.read("titleCatalog", landingChildArgs, QVariantList());
+            until([&] { return !tracedRemote.pending() && !tracedRemote.cacheWritePending(); });
+            require(tracedRemote.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "success",
+                    "trace-enabled native query retains exact success");
+        }
+        // Exercise a second, genuinely disk-backed owner using the real cached
+        // publication. The index bootstrap is intentionally synchronous; the
+        // shared leaf body's JSON parsing must not be.
+        QObject traceOfflineOwner;
+        auto *tracedDisk = StaticCatalogueResolver::shared(
+            nullptr, origin, temp.filePath("trace"), &traceOfflineOwner);
+        bool ownerEventProgressed = false;
+        QTimer::singleShot(0, &app, [&] { ownerEventProgressed = true; });
+        require(resolve(tracedDisk).status == StaticCatalogueResolver::Status::Prepared &&
+                    ownerEventProgressed,
+                "offline disk asset resolves while owner event loop progresses");
+        const auto gatedHash = hash(files[leaf]);
+        const auto armGate = [&] {
+            std::lock_guard<std::mutex> lock(parseGateMutex);
+            parseGateHash = gatedHash;
+            parseGateArmed = true;
+            parseGateEntered = false;
+            parseGateReleased = false;
+        };
+        const auto enteredGate = [&] {
+            std::lock_guard<std::mutex> lock(parseGateMutex);
+            return parseGateEntered;
+        };
+        const auto releaseGate = [&] {
+            {
+                std::lock_guard<std::mutex> lock(parseGateMutex);
+                parseGateReleased = true;
+            }
+            parseGateCv.notify_all();
+        };
+        const QVariantList fixtureArgs{QVariantMap(), 0, 24};
+        const int diskGetBaseline = gets;
+        {
+            QObject sharingOwner;
+            auto *sharing = StaticCatalogueResolver::shared(
+                nullptr, origin, temp.filePath("trace"), &sharingOwner);
+            armGate();
+            bool firstDone = false, secondDone = false;
+            StaticCatalogueResolver::Outcome a, b;
+            sharing->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                             [&](auto value) { a = value; firstDone = true; });
+            sharing->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                             [&](auto value) { b = value; secondDone = true; });
+            until(enteredGate);
+            require(!firstDone && !secondDone,
+                    "both shared callbacks stay pending during actual background decode");
+            bool ownerTick = false;
+            QTimer::singleShot(0, &app, [&] { ownerTick = true; });
+            until([&] { return ownerTick; });
+            releaseGate();
+            until([&] { return firstDone && secondDone; });
+            require(a.status == StaticCatalogueResolver::Status::Prepared &&
+                    b.status == StaticCatalogueResolver::Status::Prepared &&
+                    a.result == b.result && gets == diskGetBaseline &&
+                    a.metrics.value("diskFiles").toInt() > 0 &&
+                    b.metrics.value("sharedFiles").toInt() > 0 &&
+                    a.metrics.value("combinedWorkPeak").toInt() <= 4,
+                    "shared actual disk read coalesces with owner event loop responsive");
+        }
+        {
+            QObject cancellingOwner;
+            auto *cancelling = StaticCatalogueResolver::shared(
+                nullptr, origin, temp.filePath("trace"), &cancellingOwner);
+            armGate();
+            bool late = false, replacementDone = false;
+            StaticCatalogueResolver::Outcome replacement;
+            const auto oldId = cancelling->resolve(
+                "imdb", "titleCatalog", fixtureArgs, &app, [&](auto) { late = true; });
+            until(enteredGate);
+            cancelling->cancel(oldId);
+            cancelling->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                [&](auto value) { replacement = value; replacementDone = true; });
+            // The new generation must complete without waiting for the old
+            // parser, even though it reads the same hash-named disk path.
+            until([&] { return replacementDone; });
+            require(replacement.status == StaticCatalogueResolver::Status::Prepared &&
+                    !late && gets == diskGetBaseline,
+                    "cancelled disk load cannot hold or complete reused path generation");
+            releaseGate();
+            QCoreApplication::processEvents();
+            require(!late, "released superseded worker suppresses stale callback");
+        }
+        {
+            auto *destroyedOwner = new QObject;
+            auto *dying = StaticCatalogueResolver::shared(
+                nullptr, origin, temp.filePath("trace"), destroyedOwner);
+            armGate();
+            bool late = false;
+            dying->resolve("imdb", "titleCatalog", fixtureArgs, &app,
+                           [&](auto) { late = true; });
+            until(enteredGate);
+            delete destroyedOwner;
+            bool tick = false;
+            QTimer::singleShot(0, &app, [&] { tick = true; });
+            until([&] { return tick; });
+            releaseGate();
+            QCoreApplication::processEvents();
+            require(!late && gets == diskGetBaseline,
+                    "destroying owner while disk worker parses does not wait or deliver");
+        }
+        qInstallMessageHandler(tracePreviousHandler);
+        const auto assetHash = hash(files[leaf]);
+        const auto mainThread = QString::number(quintptr(QThread::currentThreadId()), 16);
+        int diskWorkerParses = 0, networkWorkerParses = 0;
+        for (const auto &row : traceRows) {
+            if (row.value("event") != "json_parse_begin" ||
+                row.value("fileHash") != assetHash)
+                continue;
+            const auto source = row.value("source").toString();
+            if (source == "disk" || source == "network") {
+                require(row.value("threadId").toString() != mainThread,
+                        "actual asset JSON decoding must not run on the resolver owner thread");
+                (source == "disk" ? diskWorkerParses : networkWorkerParses)++;
+            }
+        }
+        require(diskWorkerParses > 0 && networkWorkerParses > 0,
+                "real disk and network asset JSON both execute off-thread");
+        if (originalTrace.isNull()) qunsetenv("COLOSSEUM_CATALOGUE_TRACE");
+        else qputenv("COLOSSEUM_CATALOGUE_TRACE", originalTrace);
+        const auto nativeKey = identity.queryKey("titleCatalog", landingChildArgs);
+        const auto leafHash = hash(files[leaf]);
+        const auto position = [&](const QString& name, const QString& component,
+                                  const QString& fileHash = QString()) {
+            for (qsizetype n = 0; n < traceRows.size(); ++n) {
+                const auto& row = traceRows[n];
+                if (row.value("event") == name && row.value("component") == component
+                    && (row.value("queryKey") == nativeKey || row.value("queryKeys").toArray().contains(nativeKey))
+                    && (fileHash.isEmpty() || row.value("fileHash") == fileHash)) return n;
+            }
+            return qsizetype(-1);
+        };
+        const auto ordered = [&](const QStringList& events, const QString& component,
+                                 const QString& fileHash = QString()) {
+            qsizetype previous = -1;
+            for (const auto& name : events) {
+                const auto current = position(name, component, fileHash);
+                require(current > previous, "diagnostic phase events exist in causal order");
+                previous = current;
+            }
+        };
+        ordered({"enqueue", "dispatch", "result_delivery_begin", "result_delivery_end"}, "resolver");
+        ordered({"network_queued", "network_start", "network_bytes_done", "json_parse_begin",
+                 "json_parse_end", "disk_write_begin", "disk_write_end"}, "resolver", leafHash);
+        ordered({"enqueue", "dispatch", "result_ready", "result_delivery_begin", "result_delivery_end"}, "remote");
+        ordered({"cache_persist_queued", "cache_persist_begin", "cache_serialize_begin",
+                 "cache_serialize_end", "disk_write_begin", "disk_write_end", "cache_persist_end"}, "remote");
+        for (const auto& row : traceRows) {
+            require(row.value("epochMs").toDouble() > 0 && row.value("monotonicMs").toDouble() > 0,
+                    "timeline carries epoch and monotonic clocks");
+            const auto raw = json(row);
+            require(!row.contains("args") && !raw.contains("127.0.0.1") && !raw.contains("Bearer ")
+                        && !raw.contains(temp.path().toUtf8()),
+                    "diagnostics redact arguments, endpoints, credentials and local cache paths");
+        }
+    }
+    const int coldGets = gets;
+    auto warm = resolve(r);
+    require(warm.status == StaticCatalogueResolver::Status::Prepared && gets == coldGets,
+            "warm immutable reuse");
+    r->refresh();
+    require(resolve(r).status == StaticCatalogueResolver::Status::Prepared && gets == coldGets + 1,
+            "conditional current.json 304 reuses validated index and shards");
+    const int restoredGets = gets;
+    auto *cached = StaticCatalogueResolver::shared(nullptr, origin, temp.path(), &app);
+    auto restored = resolve(cached);
+    require(restored.status == StaticCatalogueResolver::Status::Prepared && gets == restoredGets,
+            "offline new resolver restores validated shards");
+    r->refresh();
+    publish("publication-two");
+    auto changed = resolve(r);
+    require(changed.publication != first.publication &&
+                changed.result.toArray().at(0).toObject().value("title") == "publication-two",
+            "revision switch invalidates old data");
+    auto *bad = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("bad"), &app);
+    const auto correct = files[leaf];
+    files[leaf] = "[]";
+    require(resolve(bad).status == StaticCatalogueResolver::Status::Failure,
+            "hash mismatch fails, never successful empty");
+    files[leaf] = correct;
+    auto *missing = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("missing"), &app);
+    files.remove(leaf);
+    require(resolve(missing).status == StaticCatalogueResolver::Status::Failure,
+            "missing referenced shard fails, not fallback");
+    files[leaf] = correct;
+    auto unprepared = resolve(r, "titleCatalog", {QVariantMap{{"genre", "unprepared"}}, 0, 24});
+    require(unprepared.status == StaticCatalogueResolver::Status::NotPrepared,
+            "rare query explicitly unprepared");
+    const auto goodEntry = files["/catalogue/current.json"];
+    auto wrongSize = QJsonDocument::fromJson(goodEntry).object();
+    auto indexRef = wrongSize.value("index").toObject();
+    indexRef["bytes"] = indexRef.value("bytes").toInt() + 1;
+    wrongSize["index"] = indexRef;
+    files["/catalogue/current.json"] = json(wrongSize);
+    r->refresh();
+    require(resolve(r).status == StaticCatalogueResolver::Status::Failure,
+            "cached index still enforces the entry's declared byte length");
+    r->refresh();
+    files["/catalogue/current.json"] = "{}";
+    require(resolve(r).status == StaticCatalogueResolver::Status::Failure,
+            "corrupt refresh is a failure even when last-good exists");
+    files["/catalogue/current.json"] = goodEntry;
+    r->refresh();
+    require(resolve(r).status == StaticCatalogueResolver::Status::Prepared,
+            "valid entry recovers after corrupt refresh");
+    CatalogRemote remote("imdb");
+    remote.configure(&nam, origin, temp.filePath("remote.json"));
+    const QVariantList preparedArgs{QVariantMap(), 0, 24};
+    QStringList notices;
+    QObject::connect(&remote, &CatalogRemote::queryChanged, &app,
+                     [&](const QString &key) { notices.append(key); });
+    const auto exactKey =
+        remote.queryState("titleCatalog", preparedArgs, QVariantList()).value("key");
+    remote.read("titleCatalog", preparedArgs, QVariantList());
+    require(notices.isEmpty(), "F2 initial notification remains deferred");
+    until([&] { return !remote.pending(); });
+    require(posts == 0 && remote.read("titleCatalog", preparedArgs, QVariantList())
+                                  .toList()
+                                  .at(0)
+                                  .toMap()
+                                  .value("title") == "publication-two",
+            "CatalogRemote prepared query avoids lease and Worker");
+    require(notices.size() == 2 && notices.at(0) == exactKey && notices.at(1) == exactKey,
+            "F2 exact-key pending/success notifications preserved");
+    files["/catalogue/current.json"] = "{}";
+    remote.read("titleCatalog", preparedArgs, QVariantList(), true);
+    until([&] { return !remote.pending(); });
+    const auto failed = remote.queryState("titleCatalog", preparedArgs, QVariantList());
+    require(failed.value("status") == "failure" && failed.value("cached").toBool() &&
+                failed.value("retryable").toBool() && posts == 0,
+            "static error retains validated stale cache, no Worker fallback");
+    files["/catalogue/current.json"] = goodEntry;
+    require(remote.retry("titleCatalog", preparedArgs, QVariantList()),
+            "explicit static key retry accepted");
+    until([&] { return !remote.pending(); });
+    require(remote.queryState("titleCatalog", preparedArgs, QVariantList()).value("status") ==
+                    "success" &&
+                posts == 0,
+            "explicit retry revalidates metadata and clears only the failed key");
+    TankobanCatalog tank("");
+    tank.configureRemote(&nam, origin, temp.filePath("tank.json"));
+    bool seriesDone = false;
+    QObject::connect(&tank, &TankobanCatalog::seriesChanged, &app, [&](int id) {
+        if (id == 13)
+            seriesDone = true;
+    });
+    tank.requestSeries(13);
+    until([&] { return seriesDone; });
+    require(tank.volumes(13).size() == 113 && posts == 0,
+            "Tankoban separate transport uses static lookup, no Worker");
+    remote.read("titleCatalog", {QVariantMap{{"genre", "rare"}}, 0, 24}, QVariantList());
+    until([&] { return !remote.pending(); });
+    require(
+        remote.queryState("titleCatalog", {QVariantMap{{"genre", "rare"}}, 0, 24}, QVariantList())
+                    .value("status") == "success" &&
+            posts == 2,
+        "unprepared retains Worker lease and POST");
+    CatalogRemote comics("comics");
+    comics.configure(&nam, origin, temp.filePath("comics.json"));
+    comics.read("search", {"batman", 20}, QVariantList());
+    until([&] { return !comics.pending(); });
+    const int afterSearch = posts;
+    comics.read("search", {"batman", 20}, QVariantList());
+    require(!comics.pending() && posts == afterSearch,
+            "Comics Worker search cache does not spin on static refresh");
+    bool cancelled = false;
+    auto id =
+        r->resolve("imdb", "titleCatalog", preparedArgs, &app, [&](auto) { cancelled = true; });
+    r->cancel(id);
+    QCoreApplication::processEvents();
+    require(!cancelled, "cancelled query never calls consumer");
+    publish("publication-three");
+    remote.read("titleCatalog", preparedArgs, QVariantList(), true);
+    until([&] { return !remote.pending(); });
+    require(remote.read("titleCatalog", preparedArgs, QVariantList())
+                    .toList()
+                    .at(0)
+                    .toMap()
+                    .value("title") == "publication-three",
+            "owner result cache invalidates on publication change with unchanged dataset source");
+    QProcess restarted;
+    restarted.start(
+        QCoreApplication::applicationFilePath(),
+        {"--offline", origin.toString(QUrl::FullyEncoded), temp.path(), "publication-three"});
+    require(restarted.waitForFinished(15000) && restarted.exitStatus() == QProcess::NormalExit &&
+                restarted.exitCode() == 0 &&
+                restarted.readAllStandardOutput().contains(
+                    "PASS separate-process static offline restoration"),
+            "separate-process offline restoration completes cleanly");
+    CatalogRemote diskOnly("imdb");
+    diskOnly.configure(nullptr, origin, temp.filePath("offline-new-result.json"));
+    diskOnly.read("titleCatalog", preparedArgs, QVariantList());
+    const auto diskPending = diskOnly.queryState("titleCatalog", preparedArgs, QVariantList());
+    require(diskPending.value("status") == "pending" && diskPending.value("enabled").toBool(),
+            "disk-capable pending query stays enabled for unchanged F2 consumers");
+    until([&] { return !diskOnly.pending(); });
+    require(diskOnly.queryState("titleCatalog", preparedArgs, QVariantList()).value("status") ==
+                "success",
+            "offline owner assembles uncached result from persisted shards");
+    // Cached files are verified again on an offline restart, rather than trusting disk.
+    const auto cacheRoot =
+        QDir(temp.path())
+            .filePath("static-catalogue-v1/" + hash(origin.toString(QUrl::FullyEncoded).toUtf8()));
+    QFile damaged(QDir(cacheRoot).filePath(hash(files[leaf]) + ".json"));
+    require(damaged.open(QIODevice::WriteOnly), "cached shard available for corruption probe");
+    damaged.write("[]");
+    damaged.close();
+    QObject offlineOwner;
+    auto *corruptOffline =
+        StaticCatalogueResolver::shared(nullptr, origin, temp.path(), &offlineOwner);
+    require(resolve(corruptOffline).status == StaticCatalogueResolver::Status::Failure,
+            "offline corrupt shard fails hash validation, never success or empty");
+    // Cancellation after real I/O has begun must abort its owned request and suppress delivery.
+    holdLeaf = true;
+    auto *inflight = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("inflight"), &app);
+    bool late = false;
+    auto inflightId =
+        inflight->resolve("imdb", "titleCatalog", preparedArgs, &app, [&](auto) { late = true; });
+    until([&] { return !held.isEmpty(); });
+    inflight->cancel(inflightId);
+    until([&] {
+        return !held.first() || held.first()->state() == QAbstractSocket::UnconnectedState;
+    });
+    require(!late, "in-flight cancelled shard never delivers a late result");
+    held.clear();
+    auto *context = new QObject;
+    inflight->resolve("imdb", "titleCatalog", preparedArgs, context, [&](auto) { late = true; });
+    until([&] { return !held.isEmpty(); });
+    delete context;
+    until([&] {
+        return !held.first() || held.first()->state() == QAbstractSocket::UnconnectedState;
+    });
+    require(!late, "destroyed consumer cancels in-flight shard ownership");
+    held.clear();
+    CatalogRemote reconfigured("imdb");
+    reconfigured.configure(&nam, origin, temp.filePath("reconfigure/remote.json"));
+    reconfigured.read("titleCatalog", preparedArgs, QVariantList());
+    until([&] { return !held.isEmpty(); });
+    reconfigured.configure(nullptr, QUrl(), {});
+    QCoreApplication::processEvents();
+    require(
+        !reconfigured.pending() &&
+            reconfigured.queryState("titleCatalog", preparedArgs, QVariantList()).value("status") ==
+                "missing",
+        "reconfiguration cancels old-source work without result leakage");
+    holdLeaf = false;
+    // Rollback to a pre-static server must also work for a client that already
+    // cached a publication. Only the optional entry may announce this absence;
+    // a missing referenced shard remains the hard failure tested above.
+    files.remove("/catalogue/current.json");
+    const int beforeRollback = posts;
+    remote.read("titleCatalog", preparedArgs, QVariantList(), true);
+    until([&] { return !remote.pending(); });
+    require(remote.queryState("titleCatalog", preparedArgs, QVariantList()).value("status") ==
+                "success" && posts == beforeRollback + 1 &&
+                remote.read("titleCatalog", preparedArgs, QVariantList()).toList().at(0)
+                    .toMap().value("title") == "worker",
+            "warm client falls back to legacy Worker when rollback removes public entry");
+    publish("publication-before-hot-update");
+    rotateMissing = true;
+    auto *hot = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("hot-update"), &app);
+    const auto switched = resolve(hot);
+    require(switched.status == StaticCatalogueResolver::Status::Prepared &&
+                switched.result.toArray().at(0).toObject().value("title") == "publication-hot-update",
+            "retired shard triggers one entry refresh and completes from the new publication");
+    // The deployed Worker answers an unknown non-asset path with 401 (its lease
+    // gate), not 404. A retired shard must still trigger the one refresh.
+    publish("publication-before-hot-update-401");
+    rotatedLabel = "publication-hot-update-401";
+    retiredStatus = 401;
+    rotateMissing = true;
+    auto *hot401 = StaticCatalogueResolver::shared(&nam, origin, temp.filePath("hot-update-401"), &app);
+    const auto switched401 = resolve(hot401);
+    require(switched401.status == StaticCatalogueResolver::Status::Prepared &&
+                switched401.result.toArray().at(0).toObject().value("title") ==
+                    "publication-hot-update-401",
+            "retired shard answered 401 also refreshes the entry and completes");
+    require(QJsonDocument::fromVariant(measured).isArray(), "measurement rows available");
+    if (argc > 1) {
+        QFile report(QString::fromLocal8Bit(argv[1]));
+        require(report.open(QIODevice::WriteOnly), "evidence output opens");
+        report.write(
+            QJsonDocument(QJsonObject{{"measurements", QJsonArray::fromVariantList(measured)},
+                                      {"gets", gets},
+                                      {"workerPosts", posts}})
+                .toJson());
+    }
+    std::cout << "PASS static catalogue resolver\n";
+}

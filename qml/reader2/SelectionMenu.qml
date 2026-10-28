@@ -26,7 +26,9 @@ import QtQuick
 import QtQuick.Window
 import "Reader2Logic.js" as L
 
-Item {
+ReaderOverlay {
+    overlayActive: shown
+    nativeWindow: false
     id: menu
 
     // ---- inputs ----

@@ -5,6 +5,7 @@
 // limit clamped; missing db => ready()==false and every accessor returns empty so
 // the Theatre pages honestly omit index shelves.
 #include <QObject>
+#include "CatalogRemote.h"
 #include <QSqlDatabase>
 #include <QStringList>
 #include <QVariantList>
@@ -12,6 +13,8 @@
 
 class ImdbCatalog final : public QObject {
     Q_OBJECT
+    Q_PROPERTY(int revision READ revision NOTIFY revisionChanged)
+    Q_PROPERTY(bool remoteEnabled READ remoteEnabled NOTIFY revisionChanged)
     // No Q_PROPERTY(ready) here on purpose — see MalCatalog.h for the full note
     // (data-vault Slice 4, 2026-08-22 fix): it collided with the Q_INVOKABLE of the
     // same name and broke every `.ready()` call site in QML.
@@ -20,6 +23,19 @@ public:
     ~ImdbCatalog() override;
 
     Q_INVOKABLE bool ready() const { return m_ok; }
+    // Service availability is distinct from complete local SQLite readiness.
+    Q_INVOKABLE bool available() const { return m_ok || m_remote->available(); }
+    bool remoteEnabled() const { return m_remote->enabled(); }
+    int revision() const { return m_remote->revision(); }
+    Q_INVOKABLE bool remotePending() const { return m_remote->pending(); }
+    Q_INVOKABLE QString remoteQueryKey(const QString& method, const QVariantList& args) const { return m_remote->queryKey(method, args); }
+    Q_INVOKABLE QVariantMap landing(const QString& tab) const { return m_ok ? QVariantMap{} : m_remote->read(QStringLiteral("landing"), {tab}, QVariantMap{}).toMap(); }
+    Q_INVOKABLE QVariantMap landingState(const QString& tab) const { auto state=m_remote->queryState(QStringLiteral("landing"), {tab}, QVariantMap{}); state.insert(QStringLiteral("source"),m_ok?QStringLiteral("local"):QStringLiteral("remote")); return state; }
+    Q_INVOKABLE bool remoteWaiting() const { return m_remote->waiting(); }
+    void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& cachePath = {}) {
+        m_remote->configure(nam, endpoint, cachePath);
+    }
+
     // Data-vault Slice 2 (2026-08-22): reopen at a fresh path — see MalCatalog.
     Q_INVOKABLE bool reopen(const QString& dbPath);
     Q_INVOKABLE void closeForSwap();
@@ -30,23 +46,41 @@ public:
     // endYear,runtimeMin,rating,votes,episodes,origLang,isAnime,genres[]}.
     Q_INVOKABLE QVariantList titleCatalog(const QVariantMap& query,
                                           int offset = 0, int limit = 24) const;
+    // Exact-query state for titleCatalog. SQLite readiness is reported as
+    // source=local,status=success; no remote request is required in that mode.
+    Q_INVOKABLE QVariantMap titleCatalogState(const QVariantMap& query,
+                                              int offset = 0, int limit = 24) const;
+    // Explicit retry only for the same failed remote query key. Never fetch in local mode.
+    Q_INVOKABLE bool retryTitleCatalog(const QVariantMap& query,
+                                       int offset = 0, int limit = 24);
     // Offline normalized-title identity lookup. The baked IMDb schema has no
     // plot corpus, so returned synopsis is intentionally empty.
     Q_INVOKABLE QVariantList matchByTitle(const QString& title, int year = 0) const;
     // Cheap prefix search over the baked normalized title column. Fully offline;
     // manual Identify may fall through to Cinemeta only when this returns empty.
     Q_INVOKABLE QVariantList search(const QString& text, int limit = 20) const;
+    Q_INVOKABLE QVariantMap searchState(const QString& text, int limit = 20) const;
     // batch facts for live-row filtering: {tt: {rating, votes, isAnime}}
     Q_INVOKABLE QVariantMap titleFacts(const QStringList& ids) const;
+    // Exact-query state for titleFacts. SQLite readiness is reported as
+    // source=local,status=success; no remote request is required in that mode.
+    Q_INVOKABLE QVariantMap titleFactsState(const QStringList& ids) const;
+    // Explicit retry only for the same failed remote query key. Never fetch in local mode.
+    Q_INVOKABLE bool retryTitleFacts(const QStringList& ids);
     // Small offline presentation lookup for sparse Continue video records.
     Q_INVOKABLE QVariantMap titlePresentation(const QString& id) const;
 
 signals:
     void readyChanged();
+    void revisionChanged();
+    void requestFailed(QString method, QString reason);
+    // All native IMDb query keys; subscribers compare against the exact query state key.
+    void remoteQueryChanged(QString key);
 
 private:
     bool openAt(const QString& dbPath);
 
+    CatalogRemote* m_remote;
     QSqlDatabase m_db;
     bool m_ok = false;
     QString m_conn;

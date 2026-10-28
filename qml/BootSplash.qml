@@ -69,10 +69,16 @@ Rectangle {
         model: splash.prefetchEnabled && splash.prefetchStarted ? splash.urls : []
         delegate: Image {
             required property string modelData
-            source: modelData
+            // A timed-out boot no longer owns foreground image work. Keep finished
+            // decodes attached, but cancel queued/in-flight warmers on reveal.
+            property bool ready: false
+            source: ready || (!splash.completed && splash.visible) ? modelData : ""
             asynchronous: true; cache: true; visible: false
             sourceSize.width: 264; sourceSize.height: 392
-            onStatusChanged: if (status === Image.Ready || status === Image.Error) splash.bump()
+            onStatusChanged: {
+                if (status === Image.Ready) ready = true
+                if (status === Image.Ready || status === Image.Error) splash.bump()
+            }
         }
     }
 

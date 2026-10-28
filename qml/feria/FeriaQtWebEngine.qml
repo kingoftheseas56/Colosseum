@@ -14,11 +14,84 @@ WebEngineView {
     required property url sourceUrl
     required property string profilePath
     property var sharedProfile: null
+    // Native lifecycle owner: admits and redeems this view's asynchronous
+    // work, and decides when the view has drained and may be destroyed.
+    readonly property var runtime: FeriaBrowserPolicy.runtime
+    // Canonical ownership for shared navigation fencing; optional so
+    // standalone harnesses keep driving the raw wrapper.
+    property var sessions: null
+    property var pendingNavOps: ({})
+    property var navOpAdmittedAt: ({})
+    property int navigationDeadlineMs: 45000
+    function operations() { return sessions ? sessions.browserOperations() : null }
+    function admitNavigation(kind) {
+        var ops = operations()
+        if (!ops || !accountSessionId.length) return null
+        var identity = sessions.browserIdentity(accountSessionId)
+        if (!identity.spaceId) return null
+        var admitted = ops.beginOperation(identity, "qtwebengine", kind)
+        if (!admitted.admitted) return null
+        // Dispatching a new navigation supersedes earlier in-flight attempts
+        // on this engine; their admitted operations settle once now rather
+        // than waiting for trailing abort callbacks.
+        var ids = Object.keys(pendingNavOps)
+        for (var i = 0; i < ids.length; ++i)
+            settleNavOperation(ids[i], "cancelled", "superseded-load",
+                "superseded-by-navigation", {})
+        var updated = Object.assign({}, pendingNavOps)
+        updated[admitted.operationId] = {operationId: admitted.operationId,
+            kind: kind, identity: identity}
+        pendingNavOps = updated
+        var times = Object.assign({}, navOpAdmittedAt)
+        times[admitted.operationId] = Date.now()
+        navOpAdmittedAt = times
+        navDeadline.restart()
+        return admitted.operationId
+    }
+    function settleNavOperation(operationId, outcome, reason, evidence, extra) {
+        if (!operationId || !pendingNavOps[operationId]) return null
+        var record = pendingNavOps[operationId]
+        var ops = Object.assign({}, pendingNavOps)
+        delete ops[operationId]
+        pendingNavOps = ops
+        var times = Object.assign({}, navOpAdmittedAt)
+        delete times[operationId]
+        navOpAdmittedAt = times
+        var result = operations().settleOperation(record.identity, operationId,
+            outcome, reason, evidence, extra || {})
+        if (Object.keys(pendingNavOps).length === 0) navDeadline.stop()
+        return result
+    }
+    function settleNewestNavigation(outcome, reason, evidence) {
+        var ids = Object.keys(pendingNavOps)
+        if (ids.length === 0) return null
+        return settleNavOperation(ids[ids.length - 1], outcome, reason, evidence, {})
+    }
+    Timer {
+        id: navDeadline
+        interval: 1000; repeat: true
+        onTriggered: {
+            var now = Date.now()
+            var ids = Object.keys(browser.pendingNavOps)
+            for (var i = 0; i < ids.length; ++i)
+                if (now - browser.navOpAdmittedAt[ids[i]] > browser.navigationDeadlineMs)
+                    browser.settleNavOperation(ids[i], "blocked",
+                        "navigation-terminal-not-observed", "deadline-elapsed-no-terminal", {})
+        }
+    }
+    onUrlChanged: {
+        contextMenuController.cancel()
+        if (!closingSession && !adoptingWindowRequest && !clearingSession)
+            admitNavigation("navigate")
+    }
     readonly property alias pageTools: pageToolsController
     FeriaPageTools { id: pageToolsController; browser: browser }
+    readonly property alias pageMenu: contextMenuController
+    FeriaContextMenu { id: contextMenuController; browser: browser }
     readonly property alias browserRequests: requestsController
     signal message(string text)
     signal tabRequested(var request)
+    signal imageTabRequested(string imageUrl)
     property bool managedBeforeUnload: false
     property var windowAdmission: null
     property int windowAdmissionSerial: 0
@@ -59,7 +132,10 @@ WebEngineView {
         if (lifecycleState !== WebEngineView.LifecycleState.Active)
             lifecycleState = WebEngineView.LifecycleState.Active
     }
-    onVisibleChanged: if (visible) wakePage()
+    onVisibleChanged: {
+        if (visible) wakePage()
+        else contextMenuController.cancel()
+    }
     onFreezeBackgroundChanged: if (!freezeBackground) wakePage()
     Timer {
         id: freezeTimer
@@ -78,15 +154,20 @@ WebEngineView {
     // Drain callbacks before the owner destroys this view. In Qt 6.11.1 a
     // pending JavaScript callback can reach a torn-down QML context on close.
     property bool closingSession: false
+    onClosingSessionChanged: if (closingSession) contextMenuController.cancel()
     property bool adoptingWindowRequest: false
     property var javascriptTickets: ({})
     property int javascriptTicketSerial: 0
     readonly property int pendingJavaScript: Object.keys(javascriptTickets).length
     property int javascriptEpoch: 0
+    // Every document boundary this adapter observes moves the native epoch
+    // that script and prompt tickets are bound to.
+    onJavascriptEpochChanged: runtime.documentChanged(browser)
     property bool destructionNotified: false
     signal safeToDestroy()
     function notifySafeToDestroy() {
-        if (!closingSession || pendingJavaScript !== 0 || destructionNotified) return
+        if (!closingSession || pendingJavaScript !== 0 || destructionNotified
+            || !runtime.drained(browser)) return
         destructionNotified = true
         stop()
         safeToDestroy()
@@ -94,14 +175,20 @@ WebEngineView {
     function invalidateJavaScriptTickets() {
         for (var id of Object.keys(javascriptTickets)) JavaScript.invalidate(javascriptTickets[id])
         javascriptTickets = ({})
+        // The engine will never answer these; the native ledger drops them too.
+        if (runtime) runtime.retireWork(browser)
     }
     function finishJavaScript(ticket, result, callback) {
         if (javascriptTickets[ticket.id] !== ticket) return
         var remaining = Object.assign({}, javascriptTickets)
         delete remaining[ticket.id]
         javascriptTickets = remaining
+        // The native ticket is redeemed exactly once. It is refused when the
+        // document, engine generation, page or account it was admitted for
+        // is no longer current, so a late result cannot act on a replacement.
+        var live = runtime.redeemWork(ticket.work)
         try {
-            if (!closingSession && !rendererLost && ticket.epoch === javascriptEpoch
+            if (live && !closingSession && !rendererLost
                     && typeof callback === "function") callback(result)
         } finally {
             notifySafeToDestroy()
@@ -110,7 +197,9 @@ WebEngineView {
     function evaluateJavaScript(script, callback) {
         if (closingSession || adoptingWindowRequest || rendererLost) return false
         if (lifecycleState !== WebEngineView.LifecycleState.Active) return false
-        var ticket = JavaScript.ticket(browser, ++javascriptTicketSerial, javascriptEpoch, callback)
+        var work = runtime.admitWork(browser, "script")
+        if (!work) return false
+        var ticket = JavaScript.ticket(browser, ++javascriptTicketSerial, work, callback)
         var pending = Object.assign({}, javascriptTickets)
         pending[ticket.id] = ticket
         javascriptTickets = pending
@@ -127,11 +216,29 @@ WebEngineView {
         if (!engineTerminal)
             evaluateJavaScript("document.querySelectorAll('video,audio').forEach(function(m){m.pause()})")
         closingSession = true
+        runtime.beginRetirement(browser)
         // Release focus while the retained owner's scope is still alive,
         // before deferred parent/Loader destruction reaches the native view.
         focus = false
         documentCheck.stop(); cleanupPoll.stop()
         notifySafeToDestroy()
+    }
+    // Application exit only: there is no event loop left to drain into. With
+    // Qt 6.11.1, deleting a view that still owed script callbacks faulted
+    // intermittently (access violation in Qt6Qml, called from
+    // Qt6WebEngineQuick while Qt6WebEngineCore tore the web contents down
+    // inside the view's destructor). Discarding destroys the web contents
+    // now, while this object is intact, so whatever the engine delivers on
+    // teardown arrives before the destructor. Measured, not proven: see
+    // docs/feria-browser-foundation-set-1.md.
+    function discardForExit() {
+        invalidateJavaScriptTickets()
+        closingSession = true
+        documentCheck.stop(); cleanupPoll.stop(); freezeTimer.stop()
+        focus = false
+        visible = false
+        lifecycleState = WebEngineView.LifecycleState.Discarded
+        return lifecycleState === WebEngineView.LifecycleState.Discarded
     }
     property string providerId: ""
     property string accountVisitToken: ""
@@ -248,6 +355,7 @@ WebEngineView {
     }
     property bool suppressed: false
     readonly property bool ready: true
+    onRendererLostChanged: if (rendererLost) contextMenuController.cancel()
     property var popups: []
     property bool documentReady: false
     property int navigationGeneration: 0
@@ -259,7 +367,12 @@ WebEngineView {
     // Engine load state for the shell; WebEngineView reports real loadProgress.
     readonly property bool loadActive: loading
     property bool stopRequested: false
-    function stopLoad() { if (loading) { stopRequested = true; stop() } }
+    function stopLoad() {
+        if (!loading) return
+        admitNavigation("stop")
+        stopRequested = true
+        stop()
+    }
     readonly property alias navigation: navigationController
     FeriaNavigation { id: navigationController; browser: browser }
     readonly property bool navCanGoBack: navigationController.canGoBack
@@ -267,6 +380,9 @@ WebEngineView {
     function pageBack() { return navigationController.back() }
     function pageForward() { return navigationController.forward() }
     signal started(string location)
+    // Emitted before a stopped load's completed(location,false): the page
+    // remains usable, so the shell must not raise a load-failure error.
+    signal stopped(string location)
     signal completed(string location, bool success)
     signal failed(string reason)
     signal exitRequested()
@@ -282,6 +398,9 @@ WebEngineView {
     settings.javascriptCanOpenWindows: true
     settings.playbackRequiresUserGesture: false
     settings.fullScreenSupportEnabled: true
+    // QtWebEngine's built-in PDF viewer requires plug-ins for inline navigation.
+    settings.pdfViewerEnabled: true
+    settings.pluginsEnabled: true
     profile: sharedProfile || localProfile
     WebEngineProfile {
         id: localProfile
@@ -294,7 +413,13 @@ WebEngineView {
         cachePath: browser.sharedProfile ? "" : browser.profilePath + "/qtwebengine-cache"
         persistentCookiesPolicy: WebEngineProfile.ForcePersistentCookies
     }
+    onContextMenuRequested: function(request) {
+        // Claim the request synchronously; Qt must never instantiate its stock menu.
+        request.accepted = true
+        contextMenuController.openForRequest(request)
+    }
     onNavigationRequested: function(request) {
+        if (request.isMainFrame) contextMenuController.cancel()
         // loadHtml creates a data URL internally. Permit just the next blank
         // document initiated by cleanup; normal pages retain the URL policy.
         if (clearingSession && cleanupNavigationPending && String(request.url).indexOf("data:text/html") === 0) {
@@ -314,6 +439,7 @@ WebEngineView {
             return
         }
         if (info.status === WebEngineView.LoadStartedStatus) {
+            contextMenuController.cancel()
             fullScreenActive = false
             stopRequested = false
             ++navigationGeneration
@@ -337,6 +463,7 @@ WebEngineView {
             // Qt's DidStartNavigation excludes same-document navigation. Only
             // its successful main-document completion releases old barriers.
             replacementLoadPending = false
+            settleNewestNavigation("succeeded", "native-history", "navigation-completed")
             documentReplaced(navigationGeneration)
             mainDocumentLoaded(String(info.url))
             applyPresentationActivity()
@@ -351,6 +478,7 @@ WebEngineView {
             // replacing load's state.
             if (!stopRequested && loading) return
             replacementLoadPending = false
+            settleNewestNavigation("cancelled", "load-stopped", "user-stop-requested")
             stopRequested = false
             ++navigationGeneration
             ++javascriptEpoch
@@ -358,7 +486,11 @@ WebEngineView {
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
             documentLoadUnsuccessful(navigationGeneration, String(info.url))
-            completed(String(info.url), true)
+            // A stopped load is a cancellation, never a successful
+            // intended-document load: report false with a distinct stopped
+            // signal so the shell keeps the usable-page UX.
+            stopped(String(info.url))
+            completed(String(info.url), false)
         } else if (info.status === WebEngineView.LoadFailedStatus) {
             // An older aborted request can trail a newer main-frame start.
             // Preserve that newer load's gate, without treating the abort as success.
@@ -370,6 +502,10 @@ WebEngineView {
             documentReady = false
             if (clearingSession) { cleanupPoll.stop(); clearingSession = false; localSessionCleared(false) }
             documentLoadUnsuccessful(navigationGeneration, String(info.url))
+            settleNewestNavigation(info.errorCode === 3 || info.errorCode === -3
+                ? "cancelled" : "failed", "load-unsuccessful",
+                info.errorCode === 3 || info.errorCode === -3
+                    ? "superseded-by-navigation" : "navigation-failed")
             if (info.errorCode === 3 || info.errorCode === -3) {
                 // ERR_ABORTED: a superseded navigation or a deliberate stop.
                 // A superseded load must not overwrite the state of the load
@@ -415,6 +551,9 @@ WebEngineView {
         // Qt Quick can retain unanswered native callbacks until adapter disposal.
         // Retire this terminal's tickets, never live-close or new-renderer work.
         invalidateJavaScriptTickets()
+        // Same activity, new engine generation: nothing admitted for the dead
+        // renderer can be redeemed against the one that replaces it.
+        runtime.rendererLost(browser)
         ++navigationGeneration
         ++javascriptEpoch
         ++presentationSerial
@@ -456,6 +595,7 @@ WebEngineView {
     }
     onSuppressedChanged: {
         if (suppressed) {
+            contextMenuController.cancel()
             var windows = popups.slice()
             for (var i = 0; i < windows.length; ++i) windows[i].close()
         }
@@ -465,9 +605,13 @@ WebEngineView {
         FeriaBrowserPolicy.registerRuntimeProfile(profile)
     }
     Component.onDestruction: {
+        contextMenuController.cancel()
         invalidateJavaScriptTickets()
+        var ids = Object.keys(pendingNavOps)
+        for (var i = 0; i < ids.length; ++i)
+            settleNavOperation(ids[i], "invalidated", "teardown", "", {})
         var windows = popups.slice()
-        for (var i = 0; i < windows.length; ++i) windows[i].destroy()
+        for (var j = 0; j < windows.length; ++j) windows[j].destroy()
     }
     Component {
         id: popupComponent

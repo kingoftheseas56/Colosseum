@@ -74,6 +74,75 @@ TestCase {
         return d
     }
 
+    // Exact-file details never offer folder mutations and keep unavailable-file focus usable.
+    function test_file_details_do_not_offer_group_mutations_data() {
+        return [
+            { tag: "identified-episode", state: "identified" },
+            { tag: "uncertain-clip", state: "uncertain" },
+            { tag: "resolving-episode", state: "resolving" }
+        ]
+    }
+
+    function test_file_details_do_not_offer_group_mutations(data) {
+        makeSheet(baseDetail({
+            key: "/root/Show/S01E02.mkv", groupKey: "/root/Show", isFileDetail: true,
+            playPath: "/root/Show/S01E02.mkv"
+        }), data.state, "vault:episode2", false)
+        var actions = ["Identify", "IdentifyAgain", "Unidentify", "Hide"]
+        for (var i = 0; i < actions.length; ++i)
+            compare(findChild(sheet, "vaultBrowseSheet" + actions[i]).visible, false,
+                    "File details must not offer the group-only " + actions[i] + " action")
+        compare(findChild(sheet, "vaultBrowseSheetMarkWatched").visible, true)
+    }
+
+    function test_unplayable_file_focus_stays_on_visible_controls() {
+        makeSheet(baseDetail({ isFileDetail: true, playPath: "" }), "identified")
+        var play = findChild(sheet, "vaultBrowseSheetPlay")
+        var close = findChild(sheet, "vaultBrowseSheetClose")
+        var hide = findChild(sheet, "vaultBrowseSheetHide")
+        compare(play.enabled, false)
+        compare(hide.visible, false)
+        testWindow.requestActivate()
+        sheet.visible = false
+        sheet.visible = true
+        tryCompare(close.keyboardAction, "activeFocus", true)
+        keyClick(Qt.Key_Tab)
+        verify(close.keyboardAction.activeFocus)
+        keyClick(Qt.Key_Backtab, Qt.ShiftModifier)
+        verify(close.keyboardAction.activeFocus)
+    }
+
+    function test_file_copy_availability_does_not_claim_missing_file_is_available() {
+        makeSheet(baseDetail({ isFileDetail: true, playPath: "", copies: [
+            { path: "/root/Show/S01E02.mkv", away: false, available: false,
+              playable: false, admissionVerdict: "Admitted", statusDetail: "File not found" }
+        ] }))
+        var copy = findChild(sheet, "vaultBrowseSheetCopy_0")
+        verify(copy !== null)
+        verify(findText(copy, "Available") === null)
+        verify(findText(copy, "Unavailable") !== null)
+    }
+
+    function test_unplayable_file_watched_focus_loop_data() {
+        return [ { tag: "unwatched", watched: false }, { tag: "watched", watched: true } ]
+    }
+
+    function test_unplayable_file_watched_focus_loop(data) {
+        makeSheet(baseDetail({ isFileDetail: true, playPath: "" }), "identified", "vault:episode2", data.watched)
+        var mark = findChild(sheet, data.watched ? "vaultBrowseSheetMarkUnwatched" : "vaultBrowseSheetMarkWatched")
+        var close = findChild(sheet, "vaultBrowseSheetClose")
+        testWindow.requestActivate()
+        sheet.visible = false
+        sheet.visible = true
+        tryCompare(mark.keyboardAction, "activeFocus", true)
+        keyClick(Qt.Key_Tab)
+        verify(close.keyboardAction.activeFocus)
+        keyClick(Qt.Key_Tab)
+        verify(mark.keyboardAction.activeFocus)
+        keyClick(Qt.Key_Backtab, Qt.ShiftModifier)
+        verify(close.keyboardAction.activeFocus)
+    }
+
     // ── 1. runtime: rendered when the engine knows it, entirely absent when it does not ─────
     function test_runtime_line_present_only_when_known() {
         makeSheet(baseDetail({ runtimeText: "1h 47m" }))

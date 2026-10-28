@@ -42,6 +42,8 @@ QVariantMap fact(const QString &id, const QString &type, qint64 at, bool syncabl
 class tst_consumption_history final : public QObject {
     Q_OBJECT
 private slots:
+    void localMusicProjectsWithoutCloudExport();
+    void localMusicOptOutAndOtherLocalMediaStayPrivate();
     void playbackDeltaProjectsFirstAndLastActivity();
     void readingDeltaProjectsActivity();
     void completionProjectsCompletedAt();
@@ -142,6 +144,67 @@ void tst_consumption_history::clearRemovesActivityBeforeHistoryAndDoesNotTouchPr
     QCOMPARE(kept.value(QStringLiteral("id")).toString(), QStringLiteral("keep"));
     QCOMPARE(kept.value(QStringLiteral("kind")).toString(), QStringLiteral("movie"));
     QCOMPARE(kept.value(QStringLiteral("progress")).toDouble(), 0.5);
+}
+
+void tst_consumption_history::localMusicProjectsWithoutCloudExport() {
+    QTemporaryDir d; QVERIFY(d.isValid());
+    ActivityStore a(d.filePath("activity.sqlite"));
+    const QString item = QStringLiteral("[\"album\",\"edition\",0,0,\"track\"]");
+    {
+        HistoryStore h(d.filePath("history.ini")); ProgressStore p(d.filePath("progress.ini"));
+        ConsumptionHistoryBridge b(&a, &p, &h);
+        auto music = fact("music-range", "playback_delta", 1000, false);
+        music["world"] = "vinyl"; music["kind"] = "music";
+        music["titleKey"] = "album"; music["itemKey"] = item;
+        QVERIFY(a.recordPlaybackDelta(music));
+        QCOMPARE(h.get("music", item).value("firstActivityAt").toLongLong(), 1000LL);
+        QCOMPARE(h.get("music", item).value("lastActivityAt").toLongLong(), 2000LL);
+        auto completion = fact("music-eof", "media_completed", 3000, false);
+        completion["world"] = "vinyl"; completion["kind"] = "music";
+        completion["titleKey"] = "album"; completion["itemKey"] = item;
+        QVERIFY(a.recordCompletion(completion));
+        QVERIFY(h.completed("music", item));
+        QCOMPARE(h.records().size(), 1);
+        QVERIFY(h.syncEntries().isEmpty());
+        QVERIFY(a.portableSyncFacts().isEmpty());
+        QVERIFY(a.recordPlaybackDelta(fact("portable", "playback_delta", 4000)));
+        QCOMPARE(h.syncEntries().size(), 1);
+        QCOMPARE(h.syncEntries().first().toMap().value("kind").toString(), QString("movie"));
+    }
+    HistoryStore reopened(d.filePath("history.ini"));
+    QVERIFY(reopened.completed("music", item));
+    HistoryStore replayed(d.filePath("replayed.ini"));
+    ProgressStore progress(d.filePath("replay-progress.ini"));
+    ConsumptionHistoryBridge replay(&a, &progress, &replayed);
+    a.setRetentionEnabled(false);
+    QVERIFY(replay.replayExisting());
+    QVERIFY(replayed.get("music", item).isEmpty());
+    a.setRetentionEnabled(true);
+    QVERIFY(replay.replayExisting());
+    QVERIFY(replayed.completed("music", item));
+    QCOMPARE(replayed.syncEntries().size(), 1);
+    QCOMPARE(reopened.records().size(), 2);
+    QCOMPARE(reopened.syncEntries().size(), 1);
+    QVERIFY(reopened.remove("music", item));
+    QCOMPARE(reopened.syncEntries().size(), 1);
+}
+
+void tst_consumption_history::localMusicOptOutAndOtherLocalMediaStayPrivate() {
+    QTemporaryDir d; QVERIFY(d.isValid()); ActivityStore a;
+    HistoryStore h(d.filePath("history.ini")); ProgressStore p(d.filePath("progress.ini"));
+    ConsumptionHistoryBridge b(&a, &p, &h);
+    auto music = fact("disabled-music", "playback_delta", 1000, false);
+    music["world"] = "vinyl"; music["kind"] = "music";
+    a.setRetentionEnabled(false);
+    QVERIFY(a.recordPlaybackDelta(music));
+    QVERIFY(h.records().isEmpty());
+    a.setRetentionEnabled(true);
+    auto audiobook = fact("local-book", "playback_delta", 1000, false);
+    audiobook["world"] = "biblio"; audiobook["kind"] = "audiobook";
+    QVERIFY(a.recordPlaybackDelta(audiobook));
+    QVERIFY(a.recordPlaybackDelta(fact("local-movie", "playback_delta", 1000, false)));
+    QVERIFY(b.replayExisting());
+    QVERIFY(h.records().isEmpty());
 }
 
 QTEST_MAIN(tst_consumption_history)

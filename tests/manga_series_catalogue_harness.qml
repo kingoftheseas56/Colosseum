@@ -43,6 +43,13 @@ Item {
     }
 
     component FakeTankobanCatalog: QtObject {
+        property bool remoteEnabled: false
+        property int requestedId: 0
+        property var volumeMap: ({})
+        signal seriesChanged(int malId)
+        function requestSeries(id) { requestedId = id }
+        function hasSeries(id) { return infoMap[String(id)] !== undefined }
+        function volumes(id) { return volumeMap[String(id)] || [] }
         property bool readyVal: true
         property var infoMap: ({})    // malId(string) -> {volumeCount, countBasis}
         function ready() { return readyVal }
@@ -66,6 +73,9 @@ Item {
         function statusOf(vid) { return { "state": "none", "done": 0, "total": 0 } }
         function localPages(vid) { return [] }
         function cancel(vid) {}
+        function prepareSeries(info, volumes, chapters) {
+            volMap[info.seriesId] = volumes
+        }
     }
 
     // R1 (release gate for 1.1.1, 2026-08-21, "nyaa ships dark"): the same shape
@@ -457,6 +467,26 @@ Item {
             ck(malCatalog.mangaByIdCalls === callsAfterWake,
                "case8: an already-resolved page must not re-run resolve() on a further readyChanged pulse")
 
+            // Remote enrichment only accepts explicit MAL IDs when the local row is absent.
+            malCatalog.setReady(false)
+            tankCatalog.remoteEnabled = true
+            tankCatalog.readyVal = false
+            tankCatalog.infoMap = ({})
+            var remotePage = makePage("13", "Explicit MAL Series")
+            ck(remotePage.resolvedMalId === 13, "remote: explicit MAL ID survives absent local metadata")
+            ck(remotePage.seriesId === "mal:13", "remote: canonical MAL namespace unchanged")
+            ck(tankCatalog.requestedId === 13, "remote: explicit MAL ID requests facts")
+            tankCatalog.infoMap["13"] = { volumeCount: 2, countBasis: "mal" }
+            tankCatalog.volumeMap = ({ "13": [{ number: "1", cover: "", name: "One" },
+                                              { number: "2", cover: "", name: "Two" }] })
+            tankCatalog.seriesChanged(99)
+            ck(remotePage.hasShelf === false, "remote: stale other-series reply cannot refresh shelf")
+            tankCatalog.seriesChanged(13)
+            ck(remotePage.hasShelf === true, "remote: matching response refreshes shelf")
+            ck(volService.volMap["mal:13"].length === 2, "remote: same existing volume owner receives facts")
+            var unresolved = makePage("", "Unmatched remote title")
+            ck(unresolved.resolvedMalId === 0 && unresolved.seriesId === "",
+               "remote: title-only missing metadata remains unresolved")
             console.log("MANGA_SERIES_CATALOGUE_OK")
             Qt.exit(0)
         } catch (e) {

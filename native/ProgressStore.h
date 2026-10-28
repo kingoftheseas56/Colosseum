@@ -52,6 +52,8 @@
 #include <QPointer>
 #include <QThread>
 #include <QCoreApplication>
+#include <QEvent>
+#include <QScopedValueRollback>
 #include <QStandardPaths>
 #include <QDir>
 #include <memory>
@@ -294,11 +296,10 @@ public:
     }
 
     ~ProgressStore() {
-        // aboutToQuit usually flushed + stopped the writer thread first. If it did not (e.g. a
-        // test with no app event loop, or an early tear-down), flush once more so destruction
-        // implies a persisted disk (deterministic for tests that reload over the same INI), then
-        // stop the thread. BlockingQueuedConnection inside flush() would deadlock against a
-        // stopped thread, so flush() guards on isRunning(); the stop is separate and unconditional.
+        // QML engine teardown can record a final resume point after aboutToQuit. Keep the
+        // writer alive until this owner is destroyed, drain those final writes, then join it.
+        // flush() also covers tests/early teardown with no application event loop.
+        m_retiring = true;
         flush();
         if (m_writerThread.isRunning()) {
             m_writerThread.quit();
@@ -309,15 +310,43 @@ public:
     // Synchronously drain every queued write so the on-disk state reflects the current in-memory
     // map. Used by shutdown (aboutToQuit), the destructor, and any caller that needs read-your-
     // writes consistency against a fresh store over the same persistence location (e.g. tests).
-    // No-op when the writer is absent or the thread is already stopped (post-shutdown teardown).
+    // No-op when the writer is absent or the thread is already stopped.
     void flush() {
-        if (!m_writer || !m_writerThread.isRunning())
+        Q_ASSERT(QThread::currentThread() == thread());
+        if (!m_writer || !m_writerThread.isRunning() || m_flushing)
             return;
-        // Post the latest in-memory map, then block until every queued writeSnapshot (FIFO,
-        // this one included) has run on the worker thread. flushSync is an empty slot whose only
-        // purpose is to be the BlockingQueuedConnection drain point after the queued writes.
+        QScopedValueRollback<bool> flushing(m_flushing, true);
+        // Settle entry receipts and their rebases only. New callback-created
+        // requests retain normal asynchronous acceptance, but their writer posts
+        // wait until the final checkpoint below, so it cannot overwrite them.
+        m_flushRequestLimit = m_nextRemoteRequest;
+        const auto localReceipts = m_pendingLocalReceipts.keys();
+        const auto remoteReceipts = m_pendingRemote.keys();
+        const auto pendingAtEntry = [&] {
+            for (quint64 id : localReceipts)
+                if (m_pendingLocalReceipts.contains(id)) return true;
+            for (quint64 id : remoteReceipts)
+                if (m_pendingRemote.contains(id)) return true;
+            return false;
+        };
+        do {
+            QMetaObject::invokeMethod(m_writer, "flushSync", Qt::BlockingQueuedConnection);
+            // This private receiver accepts only writer acknowledgements. Never
+            // pump the GUI loop or unrelated queued calls on the store. Receipt
+            // handlers run on the owner thread and may rebase a stale snapshot.
+            QCoreApplication::sendPostedEvents(&m_writerAcknowledgements, QEvent::MetaCall);
+        } while (pendingAtEntry());
+        // A receipt callback may have recorded the final checkpoint. Persist it
+        // after settling receipts, so an earlier flush cannot overwrite a
+        // successfully applied remote snapshot either.
         scheduleSave();
         QMetaObject::invokeMethod(m_writer, "flushSync", Qt::BlockingQueuedConnection);
+        QCoreApplication::sendPostedEvents(&m_writerAcknowledgements, QEvent::MetaCall);
+        m_flushing = false;
+        QList<std::function<void()>> deferred;
+        deferred.swap(m_deferredReceiptPosts);
+        for (const auto &post : deferred)
+            post();
     }
 
     int revision() const { return m_revision; }
@@ -335,6 +364,11 @@ public:
     // of `flush()`: it follows the existing writer FIFO and calls back only
     // when the latest in-memory snapshot is the one QSettings has committed.
     bool requestDurableReceipt(RemoteCommitCallback callback) {
+        if (m_retiring) {
+            if (callback)
+                callback(false, QStringLiteral("The Continue/progress owner is retiring."));
+            return false;
+        }
         if (!healthy()) {
             if (callback)
                 callback(false, persistenceError());
@@ -473,6 +507,10 @@ public:
             if (callback)
                 callback(removed, count, error);
         };
+        if (m_retiring) {
+            finish(false, 0, QStringLiteral("The Continue/progress owner is retiring."));
+            return false;
+        }
         if (!healthy()) {
             finish(false, 0, persistenceError());
             return false;
@@ -760,6 +798,10 @@ public:
         QVariantList out;
         for (auto it = m_map.constBegin(); it != m_map.constEnd(); ++it) {
             const QVariantMap rec = it.value().toMap();
+            // Internal music queue checkpoint is not a consumed item/Continue tile.
+            // Explicit kind lookup remains available to its one session owner.
+            if (kind.isEmpty() && rec.value(QStringLiteral("kind")).toString() == QLatin1String("music-session"))
+                continue;
             if (!kind.isEmpty() && rec.value(QStringLiteral("kind")).toString() != kind)
                 continue;
             out.append(ProgressStoreDetail::withoutTrackerPrivateMetadata(rec));
@@ -1095,6 +1137,11 @@ public:
     // sync cursor never acknowledges an owner that only exists in RAM.
     bool applySyncedEntryAsync(const QVariantMap &entry,
                                RemoteCommitCallback callback) {
+        if (m_retiring) {
+            if (callback)
+                callback(false, QStringLiteral("The Continue/progress owner is retiring."));
+            return false;
+        }
         if (!healthy()) {
             if (callback)
                 callback(false, persistenceError());
@@ -1160,6 +1207,11 @@ public:
             if (callback)
                 callback(status, entry, error);
         };
+        if (m_retiring) {
+            finish(TrackerImportApplyStatus::Failed, {},
+                   QStringLiteral("The Continue/progress owner is retiring."));
+            return false;
+        }
         if (!healthy()) {
             finish(TrackerImportApplyStatus::Failed, {}, persistenceError());
             return false;
@@ -1338,6 +1390,11 @@ public:
 
     bool removeSyncedEntryAsync(const QString &kind, const QString &id,
                                 RemoteCommitCallback callback) {
+        if (m_retiring) {
+            if (callback)
+                callback(false, QStringLiteral("The Continue/progress owner is retiring."));
+            return false;
+        }
         if (!healthy()) {
             if (callback)
                 callback(false, persistenceError());
@@ -1693,6 +1750,12 @@ private:
     }
 
     void postRemoteSnapshot(quint64 requestId, const QVariantHash &snapshot) {
+        if (m_flushing && requestId >= m_flushRequestLimit) {
+            m_deferredReceiptPosts.append([this, requestId, snapshot] {
+                postRemoteSnapshot(requestId, snapshot);
+            });
+            return;
+        }
         if (!m_writer || !m_writerThread.isRunning()) {
             handleRemoteSnapshotFinished(requestId, false,
                                          QStringLiteral("The Continue/progress writer is unavailable."));
@@ -1712,6 +1775,12 @@ private:
     }
 
     void postLocalReceiptSnapshot(quint64 requestId, const QVariantHash &snapshot) {
+        if (m_flushing && requestId >= m_flushRequestLimit) {
+            m_deferredReceiptPosts.append([this, requestId, snapshot] {
+                postLocalReceiptSnapshot(requestId, snapshot);
+            });
+            return;
+        }
         if (!m_writer || !m_writerThread.isRunning()) {
             handleWriterSnapshotFinished(
                 requestId, false,
@@ -1910,24 +1979,23 @@ private:
         m_writer->moveToThread(&m_writerThread);
         connect(&m_writerThread, &QThread::finished, m_writer, &QObject::deleteLater);
         connect(m_writer, &ProgressDiskWriter::writeFailed,
-                this, &ProgressStore::handleWriterFailure,
-                Qt::QueuedConnection);
+                &m_writerAcknowledgements, [this](const QString &error) {
+                    handleWriterFailure(error);
+                }, Qt::QueuedConnection);
         connect(m_writer, &ProgressDiskWriter::snapshotWritten,
-                this, &ProgressStore::handleWriterSnapshotWritten,
-                Qt::QueuedConnection);
+                &m_writerAcknowledgements, [this](const QVariantHash &snapshot) {
+                    handleWriterSnapshotWritten(snapshot);
+                }, Qt::QueuedConnection);
         connect(m_writer, &ProgressDiskWriter::snapshotFinished,
-                this, &ProgressStore::handleWriterSnapshotFinished,
-                Qt::QueuedConnection);
+                &m_writerAcknowledgements, [this](quint64 id, bool committed, const QString &error) {
+                    handleWriterSnapshotFinished(id, committed, error);
+                }, Qt::QueuedConnection);
         if (qApp) {
             connect(qApp, &QCoreApplication::aboutToQuit, this, [this] {
-                // Drain every queued write (and post the latest map first) so the final resume
-                // point lands on disk, then stop the worker thread. flush() is a no-op if the
-                // thread is already stopped, so this composes safely with the destructor's flush().
+                // Checkpoint now, but do not stop/delete the writer: the QML engine may
+                // record again during teardown after the main event loop has returned.
+                // The store destructor owns the final flush and thread shutdown.
                 flush();
-                if (m_writerThread.isRunning()) {
-                    m_writerThread.quit();
-                    m_writerThread.wait();
-                }
             });
         }
         m_writerThread.start();
@@ -2102,6 +2170,12 @@ private:
     QHash<QString, QPair<quint64, QString>> m_pendingTrackerImportOperations;
     bool m_trackerProgressRemovalPending = false;
     QHash<quint64, QVariantHash> m_pendingLocalReceipts;
+    // Separate receiver prevents flush from dispatching arbitrary store calls.
+    QObject m_writerAcknowledgements{this};
+    bool m_flushing = false;
+    bool m_retiring = false;
+    quint64 m_flushRequestLimit = 0;
+    QList<std::function<void()>> m_deferredReceiptPosts;
     QHash<quint64, RemoteCommitCallback> m_localReceiptCallbacks;
     QVariantHash m_lastPersistedSnapshot;
     bool m_hasPersistedSnapshot = false;

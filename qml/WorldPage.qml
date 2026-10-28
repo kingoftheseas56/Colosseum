@@ -18,6 +18,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Window
 
 Item {
     id: world
@@ -87,7 +88,12 @@ Item {
             event.accepted = true
             return
         }
-        event.accepted = spatialNav.handle(event)
+        if (world.televisionMode && event.key === Qt.Key_Up)
+            event.accepted = world.moveVerticalFocus(false)
+        else if (world.televisionMode && event.key === Qt.Key_Down)
+            event.accepted = world.moveVerticalFocus(true)
+        else
+            event.accepted = spatialNav.handle(event)
     }
     Keys.onReleased: function(event) { spatialNav.handleRelease(event) }
     KeyboardSectionCoordinator { id: keyboardSections }
@@ -105,8 +111,13 @@ Item {
     onVisibleChanged: {
         if (!visible)
             keyboardSections.clear()
-        else if (lifecycleActive)
-            Qt.callLater(function() { if (world.visible && world.lifecycleActive) world.forceActiveFocus(Qt.TabFocusReason) })
+        else if (lifecycleActive) {
+            Qt.callLater(function() {
+                if (!world.visible || !world.lifecycleActive) return
+                if (world.televisionMode) topbar.focusFirst()
+                else world.forceActiveFocus(Qt.TabFocusReason)
+            })
+        }
     }
     onEnabledChanged: if (!enabled) keyboardSections.clear()
     property string medium: ""               // which library pill reads as selected
@@ -128,16 +139,70 @@ Item {
         repeat: true
         running: world.visible && world.lifecycleActive && world.initialFocusName.length > 0
         onTriggered: {
+            // A user may navigate before this deferred initial landing runs.
+            // Keep that child focus instead of stealing it back to the carousel.
+            if (spatialNav.activeItem() !== world) {
+                stop()
+                return
+            }
             if (spatialNav.focusNamed(world.initialFocusName))
                 stop()
         }
     }
+    // Host/layout seam shared by Tankoban, Biblio and Theatre. Writable for desktop viewport tests.
+    property bool androidHost: Qt.platform.os === "android"
+    AdaptiveLayout { id: adaptive; viewportWidth: world.width }
+    readonly property real pageMargin: adaptive.pageMargin
+    // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
+    property real contentBottomInset: 0
+
+    readonly property string layoutClass: adaptive.layoutClass
     // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
     // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
     // Task 9) read this to drive the sexually-explicit-only gate. Default false so a bare
     // construct (the page harness, a cold world) stays conservative.
     property bool showExplicitContent: false
+    readonly property bool televisionMode: {
+        const w = world.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
     default property alias content: board.data
+
+    function isInside(item, ancestor) {
+        var p = item
+        while (p) {
+            if (p === ancestor) return true
+            p = p.parent
+        }
+        return false
+    }
+    function revealFocusedItem(item) {
+        if (!item || !world.isInside(item, page)) return
+        var point = item.mapToItem(page, 0, 0)
+        if (point.y < 18)
+            page.contentY = Math.max(0, page.contentY + point.y - 18)
+        else if (point.y + item.height > page.height - 18)
+            page.contentY = Math.min(Math.max(0, page.contentHeight - page.height),
+                                     page.contentY + point.y + item.height - page.height + 18)
+    }
+    function moveVerticalFocus(forward) {
+        const w = world.Window.window
+        const from = w ? w.activeFocusItem : null
+        if (!from || !world.isInside(from, world)) return false
+        var target = from.nextItemInFocusChain(forward)
+        var guard = 0
+        while (target && target !== from && guard++ < 96) {
+            if (target.visible && target.enabled && target.activeFocusOnTab) {
+                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                world.revealFocusedItem(target)
+                return true
+            }
+            target = target.nextItemInFocusChain(forward)
+        }
+        return false
+    }
+
+    Keys.priority: Keys.AfterItem
 
     signal homeRequested()
     signal mediumSelected(string medium)     // tapped another pill → host switches world
@@ -176,8 +241,9 @@ Item {
         pageTitle: world.topBarTitle
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
-        x: theme.margin; y: 30
-        width: world.width - theme.margin * 2
+        androidHost: world.androidHost
+        x: adaptive.pageMargin; y: adaptive.topInset
+        width: world.width - adaptive.pageMargin * 2
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
@@ -193,6 +259,9 @@ Item {
         onMinimizeClicked: world.minimizeClicked()
         onPowerClicked: world.powerClicked()
     }
+
+    Component.onCompleted: if (world.televisionMode && world.visible)
+        Qt.callLater(function() { topbar.focusFirst() })
 
     // Read-only viewport seam for viewport-aware lazy shelves (LazyPosterShelf). These expose the
     // existing page Flickable's scroll offset and height WITHOUT adding a second vertical scroller or
@@ -211,8 +280,8 @@ Item {
         // addressable without introducing a second scroller or a presentation shell.
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
-        y: 96
-        height: world.height - 96
+        y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
+        height: Math.max(0, world.height - y - world.contentBottomInset)
         contentWidth: width
         contentHeight: board.implicitHeight + 50
         clip: true
@@ -223,7 +292,9 @@ Item {
         // Soft top edge (2026-09-29): content leaving under the top bar fades out over 28px
         // instead of being sliced by the clip line mid-glyph (the catalogue name, "Popular").
         // Only layered once the page has scrolled, so the resting page renders as before.
-        layer.enabled: page.contentY > 0
+        // MultiEffect needs the shader renderer. Its software-backend fallback
+        // must keep the board visible rather than replacing it with a blank layer.
+        layer.enabled: page.contentY > 0 && page.GraphicsInfo.api !== GraphicsInfo.Software
         layer.effect: MultiEffect {
             maskEnabled: true
             maskSource: pageTopFade
@@ -234,10 +305,10 @@ Item {
 
         Column {
             id: board
-            x: theme.margin
-            width: world.width - theme.margin * 2
+            x: adaptive.pageMargin
+            width: world.width - adaptive.pageMargin * 2
             topPadding: 12; bottomPadding: 24
-            spacing: 36
+            spacing: adaptive.sectionSpacing
         }
     }
 

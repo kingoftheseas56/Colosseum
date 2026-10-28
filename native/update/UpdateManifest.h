@@ -32,6 +32,11 @@ struct Highlight {
 struct Manifest {
     int schemaVersion = 0;
     Version version;
+    // Optional signed release ordering across editions of one displayed
+    // version (no-account 1.1.9 -> account 1.1.9). 0 = legacy manifest,
+    // ordered by version alone. When present it is a positive integer that
+    // increases with every published release, whatever the displayed version.
+    int sequence = 0;
     QString tag;
     QString eyebrow;
     QString title;

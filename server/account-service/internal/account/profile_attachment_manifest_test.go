@@ -363,18 +363,85 @@ func TestTwoDevicesCanAttachSimultaneouslyWithoutLosingCanonicalWinner(t *testin
 	if err != nil {
 		t.Fatalf("PullSync() error = %v", err)
 	}
-	winners := 0
+	// Won records whether a journal mutation advanced current state when
+	// applied, not whether it remains canonical after a later mutation.
+	journal := make(map[string]SyncPullEntry)
 	for _, entry := range pull.Entries {
-		if entry.Won && entry.Mutation.Category == mutationB.Category &&
-			entry.Mutation.RecordKey == mutationB.RecordKey {
-			winners++
-			if string(entry.Mutation.Payload) != string(mutationB.Payload) {
-				t.Fatalf("canonical winner payload = %s, want %s", entry.Mutation.Payload, mutationB.Payload)
-			}
+		if entry.Mutation.Category != mutationB.Category ||
+			entry.Mutation.RecordKey != mutationB.RecordKey {
+			continue
+		}
+		if _, duplicated := journal[entry.Mutation.MutationID]; duplicated {
+			t.Fatalf("duplicate pulled mutation %s", entry.Mutation.MutationID)
+		}
+		journal[entry.Mutation.MutationID] = entry
+	}
+	if len(journal) != 2 {
+		t.Fatalf("pulled mutation count = %d, want 2", len(journal))
+	}
+	for _, expected := range []SyncMutationInput{mutationA, mutationB} {
+		entry, ok := journal[expected.MutationID]
+		if !ok {
+			t.Fatalf("missing pulled mutation %s", expected.MutationID)
+		}
+		// The pull view is materialized, so independently verify that the
+		// journal still preserves each device's original encrypted input.
+		var originalCipher []byte
+		if err := fixture.pool.QueryRow(context.Background(), `
+			SELECT payload_ciphertext FROM account_sync_journal
+			WHERE account_id = $1::uuid AND mutation_id = $2::uuid
+		`, authA.Account.ID, expected.MutationID).Scan(&originalCipher); err != nil {
+			t.Fatalf("load original mutation %s: %v", expected.MutationID, err)
+		}
+		originalPayload, err := fixture.service.syncCipher.Open(
+			authA.Account.ID, expected.Category, expected.RecordKey, originalCipher)
+		if err != nil {
+			t.Fatalf("decrypt original mutation %s: %v", expected.MutationID, err)
+		}
+		if string(originalPayload) != string(expected.Payload) {
+			t.Fatalf("original mutation %s payload = %s, want %s",
+				expected.MutationID, originalPayload, expected.Payload)
+		}
+		// PullSync returns the state materialized when the journal row was
+		// applied. A wins only if it precedes B; otherwise A's row carries
+		// B's payload. B advances state in either serialization order.
+		wantWon := expected.MutationID == mutationB.MutationID ||
+			entry.ServerSeq < journal[mutationB.MutationID].ServerSeq
+		if entry.Won != wantWon {
+			t.Fatalf("pulled mutation %s Won = %t, want %t",
+				expected.MutationID, entry.Won, wantWon)
+		}
+		wantPayload := mutationB.Payload
+		if expected.MutationID == mutationA.MutationID && wantWon {
+			wantPayload = mutationA.Payload
+		}
+		if string(entry.Mutation.Payload) != string(wantPayload) {
+			t.Fatalf("pulled mutation %s materialized payload = %s, want %s",
+				expected.MutationID, entry.Mutation.Payload, wantPayload)
 		}
 	}
-	if winners != 1 {
-		t.Fatalf("canonical winner count = %d, want 1", winners)
+
+	// The current-state row, unlike an historical journal Won flag, must
+	// always select device B's later HLC regardless of push interleaving.
+	current, found, err := fixture.service.loadCurrent(
+		context.Background(), authA.Account.ID, mutationB.Category, mutationB.RecordKey)
+	if err != nil {
+		t.Fatalf("loadCurrent() error = %v", err)
+	}
+	if !found {
+		t.Fatal("canonical current record missing")
+	}
+	if current.MutationID != mutationB.MutationID || current.DeviceID != authB.Device.ID {
+		t.Fatalf("canonical winner mutation/device = %s/%s, want %s/%s",
+			current.MutationID, current.DeviceID, mutationB.MutationID, authB.Device.ID)
+	}
+	payload, err := fixture.service.syncCipher.Open(
+		authA.Account.ID, mutationB.Category, mutationB.RecordKey, current.PayloadCipher)
+	if err != nil {
+		t.Fatalf("decrypt canonical payload: %v", err)
+	}
+	if string(payload) != string(mutationB.Payload) {
+		t.Fatalf("canonical winner payload = %s, want %s", payload, mutationB.Payload)
 	}
 }
 

@@ -1,10 +1,14 @@
 pragma ComponentBehavior: Bound
 import QtQuick
+import "UniverseContentApi.js" as UniverseContent
 import "UniverseExtApi.js" as UniverseApi
 import "DCAUUniverseData.js" as DCAU
 
 Item {
     id: root
+    function resolveContentAsset(path) { root.universeContentGeneration; return UniverseContent.asset(path) }
+    onUniverseContentGenerationChanged: reload()
+    readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     anchors.fill: parent
     objectName: "dcauUniversePage"
 
@@ -39,7 +43,7 @@ Item {
         if (typeof Progress === "undefined" || !root.payload) return []
         var recent = Progress.recent("", 100), out = []
         for (var i=0; i<recent.length && out.length<12; ++i)
-            if (DCAU.progressBelongsToJustice(recent[i])) out.push(recent[i])
+            if ((root.universeContentGeneration, DCAU.progressBelongsToJustice)(recent[i])) out.push(recent[i])
         return out
     }
     function navigateBack() {
@@ -64,7 +68,7 @@ Item {
             portalFlick.contentX = Math.max(0, Math.min(target, maxX))
         }
         function selectPortal(i, focusItem) {
-            landing.selectedIndex = (i + DCAU.hubs.length) % DCAU.hubs.length
+            landing.selectedIndex = (i + (root.universeContentGeneration, DCAU.hubs).length) % (root.universeContentGeneration, DCAU.hubs).length
             var item = portalRepeater.itemAt(landing.selectedIndex)
             if (item && focusItem) item.forceActiveFocus()
             Qt.callLater(function() { landing.centerPortal(landing.selectedIndex) })
@@ -73,7 +77,7 @@ Item {
             var center = portalFlick.contentX + portalFlick.width / 2
             var best = landing.selectedIndex
             var distance = Number.MAX_VALUE
-            for (var i = 0; i < DCAU.hubs.length; ++i) {
+            for (var i = 0; i < (root.universeContentGeneration, DCAU.hubs).length; ++i) {
                 var item = portalRepeater.itemAt(i)
                 if (!item) continue
                 var d = Math.abs(portalRow.x + item.x + item.width / 2 - center)
@@ -145,7 +149,7 @@ Item {
                     spacing: 24
                     Repeater {
                         id: portalRepeater
-                        model: DCAU.hubs
+                        model: (root.universeContentGeneration, DCAU.hubs)
                         delegate: DCAUWorldPortal {
                             required property var modelData
                             required property int index
@@ -156,7 +160,7 @@ Item {
                             title: modelData.title
                             selected: landing.selectedIndex === index
                             imageSources: [
-                                Qt.resolvedUrl("../assets/universes/dcau/portals/" + modelData.portal)
+                                root.resolveContentAsset("../assets/universes/dcau/portals/" + modelData.portal)
                             ]
                             onSelectionRequested: landing.selectPortal(index, false)
                             onActivated: root.openHub(modelData.id)
@@ -192,7 +196,7 @@ Item {
     DCAUWorldPage {
         anchors.fill: parent
         visible: root.currentHubId.length > 0
-        hub: DCAU.hub(root.currentHubId)
+        hub: (root.universeContentGeneration, DCAU.hub)(root.currentHubId)
         payload: root.payload
         reducedMotion: root.reducedMotion
         onWatchRequested: function(entry) { root.watchRequested(entry) }

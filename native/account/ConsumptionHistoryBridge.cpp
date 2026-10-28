@@ -54,7 +54,17 @@ ConsumptionHistoryBridge::ConsumptionHistoryBridge(ActivityStore *activity,
 }
 
 bool ConsumptionHistoryBridge::projectActivityFact(const QVariantMap &event) {
-    if (!event.value(QStringLiteral("syncable")).toBool())
+    if (event.value(QStringLiteral("type")).toString() == QLatin1String("music_action"))
+        return true;
+    // Vinyl currently has device-local occurrence identities. Project those into
+    // the profile's local History while preserving their non-portable contract.
+    // Other local media retain the existing exclusion policy.
+    const bool localMusic = !event.value(QStringLiteral("syncable")).toBool()
+        && event.value(QStringLiteral("world")).toString() == QLatin1String("vinyl")
+        && event.value(QStringLiteral("kind")).toString() == QLatin1String("music");
+    if (!event.value(QStringLiteral("syncable")).toBool() && !localMusic)
+        return true;
+    if (localMusic && (!m_activity || !m_activity->retentionEnabled()))
         return true;
     const QString kind = event.value(QStringLiteral("kind")).toString().trimmed();
     const QString id = event.value(QStringLiteral("itemKey")).toString().trimmed();

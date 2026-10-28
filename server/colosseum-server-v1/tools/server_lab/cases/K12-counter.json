@@ -1,0 +1,433 @@
+[
+  {
+    "name": "two-readers-deadline",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        20
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        9
+      ],
+      [
+        "wait",
+        1
+      ]
+    ]
+  },
+  {
+    "name": "reopen-grace",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        5
+      ],
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ]
+    ]
+  },
+  {
+    "name": "close-without-open",
+    "ops": [
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        50
+      ]
+    ]
+  },
+  {
+    "name": "duplicate-close",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ],
+      [
+        "open",
+        "a",
+        0
+      ]
+    ]
+  },
+  {
+    "name": "negative-reopen-cancels",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        20
+      ]
+    ]
+  },
+  {
+    "name": "independent-files",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "open",
+        "a",
+        1
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        1
+      ],
+      [
+        "wait",
+        10
+      ]
+    ]
+  },
+  {
+    "name": "engine-key-closing-arguments",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "open",
+        "a",
+        1
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        1
+      ],
+      [
+        "wait",
+        10
+      ]
+    ],
+    "hashOnly": true
+  },
+  {
+    "name": "dynamic-delay",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "delay",
+        20
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "delay",
+        1
+      ],
+      [
+        "wait",
+        20
+      ]
+    ]
+  },
+  {
+    "name": "positive-reentrant-open",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ]
+    ],
+    "reenter": {
+      "when": "positive",
+      "ops": [
+        [
+          "open",
+          "a",
+          0
+        ]
+      ]
+    }
+  },
+  {
+    "name": "positive-reentrant-close",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        20
+      ]
+    ],
+    "reenter": {
+      "when": "positive",
+      "ops": [
+        [
+          "close",
+          "a",
+          0
+        ]
+      ]
+    }
+  },
+  {
+    "name": "zero-reentrant-open-erased",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        20
+      ]
+    ],
+    "reenter": {
+      "when": "zero",
+      "ops": [
+        [
+          "open",
+          "a",
+          0
+        ]
+      ]
+    }
+  },
+  {
+    "name": "zero-reentrant-timer-survives",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        20
+      ]
+    ],
+    "reenter": {
+      "when": "zero",
+      "ops": [
+        [
+          "open",
+          "a",
+          0
+        ],
+        [
+          "close",
+          "a",
+          0
+        ]
+      ]
+    }
+  },
+  {
+    "name": "positive-throw-interrupts",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ]
+    ],
+    "throw": "positive"
+  },
+  {
+    "name": "zero-throw-retains-handle",
+    "ops": [
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ],
+      [
+        "open",
+        "a",
+        0
+      ],
+      [
+        "close",
+        "a",
+        0
+      ],
+      [
+        "wait",
+        10
+      ]
+    ],
+    "throw": "zero"
+  }
+]

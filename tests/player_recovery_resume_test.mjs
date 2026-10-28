@@ -43,6 +43,7 @@ function session({ paused = false, visible = true, direct = false } = {}) {
     resumePromptConsumed: true, resumePromptMinSec: 30, resumeRestartThreshold: 0.8,
     resumeChoiceOpen: false, wakeReconnectPendingSeek: -1,
     starting: false, errored: false, fileReady: true, visible,
+    audioHandoffPaused: false, activeDirectHeaders: {},
     recoveryPositionSec: -1, recoveryResumePending: false, recoveryResumePaused: false,
     recoveryLastPosition: 119, recoveryLastMovedAt: now - 2000,
     recoveryUrlStartedAt: now - 60000, recoveryNoVideoSince: now - 21000,
@@ -61,11 +62,13 @@ function session({ paused = false, visible = true, direct = false } = {}) {
     clamp: (value, min, max) => Math.max(min, Math.min(max, value)),
     clearAbLoop: noop, cancelSleepTimer: noop, resetSkipSegments: noop,
     resetTrackAutomation: noop, sendTraktPlayback: noop,
+    requestAudioPlayback: noop,
   };
   const mpv = {
     position: 120, duration: 3231.958, pause: paused, cacheBufferingState: 100,
     decodedWidth: 0, decodedHeight: 0,
     loadFile: () => { calls.push('load'); mpv.position = 0; },
+    loadSource: (url, headers) => { calls.push('load'); mpv.lastHeaders = headers; mpv.position = 0; },
     seekExact: value => { calls.push(['seek', value]); mpv.position = value; },
   };
   const context = vm.createContext({
@@ -80,6 +83,7 @@ function session({ paused = false, visible = true, direct = false } = {}) {
     'shouldSkipResumePrompt', 'prepareResumeChoice', 'armPlaybackAfterResumeChoice',
     'startOverFromResumeChoice', 'playUrl', 'resetRecoveryResume', 'prepareRecoveryResume',
     'seekTo',
+    'clearActiveDirectHeaders', 'reloadActiveDirectSource',
   ]) {
     const marker = `function ${name}(`;
     const at = source.indexOf(marker);
@@ -131,9 +135,21 @@ test('repeated failure while reopening does not overwrite the recovery target wi
 
 test('direct-URL reconnect preserves playback position', () => {
   const s = session({ direct: true });
+  s.root.activeDirectHeaders = { Referer: 'https://fixture.invalid/' };
   s.root.handlePlaybackFailure('network');
   s.loaded();
   assert.equal(s.mpv.position, 120);
+  assert.equal(s.mpv.lastHeaders.Referer, 'https://fixture.invalid/');
+});
+
+test('recovery respects audio ownership handed to another world during reopening', () => {
+  const s = session();
+  s.root.retryCurrentStream();
+  s.root.audioHandoffPaused = true;
+  s.mpv.pause = true;
+  s.reload();
+  assert.equal(s.mpv.pause, true);
+  assert.equal(s.root.starting, false);
 });
 
 test('retry preserves a deliberate pause', () => {

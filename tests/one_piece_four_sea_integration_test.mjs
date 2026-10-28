@@ -7,15 +7,38 @@ import vm from 'node:vm';
 
 const repo = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const source = name => fs.readFileSync(path.join(repo, 'qml', name), 'utf8');
-function qmlJs(name) {
-    const context = vm.createContext({});
-    vm.runInContext(source(name).replace(/^\s*\.pragma library\s*$/m, ''), context);
+
+test('a crowded island keeps its badge in nearby clear water', () => {
+    const layout = qmlJs('OnePieceAtlasBadgeLayout.js');
+    const island = { x: 720, y: 360, width: 240, height: 240 };
+    const result = layout.placeBadges([{id: 'crowded', x: 840 / 1680, y: 480 / 960}], 84, [island], 9).crowded;
+    assert.equal(result.visible, true);
+    assert.equal(layout.circleOverlapsRect(result.x * 1680, result.y * 960, 48, island), false);
+    assert.ok(Math.hypot(result.x * 1680 - 840, result.y * 960 - 480) <= 192);
+});
+function qmlJs(name, extra = {}) {
+    const context = vm.createContext({
+        ContentApi: {
+            register() {},
+            document() { return {}; },
+            asset(value) { return value; },
+            resolveAssets(value) { return value; }
+        },
+        ...extra
+    });
+    vm.runInContext(source(name).replace(/^\s*\.(?:pragma|import).*$/gm, ''), context);
     return context;
 }
 function method(file, name, args) {
     const match = source(file).match(new RegExp('function ' + name + '\\([^)]*\\) \\{([\\s\\S]*?)\\n    \\}'));
     assert.ok(match, `${name} exists`);
-    return new Function(...args, match[1]);
+    const fn = new Function('UniverseContent', ...args, match[1]);
+    return (...callArgs) => fn({
+        asset(value) { return value; },
+        reload() {},
+        resolveAssets(value) { return value; },
+        document() { return {}; }
+    }, ...callArgs);
 }
 
 test('unconsumed atlas Escape closes the universe; consumed Escape keeps it open', () => {
