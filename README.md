@@ -10,7 +10,7 @@
 
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9"><img src="https://img.shields.io/badge/Linux-Ubuntu%2024.04%20amd64-111111?style=flat-square" alt="Linux Ubuntu 24.04 amd64" /></a>
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10"><img src="https://img.shields.io/badge/Linux-Ubuntu%2024.04%20amd64-111111?style=flat-square" alt="Linux Ubuntu 24.04 amd64" /></a>
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><img src="https://img.shields.io/github/v/release/kingoftheseas56/Colosseum?display_name=tag&sort=semver&style=flat-square&label=release" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-777777?style=flat-square" alt="MIT License" /></a>
 </p>
@@ -27,7 +27,7 @@
 <p align="center">
   <a href="https://getcolosseum.world/"><strong>Official website</strong></a> &nbsp;|&nbsp;
   <a href="https://getcolosseum.world/#next"><strong>Explore 1.1.9 &amp; Tributes</strong></a> &nbsp;|&nbsp;
-  <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9"><strong>Download 1.1.9</strong></a> &nbsp;|&nbsp;
+  <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10"><strong>Download 1.1.10</strong></a> &nbsp;|&nbsp;
   <a href="docs/README.md">Docs</a> &nbsp;|&nbsp;
   Source builds: <a href="docs/build/windows.md">Windows</a> &middot;
   <a href="docs/build/macos.md">macOS</a> &middot;
@@ -45,9 +45,20 @@ Colosseum is a native Qt desktop app that brings different kinds of media togeth
 These five worlds share Home, Continue, Collection, Downloads, settings, and open sessions, but each medium keeps its own reader or player. Comics use the comic reader, books use Reader2 with audiobook support, and Theatre uses the mpv-based player. Downloaded media stays local, and Vault does not move the files it indexes.
 
 > [!IMPORTANT]
-> **Colosseum 1.1.9 is the current published release**, with installers for Windows 10/11 and Linux amd64. [Download 1.1.9](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9).
+> **Colosseum 1.1.10 is the current published release**, with installers for Windows 10/11 and Linux amd64. [Download 1.1.10](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10).
 >
-> Upgrading from 1.1.8 currently requires a **manual installation**. The full automatic signed-update chain has not yet been qualified end to end. Use the published release assets and checksums.
+> Upgrading to 1.1.10 currently requires a **manual installation**. The full automatic signed-update chain has not yet been qualified end to end. Use the published release assets and checksums.
+
+## What's new in 1.1.10
+
+A few fixes and improvements in this update:
+
+- **Vault:** Fixed a major bug that caused the Vault page to render incorrectly.
+- **Linux Accounts:** Linux now has the same account system as Windows.
+- **Online Native Add-ons:** New manga sources can now be added without requiring another Colosseum update.
+- **Other Fixes:** Added MangaSin as an optional Spanish source and a retry option for videos that fail to open.
+
+[Download 1.1.10](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10) · [Read the 1.1.10 release notes](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10)
 
 ## What's new in 1.1.9
 
@@ -147,7 +158,7 @@ Tankoban and Biblio can use compatible extension catalogues for discovery, while
 
 ## Accounts and sync
 
-Colosseum 1.1.9 is one standard edition with optional accounts. It contains the desktop account client and uses an app-owned account-service endpoint by default. `COLOSSEUM_ACCOUNT_SERVICE_URL` can override it at runtime, and source builds can provide `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>` when they need a different service. The Go service lives at [`server/account-service`](server/account-service), with its deployment contract in [`server/account-service/DEPLOYMENT.md`](server/account-service/DEPLOYMENT.md).
+Colosseum 1.1.10 remains one standard edition with optional accounts. It contains the desktop account client and uses an app-owned account-service endpoint by default. `COLOSSEUM_ACCOUNT_SERVICE_URL` can override it at runtime, and source builds can provide `-DCOLOSSEUM_ACCOUNT_SERVICE_URL=https://<host>` when they need a different service. The Go service lives at [`server/account-service`](server/account-service), with its deployment contract in [`server/account-service/DEPLOYMENT.md`](server/account-service/DEPLOYMENT.md).
 
 An account is optional for local use. Vault, local media, readers, playback, and the rest of the on-device library still work without one. Hosted account features depend on the service being reachable; the repository does not treat provider-side deployment state as something the desktop build can prove. For local account testing, run [`tests/mock-account-service`](tests/mock-account-service) and point `COLOSSEUM_ACCOUNT_SERVICE_URL` at it.
 
@@ -157,7 +168,7 @@ Portable sync covers Collection, Continue/progress, ordinary history, and profil
 
 ## Development on `master`
 
-Source builds on `master` can differ from the published 1.1.9 installers.
+Source builds on `master` can differ from the published 1.1.10 installers.
 
 ## Wallpapers
 
@@ -186,25 +197,25 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 ### Windows installer
 
-Download [`Colosseum-1.1.9-setup.exe`](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.9/Colosseum-1.1.9-setup.exe) from the [v1.1.9 release](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.9). Close Colosseum and run the installer. Windows 10/11 installation is per-user and does not require administrator access.
+Download [`Colosseum-1.1.10-setup.exe`](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.10/Colosseum-1.1.10-setup.exe) from the [v1.1.10 release](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10). Close Colosseum and run the installer. Windows 10/11 installation is per-user and does not require administrator access.
 
-**Upgrading from 1.1.8 to 1.1.9 is manual.** Versions 1.1.5 and earlier also require a manual install because the 1.1.6 update-signing trust root changed. The 1.1.9 updater moves discovery to Colosseum's first-party update feed while retaining signed update validation, but full end-to-end automatic-update qualification is still outstanding. Do not rely on automatic updating for this upgrade.
+**Upgrading to 1.1.10 is manual.** Versions 1.1.5 and earlier also require a manual install because the 1.1.6 update-signing trust root changed. Colosseum uses a first-party update feed with signed update validation, but full end-to-end automatic-update qualification is still outstanding. Do not rely on automatic updating for this upgrade.
 
 The release includes `SHA256SUMS`, an update manifest, and its production Ed25519 signature.
 
 ### Linux installer
 
-Download [`Colosseum-1.1.9-linux-amd64-notices.deb`](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.9/Colosseum-1.1.9-linux-amd64-notices.deb) from the same release. For an Ubuntu 24.04 amd64 system, install the package with:
+Download [`Colosseum-1.1.10-linux-amd64-notices.deb`](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.10/Colosseum-1.1.10-linux-amd64-notices.deb) from the same release. For an Ubuntu 24.04 amd64 system, install the package with:
 
 ```sh
-sudo apt install ./Colosseum-1.1.9-linux-amd64-notices.deb
+sudo apt install ./Colosseum-1.1.10-linux-amd64-notices.deb
 ```
 
 This is one directly installable Debian package with third-party notices included. Linux updates are manual. Ubuntu 24.04 amd64 is the qualified environment; other distributions and hardware have not been universally qualified. Use `LINUX-SHA256SUMS` to verify the download.
 
 ### Build from source
 
-The 1.1.9 release provides Windows and Linux installers. Source-build guides are maintained for Windows, macOS, and Linux; macOS does not have a 1.1.9 installer. The Linux package is qualified on Ubuntu 24.04 amd64, and direct trackers are Windows-only for now.
+The 1.1.10 release provides Windows and Linux installers. Source-build guides are maintained for Windows, macOS, and Linux; macOS does not have a 1.1.10 installer. The Linux package is qualified on Ubuntu 24.04 amd64, and direct trackers are Windows-only for now.
 
 Windows builds use Visual Studio 2022 C++ Build Tools, CMake/Ninja, Qt 6.11.1 MSVC 2022 64-bit, MpvQt/libmpv, and libtorrent/Boost/OpenSSL. Pass your dependency locations explicitly when configuring the build.
 
@@ -229,7 +240,7 @@ The repository includes Lanista UI journeys and the Night Watch/Guardian verific
 
 ## Known boundaries
 
-- Known 1.1.9 issues include comics loading speed/alignment and unexpected Vault visibility during One Piece tribute navigation.
+- Issues reported in 1.1.9 included comics loading speed/alignment and unexpected Vault visibility during One Piece tribute navigation. Their status in 1.1.10 has not been re-qualified.
 - Linux updates are currently manual, and the full automatic signed-update flow has not been qualified end to end.
 - Home does not have one cross-world search yet. Search is per world.
 - After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a few seconds before recovering.
@@ -238,7 +249,7 @@ The repository includes Lanista UI journeys and the Night Watch/Guardian verific
 - Watch Party can share exact torrent identity, but generic direct URLs are deliberately excluded. Public signed-in hosting also depends on bearer-authority wiring in the hosted relay.
 - The calendar implementation exists in the repository but has no live navigation route.
 - Player 2 is opt-in and Windows/D3D11-oriented. MpvQt/libmpv remains the default.
-- Feria and Vinyl are not available in 1.1.9. Their development source does not make them part of this release.
+- Feria and Vinyl are not available in 1.1.10. Their development source does not make them part of this release.
 - Catalogue databases such as `data/comics_catalog.db`, `data/mal_catalog.db`, `data/tankoban_catalog.db`, and `data/imdb_catalog.db` are deployment artifacts and stay out of normal Git source. Source builds prefer local copies and otherwise use the catalogue vault to fetch published databases into AppData.
 - Casting and live TV/DVR are still under development.
 
