@@ -18,12 +18,16 @@ namespace {
 
 #ifdef Q_OS_WIN
 
-// Substring blocklist for virtual/tunnel adapter display names (case-insensitive). These are
-// the spec's skip list; everything virtual a home machine grows (Hyper-V, WSL, VPN tools)
-// names itself loudly, and a DLNA server must never bind any of them.
+// Substring blocklist for virtual/tunnel adapter names and descriptions (case-insensitive).
+// These are the spec's skip list; everything virtual a home machine grows (Hyper-V, WSL, VPN
+// tools) names itself loudly, and a DLNA server must never bind any of them. Many VPN
+// drivers register as plain Ethernet (IfType 6), so the name list is the second fence behind
+// the IfType allow-list.
 const char* const kVirtualNameFragments[] = {
     "vethernet", "hyper-v", "wsl", "virtualbox", "vmware", "tap", "tun",
     "tailscale", "zerotier", "wireguard", "npcap", "loopback", "vpn", "meta",
+    "virtual", "miniport", "anyconnect", "pangp", "globalprotect", "fortinet",
+    "hamachi", "wintun", "nordlynx", "openvpn",
 };
 
 bool isVirtualName(const QString& name)
@@ -35,20 +39,30 @@ bool isVirtualName(const QString& name)
     return false;
 }
 
-bool isPrivateV4(quint32 addrHostOrder)
+// IPv4 unicast address pupnp will bind for this adapter: its UpnpGetIfInfo walks every unicast
+// address and keeps the LAST IPv4 one, so the picker must predict that one, not the first.
+// Empty when the adapter has no IPv4 address.
+QString lastIpv4(PIP_ADAPTER_ADDRESSES adapter)
 {
-    return (addrHostOrder >> 24) == 10
-        || (addrHostOrder >> 20) == ((172u << 4) | 1)
-        || (addrHostOrder >> 16) == ((192u << 8) | 168);
+    QString ip;
+    for (auto ua = adapter->FirstUnicastAddress; ua; ua = ua->Next) {
+        const sockaddr* sa = ua->Address.lpSockaddr;
+        if (!sa || sa->sa_family != AF_INET)
+            continue;
+        char buf[64] = {0};
+        if (getnameinfo(sa, ua->Address.iSockaddrLength, buf, sizeof(buf), nullptr, 0,
+                        NI_NUMERICHOST) == 0)
+            ip = QString::fromLatin1(buf);
+    }
+    return ip;
 }
 
-QString ansiFriendlyName(PIP_ADAPTER_ADDRESSES adapter)
+// pupnp (built with UPNP_ADAPTER_UUID_NAME) selects the interface by AdapterName - the
+// adapter GUID, pure ASCII - so Unicode friendly names ("Wi-Fi 2", "Ethernet für Heim") can
+// never miss the match through a lossy ANSI conversion.
+QString pupnpIfName(PIP_ADAPTER_ADDRESSES adapter)
 {
-    // pupnp's UpnpGetIfInfo matches IfName against the FriendlyName converted with wcstombs
-    // (ANSI code page). Produce exactly that string so the two sides always agree.
-    char buf[256] = {0};
-    WideCharToMultiByte(CP_ACP, 0, adapter->FriendlyName, -1, buf, sizeof(buf), nullptr, nullptr);
-    return QString::fromLocal8Bit(buf);
+    return QString::fromLatin1(adapter->AdapterName);
 }
 
 QList<DlnaNetAdapter> enumerateWin()
@@ -70,21 +84,15 @@ QList<DlnaNetAdapter> enumerateWin()
     for (auto a = reinterpret_cast<PIP_ADAPTER_ADDRESSES>(buf.data()); a; a = a->Next) {
         if (a->OperStatus != IfOperStatusUp)
             continue;
-        for (auto ua = a->FirstUnicastAddress; ua; ua = ua->Next) {
-            const sockaddr* sa = ua->Address.lpSockaddr;
-            if (!sa || sa->sa_family != AF_INET)
-                continue;
-            char ip[64] = {0};
-            getnameinfo(sa, ua->Address.iSockaddrLength, ip, sizeof(ip), nullptr, 0,
-                        NI_NUMERICHOST);
-            DlnaNetAdapter adapter;
-            adapter.ifName = ansiFriendlyName(a);
-            adapter.ip = QString::fromLatin1(ip);
-            adapter.label = QStringLiteral("%1 · %2").arg(QString::fromWCharArray(a->FriendlyName),
-                                                          adapter.ip);
-            out.append(adapter);
-            break; // first IPv4 address per adapter is the one pupnp binds too
-        }
+        const QString ip = lastIpv4(a);
+        if (ip.isEmpty())
+            continue;
+        DlnaNetAdapter adapter;
+        adapter.ifName = pupnpIfName(a);
+        adapter.ip = ip; // the address pupnp binds (the adapter's last IPv4)
+        adapter.label = QStringLiteral("%1 · %2").arg(QString::fromWCharArray(a->FriendlyName),
+                                                      adapter.ip);
+        out.append(adapter);
     }
     return out;
 }
@@ -111,30 +119,24 @@ std::optional<DlnaNetAdapter> pickHomeWin()
     for (auto a = reinterpret_cast<PIP_ADAPTER_ADDRESSES>(buf.data()); a; a = a->Next) {
         if (a->OperStatus != IfOperStatusUp)
             continue;
-        if (a->IfType == IF_TYPE_SOFTWARE_LOOPBACK || a->IfType == IF_TYPE_TUNNEL
-            || a->IfType == IF_TYPE_PPP)
+        // pupnp's own adapter walk skips adapters without multicast; one it would not match
+        // must not be picked.
+        if (a->Flags & IP_ADAPTER_NO_MULTICAST)
+            continue;
+        // Allow-list, not block-list: only real wired (Ethernet, 6) and Wi-Fi (IEEE 802.11, 71)
+        // links are home-network material. VPN drivers that dress up as Ethernet are caught by
+        // the name fence below.
+        if (a->IfType != IF_TYPE_ETHERNET_CSMACD && a->IfType != IF_TYPE_IEEE80211)
             continue;
         const QString friendly = QString::fromWCharArray(a->FriendlyName);
         const QString description = a->Description ? QString::fromWCharArray(a->Description)
                                                    : QString();
         if (isVirtualName(friendly) || isVirtualName(description))
             continue;
-        const char* ip = nullptr;
-        bool privateV4 = false;
-        for (auto ua = a->FirstUnicastAddress; ua && !privateV4; ua = ua->Next) {
-            const sockaddr* sa = ua->Address.lpSockaddr;
-            if (!sa || sa->sa_family != AF_INET)
-                continue;
-            const quint32 h = ntohl(reinterpret_cast<const sockaddr_in*>(sa)->sin_addr.S_un.S_addr);
-            if (!isPrivateV4(h))
-                continue; // link-local and public addresses are not "home network" material
-            char ipbuf[64] = {0};
-            getnameinfo(sa, ua->Address.iSockaddrLength, ipbuf, sizeof(ipbuf), nullptr, 0,
-                        NI_NUMERICHOST);
-            ip = ipbuf;
-            privateV4 = true;
-        }
-        if (!privateV4)
+        // pupnp binds the adapter's LAST IPv4 address, so that is the one that must be a
+        // private (home) address; link-local and public addresses are not "home network".
+        const QString ip = lastIpv4(a);
+        if (ip.isEmpty() || !DlnaNetwork::isPrivateIpv4(ip))
             continue;
         bool hasGateway = false;
         for (auto g = a->FirstGatewayAddress; g; g = g->Next) {
@@ -150,8 +152,8 @@ std::optional<DlnaNetAdapter> pickHomeWin()
         if (GetIpInterfaceEntry(&row) == NO_ERROR)
             metric = row.Metric;
         Cand c;
-        c.adapter.ifName = ansiFriendlyName(a);
-        c.adapter.ip = QString::fromLatin1(ip);
+        c.adapter.ifName = pupnpIfName(a);
+        c.adapter.ip = ip;
         c.adapter.label = QStringLiteral("%1 · %2").arg(friendly, c.adapter.ip);
         c.metric = metric;
         c.hasGateway = hasGateway;
@@ -205,10 +207,7 @@ std::optional<DlnaNetAdapter> pickHomeGeneric()
         for (const QNetworkAddressEntry& e : ni.addressEntries()) {
             if (e.ip().protocol() != QAbstractSocket::IPv4Protocol)
                 continue;
-            const quint32 h = e.ip().toIPv4Address();
-            const bool priv = (h >> 24) == 10 || (h >> 20) == ((172u << 4) | 1)
-                              || (h >> 16) == ((192u << 8) | 168);
-            if (!priv)
+            if (!DlnaNetwork::isPrivateIpv4(e.ip().toString()))
                 continue;
             return adapterFrom(ni, e);
         }
@@ -236,6 +235,22 @@ std::optional<DlnaNetAdapter> DlnaNetwork::pickHomeAdapter()
 #else
     return pickHomeGeneric();
 #endif
+}
+
+bool DlnaNetwork::isPrivateIpv4(const QString& dottedQuad)
+{
+    const QStringList parts = dottedQuad.split(QLatin1Char('.'));
+    if (parts.size() != 4)
+        return false;
+    quint32 h = 0;
+    for (const QString& part : parts) {
+        bool ok = false;
+        const uint octet = part.toUInt(&ok, 10);
+        if (!ok || octet > 255 || part.size() > 3)
+            return false;
+        h = (h << 8) | octet;
+    }
+    return (h >> 24) == 10 || (h >> 20) == ((172u << 4) | 1) || (h >> 16) == ((192u << 8) | 168);
 }
 
 std::optional<DlnaNetAdapter> DlnaNetwork::loopbackAdapter()

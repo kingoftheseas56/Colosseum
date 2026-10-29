@@ -14,6 +14,22 @@ namespace {
 const QString kStreamingFlags = QStringLiteral(
     "DLNA.ORG_OP=01;DLNA.ORG_CI=0;DLNA.ORG_FLAGS=01500000000000000000000000000000");
 
+// Text caps for client-visible strings: one pathological title must not bloat a 500-item page.
+constexpr int kMaxTitleChars = 512;
+constexpr int kMaxFieldChars = 512;
+constexpr int kMaxSynopsisChars = 2048;
+
+// Truncate to `maxChars` UTF-16 units without splitting a surrogate pair.
+QString clip(const QString& text, int maxChars)
+{
+    if (text.size() <= maxChars)
+        return text;
+    int n = maxChars;
+    if (n > 0 && text.at(n - 1).isHighSurrogate())
+        n--;
+    return text.left(n);
+}
+
 QString didlOpen()
 {
     return QStringLiteral(
@@ -72,9 +88,9 @@ QString albumArtElement(const ElementFilter& filter, const QString& baseUrl, con
         return QString();
     const QString suffix = QFileInfo(item.coverPath).suffix().toLower();
     const QString profile = thumbProfileForSuffix(suffix);
-    const QString url = baseUrl + QLatin1String("/art/") + item.id;
     if (profile.isEmpty())
-        return QStringLiteral("<upnp:albumArtURI>%1</upnp:albumArtURI>").arg(escape(url));
+        return QString(); // /art serves jpg/jpeg/png only; never advertise a URL that 404s
+    const QString url = baseUrl + QLatin1String("/art/") + item.id;
     return QStringLiteral("<upnp:albumArtURI dlna:profileID=\"%1\">%2</upnp:albumArtURI>")
         .arg(profile, escape(url));
 }
@@ -107,7 +123,8 @@ QString subtitleElements(const ElementFilter& filter, const QString& baseUrl, co
     if (filter.accepts(QStringLiteral("res")))
         out += QStringLiteral("<res protocolInfo=\"http-get:*:text/srt:*\">%1</res>")
                    .arg(escape(url));
-    out += QStringLiteral("<sec:CaptionInfoEx>%1</sec:CaptionInfoEx>").arg(escape(url));
+    out += QStringLiteral("<sec:CaptionInfoEx sec:type=\"srt\">%1</sec:CaptionInfoEx>")
+               .arg(escape(url));
     return out;
 }
 
@@ -118,26 +135,32 @@ QString itemDidl(const ElementFilter& filter, const QString& baseUrl, const Dlna
     QString out;
     out += QStringLiteral("<item id=\"%1\" parentID=\"%2\" restricted=\"1\">")
                .arg(escape(item.id), escape(item.parentId));
-    out += QStringLiteral("<dc:title>%1</dc:title>").arg(escape(item.title));
+    out += QStringLiteral("<dc:title>%1</dc:title>")
+               .arg(escape(clip(item.title, kMaxTitleChars)));
     if (item.year > 0 && filter.accepts(QStringLiteral("dc:date")))
         out += QStringLiteral("<dc:date>%1-01-01</dc:date>").arg(item.year);
     if (!item.author.isEmpty()) {
         if (filter.accepts(QStringLiteral("dc:creator")))
-            out += QStringLiteral("<dc:creator>%1</dc:creator>").arg(escape(item.author));
+            out += QStringLiteral("<dc:creator>%1</dc:creator>")
+                       .arg(escape(clip(item.author, kMaxFieldChars)));
         if (filter.accepts(QStringLiteral("upnp:author")))
-            out += QStringLiteral("<upnp:author>%1</upnp:author>").arg(escape(item.author));
+            out += QStringLiteral("<upnp:author>%1</upnp:author>")
+                       .arg(escape(clip(item.author, kMaxFieldChars)));
     }
     if (!item.genres.isEmpty() && filter.accepts(QStringLiteral("upnp:genre")))
-        out += QStringLiteral("<upnp:genre>%1</upnp:genre>").arg(escape(item.genres));
+        out += QStringLiteral("<upnp:genre>%1</upnp:genre>")
+                   .arg(escape(clip(item.genres, kMaxFieldChars)));
     if (!item.seriesTitle.isEmpty() && filter.accepts(QStringLiteral("upnp:seriesTitle")))
-        out += QStringLiteral("<upnp:seriesTitle>%1</upnp:seriesTitle>").arg(escape(item.seriesTitle));
+        out += QStringLiteral("<upnp:seriesTitle>%1</upnp:seriesTitle>")
+                   .arg(escape(clip(item.seriesTitle, kMaxTitleChars)));
     if (item.episode > 0 && filter.accepts(QStringLiteral("upnp:episodeNumber")))
         out += QStringLiteral("<upnp:episodeNumber>%1</upnp:episodeNumber>").arg(item.episode);
     if (item.season >= 0 && !item.seriesTitle.isEmpty()
         && filter.accepts(QStringLiteral("upnp:episodeSeason")))
         out += QStringLiteral("<upnp:episodeSeason>%1</upnp:episodeSeason>").arg(item.season);
     if (!item.synopsis.isEmpty() && filter.accepts(QStringLiteral("dc:description")))
-        out += QStringLiteral("<dc:description>%1</dc:description>").arg(escape(item.synopsis));
+        out += QStringLiteral("<dc:description>%1</dc:description>")
+                   .arg(escape(clip(item.synopsis, kMaxSynopsisChars)));
     out += albumArtElement(filter, baseUrl, item);
     out += resElement(filter, baseUrl, item);
     out += subtitleElements(filter, baseUrl, item);
@@ -155,7 +178,7 @@ QString containerDidl(const DlnaContainer& c, int childCount)
                "</container>")
         .arg(escape(c.id), escape(c.parentId))
         .arg(childCount)
-        .arg(escape(c.title), escape(c.upnpClass));
+        .arg(escape(clip(c.title, kMaxTitleChars)), escape(c.upnpClass));
 }
 
 bool isVideoMime(const QString& mime) { return mime.startsWith(QLatin1String("video/")); }
@@ -166,10 +189,26 @@ bool isImageMime(const QString& mime) { return mime.startsWith(QLatin1String("im
 
 QString escape(const QString& text)
 {
+    // Characters outside the XML 1.0 Char production (C0 controls except TAB/LF/CR, U+FFFE,
+    // U+FFFF, unpaired surrogates) make a DIDL document ill-formed - and a NUL would cut the
+    // C string pupnp receives - so they are dropped, not escaped.
     QString out;
     out.reserve(text.size());
-    for (const QChar ch : text) {
-        switch (ch.unicode()) {
+    for (qsizetype i = 0; i < text.size(); i++) {
+        const QChar ch = text.at(i);
+        const ushort u = ch.unicode();
+        if ((u < 0x20 && u != 0x09 && u != 0x0A && u != 0x0D) || u == 0xFFFE || u == 0xFFFF)
+            continue;
+        if (ch.isHighSurrogate()) {
+            if (i + 1 < text.size() && text.at(i + 1).isLowSurrogate()) {
+                out += ch;
+                out += text.at(++i);
+            }
+            continue; // a lone high surrogate is dropped
+        }
+        if (ch.isLowSurrogate())
+            continue; // a lone low surrogate is dropped
+        switch (u) {
         case '&': out += QStringLiteral("&amp;"); break;
         case '<': out += QStringLiteral("&lt;"); break;
         case '>': out += QStringLiteral("&gt;"); break;
@@ -229,7 +268,7 @@ QString subtitlePathFor(const DlnaItem& item)
         return QString();
     const QFileInfo fi(item.filePath);
     const QFileInfo srt(QDir(fi.absolutePath()), fi.completeBaseName() + QLatin1String(".srt"));
-    return srt.isFile() ? srt.absoluteFilePath() : QString();
+    return srt.isFile() && !srt.isSymLink() ? srt.absoluteFilePath() : QString();
 }
 
 BrowseResponse browse(const DlnaSnapshot& snapshot, const QString& baseUrl,
@@ -268,19 +307,31 @@ BrowseResponse browse(const DlnaSnapshot& snapshot, const QString& baseUrl,
     }
 
     const DlnaContainer& container = foundContainer.value();
+    // Containers stay ahead of items; a descending sort flips each block on its own.
+    QStringList containerIds = container.childContainerIds;
+    QStringList itemIds = container.childItemIds;
+    if (request.sortDescending) {
+        std::reverse(containerIds.begin(), containerIds.end());
+        std::reverse(itemIds.begin(), itemIds.end());
+    }
     QStringList entries; // "c<id>" / "i<id>" markers keep container-then-item order
-    for (const QString& id : container.childContainerIds)
+    for (const QString& id : std::as_const(containerIds))
         entries << QLatin1Char('c') + id;
-    for (const QString& id : container.childItemIds)
+    for (const QString& id : std::as_const(itemIds))
         entries << QLatin1Char('i') + id;
-    if (request.sortDescending)
-        std::reverse(entries.begin(), entries.end());
     out.totalMatches = quint32(entries.size());
 
-    int count = request.requestedCount == 0 ? kMaxReturnedItems : int(request.requestedCount);
-    count = qMin(count, kMaxReturnedItems);
-    const int start = qMin(int(request.startingIndex), entries.size());
-    const int end = qMin(start + count, entries.size());
+    // StartingIndex / RequestedCount are ui4 straight off the wire (up to 2^32-1): clamp in
+    // 64 bits, never narrow to int before the clamp.
+    const qint64 total = entries.size();
+    const qint64 start64 = qMin<qint64>(qint64(request.startingIndex), total);
+    const qint64 count64 = request.requestedCount == 0
+        ? qint64(kMaxReturnedItems)
+        : qMin<qint64>(qint64(request.requestedCount), qint64(kMaxReturnedItems));
+    const qint64 end64 = qMin<qint64>(start64 + count64, total);
+    Q_ASSERT(start64 >= 0 && start64 <= total && end64 >= start64 && end64 <= total);
+    const int start = int(start64);
+    const int end = int(end64);
 
     QString body;
     for (int i = start; i < end; i++) {

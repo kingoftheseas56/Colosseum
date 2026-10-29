@@ -3,10 +3,14 @@
 // Browse (tree, metadata, paging, errors), media serving through pupnp's vdir (Range
 // mid-file and past the 2^31 and 2^32 boundaries on a 5 GiB sparse file, HEAD, DLNA headers, epub
 // download, cover art, subtitles), GENA subscribe + initial and change NOTIFYs, mid-stream
-// revocation, stop (port closed) and restart (UDN + port reuse). The snapshot provider is a
-// fake; everything else is the shipped server code. Qt Test; no GUI; loopback only.
+// revocation, stop (port closed) and restart (UDN + port reuse). Also the review hardening:
+// 64-bit Browse paging, XML-illegal titles, files that change under a promised length, the
+// cover/subtitle serving rules, sharing that resumes by itself when the network returns, and a
+// stalled client that must not pin a worker. The snapshot provider is a fake; everything else
+// is the shipped server code. Qt Test; no GUI; loopback only.
 
 #include "dlna/DlnaContentDirectory.h"
+#include "dlna/DlnaMediaFiles.h"
 #include "dlna/DlnaNetwork.h"
 #include "dlna/DlnaServer.h"
 #include "dlna/DlnaSnapshot.h"
@@ -25,6 +29,7 @@
 #include <QtNetwork>
 #include <QtTest>
 
+#include <atomic>
 #include <mutex>
 
 #ifdef Q_OS_WIN
@@ -376,14 +381,21 @@ private slots:
     void discoverAndDescribe();
     void browseTree();
     void browsePagingAndErrors();
+    void browseHugeIndicesAndMissingArgs();
+    void browseSortOrder();
+    void xmlHostileTitles();
     void mediaHttp();
     void bigFileRanges();
     void epubDownload();
     void subtitleServing();
+    void changedFileIsNotServedTruncated();
+    void coverArtRules();
     void genaEvents();
     void revocation();
     void stopClosesPort();
     void restartReusesUdnAndPort();
+    void resumesAfterNetworkLoss();
+    void stalledClientFreesWorker();
     void cleanupTestCase();
 
 private:
@@ -405,6 +417,8 @@ private:
 
     SoapReply browseDirectChildren(const QString& objectId);
     SoapReply browseMetadata(const QString& objectId);
+    SoapReply browseWith(const QString& objectId, const QString& flag, const QString& start,
+                         const QString& count, const QString& sort = QString());
 
     QTemporaryDir m_tmp;
     Fixture m_fx;
@@ -566,6 +580,20 @@ tst_dlna_server::SoapReply tst_dlna_server::browseMetadata(const QString& object
                  {QStringLiteral("SortCriteria"), QString()}});
 }
 
+tst_dlna_server::SoapReply tst_dlna_server::browseWith(const QString& objectId,
+                                                       const QString& flag, const QString& start,
+                                                       const QString& count, const QString& sort)
+{
+    return soap(QStringLiteral("urn:schemas-upnp-org:service:ContentDirectory:1"),
+                QStringLiteral("Browse"),
+                {{QStringLiteral("ObjectID"), objectId},
+                 {QStringLiteral("BrowseFlag"), flag},
+                 {QStringLiteral("Filter"), QStringLiteral("*")},
+                 {QStringLiteral("StartingIndex"), start},
+                 {QStringLiteral("RequestedCount"), count},
+                 {QStringLiteral("SortCriteria"), sort}});
+}
+
 // ── interface policy (read-only: nothing binds here) ─────────────────────────────────────
 
 void tst_dlna_server::adapterSelection()
@@ -590,10 +618,21 @@ void tst_dlna_server::adapterSelection()
                          || QRegularExpression(QStringLiteral("^172\\.(1[6-9]|2[0-9]|3[01])\\."))
                                 .match(home->ip).hasMatch();
     QVERIFY2(rfc1918, qPrintable(home->ip));
-    const QString lower = home->ifName.toLower();
+    // ifName is the adapter GUID (what pupnp matches); the friendly name travels in the label.
+    QVERIFY2(home->ifName.startsWith(QLatin1Char('{')), qPrintable(home->ifName));
+    const QString lower = home->label.toLower();
     for (const char* bad : {"vethernet", "hyper-v", "wsl", "virtualbox", "vmware", "tailscale",
-                            "zerotier", "wireguard", "npcap", "loopback"})
-        QVERIFY2(!lower.contains(QLatin1String(bad)), qPrintable(home->ifName));
+                            "zerotier", "wireguard", "npcap", "loopback", "virtual", "miniport",
+                            "anyconnect", "globalprotect", "hamachi", "wintun", "nordlynx",
+                            "openvpn"})
+        QVERIFY2(!lower.contains(QLatin1String(bad)), qPrintable(home->label));
+    QVERIFY(DlnaNetwork::isPrivateIpv4(QStringLiteral("192.168.1.20")));
+    QVERIFY(DlnaNetwork::isPrivateIpv4(QStringLiteral("172.31.0.9")));
+    QVERIFY(!DlnaNetwork::isPrivateIpv4(QStringLiteral("172.32.0.9")));
+    QVERIFY(!DlnaNetwork::isPrivateIpv4(QStringLiteral("169.254.3.4")));
+    QVERIFY(!DlnaNetwork::isPrivateIpv4(QStringLiteral("8.8.8.8")));
+    QVERIFY(!DlnaNetwork::isPrivateIpv4(QStringLiteral("127.0.0.1")));
+    QVERIFY(!DlnaNetwork::isPrivateIpv4(QStringLiteral("10.1.2")));
     bool listed = false;
     for (const DlnaNetAdapter& a : all)
         listed = listed || (a.ifName == home->ifName && a.ip == home->ip);
@@ -809,6 +848,210 @@ void tst_dlna_server::browsePagingAndErrors()
     QCOMPARE(badAction.faultCode, 401);
 }
 
+// StartingIndex / RequestedCount are ui4 (0..2^32-1) straight off the wire. 2^31 and 2^32-1 used
+// to be narrowed to a negative int (out-of-bounds index, bogus NumberReturned); every extreme
+// must clamp cleanly, 2^32 is out of range, and the required arguments may not be absent.
+void tst_dlna_server::browseHugeIndicesAndMissingArgs()
+{
+    const QString dc = QStringLiteral("BrowseDirectChildren");
+    const QString movies = QStringLiteral("t-movies"); // 2 children
+    for (const char* big : {"2147483647", "2147483648", "4294967295"}) {
+        const QString v = QString::fromLatin1(big);
+        SoapReply startFar = browseWith(movies, dc, v, QStringLiteral("0"));
+        QVERIFY2(startFar.ok, big);
+        QCOMPARE(startFar.arg(QStringLiteral("NumberReturned")), QStringLiteral("0"));
+        QCOMPARE(startFar.arg(QStringLiteral("TotalMatches")), QStringLiteral("2"));
+        SoapReply startFarCount = browseWith(movies, dc, v, v);
+        QVERIFY2(startFarCount.ok, big);
+        QCOMPARE(startFarCount.arg(QStringLiteral("NumberReturned")), QStringLiteral("0"));
+        SoapReply countHuge = browseWith(movies, dc, QStringLiteral("0"), v);
+        QVERIFY2(countHuge.ok, big);
+        QCOMPARE(countHuge.arg(QStringLiteral("NumberReturned")), QStringLiteral("2"));
+        QCOMPARE(countHuge.arg(QStringLiteral("TotalMatches")), QStringLiteral("2"));
+        SoapReply tail = browseWith(movies, dc, QStringLiteral("1"), v);
+        QVERIFY2(tail.ok, big);
+        QCOMPARE(tail.arg(QStringLiteral("NumberReturned")), QStringLiteral("1"));
+    }
+    // One past ui4 is invalid, as is anything non-numeric or negative.
+    for (const char* bad : {"4294967296", "-1", "abc", "1.5", "99999999999999999999"}) {
+        const QString v = QString::fromLatin1(bad);
+        SoapReply badStart = browseWith(movies, dc, v, QStringLiteral("0"));
+        QVERIFY2(!badStart.ok, bad);
+        QCOMPARE(badStart.faultCode, 402);
+        SoapReply badCount = browseWith(movies, dc, QStringLiteral("0"), v);
+        QVERIFY2(!badCount.ok, bad);
+        QCOMPARE(badCount.faultCode, 402);
+    }
+    // Empty or missing required arguments -> 402 Invalid Args.
+    SoapReply emptyStart = browseWith(movies, dc, QString(), QStringLiteral("0"));
+    QVERIFY(!emptyStart.ok);
+    QCOMPARE(emptyStart.faultCode, 402);
+    SoapReply emptyCount = browseWith(movies, dc, QStringLiteral("0"), QString());
+    QVERIFY(!emptyCount.ok);
+    QCOMPARE(emptyCount.faultCode, 402);
+    SoapReply emptyId = browseWith(QString(), dc, QStringLiteral("0"), QStringLiteral("0"));
+    QVERIFY(!emptyId.ok);
+    QCOMPARE(emptyId.faultCode, 402);
+    SoapReply emptyFlag = browseWith(movies, QString(), QStringLiteral("0"), QStringLiteral("0"));
+    QVERIFY(!emptyFlag.ok);
+    QCOMPARE(emptyFlag.faultCode, 402);
+    SoapReply missingAll = soap(QStringLiteral("urn:schemas-upnp-org:service:ContentDirectory:1"),
+                                QStringLiteral("Browse"),
+                                {{QStringLiteral("ObjectID"), movies}});
+    QVERIFY(!missingAll.ok);
+    QCOMPARE(missingAll.faultCode, 402);
+
+    // The pure function clamps in 64 bits too (no narrowing before the clamp).
+    const auto snap = m_provider.snapshot();
+    DlnaContentDirectory::BrowseRequest br;
+    br.objectId = movies;
+    for (quint32 v : {quint32(0x7FFFFFFFu), quint32(0x80000000u), quint32(0xFFFFFFFFu)}) {
+        br.startingIndex = v;
+        br.requestedCount = 0xFFFFFFFFu;
+        const auto r = DlnaContentDirectory::browse(*snap, m_baseUrl, br);
+        QVERIFY(r.ok);
+        QCOMPARE(r.numberReturned, quint32(0));
+        QCOMPARE(r.totalMatches, quint32(2));
+        br.startingIndex = 0;
+        br.requestedCount = v;
+        const auto r2 = DlnaContentDirectory::browse(*snap, m_baseUrl, br);
+        QVERIFY(r2.ok);
+        QCOMPARE(r2.numberReturned, quint32(2));
+    }
+}
+
+// "-dc:title" flips the title order; any other criterion is accepted and ignored (it must not
+// reverse the list), and containers stay ahead of items however the blocks are ordered.
+void tst_dlna_server::browseSortOrder()
+{
+    auto titlesIn = [](const QString& didl) {
+        QStringList out;
+        int pos = 0;
+        while ((pos = didl.indexOf(QStringLiteral("<dc:title>"), pos)) != -1) {
+            const int end = didl.indexOf(QStringLiteral("</dc:title>"), pos);
+            out << didl.mid(pos + 10, end - pos - 10);
+            pos = end;
+        }
+        return out;
+    };
+    const QString dc = QStringLiteral("BrowseDirectChildren");
+    const QString movies = QStringLiteral("t-movies");
+    const QStringList asc{QStringLiteral("Alpha Movie"), QStringLiteral("Huge Movie")};
+    const QStringList desc{QStringLiteral("Huge Movie"), QStringLiteral("Alpha Movie")};
+    auto order = [&](const QString& sort) {
+        SoapReply r = browseWith(movies, dc, QStringLiteral("0"), QStringLiteral("0"), sort);
+        return r.ok ? titlesIn(r.arg(QStringLiteral("Result"))) : QStringList{QStringLiteral("!")};
+    };
+    QCOMPARE(order(QString()), asc);
+    QCOMPARE(order(QStringLiteral("+dc:title")), asc);
+    QCOMPARE(order(QStringLiteral("-dc:title")), desc);
+    QCOMPARE(order(QStringLiteral("-dc:date")), asc);          // not title: no flip
+    QCOMPARE(order(QStringLiteral("-dc:date,+dc:title")), asc);
+    QCOMPARE(order(QStringLiteral("+dc:date,-dc:title")), desc);
+
+    // Mixed block: two containers then two items; descending reverses each block, not the whole.
+    DlnaSnapshot snap;
+    auto addC = [&](const QString& id, const QString& parent, const QString& title) {
+        DlnaContainer c;
+        c.id = id;
+        c.parentId = parent;
+        c.title = title;
+        c.upnpClass = QStringLiteral("object.container.storageFolder");
+        snap.containers.insert(id, c);
+        if (snap.containers.contains(parent))
+            snap.containers[parent].childContainerIds.append(id);
+    };
+    addC(QStringLiteral("0"), QStringLiteral("-1"), QStringLiteral("Root"));
+    addC(QStringLiteral("cA"), QStringLiteral("0"), QStringLiteral("Cont A"));
+    addC(QStringLiteral("cB"), QStringLiteral("0"), QStringLiteral("Cont B"));
+    for (const char* t : {"Item A", "Item B"}) {
+        DlnaItem it = m_fx.item(QStringLiteral("i-%1").arg(QLatin1String(t).right(1)),
+                                QStringLiteral("0"), QLatin1String(t),
+                                QStringLiteral("object.item.videoItem"), m_fx.movie1,
+                                QStringLiteral("video/mp4"));
+        snap.items.insert(it.id, it);
+        snap.containers[QStringLiteral("0")].childItemIds.append(it.id);
+    }
+    DlnaContentDirectory::BrowseRequest br;
+    br.objectId = QStringLiteral("0");
+    const auto up = DlnaContentDirectory::browse(snap, m_baseUrl, br);
+    QCOMPARE(titlesIn(up.didl), (QStringList{QStringLiteral("Cont A"), QStringLiteral("Cont B"),
+                                              QStringLiteral("Item A"), QStringLiteral("Item B")}));
+    br.sortDescending = true;
+    const auto down = DlnaContentDirectory::browse(snap, m_baseUrl, br);
+    QCOMPARE(titlesIn(down.didl), (QStringList{QStringLiteral("Cont B"), QStringLiteral("Cont A"),
+                                                QStringLiteral("Item B"), QStringLiteral("Item A")}));
+}
+
+// Titles are untrusted file names: XML-illegal characters (C0 controls, NUL, U+FFFE/FFFF, lone
+// surrogates) must be dropped so the DIDL stays well-formed and a NUL cannot truncate it, the
+// five markup characters must be escaped, and length is capped.
+void tst_dlna_server::xmlHostileTitles()
+{
+    const auto original = m_provider.snapshot();
+    auto snap = std::make_shared<DlnaSnapshot>(*original);
+    QString hostile = QStringLiteral("Bad");
+    hostile += QChar(0x01);
+    hostile += QStringLiteral("Title");
+    hostile += QChar(0x00);
+    hostile += QStringLiteral("X");
+    hostile += QChar(0x0B);
+    hostile += QChar(0x0C);
+    hostile += QStringLiteral(" & <b> \"q\" 'a' ");
+    hostile += QChar(0xD800); // lone high surrogate
+    hostile += QStringLiteral("mid");
+    hostile += QChar(0xFFFE);
+    hostile += QChar(0xFFFF);
+    hostile += QChar(0xDC00); // lone low surrogate
+    hostile += QString::fromUcs4(U"\U0001F3AC"); // a valid pair survives
+    const QString expected = QStringLiteral("BadTitleX & <b> \"q\" 'a' mid")
+                             + QString::fromUcs4(U"\U0001F3AC");
+    snap->items[m_fx.movie1Id].title = hostile;
+    snap->items[m_fx.bigId].title = QString(5000, QLatin1Char('x'));
+    snap->containers[QStringLiteral("t-movies")].title = hostile;
+    m_provider.publish(snap);
+
+    auto parseTitles = [](const QString& didl, bool* wellFormed) {
+        QXmlStreamReader xml(didl);
+        QStringList titles;
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (xml.isStartElement() && xml.qualifiedName() == QLatin1String("dc:title"))
+                titles << xml.readElementText();
+        }
+        *wellFormed = !xml.hasError();
+        return titles;
+    };
+    SoapReply meta = browseMetadata(m_fx.movie1Id);
+    QVERIFY(meta.ok);
+    bool wellFormed = false;
+    QStringList titles = parseTitles(meta.arg(QStringLiteral("Result")), &wellFormed);
+    QVERIFY2(wellFormed, "DIDL must stay well-formed XML");
+    QCOMPARE(titles, QStringList{expected});
+
+    SoapReply kids = browseDirectChildren(QStringLiteral("t-movies"));
+    QVERIFY(kids.ok);
+    QCOMPARE(kids.arg(QStringLiteral("NumberReturned")), QStringLiteral("2"));
+    titles = parseTitles(kids.arg(QStringLiteral("Result")), &wellFormed);
+    QVERIFY(wellFormed);
+    QCOMPARE(titles.size(), 2);
+    QCOMPARE(titles.at(0), expected);
+    QCOMPARE(titles.at(1).size(), 512); // capped
+
+    SoapReply root = browseDirectChildren(QStringLiteral("0"));
+    QVERIFY(root.ok);
+    titles = parseTitles(root.arg(QStringLiteral("Result")), &wellFormed);
+    QVERIFY(wellFormed);
+    QVERIFY(titles.contains(expected)); // the hostile container title
+
+    // The escape helper itself.
+    QCOMPARE(DlnaContentDirectory::escape(hostile),
+             QStringLiteral("BadTitleX &amp; &lt;b&gt; &quot;q&quot; &apos;a&apos; mid")
+                 + QString::fromUcs4(U"\U0001F3AC"));
+
+    m_provider.publish(original);
+}
+
 // ── media HTTP ───────────────────────────────────────────────────────────────────────────
 
 void tst_dlna_server::mediaHttp()
@@ -913,8 +1156,25 @@ void tst_dlna_server::subtitleServing()
     QVERIFY(meta.ok);
     const QString didl = meta.arg(QStringLiteral("Result"));
     QVERIFY(didl.contains(QStringLiteral("http-get:*:text/srt:*")));
-    QVERIFY(didl.contains(QStringLiteral("<sec:CaptionInfoEx>")));
+    QVERIFY(didl.contains(QStringLiteral("<sec:CaptionInfoEx sec:type=\"srt\">")));
     QVERIFY(didl.contains(QStringLiteral("/sub/") + m_fx.ep2Id + QStringLiteral(".srt")));
+
+    // Samsung TVs ask for the subtitle URL with getCaptionInfo.sec on the media request itself.
+    const QUrl ep2Url(m_baseUrl + "/m/" + m_fx.ep2Id + ".mkv");
+    const Reply captioned =
+        http(QStringLiteral("HEAD"), ep2Url,
+             {{QByteArrayLiteral("getCaptionInfo.sec"), QByteArrayLiteral("1")}});
+    QCOMPARE(captioned.status, 200);
+    QCOMPARE(captioned.headers.value("captioninfo.sec"),
+             (m_baseUrl + "/sub/" + m_fx.ep2Id + ".srt").toLatin1());
+    const Reply plain = http(QStringLiteral("HEAD"), ep2Url);
+    QCOMPARE(plain.status, 200);
+    QVERIFY(!plain.headers.contains("captioninfo.sec"));
+    const Reply noSub =
+        http(QStringLiteral("HEAD"), QUrl(m_baseUrl + "/m/" + m_fx.ep1Id + ".mkv"),
+             {{QByteArrayLiteral("getCaptionInfo.sec"), QByteArrayLiteral("1")}});
+    QCOMPARE(noSub.status, 200);
+    QVERIFY(!noSub.headers.contains("captioninfo.sec"));
 
     // ...and /sub serves the bytes.
     const Reply sub =
@@ -927,6 +1187,105 @@ void tst_dlna_server::subtitleServing()
     SoapReply meta1 = browseMetadata(m_fx.ep1Id);
     QVERIFY(meta1.ok);
     QVERIFY(!meta1.arg(QStringLiteral("Result")).contains(QStringLiteral("CaptionInfoEx")));
+}
+
+// A file that no longer matches the snapshot's size+mtime must be refused BEFORE the headers go
+// out (404), never answered with a 200 whose body stops short of the promised Content-Length.
+void tst_dlna_server::changedFileIsNotServedTruncated()
+{
+    const QString path = m_tmp.path() + "/volatile.mp4";
+    QVERIFY(!writePatterned(path, 64 * 1024, 0, {}).isEmpty());
+    const QString id = QStringLiteral("i00000000000000a1");
+    const auto original = m_provider.snapshot();
+    auto publishFresh = [&] {
+        auto snap = std::make_shared<DlnaSnapshot>(*original);
+        snap->items.insert(id, m_fx.item(id, QStringLiteral("t-movies"),
+                                         QStringLiteral("Volatile"),
+                                         QStringLiteral("object.item.videoItem.movie"), path,
+                                         QStringLiteral("video/mp4")));
+        snap->containers[QStringLiteral("t-movies")].childItemIds.append(id);
+        snap->itemCount = snap->items.size();
+        m_provider.publish(snap);
+    };
+    const QUrl url(m_baseUrl + "/m/" + id + ".mp4");
+    publishFresh();
+    const Reply ok = http(QStringLiteral("GET"), url);
+    QCOMPARE(ok.status, 200);
+    QCOMPARE(ok.body.size(), 64 * 1024);
+
+    // Grows after the snapshot: GET and HEAD both 404, no short 200.
+    {
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::Append));
+        f.write(QByteArray(1000, 'z'));
+    }
+    const Reply grownGet = http(QStringLiteral("GET"), url);
+    QCOMPARE(grownGet.status, 404);
+    QCOMPARE(grownGet.body.size() < 64 * 1024, true);
+    QCOMPARE(http(QStringLiteral("HEAD"), url).status, 404);
+
+    // Same size, different mtime: also not the bytes the snapshot described.
+    publishFresh();
+    QCOMPARE(http(QStringLiteral("GET"), url).body.size(), 64 * 1024 + 1000);
+    {
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadWrite));
+        QVERIFY(f.setFileTime(QDateTime::currentDateTime().addSecs(120),
+                              QFileDevice::FileModificationTime));
+    }
+    QCOMPARE(http(QStringLiteral("GET"), url).status, 404);
+
+    // A refreshed snapshot serves the new length, in full.
+    publishFresh();
+    const Reply refreshed = http(QStringLiteral("GET"), url);
+    QCOMPARE(refreshed.status, 200);
+    QCOMPARE(refreshed.body.size(), 64 * 1024 + 1000);
+    QCOMPARE(refreshed.headers.value("content-length"), QByteArray::number(64 * 1024 + 1000));
+    m_provider.publish(original);
+}
+
+// /art serves jpg/jpeg/png thumbnails up to 10 MB and nothing else; the DIDL never advertises
+// a cover the server would refuse.
+void tst_dlna_server::coverArtRules()
+{
+    const auto original = m_provider.snapshot();
+    auto withCover = [&](const QString& coverPath) {
+        auto snap = std::make_shared<DlnaSnapshot>(*original);
+        snap->items[m_fx.movie1Id].coverPath = coverPath;
+        m_provider.publish(snap);
+    };
+    auto writeBytes = [&](const QString& name, qint64 size) {
+        QFile f(m_tmp.path() + "/" + name);
+        if (!f.open(QIODevice::WriteOnly))
+            return QString();
+        f.write(QByteArray(int(size), 'c'));
+        return QFileInfo(f).absoluteFilePath();
+    };
+    const QUrl art(m_baseUrl + "/art/" + m_fx.movie1Id);
+
+    withCover(writeBytes(QStringLiteral("cover.png"), 2048));
+    const Reply png = http(QStringLiteral("GET"), art);
+    QCOMPARE(png.status, 200);
+    QCOMPARE(png.headers.value("content-type"), QByteArray("image/png"));
+    QVERIFY(browseMetadata(m_fx.movie1Id).arg(QStringLiteral("Result"))
+                .contains(QStringLiteral("dlna:profileID=\"PNG_TN\"")));
+
+    withCover(writeBytes(QStringLiteral("cover.webp"), 2048));
+    QCOMPARE(http(QStringLiteral("GET"), art).status, 404);
+    QVERIFY(!browseMetadata(m_fx.movie1Id).arg(QStringLiteral("Result"))
+                 .contains(QStringLiteral("albumArtURI")));
+
+    withCover(writeBytes(QStringLiteral("cover.exe.jpg.txt"), 16));
+    QCOMPARE(http(QStringLiteral("GET"), art).status, 404);
+
+    withCover(writeBytes(QStringLiteral("huge.jpg"), 10 * 1024 * 1024 + 1));
+    QCOMPARE(http(QStringLiteral("GET"), art).status, 404); // over the 10 MB cap
+    withCover(writeBytes(QStringLiteral("limit.jpg"), 10 * 1024 * 1024));
+    QCOMPARE(http(QStringLiteral("GET"), art).status, 200); // exactly at the cap
+
+    withCover(m_tmp.path()); // a directory is not a cover
+    QCOMPARE(http(QStringLiteral("GET"), art).status, 404);
+    m_provider.publish(original);
 }
 
 // ── GENA ─────────────────────────────────────────────────────────────────────────────────
@@ -1059,6 +1418,161 @@ void tst_dlna_server::restartReusesUdnAndPort()
     second.setEnabled(false);
     QTRY_COMPARE_WITH_TIMEOUT(second.running(), false, 15000);
     second.stopForQuit();
+}
+
+// Sharing is a standing wish: no network at start, a network that drops, and a changed address
+// must all heal on the poll timer alone. The loopback adapter plays "the home network" through
+// the home-adapter provider seam; the second fake adapter has the same name but another IP.
+void tst_dlna_server::resumesAfterNetworkLoss()
+{
+    const auto loopback = DlnaNetwork::loopbackAdapter();
+    QVERIFY(loopback.has_value());
+    QSettings settings(m_tmp.path() + "/dlna-resume.ini", QSettings::IniFormat);
+    DlnaServer srv;
+    srv.setSettings(&settings);
+    srv.setSnapshotProvider([this] { return m_provider.snapshot(); });
+    enum Net { Absent, Present, ChangedIp } net = Absent;
+    srv.setHomeAdapterProvider([&]() -> std::optional<DlnaNetAdapter> {
+        if (net == Absent)
+            return std::nullopt;
+        DlnaNetAdapter a = *loopback;
+        if (net == ChangedIp)
+            a.ip = QStringLiteral("10.9.9.9");
+        return a;
+    });
+    srv.setPollIntervalMs(200);
+
+    // 1) enabled with no network (boot without Wi-Fi): waits, says why, does not give up.
+    srv.setEnabled(true);
+    QVERIFY(srv.enabled());
+    QVERIFY(!srv.running());
+    QVERIFY(!srv.busy());
+    QCOMPARE(srv.error(), QStringLiteral("No home network found"));
+    QTest::qWait(700); // several polls with nothing to start
+    QVERIFY(!srv.running());
+    QCOMPARE(srv.error(), QStringLiteral("No home network found"));
+
+    // 2) the network shows up: sharing starts by itself and the error clears.
+    net = Present;
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), true, 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(!srv.busy(), 5000);
+    QVERIFY2(srv.error().isEmpty(), qPrintable(srv.error()));
+    QVERIFY(srv.networkLabel().contains(QStringLiteral("127.0.0.1")));
+
+    // 3) the network drops (Wi-Fi off, sleep): stops cleanly, intent (enabled) survives.
+    net = Absent;
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), false, 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(!srv.busy(), 5000);
+    QVERIFY(srv.enabled());
+    QCOMPARE(srv.error(), QStringLiteral("No home network found"));
+
+    // 4) ...and comes back: sharing resumes.
+    net = Present;
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), true, 15000);
+    QVERIFY2(srv.error().isEmpty(), qPrintable(srv.error()));
+
+    // 5) the same adapter takes another address (DHCP renewal): detected, byebye, re-bind
+    //    attempt. Here the fake address is not what pupnp actually binds, so the bound-address
+    //    verification refuses to advertise it - which also proves both guards.
+    net = ChangedIp;
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), false, 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(srv.error().contains(QStringLiteral("not a home network address")),
+                             15000);
+    net = Present;
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), true, 15000);
+    QVERIFY2(srv.error().isEmpty(), qPrintable(srv.error()));
+
+    // 6) switching off is final: no more polling restarts, error gone.
+    srv.setEnabled(false);
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), false, 15000);
+    QTRY_VERIFY_WITH_TIMEOUT(!srv.busy(), 5000);
+    QVERIFY(srv.error().isEmpty());
+    QTest::qWait(700);
+    QVERIFY(!srv.running());
+    srv.stopForQuit();
+}
+
+namespace {
+bool openRawGet(QTcpSocket& sock, quint16 port, const QString& id)
+{
+    sock.setReadBufferSize(256 * 1024); // read only what the test pulls: the OS buffers must fill
+    sock.connectToHost(QStringLiteral("127.0.0.1"), port);
+    if (!sock.waitForConnected(5000))
+        return false;
+    sock.write(QStringLiteral("GET /m/%1.mkv HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+                   .arg(id)
+                   .toLatin1());
+    return sock.waitForBytesWritten(5000);
+}
+} // namespace
+
+// A client that opens a GET and stops reading must not pin a worker forever (pupnp patch 0002:
+// every body slice has an idle budget, here 3 s), while a client that keeps reading - however
+// slowly - is never cut off by it.
+void tst_dlna_server::stalledClientFreesWorker()
+{
+    m_provider.publish(m_fx.snapshot1()); // the revocation test removed the big file
+    const auto loopback = DlnaNetwork::loopbackAdapter();
+    QVERIFY(loopback.has_value());
+    QSettings settings(m_tmp.path() + "/dlna-stall.ini", QSettings::IniFormat);
+    DlnaServer srv;
+    srv.setSettings(&settings);
+    srv.setSnapshotProvider([this] { return m_provider.snapshot(); });
+    srv.setForcedInterface(*loopback);
+    srv.setWriteIdleTimeoutSeconds(3);
+    srv.setEnabled(true);
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), true, 15000);
+    const quint16 port = quint16(settings.value(QStringLiteral("dlnaSharing/port")).toUInt());
+    QVERIFY(port != 0);
+    QTRY_COMPARE_WITH_TIMEOUT(DlnaMediaFiles::activeHandles(), 0, 5000);
+
+    QTcpSocket sock;
+    QVERIFY(openRawGet(sock, port, m_fx.bigId));
+    QTRY_COMPARE_WITH_TIMEOUT(DlnaMediaFiles::activeHandles(), 1, 5000);
+
+    // Slow but moving: ~2 MB/s for 7 s, i.e. well past the 3 s idle budget, is never cut off.
+    QElapsedTimer moving;
+    moving.start();
+    qint64 got = 0;
+    while (moving.elapsed() < 7000) {
+        if (sock.bytesAvailable() == 0)
+            sock.waitForReadyRead(200);
+        got += sock.read(64 * 1024).size();
+        QTest::qWait(30);
+    }
+    QVERIFY2(got > 1024 * 1024, "the slow reader kept receiving");
+    QCOMPARE(sock.state(), QAbstractSocket::ConnectedState);
+    QCOMPARE(DlnaMediaFiles::activeHandles(), 1);
+
+    // Now stop reading entirely: the worker must free itself within idle budget + slack.
+    QElapsedTimer stalled;
+    stalled.start();
+    QTRY_COMPARE_WITH_TIMEOUT(DlnaMediaFiles::activeHandles(), 0, 25000);
+    QVERIFY2(stalled.elapsed() >= 1500, "freed by the idle timeout, not by something instant");
+    qInfo() << "stalled worker freed after" << stalled.elapsed() << "ms (budget 3000)";
+    sock.abort();
+
+    // The server is healthy afterwards.
+    QTcpSocket probe;
+    probe.connectToHost(QStringLiteral("127.0.0.1"), port);
+    QVERIFY(probe.waitForConnected(5000));
+    probe.write(QStringLiteral("GET /m/%1.mp4 HTTP/1.1\r\nHost: 127.0.0.1\r\nConnection: close\r\n\r\n")
+                    .arg(m_fx.movie1Id)
+                    .toLatin1());
+    QByteArray all;
+    QElapsedTimer t;
+    t.start();
+    while (t.elapsed() < 10000 && probe.state() == QAbstractSocket::ConnectedState) {
+        probe.waitForReadyRead(500);
+        all += probe.readAll();
+    }
+    all += probe.readAll();
+    QVERIFY(all.startsWith("HTTP/1.1 200"));
+    QVERIFY(all.size() > 128 * 1024);
+
+    srv.setEnabled(false);
+    QTRY_COMPARE_WITH_TIMEOUT(srv.running(), false, 15000);
+    srv.stopForQuit();
 }
 
 void tst_dlna_server::cleanupTestCase()

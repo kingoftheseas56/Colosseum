@@ -10,6 +10,11 @@
 // locations survive restarts; falls back to a random port when taken) and
 // dlnaSharing/systemUpdateId (written after each snapshot change and on stop, seeded back
 // into DlnaLibrary at startup by the app wiring).
+//
+// Sharing is a standing wish, not a one-shot attempt: while `enabled`, a 10 s poll starts it
+// whenever it is not running and a home adapter exists (no network at boot, Wi-Fi drop, sleep
+// and wake all heal themselves) and restarts it when the adapter or its address changes. The
+// UI sees error "No home network found" while it waits.
 
 #include "DlnaNetwork.h"
 #include "DlnaServerCore.h"
@@ -18,7 +23,9 @@
 #include <QStringList>
 #include <QTimer>
 
+#include <functional>
 #include <memory>
+#include <optional>
 #include <thread>
 
 class QSettings;
@@ -47,6 +54,15 @@ public:
     void setSettings(QSettings* settings);
     // Test lane: bind exactly this adapter (loopback) and skip home-network re-evaluation.
     void setForcedInterface(const DlnaNetAdapter& adapter);
+    // Test seam for the network policy: replaces DlnaNetwork::pickHomeAdapter() so a test can
+    // make a home adapter appear and vanish (and relaxes the production RFC1918 check on the
+    // bound address, which a loopback test lane cannot satisfy).
+    using HomeAdapterProvider = std::function<std::optional<DlnaNetAdapter>()>;
+    void setHomeAdapterProvider(HomeAdapterProvider provider);
+    // Poll period in ms (default 10000). Tests shorten it.
+    void setPollIntervalMs(int ms);
+    // Idle timeout for stalled media clients (pupnp patch 0002); default 90 s. Tests shorten it.
+    void setWriteIdleTimeoutSeconds(int seconds);
 
     bool enabled() const { return m_enabled; }
     bool running() const { return m_running; }
@@ -85,10 +101,13 @@ private:
     void beginStop(const QString& errorAfterStop = QString());
     void startWorker(const DlnaNetAdapter& adapter, quint16 tryPort);
     void stopWorker();
-    void onStarted(quint16 port, const QString& ifName, const QString& label);
+    void onStarted(quint16 port, const QString& ifName, const QString& ip, const QString& label);
     void onStartFailed(const QString& message);
     void onStopped(const QString& errorAfterStop);
     void pollInterface();
+    void startPolling();
+    void setError(const QString& message);
+    std::optional<DlnaNetAdapter> homeAdapter() const;
     void notifySystemUpdateId();
     void ensureUdn();
 
@@ -99,8 +118,12 @@ private:
     QSettings* m_settings = nullptr;        // never null after ctor (owned or injected)
     std::unique_ptr<QSettings> m_ownSettings;
     bool m_forcedInterface = false;
+    HomeAdapterProvider m_homeProvider;     // test seam; empty = DlnaNetwork::pickHomeAdapter
+    bool m_testNetwork = false;             // provider injected: skip the RFC1918 bound-IP check
+    int m_writeIdleSeconds = 90;
     QString m_boundIfName;                  // what the running server bound
-    QTimer m_pollTimer;                     // 10 s home-network re-check while running
+    QString m_boundIp;                      // ...and its address (a DHCP change restarts)
+    QTimer m_pollTimer;                     // 10 s home-network check while sharing is enabled
     QTimer m_notifyTimer;                   // GENA rate-limit remainder
     qint64 m_lastNotifyMs = 0;
     quint64 m_containerUpdateCounter = 0;

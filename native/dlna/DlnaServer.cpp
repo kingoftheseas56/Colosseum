@@ -20,6 +20,7 @@
 #include "ixml.h"
 
 #include <chrono>
+#include <string>
 
 #ifndef COLOSSEUM_VERSION
 #define COLOSSEUM_VERSION "0"
@@ -279,6 +280,41 @@ QString DlnaServer::friendlyName() const
 
 // ── start / stop state machine ───────────────────────────────────────────────────────────
 
+void DlnaServer::setHomeAdapterProvider(HomeAdapterProvider provider)
+{
+    m_homeProvider = std::move(provider);
+    m_testNetwork = bool(m_homeProvider);
+}
+
+void DlnaServer::setPollIntervalMs(int ms)
+{
+    m_pollTimer.setInterval(ms);
+}
+
+void DlnaServer::setWriteIdleTimeoutSeconds(int seconds)
+{
+    m_writeIdleSeconds = seconds;
+}
+
+std::optional<DlnaNetAdapter> DlnaServer::homeAdapter() const
+{
+    return m_homeProvider ? m_homeProvider() : DlnaNetwork::pickHomeAdapter();
+}
+
+void DlnaServer::setError(const QString& message)
+{
+    if (m_error == message)
+        return;
+    m_error = message;
+    emit errorChanged();
+}
+
+void DlnaServer::startPolling()
+{
+    if (!m_forcedInterface && !m_pollTimer.isActive())
+        m_pollTimer.start();
+}
+
 void DlnaServer::setEnabled(bool on)
 {
     if (on == m_enabled)
@@ -288,12 +324,17 @@ void DlnaServer::setEnabled(bool on)
     m_settings->sync();
     emit enabledChanged();
     if (on) {
+        startPolling();
         if (m_busy)
             m_restartAfterStop = true; // a stop is winding down; come back after it
-        else
+        else if (!m_running)
             beginStart();
-    } else if (m_running || m_busy) {
-        beginStop();
+    } else {
+        m_pollTimer.stop();
+        m_restartAfterStop = false;
+        setError(QString()); // switched off on purpose: "No home network" no longer applies
+        if (m_running || m_busy)
+            beginStop();
     }
 }
 
@@ -302,21 +343,17 @@ void DlnaServer::maybeStartFromSettings()
     if (m_settings->value(QStringLiteral("dlnaSharing/enabled"), false).toBool()) {
         m_enabled = true;
         emit enabledChanged();
+        startPolling(); // no network at boot is not the end: the poll resumes sharing
         beginStart();
     }
 }
 
 void DlnaServer::beginStart()
 {
-    if (m_busy)
-        return; // a stop is winding down; onStopped() restarts when enabled
+    if (m_busy || m_running || m_stopForQuit)
+        return; // a stop is winding down (onStopped() restarts) or sharing is already up
     if (!m_core->provider)
         return;
-    m_restartAfterStop = false;
-    m_busy = true;
-    m_error.clear();
-    emit busyChanged();
-    emit errorChanged();
     ensureUdn();
 
     DlnaNetAdapter adapter;
@@ -330,17 +367,22 @@ void DlnaServer::beginStart()
             }
         }
         if (adapter.ifName.isEmpty()) {
-            onStartFailed(QStringLiteral("Forced interface not present"));
+            setError(QStringLiteral("Forced interface not present"));
             return;
         }
     } else {
-        const auto home = DlnaNetwork::pickHomeAdapter();
+        const auto home = homeAdapter();
         if (!home) {
-            onStartFailed(QStringLiteral("No home network found"));
+            // Not an attempt: nothing starts, the error stays up, and the poll timer (alive
+            // while sharing is enabled) retries as soon as an adapter appears.
+            setError(QStringLiteral("No home network found"));
             return;
         }
         adapter = *home;
     }
+    m_restartAfterStop = false;
+    m_busy = true;
+    emit busyChanged();
     const quint16 savedPort =
         quint16(m_settings->value(QStringLiteral("dlnaSharing/port"), 0).toInt());
     if (m_worker.joinable())
@@ -361,17 +403,35 @@ void DlnaServer::startWorker(const DlnaNetAdapter& adapter, quint16 tryPort)
             Qt::QueuedConnection);
         return;
     }
+    UpnpSetWebServerWriteIdleTimeout(m_writeIdleSeconds);
+
+    // Trust, then verify: pupnp binds the LAST IPv4 of the adapter it matched, so the address
+    // it really listens on must be the one the picker predicted and (in production) a
+    // private one. Anything else - an adapter that grew a public or link-local secondary, a
+    // VPN that slipped through - never gets advertised.
+    const QString boundIp = QString::fromLatin1(UpnpGetServerIpAddress());
+    if (boundIp != adapter.ip
+        || (!m_forcedInterface && !m_testNetwork && !DlnaNetwork::isPrivateIpv4(boundIp))) {
+        UpnpFinish();
+        const QString message =
+            QStringLiteral("Not sharing: the network adapter bound %1, not a home network address")
+                .arg(boundIp);
+        QMetaObject::invokeMethod(this, [this, message] { onStartFailed(message); },
+                                  Qt::QueuedConnection);
+        return;
+    }
 
     m_core->baseUrl = QStringLiteral("http://%1:%2")
-                          .arg(QString::fromLatin1(UpnpGetServerIpAddress()),
-                               QString::number(UpnpGetServerPort()));
+                          .arg(boundIp, QString::number(UpnpGetServerPort()));
     DlnaMediaFiles::install(m_core.get());
+    m_core->serving.store(true);
     m_core->deviceHandle = -1;
     const QByteArray desc = buildDescription(*m_core);
     UpnpDevice_Handle handle = -1;
     rc = UpnpRegisterRootDevice2(UPNPREG_BUF_DESC, desc.constData(), size_t(desc.size()), 1,
                                  deviceCallback, m_core.get(), &handle);
     if (rc != UPNP_E_SUCCESS) {
+        m_core->serving.store(false);
         UpnpFinish();
         QMetaObject::invokeMethod(
             this, [this, rc] { onStartFailed(QString::fromLatin1(UpnpGetErrorMessage(rc))); },
@@ -379,8 +439,13 @@ void DlnaServer::startWorker(const DlnaNetAdapter& adapter, quint16 tryPort)
         return;
     }
     m_core->deviceHandle.store(handle);
+    // Bound what a hostile or buggy LAN client can hold: GENA subscriptions expire after the
+    // advertisement window and the table is small (a home has a handful of renderers).
+    UpnpSetMaxSubscriptionTimeOut(handle, 1800);
+    UpnpSetMaxSubscriptions(handle, 20);
     rc = UpnpSendAdvertisement(handle, 1800);
     if (rc != UPNP_E_SUCCESS) {
+        m_core->serving.store(false);
         UpnpUnRegisterRootDevice(handle);
         m_core->deviceHandle = -1;
         UpnpFinish();
@@ -391,16 +456,19 @@ void DlnaServer::startWorker(const DlnaNetAdapter& adapter, quint16 tryPort)
     }
     const quint16 port = UpnpGetServerPort();
     const QString ifName = adapter.ifName;
+    const QString ip = adapter.ip;
     const QString label = adapter.label;
-    QMetaObject::invokeMethod(this, [this, port, ifName, label] { onStarted(port, ifName, label); },
-                              Qt::QueuedConnection);
+    QMetaObject::invokeMethod(
+        this, [this, port, ifName, ip, label] { onStarted(port, ifName, ip, label); },
+        Qt::QueuedConnection);
 }
 
 void DlnaServer::beginStop(const QString& errorAfterStop)
 {
     if (m_busy)
         return;
-    m_busy = true;
+    m_busy = true; // from here on the GUI thread never touches pupnp (no UpnpNotify, no poll)
+    m_notifyTimer.stop();
     emit busyChanged();
     if (m_worker.joinable())
         m_worker.join();
@@ -413,25 +481,29 @@ void DlnaServer::beginStop(const QString& errorAfterStop)
 
 void DlnaServer::stopWorker()
 {
+    m_core->serving.store(false);     // new vdir lookups stop answering before anything else
     m_core->revokeEpoch.fetch_add(1); // in-flight media reads abort on the next call
-    DlnaMediaFiles::uninstall();
     const int handle = m_core->deviceHandle.exchange(-1);
     if (handle >= 0)
         UpnpUnRegisterRootDevice(handle); // sends the SSDP byebye
+    // UpnpFinish stops the thread pools, THEN drops the virtual dirs. Removing them here would
+    // edit pupnp's vdir list under the unlocked walk of a webserver thread.
     UpnpFinish();
 }
 
-void DlnaServer::onStarted(quint16 port, const QString& ifName, const QString& label)
+void DlnaServer::onStarted(quint16 port, const QString& ifName, const QString& ip,
+                           const QString& label)
 {
     m_busy = false;
     emit busyChanged();
     m_running = true;
     emit runningChanged();
+    m_restartAfterStop = false;
     m_boundIfName = ifName;
+    m_boundIp = ip;
     m_networkLabel = label;
     emit networkLabelChanged();
-    if (!m_forcedInterface)
-        m_pollTimer.start();
+    setError(QString()); // "No home network found" ends the moment sharing is really up
     m_settings->setValue(QStringLiteral("dlnaSharing/port"), int(port));
     m_settings->sync();
     if (!m_enabled)
@@ -444,10 +516,8 @@ void DlnaServer::onStartFailed(const QString& message)
         m_worker.join();
     m_busy = false;
     emit busyChanged();
-    m_error = message;
-    emit errorChanged();
-    if (!m_forcedInterface)
-        m_pollTimer.stop();
+    if (m_enabled)
+        setError(message); // the poll timer keeps trying while sharing stays enabled
 }
 
 void DlnaServer::onStopped(const QString& errorAfterStop)
@@ -458,14 +528,11 @@ void DlnaServer::onStopped(const QString& errorAfterStop)
     m_running = false;
     emit busyChanged();
     emit runningChanged();
-    m_pollTimer.stop();
     if (m_settings)
         m_settings->setValue(QStringLiteral("dlnaSharing/systemUpdateId"),
                              int(m_core->provider ? m_core->provider()->systemUpdateId : 0));
-    if (!errorAfterStop.isEmpty()) {
-        m_error = errorAfterStop;
-        emit errorChanged();
-    }
+    if (!errorAfterStop.isEmpty())
+        setError(errorAfterStop);
     if (m_restartAfterStop && m_enabled && !m_stopForQuit) {
         m_restartAfterStop = false;
         beginStart();
@@ -474,20 +541,28 @@ void DlnaServer::onStopped(const QString& errorAfterStop)
 
 void DlnaServer::pollInterface()
 {
-    if (!m_running || m_forcedInterface)
+    // Runs every 10 s while sharing is ENABLED (not only while it runs), so a network that
+    // was missing at boot, dropped, or went to sleep and came back resumes sharing by itself.
+    if (!m_enabled || m_busy || m_stopForQuit || m_forcedInterface)
         return;
-    const auto home = DlnaNetwork::pickHomeAdapter();
+    const auto home = homeAdapter();
+    if (!m_running) {
+        if (home)
+            beginStart();
+        return;
+    }
     if (!home) {
-        m_restartAfterStop = false;
+        // Intent survives: enabled stays true, so the poll starts sharing again once a home
+        // adapter returns.
         beginStop(QStringLiteral("No home network found"));
         return;
     }
-    if (home->ifName != m_boundIfName) {
-        // Adapter changed (Wi-Fi dropped, moved to Ethernet): byebye, then re-advertise on
-        // the new interface.
+    if (home->ifName != m_boundIfName || home->ip != m_boundIp) {
+        // Adapter changed (Wi-Fi dropped, moved to Ethernet) or the same adapter took a new
+        // address (DHCP renewal): byebye, then re-advertise from the new one.
         m_restartAfterStop = true;
         beginStop();
-    } else if (!m_networkLabel.endsWith(home->ip)) {
+    } else if (home->label != m_networkLabel) {
         m_networkLabel = home->label;
         emit networkLabelChanged();
     }
@@ -531,7 +606,7 @@ void DlnaServer::handleSnapshotChanged()
         emit shareTypesChanged();
     }
     m_settings->setValue(QStringLiteral("dlnaSharing/systemUpdateId"), int(snap->systemUpdateId));
-    if (m_running) {
+    if (m_running && !m_busy) { // never notify into a server that is stopping
         const qint64 now = QDateTime::currentMSecsSinceEpoch();
         if (now - m_lastNotifyMs >= 2000)
             notifySystemUpdateId();
@@ -542,8 +617,9 @@ void DlnaServer::handleSnapshotChanged()
 
 void DlnaServer::notifySystemUpdateId()
 {
-    if (!m_running || !m_core->provider)
-        return;
+    const int handle = m_core->deviceHandle.load();
+    if (!m_running || m_busy || handle < 0 || !m_core->provider)
+        return; // a stop in flight owns pupnp now: UpnpNotify here would race UpnpFinish
     const auto snap = m_core->provider();
     m_containerUpdateCounter += 1;
     const QString containerIds =
@@ -552,7 +628,7 @@ void DlnaServer::notifySystemUpdateId()
     const QByteArray id = QByteArray::number(snap->systemUpdateId);
     const QByteArray cids = containerIds.toLatin1();
     const char* values[2] = {id.constData(), cids.constData()};
-    UpnpNotify(m_core->deviceHandle.load(), m_core->udn.constData(), kCdId, names, values, 2);
+    UpnpNotify(handle, m_core->udn.constData(), kCdId, names, values, 2);
     m_lastNotifyMs = QDateTime::currentMSecsSinceEpoch();
 }
 
@@ -631,15 +707,18 @@ void handleAction(DlnaServerCore* core, UpnpActionRequest* ar)
             br.filter = QString::fromStdString(actionArg(req, "Filter"));
             const QString startS = QString::fromStdString(actionArg(req, "StartingIndex"));
             const QString countS = QString::fromStdString(actionArg(req, "RequestedCount"));
-            bool okStart = false, okCount = false;
-            const quint64 start = startS.toULongLong(&okStart);
-            const quint64 count = countS.toULongLong(&okCount);
-            if (flag != "BrowseMetadata" && flag != "BrowseDirectChildren") {
+            // ObjectID, BrowseFlag, StartingIndex and RequestedCount are required in-arguments
+            // (Filter and SortCriteria may be empty): absent or empty is Invalid Args.
+            if (br.objectId.isEmpty() || startS.isEmpty() || countS.isEmpty()
+                || (flag != "BrowseMetadata" && flag != "BrowseDirectChildren")) {
                 actionError(ar, 402, "Invalid args");
                 return;
             }
-            if ((!okStart && !startS.isEmpty()) || (!okCount && !countS.isEmpty())
-                || start > 0xFFFFFFFFull || count > 0xFFFFFFFFull) {
+            bool okStart = false, okCount = false;
+            const quint64 start = startS.toULongLong(&okStart, 10);
+            const quint64 count = countS.toULongLong(&okCount, 10);
+            // Both are ui4: anything from 0 to 2^32-1 is valid (browse() clamps in 64 bits).
+            if (!okStart || !okCount || start > 0xFFFFFFFFull || count > 0xFFFFFFFFull) {
                 actionError(ar, 402, "Invalid args");
                 return;
             }
@@ -653,7 +732,8 @@ void handleAction(DlnaServerCore* core, UpnpActionRequest* ar)
                 bool wellFormed = true;
                 const QStringList terms =
                     sortQ.split(QLatin1Char(','), Qt::KeepEmptyParts);
-                for (const QString& term : terms) {
+                for (const QString& rawTerm : terms) {
+                    const QString term = rawTerm.trimmed();
                     if (term.size() < 2
                         || (term.at(0) != QLatin1Char('+') && term.at(0) != QLatin1Char('-'))) {
                         wellFormed = false;
@@ -664,7 +744,16 @@ void handleAction(DlnaServerCore* core, UpnpActionRequest* ar)
                     actionError(ar, 709, "Unsupported or invalid sort criteria");
                     return;
                 }
-                br.sortDescending = sortQ.startsWith(QLatin1Char('-'));
+                // Descending only when dc:title itself is asked for descending; "-dc:date"
+                // (or any other unapplied criterion) must not flip the title order. The first
+                // dc:title term wins.
+                for (const QString& rawTerm : terms) {
+                    const QString term = rawTerm.trimmed();
+                    if (term == QLatin1String("+dc:title") || term == QLatin1String("-dc:title")) {
+                        br.sortDescending = term.at(0) == QLatin1Char('-');
+                        break;
+                    }
+                }
             }
             const DlnaContentDirectory::BrowseResponse out =
                 DlnaContentDirectory::browse(*snap, core->baseUrl, br);

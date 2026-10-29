@@ -11,7 +11,9 @@
 #
 # Any *.patch under scripts/deps/patches/pupnp/ is `git apply`d to the pupnp clone before it is
 # configured (each is checked first; a patch that no longer applies fails the build loudly).
-# The known resident: the MSVC 64-bit-file-offset fix that makes >2 GiB vdir responses work.
+# Residents: 0001 the MSVC 64-bit-file-offset fix that makes >2 GiB vdir responses work;
+# 0002 a per-write idle timeout for web-server bodies (UpnpSetWebServerWriteIdleTimeout) so a
+# client that stops reading cannot pin a worker thread forever.
 #
 # Both libs build Release /MD, which is ABI-compatible with RelWithDebInfo consumers (same CRT).
 #
@@ -137,6 +139,7 @@ function Run([string]$What, [string]$Exe, [string[]]$ArgList) {
         '-DUPNP_ENABLE_IPV6=OFF',        # DLNA renderers are IPv4; drops the v6 failure class
         '-DUPNP_ENABLE_CLIENT_API=OFF',  # pure server
         '-DUPNP_ENABLE_OPEN_SSL=OFF',
+        '-DUPNP_ADAPTER_UUID_NAME=ON',   # Windows: select the NIC by adapter GUID, not its (Unicode) friendly name
         '-DDOWNLOAD_AND_BUILD_DEPS=OFF')
     Run 'build pupnp' $cmake @('--build', $upBuild, '--config', $Configuration)
     Run 'install pupnp' $cmake @('--install', $upBuild, '--config', $Configuration)

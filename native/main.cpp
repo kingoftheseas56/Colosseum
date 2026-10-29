@@ -1189,6 +1189,11 @@ int main(int argc, char *argv[]) {
     // rebuilds off the owners; the server only ever reads published snapshots, so pupnp
     // worker threads never touch a QObject. A saved enabled=true restarts sharing at
     // launch; aboutToQuit tears it down (byebye + UpnpFinish) before any owner dies. ──
+    // The server is constructed BEFORE the library on purpose: backendServices deletes its
+    // children in creation order, so the server (whose teardown still reads a snapshot) dies
+    // while the library behind its provider is alive. The provider also holds the library
+    // weakly and serves an empty tree once it is gone.
+    auto *dlnaServer = new DlnaServer(&backendServices);
     auto *dlnaLibrary =
         new DlnaLibrary(vaultIndex, vaultConfig, audiobooks, vaultLibrary, &backendServices);
     {
@@ -1208,7 +1213,6 @@ int main(int argc, char *argv[]) {
             return dlnaThumbs->cachedThumbPath(row.path, row.size, row.mtimeMs);
         });
     }
-    auto *dlnaServer = new DlnaServer(&backendServices);
     // The projection only runs while sharing is wanted, so Vault churn costs nothing when off.
     auto syncDlnaLibrary = [dlnaLibrary, dlnaServer]() {
         if (dlnaServer->enabled())
@@ -1218,7 +1222,21 @@ int main(int argc, char *argv[]) {
     };
     QObject::connect(dlnaServer, &DlnaServer::enabledChanged, dlnaLibrary, syncDlnaLibrary);
     syncDlnaLibrary();
-    dlnaServer->setSnapshotProvider([dlnaLibrary] { return dlnaLibrary->snapshot(); });
+    dlnaServer->setSnapshotProvider([weakLibrary = QPointer<DlnaLibrary>(dlnaLibrary)] {
+        if (weakLibrary)
+            return weakLibrary->snapshot();
+        static const std::shared_ptr<const DlnaSnapshot> empty = [] {
+            auto snap = std::make_shared<DlnaSnapshot>();
+            DlnaContainer root;
+            root.id = QStringLiteral("0");
+            root.parentId = QStringLiteral("-1");
+            root.title = QStringLiteral("Colosseum");
+            root.upnpClass = QStringLiteral("object.container.storageFolder");
+            snap->containers.insert(root.id, root);
+            return std::shared_ptr<const DlnaSnapshot>(std::move(snap));
+        }();
+        return empty;
+    });
     QObject::connect(dlnaLibrary, &DlnaLibrary::snapshotChanged, dlnaServer,
                      &DlnaServer::handleSnapshotChanged);
     engine.rootContext()->setContextProperty(QStringLiteral("dlnaSharing"), dlnaServer);
