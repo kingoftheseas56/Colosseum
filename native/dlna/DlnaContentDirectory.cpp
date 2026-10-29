@@ -37,7 +37,7 @@ QString didlOpen()
         "xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
         "xmlns:upnp=\"urn:schemas-upnp-org:metadata-1-0/upnp/\" "
         "xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\" "
-        "xmlns:sec=\"urn:samsung.com:sec\">");
+        "xmlns:sec=\"http://www.sec.co.kr/\">");
 }
 
 // Filter mask (Kodi's ConvertFilterToMask, simplified honestly): "*" or "" admits
@@ -123,7 +123,10 @@ QString subtitleElements(const ElementFilter& filter, const QString& baseUrl, co
     if (filter.accepts(QStringLiteral("res")))
         out += QStringLiteral("<res protocolInfo=\"http-get:*:text/srt:*\">%1</res>")
                    .arg(escape(url));
+    // Both spellings: CaptionInfoEx for current Samsung sets, CaptionInfo for the older ones.
     out += QStringLiteral("<sec:CaptionInfoEx sec:type=\"srt\">%1</sec:CaptionInfoEx>")
+               .arg(escape(url));
+    out += QStringLiteral("<sec:CaptionInfo sec:type=\"srt\">%1</sec:CaptionInfo>")
                .arg(escape(url));
     return out;
 }

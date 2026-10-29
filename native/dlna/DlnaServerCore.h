@@ -29,4 +29,5 @@ struct DlnaServerCore {
     QByteArray icon120;
     QByteArray cdScpd;                     // ContentDirectory:1 SCPD, served from memory
     QByteArray cmScpd;                     // ConnectionManager:1 SCPD
+    QByteArray mrrScpd;                    // X_MS_MediaReceiverRegistrar:1 SCPD
 };

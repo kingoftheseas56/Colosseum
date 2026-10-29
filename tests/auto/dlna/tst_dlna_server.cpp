@@ -379,6 +379,9 @@ private slots:
     void adapterSelection();
     void holdForExternalChecker();
     void discoverAndDescribe();
+    void deviceDescriptionAndScpds();
+    void registrar();
+    void didlNamespacesAndWellFormedness();
     void browseTree();
     void browsePagingAndErrors();
     void browseHugeIndicesAndMissingArgs();
@@ -516,7 +519,9 @@ tst_dlna_server::SoapReply tst_dlna_server::soap(const QString& serviceType, con
         m_baseUrl
         + (serviceType.endsWith(QLatin1String("ContentDirectory:1"))
                ? QStringLiteral("/control/cd")
-               : QStringLiteral("/control/cm"))));
+               : serviceType.contains(QLatin1String("X_MS_MediaReceiverRegistrar"))
+                     ? QStringLiteral("/control/mrr")
+                     : QStringLiteral("/control/cm"))));
     req.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("text/xml; charset=utf-8"));
     req.setRawHeader("SOAPACTION",
                      QStringLiteral("\"%1#%2\"").arg(serviceType, action).toLatin1());
@@ -713,6 +718,242 @@ void tst_dlna_server::discoverAndDescribe()
     QCOMPARE(scpd.status, 200);
     QVERIFY(scpd.body.contains("Browse"));
     QVERIFY(scpd.body.contains("ContainerUpdateIDs"));
+}
+
+// What a strict control point checks before it trusts a device: the description's element
+// order and required fields, DLNA identity, icons that really fetch as the advertised
+// type/size, and SCPDs that are well-formed, self-consistent and evented only where the
+// service type says so.
+void tst_dlna_server::deviceDescriptionAndScpds()
+{
+    const Reply desc = http(QStringLiteral("GET"), QUrl(m_baseUrl + "/description.xml"));
+    QCOMPARE(desc.status, 200);
+    QVERIFY2(desc.headers.value("content-type").startsWith("text/xml"),
+             desc.headers.value("content-type").constData());
+    QXmlStreamReader xml(desc.body);
+    QStringList deviceChildren; // element order inside <device>
+    QStringList serviceTypes, scpdUrls, controlUrls, eventUrls, iconUrls;
+    QList<int> iconDepths;
+    QString specMinor, urlBase, dlnaDoc;
+    bool dlnaDocNamespaced = false;
+    QStringList path;
+    while (!xml.atEnd()) {
+        xml.readNext();
+        if (xml.isStartElement()) {
+            const QString n = xml.name().toString();
+            if (path.size() == 2 && path.at(1) == QLatin1String("device"))
+                deviceChildren << n;
+            if (n == QLatin1String("X_DLNADOC")) {
+                dlnaDocNamespaced =
+                    xml.namespaceUri() == QLatin1String("urn:schemas-dlna-org:device-1-0");
+                dlnaDoc = xml.readElementText();
+            } else if (n == QLatin1String("minor") && specMinor.isEmpty()) {
+                specMinor = xml.readElementText();
+            } else if (n == QLatin1String("URLBase")) {
+                urlBase = xml.readElementText();
+            } else if (n == QLatin1String("serviceType")) {
+                serviceTypes << xml.readElementText();
+            } else if (n == QLatin1String("SCPDURL")) {
+                scpdUrls << xml.readElementText();
+            } else if (n == QLatin1String("controlURL")) {
+                controlUrls << xml.readElementText();
+            } else if (n == QLatin1String("eventSubURL")) {
+                eventUrls << xml.readElementText();
+            } else if (n == QLatin1String("url")) {
+                iconUrls << xml.readElementText();
+            } else if (n == QLatin1String("depth")) {
+                iconDepths << xml.readElementText().toInt();
+            } else {
+                path << n;
+            }
+        } else if (xml.isEndElement()) {
+            if (!path.isEmpty() && path.last() == xml.name().toString())
+                path.removeLast();
+        }
+    }
+    QVERIFY2(!xml.hasError(), qPrintable(xml.errorString()));
+    QCOMPARE(specMinor, QStringLiteral("0")); // no BOOTID/CONFIGID promised, none sent
+    QCOMPARE(dlnaDoc, QStringLiteral("DMS-1.50"));
+    QVERIFY(dlnaDocNamespaced);
+    QVERIFY(urlBase.startsWith(QStringLiteral("http://")) && urlBase.endsWith(QLatin1Char('/')));
+    // Schema order of the device children we emit.
+    const QStringList wanted{QStringLiteral("deviceType"), QStringLiteral("friendlyName"),
+                             QStringLiteral("manufacturer"), QStringLiteral("manufacturerURL"),
+                             QStringLiteral("modelDescription"), QStringLiteral("modelName"),
+                             QStringLiteral("modelNumber"), QStringLiteral("UDN"),
+                             QStringLiteral("X_DLNADOC"), QStringLiteral("iconList"),
+                             QStringLiteral("serviceList")};
+    QCOMPARE(deviceChildren, wanted);
+    QCOMPARE(serviceTypes.size(), 3);
+    QCOMPARE(scpdUrls.size(), 3);
+    QCOMPARE(controlUrls.size(), 3);
+    QCOMPARE(eventUrls.size(), 3);
+    QVERIFY(serviceTypes.contains(
+        QStringLiteral("urn:schemas-upnp-org:service:ContentDirectory:1")));
+    QVERIFY(serviceTypes.contains(
+        QStringLiteral("urn:schemas-upnp-org:service:ConnectionManager:1")));
+    QVERIFY(serviceTypes.contains(
+        QStringLiteral("urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1")));
+    QCOMPARE(iconDepths, (QList<int>{24, 24}));
+
+    // Icons: really PNGs of the advertised size.
+    const QList<QSize> sizes{QSize(48, 48), QSize(120, 120)};
+    QCOMPARE(iconUrls.size(), 2);
+    for (int i = 0; i < iconUrls.size(); i++) {
+        const Reply icon = http(QStringLiteral("GET"), QUrl(urlBase + iconUrls.at(i).mid(1)));
+        QCOMPARE(icon.status, 200);
+        QCOMPARE(icon.headers.value("content-type"), QByteArray("image/png"));
+        // PNG signature, then IHDR width/height (big-endian) at bytes 16..23.
+        QVERIFY(icon.body.startsWith("\x89PNG\r\n\x1a\n"));
+        const auto be32 = [&](int at) {
+            return (quint32(quint8(icon.body[at])) << 24)
+                   | (quint32(quint8(icon.body[at + 1])) << 16)
+                   | (quint32(quint8(icon.body[at + 2])) << 8) | quint32(quint8(icon.body[at + 3]));
+        };
+        QCOMPARE(QSize(int(be32(16)), int(be32(20))), sizes.at(i));
+    }
+
+    // Every SCPD fetches as text/xml, parses, and each argument's relatedStateVariable exists.
+    for (const QString& scpdUrl : std::as_const(scpdUrls)) {
+        const Reply scpd = http(QStringLiteral("GET"), QUrl(m_baseUrl + scpdUrl));
+        QCOMPARE(scpd.status, 200);
+        QVERIFY2(scpd.headers.value("content-type").startsWith("text/xml"), qPrintable(scpdUrl));
+        QVERIFY2(scpd.headers.value("content-type").contains("utf-8"), qPrintable(scpdUrl));
+        QXmlStreamReader sx(scpd.body);
+        QSet<QString> related;
+        QMap<QString, QString> sendEvents, types;
+        QString eventsAttr, currentVar;
+        bool inVar = false;
+        while (!sx.atEnd()) {
+            sx.readNext();
+            if (sx.isEndElement() && sx.name() == QLatin1String("stateVariable")) {
+                inVar = false;
+            } else if (sx.isStartElement()) {
+                const QString n = sx.name().toString();
+                if (n == QLatin1String("stateVariable")) {
+                    inVar = true;
+                    eventsAttr = sx.attributes().value(QLatin1String("sendEvents")).toString();
+                } else if (inVar && n == QLatin1String("name")) {
+                    currentVar = sx.readElementText();
+                    sendEvents.insert(currentVar, eventsAttr);
+                    types.insert(currentVar, QString());
+                } else if (inVar && n == QLatin1String("dataType")) {
+                    types[currentVar] = sx.readElementText();
+                } else if (n == QLatin1String("relatedStateVariable")) {
+                    related.insert(sx.readElementText());
+                }
+            }
+        }
+        QVERIFY2(!sx.hasError(), qPrintable(scpdUrl + QLatin1String(": ") + sx.errorString()));
+        for (const QString& r : std::as_const(related))
+            QVERIFY2(types.contains(r), qPrintable(scpdUrl + QLatin1String(" lacks ") + r));
+        QStringList evented;
+        for (auto it = types.constBegin(); it != types.constEnd(); ++it) {
+            QVERIFY2(!it.value().isEmpty(), qPrintable(it.key()));
+            if (it.key().startsWith(QLatin1String("A_ARG_TYPE_")))
+                QCOMPARE(sendEvents.value(it.key()), QStringLiteral("no"));
+            if (sendEvents.value(it.key()) == QLatin1String("yes"))
+                evented << it.key();
+        }
+        evented.sort();
+        if (scpdUrl.endsWith(QLatin1String("cd.xml"))) {
+            QCOMPARE(types.value(QStringLiteral("SystemUpdateID")), QStringLiteral("ui4"));
+            QCOMPARE(types.value(QStringLiteral("A_ARG_TYPE_Index")), QStringLiteral("ui4"));
+            QCOMPARE(types.value(QStringLiteral("A_ARG_TYPE_Count")), QStringLiteral("ui4"));
+            QCOMPARE(evented, (QStringList{QStringLiteral("ContainerUpdateIDs"),
+                                           QStringLiteral("SystemUpdateID")}));
+        } else if (scpdUrl.endsWith(QLatin1String("cm.xml"))) {
+            QCOMPARE(evented, (QStringList{QStringLiteral("CurrentConnectionIDs"),
+                                           QStringLiteral("SinkProtocolInfo"),
+                                           QStringLiteral("SourceProtocolInfo")}));
+        }
+    }
+
+    // An unknown SCPD path is a clean 404.
+    QCOMPARE(http(QStringLiteral("GET"), QUrl(m_baseUrl + "/scpd/nope.xml")).status, 404);
+}
+
+// X_MS_MediaReceiverRegistrar: Kodi's constants (authorized, validated, empty registration).
+void tst_dlna_server::registrar()
+{
+    const QString rg = QStringLiteral("urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1");
+    SoapReply auth = soap(rg, QStringLiteral("IsAuthorized"),
+                          {{QStringLiteral("DeviceID"), QString()}});
+    QVERIFY(auth.ok);
+    QCOMPARE(auth.arg(QStringLiteral("Result")), QStringLiteral("1"));
+    SoapReply valid = soap(rg, QStringLiteral("IsValidated"),
+                           {{QStringLiteral("DeviceID"), QStringLiteral("anything")}});
+    QVERIFY(valid.ok);
+    QCOMPARE(valid.arg(QStringLiteral("Result")), QStringLiteral("1"));
+    SoapReply reg = soap(rg, QStringLiteral("RegisterDevice"),
+                         {{QStringLiteral("RegistrationReqMsg"), QStringLiteral("AAAA")}});
+    QVERIFY(reg.ok);
+    QVERIFY(reg.args.contains(QStringLiteral("RegistrationRespMsg")));
+    SoapReply bad = soap(rg, QStringLiteral("Nope"), {});
+    QVERIFY(!bad.ok);
+    QCOMPARE(bad.faultCode, 401);
+
+    // It can be subscribed to like the other two services.
+    QNetworkRequest req(QUrl(m_baseUrl + "/event/mrr"));
+    req.setRawHeader("NT", "upnp:event");
+    req.setRawHeader("TIMEOUT", "Second-300");
+    req.setRawHeader("CALLBACK", "<http://127.0.0.1:9/none>");
+    QNetworkReply* sub = m_nam.sendCustomRequest(req, "SUBSCRIBE");
+    QEventLoop loop;
+    connect(sub, &QNetworkReply::finished, &loop, &QEventLoop::quit);
+    QTimer::singleShot(10000, &loop, &QEventLoop::quit);
+    loop.exec();
+    QCOMPARE(sub->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt(), 200);
+    QVERIFY(sub->rawHeader("SID").startsWith("uuid:"));
+    sub->deleteLater();
+}
+
+// Every DIDL the server emits must be well-formed XML with every prefix it uses bound -
+// including sec: (Samsung's http://www.sec.co.kr/) - and each res must carry a four-field
+// protocolInfo. A TV drops a whole page on the first violation.
+void tst_dlna_server::didlNamespacesAndWellFormedness()
+{
+    const QStringList containers{QStringLiteral("0"), QStringLiteral("t-movies"), m_fx.showsId,
+                                 m_fx.showCid, m_fx.seasonCid, QStringLiteral("t-books"),
+                                 QStringLiteral("t-audiobooks"),
+                                 QStringLiteral("c0000000000000ab")};
+    int resSeen = 0;
+    for (const QString& id : containers) {
+        SoapReply r = browseDirectChildren(id);
+        QVERIFY2(r.ok, qPrintable(id));
+        const QString didl = r.arg(QStringLiteral("Result"));
+        QXmlStreamReader xml(didl);
+        while (!xml.atEnd()) {
+            xml.readNext();
+            if (xml.isStartElement() && xml.name() == QLatin1String("res")) {
+                const QString pi =
+                    xml.attributes().value(QLatin1String("protocolInfo")).toString();
+                QCOMPARE(pi.split(QLatin1Char(':')).size(), 4);
+                QVERIFY(pi.startsWith(QStringLiteral("http-get:*:")));
+                resSeen++;
+            }
+        }
+        QVERIFY2(!xml.hasError(), qPrintable(id + QLatin1String(": ") + xml.errorString()));
+        QVERIFY(didl.contains(QStringLiteral("xmlns:sec=\"http://www.sec.co.kr/\"")));
+        QVERIFY(didl.contains(
+            QStringLiteral("xmlns:dlna=\"urn:schemas-dlna-org:metadata-1-0/\"")));
+    }
+    QVERIFY(resSeen >= 7);
+
+    // Subtitled episode: both Samsung spellings, in the sec: namespace, parsed through it.
+    SoapReply ep = browseMetadata(m_fx.ep2Id);
+    QVERIFY(ep.ok);
+    QXmlStreamReader xml(ep.arg(QStringLiteral("Result")));
+    QStringList captionNames;
+    while (!xml.atEnd()) {
+        xml.readNext();
+        if (xml.isStartElement() && xml.namespaceUri() == QLatin1String("http://www.sec.co.kr/"))
+            captionNames << xml.name().toString();
+    }
+    QVERIFY(!xml.hasError());
+    captionNames.sort();
+    QCOMPARE(captionNames,
+             (QStringList{QStringLiteral("CaptionInfo"), QStringLiteral("CaptionInfoEx")}));
 }
 
 // ── ContentDirectory ─────────────────────────────────────────────────────────────────────
