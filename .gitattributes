@@ -17,6 +17,9 @@ tools/linux-release/AppRun text eol=lf
 # The Android engine stamp verifies these exact patch bytes on every host.
 native/third_party/nuvio-engine/patches/0001-android-hardening.patch text eol=lf
 
+# The Android reader selector writes this module list with canonical LF bytes.
+qml/reader2/qmldir text eol=lf
+
 # These checksummed online artwork sources were published with CRLF bytes.
 # Keep the source payload identical on Linux checkouts so release staging can
 # verify its SHA-256 before omitting the artwork from the installed package.
