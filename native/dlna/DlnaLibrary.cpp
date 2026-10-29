@@ -673,6 +673,8 @@ void DlnaLibrary::rebuildNow()
     }
     // Owner thread: read the owners and copy everything the worker needs.
     BuildInput input = gatherInput(m_index, m_config, m_audiobooks, m_coverResolver);
+    qInfo().noquote() << QStringLiteral("[dlna] rebuild: %1 eligible vault rows, %2 audiobooks")
+                             .arg(input.rows.size()).arg(input.audiobooks.size());
     m_building = true;
     m_jobEpoch = m_epoch;
     m_watcher.setFuture(QtConcurrent::run([input = std::move(input)]() { return buildSnapshot(input); }));
@@ -704,6 +706,9 @@ void DlnaLibrary::publish(std::shared_ptr<DlnaSnapshot> next, bool notify)
     if (snapshot()->sameContent(*next))
         return;
     next->systemUpdateId = ++m_lastUpdateId;
+    qInfo().noquote() << QStringLiteral("[dlna] published %1 items (%2), update id %3")
+                             .arg(next->itemCount).arg(next->typeOrder.join(QLatin1String(", ")))
+                             .arg(next->systemUpdateId);
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_snapshot = std::move(next);

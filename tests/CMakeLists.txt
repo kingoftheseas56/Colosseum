@@ -887,6 +887,51 @@ set_tests_properties(colosseum.qttest.dlna_library PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── DLNA server (Arc 71, 2026-10-29) ─────────────────────────────────────────
+# The real DlnaServer on pupnp, loopback-only: M-SEARCH discovery, description identity,
+# Browse tree/paging/errors, vdir media serving (incl. a Range past 2 GiB on a 3 GiB sparse
+# file and mid-stream revocation), GENA events, stop/port-closed, UDN+port reuse across a
+# restart. Only builds when the optional pupnp prefix exists (scripts/deps/build-pupnp.ps1);
+# the native/CMakeLists UPNP_ROOT hint already put it on CMAKE_PREFIX_PATH.
+find_package(UPNP CONFIG QUIET COMPONENTS Static)
+if(TARGET UPNP::Static)
+    add_executable(tst_dlna_server
+        auto/dlna/tst_dlna_server.cpp
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaNetwork.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaNetwork.h"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaContentDirectory.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaContentDirectory.h"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaMediaFiles.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaMediaFiles.h"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaServer.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaServer.h"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaServerCore.h"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaSnapshot.h"
+        "${COLOSSEUM_NATIVE_DIR}/dlna/dlna_icons.qrc")
+    target_include_directories(tst_dlna_server PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+    target_compile_definitions(tst_dlna_server PRIVATE
+        COLOSSEUM_HAVE_DLNA=1 UPNP_STATIC_LIB COLOSSEUM_VERSION="0.0-test")
+    target_link_libraries(tst_dlna_server PRIVATE Qt6::Core Qt6::Network Qt6::Test
+        UPNP::Static)
+    if(WIN32)
+        target_link_libraries(tst_dlna_server PRIVATE ws2_32 iphlpapi)
+    endif()
+    set_target_properties(tst_dlna_server PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+    add_custom_command(TARGET tst_dlna_server POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Test>"
+                "${CMAKE_CURRENT_BINARY_DIR}/..")
+    add_test(NAME colosseum.qttest.dlna_server
+             COMMAND tst_dlna_server)
+    set_tests_properties(colosseum.qttest.dlna_server PROPERTIES
+        LABELS "unit;qttest;dlna"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QPA_PLATFORM=offscreen"
+        TIMEOUT 300)
+else()
+    message(STATUS "tst_dlna_server skipped: pupnp not found")
+endif()
+
 # ── Tankoban catalogue (catalogue-independence Slice 1, 2026-08-20) ──────────
 # TankobanCatalog — the baked, provider-free volume-count/cover store: series
 # count/count_basis round-trip, "1".."N" number synthesis from a known count,

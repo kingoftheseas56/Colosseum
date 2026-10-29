@@ -105,6 +105,11 @@
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "engine/VaultForensics.h"
+#include "engine/VaultThumbnailer.h"
+#if defined(COLOSSEUM_HAVE_DLNA)
+#include "dlna/DlnaLibrary.h"
+#include "dlna/DlnaServer.h"
+#endif
 #endif
 #if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
@@ -1177,6 +1182,50 @@ int main(int argc, char *argv[]) {
     // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
+
+#if defined(COLOSSEUM_HAVE_DLNA)
+    // ── DLNA MediaServer (Arc 71): project the Vault + audiobooks into an immutable
+    // snapshot and serve it over pupnp as the top-bar `dlnaSharing` door. The library
+    // rebuilds off the owners; the server only ever reads published snapshots, so pupnp
+    // worker threads never touch a QObject. A saved enabled=true restarts sharing at
+    // launch; aboutToQuit tears it down (byebye + UpnpFinish) before any owner dies. ──
+    auto *dlnaLibrary =
+        new DlnaLibrary(vaultIndex, vaultConfig, audiobooks, vaultLibrary, &backendServices);
+    {
+        // Continue the persisted SystemUpdateID lineage so TVs see a monotonic id.
+        QSettings settings;
+        dlnaLibrary->setInitialSystemUpdateId(
+            settings.value(QStringLiteral("dlnaSharing/systemUpdateId")).toUInt());
+    }
+    {
+        // Cheap thread-safe cover hook: the enricher's adopted poster (coverRef file:/// URL)
+        // or an already-grabbed VaultThumbnailer still. Read-only over the shared cache dir;
+        // a second thumbnailer instance never spawns ffmpeg through cachedThumbPath.
+        auto *dlnaThumbs = new VaultThumbnailer(vaultDir, &backendServices);
+        dlnaLibrary->setCoverResolver([dlnaThumbs](const VaultIndex::FileRow& row) {
+            if (row.coverRef.startsWith(QLatin1String("file:///")))
+                return QUrl(row.coverRef).toLocalFile();
+            return dlnaThumbs->cachedThumbPath(row.path, row.size, row.mtimeMs);
+        });
+    }
+    auto *dlnaServer = new DlnaServer(&backendServices);
+    // The projection only runs while sharing is wanted, so Vault churn costs nothing when off.
+    auto syncDlnaLibrary = [dlnaLibrary, dlnaServer]() {
+        if (dlnaServer->enabled())
+            dlnaLibrary->start();
+        else
+            dlnaLibrary->stop();
+    };
+    QObject::connect(dlnaServer, &DlnaServer::enabledChanged, dlnaLibrary, syncDlnaLibrary);
+    syncDlnaLibrary();
+    dlnaServer->setSnapshotProvider([dlnaLibrary] { return dlnaLibrary->snapshot(); });
+    QObject::connect(dlnaLibrary, &DlnaLibrary::snapshotChanged, dlnaServer,
+                     &DlnaServer::handleSnapshotChanged);
+    engine.rootContext()->setContextProperty(QStringLiteral("dlnaSharing"), dlnaServer);
+    dlnaServer->maybeStartFromSettings();
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, dlnaServer,
+                     [dlnaServer]() { dlnaServer->stopForQuit(); });
+#endif
 
     // ── Tankorent engine (Phase 2 — books consume it) ───────────────────────
     // One engine per job (spec 2026-07-13): Stremio keeps watch-now; this
