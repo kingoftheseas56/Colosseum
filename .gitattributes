@@ -14,6 +14,9 @@ resources/installed-chronicle/installed-manifest.json.sig binary
 tools/linux-release/*.sh text eol=lf
 tools/linux-release/AppRun text eol=lf
 
+# The Android engine stamp verifies these exact patch bytes on every host.
+native/third_party/nuvio-engine/patches/0001-android-hardening.patch text eol=lf
+
 # These checksummed online artwork sources were published with CRLF bytes.
 # Keep the source payload identical on Linux checkouts so release staging can
 # verify its SHA-256 before omitting the artwork from the installed package.
