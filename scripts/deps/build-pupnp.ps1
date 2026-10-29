@@ -91,7 +91,7 @@ function Run([string]$What, [string]$Exe, [string[]]$ArgList) {
     function Sync-GitClone([string]$Name, [string]$Repo, [string]$Commit, [string]$Ref) {
         $dir = Join-Path $WorkDir $Name
         if (-not (Test-Path (Join-Path $dir '.git'))) {
-            Run "clone $Name" git @('clone', $Repo, $dir)
+            Run "clone $Name" git @('-c', 'core.autocrlf=false', 'clone', $Repo, $dir)
         }
         Run "checkout $Name @ $Commit" git @('-C', $dir, 'checkout', $Commit)
         $head = (& git -C $dir 'rev-parse' 'HEAD').Trim()
