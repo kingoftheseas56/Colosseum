@@ -144,10 +144,11 @@ Item {
                     anchors.left: parent.left
                     anchors.verticalCenter: parent.verticalCenter
                     width: 20; height: 20
-                    source: "../assets/icons/access-point-gold.svg"
+                    source: root.isRunning ? "../assets/icons/access-point-gold.svg"
+                                           : "../assets/icons/access-point.svg"
                     sourceSize.width: 40; sourceSize.height: 40
                     fillMode: Image.PreserveAspectFit
-                    opacity: root.isRunning ? 1.0 : 0.5
+                    opacity: root.isRunning ? 1.0 : 0.72
                 }
                 Text {
                     anchors.left: headGlyph.right
