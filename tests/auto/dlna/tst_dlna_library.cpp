@@ -145,6 +145,7 @@ private slots:
     void snapshot_is_safe_from_other_threads();
     void system_update_id_continues_from_injected_value();
     void build_runs_off_the_owner_thread_and_publishes_async();
+    void cover_hook_results_are_limited_to_servable_images();
     void owner_change_during_build_triggers_one_more_build();
     void stop_discards_a_build_in_flight();
 };
@@ -707,6 +708,21 @@ void tst_dlna_library::build_runs_off_the_owner_thread_and_publishes_async()
     QVERIFY2(!resolverOnOwnerThread.load(), "cover hook must run on the worker thread");
     QCOMPARE(findItemByTitle(*lib.snapshot(), "Inception")->coverPath, QStringLiteral("C:/covers/film.jpg"));
     QVERIFY(findItemByTitle(*lib.snapshot(), "Dune")->coverPath.isEmpty());
+}
+
+// /art serves jpg/jpeg/png only: a cover in any other format is never put in the snapshot.
+void tst_dlna_library::cover_hook_results_are_limited_to_servable_images()
+{
+    DlnaLibrary lib(m_index, m_config, m_audio);
+    lib.setCoverResolver([](const VaultIndex::FileRow& r) -> QString {
+        if (r.id == QLatin1String("vault:film"))
+            return QStringLiteral("C:/covers/film.webp");
+        return QString();
+    });
+    lib.rebuildNow();
+    QTRY_VERIFY_WITH_TIMEOUT(!lib.isBuilding(), 10000);
+    QVERIFY(findItemByTitle(*lib.snapshot(), "Inception") != nullptr);
+    QVERIFY(findItemByTitle(*lib.snapshot(), "Inception")->coverPath.isEmpty());
 }
 
 void tst_dlna_library::owner_change_during_build_triggers_one_more_build()

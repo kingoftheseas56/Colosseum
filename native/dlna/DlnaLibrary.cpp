@@ -175,6 +175,22 @@ QList<const Cand*> sortedPtrs(const QList<Cand>& list)
     return out;
 }
 
+// /art serves jpg/jpeg/png thumbnails up to 10 MB; any other cover is not advertised. A path
+// that does not exist yet passes (the server re-checks at request time and answers 404).
+QString servableCover(const QString& path)
+{
+    if (path.isEmpty())
+        return QString();
+    const QFileInfo fi(path);
+    const QString suffix = fi.suffix().toLower();
+    if (suffix != QLatin1String("jpg") && suffix != QLatin1String("jpeg")
+        && suffix != QLatin1String("png"))
+        return QString();
+    if (fi.exists() && (!fi.isFile() || fi.size() > 10 * 1024 * 1024))
+        return QString();
+    return path;
+}
+
 // The snapshot under construction: children are appended in the order callers add them, so
 // callers add already-sorted lists.
 struct Builder {
@@ -234,7 +250,7 @@ struct Builder {
         it.synopsis = !r.identitySynopsis.isEmpty() ? r.identitySynopsis : r.synopsis;
         it.author = r.author;
         if (cover)
-            it.coverPath = cover(r);
+            it.coverPath = servableCover(cover(r));
         return it;
     }
 };
@@ -673,6 +689,8 @@ void DlnaLibrary::rebuildNow()
     }
     // Owner thread: read the owners and copy everything the worker needs.
     BuildInput input = gatherInput(m_index, m_config, m_audiobooks, m_coverResolver);
+    qInfo().noquote() << QStringLiteral("[dlna] rebuild: %1 eligible vault rows, %2 audiobooks")
+                             .arg(input.rows.size()).arg(input.audiobooks.size());
     m_building = true;
     m_jobEpoch = m_epoch;
     m_watcher.setFuture(QtConcurrent::run([input = std::move(input)]() { return buildSnapshot(input); }));
@@ -704,6 +722,9 @@ void DlnaLibrary::publish(std::shared_ptr<DlnaSnapshot> next, bool notify)
     if (snapshot()->sameContent(*next))
         return;
     next->systemUpdateId = ++m_lastUpdateId;
+    qInfo().noquote() << QStringLiteral("[dlna] published %1 items (%2), update id %3")
+                             .arg(next->itemCount).arg(next->typeOrder.join(QLatin1String(", ")))
+                             .arg(next->systemUpdateId);
     {
         std::lock_guard<std::mutex> lock(m_mutex);
         m_snapshot = std::move(next);

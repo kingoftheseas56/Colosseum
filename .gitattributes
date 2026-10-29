@@ -30,3 +30,6 @@ assets/universes/star-wars/marks/empire.svg text eol=crlf
 assets/universes/star-wars/marks/first-order.svg text eol=crlf
 assets/universes/star-wars/marks/rebel.svg text eol=crlf
 assets/universes/star-wars/marks/republic.svg text eol=crlf
+
+# Dependency patches apply to upstream LF sources (cloned with core.autocrlf=false).
+scripts/deps/patches/** -text

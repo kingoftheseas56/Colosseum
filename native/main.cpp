@@ -105,6 +105,11 @@
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "engine/VaultForensics.h"
+#include "engine/VaultThumbnailer.h"
+#if defined(COLOSSEUM_HAVE_DLNA)
+#include "dlna/DlnaLibrary.h"
+#include "dlna/DlnaServer.h"
+#endif
 #endif
 #if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
@@ -1177,6 +1182,68 @@ int main(int argc, char *argv[]) {
     // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
+
+#if defined(COLOSSEUM_HAVE_DLNA)
+    // ── DLNA MediaServer (Arc 71): project the Vault + audiobooks into an immutable
+    // snapshot and serve it over pupnp as the top-bar `dlnaSharing` door. The library
+    // rebuilds off the owners; the server only ever reads published snapshots, so pupnp
+    // worker threads never touch a QObject. A saved enabled=true restarts sharing at
+    // launch; aboutToQuit tears it down (byebye + UpnpFinish) before any owner dies. ──
+    // The server is constructed BEFORE the library on purpose: backendServices deletes its
+    // children in creation order, so the server (whose teardown still reads a snapshot) dies
+    // while the library behind its provider is alive. The provider also holds the library
+    // weakly and serves an empty tree once it is gone.
+    auto *dlnaServer = new DlnaServer(&backendServices);
+    auto *dlnaLibrary =
+        new DlnaLibrary(vaultIndex, vaultConfig, audiobooks, vaultLibrary, &backendServices);
+    {
+        // Continue the persisted SystemUpdateID lineage so TVs see a monotonic id.
+        QSettings settings;
+        dlnaLibrary->setInitialSystemUpdateId(
+            settings.value(QStringLiteral("dlnaSharing/systemUpdateId")).toUInt());
+    }
+    {
+        // Cheap thread-safe cover hook: the enricher's adopted poster (coverRef file:/// URL)
+        // or an already-grabbed VaultThumbnailer still. Read-only over the shared cache dir;
+        // a second thumbnailer instance never spawns ffmpeg through cachedThumbPath.
+        auto *dlnaThumbs = new VaultThumbnailer(vaultDir, &backendServices);
+        dlnaLibrary->setCoverResolver([dlnaThumbs](const VaultIndex::FileRow& row) {
+            if (row.coverRef.startsWith(QLatin1String("file:///")))
+                return QUrl(row.coverRef).toLocalFile();
+            return dlnaThumbs->cachedThumbPath(row.path, row.size, row.mtimeMs);
+        });
+    }
+    // The projection only runs while sharing is wanted, so Vault churn costs nothing when off.
+    auto syncDlnaLibrary = [dlnaLibrary, dlnaServer]() {
+        if (dlnaServer->enabled())
+            dlnaLibrary->start();
+        else
+            dlnaLibrary->stop();
+    };
+    QObject::connect(dlnaServer, &DlnaServer::enabledChanged, dlnaLibrary, syncDlnaLibrary);
+    syncDlnaLibrary();
+    dlnaServer->setSnapshotProvider([weakLibrary = QPointer<DlnaLibrary>(dlnaLibrary)] {
+        if (weakLibrary)
+            return weakLibrary->snapshot();
+        static const std::shared_ptr<const DlnaSnapshot> empty = [] {
+            auto snap = std::make_shared<DlnaSnapshot>();
+            DlnaContainer root;
+            root.id = QStringLiteral("0");
+            root.parentId = QStringLiteral("-1");
+            root.title = QStringLiteral("Colosseum");
+            root.upnpClass = QStringLiteral("object.container.storageFolder");
+            snap->containers.insert(root.id, root);
+            return std::shared_ptr<const DlnaSnapshot>(std::move(snap));
+        }();
+        return empty;
+    });
+    QObject::connect(dlnaLibrary, &DlnaLibrary::snapshotChanged, dlnaServer,
+                     &DlnaServer::handleSnapshotChanged);
+    engine.rootContext()->setContextProperty(QStringLiteral("dlnaSharing"), dlnaServer);
+    dlnaServer->maybeStartFromSettings();
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, dlnaServer,
+                     [dlnaServer]() { dlnaServer->stopForQuit(); });
+#endif
 
     // ── Tankorent engine (Phase 2 — books consume it) ───────────────────────
     // One engine per job (spec 2026-07-13): Stremio keeps watch-now; this
