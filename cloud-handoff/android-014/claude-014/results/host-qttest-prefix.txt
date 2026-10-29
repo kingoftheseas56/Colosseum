@@ -58,8 +58,8 @@ QINFO  : TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused() "[nuvio01
 QINFO  : TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused() [nuvio013] engine stopped the active route "stream-1"
 PASS   : TestNuvioStreamBackend::engineStoppedActiveRouteIsNotReused()
 QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
-QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio013] isolated session root reset "C:/Users/Suprabha/AppData/Local/Temp/tst_nuvio_stream_backend-FXrjLH/data" true
-QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio013] isolated session root reset "C:/Users/Suprabha/AppData/Local/Temp/tst_nuvio_stream_backend-FXrjLH/cache" true
+QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio013] isolated session root reset "C:/Users/maintainer/AppData/Local/Temp/tst_nuvio_stream_backend-FXrjLH/data" true
+QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio013] isolated session root reset "C:/Users/maintainer/AppData/Local/Temp/tst_nuvio_stream_backend-FXrjLH/cache" true
 QINFO  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() "[nuvio011] session created; effective diagnostics: (session diagnostics export unavailable)"
 QWARN  : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots() [nuvio] isolation-verify: session creation failed: "new session failed isolation readback"
 PASS   : TestNuvioStreamBackend::isolatedSessionStartsFromEmptyRoots()

@@ -1,9 +1,9 @@
-Initialized empty Git repository in C:/Users/Suprabha/Documents/Codex/2026-10-18/investigate-whether-we-can-embed-stremio/outputs/claude-android-013-working-donor-check-v2/.git/
+Initialized empty Git repository in C:/Users/maintainer/Documents/Codex/2026-10-18/investigate-whether-we-can-embed-stremio/outputs/claude-android-013-working-donor-check-v2/.git/
 fatal: pack signature mismatch
 Traceback (most recent call last):
-  File "C:\Users\Suprabha\Documents\Codex\2026-10-18\investigate-whether-we-can-embed-stremio\outputs\CLAUDE-CLOUD-ANDROID-013-20261020\restore_donor.py", line 31, in <module>
+  File "C:\Users\maintainer\Documents\Codex\2026-10-18\investigate-whether-we-can-embed-stremio\outputs\CLAUDE-CLOUD-ANDROID-013-20261020\restore_donor.py", line 31, in <module>
     packed=subprocess.run(['git','-C',str(args.destination),'index-pack','--stdin'],stdin=bundle,check=True)
            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-  File "C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 571, in run
+  File "C:\Users\maintainer\AppData\Local\Programs\Python\Python311\Lib\subprocess.py", line 571, in run
     raise CalledProcessError(retcode, process.args,
 subprocess.CalledProcessError: Command '['git', '-C', 'outputs\\claude-android-013-working-donor-check-v2', 'index-pack', '--stdin']' returned non-zero exit status 128.
