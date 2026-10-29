@@ -27,6 +27,17 @@ Column {
     property int currentIndex: -1
     property bool keyboardMode: false
     property int testHoveredIndex: -1    // offscreen pointer-hover simulation, -1 = none simulated
+    property bool compactLayout: false
+    property real posterWidthOverride: 0
+    readonly property real effectivePosterWidth: posterWidthOverride > 0
+        ? posterWidthOverride : (compactLayout ? 98 : 130)
+    readonly property real effectivePosterHeight: compactLayout || posterWidthOverride > 0
+        ? Math.round(effectivePosterWidth * 1.5) : 182
+    readonly property real compactTitleHeight: Math.max(32, Math.ceil(compactTitleMetrics.lineSpacing) * 2)
+    readonly property real compactAuthorHeight: Math.max(13, Math.ceil(compactAuthorMetrics.lineSpacing))
+    readonly property real effectiveShelfHeight: compactLayout || posterWidthOverride > 0
+        ? effectivePosterHeight + 8 + compactTitleHeight + 2 + compactAuthorHeight : (ranked ? 236 : 218)
+    readonly property real effectiveRailHeight: rail.visible ? rail.implicitHeight : 0
 
     signal itemActivated(var item)
     signal seeAllActivated()
@@ -54,6 +65,17 @@ Column {
     visible: rail.items.length > 0 || rail.loading
 
     Theme { id: theme }
+    FontMetrics {
+        id: compactTitleMetrics
+        font.family: theme.ui
+        font.pixelSize: theme.fontSize(13)
+        font.weight: Font.DemiBold
+    }
+    FontMetrics {
+        id: compactAuthorMetrics
+        font.family: theme.ui
+        font.pixelSize: theme.fontSize(11)
+    }
 
     Row {
         width: parent.width
@@ -63,7 +85,7 @@ Column {
             id: railTitle
             text: rail.title
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
+            font.family: theme.display; font.pixelSize: theme.fontSize(20); font.weight: Font.DemiBold
         }
         Item { width: Math.max(0, parent.width - railTitle.width - seeAllText.width - 16); height: 1 }
         Text {
@@ -71,7 +93,7 @@ Column {
             visible: rail.showSeeAll
             text: "See All"
             color: seeAllMa.containsMouse ? theme.gold : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             MouseArea {
                 id: seeAllMa
                 anchors.fill: parent
@@ -86,7 +108,7 @@ Column {
 
     Item {
         width: parent.width
-        height: rail.ranked ? 236 : 218
+        height: rail.effectiveShelfHeight
 
         Flickable {
             id: flick
@@ -99,9 +121,10 @@ Column {
 
             Row {
                 id: cardRow
-                spacing: rail.ranked ? 26 : 16
-                leftPadding: rail.ranked ? 30 : 6
-                rightPadding: 20
+                objectName: "biblioBookRailCardRow"
+                spacing: rail.compactLayout ? 12 : (rail.ranked ? 26 : 16)
+                leftPadding: rail.compactLayout ? 0 : (rail.ranked ? 30 : 6)
+                rightPadding: rail.compactLayout ? 0 : 20
 
                 // real book cards, one per item
                 Repeater {
@@ -127,16 +150,17 @@ Column {
                             && card.ratingText.length > 0
                         readonly property bool sourceVisible: card.revealed && card.sourceText.length > 0
 
-                        width: 130
-                        height: rail.ranked ? 236 : 218
+                        width: rail.effectivePosterWidth
+                        height: rail.effectiveShelfHeight
                         activeFocusOnTab: true
 
                         // large translucent rank numeral, ranked mode only (mirrors TheatreCatalogRow).
                         Text {
-                            visible: rail.ranked
+                            objectName: "biblioBookRailLargeRank_" + card.index
+                            visible: rail.ranked && !rail.compactLayout
                             text: String(card.index + 1)
                             color: Qt.rgba(1, 1, 1, 0.16)
-                            font.family: theme.display; font.bold: true; font.pixelSize: 92
+                            font.family: theme.display; font.bold: true; font.pixelSize: theme.fontSize(92)
                             anchors.left: parent.left
                             anchors.bottom: cover.bottom
                             anchors.bottomMargin: -6
@@ -145,7 +169,10 @@ Column {
 
                         Rectangle {
                             id: cover
-                            width: 130; height: 182; radius: 8
+                            objectName: "biblioBookRailCover_" + card.index
+                            width: rail.effectivePosterWidth
+                            height: rail.effectivePosterHeight
+                            radius: 8
                             anchors.top: parent.top
                             color: "#1b1b22"
                             clip: true
@@ -175,13 +202,13 @@ Column {
                                     visible: card.ratingVisible
                                     text: "★ " + card.ratingText
                                     color: theme.gold
-                                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                                 }
                                 Text {
                                     visible: card.sourceVisible
                                     text: card.sourceText
                                     color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 10
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                     elide: Text.ElideRight
                                     width: parent.width
                                 }
@@ -194,25 +221,51 @@ Column {
                                 color: "transparent"
                                 border.width: 2; border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.55)
                             }
+                            Rectangle {
+                                id: compactRank
+                                objectName: "biblioBookRailCompactRank_" + card.index
+                                visible: rail.ranked && rail.compactLayout
+                                anchors.left: parent.left; anchors.top: parent.top
+                                anchors.leftMargin: 6; anchors.topMargin: 6
+                                width: compactRankText.implicitWidth + 10
+                                height: compactRankText.implicitHeight + 6
+                                radius: 4
+                                color: Qt.rgba(0, 0, 0, 0.68)
+
+                                Text {
+                                    id: compactRankText
+                                    anchors.centerIn: parent
+                                    text: String(card.index + 1)
+                                    color: theme.ink
+                                    font.family: theme.ui; font.bold: true; font.pixelSize: theme.fontSize(16)
+                                }
+                            }
                         }
 
                         // title + author — BOTH visible at rest, no hover/focus required.
                         Text {
                             id: cardTitle
+                            objectName: "biblioBookRailTitle_" + card.index
                             text: card.titleText
                             color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(rail.compactLayout ? 13 : 12)
+                            font.weight: Font.DemiBold
                             anchors.left: cover.left; anchors.right: parent.right
                             anchors.top: cover.bottom; anchors.topMargin: 8
-                            elide: Text.ElideRight; maximumLineCount: 1
+                            height: rail.compactLayout ? rail.compactTitleHeight : implicitHeight
+                            wrapMode: rail.compactLayout ? Text.WordWrap : Text.NoWrap
+                            elide: Text.ElideRight; maximumLineCount: rail.compactLayout ? 2 : 1
                         }
                         Text {
+                            objectName: "biblioBookRailAuthor_" + card.index
                             visible: card.authorText.length > 0
                             text: card.authorText
                             color: theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 11
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             anchors.left: cover.left; anchors.right: parent.right
                             anchors.top: cardTitle.bottom; anchors.topMargin: 2
+                            height: rail.compactLayout ? rail.compactAuthorHeight : implicitHeight
                             elide: Text.ElideRight; maximumLineCount: 1
                         }
 
@@ -231,7 +284,11 @@ Column {
                 Repeater {
                     model: rail.loading && rail.items.length === 0 ? 6 : 0
                     delegate: Rectangle {
-                        width: 130; height: 182; radius: 8
+                        required property int index
+                        objectName: "biblioBookRailSkeleton_" + index
+                        width: rail.effectivePosterWidth
+                        height: rail.effectivePosterHeight
+                        radius: 8
                         anchors.top: parent ? parent.top : undefined
                         color: Qt.rgba(1, 1, 1, 0.06)
                         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.09)

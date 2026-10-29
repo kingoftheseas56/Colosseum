@@ -13,7 +13,7 @@ const policy = readFileSync(new URL('qml/ShellBackPolicy.js', root), 'utf8')
 const actionFor = new Function(policy + '\nreturn actionFor;')();
 const body = /function handleEscape\(\) \{([\s\S]*?)\n    \}\n/.exec(main)?.[1];
 assert.ok(body, `${fileURLToPath(root)}qml/Main.qml: handleEscape not found`);
-const dispatch = new Function('win', 'ShellBackPolicy', 'PlatformRuntime', 'Qt', 'theatreSeriesLayer', 'worldStack', body);
+const dispatch = new Function('win', 'ShellBackPolicy', 'PlatformRuntime', 'Qt', 'theatreSeriesLayer', 'seriesLayer', 'worldStack', body);
 
 function invoke(state) {
     const effects = [];
@@ -24,6 +24,7 @@ function invoke(state) {
         closeWorld: () => effects.push('closeWorld'),
         goHomeTop: () => effects.push('goHomeTop'),
         closeTheatreSeries: () => effects.push('closeTheatreSeries'),
+        closeSeries: () => effects.push('closeSeries'),
         closeDownloadsPage: () => effects.push('closeDownloadsPage'),
         requestPlayerEscape: () => effects.push('requestPlayerEscape'),
     };
@@ -40,8 +41,17 @@ function invoke(state) {
         dismissKeyboard: () => effects.push('dismissKeyboard'),
         backgroundApplication: () => effects.push('backgroundApplication'),
     };
+    const seriesLayer = {
+        active: !!state.seriesActive,
+        item: state.seriesItem === 'withoutRequest' ? {} : (state.seriesItem ? {
+            requestEscape: () => {
+                effects.push('seriesRequestEscape');
+                return state.seriesRequestResult;
+            },
+        } : null),
+    };
     const qt = { inputMethod: { hide: () => effects.push('dismissKeyboard') } };
-    dispatch(win, { actionFor }, runtime, qt, theatreSeriesLayer, { current: 'Theatre' });
+    dispatch(win, { actionFor }, runtime, qt, theatreSeriesLayer, seriesLayer, { current: 'Theatre' });
     return effects;
 }
 
@@ -82,10 +92,31 @@ test('Theatre detail requestEscape gets first chance; false or absent closes det
         ['cancelCatalogueRoute', 'closeTheatreSeries']);
 });
 
+test('Android Manga transient UI consumes Back before the title page closes', () => {
+    assert.deepEqual(invoke({ androidHost: true, seriesActive: true,
+        seriesItem: true, seriesRequestResult: true }),
+        ['cancelCatalogueRoute', 'seriesRequestEscape']);
+    assert.deepEqual(invoke({ androidHost: true, seriesActive: true,
+        seriesItem: true, seriesRequestResult: false }),
+        ['cancelCatalogueRoute', 'seriesRequestEscape', 'closeSeries']);
+    assert.deepEqual(invoke({ androidHost: true, seriesActive: true, seriesItem: 'withoutRequest' }),
+        ['cancelCatalogueRoute', 'closeSeries']);
+    assert.deepEqual(invoke({ androidHost: true, seriesActive: true }),
+        ['cancelCatalogueRoute', 'closeSeries']);
+});
+
+test('Android keyboard keeps precedence over Manga popup and page Back', () => {
+    assert.deepEqual(invoke({ androidHost: true, keyboardVisible: true,
+        seriesActive: true, seriesItem: true, seriesRequestResult: true }),
+        ['dismissKeyboard']);
+});
+
 test('desktop Escape retains its world-to-Home and Home-top effects', () => {
     assert.deepEqual(invoke({ worldOpen: true, keyboardVisible: true }),
         ['cancelCatalogueRoute', 'closeWorld']);
     assert.deepEqual(invoke({}), ['cancelCatalogueRoute', 'goHomeTop']);
     assert.deepEqual(invoke({ theatreSeriesActive: true, theatreItem: true, theatreRequestResult: true }),
         ['cancelCatalogueRoute', 'closeTheatreSeries']);
+    assert.deepEqual(invoke({ seriesActive: true, seriesItem: true, seriesRequestResult: true }),
+        ['cancelCatalogueRoute', 'closeSeries']);
 });

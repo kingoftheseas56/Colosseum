@@ -58,7 +58,17 @@ Item {
     }
 
     readonly property url iconSource:
-        Qt.resolvedUrl("../assets/icons/lucide/" + fileForKind(root.kind) + ".svg")
+        root.kind === "more" ? "" : Qt.resolvedUrl("../assets/icons/lucide/" + fileForKind(root.kind) + ".svg")
+
+    Row {
+        visible: root.kind === "more"
+        anchors.centerIn: parent
+        spacing: 3
+        Repeater {
+            model: 3
+            Rectangle { width: 3; height: 3; radius: 1.5; color: root.ink }
+        }
+    }
 
     Image {
         id: glyphImage
@@ -77,6 +87,7 @@ Item {
     // colorization: 1.0 replaces the glyph's colour with `ink`, keeping the SVG's alpha coverage,
     // so the Lucide stroke geometry tints white (or gold when active) exactly like the old glyphs.
     MultiEffect {
+        visible: root.kind !== "more"
         anchors.fill: glyphImage
         source: glyphImage
         colorization: 1.0

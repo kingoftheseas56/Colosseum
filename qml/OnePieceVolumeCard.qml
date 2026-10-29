@@ -54,7 +54,7 @@ Item {
             text: "VOL. " + root.entry.number
             color: theme.inkDimmer
             font.family: theme.display
-            font.pixelSize: 28
+            font.pixelSize: theme.fontSize(28)
             font.bold: true
         }
     }
@@ -66,7 +66,7 @@ Item {
         text: "Volume " + root.entry.number
         color: theme.ink
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         font.bold: true
         horizontalAlignment: Text.AlignHCenter
         elide: Text.ElideRight

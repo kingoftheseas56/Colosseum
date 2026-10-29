@@ -118,21 +118,29 @@ WorldPage {
 
     // ---- the heading, with how many universes the filter is showing ----
     Item {
+        id: universesHeading
         objectName: "universesHeading"
         width: parent.width
-        height: 34
+        // Large Android text stacks the count under a wrapping heading instead of overlapping it.
+        readonly property bool stacked: headingTitle.implicitWidth + headingCount.implicitWidth + 12 > width
+        height: stacked ? headingTitle.height + headingCount.height + 4 : 34
         Text {
-            anchors.left: parent.left; anchors.bottom: parent.bottom
+            id: headingTitle
+            width: parent.width
+            y: universesHeading.stacked ? 0 : parent.height - height
+            wrapMode: Text.WordWrap
             text: "Explore Universes"
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 26
+            font.family: theme.display; font.pixelSize: theme.fontSize(26)
         }
         Text {
+            id: headingCount
             objectName: "universesCount"
-            anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.bottomMargin: 4
+            x: universesHeading.stacked ? 0 : parent.width - width
+            y: universesHeading.stacked ? headingTitle.height + 4 : parent.height - height - 4
             text: universes.shown.length + (universes.shown.length === 1 ? " universe" : " universes")
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
         }
     }
 
@@ -216,7 +224,7 @@ WorldPage {
             visible: universes.shown.length === 0
             text: "No universes hold this yet."
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             topPadding: 24; bottomPadding: 24
         }
 

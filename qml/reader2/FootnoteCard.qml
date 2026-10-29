@@ -16,7 +16,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
-    nativeWindow: false
+    nativeWindow: true
     id: fnCard
     objectName: "reader2FootnoteCard"
 
@@ -66,7 +66,8 @@ ReaderOverlay {
         width: fnCard.cardW
         height: fnCard.cardH
         radius: 14
-        color: Theme.panelBg
+        color: fnCard.nativeOverlay && Math.min(fnCard.width, fnCard.height) < 600
+            ? Qt.rgba(13 / 255, 13 / 255, 16 / 255, 0.985) : Theme.panelBg
         border.color: Theme.barBorder
         border.width: 1
         antialiasing: true

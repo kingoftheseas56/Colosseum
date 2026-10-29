@@ -126,17 +126,17 @@ Item {
                 spacing: 10
                 Text {
                     text: "GetComics · Tankoban"
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                 }
                 Text {
                     text: "GetComics Archives"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 48
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(48)
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: "Publishers & franchises — whole-archive releases (TPBs, omnibuses, runs)"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
             }
 
@@ -166,6 +166,6 @@ Item {
         anchors.centerIn: parent
         visible: page.loading
         text: "Loading…"
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
     }
 }

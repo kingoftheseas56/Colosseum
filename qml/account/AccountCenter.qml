@@ -76,6 +76,8 @@ Rectangle {
         }
         return 0
     }
+    readonly property bool compactPhoneLayout: Qt.platform.os === "android"
+        && Math.min(width, height) < 600
 
     property var preferencesStore:
         typeof ProfilePreferences !== "undefined" ? ProfilePreferences : null
@@ -184,8 +186,14 @@ Rectangle {
 
     function focusRail() {
         Qt.callLater(function() {
-            if (root.visible)
+            if (!root.visible)
+                return
+            if (root.compactPhoneLayout) {
+                compactSections.forceActiveFocus()
+                compactSections.positionViewAtIndex(root.activeRailIndex, ListView.Contain)
+            } else {
                 railColumn.forceActiveFocus()
+            }
         })
     }
 
@@ -264,7 +272,8 @@ Rectangle {
         spacing: 0
 
         Rectangle {
-            width: 232
+            visible: !root.compactPhoneLayout
+            width: root.compactPhoneLayout ? 0 : 232
             height: parent.height
             color: "#121009"
 
@@ -275,7 +284,8 @@ Rectangle {
                 y: 74
                 width: parent.width - 40
                 spacing: 4
-                activeFocusOnTab: root.visible
+                visible: !root.compactPhoneLayout
+                activeFocusOnTab: root.visible && visible
                 Accessible.role: Accessible.List
                 Accessible.name: qsTr("Account Centre sections")
 
@@ -452,18 +462,117 @@ Rectangle {
         }
 
         Item {
-            width: parent.width - 232
+            id: accountContent
+            width: parent.width - (root.compactPhoneLayout ? 0 : 232)
             height: parent.height
+
+            readonly property int pageHorizontalInset: root.compactPhoneLayout ? 16 : 34
+            readonly property int pageTopInset: root.compactPhoneLayout ? 112 : 64
+            readonly property int pageBottomInset: root.compactPhoneLayout ? 16 : 32
+
+            ListView {
+                id: compactSections
+                objectName: "accountCenterCompactSections"
+                visible: root.compactPhoneLayout
+                x: 16
+                y: 12
+                width: parent.width - 32
+                height: 48
+                orientation: ListView.Horizontal
+                spacing: 8
+                clip: true
+                boundsBehavior: Flickable.StopAtBounds
+                model: root.railSections
+                currentIndex: root.activeRailIndex
+                activeFocusOnTab: root.visible && visible
+                Accessible.role: Accessible.List
+                Accessible.name: qsTr("Account Centre sections")
+
+                onCurrentIndexChanged: {
+                    if (currentIndex >= 0)
+                        positionViewAtIndex(currentIndex, ListView.Contain)
+                }
+
+                Keys.onPressed: function(event) {
+                    let next = root.activeRailIndex
+                    if (event.key === Qt.Key_Left)
+                        next -= 1
+                    else if (event.key === Qt.Key_Right)
+                        next += 1
+                    else if (event.key === Qt.Key_Home)
+                        next = 0
+                    else if (event.key === Qt.Key_End)
+                        next = root.railSections.length - 1
+                    else if (event.key === Qt.Key_Return
+                             || event.key === Qt.Key_Enter
+                             || event.key === Qt.Key_Space) {
+                        event.accepted = true
+                        return
+                    } else {
+                        return
+                    }
+
+                    if (next >= 0 && next < root.railSections.length) {
+                        root.activeSection = root.railSections[next].id
+                        event.accepted = true
+                    } else {
+                        event.accepted = false
+                    }
+                }
+
+                delegate: Rectangle {
+                    required property var modelData
+                    width: compactLabel.implicitWidth + 40
+                    height: compactSections.height
+                    radius: 9
+                    color: root.activeSection === modelData.id
+                        ? Qt.rgba(0.94, 0.77, 0.29, 0.12) : Qt.rgba(1, 1, 1, 0.04)
+                    border.width: compactSections.activeFocus
+                        && root.activeSection === modelData.id ? 2 : 0
+                    border.color: "#f0df9a"
+                    Accessible.role: Accessible.Button
+                    Accessible.name: modelData.label
+
+                    Row {
+                        anchors.centerIn: parent
+                        spacing: 7
+
+                        Text {
+                            text: modelData.glyph
+                            color: root.activeSection === modelData.id ? "#f0df9a" : "#8f8b80"
+                            font.pixelSize: 13
+                        }
+                        Text {
+                            id: compactLabel
+                            text: modelData.label
+                            color: root.activeSection === modelData.id ? "#f2f2ef" : "#b7b3a6"
+                            font.family: "Inter"
+                            font.pixelSize: 12
+                            font.weight: root.activeSection === modelData.id
+                                ? Font.DemiBold : Font.Normal
+                        }
+                    }
+
+                    MouseArea {
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: root.activeSection = modelData.id
+                    }
+                }
+            }
 
             Text {
                 id: backAction
-                x: 34
-                y: 30
+                x: root.compactPhoneLayout ? 16 : 34
+                y: root.compactPhoneLayout ? 60 : 30
+                width: root.compactPhoneLayout ? Math.max(48, implicitWidth + 16) : implicitWidth
+                height: root.compactPhoneLayout ? 48 : implicitHeight
                 text: qsTr("‹ Back")
                 color: backAction.activeFocus || backMa.containsMouse
                     ? "#b7b3a6" : "#8f8b80"
                 font.family: "Inter"
                 font.pixelSize: 12
+                verticalAlignment: Text.AlignVCenter
                 activeFocusOnTab: root.visible
                 Accessible.role: Accessible.Button
                 Accessible.name: qsTr("Back from Account Centre")
@@ -484,18 +593,47 @@ Rectangle {
                 MouseArea {
                     id: backMa
                     anchors.fill: parent
-                    anchors.margins: -8
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
                     onClicked: root.close()
                 }
             }
 
+            Text {
+                id: compactSessionAction
+                visible: root.compactPhoneLayout && !root.feriaOnly
+                anchors.right: parent.right
+                anchors.rightMargin: 16
+                y: 60
+                width: Math.max(48, implicitWidth + 16)
+                height: 48
+                text: root.accountPresent ? qsTr("Sign out of Colosseum") : qsTr("Sign in to Colosseum")
+                color: activeFocus || compactSessionMa.containsMouse ? "#d8d4c8" : "#8f8b80"
+                font.family: "Inter"
+                font.pixelSize: 11
+                horizontalAlignment: Text.AlignRight
+                verticalAlignment: Text.AlignVCenter
+                activeFocusOnTab: root.visible && visible
+                Accessible.role: Accessible.Button
+                Accessible.name: text
+                Keys.onReturnPressed: root.runSessionAction()
+                Keys.onEnterPressed: root.runSessionAction()
+                Keys.onSpacePressed: root.runSessionAction()
+
+                MouseArea {
+                    id: compactSessionMa
+                    anchors.fill: parent
+                    hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor
+                    onClicked: root.runSessionAction()
+                }
+            }
+
             AccountProfilePage {
-                x: 34
-                y: 64
-                width: parent.width - 68
-                height: parent.height - 96
+                x: accountContent.pageHorizontalInset
+                y: accountContent.pageTopInset
+                width: accountContent.width - accountContent.pageHorizontalInset * 2
+                height: accountContent.height - accountContent.pageTopInset - accountContent.pageBottomInset
                 active: root.visible && !root.feriaOnly && root.activeSection === "profile"
                 visible: active
                 controller: root.controller
@@ -526,30 +664,30 @@ Rectangle {
             }
 
             AccountSecurityPage {
-                x: 34
-                y: 64
-                width: parent.width - 68
-                height: parent.height - 96
+                x: accountContent.pageHorizontalInset
+                y: accountContent.pageTopInset
+                width: accountContent.width - accountContent.pageHorizontalInset * 2
+                height: accountContent.height - accountContent.pageTopInset - accountContent.pageBottomInset
                 active: root.visible && root.activeSection === "security"
                 visible: active
                 controller: root.controller
             }
 
             AccountDevicesPage {
-                x: 34
-                y: 64
-                width: parent.width - 68
-                height: parent.height - 96
+                x: accountContent.pageHorizontalInset
+                y: accountContent.pageTopInset
+                width: accountContent.width - accountContent.pageHorizontalInset * 2
+                height: accountContent.height - accountContent.pageTopInset - accountContent.pageBottomInset
                 active: root.visible && root.activeSection === "devices"
                 visible: active
                 controller: root.controller
             }
 
             AccountRecoveryPage {
-                x: 34
-                y: 64
-                width: parent.width - 68
-                height: parent.height - 96
+                x: accountContent.pageHorizontalInset
+                y: accountContent.pageTopInset
+                width: accountContent.width - accountContent.pageHorizontalInset * 2
+                height: accountContent.height - accountContent.pageTopInset - accountContent.pageBottomInset
                 active: root.visible && root.activeSection === "recovery"
                 visible: active
                 controller: root.controller
@@ -558,10 +696,11 @@ Rectangle {
 
             AccountDataPrivacyPage {
                 id: privacyPage
-                x: 34
-                y: 64
-                width: parent.width - 86
-                height: parent.height - 96
+                x: accountContent.pageHorizontalInset
+                y: accountContent.pageTopInset
+                width: parent.width - (root.compactPhoneLayout
+                    ? accountContent.pageHorizontalInset * 2 : 86)
+                height: accountContent.height - accountContent.pageTopInset - accountContent.pageBottomInset
                 active: root.visible && root.activeSection === "privacy"
                 visible: active
 

@@ -152,7 +152,7 @@ Glass {
         anchors.top: parent.top; anchors.topMargin: 28
         anchors.horizontalCenter: parent.horizontalCenter
         text: shelf.heading; color: theme.ink
-        font.family: theme.display; font.pixelSize: 33
+        font.family: theme.display; font.pixelSize: theme.fontSize(33)
         MouseArea {
             anchors.fill: parent; anchors.margins: -12
             cursorShape: Qt.PointingHandCursor; onClicked: shelf.clicked()
@@ -171,14 +171,14 @@ Glass {
         anchors.top: parent.top; anchors.topMargin: 36
         visible: !shelf.compactLayout
         text: "Manga"; color: theme.inkDim
-        font.family: theme.display; font.italic: true; font.pixelSize: 22
+        font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(22)
     }
     Text {
         anchors.right: parent.right; anchors.rightMargin: 46
         anchors.top: parent.top; anchors.topMargin: 36
         visible: !shelf.compactLayout
         text: "Comics"; color: theme.inkDim
-        font.family: theme.display; font.italic: true; font.pixelSize: 22
+        font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(22)
     }
 
     // ---- the two fans, back to back under the title ----

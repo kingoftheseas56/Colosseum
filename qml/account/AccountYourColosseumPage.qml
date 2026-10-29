@@ -113,7 +113,7 @@ Item {
                     text: qsTr("Your Colosseum")
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: 26
+                    font.pixelSize: theme.fontSize(26)
                     font.weight: Font.DemiBold
                 }
 
@@ -168,7 +168,7 @@ Item {
                             : "—"
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
@@ -252,7 +252,7 @@ Item {
                             text: qsTr("Monthly portrait").toUpperCase()
                             color: theme.gold
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             font.letterSpacing: 1.32
                         }
 
@@ -263,7 +263,7 @@ Item {
                             text: root.textOrDash(root.monthName)
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: root.compactCards ? 48 : 66
+                            font.pixelSize: theme.fontSize(root.compactCards ? 48 : 66)
                             font.weight: Font.DemiBold
                             font.letterSpacing: -2.2
                             elide: Text.ElideRight
@@ -274,7 +274,7 @@ Item {
                             text: root.textOrDash(root.monthYear)
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: root.compactCards ? 48 : 66
+                            font.pixelSize: theme.fontSize(root.compactCards ? 48 : 66)
                             font.weight: Font.Light
                             font.letterSpacing: -2.2
                             elide: Text.ElideRight
@@ -314,7 +314,7 @@ Item {
                                     text: root.textOrDash(modelData.value)
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 27
+                                    font.pixelSize: theme.fontSize(27)
                                     font.weight: Font.DemiBold
                                     font.letterSpacing: -0.8
                                     elide: Text.ElideRight
@@ -327,7 +327,7 @@ Item {
                                     text: modelData.label
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     elide: Text.ElideRight
                                 }
                             }
@@ -379,7 +379,7 @@ Item {
                                     : qsTr("Highlights")
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 font.weight: Font.DemiBold
                             }
 
@@ -390,7 +390,7 @@ Item {
                                     : qsTr("%1 titles").arg(root.highlightCount).toUpperCase()
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 0.8
                             }
                         }
@@ -478,7 +478,7 @@ Item {
                                             text: feature.titleText
                                             color: theme.ink
                                             font.family: theme.ui
-                                            font.pixelSize: 13
+                                            font.pixelSize: theme.fontSize(13)
                                             font.weight: Font.DemiBold
                                             wrapMode: Text.WordWrap
                                             maximumLineCount: 3
@@ -493,7 +493,7 @@ Item {
                                         text: feature.labelText.toUpperCase()
                                         color: theme.gold
                                         font.family: theme.ui
-                                        font.pixelSize: 9
+                                        font.pixelSize: theme.fontSize(9)
                                         font.letterSpacing: 0.72
                                         elide: Text.ElideRight
                                     }
@@ -505,7 +505,7 @@ Item {
                                         text: feature.valueText
                                         color: theme.inkDim
                                         font.family: theme.ui
-                                        font.pixelSize: 11
+                                        font.pixelSize: theme.fontSize(11)
                                         elide: Text.ElideRight
                                     }
                                 }
@@ -529,7 +529,7 @@ Item {
                 text: qsTr("Recent activity")
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.DemiBold
             }
 
@@ -556,7 +556,7 @@ Item {
                             text: root.itemText(activityRow.entry, "date")
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             elide: Text.ElideRight
                         }
 
@@ -578,7 +578,7 @@ Item {
                                     text: root.itemText(activityRow.entry, "title")
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 13
+                                    font.pixelSize: theme.fontSize(13)
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
@@ -588,7 +588,7 @@ Item {
                                     text: root.itemText(activityRow.entry, "meta")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                     elide: Text.ElideRight
                                 }
                             }
@@ -600,7 +600,7 @@ Item {
                                 text: root.itemText(activityRow.entry, "world").toUpperCase()
                                 color: theme.gold
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 0.8
                                 elide: Text.ElideRight
                             }

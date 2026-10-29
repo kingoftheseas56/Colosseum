@@ -105,6 +105,7 @@ Item {
         fallbackType: "book"                   // Biblio's only type when the catalog object is absent
         // Gallery poster profile — same shared card polish Tankoban/Theatre already ship.
         posterVisualProfile: "gallery"
+        compactPhonePosters: true
         // Biblio's Discover-specific card hooks: author always visible, rating/source revealed
         // on hover OR keyboard focus (spec: "hidden at rest, revealed on pointer hover or
         // keyboard focus").

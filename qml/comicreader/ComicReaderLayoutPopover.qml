@@ -230,7 +230,7 @@ Item {
             text: chip.label
             color: chip.active ? theme.gold : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.bold: chip.active
         }
         ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: chip.label; onClicked: chip.tapped() }
@@ -287,7 +287,7 @@ Item {
             text: slider.label
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
         }
         Text {
             objectName: slider.objectName.length ? (slider.objectName + "Readout") : ""
@@ -296,7 +296,7 @@ Item {
             text: slider.readout
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
         }
 
         Rectangle {
@@ -434,7 +434,7 @@ Item {
                         text: root.layoutLabel(choice.modelData)
                         color: choice.active ? theme.gold : (choiceMa.containsMouse ? theme.ink : theme.inkDim)
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         font.bold: choice.active
                     }
                     ComicReaderKeyboardArea {
@@ -485,7 +485,7 @@ Item {
                         text: "Page spacing"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                     Row {
                         anchors.right: parent.right
@@ -522,7 +522,7 @@ Item {
                         text: "Auto-scroll"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                     Chip {
                         id: autoChip

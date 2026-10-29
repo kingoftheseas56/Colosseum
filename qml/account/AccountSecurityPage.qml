@@ -321,7 +321,7 @@ Item {
                 text: qsTr("Security")
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 26
+                font.pixelSize: theme.fontSize(26)
                 font.weight: Font.DemiBold
             }
 
@@ -368,7 +368,7 @@ Item {
                                 text: qsTr("New device").toUpperCase()
                                 color: theme.gold
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.0
                             }
 
@@ -388,7 +388,7 @@ Item {
                                     text: root.approvalTitle(approvalRow.entry)
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 24
+                                    font.pixelSize: theme.fontSize(24)
                                     font.weight: Font.DemiBold
                                     wrapMode: Text.WordWrap
                                 }
@@ -482,7 +482,7 @@ Item {
                                         text: qsTr("Colosseum sign-in")
                                         color: theme.inkDim
                                         font.family: theme.ui
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         font.weight: Font.DemiBold
                                         elide: Text.ElideRight
                                     }
@@ -492,7 +492,7 @@ Item {
                                         text: root.approvalDetail(approvalRow.entry)
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         wrapMode: Text.WordWrap
                                     }
 
@@ -502,7 +502,7 @@ Item {
                                         text: qsTr("This request is missing the identifiers required to approve or deny it.")
                                         color: "#f0a3a3"
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         wrapMode: Text.WordWrap
                                     }
                                 }
@@ -514,7 +514,7 @@ Item {
                                     text: qsTr("Pending")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                 }
                             }
 
@@ -545,7 +545,7 @@ Item {
                                     text: qsTr("Pending sign-in")
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 13
+                                    font.pixelSize: theme.fontSize(13)
                                     font.weight: Font.DemiBold
                                 }
 
@@ -554,7 +554,7 @@ Item {
                                     text: root.approvalDetail(approvalRow.entry)
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                     wrapMode: Text.WordWrap
                                 }
 
@@ -564,7 +564,7 @@ Item {
                                     text: qsTr("Missing request identifiers.")
                                     color: "#f0a3a3"
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                 }
                             }
 
@@ -667,7 +667,7 @@ Item {
                                 text: qsTr("New-device protection")
                                 color: theme.ink
                                 font.family: theme.ui
-                                font.pixelSize: 14
+                                font.pixelSize: theme.fontSize(14)
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.WordWrap
                             }
@@ -677,7 +677,7 @@ Item {
                                 text: qsTr("New sign-ins need approval from a trusted Colosseum device, or the recovery key.")
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.55
                                 wrapMode: Text.WordWrap
@@ -690,7 +690,7 @@ Item {
                                     : qsTr("Protection is off")
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                             }
                         }
                     }
@@ -796,7 +796,7 @@ Item {
                                     text: qsTr("Password")
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 14
+                                    font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.DemiBold
                                 }
 
@@ -805,7 +805,7 @@ Item {
                                     text: qsTr("Change the password used to sign in to this Colosseum account.")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     lineHeightMode: Text.ProportionalHeight
                                     lineHeight: 1.55
                                     wrapMode: Text.WordWrap
@@ -903,7 +903,7 @@ Item {
                             ? "#f0a3a3"
                             : theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         wrapMode: Text.WordWrap
                     }
 
@@ -1000,7 +1000,7 @@ Item {
                                     text: qsTr("Sign out everywhere")
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 14
+                                    font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.DemiBold
                                 }
 
@@ -1009,7 +1009,7 @@ Item {
                                     text: qsTr("End every Colosseum account session, including this one.")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     lineHeightMode: Text.ProportionalHeight
                                     lineHeight: 1.55
                                     wrapMode: Text.WordWrap
@@ -1057,7 +1057,7 @@ Item {
                             text: qsTr("Every signed-in device will need to sign in again.")
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             lineHeightMode: Text.ProportionalHeight
                             lineHeight: 1.5
                             wrapMode: Text.WordWrap
@@ -1114,7 +1114,7 @@ Item {
                 text: root.controller ? root.controller.lastErrorMessage : ""
                 color: "#f0a3a3"
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 wrapMode: Text.WordWrap
             }
         }

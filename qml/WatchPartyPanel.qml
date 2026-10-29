@@ -37,7 +37,9 @@ Item {
     readonly property real panelEffectiveHeight:
         overlayParent ? Math.min(panelMaxHeight,
                                  Math.max(1, Math.min(overlayParent.height - panelEdgeMargin * 2,
-                                                     controlTopInOverlay() - panelControlGap - panelEdgeMargin)))
+                                                     controlTopInOverlay() > panelEdgeMargin + panelControlGap
+                                                         ? controlTopInOverlay() - panelControlGap - panelEdgeMargin
+                                                         : overlayParent.height - panelEdgeMargin * 2)))
                       : panelMaxHeight
     // Slice 02 host-state metrics: copied from the approved Host / Host Control atlas state.
     // These remain presentation facts only; capacity/authority still come from the controller.
@@ -134,7 +136,11 @@ Item {
     function controlTopInOverlay() {
         if (!overlayParent)
             return 0
-        var geometryTick = party.x + party.y + overlayParent.width + overlayParent.height
+        // mapToItem alone does not subscribe to intermediate layout changes.
+        // Read every ancestor so a moved transport row invalidates available height.
+        var geometryTick = party.panelOpen + overlayParent.width + overlayParent.height
+        for (var node = party; node && node !== overlayParent; node = node.parent)
+            geometryTick += node.x + node.y + node.width + node.height
         return party.mapToItem(overlayParent, 0, 0).y
     }
 
@@ -479,7 +485,7 @@ Item {
                     text: "Watch Party"
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                 }
 
@@ -488,7 +494,7 @@ Item {
                     text: party.inRoom ? party.controller.roomId : ""
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     elide: Text.ElideMiddle
                     width: Math.min(180, implicitWidth)
                 }
@@ -586,7 +592,7 @@ Item {
                             text: party.lifecycleMessage()
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.Wrap
                         }
                     }
@@ -615,7 +621,7 @@ Item {
                                 text: party.sourceStatusTitle()
                                 color: party.sourceEligible ? theme.gold : theme.ink
                                 font.family: theme.hud
-                                font.pixelSize: 13
+                                font.pixelSize: theme.fontSize(13)
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.Wrap
                             }
@@ -624,7 +630,7 @@ Item {
                                 text: party.sourceStatusDetail()
                                 color: theme.inkDim
                                 font.family: theme.hud
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -644,7 +650,7 @@ Item {
                                     : "Start a private room from the source already playing."
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             wrapMode: Text.Wrap
                         }
 
@@ -676,7 +682,7 @@ Item {
                                     text: "ROOM ID"
                                     color: theme.inkDimmer
                                     font.family: theme.hud
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                     font.letterSpacing: 1.2
                                 }
                                 Text {
@@ -685,7 +691,7 @@ Item {
                                     text: party.controller ? party.controller.roomId : ""
                                     color: theme.ink
                                     font.family: theme.hud
-                                    font.pixelSize: 15
+                                    font.pixelSize: theme.fontSize(15)
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideMiddle
                                 }
@@ -719,7 +725,7 @@ Item {
                                 text: "This player is not on the room's exact source yet. Open the room source before playback can sync."
                                 color: theme.inkDim
                                 font.family: theme.hud
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.Wrap
                             }
                         }
@@ -735,7 +741,7 @@ Item {
                                 text: "PLAYBACK CONTROL"
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -771,7 +777,7 @@ Item {
                                 text: "You're out of sync with the room."
                                 color: theme.inkDim
                                 font.family: theme.hud
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.Wrap
                             }
                             ActionButton {
@@ -796,7 +802,7 @@ Item {
                                 text: "INVITE BY EXACT USERNAME"
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -827,7 +833,7 @@ Item {
                                         selectionColor: theme.gold
                                         selectedTextColor: "#111111"
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         clip: true
                                         activeFocusOnTab: true
                                         onAccepted: party.runInvite()
@@ -840,7 +846,7 @@ Item {
                                         text: "Username"
                                         color: theme.inkDimmer
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                     }
                                 }
 
@@ -869,7 +875,7 @@ Item {
                                       + " / " + party.participantCapacity
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -903,7 +909,7 @@ Item {
                                             text: party.participantTitle(modelData)
                                             color: theme.ink
                                             font.family: theme.hud
-                                            font.pixelSize: 12
+                                            font.pixelSize: theme.fontSize(12)
                                             font.weight: Font.DemiBold
                                             elide: Text.ElideRight
                                             maximumLineCount: 1
@@ -913,7 +919,7 @@ Item {
                                             text: party.participantMeta(modelData)
                                             color: theme.inkDimmer
                                             font.family: theme.hud
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                             elide: Text.ElideRight
                                             maximumLineCount: 1
                                         }
@@ -931,7 +937,7 @@ Item {
                                 text: "ROOM CHAT"
                                 color: theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.letterSpacing: 1.2
                             }
 
@@ -983,7 +989,7 @@ Item {
                                             text: "Messages live only for this room."
                                             color: theme.inkDimmer
                                             font.family: theme.hud
-                                            font.pixelSize: 11
+                                            font.pixelSize: theme.fontSize(11)
                                             wrapMode: Text.Wrap
                                         }
 
@@ -1000,7 +1006,7 @@ Item {
                                                     text: String(modelData.displayName || "")
                                                     color: theme.ink
                                                     font.family: theme.hud
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: theme.fontSize(11)
                                                     font.weight: Font.DemiBold
                                                     elide: Text.ElideRight
                                                 }
@@ -1011,7 +1017,7 @@ Item {
                                                     text: String(modelData.message || "")
                                                     color: theme.ink
                                                     font.family: theme.hud
-                                                    font.pixelSize: 11
+                                                    font.pixelSize: theme.fontSize(11)
                                                     wrapMode: Text.Wrap
                                                 }
                                             }
@@ -1047,7 +1053,7 @@ Item {
                                         selectionColor: theme.gold
                                         selectedTextColor: "#111111"
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         clip: true
                                         activeFocusOnTab: true
                                         maximumLength: 1000
@@ -1062,7 +1068,7 @@ Item {
                                         text: "Message room"
                                         color: theme.inkDimmer
                                         font.family: theme.hud
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                     }
                                 }
 
@@ -1110,7 +1116,7 @@ Item {
                             text: party.controller ? party.controller.errorText : ""
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.Wrap
                         }
 
@@ -1121,7 +1127,7 @@ Item {
                             text: party.controller ? party.controller.noticeText : ""
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.Wrap
                         }
 
@@ -1212,7 +1218,7 @@ Item {
                                   : action.danger ? theme.inkDim
                                                   : action.selected ? theme.gold : theme.ink
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.weight: Font.DemiBold
         }
 

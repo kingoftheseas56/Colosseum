@@ -159,6 +159,7 @@ Item {
         // publisher stay in the Discover filters, never on the card. The 2:3 crop is identical to the
         // classic card (both use ratio 1.5), so gallery introduces no NEW cover cropping.
         posterVisualProfile: "gallery"
+        compactPhonePosters: true
         catalogueDownloading: root._catalogueDownloading
         // Tankoban copy — the wall's empty-state wording.
         textNoCatalogue: "Nothing to browse here yet."

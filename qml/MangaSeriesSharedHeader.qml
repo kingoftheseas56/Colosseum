@@ -43,6 +43,13 @@ Item {
         return -1
     }
 
+    function requestEscape() {
+        if (!languageCombo.popup.visible)
+            return false
+        languageCombo.popup.close()
+        return true
+    }
+
     function toggleLibrary() {
         if (!root.libraryAvailable) return
         var id = String(root.collectionEntry.id)
@@ -74,7 +81,7 @@ Item {
             anchors.centerIn: parent
             text: "Tankoban"
             color: "#deddd8"
-            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
         }
         Row {
             visible: !root.phoneNarrow && Qt.platform.os !== "android"
@@ -155,7 +162,7 @@ Item {
                 visible: phoneCoverImage.status !== Image.Ready
                 text: root.seriesTitle
                 color: theme.inkDim
-                font.family: theme.display; font.pixelSize: 17
+                font.family: theme.display; font.pixelSize: theme.fontSize(17)
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -169,7 +176,7 @@ Item {
             anchors.top: root.phoneNarrow ? phoneCover.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 14 : 22
             spacing: 5
-            Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
+            Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 2.4 }
             Row {
                 id: titleRow
                 spacing: 10
@@ -177,7 +184,7 @@ Item {
                 Text {
                     id: titleText
                     text: root.seriesTitle; color: theme.ink; font.family: theme.display
-                    font.pixelSize: root.phoneNarrow ? 30 : 34; font.weight: Font.DemiBold
+                    font.pixelSize: theme.fontSize(root.phoneNarrow ? 30 : 34); font.weight: Font.DemiBold
                     wrapMode: root.phoneNarrow ? Text.WordWrap : Text.NoWrap
                     elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
                     width: root.phoneNarrow
@@ -220,11 +227,11 @@ Item {
             Row {
                 visible: !root.phoneNarrow
                 spacing: 7
-                Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                 Text { visible: root.author.length > 0 && root.status.length > 0; text: "·"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
-                Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-                Text { visible: root.year > 0; text: "· " + root.year; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-                Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                Text { visible: root.year > 0; text: "· " + root.year; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
             }
         }
 
@@ -235,10 +242,10 @@ Item {
             anchors.right: parent.right; anchors.rightMargin: theme.margin
             anchors.top: languageSelector.bottom; anchors.topMargin: 14
             spacing: 9
-            Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-            Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-            Text { visible: root.year > 0; text: String(root.year); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-            Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+            Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+            Text { visible: root.year > 0; text: String(root.year); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+            Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
         }
 
         Text {
@@ -249,7 +256,7 @@ Item {
             anchors.top: root.phoneNarrow ? phoneFacts.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 14 : 111
             text: root.synopsis
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.45
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); lineHeight: 1.45
             wrapMode: Text.WordWrap
             maximumLineCount: root.phoneNarrow ? 1000 : 2
             elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
@@ -276,7 +283,7 @@ Item {
                 anchors.left: parent.left; anchors.leftMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Language"; color: root.tankobanMode ? theme.inkDimmer : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
             ComboBox {
                 id: languageCombo
@@ -299,7 +306,7 @@ Item {
                     leftPadding: 10; rightPadding: 24; verticalAlignment: Text.AlignVCenter
                     text: languageCombo.displayText
                     color: languageCombo.enabled ? theme.ink : theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight
                 }
                 indicator: Text {
                     x: languageCombo.width - width - 9; anchors.verticalCenter: parent.verticalCenter
@@ -341,14 +348,14 @@ Item {
                     objectName: "mangaModeTankoban"
                     width: 125; height: 28; radius: 7
                     color: root.tankobanMode ? theme.gold : "transparent"
-                    Text { anchors.centerIn: parent; text: "Tankoban Mode"; color: root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: root.tankobanMode ? Font.DemiBold : Font.Normal }
+                    Text { anchors.centerIn: parent; text: "Tankoban Mode"; color: root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: root.tankobanMode ? Font.DemiBold : Font.Normal }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.tankobanRequested() }
                 }
                 Rectangle {
                     objectName: "mangaModeChapter"
                     width: 125; height: 28; radius: 7
                     color: !root.tankobanMode ? theme.gold : "transparent"
-                    Text { anchors.centerIn: parent; text: "Chapter Mode"; color: !root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: !root.tankobanMode ? Font.DemiBold : Font.Normal }
+                    Text { anchors.centerIn: parent; text: "Chapter Mode"; color: !root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: !root.tankobanMode ? Font.DemiBold : Font.Normal }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chapterRequested() }
                 }
             }

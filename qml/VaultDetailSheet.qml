@@ -171,7 +171,7 @@ Item {
                             text: sheet.detail.displayTitle || ""
                             visible: !sheet.detail.coverRef
                             verticalAlignment: Text.AlignVCenter; horizontalAlignment: Text.AlignHCenter
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.WordWrap
                         }
                         Image { anchors.fill: parent; source: sheet.detail.coverRef || ""; fillMode: Image.PreserveAspectCrop; asynchronous: true }
                     }
@@ -181,21 +181,21 @@ Item {
                         Text {
                             objectName: "vaultBrowseSheetIdentityLabel"
                             width: parent.width; text: sheet.detail.identityLabel || ""
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 11; wrapMode: Text.WordWrap
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11); wrapMode: Text.WordWrap
                         }
                         Text {
                             width: parent.width; text: sheet.detail.displayTitle || ""
-                            color: theme.ink; font.family: theme.display; font.pixelSize: panel.width < 600 ? 25 : 33
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(panel.width < 600 ? 25 : 33)
                             font.weight: Font.DemiBold; wrapMode: Text.WordWrap
                         }
                         Flow {
                             width: parent.width; spacing: 12
-                            Text { text: sheet.detail.year > 0 ? String(sheet.detail.year) : ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                            Text { objectName: "vaultBrowseSheetRuntime"; text: sheet.detail.runtimeText || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                            Text { objectName: "vaultBrowseSheetCopiesHeld"; text: sheet.copiesHeldLabel(sheet.copies.length); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                            Text { objectName: "vaultBrowseSheetRating"; text: sheet.detail.ratingText || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                            Text { text: sheet.detail.year > 0 ? String(sheet.detail.year) : ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+                            Text { objectName: "vaultBrowseSheetRuntime"; text: sheet.detail.runtimeText || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+                            Text { objectName: "vaultBrowseSheetCopiesHeld"; text: sheet.copiesHeldLabel(sheet.copies.length); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+                            Text { objectName: "vaultBrowseSheetRating"; text: sheet.detail.ratingText || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                         }
-                        Text { objectName: "vaultBrowseSheetGenres"; width: parent.width; text: sheet.detail.genresLine || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                        Text { objectName: "vaultBrowseSheetGenres"; width: parent.width; text: sheet.detail.genresLine || ""; visible: text.length > 0; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.WordWrap }
                     }
                 }
                 Flow {
@@ -234,7 +234,7 @@ Item {
                 Rectangle { width: parent.width; height: 1; color: theme.edge }
                 Column {
                     width: parent.width; spacing: 10; visible: sheet.copies.length > 0
-                    Text { text: "Copies you hold"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text { text: "Copies you hold"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
                     Repeater {
                         model: sheet.copies
                         delegate: Rectangle {
@@ -256,16 +256,16 @@ Item {
                                 spacing: 7
                                 Flow {
                                     width: parent.width; spacing: 16
-                                    Text { text: copyDelegate.quality || "Quality unknown"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
-                                    Text { text: copyDelegate.sizeText; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                                    Text { text: copyDelegate.away ? "Drive not connected" : copyDelegate.unavailable ? "Unavailable" : "Available"; color: copyDelegate.away || copyDelegate.unavailable ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                                    Text { text: copyDelegate.quality || "Quality unknown"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                                    Text { text: copyDelegate.sizeText; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
+                                    Text { text: copyDelegate.away ? "Drive not connected" : copyDelegate.unavailable ? "Unavailable" : "Available"; color: copyDelegate.away || copyDelegate.unavailable ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                                 }
-                                Text { width: parent.width; text: copyDelegate.modelData.path || copyDelegate.whereText; wrapMode: Text.WrapAnywhere; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
+                                Text { width: parent.width; text: copyDelegate.modelData.path || copyDelegate.whereText; wrapMode: Text.WrapAnywhere; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
                                 Text {
                                     objectName: "vaultBrowseSheetCopyStatus_" + copyDelegate.index
                                     width: parent.width; text: copyDelegate.modelData.statusDetail || ""
                                     visible: text.length > 0; wrapMode: Text.WordWrap
-                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                 }
                             }
                         }
@@ -273,15 +273,15 @@ Item {
                 }
                 Column {
                     width: parent.width; spacing: 10; visible: sheet.companionsList.length > 0
-                    Text { text: "Companions"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text { text: "Companions"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
                     Repeater {
                         model: sheet.companionsList
-                        Text { required property var modelData; width: parent.width; text: modelData; wrapMode: Text.WrapAnywhere; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                        Text { required property var modelData; width: parent.width; text: modelData; wrapMode: Text.WrapAnywhere; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                     }
                 }
                 Column {
                     width: parent.width; spacing: 10; visible: sheet.extrasList.length > 0
-                    Text { text: "Extras"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text { text: "Extras"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
                     Repeater {
                         model: sheet.extrasList
                         VaultAction { required property var modelData; width: Math.min(parent.width, implicitWidth); text: "▶  " + (modelData.title || "Play extra"); enabled: !!modelData.path; onTriggered: sheet.playRequested(modelData.path) }
@@ -290,8 +290,8 @@ Item {
                 Rectangle { width: parent.width; height: 1; color: theme.edge; visible: sheet.evidenceText.length > 0 }
                 Column {
                     width: parent.width; spacing: 10; visible: sheet.evidenceText.length > 0
-                    Text { text: "Why Vault believes this"; color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
-                    Text { objectName: "vaultBrowseSheetEvidence"; width: parent.width; text: sheet.evidenceText; wrapMode: Text.WordWrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; lineHeight: 1.5 }
+                    Text { text: "Why Vault believes this"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
+                    Text { objectName: "vaultBrowseSheetEvidence"; width: parent.width; text: sheet.evidenceText; wrapMode: Text.WordWrap; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); lineHeight: 1.5 }
                 }
                 Flow {
                     width: parent.width; spacing: 10

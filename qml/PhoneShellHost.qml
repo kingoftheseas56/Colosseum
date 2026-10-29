@@ -74,17 +74,29 @@ Item {
     ]
 
     readonly property bool profileActive: profileLayer.active
+    // Read on this full-window Item: SafeArea cannot attach to the Binding elements below.
+    readonly property var safeMargins: SafeArea.margins
     readonly property bool phoneImeVisible: host.androidHost && Qt.inputMethod.visible
+    readonly property var librarySelectionOwner: host.window ? host.window["phoneLibrarySelectionOwner"] : null
+    function clearLibrarySelection() {
+        if (librarySelectionOwner && librarySelectionOwner.selection)
+            librarySelectionOwner.selection.clear()
+    }
+    onFullWindowPageOpenChanged: if (fullWindowPageOpen) clearLibrarySelection()
+    onProfileActiveChanged: if (profileActive) clearLibrarySelection()
     readonly property bool phoneWorldNavigationVisible:
         host.androidHost && host.window && host.window.width < 840
         && !host.window.immersiveSurfaceOpen && !host.phoneImeVisible && !host.fullWindowPageOpen
+        && !host.librarySelectionOwner
     readonly property bool wideWorldNavigationVisible:
         host.androidHost && host.window && host.window.width >= 840
         && !host.window.immersiveSurfaceOpen && !host.phoneImeVisible && !host.fullWindowPageOpen
+        && !host.librarySelectionOwner
     readonly property real wideWorldNavigationLeftInset:
         host.wideWorldNavigationVisible ? wideWorldRail.width : 0
     readonly property real contentBottomInset:
-        phoneWorldTabs.visible ? phoneWorldTabs.height : 0
+        host.librarySelectionOwner ? host.librarySelectionOwner.reservedHeight
+            : phoneWorldTabs.visible ? phoneWorldTabs.height : 0
 
     readonly property var openMediaNameFilters: Qt.platform.os === "android" ? ["All files (*)"] : [
         "Media files (*.cbz *.cbr *.epub *.mp4 *.mkv *.avi *.mov *.webm *.m4v)",
@@ -144,7 +156,18 @@ Item {
             item.contentBottomInset = Qt.binding(function() { return host.contentBottomInset })
     }
 
-    // Android's Back key and gesture arrive as Qt.Key_Back. They are Back here too.
+    // API34+ gestures preview through the native bridge; commit uses the same shell ladder.
+    BackGestureIndicator {
+        parent: host.window.contentItem
+        anchors.fill: parent
+        z: 100000
+        gestureActive: host.androidHost && typeof PlatformRuntime !== "undefined"
+            && PlatformRuntime.backGestureActive === true
+        progress: gestureActive ? PlatformRuntime.backGestureProgress : 0
+        edge: gestureActive ? PlatformRuntime.backGestureEdge : 0
+    }
+
+    // Legacy Back keys still use the same owner. Modern callbacks do not synthesize keys.
     Shortcut {
         sequence: "Back"
         enabled: host.androidHost
@@ -156,6 +179,9 @@ Item {
     // record EXIT_SELF). On Android that request is treated as Back; the app never quits on it.
     Connections {
         target: host.window
+        function onImmersiveSurfaceOpenChanged() {
+            if (host.window.immersiveSurfaceOpen) host.clearLibrarySelection()
+        }
         function onClosing(close) {
             if (Qt.platform.os !== "android") return
             close.accepted = false
@@ -167,19 +193,20 @@ Item {
     Binding {
         target: host.topbar
         property: "x"
-        value: host.wideWorldNavigationLeftInset + adaptive.pageMargin
+        value: host.wideWorldNavigationLeftInset + Math.max(adaptive.pageMargin, host.safeMargins.left)
         when: host.androidHost
     }
     Binding {
         target: host.topbar
         property: "y"
-        value: adaptive.topInset
+        value: Math.max(adaptive.topInset, host.safeMargins.top)
         when: host.androidHost
     }
     Binding {
         target: host.topbar
         property: "width"
-        value: host.window.width - host.wideWorldNavigationLeftInset - adaptive.pageMargin * 2
+        value: host.window.width - host.wideWorldNavigationLeftInset
+            - Math.max(adaptive.pageMargin, host.safeMargins.left) - Math.max(adaptive.pageMargin, host.safeMargins.right)
         when: host.androidHost
     }
     Binding {
@@ -191,13 +218,14 @@ Item {
     Binding {
         target: host.contentCol
         property: "x"
-        value: adaptive.pageMargin
+        value: Math.max(adaptive.pageMargin, host.safeMargins.left)
         when: host.androidHost
     }
     Binding {
         target: host.contentCol
         property: "width"
-        value: host.page.width - adaptive.pageMargin * 2
+        value: host.page.width - Math.max(adaptive.pageMargin, host.safeMargins.left)
+            - Math.max(adaptive.pageMargin, host.safeMargins.right)
         when: host.androidHost
     }
     Binding {

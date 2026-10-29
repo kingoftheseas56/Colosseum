@@ -380,7 +380,7 @@ Item {
                 text: hud.curLabel.length ? (hud.seriesTitle + "  ·  " + hud.curLabel) : hud.seriesTitle
                 color: theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 font.letterSpacing: 0.6
                 elide: Text.ElideRight
             }
@@ -578,7 +578,7 @@ Item {
                 text: hud.seriesTitle
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 19
+                font.pixelSize: theme.fontSize(19)
                 elide: Text.ElideRight
             }
         }
@@ -630,7 +630,7 @@ Item {
                 text: hud.counterCurrentText()
                 color: hud.cRailInk
                 font.family: theme.hud
-                font.pixelSize: 17
+                font.pixelSize: theme.fontSize(17)
                 font.bold: true
             }
             RailArrow {
@@ -653,7 +653,7 @@ Item {
                 text: hud.counterTotalText()
                 color: hud.cRailInk
                 font.family: theme.hud
-                font.pixelSize: 17
+                font.pixelSize: theme.fontSize(17)
             }
 
             // ------- the scrub affordance -------
@@ -747,7 +747,7 @@ Item {
                                   : hud.pageForRatio(scrubTrack.knobRatio)
                             color: theme.gold
                             font.family: theme.hud
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             font.bold: true
                         }
                     }
@@ -819,7 +819,7 @@ Item {
             anchors.centerIn: parent
             color: theme.ink
             font.family: theme.hud
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
             font.bold: true
         }
         Timer { id: hudToastTimer; interval: 900; onTriggered: hudToast.opacity = 0 }

@@ -88,12 +88,12 @@ Item {
 
             // ---- header ----
             Text { text: "BIBLIO · BOOKS"; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6; font.weight: Font.DemiBold }
             Text { text: "Explore Genres"; color: theme.ink; topPadding: 8
-                   font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
+                   font.family: theme.display; font.pixelSize: theme.fontSize(56); font.letterSpacing: -1 }
             Text {
                 topPadding: 14; textFormat: Text.StyledText
-                font.family: theme.display; font.italic: true; font.pixelSize: 18
+                font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(18)
                 color: theme.inkDim
                 text: root.loading ? "Loading the directory…"
                       : "<b><font color='#f7f7f5'>" + root.totalGenres + "</font></b> genres — every shelf in the house."
@@ -115,17 +115,17 @@ Item {
                     Row {
                         spacing: 12
                         Text { text: section.modelData.group; color: theme.ink
-                               font.family: theme.display; font.pixelSize: 25; font.letterSpacing: -0.2
+                               font.family: theme.display; font.pixelSize: theme.fontSize(25); font.letterSpacing: -0.2
                                anchors.verticalCenter: parent.verticalCenter }
                         Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
                             height: 20; radius: 10; width: gcl.implicitWidth + 18
                             color: Qt.rgba(0.94,0.77,0.29,0.14); border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.4)
                             Text { id: gcl; anchors.centerIn: parent; text: section.modelData.genres.length
-                                   color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.Bold }
+                                   color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.Bold }
                         }
                         Text { text: root.groupSub(section.modelData.group); color: theme.inkDimmer
-                               font.family: theme.ui; font.pixelSize: 13; font.italic: true
+                               font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.italic: true
                                anchors.verticalCenter: parent.verticalCenter }
                     }
 
@@ -197,7 +197,7 @@ Item {
                                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                                     anchors.leftMargin: 13; anchors.rightMargin: 13; anchors.bottomMargin: 11
                                     text: tile.modelData.name; color: "#ffffff"
-                                    font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                                    font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
                                     wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                                     style: Text.Raised; styleColor: Qt.rgba(0,0,0,0.6)
                                 }
@@ -205,7 +205,7 @@ Item {
                                     anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 9
                                     text: tile.modelData.count > 0 ? root.fmtCount(tile.modelData.count) : ""
                                     color: Qt.rgba(1,1,1,0.86)
-                                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                                     style: Text.Raised; styleColor: Qt.rgba(0,0,0,0.7)
                                 }
                                 HoverHandler { id: tHov }

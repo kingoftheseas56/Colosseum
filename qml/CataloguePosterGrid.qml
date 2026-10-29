@@ -97,7 +97,7 @@ GridView {
         visible: !wall.loading && wall.items.length === 0
         anchors.centerIn: parent
         text: wall.emptyMessage
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
     }
 
     // Shared wheel controller — unifies the See-all grid's scroll feel with every landing page

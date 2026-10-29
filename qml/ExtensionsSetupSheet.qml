@@ -101,14 +101,14 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: sheet.addon ? "Set up " + (sheet.addon.title || sheet.addon.name) : ""
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: 22
+                font.family: theme.display; font.pixelSize: theme.fontSize(22)
             }
             Text {
                 anchors.right: closeBox.left; anchors.rightMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
                 text: sheet.status
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             }
             Rectangle {
                 id: closeBox
@@ -173,7 +173,7 @@ Item {
                     wrapMode: Text.WordWrap
                     text: "This setup page won't open inside Colosseum."
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 20
+                    font.family: theme.display; font.pixelSize: theme.fontSize(20)
                 }
                 Text {
                     width: parent.width
@@ -181,7 +181,7 @@ Item {
                     wrapMode: Text.WordWrap
                     text: "Try again, or set it up in your web browser, copy the add-on link it gives you, and paste it below."
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 14
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
                 Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -192,7 +192,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Try again"
                         color: "#111217"
-                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         anchors.fill: parent
@@ -216,7 +216,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Link only?"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
                 TextField {
                     id: paste
@@ -225,7 +225,7 @@ Item {
                     placeholderText: "Paste the add-on link the page gave you"
                     color: theme.ink
                     placeholderTextColor: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     background: Rectangle { radius: 16; color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12) }
                     onAccepted: if (text.trim().length) sheet.finish(text.trim())
                 }
@@ -237,7 +237,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Install"
                         color: paste.text.trim().length ? "#111217" : theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         anchors.fill: parent
@@ -258,7 +258,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Paste link"
                         color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                     KeyboardAction {
                         id: clipAction
@@ -285,7 +285,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Install without setup"
                         color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                     KeyboardAction {
                         id: skipAction

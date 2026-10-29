@@ -6,6 +6,7 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import QtQuick.Window
 import "WorldSearch.js" as WorldSearch
 
 Item {
@@ -48,7 +49,10 @@ Item {
     signal closeRequested()
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    readonly property var hostWindow: surf.Window.window
+    readonly property bool phoneNarrow: !!(surf.hostWindow && surf.hostWindow.androidHost
+                                             && surf.hostWindow.width < 840)
+    readonly property bool phoneLandscape: surf.phoneNarrow && surf.hostWindow.height < 500
 
     // Harbor's empty-state "Try a genre": chips open an inline, popularity-ranked browse grid in place.
     readonly property var genres: WorldSearch.genresFor(searchMode)
@@ -59,41 +63,57 @@ Item {
 
     Theme { id: theme }
 
-    // One tappable, full-width row per hit on a phone; desktop cover grids stay unchanged.
+    // One full-width phone row; pointer, keyboard and accessibility share one semantic action.
     component PhoneSearchResult: Rectangle {
         id: phoneRow
+        objectName: phoneRow.entry && phoneRow.entry.testKey
+                    ? "phoneSearchResult_" + String(phoneRow.entry.testKey) : "phoneSearchResult"
         property var entry: ({})
         property bool keyboardSelected: false
         signal activated()
-        height: Math.max(116, phoneDetails.implicitHeight + 24)
+        height: Math.max(surf.phoneLandscape ? 96 : 116, phoneDetails.implicitHeight + 24)
         radius: 12
-        color: theme.glassTint
+        color: phonePointer.pressed ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.12) : theme.glassTint
         border.width: keyboardSelected ? 2 : 1
-        border.color: keyboardSelected ? theme.gold : theme.edge
+        border.color: keyboardSelected || phonePointer.pressed ? theme.gold : theme.edge
         Row {
             anchors.fill: parent; anchors.margins: 12; spacing: 14
             Rectangle {
-                width: 66; height: 92; radius: 7; clip: true; color: "#14131a"
+                width: surf.phoneLandscape ? 58 : 66
+                height: surf.phoneLandscape ? 80 : 92
+                radius: 7; clip: true; color: "#14131a"
                 Image { anchors.fill: parent; source: phoneRow.entry.cover || ""
                     fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
             }
             Column {
                 id: phoneDetails
-                width: Math.max(0, parent.width - 80); spacing: 7
+                width: Math.max(0, parent.width - (surf.phoneLandscape ? 72 : 80)); spacing: 6
                 Text {
                     width: parent.width; text: phoneRow.entry.title || ""
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 16
-                    wrapMode: Text.Wrap
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(surf.phoneLandscape ? 15 : 16)
+                    wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
                 }
                 Text {
                     width: parent.width; text: phoneRow.entry.subtitle || ""
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                    wrapMode: Text.Wrap
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                    wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
                 }
             }
         }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-            onClicked: phoneRow.activated() }
+        MouseArea {
+            id: phonePointer
+            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+            onClicked: phoneRow.activated()
+        }
+        KeyboardAction {
+            objectName: phoneRow.entry && phoneRow.entry.testKey
+                        ? "phoneSearchResultAction_" + String(phoneRow.entry.testKey) : "phoneSearchResultAction"
+            anchors.fill: parent
+            pointerEnabled: false
+            accessibleName: qsTr("Open %1").arg(phoneRow.entry.title || qsTr("result"))
+            focusRadius: 12
+            onTriggered: phoneRow.activated()
+        }
     }
 
     Keys.priority: Keys.AfterItem
@@ -191,6 +211,15 @@ Item {
     function fillAndSearch(q) { queryInput.text = q; runSearch(); commitCurrentQuery() }
     function openItem(data) { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.itemRequested(data) }
     function openTop() { if (surf.results.length > 0) surf.openItem(surf.results[0].data) }
+    function submitSearch() {
+        debounce.stop()
+        surf.runSearch()
+        surf.commitCurrentQuery()
+        if (surf.phoneNarrow)
+            Qt.inputMethod.hide()
+        else
+            surf.openTop()
+    }
     function removeRecent(q) { if (surf.historyStore) surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
     function keepSearchDelegateVisible(item) {
         if (!item || !scroll) return
@@ -245,14 +274,13 @@ Item {
 
     Timer { id: debounce; interval: 220; onTriggered: surf.runSearch() }
 
-    Shortcut { sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); surf.runSearch(); surf.commitCurrentQuery(); surf.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
         id: searchBack
         x: surf.phoneNarrow ? 16 : theme.margin
-        y: surf.phoneNarrow ? 14 : undefined
-        anchors.verticalCenter: surf.phoneNarrow ? undefined : field.verticalCenter
+        y: surf.phoneNarrow ? (surf.phoneLandscape ? 4 : 14)
+                            : field.y + (field.height - height) / 2
         onTriggered: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
     }
     Rectangle {
@@ -262,7 +290,7 @@ Item {
         // minimize/fullscreen/power buttons sat on the field's top-right corner. Derived from the
         // chrome row's own width so it can never drift apart again.
         x: surf.phoneNarrow ? 16 : searchBack.x + searchBack.width + 20
-        y: surf.phoneNarrow ? 72 : 44
+        y: surf.phoneNarrow ? (surf.phoneLandscape ? 52 : 72) : 44
         width: surf.phoneNarrow ? Math.max(0, surf.width - 32)
                                 : surf.width - x - theme.margin - winChrome.width - 24
         height: surf.phoneNarrow ? 56 : 72; radius: 16
@@ -284,9 +312,11 @@ Item {
             anchors.left: glass.right; anchors.leftMargin: surf.phoneNarrow ? 10 : 15
             anchors.right: rightCluster.left; anchors.rightMargin: surf.phoneNarrow ? 4 : 14
             anchors.verticalCenter: parent.verticalCenter
-            color: theme.ink; font.family: theme.display; font.pixelSize: surf.phoneNarrow ? 18 : 22
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(surf.phoneNarrow ? 18 : 22)
             clip: true; focus: true; selectByMouse: true
+            EnterKey.type: Qt.EnterKeySearch
             onTextChanged: { surf.cancelSearch(); debounce.restart() }
+            onAccepted: surf.submitSearch()
             Keys.onEscapePressed: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
         }
         Text {
@@ -295,21 +325,23 @@ Item {
             width: queryInput.width; clip: true
             anchors.verticalCenter: parent.verticalCenter
             text: surf.placeholder; color: theme.inkDimmer; font.family: theme.display
-            font.pixelSize: surf.phoneNarrow ? 18 : 22
+            font.pixelSize: theme.fontSize(surf.phoneNarrow ? 18 : 22)
         }
         Row {
             id: rightCluster
             anchors.right: parent.right; anchors.rightMargin: surf.phoneNarrow ? 6 : 16
             anchors.verticalCenter: parent.verticalCenter; spacing: surf.phoneNarrow ? 0 : 12
             Rectangle {
+                objectName: "searchClearAction"
                 visible: queryInput.text.length > 0
-                width: surf.phoneNarrow ? 44 : 26; height: width; radius: height / 2
+                width: surf.phoneNarrow ? 48 : 26; height: width; radius: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
-                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
+                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(12) }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
-                KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
+                KeyboardAction { objectName: "searchClearKeyboardAction"; anchors.fill: parent
+                    pointerEnabled: false; accessibleName: qsTr("Clear search"); focusRadius: 13
                     onTriggered: { queryInput.text = ""; queryInput.forceActiveFocus() } }
             }
             Rectangle {
@@ -318,7 +350,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"; border.width: 1; border.color: theme.edge
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.5 }
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.5 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { surf.cancelAllRequests(); surf.backRequested() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Exit search"; focusRadius: 6
                     onTriggered: { surf.cancelAllRequests(); surf.backRequested() } }
@@ -335,7 +367,9 @@ Item {
     // hairline workaround: match the proven painter, don't patch a broken one.
     Flickable {
         id: scroll
-        anchors.top: field.bottom; anchors.topMargin: surf.phoneNarrow ? 20 : 30
+        objectName: "searchResultsViewport"
+        anchors.top: field.bottom
+        anchors.topMargin: surf.phoneLandscape ? 8 : surf.phoneNarrow ? 20 : 30
         anchors.left: parent.left; anchors.leftMargin: surf.phoneNarrow ? 16 : theme.margin
         anchors.right: parent.right; anchors.rightMargin: surf.phoneNarrow ? 16 : theme.margin
         anchors.bottom: parent.bottom; anchors.bottomMargin: 8
@@ -372,9 +406,9 @@ Item {
                         }
                         Column {
                             anchors.verticalCenter: parent.verticalCenter; spacing: 2
-                            Text { text: "BROWSING"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                            Text { text: "BROWSING"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                 font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
-                            Text { text: surf.browseGenre; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+                            Text { text: surf.browseGenre; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24) }
                         }
                     }
                     Item { width: 1; height: 24 }
@@ -382,7 +416,7 @@ Item {
                     Text {
                         visible: surf.browseLoading && surf.browseItems.length === 0
                         text: "Loading…"; color: theme.inkDimmer; font.family: theme.display
-                        font.pixelSize: 18; topPadding: 16
+                        font.pixelSize: theme.fontSize(18); topPadding: 16
                     }
                     Grid {
                         id: browseGrid
@@ -424,10 +458,10 @@ Item {
                                         onClicked: surf.openItem(modelData.data) }
                                 }
                                 Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.title ? modelData.title : ""
-                                    color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                     elide: Text.ElideRight; maximumLineCount: 1 }
                                 Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
-                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                     elide: Text.ElideRight; maximumLineCount: 1 }
                             }
                         }
@@ -435,7 +469,7 @@ Item {
                     Text {
                         visible: !surf.browseLoading && surf.browseItems.length === 0 && surf.browseError.length === 0
                         text: "Nothing here"; color: theme.inkDimmer; font.family: theme.display
-                        font.pixelSize: 18; topPadding: 16
+                        font.pixelSize: theme.fontSize(18); topPadding: 16
                     }
                 }
 
@@ -444,7 +478,7 @@ Item {
                     text: surf.browseError
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                 }
 
@@ -456,7 +490,7 @@ Item {
                     // RECENT SEARCHES — chip searches; ✕ removes (Harbor parity)
                     Text {
                         visible: surf.recent.length > 0
-                        text: "RECENT SEARCHES"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        text: "RECENT SEARCHES"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold; font.letterSpacing: 1.8
                     }
                     Item { visible: surf.recent.length > 0; width: 1; height: 16 }
@@ -486,16 +520,26 @@ Item {
                                 MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: surf.fillAndSearch(modelData) }
                                 Row { id: rcRow; anchors.centerIn: parent; spacing: 8
-                                    Text { id: rcLabel; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 13
-                                        width: surf.phoneNarrow ? Math.max(0, recentFlow.width - 72) : implicitWidth
+                                    Text { id: rcLabel; objectName: "searchRecentBody"; text: modelData
+                                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                        width: surf.phoneNarrow ? Math.max(0, recentFlow.width - 56) : implicitWidth
                                         wrapMode: surf.phoneNarrow ? Text.Wrap : Text.NoWrap
                                         anchors.verticalCenter: parent.verticalCenter }
-                                    Rectangle { width: surf.phoneNarrow ? 44 : 20; height: width; radius: height / 2
+                                    Rectangle { objectName: "searchRecentRemove"
+                                        width: surf.phoneNarrow ? 48 : 20; height: width; radius: height / 2
                                         anchors.verticalCenter: parent.verticalCenter
                                         color: xMa.containsMouse ? Qt.rgba(1,1,1,0.18) : "transparent"
-                                        Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 10 }
+                                        Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(10) }
                                         MouseArea { id: xMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
-                                            onClicked: surf.removeRecent(modelData) } }
+                                            onClicked: surf.removeRecent(modelData) }
+                                        KeyboardAction {
+                                            objectName: "searchRecentRemoveKeyboardAction"
+                                            anchors.fill: parent; pointerEnabled: false
+                                            accessibleName: qsTr("Remove recent search %1").arg(modelData)
+                                            focusRadius: 24
+                                            onTriggered: surf.removeRecent(modelData)
+                                        }
+                                    }
                                 }
                             }
                         }
@@ -504,7 +548,7 @@ Item {
 
                     // TRY A GENRE — a chip opens the inline browse grid above
                     Text {
-                        text: "TRY A GENRE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        text: "TRY A GENRE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold; font.letterSpacing: 1.8
                     }
                     Item { width: 1; height: 16 }
@@ -530,7 +574,7 @@ Item {
                                 border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                                 Text { id: gLbl; anchors.centerIn: parent; text: modelData
                                     color: gMa.containsMouse ? theme.ink : theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 13 }
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                                 MouseArea { id: gMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: surf.openGenre(modelData) }
                             }
@@ -550,7 +594,7 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter }
                             Text { text: surf.surprising ? "Picking…" : "Surprise me"
                                 color: surMa.containsMouse ? theme.ink : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 14
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                                 anchors.verticalCenter: parent.verticalCenter }
                         }
                         MouseArea { id: surMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -568,11 +612,14 @@ Item {
                 visible: !surf.isEmpty
 
                 Text {
-                    visible: surf.results.length > 0
-                    text: "TOP MATCH"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                    visible: surf.results.length > 0 && !surf.phoneLandscape
+                    text: qsTr("TOP MATCH"); color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8
                 }
-                Item { visible: surf.results.length > 0; width: 1; height: 14 }
+                Item {
+                    visible: surf.results.length > 0
+                    width: 1; height: surf.phoneLandscape ? 4 : 14
+                }
                 Rectangle {
                     id: topCard
                     // Automation identity (Lanista), same DiscoverBrowser.qml:727 precedent: keyed by
@@ -582,6 +629,7 @@ Item {
                                 : ""
                     visible: surf.results.length > 0 && !surf.phoneNarrow
                     property var m: surf.results.length > 0 ? surf.results[0] : ({})
+                    onMChanged: if (phoneTopCard) phoneTopCard.synopsisExpanded = false
                     width: parent.width; height: 210; radius: 18
                     color: theme.glassTint; border.width: 1; border.color: theme.edge
 
@@ -610,15 +658,15 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 10
                         Text { width: parent.width; text: topCard.m && topCard.m.title ? topCard.m.title : ""
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 32
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(32)
                             elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { width: parent.width
                             text: (topCard.m ? (topCard.m.meta || topCard.m.subtitle || "") : "").toUpperCase()
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                             font.letterSpacing: 1.0; elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { visible: text.length > 0; width: parent.width
                             text: topCard.m && topCard.m.synopsis ? topCard.m.synopsis : ""
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.32
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); lineHeight: 1.32
                             wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight; opacity: 0.85 }
                     }
                     Rectangle {
@@ -627,7 +675,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 116; height: 48; radius: 12; color: theme.gold
                         Row { anchors.centerIn: parent; spacing: 7
-                            Text { text: surf.primaryLabel; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            Text { text: surf.primaryLabel; color: "#241a05"; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
                             Text { text: "›"; color: "#241a05"; font.pixelSize: 16 } }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: if (topCard.m) surf.openItem(topCard.m.data) }
@@ -638,52 +686,122 @@ Item {
                 }
                 Rectangle {
                     id: phoneTopCard
+                    objectName: "phoneTopCard"
+                    property bool synopsisExpanded: false
                     visible: surf.phoneNarrow && surf.results.length > 0
                     width: parent.width
                     height: phoneTopContents.implicitHeight + 28
                     radius: 16; color: theme.glassTint
                     border.width: 1; border.color: theme.edge
+                    function toggleSynopsis() { phoneTopCard.synopsisExpanded = !phoneTopCard.synopsisExpanded }
                     Column {
                         id: phoneTopContents
-                        x: 14; y: 14; width: parent.width - 28; spacing: 14
+                        x: 14; y: 14; width: parent.width - 28
+                        spacing: surf.phoneLandscape ? 6 : 10
                         Item {
                             width: parent.width
-                            height: Math.max(126, phoneTopDetails.implicitHeight)
+                            height: Math.max(surf.phoneLandscape ? 84 : 126, phoneTopDetails.implicitHeight)
                             Row {
-                                anchors.fill: parent; spacing: 14
+                                anchors.fill: parent; spacing: surf.phoneLandscape ? 10 : 14
                                 Rectangle {
-                                    width: 84; height: 126; radius: 8; clip: true; color: "#14131a"
+                                    width: surf.phoneLandscape ? 56 : 84
+                                    height: surf.phoneLandscape ? 84 : 126
+                                    radius: 8; clip: true; color: "#14131a"
                                     Image { anchors.fill: parent; source: topCard.m.cover || ""
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true }
                                 }
                                 Column {
-                                id: phoneTopDetails
-                                width: Math.max(0, parent.width - 98); spacing: 8
-                                Text { width: parent.width; text: topCard.m.title || ""
-                                    color: theme.ink; font.family: theme.display; font.pixelSize: 23
-                                    wrapMode: Text.Wrap }
-                                Text { width: parent.width
-                                    text: (topCard.m.meta || topCard.m.subtitle || "").toUpperCase()
-                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                                    wrapMode: Text.Wrap }
-                                Text { visible: text.length > 0; width: parent.width
-                                    text: topCard.m.synopsis || ""; color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 13
-                                    wrapMode: Text.Wrap; lineHeight: 1.3 }
+                                    id: phoneTopDetails
+                                    width: Math.max(0, parent.width - (surf.phoneLandscape ? 66 : 98))
+                                    spacing: surf.phoneLandscape ? 4 : 8
+                                    Text {
+                                        objectName: "phoneTopTitle"
+                                        width: parent.width; text: topCard.m.title || ""
+                                        color: theme.ink; font.family: theme.display
+                                        font.pixelSize: theme.fontSize(surf.phoneLandscape ? 18 : 23)
+                                        wrapMode: Text.Wrap
+                                        maximumLineCount: surf.phoneLandscape ? 1 : 2
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        width: parent.width
+                                        text: (topCard.m.meta || topCard.m.subtitle || "").toUpperCase()
+                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                                        elide: Text.ElideRight; maximumLineCount: 1
+                                    }
+                                    Text {
+                                        id: phoneTopSynopsis
+                                        objectName: "phoneTopSynopsis"
+                                        visible: text.length > 0; width: parent.width
+                                        text: topCard.m.synopsis || ""; color: theme.inkDim
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                        wrapMode: Text.Wrap; lineHeight: 1.3
+                                        maximumLineCount: phoneTopCard.synopsisExpanded
+                                                         ? 0 : (surf.phoneLandscape ? 2 : 3)
+                                        elide: phoneTopCard.synopsisExpanded ? Text.ElideNone : Text.ElideRight
+                                    }
+                                }
                             }
-                            }
-                            MouseArea { anchors.fill: parent; onClicked: surf.openTop() }
                         }
-                        Rectangle {
-                            width: parent.width; height: 48; radius: 12; color: theme.gold
-                            Text { anchors.centerIn: parent; text: surf.primaryLabel + "  ›"
-                                color: "#241a05"; font.family: theme.ui; font.pixelSize: 15
-                                font.weight: Font.DemiBold }
-                            MouseArea { anchors.fill: parent; onClicked: surf.openTop() }
+                        Item {
+                            width: parent.width; height: 48
+                            Rectangle {
+                                objectName: "phoneTopMore"
+                                visible: phoneTopSynopsis.truncated || phoneTopCard.synopsisExpanded
+                                x: 0; width: 112; height: 48; radius: 10
+                                color: phoneTopMoreMouse.containsMouse
+                                       ? theme.glassHi : theme.glassTint
+                                border.width: 1; border.color: theme.edge
+                                Text {
+                                    anchors.centerIn: parent
+                                    text: phoneTopCard.synopsisExpanded ? qsTr("Less") : qsTr("More")
+                                    color: theme.ink; font.family: theme.ui
+                                    font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
+                                }
+                                MouseArea {
+                                    id: phoneTopMoreMouse
+                                    anchors.fill: parent; hoverEnabled: true
+                                    cursorShape: Qt.PointingHandCursor
+                                    onClicked: phoneTopCard.toggleSynopsis()
+                                }
+                                KeyboardAction {
+                                    objectName: "phoneTopMoreAction"
+                                    anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: phoneTopCard.synopsisExpanded
+                                                    ? qsTr("Show less synopsis") : qsTr("Show more synopsis")
+                                    focusRadius: 10
+                                    onTriggered: phoneTopCard.toggleSynopsis()
+                                }
+                            }
+                            Rectangle {
+                                objectName: "phoneTopOpen"
+                                anchors.right: parent.right
+                                width: 116; height: 48; radius: 12; color: theme.gold
+                                Row { anchors.centerIn: parent; spacing: 7
+                                    Text { text: surf.primaryLabel; color: "#241a05"; font.family: theme.ui
+                                        font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
+                                    Text { text: "›"; color: "#241a05"; font.pixelSize: 16 }
+                                }
+                                MouseArea {
+                                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                    onClicked: surf.openTop()
+                                }
+                                KeyboardAction {
+                                    objectName: "phoneTopOpenAction"
+                                    anchors.fill: parent; pointerEnabled: false
+                                    accessibleName: qsTr("%1 %2").arg(surf.primaryLabel)
+                                                    .arg(topCard.m.title || qsTr("top match"))
+                                    focusRadius: 12
+                                    onTriggered: surf.openTop()
+                                }
+                            }
                         }
                     }
                 }
-                Item { visible: surf.results.length > 0; width: 1; height: 38 }
+                Item {
+                    visible: surf.results.length > 0
+                    width: 1; height: surf.phoneLandscape ? 6 : 38
+                }
 
                 // grouped sections (Movies / Series / Manga) — capped at one row until "See more"
                 Repeater {
@@ -702,10 +820,10 @@ Item {
                         width: parent.width; spacing: 0
                         Text {
                             text: modelData.group.toUpperCase() + "  ·  " + modelData.items.length
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                             font.weight: Font.DemiBold; font.letterSpacing: 1.6
                         }
-                        Item { width: 1; height: 16 }
+                        Item { width: 1; height: surf.phoneLandscape ? 8 : 16 }
                         Grid {
                             id: secGrid
                             width: parent.width; columns: surf.phoneNarrow ? 1 : 6
@@ -750,10 +868,10 @@ Item {
                                             onClicked: surf.openItem(modelData.data) }
                                     }
                                     Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.title ? modelData.title : ""
-                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                         elide: Text.ElideRight; maximumLineCount: 1 }
                                     Text { visible: !surf.phoneNarrow; width: parent.width; text: modelData.subtitle ? modelData.subtitle : ""
-                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                         elide: Text.ElideRight; maximumLineCount: 1 }
                                 }
                             }
@@ -773,13 +891,13 @@ Item {
                                     text: section.expanded ? "Show less"
                                         : "See more · " + (section.modelData.items.length - secGrid.columns)
                                     color: seeMoreMa.containsMouse ? theme.gold : theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 13
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                                 Text {
                                     text: section.expanded ? "▴" : "▾"
                                     color: seeMoreMa.containsMouse ? theme.gold : theme.inkDimmer
-                                    font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter
+                                    font.pixelSize: theme.fontSize(11); anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
                             MouseArea {
@@ -801,12 +919,12 @@ Item {
                     text: surf.searchError
                     width: parent.width; wrapMode: Text.Wrap
                     color: theme.inkDimmer; font.family: theme.display
-                    font.pixelSize: 18; topPadding: 30
+                    font.pixelSize: theme.fontSize(18); topPadding: 30
                 }
                 Text {
                     visible: surf.searched && surf.results.length === 0 && !surf.searching && surf.searchError.length === 0
                     text: "No results"; color: theme.inkDimmer; font.family: theme.display
-                    font.pixelSize: 20; topPadding: 30
+                    font.pixelSize: theme.fontSize(20); topPadding: 30
                 }
             }
         }

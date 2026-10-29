@@ -216,6 +216,9 @@ WorldPage {
     //                         Theatre/Tankoban's inline remove; never Progress, never files). ──
     BiblioLibraryPage {
         id: libraryPage
+        removeSelectionEntry: function(entry) {
+            return typeof Collection !== "undefined" ? Collection.remove("biblio", String(entry.id)) : false
+        }
         objectName: "biblioLibraryPage"
         visible: biblio.activeTab === "library"
         active: biblio.lifecycleActive && visible

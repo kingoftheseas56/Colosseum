@@ -8,10 +8,88 @@
 #include <QJsonObject>
 #include <QPlatformSurfaceEvent>
 #include <QWindow>
+#include <cmath>
 
 #if defined(Q_OS_ANDROID)
+#include "AndroidSurfaceRedrawGate.h"
 #include <QCoreApplication>
 #include <QJniObject>
+#include <QHash>
+#include <QMutex>
+#include <QMutexLocker>
+#include <QQuickWindow>
+#include <atomic>
+
+namespace Colosseum::Platform {
+struct AndroidRedrawState {
+    QMutex mutex;
+    AndroidSurfaceRedrawGate gate;
+    QSize framePixels;
+};
+}
+
+namespace {
+QMutex backBridgeMutex;
+QHash<qint64, QPointer<Colosseum::Platform::Runtime>> backRuntimes;
+std::atomic<qint64> nextBackBridgeHandle{1};
+void attachAndroidBackBridge(qint64 handle) {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([handle]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (!activity.isValid()) return false;
+        activity.callMethod<void>("setBackBridgeHandle", "(J)V", jlong(handle));
+        return true;
+    });
+}
+void acknowledgeSurfaceRedraw(qint64 token) {
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([token]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (activity.isValid()) activity.callMethod<void>("onSurfaceRedrawComplete", "(J)V", jlong(token));
+        return {};
+    });
+}
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_colosseum_platform_QtSurfaceRedrawGate_nativeRequestRedraw(
+    JNIEnv *, jclass, jlong handle, jlong token, jint width, jint height) {
+    QMutexLocker lock(&backBridgeMutex);
+    const auto runtime = backRuntimes.value(handle);
+    if (runtime) QMetaObject::invokeMethod(runtime, [runtime, token, width, height] {
+        if (runtime) runtime->requestSurfaceRedraw(token, width, height);
+    }, Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_colosseum_platform_ColosseumActivity_nativeBackGesture(
+    JNIEnv *, jclass, jlong handle, jint phase, jfloat progress, jint edge) {
+    QMutexLocker lock(&backBridgeMutex);
+    const auto runtime = backRuntimes.value(handle);
+    if (runtime) QMetaObject::invokeMethod(runtime, [runtime, phase, progress, edge] {
+        if (runtime) runtime->acceptBackGesture(phase, progress, edge);
+    }, Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_colosseum_platform_ColosseumActivity_nativePlaybackBrightness(
+    JNIEnv *, jclass, jlong handle, jfloat value) {
+    QMutexLocker lock(&backBridgeMutex);
+    const auto runtime = backRuntimes.value(handle);
+    if (runtime) QMetaObject::invokeMethod(runtime, [runtime, value] {
+        if (runtime) runtime->acceptPlaybackBrightness(value);
+    }, Qt::QueuedConnection);
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_org_colosseum_platform_ColosseumActivity_nativeFontScale(
+    JNIEnv *, jclass, jlong handle, jfloat value) {
+    QMutexLocker lock(&backBridgeMutex);
+    const auto runtime = backRuntimes.value(handle);
+    if (runtime) QMetaObject::invokeMethod(runtime, [runtime, value] {
+        if (runtime) runtime->acceptFontScale(value);
+    }, Qt::QueuedConnection);
+}
 #endif
 
 namespace Colosseum::Platform {
@@ -66,6 +144,13 @@ Runtime::Runtime(QObject *parent, Kind kind)
       m_kind(kind),
       m_capabilities(capabilitiesFor(kind)),
       m_androidTelevision(kind == Kind::Android && detectAndroidTelevision()) {
+#if defined(Q_OS_ANDROID)
+    if (m_kind == Kind::Android) {
+        m_backBridgeHandle = nextBackBridgeHandle.fetch_add(1);
+        QMutexLocker lock(&backBridgeMutex);
+        backRuntimes.insert(m_backBridgeHandle, this);
+    }
+#endif
     if (qGuiApp) {
         connect(qGuiApp, &QGuiApplication::applicationStateChanged,
                 this, [this](Qt::ApplicationState) {
@@ -80,6 +165,10 @@ Runtime::Runtime(QObject *parent, Kind kind)
 
 Runtime::~Runtime() {
     attachWindow(nullptr);
+#if defined(Q_OS_ANDROID)
+    QMutexLocker lock(&backBridgeMutex);
+    backRuntimes.remove(m_backBridgeHandle);
+#endif
 }
 
 QString Runtime::kind() const {
@@ -175,7 +264,12 @@ void Runtime::attachWindow(QWindow *window) {
     }
 
     m_window = window;
+    m_androidRedraw.reset();
+#if defined(Q_OS_ANDROID)
+    if (m_kind == Kind::Android) attachAndroidBackBridge(window ? m_backBridgeHandle : 0);
+#endif
     if (!m_window) {
+        acceptBackGesture(2, 0, 0);
         if (!m_safeAreaMargins.isNull()) {
             m_safeAreaMargins = {};
             emit safeAreaMarginsChanged();
@@ -189,6 +283,57 @@ void Runtime::attachWindow(QWindow *window) {
             this, [this](const QMargins &) { refreshSafeArea(); });
     refreshSafeArea();
     setSurfaceAvailable(m_window->handle() != nullptr);
+#if defined(Q_OS_ANDROID)
+    if (auto *quick = qobject_cast<QQuickWindow *>(window)) {
+        auto state = std::make_shared<AndroidRedrawState>();
+        m_androidRedraw = state;
+        connect(quick, &QQuickWindow::beforeSynchronizing, this, [quick, state] {
+            // The GUI thread is blocked here, so this is the geometry of this frame.
+            QMutexLocker lock(&state->mutex);
+            const auto dpr = quick->devicePixelRatio();
+            state->framePixels = QSize(qRound(quick->width() * dpr), qRound(quick->height() * dpr));
+        }, Qt::DirectConnection);
+        connect(quick, &QQuickWindow::frameSwapped, this, [this, state] {
+            AndroidSurfaceRedrawGate::Result result;
+            {
+                QMutexLocker lock(&state->mutex);
+                result = state->gate.presented(state->framePixels.width(), state->framePixels.height());
+            }
+            if (result.action == AndroidSurfaceRedrawGate::Action::None) return;
+            QMetaObject::invokeMethod(this, [this, state, result] {
+                if (state != m_androidRedraw) return;
+                {
+                    QMutexLocker lock(&state->mutex);
+                    if (!state->gate.isCurrent(result.token)) return;
+                }
+                if (result.action == AndroidSurfaceRedrawGate::Action::Complete)
+                    acknowledgeSurfaceRedraw(result.token);
+                else if (auto *quick = qobject_cast<QQuickWindow *>(m_window.data()))
+                    quick->update();
+            }, Qt::QueuedConnection);
+        }, Qt::DirectConnection);
+    }
+#endif
+}
+
+void Runtime::requestSurfaceRedraw(qint64 token, int width, int height) {
+#if defined(Q_OS_ANDROID)
+    if (!m_androidRedraw) {
+        if (token > 0) acknowledgeSurfaceRedraw(token);
+        return;
+    }
+    {
+        QMutexLocker lock(&m_androidRedraw->mutex);
+        m_androidRedraw->gate.begin(token, width, height);
+    }
+    if (token > 0) {
+        if (auto *quick = qobject_cast<QQuickWindow *>(m_window.data())) quick->update();
+    }
+#else
+    Q_UNUSED(token)
+    Q_UNUSED(width)
+    Q_UNUSED(height)
+#endif
 }
 
 void Runtime::dismissKeyboard() {
@@ -199,6 +344,78 @@ void Runtime::dismissKeyboard() {
 void Runtime::dispatchSystemBack() {
     if (m_capabilities.systemBack)
         emit backRequested();
+}
+
+void Runtime::acceptBackGesture(int phase, qreal progress, int edge) {
+    if (!m_capabilities.systemBack || phase < 0 || phase > 3) return;
+    if (phase == 1 && (!m_backGestureActive || !std::isfinite(progress))) return;
+    if (phase == 0 || phase == 1) {
+        m_backGestureActive = true;
+        m_backGestureProgress = std::isfinite(progress) ? qBound(qreal(0), progress, qreal(1)) : 0;
+        m_backGestureEdge = edge == 1 ? 1 : 0;
+    } else {
+        m_backGestureActive = false;
+        m_backGestureProgress = 0;
+    }
+    emit backGestureChanged();
+    if (phase == 0) qInfo("[platform] Back gesture started");
+    if (phase == 2) qInfo("[platform] Back gesture cancelled");
+    if (phase == 3) {
+        qInfo("[platform] Back gesture committed");
+        dispatchSystemBack();
+    }
+}
+
+void Runtime::acceptPlaybackBrightness(qreal value) {
+    if (m_kind != Kind::Android || !std::isfinite(value)) return;
+    m_playbackBrightness = qBound(qreal(0.01), value, qreal(1));
+    emit playbackBrightnessChanged();
+}
+
+void Runtime::acceptFontScale(qreal value) {
+    if (m_kind != Kind::Android || !std::isfinite(value) || value <= 0) return;
+    const auto scale = qBound(qreal(0.5), value, qreal(3));
+    if (qFuzzyCompare(scale, m_fontScale)) return;
+    m_fontScale = scale;
+    emit fontScaleChanged();
+}
+
+void Runtime::beginPlaybackBrightness() {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (activity.isValid()) activity.callMethod<void>("beginPlaybackBrightness", "()V");
+        return {};
+    });
+#endif
+}
+
+void Runtime::setPlaybackBrightness(qreal value) {
+    if (m_kind != Kind::Android || !std::isfinite(value)) return;
+    acceptPlaybackBrightness(value);
+#if defined(Q_OS_ANDROID)
+    const auto level = m_playbackBrightness;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([level]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (activity.isValid()) activity.callMethod<void>("setPlaybackBrightness", "(F)V", jfloat(level));
+        return {};
+    });
+#endif
+}
+
+void Runtime::restorePlaybackBrightness() {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (activity.isValid()) activity.callMethod<void>("restorePlaybackBrightness", "()V");
+        return {};
+    });
+#endif
 }
 
 void Runtime::backgroundApplication() {

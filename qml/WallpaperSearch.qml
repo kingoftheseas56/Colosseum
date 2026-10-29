@@ -24,6 +24,23 @@ Item {
     property bool loading: false
     readonly property bool canLoadMore: !loading && searchState !== null
                                         && WallpaperApi.hasMore(searchState)
+    readonly property bool compactPhoneLayout: Qt.platform.os === "android"
+        && Math.min(width, height) < 600
+    readonly property int resultColumns: grid.width > 0
+        ? (compactPhoneLayout ? Math.max(1, Math.ceil(grid.width / 210))
+            : Math.max(1, Math.floor(grid.width / 154))) : 1
+    readonly property real selectedPanelWidth: compactPhoneLayout
+        ? Math.max(1, Math.min(360, width - 24)) : 360
+    readonly property real selectedPanelHeight: compactPhoneLayout
+        ? Math.max(1, Math.min(142, height - 24)) : 142
+    readonly property real selectedPanelX: compactPhoneLayout
+        ? (width - selectedPanelWidth) / 2 : width - selectedPanelWidth - 52
+    readonly property real selectedPanelY: compactPhoneLayout
+        ? height - selectedPanelHeight - 12 : height - selectedPanelHeight - 52
+    readonly property real selectedButtonWidth: compactPhoneLayout
+        ? Math.max(1, Math.min(150, (selectedPanelWidth - 34) / 2)) : 150
+    readonly property real selectedButtonY: selectedPanelY
+        + (compactPhoneLayout ? 61 : 72)
 
     signal closeRequested()                  // the panel "x" — closes the picker, back to the world
     signal applyRequested(string scope, string world, var pick)
@@ -100,6 +117,7 @@ Item {
     // Window chrome cluster — minimize · fullscreen-toggle · power. Top-right, over the
     // empty preview area (the search panel is on the left), matching every other page.
     Row {
+        visible: Qt.platform.os !== "android"
         z: 50
         anchors.right: parent.right
         anchors.rightMargin: 40
@@ -167,43 +185,55 @@ Item {
     Glass {
         id: panel
         backdrop: root.backdrop
-        width: Math.min(520, root.width - 80)
-        height: root.height - 120
-        x: 40
-        y: 60
-        radius: 18
+        width: root.compactPhoneLayout
+            ? Math.max(1, Math.min(520, root.width - 24))
+            : Math.min(520, root.width - 80)
+        height: root.compactPhoneLayout
+            ? Math.max(1, root.height - 24) : root.height - 120
+        x: root.compactPhoneLayout ? (root.width - width) / 2 : 40
+        y: root.compactPhoneLayout ? 12 : 60
+        radius: root.compactPhoneLayout ? 14 : 18
 
         ColumnLayout {
             anchors.fill: parent
-            anchors.margins: 22
-            spacing: 14
+            anchors.margins: root.compactPhoneLayout ? 12 : 22
+            spacing: root.compactPhoneLayout ? 6 : 14
 
             RowLayout {
                 Layout.fillWidth: true
+                spacing: root.compactPhoneLayout ? 2 : 0
 
                 Text {
                     text: "Wallpapers"
                     color: "#f3f0e8"
                     font.family: theme.display
-                    font.pixelSize: 34
+                    font.pixelSize: theme.fontSize(root.compactPhoneLayout ? 18 : 34)
+                    elide: Text.ElideRight
                     Layout.fillWidth: true
+                    Layout.minimumWidth: 0
                 }
 
                 Text {
                     objectName: "wallpaperSearchClose"
                     text: "x"
                     color: closeMa.containsMouse ? "#ffffff" : "#aaa7a0"
-                    font.pixelSize: 20
+                    font.pixelSize: theme.fontSize(root.compactPhoneLayout ? 18 : 20)
+                    horizontalAlignment: Text.AlignHCenter
+                    verticalAlignment: Text.AlignVCenter
+                    Layout.preferredWidth: root.compactPhoneLayout ? 48 : implicitWidth
+                    Layout.minimumWidth: root.compactPhoneLayout ? 48 : 0
+                    Layout.preferredHeight: root.compactPhoneLayout ? 48 : implicitHeight
+                    Layout.minimumHeight: root.compactPhoneLayout ? 48 : 0
 
                     MouseArea {
                         id: closeMa
                         anchors.fill: parent
-                        anchors.margins: -10
+                        anchors.margins: root.compactPhoneLayout ? 0 : -10
                         hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: root.closeRequested()
                     }
-                    KeyboardAction { anchors.fill: parent; anchors.margins: -10; pointerEnabled: false
+                    KeyboardAction { anchors.fill: parent; anchors.margins: root.compactPhoneLayout ? 0 : -10; pointerEnabled: false
                         accessibleName: "Close wallpaper picker"; onTriggered: root.closeRequested() }
                 }
             }
@@ -213,7 +243,7 @@ Item {
 
                 Rectangle {
                     Layout.fillWidth: true
-                    Layout.preferredHeight: 42
+                    Layout.preferredHeight: root.compactPhoneLayout ? 48 : 42
                     radius: 999
                     color: Qt.rgba(0, 0, 0, 0.28)
                     border.width: 1
@@ -228,14 +258,14 @@ Item {
                         color: "#f7f4ee"
                         selectionColor: "#c9a44a"
                         selectedTextColor: "#101010"
-                        font.pixelSize: 15
+                        font.pixelSize: theme.fontSize(15)
                         Keys.onReturnPressed: root.runSearch()
                     }
                 }
 
                 Rectangle {
-                    Layout.preferredWidth: 92
-                    Layout.preferredHeight: 42
+                    Layout.preferredWidth: root.compactPhoneLayout ? 72 : 92
+                    Layout.preferredHeight: root.compactPhoneLayout ? 48 : 42
                     radius: 999
                     color: searchMa.containsMouse ? "#d6b357" : "#c9a44a"
 
@@ -243,7 +273,7 @@ Item {
                         anchors.centerIn: parent
                         text: "Search"
                         color: "#15110a"
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.weight: Font.DemiBold
                     }
 
@@ -267,25 +297,32 @@ Item {
                     model: [ { "label": "Relevance", "mode": "relevance" },
                              { "label": "Top", "mode": "top" },
                              { "label": "Random", "mode": "random" } ]
-                    delegate: Rectangle {
-                        id: sortPill
+                    delegate: Item {
+                        id: sortTarget
                         required property var modelData
-                        width: sortLabel.implicitWidth + 26
-                        height: 30
-                        radius: 999
-                        color: root.sorting === sortPill.modelData.mode ? "#c9a44a"
+                        width: sortLabel.implicitWidth + (root.compactPhoneLayout ? 18 : 26)
+                        height: root.compactPhoneLayout ? 48 : 30
+
+                        Rectangle {
+                            id: sortPill
+                            anchors.centerIn: parent
+                            width: parent.width
+                            height: 30
+                            radius: 999
+                            color: root.sorting === sortTarget.modelData.mode ? "#c9a44a"
                              : sortMa.containsMouse ? Qt.rgba(255, 255, 255, 0.16)
                              : Qt.rgba(255, 255, 255, 0.08)
-                        border.width: root.sorting === sortPill.modelData.mode ? 0 : 1
-                        border.color: Qt.rgba(255, 255, 255, 0.14)
+                            border.width: root.sorting === sortTarget.modelData.mode ? 0 : 1
+                            border.color: Qt.rgba(255, 255, 255, 0.14)
 
-                        Text {
-                            id: sortLabel
-                            anchors.centerIn: parent
-                            text: sortPill.modelData.label
-                            color: root.sorting === sortPill.modelData.mode ? "#15110a" : "#e8e4dc"
-                            font.pixelSize: 12
-                            font.weight: root.sorting === sortPill.modelData.mode ? Font.DemiBold : Font.Normal
+                            Text {
+                                id: sortLabel
+                                anchors.centerIn: parent
+                                text: sortTarget.modelData.label
+                                color: root.sorting === sortTarget.modelData.mode ? "#15110a" : "#e8e4dc"
+                                font.pixelSize: theme.fontSize(12)
+                                font.weight: root.sorting === sortTarget.modelData.mode ? Font.DemiBold : Font.Normal
+                            }
                         }
 
                         MouseArea {
@@ -293,11 +330,11 @@ Item {
                             anchors.fill: parent
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
-                            onClicked: root.setSorting(sortPill.modelData.mode)
+                            onClicked: root.setSorting(sortTarget.modelData.mode)
                         }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false
-                            accessibleName: "Sort wallpapers by " + sortPill.modelData.label
-                            onTriggered: root.setSorting(sortPill.modelData.mode) }
+                            accessibleName: "Sort wallpapers by " + sortTarget.modelData.label
+                            onTriggered: root.setSorting(sortTarget.modelData.mode) }
                     }
                 }
             }
@@ -306,7 +343,9 @@ Item {
                 Layout.fillWidth: true
                 text: root.statusText
                 color: "#b8b2a8"
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(root.compactPhoneLayout ? 11 : 12)
+                elide: Text.ElideRight
+                maximumLineCount: 1
             }
 
             // ---- Everything below the search controls — both Colosseum shelves, the KDE
@@ -372,7 +411,7 @@ Item {
                             anchors.rightMargin: 8
                             text: nativeTile.modelData.title
                             color: "#e8e2d4"
-                            font.pixelSize: 10
+                            font.pixelSize: theme.fontSize(10)
                             elide: Text.ElideRight
                         }
                     }
@@ -390,7 +429,7 @@ Item {
                 text: "Colosseum Animated"
                 color: "#d8d2c4"
                 font.family: theme.display
-                font.pixelSize: 16
+                font.pixelSize: theme.fontSize(16)
             }
 
             ListView {
@@ -428,7 +467,7 @@ Item {
                 text: "Colosseum Native"
                 color: "#d8d2c4"
                 font.family: theme.display
-                font.pixelSize: 16
+                font.pixelSize: theme.fontSize(16)
             }
 
             ListView {
@@ -470,7 +509,7 @@ Item {
                 text: "KDE Plasma"
                 color: "#d8d2c4"
                 font.family: theme.display
-                font.pixelSize: 16
+                font.pixelSize: theme.fontSize(16)
             }
 
             ListView {
@@ -542,14 +581,14 @@ Item {
                                 width: parent.width
                                 text: kdeTile.modelData.title
                                 color: "#e8e2d4"
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 elide: Text.ElideRight
                             }
                             Text {
                                 width: parent.width
                                 text: kdeTile.modelData.artist
                                 color: "#9a958c"
-                                font.pixelSize: 8
+                                font.pixelSize: theme.fontSize(8)
                                 elide: Text.ElideRight
                             }
                         }
@@ -571,8 +610,9 @@ Item {
                 Layout.preferredHeight: grid.contentHeight
                 interactive: false
                 clip: false
-                cellWidth: 154
-                cellHeight: 104
+                cellWidth: root.compactPhoneLayout && grid.width > 0
+                    ? grid.width / root.resultColumns : 154
+                cellHeight: root.compactPhoneLayout ? grid.cellWidth * 104 / 154 : 104
                 model: root.results
                 boundsBehavior: Flickable.StopAtBounds
                 activeFocusOnTab: count > 0
@@ -583,7 +623,7 @@ Item {
                     id: resultKeys
                     view: grid
                     orientation: "grid"
-                    columns: Math.max(1, Math.floor(grid.width / grid.cellWidth))
+                    columns: root.resultColumns
                     positionIndexFn: (index) => root.revealResultIndex(index)
                     onActivated: (index) => { const row = root.results[index]; if (row) root.selectedPick = row }
                 }
@@ -591,8 +631,8 @@ Item {
                 delegate: Rectangle {
                     id: resultTile
                     required property var modelData
-                    width: 144
-                    height: 92
+                    width: root.compactPhoneLayout ? Math.max(1, grid.cellWidth - 10) : 144
+                    height: root.compactPhoneLayout ? Math.max(1, grid.cellHeight - 12) : 92
                     radius: 8
                     color: "#101014"
                     border.width: root.selectedPick.source_id === resultTile.modelData.source_id ? 2 : 1
@@ -622,7 +662,7 @@ Item {
                             anchors.centerIn: parent
                             text: resultTile.modelData.source
                             color: "#d8d4cc"
-                            font.pixelSize: 9
+                            font.pixelSize: theme.fontSize(9)
                         }
                     }
 
@@ -636,13 +676,13 @@ Item {
                 // Load more — appends Wallhaven's next page
                 footer: Item {
                     width: grid.width
-                    height: root.canLoadMore || root.loading ? 56 : 0
+                    height: root.canLoadMore || root.loading ? (root.compactPhoneLayout ? 64 : 56) : 0
 
                     Rectangle {
                         anchors.centerIn: parent
                         visible: root.canLoadMore || root.loading
                         width: 148
-                        height: 36
+                        height: root.compactPhoneLayout ? 48 : 36
                         radius: 999
                         color: root.loading ? Qt.rgba(255, 255, 255, 0.08)
                              : moreMa.containsMouse ? "#d6b357" : "#c9a44a"
@@ -651,7 +691,7 @@ Item {
                             anchors.centerIn: parent
                             text: root.loading ? "Loading..." : "Load more"
                             color: root.loading ? "#b8b2a8" : "#15110a"
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
 
@@ -684,19 +724,19 @@ Item {
         // Coerced: the bare && yields the image_url STRING (or undefined), and QML warns
         // "Unable to assign [undefined] to bool" on every evaluation with nothing selected.
         visible: !!(root.selectedPick && root.selectedPick.image_url)
-        width: 360
-        height: 142
+        width: root.selectedPanelWidth
+        height: root.selectedPanelHeight
         radius: 18
-        x: root.width - width - 52
-        y: root.height - height - 52
+        x: root.selectedPanelX
+        y: root.selectedPanelY
         color: Qt.rgba(0.04, 0.04, 0.06, 0.88)
         border.width: 1
         border.color: Qt.rgba(255, 255, 255, 0.16)
 
         Column {
             anchors.fill: parent
-            anchors.margins: 16
-            spacing: 10
+            anchors.margins: root.compactPhoneLayout ? 12 : 16
+            spacing: root.compactPhoneLayout ? 8 : 10
 
             Text {
                 width: parent.width
@@ -704,16 +744,17 @@ Item {
                 elide: Text.ElideRight
                 color: "#f6f2ea"
                 font.family: theme.display
-                font.pixelSize: 18
+                font.pixelSize: theme.fontSize(root.compactPhoneLayout ? 16 : 18)
             }
 
             Text {
                 text: root.selectedPick.spec || ""
                 color: "#aaa59c"
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
             }
 
             Row {
+                width: parent.width
                 spacing: 10
 
                 Repeater {
@@ -725,18 +766,22 @@ Item {
                     delegate: Rectangle {
                         id: scopeButton
                         required property var modelData
-                        width: 150
-                        height: 40
+                        width: root.selectedButtonWidth
+                        height: root.compactPhoneLayout ? 48 : 40
                         radius: 999
                         color: buttonMa.containsMouse ? "#d6b357" : (scopeButton.modelData.scope === "all" ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.10))
                         border.width: scopeButton.modelData.scope === "all" ? 0 : 1
                         border.color: Qt.rgba(255, 255, 255, 0.18)
 
                         Text {
-                            anchors.centerIn: parent
+                            anchors.fill: parent
+                            anchors.margins: 8
+                            verticalAlignment: Text.AlignVCenter
+                            horizontalAlignment: Text.AlignHCenter
                             text: scopeButton.modelData.label
+                            wrapMode: Text.WordWrap
                             color: scopeButton.modelData.scope === "all" || buttonMa.containsMouse ? "#15110a" : "#f0eee8"
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
 
@@ -760,15 +805,15 @@ Item {
     }
 
     // Lanista automation layer: the rendered apply buttons above remain the production
-    // controls. These transparent hit targets keep the two final actions addressable
-    // without changing the picker layout or its signal path.
+    // controls. These transparent hit targets follow the responsive buttons while
+    // retaining their signal path.
     Item {
         objectName: "wallpaperApply_all"
         visible: !!(root.selectedPick && root.selectedPick.image_url)
         z: 60
-        x: root.width - 360 - 52 + 16
-        y: root.height - 142 - 52 + 72
-        width: 150; height: 40
+        x: root.selectedPanelX + (root.compactPhoneLayout ? 12 : 16)
+        y: root.selectedButtonY
+        width: root.selectedButtonWidth; height: root.compactPhoneLayout ? 48 : 40
         MouseArea {
             anchors.fill: parent
             onClicked: root.applyRequested("all", root.targetWorld, root.selectedPick)
@@ -778,9 +823,10 @@ Item {
         objectName: "wallpaperApply_world"
         visible: !!(root.selectedPick && root.selectedPick.image_url)
         z: 60
-        x: root.width - 360 - 52 + 176
-        y: root.height - 142 - 52 + 72
-        width: 150; height: 40
+        x: root.selectedPanelX + (root.compactPhoneLayout ? 12 : 16)
+            + root.selectedButtonWidth + 10
+        y: root.selectedButtonY
+        width: root.selectedButtonWidth; height: root.compactPhoneLayout ? 48 : 40
         MouseArea {
             anchors.fill: parent
             onClicked: root.applyRequested("world", root.targetWorld, root.selectedPick)

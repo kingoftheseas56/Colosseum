@@ -310,6 +310,9 @@ WorldPage {
     //    "started" yet) via the existing collectionOpenRequested door. ──
     TankobanLibraryTab {
         id: libraryPage
+        removeSelectionEntry: function(entry) {
+            return typeof Collection !== "undefined" ? Collection.remove("tankoban", String(entry.id)) : false
+        }
         visible: tanko.activeTab === "library"
         active: tanko.lifecycleActive && visible
         width: parent.width

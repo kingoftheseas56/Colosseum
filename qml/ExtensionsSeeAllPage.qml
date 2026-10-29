@@ -20,7 +20,10 @@ Item {
         const w = page.Window.window
         return !!(w && w.androidHost && w.width < 840)
     }
-    readonly property real sideMargin: phoneLayout ? 16 : theme.margin
+    readonly property bool phoneLandscape: page.phoneLayout && !!page.Window.window
+                                      && page.Window.window.height < 500
+    readonly property real sideMargin: phoneLayout
+        ? Math.max(16, SafeArea.margins.left, SafeArea.margins.right) : theme.margin
     signal addonActivated(var addon)
     signal backRequested()
 
@@ -53,6 +56,17 @@ Item {
     Theme { id: theme }
 
     function takeKeyboardFocus() { if (page.searching) box.forceActiveFocus(); else if (page.phoneLayout) phoneList.forceActiveFocus(); else grid.forceActiveFocus() }
+    function submitQuery() {
+        page.query = box.text
+        if (page.phoneLayout) Qt.inputMethod.hide()
+        if (page.items.length) (page.phoneLayout ? phoneList : grid).forceActiveFocus()
+    }
+    function phoneActionEnabled(addon) {
+        if (!addon || !addon.slug || (page.busy && page.busy[addon.slug] === true))
+            return false
+        var installed = page.installedFn ? page.installedFn(addon) : false
+        return !installed || addon.configurable === true
+    }
 
     // Transparent: the Store hides its board while this is open, so the wallpaper shows through.
     MouseArea { anchors.fill: parent }
@@ -60,7 +74,9 @@ Item {
     BackAction {
         id: back
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
-        anchors.top: parent.top; anchors.topMargin: 44
+        anchors.top: parent.top
+        anchors.topMargin: page.phoneLayout
+            ? Math.max(SafeArea.margins.top, page.phoneLandscape ? 8 : 14) : 44
         label: "Store"
         labelSize: 15
         onTriggered: page.backRequested()
@@ -68,29 +84,36 @@ Item {
 
     Column {
         id: head
+        objectName: "extensionsSeeAllHeader"
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.right: parent.right; anchors.rightMargin: page.sideMargin
-        anchors.top: back.bottom; anchors.topMargin: 22
-        spacing: 6
+        anchors.top: back.bottom
+        anchors.topMargin: page.phoneLandscape ? 6 : page.phoneLayout ? 14 : 22
+        spacing: page.phoneLandscape ? 2 : 6
         // Search box: the serif headline itself becomes the field.
         TextField {
             id: box
             objectName: "extensionsSearchField"
             visible: page.searching
             width: page.phoneLayout ? parent.width : Math.min(parent.width, 900)
+            height: page.phoneLayout ? Math.max(48, implicitHeight) : implicitHeight
             placeholderText: "Search " + page.pool.length + " add-ons"
             color: theme.ink
             placeholderTextColor: Qt.rgba(1, 1, 1, 0.32)
-            font.family: theme.display; font.pixelSize: page.phoneLayout ? 26 : 40
+            font.family: theme.display
+            font.pixelSize: theme.fontSize(page.phoneLandscape ? 18 : page.phoneLayout ? 26 : 40)
             leftPadding: 0
             background: Rectangle {
                 y: parent.height - 1; width: parent.width; height: 1
                 color: box.activeFocus ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.6) : Qt.rgba(1, 1, 1, 0.18)
             }
             onTextChanged: page.query = text
+            EnterKey.type: page.phoneLayout ? Qt.EnterKeySearch : Qt.EnterKeyDefault
+            onAccepted: page.submitQuery()
             Keys.onEscapePressed: page.backRequested()
             Keys.onDownPressed: if (page.items.length) (page.phoneLayout ? phoneList : grid).forceActiveFocus()
-            Keys.onReturnPressed: if (page.items.length) (page.phoneLayout ? phoneList : grid).forceActiveFocus()
+            Keys.onReturnPressed: page.submitQuery()
+            Keys.onEnterPressed: page.submitQuery()
         }
         Text {
             visible: !page.searching
@@ -98,7 +121,9 @@ Item {
             wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
             text: page.row ? page.row.title : ""
             color: theme.ink
-            font.family: theme.display; font.pixelSize: page.phoneLayout ? 28 : 40; font.weight: Font.DemiBold
+            font.family: theme.display
+            font.pixelSize: theme.fontSize(page.phoneLandscape ? 22 : page.phoneLayout ? 28 : 40)
+            font.weight: Font.DemiBold
         }
         Text {
             width: page.phoneLayout ? parent.width : implicitWidth
@@ -108,7 +133,7 @@ Item {
                                                  + " match." : "Names, what they do, or a category: anime, subtitles, debrid, Hindi…")
                   : page.row ? (page.row.sub + "  " + page.items.length + " add-ons.") : ""
             color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 15
+            font.family: theme.ui; font.pixelSize: theme.fontSize(page.phoneLandscape ? 12 : 15)
         }
     }
 
@@ -152,18 +177,23 @@ Item {
         id: phoneList
         objectName: "extensionsSeeAllList"
         visible: page.phoneLayout
-        anchors.top: head.bottom; anchors.topMargin: 22
+        anchors.top: head.bottom
+        anchors.topMargin: page.phoneLandscape ? 8 : 22
         anchors.bottom: parent.bottom
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
         anchors.right: parent.right; anchors.rightMargin: page.sideMargin
-        spacing: 18
+        spacing: page.phoneLandscape ? 8 : 18
         clip: true
         boundsBehavior: Flickable.StopAtBounds
         model: page.phoneLayout ? page.items : []
         focus: page.visible && page.phoneLayout
         ScrollBar.vertical: HouseScrollBar { flick: phoneList }
-        Keys.onReturnPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
-        Keys.onEnterPressed: if (currentIndex >= 0) page.addonActivated(page.items[currentIndex])
+        Keys.onReturnPressed: if (currentIndex >= 0
+                                 && page.phoneActionEnabled(page.items[currentIndex]))
+                                   page.addonActivated(page.items[currentIndex])
+        Keys.onEnterPressed: if (currentIndex >= 0
+                                && page.phoneActionEnabled(page.items[currentIndex]))
+                                  page.addonActivated(page.items[currentIndex])
         Keys.onEscapePressed: page.backRequested()
         delegate: ExtensionsStoreCard {
             required property var modelData
@@ -183,11 +213,12 @@ Item {
     Text {
         visible: page.searching && page.query.trim().length > 0 && page.items.length === 0
         anchors.left: parent.left; anchors.leftMargin: page.sideMargin
-        anchors.top: head.bottom; anchors.topMargin: 40
+        anchors.top: head.bottom
+        anchors.topMargin: page.phoneLandscape ? 14 : 40
         width: page.phoneLayout ? parent.width - 2 * page.sideMargin : implicitWidth
         wrapMode: page.phoneLayout ? Text.WordWrap : Text.NoWrap
         text: "No add-on matches that. Try a site name, a language or a genre."
         color: theme.inkDim
-        font.family: theme.ui; font.pixelSize: 15
+        font.family: theme.ui; font.pixelSize: theme.fontSize(15)
     }
 }

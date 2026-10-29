@@ -100,6 +100,7 @@ Item {
         // Gallery poster profile — adopted after the Theatre pilot passed eyes-on (2026-08-03). No
         // data/filter/rating-visibility change: presentation only. Posters load small (fast, sharp).
         posterVisualProfile: "gallery"
+        compactPhonePosters: true
         // Theatre copy — preserves the old empty-state wording (no filtered variant existed).
         textNoCatalogue: "No catalogues here — install an addon that carries some."
         textCatalogueEmpty: "This catalogue answered with nothing."

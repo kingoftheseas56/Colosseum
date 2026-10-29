@@ -133,7 +133,7 @@ Item {
             text: chip.label
             color: chip.active ? theme.gold : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.bold: chip.active
         }
         ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: chip.tapped() }
@@ -151,7 +151,7 @@ Item {
             text: srow.label
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
         }
         Row {
             id: setRow
@@ -192,7 +192,7 @@ Item {
                 text: tile.label
                 color: tileHover.hovered ? theme.ink : theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
             }
         }
         HoverHandler { id: tileHover }
@@ -239,7 +239,7 @@ Item {
             text: danger.armed ? "Tap again to confirm" : danger.label
             color: root.cDanger
             font.family: theme.hud
-            font.pixelSize: 12          // mock says 11.5px; pixelSize is an int — 12 matches the chips
+            font.pixelSize: theme.fontSize(12)          // mock says 11.5px; pixelSize is an int — 12 matches the chips
             font.bold: danger.armed
         }
         ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: danger.tapped() }
@@ -248,7 +248,7 @@ Item {
     component SectionLabel: Text {
         color: theme.inkDimmer
         font.family: theme.hud
-        font.pixelSize: 10
+        font.pixelSize: theme.fontSize(10)
         font.letterSpacing: 2
         font.capitalization: Font.AllUppercase
     }
@@ -308,7 +308,7 @@ Item {
                     text: "Reader settings"
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     font.bold: true
                     font.letterSpacing: 0.3
                 }
@@ -388,7 +388,7 @@ Item {
                         text: root.zoomPercent + "%"
                         color: theme.gold
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.bold: true
                     }
                 }
@@ -472,7 +472,7 @@ Item {
                     text: "Memory saver"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                 }
                 Switch {
                     objectName: "settingsMemorySaver"

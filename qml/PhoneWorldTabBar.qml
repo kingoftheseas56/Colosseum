@@ -32,7 +32,12 @@ Item {
         return out
     }
 
-    implicitHeight: 72 + navigationBottomPadding
+    readonly property bool shortWindow: {
+        const w = root.Window.window
+        return !!(w && w.height < 500)
+    }
+    implicitHeight: (shortWindow ? Math.max(56, 38 + Math.ceil(theme.fontSize(14)))
+        : Math.max(72, 46 + Math.ceil(theme.fontSize(14)))) + navigationBottomPadding
     height: implicitHeight
 
     Rectangle {
@@ -52,7 +57,9 @@ Item {
     Row {
         id: row
         anchors.fill: parent
-        anchors.bottomMargin: root.navigationBottomPadding + 8
+        anchors.leftMargin: SafeArea.margins.left
+        anchors.rightMargin: SafeArea.margins.right
+        anchors.bottomMargin: root.navigationBottomPadding + (root.shortWindow ? 6 : 8)
 
         Repeater {
             model: root.tabs.length
@@ -77,11 +84,20 @@ Item {
                         root.worldRequested(entry.name)
                 }
 
+                Rectangle {
+                    objectName: "phoneWorldTabFeedback_" + tab.entry.name
+                    anchors.fill: parent
+                    anchors.margins: 2
+                    radius: 12
+                    color: theme.gold
+                    opacity: (touch.pressed && !touch.moved) || tab.activeFocus ? 0.16 : 0
+                }
+
                 Image {
                     id: sourceGlyph
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.top
-                    anchors.topMargin: 10
+                    anchors.topMargin: root.shortWindow ? 6 : 10
                     width: 22
                     height: 22
                     source: tab.entry.icon
@@ -103,22 +119,38 @@ Item {
                 }
 
                 Text {
+                    objectName: "phoneWorldTabLabel_" + tab.entry.name
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: sourceGlyph.bottom
                     anchors.topMargin: 4
                     text: tab.entry.name
+                    width: parent.width - 8
+                    horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight
                     color: tab.active ? "#f0c44a" : "#9a99a5"
                     font.family: theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: tab.active ? Font.DemiBold : Font.Normal
                 }
 
                 MouseArea {
+                    id: touch
                     objectName: "phoneWorldTabHitArea_" + tab.entry.name
                     anchors.fill: parent
-                    preventStealing: true
+                    property point startPoint
+                    property bool moved: false
+                    preventStealing: false
                     propagateComposedEvents: false
-                    onClicked: tab.activate()
+                    onPressed: function(mouse) {
+                        startPoint = Qt.point(mouse.x, mouse.y)
+                        moved = false
+                    }
+                    onPositionChanged: function(mouse) {
+                        if (pressed && Math.hypot(mouse.x - startPoint.x, mouse.y - startPoint.y)
+                                > Qt.styleHints.startDragDistance) moved = true
+                    }
+                    onCanceled: moved = true
+                    onClicked: if (!moved) tab.activate()
                 }
 
                 Keys.onReturnPressed: tab.activate()

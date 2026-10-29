@@ -278,7 +278,7 @@ Item {
                 text: qsTr("Profile")
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 26
+                font.pixelSize: theme.fontSize(26)
                 font.weight: Font.DemiBold
             }
 
@@ -346,7 +346,7 @@ Item {
                         text: root.currentUsername
                         color: theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 31
+                        font.pixelSize: theme.fontSize(31)
                         font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
@@ -357,7 +357,7 @@ Item {
                         text: qsTr("Colosseum account")
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
 
                     Item { width: 1; height: 20 }
@@ -396,7 +396,7 @@ Item {
                                 .arg(root.avatarLabel(root.persistedAvatarId))
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                         }
                     }
                 }
@@ -428,7 +428,7 @@ Item {
                         text: qsTr("Avatar")
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.weight: Font.DemiBold
                     }
 
@@ -449,7 +449,7 @@ Item {
                             text: qsTr("BUILT-IN")
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 10
+                            font.pixelSize: theme.fontSize(10)
                             font.letterSpacing: 0.8
                         }
                     }
@@ -551,7 +551,7 @@ Item {
                                     color: theme.inkDimmer
                                     opacity: modelData.deferred ? 0.48 : 1.0
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                 }
                             }
 
@@ -580,7 +580,7 @@ Item {
                     text: qsTr("Username")
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                 }
 
@@ -644,7 +644,7 @@ Item {
                         : root.operationErrorMessage
                     color: root.profileUpdated ? theme.inkDimmer : "#e9857d"
                     font.family: theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     wrapMode: Text.WordWrap
                 }
 

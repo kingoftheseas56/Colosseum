@@ -468,9 +468,9 @@ Item {
 
             // ---- header ----
             Text { text: "COLOSSEUM · LOCAL"; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6; font.weight: Font.DemiBold }
             Text { text: "Downloads"; color: theme.ink; topPadding: 8
-                   font.family: theme.display; font.pixelSize: root.phoneNarrow ? 40 : 56; font.letterSpacing: -1 }
+                   font.family: theme.display; font.pixelSize: theme.fontSize(root.phoneNarrow ? 40 : 56); font.letterSpacing: -1 }
             Item { width: 1; height: 20 }
             Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
 
@@ -481,7 +481,7 @@ Item {
                 wrapMode: root.phoneNarrow ? Text.Wrap : Text.NoWrap
                 lineHeight: root.phoneNarrow ? 1.35 : 1.0
                 textFormat: Text.StyledText
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 color: theme.inkDimmer
                 text: {
                     var t = root.totalsMap || {};
@@ -505,7 +505,7 @@ Item {
                 text: root.mutationMessage
                 color: "#c98b8b"
                 font.family: theme.ui
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
                 wrapMode: Text.Wrap
             }
 
@@ -514,7 +514,7 @@ Item {
                 visible: root.backgroundDownloadMessage.length > 0
                 topPadding: 10; width: parent.width
                 text: root.backgroundDownloadMessage
-                color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+                color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 wrapMode: Text.Wrap
             }
 
@@ -532,11 +532,11 @@ Item {
                 Row {
                     spacing: 14
                     Text { text: "Now arriving"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
+                           font.family: theme.display; font.pixelSize: theme.fontSize(28); font.letterSpacing: -0.2 }
                     Text { anchors.baseline: parent.children[0].baseline
                            text: root.liveJobCount + (root.liveJobCount === 1 ? " live job" : " live jobs")
                                  + (root.attentionCount > 0 ? " · " + root.attentionCount + " need attention" : "")
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                 }
 
                 Rectangle {
@@ -597,7 +597,7 @@ Item {
                                             textFormat: Text.PlainText
                                             text: grp.modelData.title
                                             color: theme.ink; font.family: theme.ui
-                                            font.pixelSize: 15; font.weight: Font.DemiBold
+                                            font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                                             elide: Text.ElideRight
                                         }
                                         Text {
@@ -643,7 +643,7 @@ Item {
                                                     ? wn + " · " + grp.modelData.count + " " + grp.modelData.groupUnit
                                                     : wn + " · season checkout · " + grp.modelData.count + " episodes";
                                             }
-                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                             elide: Text.ElideRight
                                         }
                                     }
@@ -669,15 +669,20 @@ Item {
                                             if (eta.length) parts.push(eta);
                                             return parts.join(" · ");
                                         }
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                     }
                                     Row {
                                         id: actsRow
                                         anchors.right: parent.right; anchors.rightMargin: 26
                                         anchors.verticalCenter: parent.verticalCenter
-                                        spacing: 20
-                                        Text {
-                                            // Lanista-only observation seams; behavior and click routing unchanged.
+                                        spacing: 4
+                                        // Play / Retry / Pause-Resume ride 48dp hit hosts: the
+                                        // 12px glyph keeps its exact look, but touch input lands
+                                        // on a finger-sized target (hosts are invisible, so the
+                                        // desktop read is unchanged apart from slightly wider
+                                        // text gaps). Visible/enabled flags and callbacks are the
+                                        // originals, verbatim.
+                                        Item {
                                             objectName: (grp.modelData.single ? "downloadsPlayArriving_" : "downloadsPlayArrivingGroup_") + String(grp.modelData.rows[0].id || "")
                                             readonly property bool diskFirstReady:
                                                 Number(grp.modelData.rows[0].received || 0) > 8 * 1024 * 1024
@@ -686,25 +691,39 @@ Item {
                                             // with a resolved url (never queued/resolving).
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].canPlay === true
-                                            text: "Play"
-                                            color: hPlayInput.interactionActive ? "#ffd968" : theme.gold
-                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            width: Math.max(48, hPlayLabel.implicitWidth + 20)
+                                            height: 48
+                                            Text {
+                                                id: hPlayLabel
+                                                anchors.centerIn: parent
+                                                text: "Play"
+                                                color: hPlayInput.interactionActive ? "#ffd968" : theme.gold
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                                            }
                                             KeyboardAction { id: hPlayInput; anchors.fill: parent
                                                 accessibleName: "Play arriving download"; showFocusFrame: false
                                                 onTriggered: root.playArrivingRequested(grp.modelData.rows[0]) }
                                         }
-                                        Text {
+                                        Item {
+                                            objectName: "downloadsRetryAction_" + String(grp.modelData.rows[0].id || "")
                                             visible: grp.modelData.single
                                                      && grp.modelData.rows[0].canRetry === true
-                                            text: "Retry"
-                                            color: hRetryInput.interactionActive ? "#ffd968" : theme.gold
-                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            width: Math.max(48, hRetryLabel.implicitWidth + 20)
+                                            height: 48
+                                            Text {
+                                                id: hRetryLabel
+                                                anchors.centerIn: parent
+                                                text: "Retry"
+                                                color: hRetryInput.interactionActive ? "#ffd968" : theme.gold
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                                            }
                                             KeyboardAction { id: hRetryInput; anchors.fill: parent
                                                 accessibleName: "Retry download"; showFocusFrame: false
                                                 onTriggered: root.downloadsApi.retry(grp.modelData.world, grp.modelData.rows[0].id) }
                                         }
-                                        Text {
-                                            id: hPauseT
+                                        Item {
+                                            id: hPauseHost
+                                            objectName: "downloadsPauseAction_" + String(grp.modelData.rows[0].id || "")
                                             readonly property bool anyRunning: {
                                                 var rows = grp.modelData.rows;
                                                 for (var i = 0; i < rows.length; i++)
@@ -717,17 +736,23 @@ Item {
                                                     if (rows[i].canResume === true) return true;
                                                 return false;
                                             }
-                                            visible: anyRunning || anyPaused
-                                            text: anyRunning
-                                                  ? (grp.modelData.single ? "Pause" : "Pause season")
-                                                  : (grp.modelData.single ? "Resume" : "Resume season")
-                                            color: hPauseInput.interactionActive ? "#ffd968" : theme.gold
-                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            visible: hPauseHost.anyRunning || hPauseHost.anyPaused
+                                            width: Math.max(48, hPauseLabel.implicitWidth + 20)
+                                            height: 48
+                                            Text {
+                                                id: hPauseLabel
+                                                anchors.centerIn: parent
+                                                text: hPauseHost.anyRunning
+                                                      ? (grp.modelData.single ? "Pause" : "Pause season")
+                                                      : (grp.modelData.single ? "Resume" : "Resume season")
+                                                color: hPauseInput.interactionActive ? "#ffd968" : theme.gold
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                                            }
                                             KeyboardAction { id: hPauseInput; anchors.fill: parent
-                                                accessibleName: hPauseT.text; showFocusFrame: false
+                                                accessibleName: hPauseLabel.text; showFocusFrame: false
                                                 onTriggered: {
                                                     var rows = grp.modelData.rows;
-                                                    var pausing = hPauseT.anyRunning;
+                                                    var pausing = hPauseHost.anyRunning;
                                                     for (var k = 0; k < rows.length; k++) {
                                                         var i = pausing ? rows.length - 1 - k : k;
                                                         if (pausing && rows[i].canPause === true)
@@ -743,7 +768,7 @@ Item {
                                                      && grp.modelData.rows[0].canRetry !== true
                                             text: grp.modelData.world === "biblio" ? "Open Biblio" : "Open Tankoban"
                                             color: hSourceInput.interactionActive ? "#ffd968" : theme.gold
-                                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                                             KeyboardAction { id: hSourceInput; anchors.fill: parent
                                                 accessibleName: "Open " + (grp.modelData.world === "biblio" ? "Biblio" : "Tankoban")
                                                 showFocusFrame: false
@@ -763,7 +788,7 @@ Item {
                                                   ? "Dismiss"
                                                   : (grp.modelData.single ? "Cancel" : "Cancel season")
                                             color: hCancelInput.interactionActive ? theme.ink : theme.inkDimmer
-                                            font.family: theme.ui; font.pixelSize: 12
+                                            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                             KeyboardAction { id: hCancelInput; anchors.fill: parent
                                                 accessibleName: parent.text; showFocusFrame: false
                                                 onTriggered: {
@@ -837,7 +862,7 @@ Item {
                                                   : (epRow.modelData.episode > 0
                                                      ? "E" + (epRow.modelData.episode < 10 ? "0" : "") + epRow.modelData.episode
                                                      : "")
-                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                             elide: Text.ElideRight
                                         }
                                         Column {
@@ -852,7 +877,7 @@ Item {
                                                 color: epRow.modelData.state === "done" || epRow.modelData.state === "queued"
                                                        || epRow.modelData.state === "paused"
                                                        ? theme.inkDim : theme.ink
-                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.Medium
                                                 elide: Text.ElideRight
                                             }
                                             Text {
@@ -869,7 +894,7 @@ Item {
                                                     : "landed — on the Theatre shelf"
                                                 color: epRow.modelData.state === "failed"
                                                        ? "#c98b8b" : theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 11
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                                 elide: Text.ElideRight
                                             }
                                         }
@@ -895,50 +920,73 @@ Item {
                                                     return root.fmtBytes(m.received || 0) + " of " + root.fmtBytes(m.total);
                                                 return "—";
                                             }
-                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                         }
                                         Row {
                                             id: epActs
                                             anchors.right: parent.right; anchors.rightMargin: 26
                                             anchors.verticalCenter: parent.verticalCenter
-                                            spacing: 16
+                                            spacing: 4
                                             Text {
                                                 visible: epRow.modelData.state === "done"
                                                 text: "✓"; color: theme.inkDim
                                                 font.family: theme.ui; font.pixelSize: 13
                                             }
-                                            Text {
-                                                // Same Lanista-only observation seams for grouped episode rows.
+                                            // Episode-row twins of the group-header hosts: the
+                                            // same Play / Pause-Resume / Retry verbs, each on a
+                                            // 48dp invisible hit host, glyphs and callbacks intact.
+                                            Item {
                                                 objectName: "downloadsPlayArriving_" + String(epRow.modelData.id || "")
                                                 readonly property bool diskFirstReady:
                                                     Number(epRow.modelData.received || 0) > 8 * 1024 * 1024
                                                 // play-while-arriving (2026-07-20): same gate as the
                                                 // single card — downloading + resolved url only.
                                                 visible: epRow.modelData.canPlay === true
-                                                text: "Play"
-                                                color: rPlayInput.interactionActive ? "#ffd968" : theme.gold
-                                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                                width: Math.max(48, rPlayLabel.implicitWidth + 20)
+                                                height: 48
+                                                Text {
+                                                    id: rPlayLabel
+                                                    anchors.centerIn: parent
+                                                    text: "Play"
+                                                    color: rPlayInput.interactionActive ? "#ffd968" : theme.gold
+                                                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                                                }
                                                 KeyboardAction { id: rPlayInput; anchors.fill: parent
                                                     accessibleName: "Play arriving download"; showFocusFrame: false
                                                     onTriggered: root.playArrivingRequested(epRow.modelData) }
                                             }
-                                            Text {
+                                            Item {
+                                                id: rPauseHost
+                                                objectName: "downloadsPauseEpisode_" + String(epRow.modelData.id || "")
                                                 visible: epRow.modelData.canPause === true
                                                          || epRow.modelData.canResume === true
-                                                text: epRow.modelData.canResume === true ? "Resume" : "Pause"
-                                                color: rPauseInput.interactionActive ? "#ffd968" : theme.gold
-                                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                                width: Math.max(48, rPauseLabel.implicitWidth + 20)
+                                                height: 48
+                                                Text {
+                                                    id: rPauseLabel
+                                                    anchors.centerIn: parent
+                                                    text: epRow.modelData.canResume === true ? "Resume" : "Pause"
+                                                    color: rPauseInput.interactionActive ? "#ffd968" : theme.gold
+                                                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                                                }
                                                 KeyboardAction { id: rPauseInput; anchors.fill: parent
-                                                    accessibleName: parent.text; showFocusFrame: false
+                                                    accessibleName: rPauseLabel.text; showFocusFrame: false
                                                     onTriggered: epRow.modelData.canResume === true
                                                                ? root.downloadsApi.resume(epRow.modelData.world, epRow.modelData.id)
                                                                : root.downloadsApi.pause(epRow.modelData.world, epRow.modelData.id) }
                                             }
-                                            Text {
+                                            Item {
+                                                objectName: "downloadsRetryEpisode_" + String(epRow.modelData.id || "")
                                                 visible: epRow.modelData.canRetry === true
-                                                text: "Retry"
-                                                color: rRetryInput.interactionActive ? "#ffd968" : theme.gold
-                                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                                                width: Math.max(48, rRetryLabel.implicitWidth + 20)
+                                                height: 48
+                                                Text {
+                                                    id: rRetryLabel
+                                                    anchors.centerIn: parent
+                                                    text: "Retry"
+                                                    color: rRetryInput.interactionActive ? "#ffd968" : theme.gold
+                                                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
+                                                }
                                                 KeyboardAction { id: rRetryInput; anchors.fill: parent
                                                     accessibleName: "Retry download"; showFocusFrame: false
                                                     onTriggered: root.downloadsApi.retry(epRow.modelData.world, epRow.modelData.id) }
@@ -948,7 +996,7 @@ Item {
                                                          || epRow.modelData.canDismiss === true
                                                 text: epRow.modelData.canDismiss === true ? "Dismiss" : "Cancel"
                                                 color: rCancelInput.interactionActive ? theme.ink : theme.inkDimmer
-                                                font.family: theme.ui; font.pixelSize: 12
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                                 KeyboardAction { id: rCancelInput; anchors.fill: parent
                                                     accessibleName: parent.text; showFocusFrame: false
                                                     onTriggered: {
@@ -1007,7 +1055,7 @@ Item {
                                         width: parent.width
                                         text: managerAudioRow.st.title || root.abTitleOf(managerAudioRow.modelData)
                                         color: theme.ink
-                                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.Medium
                                         elide: Text.ElideRight
                                     }
                                     Text {
@@ -1023,7 +1071,7 @@ Item {
                                             return "Audiobook · downloading";
                                         }
                                         color: managerAudioRow.st.state === "failed" ? "#c98b8b" : theme.inkDimmer
-                                        font.family: theme.ui; font.pixelSize: 12
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                         elide: Text.ElideRight
                                     }
                                 }
@@ -1033,7 +1081,7 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: managerAudioRow.st.state === "failed" ? "Dismiss" : "Cancel"
                                     color: managerAudioInput.interactionActive ? theme.ink : theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                     KeyboardAction {
                                         id: managerAudioInput
                                         anchors.fill: parent
@@ -1091,15 +1139,15 @@ Item {
                 Row {
                     spacing: 14
                     Text { text: "Available on another device"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
+                           font.family: theme.display; font.pixelSize: theme.fontSize(28); font.letterSpacing: -0.2 }
                     Text { anchors.baseline: parent.children[0].baseline
                            text: root.remoteItems.length + (root.remoteItems.length === 1 ? " item" : " items")
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                 }
                 Text {
                     width: parent.width
                     text: "The file itself is not stored on this device. Download it here when you want it."
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.Wrap
                 }
                 Rectangle {
@@ -1125,10 +1173,10 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter
                                     spacing: 3
                                     Text { width: parent.width; text: modelData.title || "Untitled"
-                                           color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
+                                           color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.Medium
                                            elide: Text.ElideRight }
                                     Text { width: parent.width; text: (modelData.subtitle || modelData.seriesTitle || "") + " · not downloaded here"
-                                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                            elide: Text.ElideRight }
                                 }
                                 Text {
@@ -1136,7 +1184,7 @@ Item {
                                     anchors.right: parent.right; anchors.rightMargin: 24; anchors.verticalCenter: parent.verticalCenter
                                     text: modelData.canRedownload ? "Download here" : "Source needed"
                                     color: modelData.canRedownload && remoteMa.containsMouse ? "#ffd968" : theme.gold
-                                    font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                                     MouseArea {
                                         id: remoteMa; anchors.fill: parent; hoverEnabled: true
                                         enabled: modelData.canRedownload
@@ -1166,7 +1214,7 @@ Item {
                     Row {
                         spacing: 14
                         Text { text: lane.modelData.title; color: theme.ink
-                               font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
+                               font.family: theme.display; font.pixelSize: theme.fontSize(28); font.letterSpacing: -0.2 }
                         Text {
                             anchors.baseline: parent.children[0].baseline
                             width: root.phoneNarrow
@@ -1183,7 +1231,7 @@ Item {
                                 if (bytes) s += " · " + root.fmtBytes(bytes);
                                 return s;
                             }
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         }
                     }
 
@@ -1211,14 +1259,14 @@ Item {
                                     wrapMode: Text.WordWrap
                                     text: "Nothing from " + lane.modelData.title + " lives here yet."
                                     color: theme.inkDim
-                                    font.family: theme.display; font.italic: true; font.pixelSize: 19
+                                    font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(19)
                                 }
                                 Text {
                                     width: parent.width
                                     wrapMode: Text.WordWrap
                                     text: "Open " + lane.modelData.title + " and pick something ›"
                                     color: goInput.interactionActive ? "#ffd968" : theme.gold
-                                    font.family: theme.ui; font.pixelSize: 14
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                                     KeyboardAction { id: goInput; anchors.fill: parent
                                         accessibleName: "Open " + lane.modelData.title
                                         showFocusFrame: false
@@ -1307,7 +1355,7 @@ Item {
                                                     anchors.leftMargin: 12; anchors.rightMargin: 10; anchors.bottomMargin: 30
                                                     text: card.modelData.title || "Untitled"
                                                     color: theme.ink; font.family: theme.ui
-                                                    font.pixelSize: 14; font.weight: Font.DemiBold
+                                                    font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                                                     wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                                                 }
                                                 Text {
@@ -1319,7 +1367,7 @@ Item {
                                                           || (card.modelData.itemCount
                                                               + (card.modelData.itemCount === 1
                                                                  ? " item" : " items"))
-                                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                                 }
                                             }
                                             MouseArea {
@@ -1387,7 +1435,7 @@ Item {
                                                 anchors.verticalCenter: parent.verticalCenter
                                                 text: "SEASON " + sgrp.modelData.season
                                                 color: theme.ink; font.family: theme.ui
-                                                font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.6
+                                                font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                             }
                                             Text {
                                                 anchors.right: parent.right; anchors.rightMargin: 4
@@ -1401,7 +1449,7 @@ Item {
                                                         s += " · " + sgrp.modelData.arriving + " still arriving above";
                                                     return s;
                                                 }
-                                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                             }
                                             Rectangle {
                                                 anchors.left: parent.left; anchors.right: parent.right
@@ -1445,7 +1493,7 @@ Item {
                 Row {
                     spacing: 14
                     Text { text: "Audiobooks"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 28; font.letterSpacing: -0.2 }
+                           font.family: theme.display; font.pixelSize: theme.fontSize(28); font.letterSpacing: -0.2 }
                     Text {
                         anchors.baseline: parent.children[0].baseline
                         textFormat: Text.StyledText
@@ -1456,7 +1504,7 @@ Item {
                             if (bytes) s += " · " + root.fmtBytes(bytes);
                             return s;
                         }
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                 }
 
@@ -1481,12 +1529,12 @@ Item {
                             Text {
                                 text: "No audiobooks live here yet."
                                 color: theme.inkDim
-                                font.family: theme.display; font.italic: true; font.pixelSize: 19
+                                font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(19)
                             }
                             Text {
                                 text: "Open a book in Biblio and pick a release ›"
                                 color: emptyAudioInput.interactionActive ? "#ffd968" : theme.inkDimmer
-                                font.family: theme.ui; font.pixelSize: 14
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                                 KeyboardAction {
                                     id: emptyAudioInput
                                     anchors.fill: parent
@@ -1510,7 +1558,7 @@ Item {
                                     width: 22
                                     text: abDoneRow.modelData.missing ? "✕" : "✓"
                                     color: abDoneRow.modelData.missing ? theme.inkDimmer : theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 13
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 }
                                 Column {
                                     anchors.left: abMark.right; anchors.leftMargin: 14
@@ -1521,7 +1569,7 @@ Item {
                                         width: parent.width
                                         text: abDoneRow.modelData.title || root.abTitleOf(abDoneRow.modelData.id)
                                         color: abDoneRow.modelData.missing ? theme.inkDim : theme.ink
-                                        font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.Medium
                                         elide: Text.ElideRight
                                     }
                                     Text {
@@ -1541,7 +1589,7 @@ Item {
                                                 parts.push("the paired book is not available locally");
                                             return parts.join(" · ");
                                         }
-                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                         elide: Text.ElideRight
                                     }
                                 }
@@ -1554,7 +1602,7 @@ Item {
                                                  && String(abDoneRow.modelData.bookPath || "").length > 0
                                         text: "Open book"
                                         color: abOpenInput.interactionActive ? "#ffd968" : theme.gold
-                                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                                         KeyboardAction {
                                             id: abOpenInput
                                             anchors.fill: parent
@@ -1566,7 +1614,7 @@ Item {
                                     Text {
                                         text: "Delete local copy"
                                         color: abDeleteInput.interactionActive ? theme.ink : theme.inkDimmer
-                                        font.family: theme.ui; font.pixelSize: 13
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                         KeyboardAction {
                                             id: abDeleteInput
                                             anchors.fill: parent
@@ -1636,7 +1684,7 @@ Item {
                     text: root.confirmationTitle
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 22
+                    font.pixelSize: theme.fontSize(22)
                     wrapMode: Text.Wrap
                 }
                 Text {
@@ -1644,7 +1692,7 @@ Item {
                     text: root.confirmationBody
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.Wrap
                 }
                 Row {
@@ -1661,7 +1709,7 @@ Item {
                             text: "Go back"
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                         }
                         KeyboardAction {
                             id: cancelConfirmInput
@@ -1684,7 +1732,7 @@ Item {
                             text: root.confirmationLabel
                             color: "#111217"
                             font.family: theme.ui
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
                         KeyboardAction {
@@ -1755,7 +1803,7 @@ Item {
             width: 22
             text: row.rowData.missing ? "✕" : "✓"
             color: row.rowData.missing ? theme.inkDimmer : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
         }
         Column {
             anchors.left: markT.right; anchors.leftMargin: 14
@@ -1766,7 +1814,7 @@ Item {
                 width: parent.width
                 text: row.rowData.title || "Untitled"
                 color: row.rowData.missing ? theme.inkDim : theme.ink
-                font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Medium
+                font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.Medium
                 elide: Text.ElideRight
             }
             Text {
@@ -1782,7 +1830,7 @@ Item {
                     if (w) parts.push(w);
                     return parts.join(" · ");
                 }
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 elide: Text.ElideRight
             }
         }
@@ -1799,7 +1847,7 @@ Item {
                 visible: !row.rowData.missing
                 text: row.rowData.world === "theatre" ? "Play" : "Read"
                 color: openInput.interactionActive ? "#ffd968" : theme.gold
-                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                 KeyboardAction { id: openInput; anchors.fill: parent
                     accessibleName: parent.text; showFocusFrame: false
                     onTriggered: root.openRequested(row.rowData) }
@@ -1808,7 +1856,7 @@ Item {
                 visible: row.rowData.missing
                 text: "Download again"
                 color: redownloadMa.containsMouse ? "#ffd968" : theme.gold
-                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                 MouseArea { id: redownloadMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: root.redownloadRequested(row.rowData) }
@@ -1816,7 +1864,7 @@ Item {
             Text {
                 text: row.rowData.missing ? "Dismiss missing entry" : "Delete local copy"
                 color: removeInput.interactionActive ? theme.ink : theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 KeyboardAction { id: removeInput; anchors.fill: parent
                     accessibleName: parent.text; showFocusFrame: false
                     onTriggered: {

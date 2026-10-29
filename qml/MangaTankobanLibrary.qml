@@ -614,12 +614,12 @@ Item {
             Text {
                 text: "VOLUMES"
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 2.4
             }
             Text {
                 text: String(root.volumeRows.length)
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: 15
+                font.family: theme.display; font.pixelSize: theme.fontSize(15)
             }
         }
 
@@ -641,7 +641,7 @@ Item {
                 visible: root.selecting
                 text: "Download next 10"
                 color: nextMa.containsMouse ? theme.ink : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.6
                 MouseArea {
                     id: nextMa
                     anchors.fill: parent; anchors.margins: -6
@@ -657,7 +657,7 @@ Item {
                 objectName: "volumeSelectToggle"
                 text: root.selecting ? "Done" : "Select"
                 color: selectMa.containsMouse ? theme.ink : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.6
                 MouseArea {
                     id: selectMa
                     anchors.fill: parent; anchors.margins: -6
@@ -795,13 +795,13 @@ Item {
                             text: Vol.volumeToken(card.modelData)
                             color: theme.inkDimmer
                             font.family: theme.display
-                            font.pixelSize: 30
+                            font.pixelSize: theme.fontSize(30)
                         }
                         Text {
                             anchors.horizontalCenter: parent.horizontalCenter
                             text: "NO COVER"
                             color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1.6
                         }
                     }
 
@@ -846,7 +846,7 @@ Item {
                         text: "VOL " + Vol.volumeToken(card.modelData)
                         color: card.index === root.focusIndex ? theme.gold : theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.letterSpacing: 1.8
                     }
                     Text {
@@ -861,7 +861,7 @@ Item {
                         text: card.nameText
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         elide: Text.ElideRight
                     }
                     Text {
@@ -871,7 +871,7 @@ Item {
                         text: card.stateText
                         color: card.live ? theme.gold : "#e6a3a3"
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                     }
                 }
 
@@ -932,12 +932,12 @@ Item {
             anchors.verticalCenter: parent.verticalCenter; spacing: 12
             Text {
                 text: root.currentRow ? ("Vol. " + Vol.volumeToken(root.currentRow)) : ""
-                color: theme.ink; font.family: theme.display; font.pixelSize: 18
+                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18)
             }
             Text {
                 text: root.currentRow ? root.volumeNameFor(root.currentRow) : ""
                 visible: text.length > 0
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
         }
 
@@ -951,7 +951,7 @@ Item {
                 visible: root.currentIntentProgressLabel.length > 0
                 text: root.currentIntentProgressLabel
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold
             }
 
             Rectangle {
@@ -971,7 +971,7 @@ Item {
                         id: downloadLabel
                         text: "Download"
                         color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                     }
                 }
                 MouseArea {
@@ -997,7 +997,7 @@ Item {
                     id: actionBarText; anchors.centerIn: parent
                     text: root.currentActionLabel
                     color: root.currentReadIntentActive ? theme.gold : "#171205"
-                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                 }
                 MouseArea {
                     anchors.fill: parent
@@ -1021,9 +1021,9 @@ Item {
         z: 20; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 14
         height: 42; width: selectedText.implicitWidth + downloadSelectedText.implicitWidth + 58; radius: 10
         color: Qt.rgba(0.03, 0.035, 0.045, 0.96); border.width: 1; border.color: theme.edge
-        Text { id: selectedText; anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: root.selectedNumbers.length + " selected"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11 }
+        Text { id: selectedText; anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: root.selectedNumbers.length + " selected"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
         Rectangle { anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter; width: downloadSelectedText.implicitWidth + 20; height: 30; radius: 7; color: theme.gold
-            Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#171205"; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold }
+            Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#171205"; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.downloadSelected() }
             KeyboardAction {
                 anchors.fill: parent; pointerEnabled: false; accessibleName: "Download selected volumes"

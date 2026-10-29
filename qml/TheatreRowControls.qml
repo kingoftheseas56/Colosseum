@@ -112,7 +112,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 anchors.centerIn: parent; text: "Rename"
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
             }
             KeyboardAction {
                 id: renameAction
@@ -131,7 +131,7 @@ Item {
                 id: nameField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
                 verticalAlignment: TextInput.AlignVCenter
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 selectByMouse: true; clip: true
                 onEditingFinished: controls.commitEdit()      // Enter or focus loss commits
                 Keys.onEscapePressed: controls.cancelEdit()

@@ -1074,7 +1074,7 @@ Item {
                 visible: !page.cover.length
                 text: page.seriesTitle
                 color: theme.inkDim
-                font.family: theme.display; font.pixelSize: 17
+                font.family: theme.display; font.pixelSize: theme.fontSize(17)
                 wrapMode: Text.WordWrap
                 verticalAlignment: Text.AlignBottom
             }
@@ -1092,7 +1092,7 @@ Item {
             Text {
                 text: "Manga  ·  Tankoban"
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 11
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 font.letterSpacing: 3; font.capitalization: Font.AllUppercase
             }
             Row {
@@ -1103,7 +1103,7 @@ Item {
                     width: Math.min(implicitWidth, parent.width - libraryButton.width - 12)
                     text: page.seriesTitle
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 40; font.weight: Font.DemiBold
+                    font.family: theme.display; font.pixelSize: theme.fontSize(40); font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }
                 Item {
@@ -1143,18 +1143,18 @@ Item {
                 width: parent.width
                 spacing: 12
                 Text { visible: page.author.length > 0; text: page.author; color: theme.ink
-                       font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                       font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold }
                 Text { visible: page.status.length > 0; text: page.status; color: theme.inkDim
-                       font.family: theme.ui; font.pixelSize: 14 }
+                       font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                 Text { visible: page.year > 0; text: String(page.year); color: theme.inkDim
-                       font.family: theme.ui; font.pixelSize: 14 }
+                       font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                 Text { visible: page.score > 0; text: "★ " + page.score.toFixed(2); color: theme.inkDim
-                       font.family: theme.ui; font.pixelSize: 14 }
+                       font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                 Text {
                     visible: page.tankobanMode && tankLib.volumeRows.length > 0
                     text: tankLib.volumeRows.length + " volumes" + (tankLib.ownedCount > 0 ? "  ·  " + tankLib.ownedCount + " on this device" : "")
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 14
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
             }
             Flow {
@@ -1172,7 +1172,7 @@ Item {
                         color: Qt.rgba(1, 1, 1, 0.06)
                         border.width: 1; border.color: theme.edge
                         Text { id: genreText; anchors.centerIn: parent; text: String(genreChip.modelData)
-                               color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11 }
+                               color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
                     }
                 }
             }
@@ -1185,7 +1185,7 @@ Item {
                     width: Math.min(parent.width - (moreLink.visible ? moreLink.width + 10 : 0), 760)
                     text: page.synopsis
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.45
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); lineHeight: 1.45
                     wrapMode: Text.WordWrap
                     maximumLineCount: page.synopsisExpanded ? 9 : 2
                     elide: Text.ElideRight
@@ -1201,7 +1201,7 @@ Item {
                         anchors.centerIn: parent
                         text: page.synopsisExpanded ? "Less" : "More"
                         color: moreAction.interactionActive ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         id: moreAction
@@ -1237,7 +1237,7 @@ Item {
                         anchors.centerIn: parent
                         text: readingRoom.continueText
                         color: "#1a1408"
-                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                     }
                     KeyboardAction {
                         id: primaryAction
@@ -1287,7 +1287,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: modeBtn.modelData.label
                                 color: modeBtn.on ? "#1a1408" : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 font.weight: modeBtn.on ? Font.DemiBold : Font.Normal
                             }
                             KeyboardAction {
@@ -1320,7 +1320,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Language"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
                 ComboBox {
                     id: languageCombo
@@ -1341,7 +1341,7 @@ Item {
                         leftPadding: 10; rightPadding: 22; verticalAlignment: Text.AlignVCenter
                         text: languageCombo.displayText
                         color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight
                     }
                     indicator: Text {
                         x: languageCombo.width - width - 10; anchors.verticalCenter: parent.verticalCenter
@@ -1384,7 +1384,7 @@ Item {
             color: Qt.rgba(0.08, 0.04, 0.05, 0.92)
             Text { anchors.fill: parent; anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
                    verticalAlignment: Text.AlignVCenter
-                   text: page.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12
+                   text: page.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                    elide: Text.ElideRight; maximumLineCount: 1 }
         }
 
@@ -1436,14 +1436,14 @@ Item {
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.seriesTitle
-            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(34)
             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
         }
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.errorText.length ? page.errorText : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
 

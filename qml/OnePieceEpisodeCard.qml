@@ -52,7 +52,7 @@ Item {
                 text: root.sourceLabel + "  ·  " + (root.entry.episode || "")
                 color: theme.gold
                 font.family: theme.ui
-                font.pixelSize: 9
+                font.pixelSize: theme.fontSize(9)
                 font.bold: true
                 font.letterSpacing: 1.2
             }
@@ -60,7 +60,7 @@ Item {
                 text: root.entry.title || ("Episode " + root.entry.episode)
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 font.bold: true
                 maximumLineCount: 2
                 elide: Text.ElideRight

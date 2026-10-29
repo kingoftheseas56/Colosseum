@@ -625,7 +625,7 @@ Item {
                     anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.bottomMargin: 14
                     visible: root.volumeRows.length > 0
                     text: "VOLUMES"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.4
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 2.4
                 }
 
                 // Select-mode entry point (Hemanth greenlit KEEP-IT, 2026-08-14 handoff): the
@@ -645,7 +645,7 @@ Item {
                         visible: root.selecting
                         text: "Download next 10"
                         color: nextMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.6
                         MouseArea {
                             id: nextMa
                             anchors.fill: parent; anchors.margins: -6
@@ -660,7 +660,7 @@ Item {
                         objectName: "volumeSelectToggle"
                         text: root.selecting ? "Done" : "Select"
                         color: selectMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.6
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.6
                         MouseArea {
                             id: selectMa
                             anchors.fill: parent; anchors.margins: -6
@@ -718,12 +718,12 @@ Item {
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: Vol.volumeToken(card.modelData)
-                        color: theme.inkDim; font.family: theme.display; font.pixelSize: 30
+                        color: theme.inkDim; font.family: theme.display; font.pixelSize: theme.fontSize(30)
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: "NO COVER"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.6
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1.6
                     }
                 }
                 Rectangle {
@@ -736,7 +736,7 @@ Item {
                         anchors.centerIn: parent
                         text: card.chipText
                         color: card.cardState === "ready" ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.2
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.2
                     }
                 }
                 // ── the live status disc (approved mock 2026-08-16): top-right pill
@@ -778,7 +778,7 @@ Item {
                         Text {
                             anchors.verticalCenter: parent.verticalCenter
                             text: card.fraction >= 0 ? (Math.round(card.fraction * 100) + "%") : "···"
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 10
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                             font.weight: Font.DemiBold
                         }
                     }
@@ -814,21 +814,21 @@ Item {
                 spacing: 2
                 Text {
                     text: "VOL " + Vol.volumeToken(card.modelData)
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.8
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1.8
                 }
                 Text {
                     width: parent.width
                     text: card.liveCaption.length ? card.liveCaption : (card.modelData.title || "")
                     visible: text.length > 0
                     color: card.liveCaption.length ? theme.gold : theme.ink
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                 }
                 Text {
                     text: card.spanText.length ? card.spanText : "chapters not mapped yet"
                     color: card.spanText.length ? theme.inkDim : theme.inkDimmer
                     font.italic: !card.spanText.length
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
             }
 
@@ -879,7 +879,7 @@ Item {
                             text: "LATEST CHAPTERS"
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             font.letterSpacing: 2.4
                         }
                         Text {
@@ -890,7 +890,7 @@ Item {
                                 + (root.showVolumes ? " not yet collected into a volume" : "")
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                         }
                         Rectangle {
                             anchors.left: parent.left
@@ -1037,7 +1037,7 @@ Item {
                                             text: String(chapterRow.modelData.number || "?")
                                             color: theme.inkDimmer
                                             font.family: theme.display
-                                            font.pixelSize: 24
+                                            font.pixelSize: theme.fontSize(24)
                                         }
                                     }
 
@@ -1082,7 +1082,7 @@ Item {
                                         text: chapterRow.chapterLabel
                                         color: chapterMouse.containsMouse ? theme.gold : theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: 15
+                                        font.pixelSize: theme.fontSize(15)
                                         font.weight: Font.DemiBold
                                         elide: Text.ElideRight
                                     }
@@ -1093,7 +1093,7 @@ Item {
                                             ? theme.gold
                                             : theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 12
+                                        font.pixelSize: theme.fontSize(12)
                                         elide: Text.ElideRight
                                     }
                                 }
@@ -1112,7 +1112,7 @@ Item {
                                             ? theme.gold
                                             : theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         font.weight: Font.DemiBold
                                         font.letterSpacing: 1.1
                                     }
@@ -1139,7 +1139,7 @@ Item {
                                             color: actionMouse.containsMouse ? theme.ink
                                                 : chapterRow.chapterState === "done" || chapterRow.inFlight ? theme.gold
                                                 : theme.inkDim
-                                            font.pixelSize: 17
+                                            font.pixelSize: theme.fontSize(17)
                                         }
                                         MouseArea {
                                             id: actionMouse
@@ -1241,9 +1241,9 @@ Item {
         z: 20; anchors.horizontalCenter: parent.horizontalCenter; anchors.bottom: parent.bottom; anchors.bottomMargin: 14
         height: 42; width: selectedText.implicitWidth + downloadSelectedText.implicitWidth + 58; radius: 10
         color: Qt.rgba(0.03, 0.035, 0.045, 0.96); border.width: 1; border.color: theme.edge
-        Text { id: selectedText; anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: root.selectedNumbers.length + " selected"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11 }
+        Text { id: selectedText; anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: root.selectedNumbers.length + " selected"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
         Rectangle { anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter; width: downloadSelectedText.implicitWidth + 20; height: 30; radius: 7; color: theme.gold
-            Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#171205"; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold }
+            Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#171205"; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.downloadSelected() }
         }
     }

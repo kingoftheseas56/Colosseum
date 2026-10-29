@@ -119,7 +119,7 @@ Item {
             text: sectionControl.label
             color: root.activeSection === sectionControl.section ? theme.ink : theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             font.weight: root.activeSection === sectionControl.section ? Font.DemiBold : Font.Medium
         }
         KeyboardAction {
@@ -139,7 +139,7 @@ Item {
         textRole: "label"
         valueRole: "value"
         font.family: theme.ui
-        font.pixelSize: 12
+        font.pixelSize: theme.fontSize(12)
         contentItem: Text {
             leftPadding: 15
             rightPadding: 30
@@ -194,7 +194,7 @@ Item {
                 text: optionDelegate.modelData.label
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 verticalAlignment: Text.AlignVCenter
             }
             background: Rectangle {
@@ -260,13 +260,13 @@ Item {
                 text: "Your Colosseum"
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: 24
+                font.pixelSize: theme.fontSize(24)
             }
             Text {
                 text: "The moments and measures Colosseum witnessed on this profile."
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
             }
         }
     }
@@ -346,13 +346,13 @@ Item {
                             text: "History"
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: 33
+                            font.pixelSize: theme.fontSize(33)
                         }
                         Text {
                             text: "Everything watched, read, or listened to in Colosseum appears here."
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                         }
                     }
                     HouseCombo {
@@ -375,7 +375,7 @@ Item {
                     text: "RECENT"
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.weight: Font.DemiBold
                     font.letterSpacing: 1.4
                     topPadding: 10
@@ -428,7 +428,7 @@ Item {
                                     text: historyRowDelegate.modelData.worldLabel.toUpperCase()
                                     color: theme.gold
                                     font.family: theme.ui
-                                    font.pixelSize: 9
+                                    font.pixelSize: theme.fontSize(9)
                                     font.weight: Font.DemiBold
                                     font.letterSpacing: 1.2
                                 }
@@ -437,7 +437,7 @@ Item {
                                     text: historyRowDelegate.modelData.title
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 16
+                                    font.pixelSize: theme.fontSize(16)
                                     font.weight: Font.DemiBold
                                     elide: Text.ElideRight
                                 }
@@ -446,14 +446,14 @@ Item {
                                     text: historyRowDelegate.modelData.detail
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     elide: Text.ElideRight
                                 }
                                 Text {
                                     text: historyRowDelegate.modelData.localDate
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                 }
                             }
                             RowLayout {
@@ -505,7 +505,7 @@ Item {
                                         color: historyRowDelegate.modelData.syncLabel === "Needs attention"
                                                ? Qt.rgba(1.0, 0.55, 0.52, 1.0) : theme.inkDim
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                     }
                                     KeyboardAction {
                                         id: receiptStatusAction
@@ -535,7 +535,7 @@ Item {
                         text: "No activity yet"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 27
+                        font.pixelSize: theme.fontSize(27)
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -544,7 +544,7 @@ Item {
                               : "Activity is unavailable for the current profile."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                 }
             }
@@ -578,13 +578,13 @@ Item {
                             text: "Highlights"
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: 33
+                            font.pixelSize: theme.fontSize(33)
                         }
                         Text {
                             text: "A portrait of the month, drawn only from activity Colosseum recorded."
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                         }
                     }
                     HouseCombo {
@@ -616,7 +616,7 @@ Item {
                                 text: "MONTHLY PORTRAIT"
                                 color: theme.gold
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 font.weight: Font.DemiBold
                                 font.letterSpacing: 1.6
                             }
@@ -624,14 +624,14 @@ Item {
                                 text: HistoryModel.monthLabel(root.selectedMonthKey).split(" ")[0]
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: Math.min(66, root.width * 0.055)
+                                font.pixelSize: theme.fontSize(Math.min(66, root.width * 0.055))
                                 font.weight: Font.Medium
                             }
                             Text {
                                 text: root.selectedMonthKey.slice(0, 4)
                                 color: theme.inkDim
                                 font.family: theme.display
-                                font.pixelSize: 25
+                                font.pixelSize: theme.fontSize(25)
                             }
                             Grid {
                                 id: portraitMetrics
@@ -655,13 +655,13 @@ Item {
                                             text: portraitMetricDelegate.modelData.value
                                             color: theme.ink
                                             font.family: theme.display
-                                            font.pixelSize: 25
+                                            font.pixelSize: theme.fontSize(25)
                                         }
                                         Text {
                                             text: portraitMetricDelegate.modelData.label
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                         }
                                     }
                                 }
@@ -689,13 +689,13 @@ Item {
                                     text: HistoryModel.monthLabel(root.selectedMonthKey) + " highlights"
                                     color: theme.ink
                                     font.family: theme.display
-                                    font.pixelSize: 22
+                                    font.pixelSize: theme.fontSize(22)
                                 }
                                 Text {
                                     text: root.highlightModel.length + (root.highlightModel.length === 1 ? " TITLE" : " TITLES")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 9
+                                    font.pixelSize: theme.fontSize(9)
                                     font.letterSpacing: 1.2
                                 }
                             }
@@ -741,7 +741,7 @@ Item {
                                                 text: highlightDelegate.modelData.title
                                                 color: theme.ink
                                                 font.family: theme.ui
-                                                font.pixelSize: 11
+                                                font.pixelSize: theme.fontSize(11)
                                                 font.weight: Font.DemiBold
                                                 elide: Text.ElideRight
                                             }
@@ -750,13 +750,13 @@ Item {
                                             text: highlightDelegate.modelData.label
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 9
+                                            font.pixelSize: theme.fontSize(9)
                                         }
                                         Text {
                                             text: highlightDelegate.modelData.value
                                             color: theme.ink
                                             font.family: theme.display
-                                            font.pixelSize: 17
+                                            font.pixelSize: theme.fontSize(17)
                                         }
                                     }
                                 }
@@ -771,14 +771,14 @@ Item {
                                     text: "No activity yet"
                                     color: theme.ink
                                     font.family: theme.display
-                                    font.pixelSize: 24
+                                    font.pixelSize: theme.fontSize(24)
                                 }
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: "There is no Colosseum activity for this month."
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                 }
                             }
                         }
@@ -815,13 +815,13 @@ Item {
                             text: "Stats"
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: 33
+                            font.pixelSize: theme.fontSize(33)
                         }
                         Text {
                             text: "Lifetime activity recorded on this profile."
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                         }
                     }
                     HouseCombo {
@@ -885,14 +885,14 @@ Item {
                                         text: summaryDelegate.modelData.value
                                         color: theme.ink
                                         font.family: theme.display
-                                        font.pixelSize: 23
+                                        font.pixelSize: theme.fontSize(23)
                                     }
                                     Text {
                                         anchors.horizontalCenter: parent.horizontalCenter
                                         text: summaryDelegate.modelData.label
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 9
+                                        font.pixelSize: theme.fontSize(9)
                                     }
                                 }
                             }
@@ -907,13 +907,13 @@ Item {
                         text: root.categoryLabel(root.statsCategory)
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 21
+                        font.pixelSize: theme.fontSize(21)
                     }
                     Text {
                         text: root.worldLabel(root.statsWorld).toUpperCase() + " · LIFETIME"
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 9
+                        font.pixelSize: theme.fontSize(9)
                         font.letterSpacing: 1.2
                     }
                 }
@@ -951,14 +951,14 @@ Item {
                                         text: statsRowDelegate.index + 1
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                     }
                                     Text {
                                         Layout.fillWidth: true
                                         text: statsRowDelegate.modelData.title
                                         color: theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         font.weight: Font.DemiBold
                                         elide: Text.ElideRight
                                     }
@@ -967,21 +967,21 @@ Item {
                                         text: statsRowDelegate.modelData.value
                                         color: theme.ink
                                         font.family: theme.display
-                                        font.pixelSize: 15
+                                        font.pixelSize: theme.fontSize(15)
                                     }
                                     Text {
                                         Layout.preferredWidth: 95
                                         text: statsRowDelegate.modelData.worldLabel
                                         color: theme.gold
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                     }
                                     Text {
                                         Layout.preferredWidth: 110
                                         text: statsRowDelegate.modelData.details
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         horizontalAlignment: Text.AlignRight
                                     }
                                 }
@@ -999,14 +999,14 @@ Item {
                                     text: "No activity yet"
                                     color: theme.ink
                                     font.family: theme.display
-                                    font.pixelSize: 22
+                                    font.pixelSize: theme.fontSize(22)
                                 }
                                 Text {
                                     anchors.horizontalCenter: parent.horizontalCenter
                                     text: "Stats will appear after Colosseum records activity for this profile."
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                 }
                             }
                         }

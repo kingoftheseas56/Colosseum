@@ -9,9 +9,15 @@ import QtQuick.Window
 Item {
     id: car
     property var slides: []
+    readonly property var hostWindow: car.Window.window
     readonly property bool televisionMode: {
-        const w = car.Window.window
+        const w = car.hostWindow
         return !!(w && w["televisionMode"] === true)
+    }
+    readonly property bool shortPhoneLandscape: {
+        const w = car.hostWindow
+        return !!(w && w["androidHost"] === true && w.width > w.height
+                  && Math.min(w.width, w.height) < 600 && w.height <= 480)
     }                        // [{ title, blurb, ghost, c1, c2, art?, artKind? }]
     property string kicker: "Featured"
     property string primaryLabel: "Read"
@@ -31,7 +37,19 @@ Item {
     property alias index: view.currentIndex
     width: parent ? parent.width : 800
     AdaptiveLayout { id: adaptive; viewportWidth: car.width }
-    implicitHeight: car.televisionMode ? 380 : adaptive.heroHeight
+    readonly property bool enlargedPhoneText: theme.fontScale > 1 && !!car.hostWindow
+        && car.hostWindow["androidHost"] === true && Math.min(car.hostWindow.width, car.hostWindow.height) < 600
+    readonly property real copyHeightFloor: {
+        if (!enlargedPhoneText) return 0
+        let maximum = 0
+        for (let index = 0; index < view.count; ++index) {
+            const slide = view.itemAt(index)
+            if (slide) maximum = Math.max(maximum, slide.implicitHeight)
+        }
+        return maximum
+    }
+    implicitHeight: Math.max(car.copyHeightFloor, car.televisionMode ? 380
+                    : car.shortPhoneLandscape ? 186 : adaptive.heroHeight)
     activeFocusOnTab: car.televisionMode && car.slides.length > 0
     Accessible.role: Accessible.List
     Accessible.name: car.kicker

@@ -169,20 +169,20 @@ Item {
                 anchors.top: parent.top
                 text: tile.badgeFor(tile.kind) + (tile.source.length ? " · " + tile.source : "")
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.3
+                font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1.3
             }
             Column {
                 anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                 Text {
                     width: parent.width
                     text: tile.label; color: theme.ink
-                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                     elide: Text.ElideRight; maximumLineCount: 1
                 }
                 Text {
                     width: parent.width
                     text: tile.sub; color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     elide: Text.ElideRight; maximumLineCount: 1
                     topPadding: 4; bottomPadding: 8
                 }
@@ -235,7 +235,7 @@ Item {
             anchors.leftMargin: 9; anchors.rightMargin: 9
             anchors.bottomMargin: tile.sub.length > 0 ? 26 : 12
             text: tile.label; color: "#ffffff"
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             wrapMode: Text.WordWrap; elide: Text.ElideRight; maximumLineCount: 2
             style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.85)
         }
@@ -244,7 +244,7 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             anchors.leftMargin: 9; anchors.rightMargin: 9; anchors.bottomMargin: 11
             text: tile.sub; color: Qt.rgba(0.97, 0.97, 0.96, 0.78)
-            font.family: theme.ui; font.pixelSize: 11
+            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             elide: Text.ElideRight; maximumLineCount: 1
         }
         Rectangle {   // progress — full bottom edge
@@ -321,7 +321,7 @@ Item {
             id: watchedRow; anchors.centerIn: parent; spacing: 4
             Text { text: "✓"; color: theme.gold; font.pixelSize: 10; font.weight: Font.DemiBold }
             Text { visible: tile.isHome; text: "WATCHED"; color: theme.gold
-                   font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold; font.letterSpacing: 0.6 }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold; font.letterSpacing: 0.6 }
         }
     }
 
@@ -390,7 +390,7 @@ Item {
             color: Qt.rgba(0.04, 0.04, 0.05, 0.92)
             border.width: 1; border.color: theme.edge
             Text { id: rmTip; anchors.centerIn: parent; text: "Remove from Continue"
-                   color: theme.ink; font.family: theme.ui; font.pixelSize: 11 }
+                   color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
         }
         Timer { id: rmTipDelay; property bool done: false; interval: 550
                 running: rmMa.containsMouse; onTriggered: done = true }
@@ -425,7 +425,7 @@ Item {
                         required property int index
                         width: parent.width; height: 31; radius: 6
                         color: contextFocus.activeFocus && tile.keyboardContextIndex === index ? Qt.rgba(1,1,1,0.12) : "transparent"
-                        Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
+                        Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.activateKeyboardContext(index) }
                     }
                 }

@@ -90,6 +90,21 @@ if(COLOSSEUM_ANDROID_PREVIEW_PACKAGE)
         QT_ANDROID_PACKAGE_NAME "${COLOSSEUM_ANDROID_PREVIEW_PACKAGE}")
 endif()
 
+# Permanent Android identity is explicit and cannot share a diagnostic or
+# preview package. Keep the existing development lanes unchanged by default.
+set(COLOSSEUM_ANDROID_APPLICATION_ID "" CACHE STRING
+    "Permanent Colosseum Android application id")
+if(COLOSSEUM_ANDROID_APPLICATION_ID)
+    if(NOT COLOSSEUM_ANDROID_APPLICATION_ID STREQUAL "world.getcolosseum.app")
+        message(FATAL_ERROR "COLOSSEUM_ANDROID_APPLICATION_ID must be world.getcolosseum.app")
+    endif()
+    if(COLOSSEUM_ANDROID_PREVIEW_PACKAGE OR COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE)
+        message(FATAL_ERROR "Permanent, preview and diagnostic Android package ids are exclusive")
+    endif()
+    set_property(TARGET colosseum PROPERTY
+        QT_ANDROID_PACKAGE_NAME "${COLOSSEUM_ANDROID_APPLICATION_ID}")
+endif()
+
 # Android needs the same source-shaped runtime tree as desktop, but APKs cannot
 # read a checkout beside the native library. Build a generated package overlay
 # whose assets/colosseum-runtime tree is filtered for Android and can be copied
@@ -221,7 +236,7 @@ set_property(TARGET colosseum PROPERTY QT_ANDROID_PACKAGE_SOURCE_DIR
 # Optional explicit Android versionCode for controlled preview/release builds.
 # Empty preserves the existing Qt default on every current Debug lane.
 set(COLOSSEUM_ANDROID_VERSION_CODE "" CACHE STRING
-    "Explicit Android versionCode for a preview APK")
+    "Explicit Android versionCode for a preview or release APK")
 if(NOT "${COLOSSEUM_ANDROID_VERSION_CODE}" STREQUAL "")
     if(NOT COLOSSEUM_ANDROID_VERSION_CODE MATCHES "^[1-9][0-9]*$")
         message(FATAL_ERROR "COLOSSEUM_ANDROID_VERSION_CODE must be a positive decimal integer")
@@ -229,6 +244,14 @@ if(NOT "${COLOSSEUM_ANDROID_VERSION_CODE}" STREQUAL "")
     if(COLOSSEUM_ANDROID_VERSION_CODE GREATER 2100000000)
         message(FATAL_ERROR "COLOSSEUM_ANDROID_VERSION_CODE must be <= 2100000000")
     endif()
+endif()
+set(COLOSSEUM_ANDROID_VERSION_NAME "" CACHE STRING
+    "Android versionName (may include an alpha prerelease suffix)")
+if(COLOSSEUM_ANDROID_VERSION_NAME)
+  if(NOT COLOSSEUM_ANDROID_VERSION_NAME MATCHES
+        "^[0-9]+[.][0-9]+[.][0-9]+(-[0-9A-Za-z][0-9A-Za-z.-]*)?$")
+    message(FATAL_ERROR "COLOSSEUM_ANDROID_VERSION_NAME must be a semantic version")
+  endif()
 endif()
 # First-APK contract: one ABI per APK (the configured Qt kit's ABI: arm64-v8a for
 # devices, x86_64 for emulators) on Qt 6.11's Android 9/API 28 floor, compiled and
@@ -241,6 +264,10 @@ set_target_properties(colosseum PROPERTIES
     QT_ANDROID_APP_NAME "Colosseum"
     QT_ANDROID_VERSION_NAME "${PROJECT_VERSION}"
 )
+if(COLOSSEUM_ANDROID_VERSION_NAME)
+    set_property(TARGET colosseum PROPERTY
+        QT_ANDROID_VERSION_NAME "${COLOSSEUM_ANDROID_VERSION_NAME}")
+endif()
 if(NOT "${COLOSSEUM_ANDROID_VERSION_CODE}" STREQUAL "")
     set_property(TARGET colosseum PROPERTY
         QT_ANDROID_VERSION_CODE "${COLOSSEUM_ANDROID_VERSION_CODE}")

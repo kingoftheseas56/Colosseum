@@ -103,7 +103,7 @@ Item {
             text: card.displayTitle
             color: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
             opacity: 1 - card.settledOpacity
             visible: opacity > 0
         }
@@ -128,7 +128,7 @@ Item {
                 text: card.displayTitle
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
             }
 
             Image {
@@ -240,7 +240,7 @@ Item {
                     : card.indicatorKind === "away" ? "Away"
                     : card.indicatorKind === "watched" ? "Watched" : String(card.itemCount)
                 color: card.indicatorKind === "uncertain" ? theme.gold : theme.ink
-                font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold
             }
             // Vault ux uplift S6 — the watched tick (S3's durable mark): a plain check in the
             // house ink, never gold (gold stays the uncertainty mark's alone).
@@ -304,7 +304,7 @@ Item {
             text: card.faceState === "filename" ? qsTr("Resolving…") : card.displayTitle
             color: card.faceState === "filename" ? theme.inkDimmer : theme.ink
             font.family: theme.ui
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
             font.weight: Font.DemiBold
         }
         Text {
@@ -323,7 +323,7 @@ Item {
                 : card.state === "uncertain" ? " · Identify needed" : card.watched ? " · Watched" : "") : "")
             color: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
         }
     }
     MouseArea {

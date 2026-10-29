@@ -180,7 +180,7 @@ Item {
                 text: qsTr("Data & privacy")
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 26
+                font.pixelSize: theme.fontSize(26)
                 font.weight: Font.DemiBold
                 font.letterSpacing: -0.5
             }
@@ -191,7 +191,7 @@ Item {
                 text: root.statusMessage
                 color: "#8bc7a3"
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 wrapMode: Text.WordWrap
                 Accessible.name: qsTr("Data and privacy status: %1").arg(root.statusMessage)
             }
@@ -205,7 +205,7 @@ Item {
                 text: root.errorMessage
                 color: "#f0a3a3"
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 wrapMode: Text.WordWrap
                 Accessible.name: qsTr("Data and privacy error: %1").arg(root.errorMessage)
             }
@@ -235,7 +235,7 @@ Item {
                     text: qsTr("History").toUpperCase()
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 1.0
                 }
 
@@ -289,7 +289,7 @@ Item {
                                     text: qsTr("Search history")
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 14
+                                    font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.DemiBold
                                     wrapMode: Text.WordWrap
                                 }
@@ -299,7 +299,7 @@ Item {
                                     text: qsTr("Remember searches on this device. Search history never needs to leave this machine.")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     lineHeightMode: Text.ProportionalHeight
                                     lineHeight: 1.5
                                     wrapMode: Text.WordWrap
@@ -364,7 +364,7 @@ Item {
                                 text: qsTr("Clear remembered searches from this device?")
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.5
                                 wrapMode: Text.WordWrap
@@ -457,7 +457,7 @@ Item {
                                     text: qsTr("Your Colosseum activity")
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 14
+                                    font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.DemiBold
                                     wrapMode: Text.WordWrap
                                 }
@@ -467,7 +467,7 @@ Item {
                                     text: qsTr("Keep watch and reading activity for Monthly Portrait, recent activity, completion history and personal media insights.")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     lineHeightMode: Text.ProportionalHeight
                                     lineHeight: 1.5
                                     wrapMode: Text.WordWrap
@@ -532,7 +532,7 @@ Item {
                                 text: qsTr("Clear your stored watch and reading activity? Continue progress and Collection are not included.")
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.5
                                 wrapMode: Text.WordWrap
@@ -625,7 +625,7 @@ Item {
                                     text: qsTr("Cross-device history")
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 14
+                                    font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.DemiBold
                                     wrapMode: Text.WordWrap
                                 }
@@ -635,7 +635,7 @@ Item {
                                     text: qsTr("Sync watch and reading history between your signed-in devices. Turning this off can still leave activity available locally.")
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     lineHeightMode: Text.ProportionalHeight
                                     lineHeight: 1.5
                                     wrapMode: Text.WordWrap
@@ -681,7 +681,7 @@ Item {
                     text: qsTr("Your account data").toUpperCase()
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 1.0
                 }
 
@@ -729,7 +729,7 @@ Item {
                                 text: qsTr("Export my data")
                                 color: theme.ink
                                 font.family: theme.ui
-                                font.pixelSize: 14
+                                font.pixelSize: theme.fontSize(14)
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.WordWrap
                             }
@@ -739,7 +739,7 @@ Item {
                                 text: qsTr("Create a portable copy of the account data Colosseum holds for you.")
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.5
                                 wrapMode: Text.WordWrap
@@ -787,7 +787,7 @@ Item {
                     text: qsTr("What Colosseum keeps where")
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: 16
+                    font.pixelSize: theme.fontSize(16)
                     font.weight: Font.DemiBold
                 }
 
@@ -798,7 +798,7 @@ Item {
                     text: qsTr("These controls sit on top of a simple boundary: portable account state can follow you, while machine-specific and sensitive data stays outside ordinary sync.")
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     lineHeightMode: Text.ProportionalHeight
                     lineHeight: 1.55
                     wrapMode: Text.WordWrap
@@ -865,7 +865,7 @@ Item {
                                         text: qsTr("Can follow your account")
                                         color: theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         font.weight: Font.DemiBold
                                         wrapMode: Text.WordWrap
                                     }
@@ -875,7 +875,7 @@ Item {
                                         text: qsTr("Portable state with a safe sync contract.")
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         lineHeightMode: Text.ProportionalHeight
                                         lineHeight: 1.45
                                         wrapMode: Text.WordWrap
@@ -926,7 +926,7 @@ Item {
                                             text: modelData.name
                                             color: theme.inkDim
                                             font.family: theme.ui
-                                            font.pixelSize: 11
+                                            font.pixelSize: theme.fontSize(11)
                                             font.weight: Font.DemiBold
                                             wrapMode: Text.WordWrap
                                         }
@@ -936,7 +936,7 @@ Item {
                                             text: modelData.copy
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                             lineHeightMode: Text.ProportionalHeight
                                             lineHeight: 1.45
                                             wrapMode: Text.WordWrap
@@ -1010,7 +1010,7 @@ Item {
                                         text: qsTr("Stays on this device")
                                         color: theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: 13
+                                        font.pixelSize: theme.fontSize(13)
                                         font.weight: Font.DemiBold
                                         wrapMode: Text.WordWrap
                                     }
@@ -1020,7 +1020,7 @@ Item {
                                         text: qsTr("Machine-owned data that ordinary sync does not carry.")
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         lineHeightMode: Text.ProportionalHeight
                                         lineHeight: 1.45
                                         wrapMode: Text.WordWrap
@@ -1071,7 +1071,7 @@ Item {
                                             text: modelData.name
                                             color: theme.inkDim
                                             font.family: theme.ui
-                                            font.pixelSize: 11
+                                            font.pixelSize: theme.fontSize(11)
                                             font.weight: Font.DemiBold
                                             wrapMode: Text.WordWrap
                                         }
@@ -1081,7 +1081,7 @@ Item {
                                             text: modelData.copy
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                             lineHeightMode: Text.ProportionalHeight
                                             lineHeight: 1.45
                                             wrapMode: Text.WordWrap
@@ -1130,7 +1130,7 @@ Item {
                             text: qsTr("Secrets are a separate boundary.")
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                         }
@@ -1140,7 +1140,7 @@ Item {
                             text: qsTr("Passwords, recovery keys, session tokens and API credentials do not enter ordinary account sync. Filesystem paths and secret-bearing fields are blocked from those payloads too.")
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 10
+                            font.pixelSize: theme.fontSize(10)
                             lineHeightMode: Text.ProportionalHeight
                             lineHeight: 1.5
                             wrapMode: Text.WordWrap
@@ -1165,7 +1165,7 @@ Item {
                     text: qsTr("Account").toUpperCase()
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 1.0
                 }
 
@@ -1199,7 +1199,7 @@ Item {
                             text: qsTr("Delete Colosseum account")
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                         }
@@ -1209,7 +1209,7 @@ Item {
                             text: qsTr("Permanently delete the account and its server-side account data. Local media files on your devices are not part of account deletion.")
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             lineHeightMode: Text.ProportionalHeight
                             lineHeight: 1.5
                             wrapMode: Text.WordWrap
@@ -1236,7 +1236,7 @@ Item {
                             text: qsTr("Delete account")
                             color: deleteButton.enabled ? "#e0aaa7" : theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             horizontalAlignment: Text.AlignHCenter
                             verticalAlignment: Text.AlignVCenter
                         }
@@ -1301,7 +1301,7 @@ Item {
                                 text: qsTr("This is permanent.")
                                 color: theme.ink
                                 font.family: theme.ui
-                                font.pixelSize: 12
+                                font.pixelSize: theme.fontSize(12)
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.WordWrap
                             }
@@ -1313,7 +1313,7 @@ Item {
                                 text: qsTr("Deleting the account removes its server-side identity and portable cloud data. Local media files stay on your devices. Provider backups follow the provider's retention policy; Colosseum keeps only a capability-protected retry receipt for up to 30 days.")
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.55
                                 wrapMode: Text.WordWrap
@@ -1369,7 +1369,7 @@ Item {
                                             : qsTr("Continue to delete")
                                         color: parent.enabled ? "#e0aaa7" : theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 11
+                                        font.pixelSize: theme.fontSize(11)
                                         horizontalAlignment: Text.AlignHCenter
                                         verticalAlignment: Text.AlignVCenter
                                     }

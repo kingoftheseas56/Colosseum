@@ -95,7 +95,7 @@ Item {
             anchors.centerIn: parent
             text: chip.label
             color: chip.on ? theme.gold : (chipMa.containsMouse ? theme.ink : theme.inkDim)
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             font.weight: chip.on ? Font.DemiBold : Font.Normal
         }
         MouseArea {
@@ -149,16 +149,16 @@ Item {
                         }
                     }
                     Text { text: root.kicker; color: theme.inkDimmer
-                           font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6
+                           font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6
                            font.weight: Font.DemiBold
                            anchors.verticalCenter: parent.verticalCenter }
                 }
             }
             Text { text: root.pageTitle; color: theme.ink; topPadding: 8
-                   font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
+                   font.family: theme.display; font.pixelSize: theme.fontSize(56); font.letterSpacing: -1 }
             Text {
                 topPadding: 14; textFormat: Text.StyledText
-                font.family: theme.display; font.italic: true; font.pixelSize: 18
+                font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(18)
                 color: theme.inkDim
                 text: "<b><font color='#f7f7f5'>" + root.shownItems.length + "</font></b> "
                       + (root.shownItems.length === 1 ? "title" : "titles")
@@ -262,7 +262,7 @@ Item {
                 text: root.rawItems.length === 0 ? "Nothing to continue."
                                                  : "Nothing here yet."
                 color: theme.inkDim
-                font.family: theme.display; font.italic: true; font.pixelSize: 19
+                font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(19)
             }
         }
     }

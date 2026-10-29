@@ -348,7 +348,7 @@ Item {
                     color: "#f0c44a"
                     Text { id: badgeT; anchors.centerIn: parent
                            text: bar.downloadsBadge
-                           color: "#141207"; font.pixelSize: 11; font.weight: Font.Bold }
+                           color: "#141207"; font.pixelSize: theme.fontSize(11); font.weight: Font.Bold }
                 }
                 KeyboardAction {
                     id: downloadsInput
@@ -513,7 +513,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: (tile.modelData.sessions || []).length
                                 color: "#f1f1f4"
-                                font.pixelSize: 9
+                                font.pixelSize: theme.fontSize(9)
                                 font.weight: Font.DemiBold
                             }
                         }
@@ -673,7 +673,7 @@ Item {
                         elide: Text.ElideRight
                         text: modelData.title
                         color: "#eaeaef"
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                     }
 
                     Item {

@@ -38,6 +38,8 @@ class ReleaseConfigTests(unittest.TestCase):
         self.assertIn("-DCMAKE_BUILD_TYPE=Release", args)
         self.assertIn("-DQT_ANDROID_SIGN_APK:BOOL=OFF", args)
         self.assertIn("-DCOLOSSEUM_ANDROID_NUVIO_BACKEND=ON", args)
+        self.assertIn("-DCOLOSSEUM_ANDROID_APPLICATION_ID=", args)
+        self.assertIn("-DCOLOSSEUM_ANDROID_VERSION_NAME=", args)
 
     def test_release_qt_cache_arguments_are_typed_and_preserve_values(self):
         cfg = release_apk.resolve_build_config("arm64-v8a", "/build", "/out", self.base())
@@ -63,6 +65,40 @@ class ReleaseConfigTests(unittest.TestCase):
             run = subprocess.run([cmake, deployment, signing, "-P", str(script)],
                                  capture_output=True, text=True, check=False)
         self.assertEqual(run.returncode, 0, run.stdout + run.stderr)
+
+    def alpha(self):
+        return {**self.base(), "COLOSSEUM_ANDROID_RELEASE_CHANNEL": "alpha",
+                "COLOSSEUM_ANDROID_APPLICATION_ID": "world.getcolosseum.app",
+                "COLOSSEUM_ANDROID_VERSION_NAME": "1.1.10-alpha"}
+
+    def test_alpha_has_permanent_identity_version_and_explicit_unsigned_flags(self):
+        cfg = release_apk.resolve_build_config("arm64-v8a", "/build", "/out", self.alpha())
+        self.assertEqual((cfg.package, cfg.version_name, cfg.version_code),
+                         ("world.getcolosseum.app", "1.1.10-alpha", 2))
+        self.assertEqual(cfg.endpoint, release_apk.PRODUCTION_ENDPOINT)
+        args = release_apk.release_cmake_args(cfg)
+        self.assertIn("-DCOLOSSEUM_ANDROID_APPLICATION_ID=world.getcolosseum.app", args)
+        self.assertIn("-DCOLOSSEUM_ANDROID_VERSION_NAME=1.1.10-alpha", args)
+        self.assertIn("-DCOLOSSEUM_ANDROID_PREVIEW_PACKAGE=", args)
+        self.assertIn("-DQT_ANDROID_SIGN_APK:BOOL=OFF", args)
+        self.assertIn("-DCOLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE=", args)
+
+    def test_alpha_rejects_identity_ambiguity_and_unapproved_endpoints(self):
+        for changes in (
+                {"COLOSSEUM_ANDROID_APPLICATION_ID": "org.example.fake"},
+                {"COLOSSEUM_ANDROID_PREVIEW_PACKAGE": release_apk.DEFAULT_PACKAGE},
+                {"COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE": "org.qtproject.example.colosseum.nuvio1"},
+                {"COLOSSEUM_ANDROID_VERSION_NAME": "1.1.10"},
+                {"COLOSSEUM_ANDROID_VERSION_NAME": "1.1.10-alpha;bad"},
+                {"COLOSSEUM_CONTENT_API_URL": "https://example.invalid"},
+                {"COLOSSEUM_ANDROID_CMAKE_ARGS": "-DCOLOSSEUM_ANDROID_APPLICATION_ID=org.example.fake"}):
+            with self.subTest(changes=changes), self.assertRaises(ValueError):
+                release_apk.resolve_build_config("arm64-v8a", "/build", "/out", {**self.alpha(), **changes})
+
+    def test_permanent_package_requires_explicit_alpha_channel(self):
+        with self.assertRaisesRegex(ValueError, "release package"):
+            release_apk.resolve_build_config("arm64-v8a", "/build", "/out", {
+                **self.base(), "COLOSSEUM_ANDROID_APPLICATION_ID": "world.getcolosseum.app"})
 
     def test_release_validation_rejects_bad_mode_inputs_and_signing(self):
         cases = [
@@ -157,6 +193,42 @@ class ReleaseConfigTests(unittest.TestCase):
                 release_apk.project_version(str(root))
 
 class SourceSnapshotTests(unittest.TestCase):
+    def test_untracked_build_inputs_are_rejected(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            subprocess.run(["git", "init", "-q", str(root)], check=True)
+            (root / "tracked.txt").write_text("source\n", encoding="utf-8")
+            subprocess.run(["git", "-C", str(root), "add", "tracked.txt"], check=True)
+            subprocess.run(["git", "-C", str(root), "-c", "user.name=Test", "-c",
+                            "user.email=test@example.invalid", "commit", "-qm", "fixture"], check=True)
+            (root / "qml").mkdir()
+            (root / "qml" / "Added.qml").write_text("import QtQuick\nItem {}\n", encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "untracked build inputs"):
+                release_apk._source_snapshot(str(root), {})
+
+    def test_local_provenance_cannot_mislabel_its_branch(self):
+        current = {"branchRef": "actual-branch"}
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in ("verified.json", "before.json", "after.json"):
+                (root / name).write_text("{}", encoding="utf-8")
+            with patch.object(release_apk, "_source_snapshot", return_value=current):
+                with self.assertRaisesRegex(ValueError, "must match the source checkout"):
+                    release_apk.write_provenance(str(root), str(root), "unused.apk",
+                        str(root / "verified.json"), "unused.stamp", "unused-endpoint", "unused-output",
+                        str(root / "before.json"), str(root / "after.json"), "wrong-branch", "local-20261029T020000Z")
+
+    def test_numeric_run_id_alone_cannot_claim_github_actions(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            for name in ("verified.json", "before.json", "after.json"):
+                (root / name).write_text("{}", encoding="utf-8")
+            with patch.object(release_apk, "_source_snapshot", return_value={}), patch.dict(os.environ, {}, clear=True):
+                with self.assertRaisesRegex(ValueError, "requires a GitHub Actions environment"):
+                    release_apk.write_provenance(str(root), str(root), "unused.apk",
+                        str(root / "verified.json"), "unused.stamp", "unused-endpoint", "unused-output",
+                        str(root / "before.json"), str(root / "after.json"), "branch", "12345")
+
     def test_source_metadata_snapshot_detects_tracked_changes_and_records_run_identity(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

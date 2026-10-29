@@ -16,7 +16,7 @@ Item {
             Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.glyph
                 color: theme.ink; font.pixelSize: 18 }
             Text { anchors.horizontalCenter: parent.horizontalCenter; text: root.sub
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 9 }
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(9) }
         }
         KeyboardAction {
             id: input

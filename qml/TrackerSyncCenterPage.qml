@@ -186,7 +186,7 @@ Item {
             text: settingToggle.settingLabel
             color: settingToggle.enabled ? theme.ink : theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             verticalAlignment: Text.AlignVCenter
             rightPadding: settingToggle.indicator.width + settingToggle.spacing
         }
@@ -1673,7 +1673,7 @@ Item {
                         text: "Connections"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 52
+                        font.pixelSize: theme.fontSize(52)
                         font.weight: Font.DemiBold
                         font.letterSpacing: -1.8
                         Accessible.role: Accessible.Heading
@@ -1682,7 +1682,7 @@ Item {
                         text: "Your external library connections"
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                     }
                 }
 
@@ -1712,7 +1712,7 @@ Item {
                             text: "Preferences"
                             color: preferencesButton.enabled ? theme.ink : theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
                     }
@@ -1745,7 +1745,7 @@ Item {
                             text: "Sync all"
                             color: syncAllButton.enabled ? theme.gold : theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
                     }
@@ -1767,7 +1767,7 @@ Item {
                 text: root.aggregateSummary()
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 Layout.alignment: Qt.AlignRight
                 Layout.bottomMargin: 10
             }
@@ -1811,7 +1811,7 @@ Item {
                             text: "NATIVE LIBRARY"
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 10
+                            font.pixelSize: theme.fontSize(10)
                             font.letterSpacing: 1.7
                             font.weight: Font.Bold
                         }
@@ -1819,19 +1819,19 @@ Item {
                             text: "Colosseum"
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: 29
+                            font.pixelSize: theme.fontSize(29)
                         }
                         Text {
                             text: "Works without trackers."
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: 15
+                            font.pixelSize: theme.fontSize(15)
                         }
                         Text {
                             text: "Your native progress, History, and activity stay here."
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                             Layout.minimumWidth: 0
@@ -1850,7 +1850,7 @@ Item {
                             text: "✓  Always available"
                             color: theme.gold
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                         }
                     }
                 }
@@ -1879,7 +1879,7 @@ Item {
                             text: "CONNECTION STATUS"
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 10
+                            font.pixelSize: theme.fontSize(10)
                             font.letterSpacing: 1.7
                             font.weight: Font.Bold
                             Layout.fillWidth: true
@@ -1890,7 +1890,7 @@ Item {
                             text: root.aggregateSummary()
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             horizontalAlignment: Text.AlignRight
                         }
                     }
@@ -1931,13 +1931,13 @@ Item {
                                         text: "Colosseum"
                                         color: theme.ink
                                         font.family: theme.display
-                                        font.pixelSize: 20
+                                        font.pixelSize: theme.fontSize(20)
                                     }
                                     Text {
                                         text: "CANONICAL"
                                         color: theme.gold
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         font.letterSpacing: 0.5
                                     }
                                 }
@@ -2019,7 +2019,7 @@ Item {
                                                 text: relayCard.modelData.providerName || "Tracker"
                                                 color: theme.ink
                                                 font.family: theme.ui
-                                                font.pixelSize: 13
+                                                font.pixelSize: theme.fontSize(13)
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
@@ -2028,7 +2028,7 @@ Item {
                                                 color: relayCard.modelData.status === "Attention"
                                                        ? theme.gold : theme.inkDim
                                                 font.family: theme.ui
-                                                font.pixelSize: 10
+                                                font.pixelSize: theme.fontSize(10)
                                                 elide: Text.ElideRight
                                                 Layout.fillWidth: true
                                             }
@@ -2071,7 +2071,7 @@ Item {
                               : root.attentionProviderCount + " trackers need attention"
                         color: theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
                     }
@@ -2079,7 +2079,7 @@ Item {
                         text: "Native History is unchanged."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                 }
             }
@@ -2101,14 +2101,14 @@ Item {
                         text: "Your trackers"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 27
+                        font.pixelSize: theme.fontSize(27)
                         Layout.fillWidth: true
                     }
                     Text {
                         text: "This profile"
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                 }
 
@@ -2180,7 +2180,7 @@ Item {
                                             text: trackerCard.modelData.providerName || "Tracker"
                                             color: theme.ink
                                             font.family: theme.ui
-                                            font.pixelSize: 15
+                                            font.pixelSize: theme.fontSize(15)
                                             font.weight: Font.DemiBold
                                             elide: Text.ElideRight
                                             Layout.fillWidth: true
@@ -2189,7 +2189,7 @@ Item {
                                             text: trackerCard.modelData.accountLabel || "Connected to this profile"
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 11
+                                            font.pixelSize: theme.fontSize(11)
                                             elide: Text.ElideRight
                                             Layout.fillWidth: true
                                         }
@@ -2198,7 +2198,7 @@ Item {
                                         text: root.displayStatus(trackerCard.modelData.status)
                                         color: trackerCard.modelData.status === "Attention" ? theme.gold : theme.inkDim
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                     }
                                 }
                                 RowLayout {
@@ -2212,13 +2212,13 @@ Item {
                                             text: root.lastSyncLabel(trackerCard.modelData.lastSuccessfulSyncAtMs)
                                             color: theme.ink
                                             font.family: theme.ui
-                                            font.pixelSize: 14
+                                            font.pixelSize: theme.fontSize(14)
                                         }
                                         Text {
                                             text: "LAST SYNC"
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 9
+                                            font.pixelSize: theme.fontSize(9)
                                             font.letterSpacing: 0.6
                                         }
                                     }
@@ -2230,13 +2230,13 @@ Item {
                                                          + Number(trackerCard.modelData.waitingCount || 0))
                                             color: theme.ink
                                             font.family: theme.ui
-                                            font.pixelSize: 14
+                                            font.pixelSize: theme.fontSize(14)
                                         }
                                         Text {
                                             text: "WAITING / REVIEW"
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 9
+                                            font.pixelSize: theme.fontSize(9)
                                             font.letterSpacing: 0.6
                                         }
                                     }
@@ -2244,7 +2244,7 @@ Item {
                                         text: "Open ›"
                                         color: theme.gold
                                         font.family: theme.ui
-                                        font.pixelSize: 11
+                                        font.pixelSize: theme.fontSize(11)
                                         font.weight: Font.DemiBold
                                     }
                                 }
@@ -2269,14 +2269,14 @@ Item {
                     text: "External services"
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 27
+                    font.pixelSize: theme.fontSize(27)
                 }
                 Text {
                     objectName: "trackerExternalServicesDescription"
                     text: "Manage connections to external libraries."
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                 }
 
                 Rectangle {
@@ -2313,14 +2313,14 @@ Item {
                                 text: "Stremio"
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 24
+                                font.pixelSize: theme.fontSize(24)
                                 font.weight: Font.DemiBold
                             }
                             Text {
                                 text: "Library, progress, and History"
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 Layout.fillWidth: true
                                 Layout.minimumWidth: 0
                                 wrapMode: Text.WordWrap
@@ -2348,7 +2348,7 @@ Item {
                                             text: stremioTag.modelData
                                             color: theme.inkDim
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                         }
                                     }
                                 }
@@ -2375,7 +2375,7 @@ Item {
                                     text: root.stremioStatusLabel()
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                 }
                             }
                             Button {
@@ -2397,7 +2397,7 @@ Item {
                                     text: "Open settings ›"
                                     color: theme.gold
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     font.weight: Font.DemiBold
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -2425,7 +2425,7 @@ Item {
                         text: "Available trackers"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 27
+                        font.pixelSize: theme.fontSize(27)
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                     }
@@ -2433,7 +2433,7 @@ Item {
                         text: "Capabilities are verified per provider"
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         Layout.fillWidth: true
                         Layout.minimumWidth: 0
                         horizontalAlignment: root.width >= 760 ? Text.AlignRight : Text.AlignLeft
@@ -2497,7 +2497,7 @@ Item {
                                             text: catalogueCard.modelData.providerName || "Tracker"
                                             color: theme.ink
                                             font.family: theme.ui
-                                            font.pixelSize: 14
+                                            font.pixelSize: theme.fontSize(14)
                                             font.weight: Font.DemiBold
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
@@ -2507,7 +2507,7 @@ Item {
                                                                        catalogueCard.modelData.available)
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 11
+                                            font.pixelSize: theme.fontSize(11)
                                             wrapMode: Text.WordWrap
                                             Layout.fillWidth: true
                                         }
@@ -2543,7 +2543,7 @@ Item {
                                                   ? theme.gold : theme.inkDim)
                                                : theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                     }
                                 }
                             }
@@ -2634,7 +2634,7 @@ Item {
                                         ? "PAUSED TRACKER WORK" : "AVAILABLE TRACKER"))
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 9
+                            font.pixelSize: theme.fontSize(9)
                             font.letterSpacing: 1.4
                             font.weight: Font.Bold
                         }
@@ -2644,7 +2644,7 @@ Item {
                             text: root.selectedDossier.providerName || "Tracker"
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: 24
+                            font.pixelSize: theme.fontSize(24)
                             elide: Text.ElideRight
                             Layout.fillWidth: true
                         }
@@ -2722,7 +2722,7 @@ Item {
                                                                   root.selectedDossier.connected)
                                         color: root.selectedDossier.status === "Attention" ? theme.gold : theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: 14
+                                        font.pixelSize: theme.fontSize(14)
                                         font.weight: Font.DemiBold
                                         Layout.fillWidth: true
                                     }
@@ -2730,7 +2730,7 @@ Item {
                                         text: root.selectedDossier.connected ? "THIS PROFILE" : "CAPABILITY GATE"
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 9
+                                        font.pixelSize: theme.fontSize(9)
                                         font.letterSpacing: 0.8
                                     }
                                 }
@@ -2771,7 +2771,7 @@ Item {
                                                    : "Connect only when this build has a verified provider authentication path.")))
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 12
+                                    font.pixelSize: theme.fontSize(12)
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
                                 }
@@ -2784,7 +2784,7 @@ Item {
                                              ? "Linked" : "Not linked")
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 12
+                                    font.pixelSize: theme.fontSize(12)
                                     wrapMode: Text.WordWrap
                                     Layout.fillWidth: true
                                 }
@@ -2861,7 +2861,7 @@ Item {
                                 visible: root.selectedDossier.connected === true
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 20
+                                font.pixelSize: theme.fontSize(20)
                             }
                             Rectangle {
                                 Layout.fillWidth: true
@@ -2880,13 +2880,13 @@ Item {
                                             text: root.selectedDossier.accountLabel || "Connected account"
                                             color: theme.ink
                                             font.family: theme.ui
-                                            font.pixelSize: 13
+                                            font.pixelSize: theme.fontSize(13)
                                         }
                                         Text {
                                             text: "Only this Colosseum profile can use this connection"
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                         }
                                     }
                                 }
@@ -2934,7 +2934,7 @@ Item {
                                 text: "A tracker update is still sending. Wait for its result before disconnecting."
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -2944,7 +2944,7 @@ Item {
                                 text: root.actionNotice
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -2958,7 +2958,7 @@ Item {
                                 text: "Capabilities"
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 20
+                                font.pixelSize: theme.fontSize(20)
                             }
                             Flow {
                                 Layout.fillWidth: true
@@ -2979,7 +2979,7 @@ Item {
                                             text: modelData
                                             color: theme.inkDim
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                         }
                                     }
                                 }
@@ -2991,7 +2991,7 @@ Item {
                                 text: "No capabilities are verified in this build."
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                             }
                         }
 
@@ -3005,7 +3005,7 @@ Item {
                                 text: "Import review"
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 20
+                                font.pixelSize: theme.fontSize(20)
                             }
                             Repeater {
                                 model: root.importReviewsForSelectedProvider()
@@ -3030,7 +3030,7 @@ Item {
                                                 text: modelData.initialImport ? "Initial import" : "Progress update"
                                                 color: theme.ink
                                                 font.family: theme.ui
-                                                font.pixelSize: 12
+                                                font.pixelSize: theme.fontSize(12)
                                                 font.weight: Font.DemiBold
                                             }
                                             Text {
@@ -3038,7 +3038,7 @@ Item {
                                                 text: root.importBatchSummary(modelData)
                                                 color: theme.inkDim
                                                 font.family: theme.ui
-                                                font.pixelSize: 10
+                                                font.pixelSize: theme.fontSize(10)
                                             }
                                         }
                                         Button {
@@ -3053,7 +3053,7 @@ Item {
                                                 text: importBatchReviewButton.text
                                                 color: importBatchReviewButton.activeFocus ? theme.gold : theme.ink
                                                 font.family: theme.ui
-                                                font.pixelSize: 11
+                                                font.pixelSize: theme.fontSize(11)
                                                 font.weight: Font.DemiBold
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
@@ -3081,7 +3081,7 @@ Item {
                                 text: "Delivery status"
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 20
+                                font.pixelSize: theme.fontSize(20)
                             }
                             Text {
                                 objectName: "trackerDisconnectedDeliveryNotice"
@@ -3091,7 +3091,7 @@ Item {
                                       : "Pending tracker work stays paused until this account reconnects."
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -3127,7 +3127,7 @@ Item {
                                                 text: modelData.title || "Playback update"
                                                 color: theme.ink
                                                 font.family: theme.ui
-                                                font.pixelSize: 12
+                                                font.pixelSize: theme.fontSize(12)
                                                 font.weight: Font.DemiBold
                                                 Layout.fillWidth: true
                                                 elide: Text.ElideRight
@@ -3140,14 +3140,14 @@ Item {
                                                        || modelData.state === "failed"
                                                        ? theme.gold : theme.inkDim
                                                 font.family: theme.ui
-                                                font.pixelSize: 10
+                                                font.pixelSize: theme.fontSize(10)
                                             }
                                         }
                                         Text {
                                             text: root.deliveryReasonDetail(modelData.reason)
                                             color: theme.inkDimmer
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                             Layout.fillWidth: true
                                             wrapMode: Text.WordWrap
                                         }
@@ -3166,7 +3166,7 @@ Item {
                                 text: "Automatic sync"
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 20
+                                font.pixelSize: theme.fontSize(20)
                                 Layout.bottomMargin: 8
                             }
                             TrackerSettingToggle {
@@ -3206,7 +3206,7 @@ Item {
                                     text: exportReviewButton.text
                                     color: exportReviewButton.enabled ? theme.gold : theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     verticalAlignment: Text.AlignVCenter
                                 }
                                 background: Rectangle {
@@ -3238,7 +3238,7 @@ Item {
                                 text: "Current preferences"
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 20
+                                font.pixelSize: theme.fontSize(20)
                                 Layout.bottomMargin: 8
                             }
                             TrackerSettingToggle {
@@ -3286,7 +3286,7 @@ Item {
                                 text: root.actionNotice
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -3295,7 +3295,7 @@ Item {
                                 text: "Settings are unavailable for this profile."
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 Layout.topMargin: 8
                             }
                         }
@@ -3357,7 +3357,7 @@ Item {
                             text: "Send to " + (root.selectedExportReview.providerName || "tracker")
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: 24
+                            font.pixelSize: theme.fontSize(24)
                             Layout.fillWidth: true
                         }
                         Button {
@@ -3372,7 +3372,7 @@ Item {
                                 text: exportReviewCloseButton.text
                                 color: exportReviewCloseButton.activeFocus ? theme.gold : theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 22
+                                font.pixelSize: theme.fontSize(22)
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -3390,7 +3390,7 @@ Item {
                         text: "Choose the Colosseum updates you want to send. This review is separate from importing tracker data."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -3404,7 +3404,7 @@ Item {
                               : "No local updates can be sent from this review. The reasons are shown below; close this review."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -3468,7 +3468,7 @@ Item {
                                 text: parent.text
                                 color: parent.enabled ? theme.ink : theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 verticalAlignment: Text.AlignVCenter
                                 wrapMode: Text.WordWrap
                             }
@@ -3486,7 +3486,7 @@ Item {
                         text: root.exportReviewNotice
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         Layout.fillWidth: true
                         wrapMode: Text.WordWrap
                     }
@@ -3496,7 +3496,7 @@ Item {
                             text: root.selectedExportItemIds.length + " selected"
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             Layout.fillWidth: true
                         }
                         Button {
@@ -3514,7 +3514,7 @@ Item {
                                 text: exportReviewConfirmButton.text
                                 color: exportReviewConfirmButton.enabled ? theme.gold : theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 font.weight: Font.DemiBold
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
@@ -3599,7 +3599,7 @@ Item {
                                       + (root.selectedImportSnapshot.providerName || "Tracker")
                                 color: theme.ink
                                 font.family: theme.display
-                                font.pixelSize: 25
+                                font.pixelSize: theme.fontSize(25)
                                 Layout.fillWidth: true
                                 wrapMode: Text.WordWrap
                                 Accessible.role: Accessible.Heading
@@ -3618,7 +3618,7 @@ Item {
                                     text: importReviewCloseButton.text
                                     color: importReviewCloseButton.activeFocus ? theme.gold : theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 22
+                                    font.pixelSize: theme.fontSize(22)
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
                                 }
@@ -3638,7 +3638,7 @@ Item {
                             text: "Review each item before importing. Colosseum’s native History and witnessed activity stay protected; tracker progress never creates a watched event by itself."
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -3655,7 +3655,7 @@ Item {
                                     text: root.selectedBulkImportItemIds.length + " items selected"
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     Layout.fillWidth: true
                                 }
                                 Button {
@@ -3685,7 +3685,7 @@ Item {
                                 text: "These selections do not share a safe choice. Review each item separately; protected and unmatched exceptions stay visible."
                                 color: theme.gold
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 wrapMode: Text.WordWrap
                                 Layout.fillWidth: true
                             }
@@ -3698,7 +3698,7 @@ Item {
                             text: "More tracker pages are still being read. You can inspect this preview, but confirmation stays unavailable until it is complete."
                             color: theme.gold
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -3752,7 +3752,7 @@ Item {
                                                 text: parent.checked ? "Selected" : "Select"
                                                 color: parent.activeFocus ? theme.gold : theme.inkDim
                                                 font.family: theme.ui
-                                                font.pixelSize: 9
+                                                font.pixelSize: theme.fontSize(9)
                                                 horizontalAlignment: Text.AlignHCenter
                                                 verticalAlignment: Text.AlignVCenter
                                             }
@@ -3768,7 +3768,7 @@ Item {
                                             text: importReviewItemCard.modelData.title || "Untitled entry"
                                             color: theme.ink
                                             font.family: theme.ui
-                                            font.pixelSize: 13
+                                            font.pixelSize: theme.fontSize(13)
                                             font.weight: Font.DemiBold
                                             Layout.fillWidth: true
                                             elide: Text.ElideRight
@@ -3777,14 +3777,14 @@ Item {
                                             text: root.importClassificationLabel(importReviewItemCard.modelData.classification)
                                             color: theme.gold
                                             font.family: theme.ui
-                                            font.pixelSize: 10
+                                            font.pixelSize: theme.fontSize(10)
                                         }
                                     }
                                     Text {
                                         text: root.importProgressSummary(importReviewItemCard.modelData)
                                         color: theme.inkDim
                                         font.family: theme.ui
-                                        font.pixelSize: 11
+                                        font.pixelSize: theme.fontSize(11)
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
                                     }
@@ -3793,7 +3793,7 @@ Item {
                                         text: "Native History protects this title. Keep Colosseum progress is the only available choice."
                                         color: theme.gold
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
                                     }
@@ -3803,7 +3803,7 @@ Item {
                                         text: "Find match is unavailable right now. You can leave this entry unmatched."
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
                                     }
@@ -3840,7 +3840,7 @@ Item {
                                                     text: importChoiceButton.text
                                                     color: importChoiceButton.activeFocus ? theme.gold : theme.ink
                                                     font.family: theme.ui
-                                                    font.pixelSize: 10
+                                                    font.pixelSize: theme.fontSize(10)
                                                     font.weight: Font.DemiBold
                                                     horizontalAlignment: Text.AlignHCenter
                                                     verticalAlignment: Text.AlignVCenter
@@ -3878,7 +3878,7 @@ Item {
                                                       : "Waiting for review"
                                         color: theme.inkDimmer
                                         font.family: theme.ui
-                                        font.pixelSize: 10
+                                        font.pixelSize: theme.fontSize(10)
                                         Layout.fillWidth: true
                                         wrapMode: Text.WordWrap
                                     }
@@ -3892,7 +3892,7 @@ Item {
                             text: root.importReviewNotice
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 10
+                            font.pixelSize: theme.fontSize(10)
                             wrapMode: Text.WordWrap
                             Layout.fillWidth: true
                         }
@@ -3914,7 +3914,7 @@ Item {
                                     text: confirmImportButton.text
                                     color: confirmImportButton.enabled ? theme.gold : theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     font.weight: Font.DemiBold
                                     horizontalAlignment: Text.AlignHCenter
                                     verticalAlignment: Text.AlignVCenter
@@ -4009,7 +4009,7 @@ Item {
                             text: "Find a Colosseum title"
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: 24
+                            font.pixelSize: theme.fontSize(24)
                             Layout.fillWidth: true
                             Accessible.role: Accessible.Heading
                         }
@@ -4024,7 +4024,7 @@ Item {
                                 text: titleMatchCloseButton.text
                                 color: titleMatchCloseButton.activeFocus ? theme.gold : theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 22
+                                font.pixelSize: theme.fontSize(22)
                                 horizontalAlignment: Text.AlignHCenter
                                 verticalAlignment: Text.AlignVCenter
                             }
@@ -4044,7 +4044,7 @@ Item {
                         text: "Tracker title: “" + root.titleMatchRemoteTitle + "”"
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4053,7 +4053,7 @@ Item {
                         text: "Choose a named title already in Colosseum Progress. A title match alone cannot apply tracker Progress or change History without a verified exact target."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4073,7 +4073,7 @@ Item {
                         selectionColor: theme.gold
                         selectedTextColor: "#141416"
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         background: Rectangle {
                             radius: 10
                             color: theme.glassTint
@@ -4120,7 +4120,7 @@ Item {
                                     text: String(modelData.displayName || "Untitled title")
                                     color: parent.parent.activeFocus ? theme.gold : theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 12
+                                    font.pixelSize: theme.fontSize(12)
                                     elide: Text.ElideRight
                                 }
                                 Text {
@@ -4132,7 +4132,7 @@ Item {
                                              ? " · " + String(modelData.displayContext) : "")
                                     color: theme.inkDim
                                     font.family: theme.ui
-                                    font.pixelSize: 10
+                                    font.pixelSize: theme.fontSize(10)
                                     elide: Text.ElideRight
                                 }
                             }
@@ -4153,7 +4153,7 @@ Item {
                                   : "No selectable named Colosseum Progress titles are available."
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                         }
                     }
 
@@ -4163,7 +4163,7 @@ Item {
                         text: root.titleMatchNotice
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4253,7 +4253,7 @@ Item {
                               : "Disconnect " + (root.selectedDossier.providerName || "tracker") + "?"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 24
+                        font.pixelSize: theme.fontSize(24)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                         Accessible.role: Accessible.Heading
@@ -4265,7 +4265,7 @@ Item {
                               : "This disconnects the tracker from this Colosseum profile. It does not delete the tracker account or Colosseum's own History, Progress, or Activity. Imported tracker data remains here until you remove it separately."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4278,7 +4278,7 @@ Item {
                               + Number(root.selectedDossier.unknownOutcomeCount || 0)
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4288,7 +4288,7 @@ Item {
                         text: "After disconnecting, Colosseum will ask the tracker to revoke this app's access. That request is best-effort: the tracker always acknowledges it, so it cannot be confirmed from here. Check the service's connected-app settings if you want certainty."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4301,7 +4301,7 @@ Item {
                                  : " updates may already have reached the tracker. They cannot be discarded or resent while uncertain; they stay paused until reconnect so Colosseum can check first.")
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4311,7 +4311,7 @@ Item {
                         text: root.disconnectReviewNotice
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4422,7 +4422,7 @@ Item {
                               + " selected items"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 24
+                        font.pixelSize: theme.fontSize(24)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                         Accessible.role: Accessible.Heading
@@ -4432,7 +4432,7 @@ Item {
                         text: root.selectedBulkImportTitles().join(" · ")
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4440,7 +4440,7 @@ Item {
                         text: "Only the selected items receive this decision. Other titles and any protected or unmatched exceptions remain visible for individual review. This saves decisions to the preview; no Progress or History is applied until the separate import confirmation."
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4450,7 +4450,7 @@ Item {
                         text: root.bulkImportReviewNotice
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4547,7 +4547,7 @@ Item {
                               + (root.selectedDossier.providerName || "this tracker") + "?"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 24
+                        font.pixelSize: theme.fontSize(24)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                         Accessible.role: Accessible.Heading
@@ -4565,7 +4565,7 @@ Item {
                               + " will be removed for this tracker account."
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4574,7 +4574,7 @@ Item {
                         text: "Only this account's tracker-imported History evidence and eligible tracker-imported Progress are removed. Native History, Activity, statistics, local Progress, and another tracker's data are preserved. No remote tracker account or data is changed."
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4582,7 +4582,7 @@ Item {
                         text: "Affected entries"
                         color: theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
                     }
@@ -4645,7 +4645,7 @@ Item {
                                 text: parent.title || "Untitled media"
                                 color: theme.ink
                                 font.family: theme.ui
-                                font.pixelSize: 12
+                                font.pixelSize: theme.fontSize(12)
                                 elide: Text.ElideRight
                                 width: parent.width
                                 Accessible.name: text
@@ -4655,7 +4655,7 @@ Item {
                                       + (parent.consequence || "Only this account's imported data is affected.")
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 wrapMode: Text.WordWrap
                                 width: parent.width
                             }
@@ -4672,7 +4672,7 @@ Item {
                         text: root.importedDataReviewNotice
                         color: theme.gold
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                         Layout.fillWidth: true
                     }
@@ -4744,7 +4744,7 @@ Item {
                           : "Connect " + root.connectionProviderName
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 28
+                    font.pixelSize: theme.fontSize(28)
                     Layout.fillWidth: true
                 }
                 Text {
@@ -4753,7 +4753,7 @@ Item {
                           : root.connectionProviderName + " connection is unavailable."
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -4788,7 +4788,7 @@ Item {
                             text: "APPROVAL CODE"
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 9
+                            font.pixelSize: theme.fontSize(9)
                             font.letterSpacing: 1.2
                         }
                         Text {
@@ -4796,7 +4796,7 @@ Item {
                             text: root.trackerConnector ? root.trackerConnector.userCode : ""
                             color: theme.gold
                             font.family: theme.display
-                            font.pixelSize: 30
+                            font.pixelSize: theme.fontSize(30)
                             font.letterSpacing: 2
                         }
                     }
@@ -4808,7 +4808,7 @@ Item {
                     text: "The browser page is prefilled. The code remains here as a fallback."
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     wrapMode: Text.WordWrap
                     Layout.fillWidth: true
                 }
@@ -4828,7 +4828,7 @@ Item {
                         text: connectionMoveButton.text
                         color: connectionMoveButton.enabled ? theme.gold : theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         horizontalAlignment: Text.AlignHCenter
                         verticalAlignment: Text.AlignVCenter
                     }

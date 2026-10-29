@@ -33,9 +33,14 @@ import "CatalogueVisualMetrics.js" as Metrics
 Item {
     id: browser
 
-    // Same phone gate as the world tab bar: Android, window under 840 wide.
+    // A phone stays compact in either orientation; tablets keep their normal grid.
     readonly property bool phoneNarrow: !!(browser.Window.window && browser.Window.window.androidHost
-                                            && browser.Window.window.width < 840)
+        && Math.min(browser.Window.window.width, browser.Window.window.height) < 600)
+    property bool compactPhonePosters: false
+    readonly property bool compactPhonePortrait: browser.compactPhonePosters && browser.phoneNarrow
+        && browser.Window.window !== null
+        && browser.Window.window.width < 600
+        && browser.Window.window.width < browser.Window.window.height
 
     // ── automation identity (Lanista; Discover sidebar plan Slice 0) ──
     // World-namespaced by the host (theatre/biblio/tankoban): a bare shared stem would resolve
@@ -171,8 +176,8 @@ Item {
     // ── the sidebar (Discover sidebar plan Slice 2): catalogues live in a pinned rail ──
     property Item backdrop: null             // the world's wallpaper, for the rail's glass
     // Phone width: an open sidebar lies over the wall instead of squeezing it into a sliver.
-    readonly property real contentLeft: !sidebar.visible ? 0
-        : (browser.phoneNarrow ? sidebar.closedWidth : sidebar.width) + 28
+    readonly property real contentLeft: browser.compactPhonePortrait || !sidebar.visible ? 0
+        : (browser.phoneNarrow ? sidebar.closedWidth + 12 : sidebar.width + 28)
 
     // ── injectable copy (world-neutral defaults; the wrapper sets its world's exact words) ──
     property string textNoCatalogue: "Nothing to browse here yet."
@@ -684,7 +689,7 @@ Item {
         id: sidebar
         host: browser
         backdrop: browser.backdrop
-        visible: browser.adapter !== null
+        visible: browser.adapter !== null && (!browser.compactPhonePortrait || !collapsed)
         z: browser.phoneNarrow && !collapsed ? 120 : 0
     }
 
@@ -717,7 +722,7 @@ Item {
             anchors.topMargin: 6
             text: "‹ Back"
             color: backMa.containsMouse ? theme.gold : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             MouseArea {
                 id: backMa
                 anchors.fill: parent
@@ -771,7 +776,7 @@ Item {
                         text: typeTab.modelData.label
                         color: typeTab.active ? theme.ink
                              : (tHov.hovered ? theme.ink : theme.inkDim)
-                        font.family: theme.ui; font.pixelSize: browser.phoneNarrow ? 15 : 17; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(browser.phoneNarrow ? 15 : 17); font.weight: Font.DemiBold
                         // readable on any wallpaper (2026-09-29): the idle lenses sat at inkDimmer
                         // and vanished into bright/warm art; a soft drop shadow carries them.
                         style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
@@ -803,15 +808,19 @@ Item {
             anchors.right: parent.right
             anchors.bottom: mastheadRule.top
             anchors.bottomMargin: 9
-            width: Math.max(summary.width, byline.implicitWidth, kicker.implicitWidth)
+            width: Math.max(summary.width, byline.width, kicker.width)
+            // Phone width: every shelf line gives way to the type tabs, including at large font scales.
+            readonly property real phoneLimit: Math.max(60, shelf.parent.width - typeSwitch.width - 44)
             height: kicker.implicitHeight + 4 + summary.height + 7 + byline.implicitHeight
 
             Text {
                 id: kicker
                 anchors.right: parent.right; anchors.top: parent.top
                 text: "NOW BROWSING"
+                width: browser.phoneNarrow ? Math.min(implicitWidth, shelf.phoneLimit) : implicitWidth
+                elide: browser.phoneNarrow ? Text.ElideRight : Text.ElideNone
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 10; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                font.family: theme.ui; font.pixelSize: theme.fontSize(10); style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 font.letterSpacing: 2.5; font.capitalization: Font.AllUppercase
             }
             Row {
@@ -831,10 +840,10 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: browser.currentCatalog ? browser.currentCatalog.title : "—"
                     color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
-                    font.family: theme.display; font.pixelSize: browser.phoneNarrow ? 22 : 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                    font.family: theme.display; font.pixelSize: theme.fontSize(browser.phoneNarrow ? 22 : 30); font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                     // phone width: the catalogue name gives way to the type tabs instead of printing over them
                     width: browser.phoneNarrow
-                           ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - typeSwitch.width - 44))
+                           ? Math.min(implicitWidth, shelf.phoneLimit)
                            : implicitWidth
                     elide: browser.phoneNarrow ? Text.ElideRight : Text.ElideNone
                 }
@@ -867,8 +876,10 @@ Item {
                 anchors.top: summary.bottom; anchors.topMargin: 7
                 // honest attribution — the owning source (as the sidebar names it). NO invented total.
                 text: browser.currentSource
+                width: browser.phoneNarrow ? Math.min(implicitWidth, shelf.phoneLimit) : implicitWidth
+                elide: browser.phoneNarrow ? Text.ElideRight : Text.ElideNone
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 13; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
             }
         }
 
@@ -928,7 +939,7 @@ Item {
                     Text {
                         text: mrow.modelData.text
                         color: mrow.sel ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         font.weight: mrow.sel ? Font.DemiBold : Font.Normal
                         anchors.left: parent.left; anchors.leftMargin: 12
                         anchors.right: parent.right; anchors.rightMargin: 12
@@ -965,25 +976,53 @@ Item {
             if (event.key === Qt.Key_Down && event.modifiers === Qt.NoModifier && browser.enterWall())
                 event.accepted = true
         }
-        visible: browser.filterHasOptions
+        visible: browser.filterHasOptions || (browser.compactPhonePortrait && browser.adapter !== null)
         anchors.top: masthead.bottom
         anchors.topMargin: 16
         anchors.left: parent.left
         anchors.leftMargin: browser.contentLeft
         spacing: 10
+        Rectangle {
+            id: phoneSources
+            objectName: browser.automationPrefix + "DiscoverSourcesButton"
+            visible: browser.compactPhonePortrait && browser.adapter !== null
+            width: Math.max(80, sourcesLabel.implicitWidth + 24); height: 48; radius: 12
+            color: theme.glassTint
+            border.width: 1; border.color: theme.edge
+            Text {
+                id: sourcesLabel
+                anchors.centerIn: parent
+                text: "Sources"
+                color: theme.ink
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+            }
+            KeyboardAction {
+                anchors.fill: parent
+                objectName: browser.automationPrefix + "DiscoverSourcesAction"
+                accessibleName: sidebar.collapsed ? "Choose sources" : "Close sources"
+                focusRadius: 12
+                onTriggered: sidebar.collapsed = !sidebar.collapsed
+            }
+        }
         Text {
             objectName: "discoverFilterLabel"
+            visible: !browser.compactPhonePortrait
             text: "FILTER"
             height: 40; verticalAlignment: Text.AlignVCenter
             // full ink + DemiBold: at 11px regular inkDim it still sank into warm wallpapers
             color: theme.ink
-            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 1.5
+            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold; font.letterSpacing: 1.5
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.85)
             font.capitalization: Font.AllUppercase
         }
         DiscoverPicker {
             id: filterPicker
             objectName: "discoverFilterPicker"
+            visible: browser.filterHasOptions
+            width: browser.compactPhonePortrait
+                   ? Math.max(0, browser.width - (phoneSources.visible ? phoneSources.width + filterRow.spacing : 0))
+                   : implicitWidth
+            height: browser.compactPhonePortrait ? 48 : implicitHeight
             automationName: browser.automationPrefix.length ? browser.automationPrefix + "DiscoverFilterPicker" : ""
             label: browser.filterPickerLabel
             clearable: true
@@ -1011,7 +1050,7 @@ Item {
             anchors.right: parent.right; anchors.rightMargin: 16
             anchors.verticalCenter: parent.verticalCenter
             text: browser.bannerText
-            color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             elide: Text.ElideRight
         }
         MouseArea {
@@ -1093,20 +1132,24 @@ Item {
             // 26 px between rows. Each cell carries its card plus one gap; the wall runs one gap past
             // its host so the last card ends on the edge.
             readonly property bool mockGrid: browser._galleryPosters && !browser.fixedGalleryWidth
-            readonly property int gapX: mockGrid ? browser._galleryMetrics.cardGap : 14
-            readonly property int gapY: mockGrid ? 26 : 14
+            readonly property int gapX: browser.compactPhonePortrait ? 12 : mockGrid ? browser._galleryMetrics.cardGap : 14
+            readonly property int gapY: browser.compactPhonePortrait ? 18 : mockGrid ? 26 : 14
             // Every gallery wall counts columns the concept's way (fixedGalleryWidth then centres
             // exact-token cards in them); classic keeps its ~146 px stride.
+            readonly property int minimumColumns: browser.phoneNarrow ? 1 : 3
+            readonly property real targetPosterWidth: browser.compactPhonePortrait
+                ? Math.max(64, Math.min(104, Math.floor((parent.width - 24) / 3))) : browser.phoneNarrow
+                ? Math.min(112, browser.wallPosterWidth) : browser.wallPosterWidth
             readonly property int columnCount: browser._galleryPosters
-                ? Math.max(3, Math.floor((parent.width + browser._galleryMetrics.cardGap)
-                                         / (browser.wallPosterWidth + browser._galleryMetrics.cardGap)))
-                : Math.max(3, Math.floor(parent.width / 146))
+                ? Math.max(minimumColumns, Math.floor((parent.width + (browser.compactPhonePortrait ? gapX : browser._galleryMetrics.cardGap))
+                                         / (targetPosterWidth + (browser.compactPhonePortrait ? gapX : browser._galleryMetrics.cardGap))))
+                : Math.max(minimumColumns, Math.floor(parent.width / (browser.phoneNarrow ? 126 : 146)))
             cellWidth: mockGrid ? Math.floor((parent.width + gapX) / columnCount)
                 : (browser.fixedGalleryWidth && browser._galleryPosters)
                 // "-14" below is the existing, unchanged delegate-inset convention (see the
                 // delegate's width binding) — adding it back here is what makes the delegate land
                 // on EXACTLY wallPosterWidth, not floor(width/columnCount)'s residual-inflated value.
-                ? (browser.wallPosterWidth + 14)
+                ? (targetPosterWidth + 14)
                 : Math.floor(parent.width / columnCount)
             cellHeight: browser._galleryPosters
                 ? (Math.floor((cellWidth - gapX) * browser._galleryMetrics.posterRatio)
@@ -1232,7 +1275,7 @@ Item {
                 visible: !browser.loading && !browser.pageFailed && browser.items.length === 0
                 anchors.centerIn: parent
                 text: browser.catalogueDownloading ? browser._downloadingText : browser.emptyMessage
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
         }
 

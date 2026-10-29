@@ -102,10 +102,11 @@ if [[ "$FLAVOUR" == "release-unsigned" ]]; then
     BUILD_TOOLS="$ANDROID_SDK_ROOT/build-tools/36.0.0"
     [[ -x "$BUILD_TOOLS/aapt" && -x "$BUILD_TOOLS/zipalign" ]] || {
         echo "missing aapt or zipalign in $BUILD_TOOLS" >&2; exit 1; }
-    PACKAGE="${COLOSSEUM_ANDROID_PREVIEW_PACKAGE:-org.qtproject.example.colosseum.previewnuvio1}"
+    PACKAGE="${COLOSSEUM_ANDROID_APPLICATION_ID:-${COLOSSEUM_ANDROID_PREVIEW_PACKAGE:-org.qtproject.example.colosseum.previewnuvio1}}"
     VERSION_CODE="${COLOSSEUM_ANDROID_VERSION_CODE:-2}"
+    VERSION_NAME="${COLOSSEUM_ANDROID_VERSION_NAME:-$(python3 -c 'import sys; sys.path.insert(0, sys.argv[1]); import release_apk; print(release_apk.project_version(sys.argv[2]))' "$REPO/scripts/android" "$REPO")}"
     python3 "$HELPER" verify-unsigned --repo "$REPO" --apk "$apk" --package "$PACKAGE" \
-        --version-code "$VERSION_CODE" --aapt "$BUILD_TOOLS/aapt" \
+        --version-code "$VERSION_CODE" --version-name "$VERSION_NAME" --aapt "$BUILD_TOOLS/aapt" \
         --zipalign "$BUILD_TOOLS/zipalign" \
         --engine-library "$COLOSSEUM_NUVIO_ENGINE_PREFIX/android/$ABI/lib/libnuvio_engine.so" \
         --output "$OUT_DIR/release-verification.json"

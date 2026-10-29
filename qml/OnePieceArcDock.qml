@@ -110,14 +110,14 @@ Item {
                     width: parent.width * 0.68
                     spacing: 3
 
-                    Text { text: "EAST BLUE SAGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.bold: true; font.letterSpacing: 2.7 }
-                    Text { text: root.arc.title + " Arc"; color: theme.ink; font.family: theme.display; font.pixelSize: 29; elide: Text.ElideRight; width: parent.width }
-                    Text { text: root.arc.place; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; elide: Text.ElideRight; width: parent.width }
+                    Text { text: "EAST BLUE SAGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.bold: true; font.letterSpacing: 2.7 }
+                    Text { text: root.arc.title + " Arc"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(29); elide: Text.ElideRight; width: parent.width }
+                    Text { text: root.arc.place; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); elide: Text.ElideRight; width: parent.width }
                     Text {
                         text: root.arc.summary || ""
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         lineHeight: 1.16
                         wrapMode: Text.WordWrap
                         maximumLineCount: 2
@@ -130,9 +130,9 @@ Item {
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
                     spacing: 28
-                    Column { spacing: 2; Text { text: root.displayRange(root.arc.anime); color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.bold: true } Text { text: root.arc.episodeCount + " episodes"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 9; font.capitalization: Font.AllUppercase } }
-                    Column { spacing: 2; Text { text: root.displayRange(root.arc.chapters); color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.bold: true } Text { text: root.arc.chapterCount + " chapters"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 9; font.capitalization: Font.AllUppercase } }
-                    Column { spacing: 2; Text { text: root.displayRange(root.arc.volumes); color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.bold: true } Text { text: "manga volumes"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 9; font.capitalization: Font.AllUppercase } }
+                    Column { spacing: 2; Text { text: root.displayRange(root.arc.anime); color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.bold: true } Text { text: root.arc.episodeCount + " episodes"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.capitalization: Font.AllUppercase } }
+                    Column { spacing: 2; Text { text: root.displayRange(root.arc.chapters); color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.bold: true } Text { text: root.arc.chapterCount + " chapters"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.capitalization: Font.AllUppercase } }
+                    Column { spacing: 2; Text { text: root.displayRange(root.arc.volumes); color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.bold: true } Text { text: "manga volumes"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.capitalization: Font.AllUppercase } }
                 }
             }
 
@@ -149,7 +149,7 @@ Item {
                     text: "EXPLORE THIS ARC"
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.bold: true
                     font.letterSpacing: 1.5
                 }
@@ -159,7 +159,7 @@ Item {
                     text: root.routeModel.length ? (mediaCarousel.index + 1) + " / " + root.routeModel.length : ""
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 1.0
                 }
             }

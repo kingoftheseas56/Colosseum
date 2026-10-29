@@ -55,7 +55,10 @@ Item {
     // tab switch within the same running session (Task 8's BiblioWorld reads/writes this) — a
     // plain property, NOT QSettings; it does not survive an app restart, by design.
     property real contentY: 0
-    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property bool phonePortrait: !!(page.Window.window && page.Window.window.androidHost
+        && page.Window.window.width < 600 && page.Window.window.width < page.Window.window.height)
+    readonly property int portraitPosterWidth: Math.max(64, Math.min(104, Math.floor((page.width - 24) / 3)))
+    readonly property real contentLeft: page.phonePortrait ? 0 : rowIndex.contentLeft
 
     signal itemRequested(var work)
     signal discoverPinRequested(var pin)
@@ -534,27 +537,50 @@ Item {
             Item {
                 objectName: "biblioExploreHeaderStrip"
                 width: content.width
-                height: 30
+                height: page.phonePortrait ? 48 : 30
+                Rectangle {
+                    visible: page.phonePortrait
+                    width: 80; height: 48; radius: 12
+                    color: theme.glassTint
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        anchors.centerIn: parent
+                        text: qsTr("Rows"); color: theme.ink
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        objectName: "biblioExploreRowsAction"
+                        accessibleName: rowIndex.collapsed ? qsTr("Choose catalogue row") : qsTr("Close catalogue rows")
+                        focusRadius: 12
+                        onTriggered: rowIndex.collapsed = !rowIndex.collapsed
+                    }
+                }
                 Text {
+                    visible: !page.phonePortrait
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Explore"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 26; font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(26); font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: page.editMode ? "Done" : "Customize shelves"
                     color: custMa.containsMouse || customizeAction.activeFocus ? theme.ink : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                     MouseArea {
                         id: custMa
-                        anchors.fill: parent; anchors.margins: -8
+                        anchors.fill: parent; anchors.margins: page.phonePortrait ? 0 : -8
+                        anchors.topMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
+                        anchors.bottomMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: page.editMode = !page.editMode
                     }
                     KeyboardAction {
                         id: customizeAction
                         objectName: "biblioExploreCustomizeAction"
-                        anchors.fill: parent; anchors.margins: -8
+                        anchors.fill: parent; anchors.margins: page.phonePortrait ? 0 : -8
+                        anchors.topMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
+                        anchors.bottomMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
                         pointerEnabled: false
                         accessibleName: page.editMode ? "Finish shelf customization" : "Customize shelves"
                         focusRadius: 6
@@ -675,7 +701,7 @@ Item {
                             Text {
                                 anchors.centerIn: parent
                                 text: rowBlock.modelData.hidden ? "Show" : "Hide"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 11
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             }
                             MouseArea {
                                 id: hideMa; anchors.fill: parent; hoverEnabled: true
@@ -693,6 +719,8 @@ Item {
                     }
 
                     BiblioBookRail {
+                        compactLayout: page.phonePortrait
+                        posterWidthOverride: page.phonePortrait ? page.portraitPosterWidth : 0
                         width: content.width
                         title: rowBlock.modelData.title
                         items: rowBlock.modelData.items
@@ -764,7 +792,7 @@ Item {
                         Text {
                             anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 14
                             text: tile.modelData.title
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -785,6 +813,8 @@ Item {
     RowIndexSidebar {
         id: rowIndex
         z: 2
+        visible: page.visible && (!page.phonePortrait || !collapsed)
+        compactTouchTargets: page.phonePortrait
         pageFlick: mainFlick
         backdrop: page.backdrop
         worldName: "Biblio"
@@ -793,6 +823,14 @@ Item {
         fixedTopInset: 76
         currentOffset: 14
         onRowRequested: (target) => page.parkRow(target)
+        Rectangle {
+            anchors.fill: parent
+            z: -1
+            visible: page.phonePortrait
+            radius: 14
+            color: Qt.rgba(0.035, 0.04, 0.06, 0.97)
+            MouseArea { anchors.fill: parent }
+        }
     }
 
     ScrollGlide { id: pageGlide; flick: mainFlick }

@@ -16,6 +16,8 @@ from dataclasses import asdict, dataclass
 
 DEFAULT_PACKAGE = "org.qtproject.example.colosseum.previewnuvio1"
 DEFAULT_ENDPOINT = "https://colosseum-content-api-staging.colosseum-watchparty-relay.workers.dev"
+PRODUCTION_PACKAGE = "world.getcolosseum.app"
+PRODUCTION_ENDPOINT = "https://colosseum-content-api.colosseum-watchparty-relay.workers.dev"
 SIGNING_ENV = ("COLOSSEUM_ANDROID_KEYSTORE", "COLOSSEUM_ANDROID_KEYSTORE_PASSWORD",
                "COLOSSEUM_ANDROID_KEY_ALIAS")
 APK_SIG_MAGIC = b"APK Sig Block 42"
@@ -24,6 +26,7 @@ PROTECTED_CMAKE_KEYS = {
     "COLOSSEUM_ANDROID_NUVIO_BACKEND", "COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC",
     "COLOSSEUM_NUVIO_ENGINE_PREFIX", "COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE",
     "COLOSSEUM_ANDROID_PREVIEW_PACKAGE", "COLOSSEUM_ANDROID_VERSION_CODE",
+    "COLOSSEUM_ANDROID_APPLICATION_ID", "COLOSSEUM_ANDROID_VERSION_NAME",
     "COLOSSEUM_CONTENT_API_URL",
 }
 
@@ -36,6 +39,8 @@ class BuildConfig:
     version_code: int = 0
     endpoint: str = ""
     engine_prefix: str = ""
+    channel: str = "preview"
+    version_name: str = ""
 
 def _version_code(raw: str) -> int:
     if not re.fullmatch(r"[1-9][0-9]*", str(raw)):
@@ -73,20 +78,39 @@ def resolve_build_config(abi: str, build_root: str, out_dir: str,
     for name in SIGNING_ENV:
         if env.get(name, ""):
             raise ValueError(f"release-unsigned forbids signing environment variable {name}")
-    package = env.get("COLOSSEUM_ANDROID_PREVIEW_PACKAGE", DEFAULT_PACKAGE).strip()
-    if not re.fullmatch(r"org[.]qtproject[.]example[.]colosseum[.]preview[0-9a-z]+", package):
-        raise ValueError("release package must be org.qtproject.example.colosseum.preview<id>")
+    channel = env.get("COLOSSEUM_ANDROID_RELEASE_CHANNEL", "preview").strip()
+    if channel not in ("preview", "alpha"):
+        raise ValueError("release channel must be preview or alpha")
+    version_name = env.get("COLOSSEUM_ANDROID_VERSION_NAME", "").strip()
+    application_id = env.get("COLOSSEUM_ANDROID_APPLICATION_ID", "").strip()
+    preview = env.get("COLOSSEUM_ANDROID_PREVIEW_PACKAGE", "").strip()
+    if channel == "alpha":
+        package = application_id
+        if package != PRODUCTION_PACKAGE or preview:
+            raise ValueError("alpha release package must be world.getcolosseum.app with no preview package")
+        if not re.fullmatch(r"[0-9]+[.][0-9]+[.][0-9]+-alpha", version_name):
+            raise ValueError("alpha release requires an explicit <project-version>-alpha version name")
+    else:
+        package = preview or DEFAULT_PACKAGE
+        if application_id or not re.fullmatch(r"org[.]qtproject[.]example[.]colosseum[.]preview[0-9a-z]+", package):
+            raise ValueError("release package must be org.qtproject.example.colosseum.preview<id>")
+        if version_name:
+            raise ValueError("preview release uses the project version name")
     code = _version_code(env.get("COLOSSEUM_ANDROID_VERSION_CODE", "2"))
-    endpoint = env.get("COLOSSEUM_CONTENT_API_URL", DEFAULT_ENDPOINT).strip()
-    if endpoint != DEFAULT_ENDPOINT:
+    endpoint = env.get("COLOSSEUM_CONTENT_API_URL", PRODUCTION_ENDPOINT if channel == "alpha" else DEFAULT_ENDPOINT).strip()
+    if channel == "preview" and endpoint != DEFAULT_ENDPOINT:
         raise ValueError("release content endpoint must be the authorized HTTPS staging origin")
+    if channel == "alpha" and endpoint not in (PRODUCTION_ENDPOINT, DEFAULT_ENDPOINT):
+        raise ValueError("alpha content endpoint must be a first-party production or staging origin")
+    if env.get("COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE", "").strip():
+        raise ValueError("release-unsigned forbids a diagnostic package")
     prefix = env.get("COLOSSEUM_NUVIO_ENGINE_PREFIX", "").strip()
     if not prefix:
         raise ValueError("release-unsigned requires COLOSSEUM_NUVIO_ENGINE_PREFIX")
     _reject_release_overrides(env.get("COLOSSEUM_ANDROID_CMAKE_ARGS", ""))
     return BuildConfig(flavour, str(root / "release-unsigned" / "arm64-v8a"),
                        "colosseum-arm64-v8a-release-unsigned.apk",
-                       package, code, endpoint, prefix)
+                       package, code, endpoint, prefix, channel, version_name)
 
 def release_cmake_args(config: BuildConfig) -> list[str]:
     if config.flavour != "release-unsigned":
@@ -99,7 +123,9 @@ def release_cmake_args(config: BuildConfig) -> list[str]:
         "-DCOLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC=OFF",
         f"-DCOLOSSEUM_NUVIO_ENGINE_PREFIX={config.engine_prefix}",
         "-DCOLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE=",
-        f"-DCOLOSSEUM_ANDROID_PREVIEW_PACKAGE={config.package}",
+        f"-DCOLOSSEUM_ANDROID_PREVIEW_PACKAGE={config.package if config.channel == 'preview' else ''}",
+        f"-DCOLOSSEUM_ANDROID_APPLICATION_ID={config.package if config.channel == 'alpha' else ''}",
+        f"-DCOLOSSEUM_ANDROID_VERSION_NAME={config.version_name}",
         f"-DCOLOSSEUM_ANDROID_VERSION_CODE={config.version_code}",
         f"-DCOLOSSEUM_CONTENT_API_URL={config.endpoint}",
     ]
@@ -268,6 +294,7 @@ def _cmake_cache(build_dir: Path) -> dict[str, str]:
         "COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC",
         "COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE", "COLOSSEUM_NUVIO_ENGINE_PREFIX",
         "COLOSSEUM_ANDROID_PREVIEW_PACKAGE",
+        "COLOSSEUM_ANDROID_APPLICATION_ID", "COLOSSEUM_ANDROID_VERSION_NAME",
         "COLOSSEUM_ANDROID_VERSION_CODE", "COLOSSEUM_CONTENT_API_URL",
     }
     out = {}
@@ -290,6 +317,12 @@ def _source_snapshot(repo: str, environment: dict[str, str] | None = None) -> di
                                   check=False)
     if tracked_diff.returncode != 0:
         raise ValueError("release provenance requires clean tracked source files")
+    untracked = subprocess.run([
+        "git", "-C", str(repo_path), "ls-files", "--others", "--exclude-standard", "-z", "--",
+        "native", "qml", "assets", "resources", "scripts", "tests", "extensions",
+    ], check=True, capture_output=True).stdout
+    if untracked:
+        raise ValueError("release provenance rejects untracked build inputs; commit the explicit release source first")
     listing = subprocess.run(["git", "-C", str(repo_path), "ls-files", "--stage", "-z"],
                              check=True, capture_output=True).stdout
     index_records = [record for record in listing.split(b"\0") if record]
@@ -303,7 +336,7 @@ def _source_snapshot(repo: str, environment: dict[str, str] | None = None) -> di
         "trackedIndexRecordCount": len(index_records),
         "trackedSourceClean": True,
         "branchRef": env.get("GITHUB_REF") or branch,
-        "runId": env.get("GITHUB_RUN_ID", ""),
+        "runId": env.get("GITHUB_RUN_ID") or env.get("COLOSSEUM_ANDROID_RELEASE_RUN_ID", ""),
     }
 
 def write_source_snapshot(repo: str, output: str) -> dict:
@@ -334,9 +367,16 @@ def write_provenance(repo: str, build_dir: str, apk: str, verification: str,
     verified = json.loads(Path(verification).read_text(encoding="utf-8"))
     before = json.loads(Path(source_before).read_text(encoding="utf-8"))
     after = json.loads(Path(source_after).read_text(encoding="utf-8"))
-    current = _source_snapshot(repo, {"GITHUB_REF": branch_ref, "GITHUB_RUN_ID": run_id})
-    if not branch_ref or not re.fullmatch(r"[0-9]+", run_id):
-        raise ValueError("provenance requires the workflow branch/ref and numeric run ID")
+    local_run = bool(re.fullmatch(r"local-[0-9]{8}T[0-9]{6}Z", run_id))
+    run_environment = ({"COLOSSEUM_ANDROID_RELEASE_RUN_ID": run_id} if local_run else
+                       {"GITHUB_REF": branch_ref, "GITHUB_RUN_ID": run_id})
+    current = _source_snapshot(repo, run_environment)
+    if not branch_ref or not (local_run or re.fullmatch(r"[0-9]+", run_id)):
+        raise ValueError("provenance requires a branch/ref and numeric workflow or local UTC run ID")
+    if local_run and branch_ref != current["branchRef"]:
+        raise ValueError("local provenance branch/ref must match the source checkout")
+    if not local_run and os.environ.get("GITHUB_ACTIONS") != "true":
+        raise ValueError("numeric workflow provenance requires a GitHub Actions environment")
     fields = ("sourceCommit", "sourceTreeOid", "sourceIndexMetadataSha256",
               "trackedIndexRecordCount", "branchRef", "runId")
     if (any(before.get(key) != after.get(key) for key in fields)
@@ -349,16 +389,25 @@ def write_provenance(repo: str, build_dir: str, apk: str, verification: str,
         "COLOSSEUM_ANDROID_NUVIO_BACKEND": "ON",
         "COLOSSEUM_ANDROID_NUVIO_X86_64_DIAGNOSTIC": "OFF",
         "COLOSSEUM_NUVIO_DIAGNOSTIC_PACKAGE": "",
-        "COLOSSEUM_ANDROID_PREVIEW_PACKAGE": verified["package"],
         "COLOSSEUM_ANDROID_VERSION_CODE": str(verified["versionCode"]),
         "COLOSSEUM_CONTENT_API_URL": endpoint,
     }
+    permanent = verified["package"] == PRODUCTION_PACKAGE
+    required["COLOSSEUM_ANDROID_PREVIEW_PACKAGE"] = "" if permanent else verified["package"]
+    if permanent:
+        required["COLOSSEUM_ANDROID_APPLICATION_ID"] = PRODUCTION_PACKAGE
+        required["COLOSSEUM_ANDROID_VERSION_NAME"] = project_version(repo) + "-alpha"
+    elif cache.get("COLOSSEUM_ANDROID_APPLICATION_ID", ""):
+        raise ValueError("preview provenance cannot contain a permanent application id")
     mismatches = {k: {"expected": v, "actual": cache.get(k)}
                   for k, v in required.items() if cache.get(k) != v}
     if mismatches:
         raise ValueError(f"release CMake identity mismatch: {mismatches}")
-    if verified.get("versionName") != project_version(repo):
-        raise ValueError("APK versionName does not match native/CMakeLists.txt project VERSION")
+    expected_version = project_version(repo) + ("-alpha" if permanent else "")
+    if verified.get("versionName") != expected_version:
+        raise ValueError("APK versionName does not match the project VERSION and release channel")
+    if permanent and endpoint not in (PRODUCTION_ENDPOINT, DEFAULT_ENDPOINT):
+        raise ValueError("alpha provenance requires a first-party content endpoint")
     if (not verified.get("zipValid") or verified.get("signingBlockPresent")
             or verified.get("jarSignatureMembersPresent")
             or not verified.get("engineNativeLibrary")):
@@ -377,6 +426,7 @@ def write_provenance(repo: str, build_dir: str, apk: str, verification: str,
         "sourceIndexMetadataSha256After": after["sourceIndexMetadataSha256"],
         "trackedIndexRecordCount": after["trackedIndexRecordCount"],
         "branchRef": branch_ref, "runId": run_id,
+        "runKind": "local" if local_run else "github-actions",
         "sourceDirty": False, "trackedSourceClean": True,
         "apk": Path(apk).name, "apkBytes": len(apk_data),
         "apkSha256": apk_hash,
@@ -405,11 +455,14 @@ def main(argv: list[str] | None = None) -> int:
     dispatch.add_argument("--package", default=DEFAULT_PACKAGE)
     dispatch.add_argument("--version-code", default="2")
     dispatch.add_argument("--endpoint", default=DEFAULT_ENDPOINT)
+    dispatch.add_argument("--channel", choices=("preview", "alpha"), default="preview")
+    dispatch.add_argument("--version-name", default="")
     verify = sub.add_parser("verify-unsigned")
     for name in ("repo", "apk", "package", "aapt", "zipalign", "output"):
         verify.add_argument("--" + name, required=True)
     verify.add_argument("--version-code", type=int, required=True)
     verify.add_argument("--engine-library", required=True)
+    verify.add_argument("--version-name", default="")
     prov = sub.add_parser("write-provenance")
     for name in ("repo", "build-dir", "apk", "verification", "engine-stamp", "endpoint", "output",
                  "source-before", "source-after", "branch-ref", "run-id"):
@@ -429,7 +482,10 @@ def main(argv: list[str] | None = None) -> int:
             if a.release:
                 env = {"COLOSSEUM_ANDROID_APK_FLAVOUR": "release-unsigned",
                        "COLOSSEUM_NUVIO_ENGINE_PREFIX": "validated-after-engine-prep",
-                       "COLOSSEUM_ANDROID_PREVIEW_PACKAGE": a.package,
+                       "COLOSSEUM_ANDROID_RELEASE_CHANNEL": a.channel,
+                       "COLOSSEUM_ANDROID_PREVIEW_PACKAGE": a.package if a.channel == "preview" else "",
+                       "COLOSSEUM_ANDROID_APPLICATION_ID": a.package if a.channel == "alpha" else "",
+                       "COLOSSEUM_ANDROID_VERSION_NAME": a.version_name,
                        "COLOSSEUM_ANDROID_VERSION_CODE": a.version_code,
                        "COLOSSEUM_CONTENT_API_URL": a.endpoint}
                 resolve_build_config("arm64-v8a", "build-root", "out-dir", env)
@@ -452,7 +508,7 @@ def main(argv: list[str] | None = None) -> int:
             return 0
         if a.cmd == "verify-unsigned":
             result = run_unsigned_verification(a.apk, a.package, a.version_code, a.aapt,
-                                              a.zipalign, a.engine_library, project_version(a.repo))
+                                              a.zipalign, a.engine_library, a.version_name or project_version(a.repo))
             Path(a.output).write_text(json.dumps(result, indent=2, sort_keys=True) + "\n", encoding="utf-8")
             print(f"UNSIGNED_APK_STRUCTURAL_CHECK_OK sha256={result['apkSha256']}")
             return 0

@@ -2,7 +2,8 @@
 // the setup page opens in the phone's browser (Hemanth's ruling, 2026-10-04); the link it gives
 // comes back through the clipboard. Same face as ExtensionsSetupSheet, so the Store drives either.
 import QtQuick
-import QtQuick.Controls
+import QtQuick.Controls.Basic
+import "ViewportAvoidance.js" as Viewport
 
 Item {
     id: sheet
@@ -12,6 +13,17 @@ Item {
     readonly property bool open: sheet.addon !== null
     property string status: ""
     property string pendingUrl: ""           // the normalized link last handed to install
+    property var inputMethod: Qt.inputMethod
+    property var safeInsets: SafeArea.margins
+    readonly property rect availableRect: {
+        let keyboard = inputMethod && inputMethod.keyboardRectangle
+                ? inputMethod.keyboardRectangle : Qt.rect(0, 0, 0, 0)
+        const origin = sheet.mapFromItem(null, keyboard.x, keyboard.y)
+        const box = Viewport.available(width, height, safeInsets,
+                !!(inputMethod && inputMethod.visible),
+                {x: origin.x, y: origin.y, width: keyboard.width, height: keyboard.height}, 12)
+        return Qt.rect(box.x, box.y, box.width, box.height)
+    }
     // Setup is optional (configurable, not configurationRequired): the plain link also works.
     readonly property bool canSkip: sheet.open && sheet.addon.setupRequired !== true
                                     && typeof Extensions !== "undefined"
@@ -31,6 +43,36 @@ Item {
     }
     signal closeRequested()
     signal installRequested(string url)
+
+    function revealFocusedControl() {
+        const window = sheet.Window.window
+        const focused = window ? window.activeFocusItem : null
+        if (!focused || scroller.height <= 0) return
+        let ancestor = focused
+        while (ancestor && ancestor !== scroller.contentItem) ancestor = ancestor.parent
+        if (!ancestor) return
+        const position = focused.mapToItem(scroller.contentItem, 0, 0)
+        let target = scroller.contentY
+        if (position.y < target) target = position.y
+        else if (position.y + focused.height > target + scroller.height)
+            target = position.y + focused.height - scroller.height
+        scroller.contentY = Math.max(0, Math.min(target, Math.max(0, scroller.contentHeight - scroller.height)))
+    }
+
+    function handleBack() {
+        if (sheet.inputMethod && sheet.inputMethod.visible) {
+            sheet.inputMethod.hide()
+            return true
+        }
+        if (!sheet.open) return false
+        sheet.closeRequested()
+        return true
+    }
+    onAvailableRectChanged: Qt.callLater(sheet.revealFocusedControl)
+    Connections {
+        target: sheet.Window.window
+        function onActiveFocusItemChanged() { Qt.callLater(sheet.revealFocusedControl) }
+    }
 
     visible: sheet.open
     Theme { id: theme }
@@ -55,35 +97,34 @@ Item {
 
     Rectangle {
         id: panel
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 32, 520)
-        height: body.implicitHeight + 44
+        objectName: "extensionsSetupPanel"
+        x: sheet.availableRect.x + (sheet.availableRect.width - width) / 2
+        y: sheet.availableRect.y + (sheet.availableRect.height - height) / 2
+        width: Math.min(sheet.availableRect.width, 520)
+        height: Math.min(sheet.availableRect.height, body.implicitHeight + 102)
         radius: 24
         color: "#0e1016"
         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
         MouseArea { anchors.fill: parent }      // taps on the panel never close it
 
-        Column {
-            id: body
+        Item {
+            id: header
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            anchors.margins: 22
-            spacing: 16
-
-            Item {
-                width: parent.width; height: 34
+            anchors.margins: 18
+            height: 48
                 Text {
                     anchors.left: parent.left; anchors.right: closeBox.left; anchors.rightMargin: 12
                     anchors.verticalCenter: parent.verticalCenter
                     elide: Text.ElideRight
                     text: sheet.addon ? "Set up " + (sheet.addon.title || sheet.addon.name) : ""
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 22
+                    font.family: theme.display; font.pixelSize: theme.fontSize(22)
                 }
                 Rectangle {
                     id: closeBox
                     anchors.right: parent.right
                     anchors.verticalCenter: parent.verticalCenter
-                    width: 34; height: 34; radius: 17
+                    width: 48; height: 48; radius: 24
                     color: closeAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                     // "×", not the desktop sheet's "✕": Android's system font has no glyph for that one.
                     Text { anchors.centerIn: parent; text: "×"; color: theme.inkDim; font.pixelSize: 22 }
@@ -91,28 +132,46 @@ Item {
                         id: closeAction
                         anchors.fill: parent
                         accessibleName: "Close setup"
-                        focusRadius: 17
+                        focusRadius: 24
                         onTriggered: sheet.closeRequested()
                     }
                 }
-            }
+        }
+
+        Flickable {
+            id: scroller
+            objectName: "extensionsSetupScroll"
+            x: 18; y: header.y + header.height + 12
+            width: Math.max(0, panel.width - 36)
+            height: Math.max(0, panel.height - y - 18)
+            contentWidth: width
+            contentHeight: body.implicitHeight
+            clip: true
+            boundsBehavior: Flickable.StopAtBounds
+            onHeightChanged: Qt.callLater(sheet.revealFocusedControl)
+            ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+
+            Column {
+            id: body
+            width: scroller.width
+            spacing: 12
 
             Text {
                 width: parent.width
                 wrapMode: Text.WordWrap
                 text: "Setup opens in your browser. Finish it there, copy the add-on link it gives you, then come back and paste it."
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
 
             Rectangle {
-                width: parent.width; height: 44; radius: 22
+                width: parent.width; height: 48; radius: 24
                 color: "#f5f3ee"
                 Text {
                     anchors.centerIn: parent
                     text: "Open setup page"
                     color: "#111217"
-                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                 }
                 KeyboardAction {
                     anchors.fill: parent
@@ -124,25 +183,27 @@ Item {
 
             TextField {
                 id: paste
-                width: parent.width; height: 44
+                objectName: "extensionsSetupLink"
+                width: parent.width; height: 48
                 leftPadding: 16; rightPadding: 16
                 placeholderText: "Paste the add-on link the page gave you"
                 color: theme.ink
                 placeholderTextColor: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 background: Rectangle { radius: 16; color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12) }
                 onAccepted: if (text.trim().length) sheet.finish(text.trim())
             }
 
             Rectangle {
-                width: parent.width; height: 44; radius: 22
+                objectName: "extensionsSetupInstall"
+                width: parent.width; height: 48; radius: 24
                 color: clipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                 border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
                 Text {
                     anchors.centerIn: parent
                     text: paste.text.trim().length ? "Install" : "Paste link"
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                 }
                 KeyboardAction {
                     id: clipAction
@@ -158,14 +219,14 @@ Item {
 
             Rectangle {
                 visible: sheet.canSkip
-                width: parent.width; height: 44; radius: 22
+                width: parent.width; height: 48; radius: 24
                 color: skipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                 border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
                 Text {
                     anchors.centerIn: parent
                     text: "Install without setup"
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 14
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
                 KeyboardAction {
                     id: skipAction
@@ -182,10 +243,19 @@ Item {
                 wrapMode: Text.WordWrap
                 text: sheet.status
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+            }
             }
         }
     }
 
-    onAddonChanged: { sheet.status = ""; paste.text = ""; sheet.pendingUrl = "" }
+    onAddonChanged: {
+        sheet.status = ""; paste.text = ""; sheet.pendingUrl = ""
+        scroller.contentY = 0
+        if (sheet.open) Qt.callLater(function() {
+            if (!sheet.open) return
+            if (sheet.inputMethod) sheet.inputMethod.hide()
+            closeAction.forceActiveFocus(Qt.OtherFocusReason)
+        })
+    }
 }

@@ -10,7 +10,16 @@ FocusScope {
     property real cameraPitch: 0.73
     property real cameraZoom: 1.0
     property real orbitTime: 0
-    readonly property real viewportScale: Math.min(1.0, Math.max(.72, Math.min(width/1600, height/900)))
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: root.androidHost && Math.min(width, height) < 600
+    readonly property bool phoneLandscape: width > height
+    readonly property real mapTop: phoneLayout ? galaxyHeading.y + galaxyHeading.height + 24 : 0
+    readonly property rect phoneArtBounds: Qt.rect(20, mapTop,
+        phoneLandscape ? Math.min(300, width * .38) : width - 40,
+        phoneLandscape ? Math.max(0, height - mapTop - 20) : 180)
+    readonly property real desktopViewportScale: Math.min(1.0, Math.max(.72, Math.min(width/1600, height/900)))
+    readonly property real viewportScale: phoneLayout ? Math.min(1, Math.max(.05, Math.min((phoneArtBounds.width - 40)/1600, (phoneArtBounds.height - 24)/900)))
+        : desktopViewportScale
     signal destinationActivated(string destinationId)
     signal skywalkerActivated()
 
@@ -29,7 +38,9 @@ FocusScope {
         var rz = y * sp + z1 * cp
         var distance = 1080 / (cameraZoom * viewportScale)
         var f = 860 / Math.max(220, distance + rz)
-        return { x: width/2 + x1*f, y: height/2 + ry*f, scale: f, depth: rz }
+        var centerX = phoneLayout ? phoneArtBounds.x + phoneArtBounds.width / 2 : width / 2
+        var centerY = phoneLayout ? phoneArtBounds.y + phoneArtBounds.height / 2 : height / 2
+        return { x: centerX + x1*f, y: centerY + ry*f, scale: f, depth: rz }
     }
     function projected(d) {
         var radius = d.node ? d.radius : d.orbit
@@ -40,7 +51,8 @@ FocusScope {
         return d.node ? Math.max(11, 17 * p.scale) : Math.max(5, d.size * p.scale)
     }
     function takeKeyboardFocus() {
-        sun.forceActiveFocus(Qt.TabFocusReason)
+        if (root.phoneLayout) phoneSkywalkerAction.forceActiveFocus(Qt.TabFocusReason)
+        else sun.forceActiveFocus(Qt.TabFocusReason)
     }
 
     // Keep the approved opening composition stable. Camera drag/zoom supplies
@@ -59,6 +71,7 @@ FocusScope {
     onCameraZoomChanged: sky.requestPaint()
     onWidthChanged: sky.requestPaint()
     onHeightChanged: sky.requestPaint()
+    onPhoneArtBoundsChanged: sky.requestPaint()
 
     Canvas {
         id: sky
@@ -100,10 +113,14 @@ FocusScope {
     }
 
     Text {
-        x: theme.margin; y: 88
+        id: galaxyHeading
+        x: root.phoneLayout ? 20 : theme.margin
+        y: root.phoneLayout ? 76 : 88
+        width: root.width - x * 2
+        wrapMode: Text.WordWrap
         text: "In a galaxy far far away"
         color: theme.ink
-        font.family: theme.display; font.pixelSize: Math.max(44, Math.round(58 * root.viewportScale))
+        font.family: theme.display; font.pixelSize: theme.fontSize(root.phoneLayout ? (root.height < 500 ? 26 : 30) : Math.max(44, Math.round(58 * root.desktopViewportScale)))
         font.weight: Font.Normal
     }
     FocusScope {
@@ -112,7 +129,7 @@ FocusScope {
         property var p: root.projectPoint(0,0,0)
         property real r: Math.max(23, 66 * p.scale)
         property bool hot: activeFocus || sunMa.containsMouse
-        activeFocusOnTab: true
+        activeFocusOnTab: !root.phoneLayout
         x: p.x - r; y: p.y - r
         width: r*2; height: r*2
         z: 5
@@ -162,13 +179,14 @@ FocusScope {
             color: "#fff6cf"; opacity: .76
         }
         Row {
+            visible: !root.phoneLayout
             x: parent.width + 10
             y: parent.height/2 - height/2 - 1
             spacing: 7
             Rectangle { width: 6; height: 6; radius: 3; color: theme.gold; opacity: sun.hot ? 1.0 : .62 }
             Text {
                 text: "SKYWALKER SAGA"; color: sun.hot ? theme.gold : theme.ink
-                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                 font.letterSpacing: .8
             }
         }
@@ -184,7 +202,7 @@ FocusScope {
             property var p: root.projected(modelData)
             property real r: root.bodyRadius(modelData, p)
             property bool hot: activeFocus || ma.containsMouse
-            activeFocusOnTab: true
+            activeFocusOnTab: !root.phoneLayout
             x: p.x - r
             y: p.y - r
             width: Math.max(r*2, 160)
@@ -255,6 +273,7 @@ FocusScope {
             }
             Row {
                 id: labelRow
+                visible: !root.phoneLayout
                 property bool placeLeft: gate.p.x < sun.p.x
                 property real verticalNudge: {
                     if (gate.modelData.id === "high") return -9
@@ -264,8 +283,9 @@ FocusScope {
                     if (gate.modelData.id === "beyond") return -5
                     return 0
                 }
-                x: placeLeft ? -width - (gate.modelData.node ? 17 : 12)
+                readonly property real desiredX: placeLeft ? -width - (gate.modelData.node ? 17 : 12)
                              : gate.r*2 + (gate.modelData.node ? 17 : 12)
+                x: root.phoneLayout ? Math.max(8 - gate.x, Math.min(desiredX, root.width - gate.x - width - 8)) : desiredX
                 y: gate.r - height/2 - Math.max(1, gate.r*.12) + verticalNudge
                 spacing: 7
                 Rectangle {
@@ -278,7 +298,7 @@ FocusScope {
                 Text {
                     text: gate.modelData.name
                     color: gate.hot ? theme.gold : Qt.rgba(247/255,247/255,245/255,.82)
-                    font.family: theme.ui; font.pixelSize: 9; font.weight: Font.Bold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.weight: Font.Bold
                     font.letterSpacing: 1.0
                     Behavior on color { ColorAnimation { duration: 120 } }
                 }
@@ -286,6 +306,7 @@ FocusScope {
 
             MouseArea {
                 id: ma
+                enabled: !root.phoneLayout
                 property real bodyPad: Math.max(8, (44 - gate.r*2) / 2)
                 x: Math.min(-bodyPad, labelRow.x - 8)
                 y: Math.min(-bodyPad, labelRow.y - 8)
@@ -310,6 +331,92 @@ FocusScope {
             Keys.onReturnPressed: function(event) { root.destinationActivated(gate.modelData.id); event.accepted = true }
             Keys.onEnterPressed: function(event) { root.destinationActivated(gate.modelData.id); event.accepted = true }
             Keys.onSpacePressed: function(event) { root.destinationActivated(gate.modelData.id); event.accepted = true }
+        }
+    }
+
+    Flickable {
+        id: phoneDestinations
+        objectName: "starWarsGalaxyPhoneDestinations"
+        visible: root.phoneLayout
+        z: 10
+        x: root.phoneLandscape ? root.phoneArtBounds.x + root.phoneArtBounds.width + 20 : 20
+        y: root.phoneLandscape ? root.mapTop : root.phoneArtBounds.y + root.phoneArtBounds.height + 16
+        width: Math.max(0, root.width - x - 20)
+        height: Math.max(0, root.height - y - 20)
+        contentWidth: width
+        contentHeight: phoneDestinationColumn.implicitHeight
+        clip: true
+        boundsBehavior: Flickable.StopAtBounds
+
+        Column {
+            id: phoneDestinationColumn
+            width: phoneDestinations.width
+            spacing: 8
+
+            Rectangle {
+                width: parent.width
+                height: 48
+                radius: 12
+                color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, .12)
+                border.width: 1
+                border.color: phoneSkywalkerAction.activeFocus ? theme.gold : Qt.rgba(240 / 255, 196 / 255, 74 / 255, .4)
+                Text {
+                    anchors.fill: parent
+                    anchors.leftMargin: 16; anchors.rightMargin: 16
+                    verticalAlignment: Text.AlignVCenter
+                    text: "Skywalker Saga"
+                    color: theme.gold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                }
+                KeyboardAction {
+                    id: phoneSkywalkerAction
+                    objectName: "starWarsGalaxyPhoneSkywalker"
+                    anchors.fill: parent
+                    accessibleName: "Skywalker Saga"
+                    focusRadius: parent.radius
+                    onTriggered: root.skywalkerActivated()
+                }
+            }
+
+            Repeater {
+                model: root.destinations
+                delegate: Rectangle {
+                    id: phoneDestination
+                    required property var modelData
+                    objectName: "starWarsGalaxyPhoneDestination_" + modelData.id
+                    width: phoneDestinationColumn.width
+                    height: 48
+                    radius: 12
+                    color: Qt.rgba(1, 1, 1, .045)
+                    border.width: 1
+                    border.color: destinationAction.activeFocus ? theme.gold : theme.edge
+                    Rectangle {
+                        x: 12; anchors.verticalCenter: parent.verticalCenter
+                        width: 7; height: 7; radius: 3.5
+                        color: phoneDestination.modelData.light || theme.inkDim
+                    }
+                    Text {
+                        objectName: "starWarsGalaxyPhoneDestinationLabel_" + phoneDestination.modelData.id
+                        anchors.fill: parent
+                        anchors.leftMargin: 30; anchors.rightMargin: 12
+                        verticalAlignment: Text.AlignVCenter
+                        text: phoneDestination.modelData.title || phoneDestination.modelData.name
+                        color: theme.ink
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 2
+                        elide: Text.ElideRight
+                    }
+                    KeyboardAction {
+                        id: destinationAction
+                        objectName: "starWarsGalaxyPhoneDestinationAction_" + phoneDestination.modelData.id
+                        anchors.fill: parent
+                        accessibleName: phoneDestination.modelData.title || phoneDestination.modelData.name
+                        focusRadius: parent.radius
+                        onTriggered: root.destinationActivated(phoneDestination.modelData.id)
+                    }
+                }
+            }
         }
     }
 

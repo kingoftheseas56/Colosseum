@@ -139,7 +139,7 @@ Item {
         text: "EAST BLUE"
         color: Qt.rgba(0.97, 0.97, 0.96, 0.50)
         font.family: theme.display
-        font.pixelSize: Math.max(24, Math.min(35, root.width * 0.026))
+        font.pixelSize: theme.fontSize(Math.max(24, Math.min(35, root.width * 0.026)))
         font.letterSpacing: 8
     }
 
@@ -173,7 +173,7 @@ Item {
                 color: Qt.rgba(0.97, 0.97, 0.96,
                                root.selectedArcId === parent.modelData.id ? 0.84 : 0.58)
                 font.family: theme.ui
-                font.pixelSize: 9
+                font.pixelSize: theme.fontSize(9)
                 font.letterSpacing: 1.65
             }
         }

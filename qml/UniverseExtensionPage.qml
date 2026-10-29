@@ -145,18 +145,18 @@ Item {
                     Text {
                         text: "UNIVERSE"
                         color: theme.gold
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         font.letterSpacing: 4; font.bold: true
                     }
                     Text {
                         text: (root.payload && root.payload.title) || root.universeName
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 62
+                        font.family: theme.display; font.pixelSize: theme.fontSize(62)
                     }
                     Text {
                         text: root.metaline
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                 }
             }
@@ -178,7 +178,7 @@ Item {
                 x: theme.margin
                 text: "This universe isn't installed yet."
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
 
             // ---- the served sections ----
@@ -225,14 +225,14 @@ Item {
                     Text {
                         text: section.modelData.title
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 25
+                        font.family: theme.display; font.pixelSize: theme.fontSize(25)
                         bottomPadding: 12
                     }
                     Text {
                         text: section.modelData.entries.length
                               + (section.modelData.entries.length === 1 ? " work" : " works")
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         bottomPadding: 16
                     }
                     Rectangle {

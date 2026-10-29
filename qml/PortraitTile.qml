@@ -100,7 +100,7 @@ Item {
         // caption — inside the tile, readable over ANY cover art thanks to the outline
         Text {
             text: tile.caption; color: theme.ink
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
             anchors.margins: 9
             anchors.bottomMargin: tile.progress >= 0 ? 14 : 9

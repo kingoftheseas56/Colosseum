@@ -20,6 +20,7 @@ FocusScope {
     // Retained for public-property compatibility; never used to fetch or draw a map.
     property url mapSource: root.resolveContentAsset("../assets/universes/one-piece/final-sea/final-sea-map.png")
     property real shellChromeInset: 172
+    readonly property bool phoneLayout: Qt.platform.os === "android" && Math.min(width, height) < 600
     property real zoom: 1
     property bool indexVisible: false
     property bool previewVisible: false
@@ -428,8 +429,8 @@ FocusScope {
         // The visible lower-left station slides right of the shell taskbar dock's
         // closed footprint (leftEdge<=80 + 130 wide + gap); at short viewports the
         // dock otherwise covers the zoom controls.
-        x: Math.max(mapViewport.x + root.controlGeometry.x + 0.0299 * root.controlGeometry.width, 218)
-        y: mapViewport.y + root.controlGeometry.y + 0.8831 * root.controlGeometry.height
+        x: root.phoneLayout ? 16 : Math.max(mapViewport.x + root.controlGeometry.x + 0.0299 * root.controlGeometry.width, 218)
+        y: root.phoneLayout ? root.height - height - 16 : mapViewport.y + root.controlGeometry.y + 0.8831 * root.controlGeometry.height
         spacing: 0
         z: 20
 
@@ -447,7 +448,7 @@ FocusScope {
         FinalSeaInkButton {
             objectName: "finalSeaZoomReset"
             text: Math.round(root.zoom * 100) + "%"
-            width: Math.max(44, 0.0604 * root.controlGeometry.width)
+            width: Math.max(root.phoneLayout ? 62 : 44, 0.0604 * root.controlGeometry.width)
             height: Math.max(44, 0.0584 * root.controlGeometry.height)
             mapArtwork: false
             fontFamily: root.bodyFamily
@@ -471,11 +472,11 @@ FocusScope {
     FinalSeaInkButton {
         id: newWorldButton
         objectName: "finalSeaToNewWorld"
-        x: root.mapPoint(0.0299, 0.8055).x
-        y: root.mapPoint(0.0299, 0.8055).y
+        x: root.phoneLayout ? root.width - width - 16 : root.mapPoint(0.0299, 0.8055).x
+        y: root.phoneLayout ? root.height - height - 16 : root.mapPoint(0.0299, 0.8055).y
         // The painted plate scales with the chart, but the interactive target keeps
         // the 44 px minimum the FinalSeaInkButton implicit size already promises.
-        width: Math.max(44, 0.1441 * root.stageGeometry.width)
+        width: root.phoneLayout ? 150 : Math.max(44, 0.1441 * root.stageGeometry.width)
         height: Math.max(44, 0.0616 * root.stageGeometry.height)
         mapArtwork: false
         z: 20
@@ -493,9 +494,9 @@ FocusScope {
     FinalSeaInkButton {
         id: indexButton
         objectName: "finalSeaIndexButton"
-        x: root.mapPoint(0.8439, 0.0372).x
-        y: root.mapPoint(0.8439, 0.0372).y
-        width: Math.max(44, 0.1340 * root.stageGeometry.width)
+        x: root.phoneLayout ? root.width - width - 16 : root.mapPoint(0.8439, 0.0372).x
+        y: root.phoneLayout ? 24 : root.mapPoint(0.8439, 0.0372).y
+        width: root.phoneLayout ? 116 : Math.max(44, 0.1340 * root.stageGeometry.width)
         height: Math.max(44, 0.0574 * root.stageGeometry.height)
         mapArtwork: false
         z: 30

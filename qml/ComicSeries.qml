@@ -16,6 +16,7 @@ import "ComicResolve.js" as Resolve
 
 Item {
     id: page
+    objectName: "comicSeriesPage"
     focus: true
     activeFocusOnTab: true
     property Item backdrop
@@ -23,6 +24,18 @@ Item {
     property string tagSlug: ""            // GetComics tag slug — the series identity
     property int    tagId: 0               // WP tag id (0 = resolve from the slug)
     property string poster: ""             // iTunes series art (fetched here if empty)
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: androidHost && Math.min(width, height) < 600
+    readonly property bool phoneNarrow: androidHost && width < 600
+    readonly property real contentMargin: phoneLayout ? 20 : theme.margin
+
+    function revealPhoneSearch() {
+        if (!page.phoneLayout || !page.visible || !filterInput.activeFocus) return
+        const position = filterBox.mapToItem(flick.contentItem, 0, 0)
+        flick.contentY = Math.max(0, position.y - 80)
+    }
+    onWidthChanged: Qt.callLater(page.revealPhoneSearch)
+    onHeightChanged: Qt.callLater(page.revealPhoneSearch)
     // ---- baked mode (availability-first catalogue, spec 2026-07-17): the run-scoped
     //      series page. Injected releases from ComicsCatalog skip live tag resolution;
     //      everything else — sections, filter/sort, downloads, reader — is inherited.
@@ -458,6 +471,8 @@ Item {
 
     // ---- window controls (minimize / power) ----
     Row {
+        objectName: "comicSeriesDesktopWindowControls"
+        visible: !page.androidHost
         z: 30
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
@@ -524,9 +539,11 @@ Item {
     // ---- the page: banner hero → release shelf (glass table, collections then issues) ----
     Flickable {
         id: flick
+        objectName: "comicSeriesScroll"
         anchors.fill: parent
         contentWidth: width
-        contentHeight: pageCol.height
+        contentHeight: Math.max(pageCol.height, page.phoneLayout && filterInput.activeFocus
+                               ? filterBox.mapToItem(contentItem, 0, 0).y + height : 0)
         clip: true
         pixelAligned: false
         boundsBehavior: Flickable.StopAtBounds
@@ -542,7 +559,8 @@ Item {
             // ── BANNER HERO — iTunes series art washed into the page ──
             Item {
                 width: parent.width
-                height: 320
+                height: page.phoneNarrow ? heroContent.y + heroContent.implicitHeight + 28
+                      : page.phoneLayout ? Math.max(320, heroContent.implicitHeight + 108) : 320
 
                 Image {
                     anchors.fill: parent
@@ -561,16 +579,24 @@ Item {
                     }
                 }
 
-                Row {
-                    anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-                    anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin; anchors.bottomMargin: 28
-                    spacing: 26
+                Grid {
+                    id: heroContent
+                    objectName: "comicSeriesHeroContent"
+                    x: page.contentMargin
+                    y: page.phoneNarrow ? 96 : parent.height - height - 28
+                    width: parent.width - 2 * page.contentMargin
+                    columns: page.phoneNarrow ? 1 : 2
+                    columnSpacing: 26
+                    rowSpacing: 20
+                    verticalItemAlignment: Grid.AlignBottom
 
                     // the series poster as a real cover, not just a wash
                     Rectangle {
-                        width: 128; height: 190; visible: page.poster.length > 0
+                        id: heroCover
+                        width: page.phoneNarrow ? 168 : 128
+                        height: page.phoneNarrow ? 250 : 190
+                        visible: page.poster.length > 0
                         color: "#1a1c24"; border.width: 1; border.color: Qt.rgba(1,1,1,0.14)
-                        anchors.bottom: parent.bottom
                         Image {
                             anchors.fill: parent; anchors.margins: 1
                             source: page.poster
@@ -579,43 +605,48 @@ Item {
                         }
                     }
                     Column {
+                        width: page.phoneLayout
+                               ? heroContent.width - (page.phoneNarrow || !heroCover.visible ? 0 : heroCover.width + 26)
+                               : heroContent.width - 180
                         spacing: 12
-                        anchors.bottom: parent.bottom
                         Text {
+                            width: parent.width
                             text: "Western Comics · Tankoban"
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             font.letterSpacing: 3; font.capitalization: Font.AllUppercase
+                            wrapMode: Text.WordWrap
                         }
                         Text {
-                            width: flick.width - 2 * theme.margin - 180
+                            objectName: "comicSeriesHeroTitle"
+                            width: parent.width
                             text: page.seriesTitle
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 54
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(page.phoneNarrow ? 32 : page.phoneLayout ? 40 : 54)
                             font.weight: Font.DemiBold
-                            wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                            wrapMode: Text.WordWrap; maximumLineCount: page.phoneNarrow ? 3 : 2; elide: Text.ElideRight
                             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
                         }
                         // INLINE metadata — bright count + dim medium (the transparent-tablet law)
-                        Row {
+                        Flow {
+                            objectName: "comicSeriesHeroMetadata"
+                            width: parent.width
                             spacing: 11
                             Text { text: page.releases.length
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                                anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
+                            }
                             Text { text: "releases" + (page.totalReleases > page.releases.length
                                                        ? " of " + page.totalReleases : "")
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                                anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                             Text { visible: page.collections.length > 0; text: "·"
-                                color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDimmer }
                             Text { visible: page.collections.length > 0
                                 text: page.collections.length + " collected editions"
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                                anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-                                anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
+                            Text { text: "·"; color: theme.inkDimmer }
+                            Text { text: "GetComics"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                         }
 
                         LibraryButton {
+                            height: page.phoneLayout ? 48 : 42
                             world: "tankoban"
                             entry: page.collectionEntry()
                         }
@@ -627,34 +658,37 @@ Item {
 
             // ── SHELF CONTROLS — filter + sort; view-only, the reader is untouched ──
             Item {
-                width: parent.width; height: 64
+                width: parent.width; height: page.phoneLayout ? 116 : 64
                 visible: page.releases.length > 0
 
                 // search-within-the-shelf (left): underlined inline field, no chrome
                 Item {
                     id: filterBox
-                    x: theme.margin
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: Math.min(380, parent.width * 0.4); height: 36
+                    x: page.contentMargin
+                    y: page.phoneLayout ? 0 : (parent.height - height) / 2
+                    width: page.phoneLayout ? parent.width - 2 * page.contentMargin - (matchCount.visible ? 86 : 0) : Math.min(380, parent.width * 0.4)
+                    height: page.phoneLayout ? 48 : 36
                     TextInput {
                         id: filterInput
+                        objectName: "comicSeriesSearch"
                         anchors.left: parent.left; anchors.right: clearBtn.visible ? clearBtn.left : parent.right
                         anchors.top: parent.top; anchors.bottom: parent.bottom
                         verticalAlignment: TextInput.AlignVCenter
-                        color: theme.ink; font.family: theme.ui; font.pixelSize: 15
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                         clip: true; selectByMouse: true
                         onTextChanged: page.filter = text
+                        onActiveFocusChanged: Qt.callLater(page.revealPhoneSearch)
                     }
                     Text {
                         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                         visible: filterInput.text.length === 0 && !filterInput.activeFocus
                         text: "Search releases…"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 15
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                     }
                     Item {
                         id: clearBtn
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        width: 24; height: 24
+                        width: page.phoneLayout ? 48 : 24; height: width
                         visible: filterInput.text.length > 0
                         Text { anchors.centerIn: parent; text: "✕"
                             color: clearMa.containsMouse ? theme.gold : theme.inkDim; font.pixelSize: 13 }
@@ -676,39 +710,51 @@ Item {
                     }
                 }
                 // live match count while filtering (inline, dim)
+                TextMetrics {
+                    id: matchCountMetrics
+                    font: matchCount.font
+                    text: matchCount.text
+                }
                 Text {
+                    id: matchCount
                     anchors.left: filterBox.right; anchors.leftMargin: 16
-                    anchors.verticalCenter: parent.verticalCenter
+                    anchors.verticalCenter: filterBox.verticalCenter
+                    width: page.phoneLayout ? 70 : matchCountMetrics.width
+                    elide: Text.ElideRight
                     visible: page.filter.trim().length > 0
                     text: page.shown.length + (page.shown.length === 1 ? " match" : " matches")
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
                 // sort (right): Newest · Oldest · A–Z — A–Z is numeric-aware (#2 before #10)
                 Row {
-                    anchors.right: parent.right; anchors.rightMargin: theme.margin
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 22
+                    objectName: "comicSeriesSortStrip"
+                    x: page.phoneLayout ? page.contentMargin : parent.width - page.contentMargin - width
+                    y: page.phoneLayout ? 56 : (parent.height - height) / 2
+                    spacing: page.phoneLayout ? 12 : 22
                     Repeater {
                         model: [{ k: "new", l: "Newest" }, { k: "old", l: "Oldest" }, { k: "az", l: "A–Z" }]
                         delegate: Item {
                             id: sopt
+                            objectName: "comicSeriesSort_" + modelData.k
                             required property var modelData
-                            width: soptText.implicitWidth; height: 26
+                            width: page.phoneLayout ? Math.max(64, soptText.implicitWidth + 16) : soptText.implicitWidth
+                            height: page.phoneLayout ? 48 : 26
                             readonly property bool on: page.sortMode === sopt.modelData.k
                             Text { id: soptText; text: sopt.modelData.l
+                                anchors.centerIn: page.phoneLayout ? parent : undefined
                                 color: sopt.on ? theme.gold : (soptMa.containsMouse ? theme.ink : theme.inkDim)
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 font.weight: sopt.on ? Font.DemiBold : Font.Normal }
                             Rectangle { visible: sopt.on; anchors.bottom: parent.bottom
                                 anchors.horizontalCenter: parent.horizontalCenter
                                 width: 18; height: 2; radius: 2; color: theme.gold }
-                            MouseArea { id: soptMa; anchors.fill: parent; anchors.margins: -4
+                            MouseArea { id: soptMa; anchors.fill: parent; anchors.margins: page.phoneLayout ? 0 : -4
                                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: page.sortMode = sopt.modelData.k }
                             KeyboardAction {
                                 id: sortKeyboard
                                 anchors.fill: parent
-                                anchors.margins: -4
+                                anchors.margins: page.phoneLayout ? 0 : -4
                                 pointerEnabled: false
                                 accessibleName: "Sort releases " + sopt.modelData.l
                                 onTriggered: page.sortMode = sopt.modelData.k
@@ -726,8 +772,8 @@ Item {
 
                 Glass {
                     id: relTable
-                    x: theme.margin
-                    width: parent.width - 2 * theme.margin
+                    x: page.contentMargin
+                    width: parent.width - 2 * page.contentMargin
                     height: tableInner.height
                     radius: 18
                     backdrop: page.backdrop
@@ -755,10 +801,10 @@ Item {
                                         anchors.left: parent.left; anchors.leftMargin: 24
                                         anchors.verticalCenter: parent.verticalCenter; spacing: 14
                                         Text { text: section.modelData.label; color: theme.inkDimmer
-                                            font.family: theme.display; font.pixelSize: 13; font.letterSpacing: 3
+                                            font.family: theme.display; font.pixelSize: theme.fontSize(13); font.letterSpacing: 3
                                             anchors.verticalCenter: parent.verticalCenter }
                                         Text { text: section.modelData.items.length; color: theme.ink
-                                            font.family: theme.display; font.pixelSize: 15; font.weight: Font.Bold
+                                            font.family: theme.display; font.pixelSize: theme.fontSize(15); font.weight: Font.Bold
                                             anchors.verticalCenter: parent.verticalCenter }
                                     }
                                     Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
@@ -770,7 +816,7 @@ Item {
                                         id: row
                                         required property var modelData
                                         objectName: "comicReleaseRow_" + String(row.modelData.id || "")
-                                        width: tableInner.width; height: 96
+                                        width: tableInner.width; height: page.phoneNarrow ? 144 : 96
 
                                         property string relId: String(row.modelData.id || "")
                                         property string dlState: "none"   // none|resolving|queued|downloading|extracting|done|error
@@ -854,9 +900,9 @@ Item {
                                         // release cover (GetComics og_image — exact per release)
                                         Item {
                                             id: thumb
-                                            anchors.left: parent.left; anchors.leftMargin: 22
+                                            anchors.left: parent.left; anchors.leftMargin: page.phoneNarrow ? 12 : 22
                                             anchors.verticalCenter: parent.verticalCenter
-                                            width: 58; height: 82
+                                            width: page.phoneNarrow ? 48 : 58; height: page.phoneNarrow ? 72 : 82
                                             Rectangle {
                                                 anchors.fill: parent; radius: 6; color: "#15171f"; border.width: 1
                                                 border.color: row.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
@@ -879,16 +925,21 @@ Item {
                                         }
 
                                         Column {
-                                            anchors.left: thumb.right; anchors.leftMargin: 16
-                                            anchors.right: readAction.left; anchors.rightMargin: 14
-                                            anchors.verticalCenter: parent.verticalCenter; spacing: 4
+                                            objectName: "comicReleaseText_" + row.relId
+                                            anchors.left: thumb.right; anchors.leftMargin: page.phoneNarrow ? 12 : 16
+                                            anchors.right: page.phoneNarrow ? parent.right : readAction.left
+                                            anchors.rightMargin: page.phoneNarrow ? 12 : 14
+                                            y: page.phoneNarrow ? 12 : (parent.height - height) / 2
+                                            spacing: 4
                                             Text { width: parent.width; text: row.modelData.name
                                                 color: rowMa.containsMouse ? theme.gold : theme.ink
-                                                font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(page.phoneNarrow ? 14 : 16)
+                                                wrapMode: page.phoneNarrow ? Text.WordWrap : Text.NoWrap
+                                                maximumLineCount: page.phoneNarrow ? 2 : 1; elide: Text.ElideRight }
                                             Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
                                                 color: row.dlState === "done" ? theme.gold
                                                      : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
-                                                font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight }
                                         }
 
                                         // Stable consume verb: the row and this control always mean Read.
@@ -896,9 +947,10 @@ Item {
                                         Item {
                                             id: readAction
                                             objectName: "comicReadAction_" + row.relId
+                                            z: page.phoneLayout ? 2 : 0
                                             anchors.right: trailing.left; anchors.rightMargin: 10
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            width: Math.max(86, readText.implicitWidth + 28); height: 36
+                                            y: page.phoneNarrow ? parent.height - height - 12 : (parent.height - height) / 2
+                                            width: Math.max(86, readText.implicitWidth + 28); height: page.phoneLayout ? 48 : 36
                                             Rectangle {
                                                 anchors.fill: parent; radius: 9
                                                 color: page.pendingReadReleaseId === row.relId ? theme.glassTint : theme.gold
@@ -910,7 +962,7 @@ Item {
                                                 id: readText; anchors.centerIn: parent
                                                 text: page.readActionLabel(row.modelData, row.dlState)
                                                 color: page.pendingReadReleaseId === row.relId ? theme.gold : "#171205"
-                                                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                                             }
                                             MouseArea {
                                                 anchors.fill: parent; z: 5
@@ -924,9 +976,10 @@ Item {
                                         Item {
                                             id: trailing
                                             objectName: "comicDownloadAction_" + row.relId
-                                            anchors.right: parent.right; anchors.rightMargin: 22
-                                            anchors.verticalCenter: parent.verticalCenter
-                                            width: 36; height: 36
+                                            z: page.phoneLayout ? 2 : 0
+                                            anchors.right: parent.right; anchors.rightMargin: page.phoneNarrow ? 12 : 22
+                                            y: page.phoneNarrow ? parent.height - height - 12 : (parent.height - height) / 2
+                                            width: page.phoneLayout ? 48 : 36; height: width
                                             Rectangle { anchors.fill: parent; radius: 18
                                                 color: trMa.containsMouse ? theme.glassHi : "transparent" }
                                             Text {
@@ -938,7 +991,7 @@ Item {
                                                 color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
                                                      : row.dlState === "done" ? theme.gold
                                                      : trMa.containsMouse ? theme.gold : theme.inkDim
-                                                font.pixelSize: 16
+                                                font.pixelSize: theme.fontSize(16)
                                                 font.weight: (row.dlState === "done" && !trMa.containsMouse) ? Font.Bold : Font.Normal
                                             }
                                             MouseArea {
@@ -974,18 +1027,22 @@ Item {
             // filter came up empty (the shelf itself isn't)
             Text {
                 visible: !page.loading && page.releases.length > 0 && page.shown.length === 0
-                x: theme.margin
+                x: page.contentMargin
+                width: parent.width - 2 * page.contentMargin
+                wrapMode: Text.WordWrap
                 text: "No releases match “" + page.filter.trim() + "”."
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 topPadding: 10
             }
 
             // post-reveal error (inset)
             Text {
                 visible: !page.loading && page.errorMsg.length > 0
-                x: theme.margin
+                x: page.contentMargin
+                width: parent.width - 2 * page.contentMargin
+                wrapMode: Text.WordWrap
                 text: page.errorMsg
-                color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 13
+                color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 topPadding: 18
             }
 
@@ -1059,14 +1116,14 @@ Item {
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.seriesTitle
-            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(34)
             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
         }
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.errorMsg.length ? page.errorMsg : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
 

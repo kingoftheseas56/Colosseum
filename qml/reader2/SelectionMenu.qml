@@ -1,19 +1,19 @@
-// SelectionMenu.qml — the native glass popover for the paper's pen (TASK 9).
+// SelectionMenu.qml â€” the native glass popover for the paper's pen (TASK 9).
 //
 // Round 1 shipped: 3 highlight COLOR dots + Copy, on a live text selection. Round 2 adds
-// the rest of the mock's set — Note + Define — plus a second MODE for tapping an EXISTING
+// the rest of the mock's set â€” Note + Define â€” plus a second MODE for tapping an EXISTING
 // highlight (Delete, with optional re-color). Like the rest of the reader2 chrome it is
 // BRIDGE-FREE: it takes its data via properties (the selection/highlight rect) and reports
 // actions via signals only, so ReaderShell (which owns the paper + native stores) does the
 // real work and this stays instantiable headless (chrome smoke).
 //
 // Two modes (menu.mode):
-//   "select"   — a fresh text selection: color dots · Note · Define · Copy   (the mock)
-//   "existing" — a tapped highlight:     color dots (re-color) · Delete
+//   "select"   â€” a fresh text selection: color dots Â· Note Â· Define Â· Copy   (the mock)
+//   "existing" â€” a tapped highlight:     color dots (re-color) Â· Delete
 //
 // The Note action expands the card in place into a small glass note editor (a native
-// TextEdit — no QtQuick.Controls dependency); Save emits noteSaved(text). Esc / tap-outside
-// cancels the editor (→ dismissed()).
+// TextEdit â€” no QtQuick.Controls dependency); Save emits noteSaved(text). Esc / tap-outside
+// cancels the editor (â†’ dismissed()).
 //
 // Geometry: an anchors.fill overlay; the CARD is positioned by the pure
 // Reader2Logic.selectionMenuPos() (centered on the selection, clamped in-frame, above else
@@ -28,22 +28,33 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
-    nativeWindow: false
+    nativeWindow: true
     id: menu
 
     // ---- inputs ----
     // the paper 'selection' / 'highlightTapped' rect { x, y, w, h }, in overlay coordinates.
     property var sel: ({ x: 0, y: 0, w: 0, h: 0 })
     property bool shown: false
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: androidHost && Math.min(width, height) < 600
+    property var inputMethod: Qt.inputMethod
+    readonly property real keyboardOverlap: {
+        if (!phoneLayout || !noteEditing || !inputMethod || !inputMethod.visible) return 0
+        const keyboard = inputMethod.keyboardRectangle
+        if (!keyboard || keyboard.height <= 0) return 0
+        const top = menu.mapFromItem(null, 0, keyboard.y).y
+        return Math.min(height, Math.max(0, height - top))
+    }
+    readonly property real availableHeight: Math.max(0, height - keyboardOverlap)
     // "select" (fresh selection) | "existing" (a tapped highlight). Drives which actions show.
     property string mode: "select"
 
     // ---- signals up (ReaderShell wires these) ----
     signal colorPicked(string color)   // a dot: highlight-in-color (select) OR re-color (existing)
     signal copyRequested()
-    signal defineRequested()           // Define → ReaderShell extracts the word + looks it up
-    signal noteSaved(string note)      // Note editor Save → ReaderShell writes the annotation
-    signal deleteRequested()           // existing-mode Delete → ReaderShell removes the highlight
+    signal defineRequested()           // Define â†’ ReaderShell extracts the word + looks it up
+    signal noteSaved(string note)      // Note editor Save â†’ ReaderShell writes the annotation
+    signal deleteRequested()           // existing-mode Delete â†’ ReaderShell removes the highlight
     signal dismissed()
 
     visible: shown
@@ -91,7 +102,7 @@ ReaderOverlay {
     onNoteEditingChanged: if (noteEditing) Qt.callLater(function () { noteInput.forceActiveFocus() })
 
     // The three highlight colors (chrome mock .hl.c-gold/.c-slate/.c-moss). `value` is the
-    // STORED/painted color (plain 6-digit hex → the web overlayer applies its own ~0.3 wash,
+    // STORED/painted color (plain 6-digit hex â†’ the web overlayer applies its own ~0.3 wash,
     // the QML Highlights pane a solid rule); `display` is only the dot's on-menu fill.
     readonly property var swatches: [
         { display: Qt.rgba(240 / 255, 194 / 255, 74 / 255, 0.85), value: "#F0C24A" },  // gold
@@ -99,9 +110,12 @@ ReaderOverlay {
         { display: Qt.rgba(151 / 255, 187 / 255, 152 / 255, 0.85), value: "#97BB98" }  // moss
     ]
 
-    readonly property int cardH: noteEditing ? 128 : 44
-    readonly property int cardW: noteEditing ? 300 : (cardRow.implicitWidth + 28)  // 14px pad each side
-    readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.height,
+    readonly property int cardH: noteEditing
+        ? (phoneLayout ? Math.min(180, Math.max(0, availableHeight - 20)) : 128)
+        : (phoneLayout ? 124 : 44)
+    readonly property int cardW: Math.min(Math.max(0, width - 24),
+        phoneLayout ? 330 : (noteEditing ? 300 : cardRow.implicitWidth + 28))
+    readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.availableHeight,
                                                   menu.cardW, menu.cardH, 12, 10)
 
     // ---------- backdrop: tap-outside dismiss (below the card) ----------
@@ -117,12 +131,13 @@ ReaderOverlay {
     // ---------- the card ----------
     Rectangle {
         id: card
+        objectName: "reader2SelectionCard"
         x: menu.pos.x
         y: menu.pos.y
         width: menu.cardW
         height: menu.cardH
         radius: 12
-        color: Theme.bar
+        color: menu.phoneLayout ? Qt.rgba(13 / 255, 13 / 255, 16 / 255, 0.985) : Theme.bar
         border.color: Theme.barBorder
         border.width: 1
         antialiasing: true
@@ -137,15 +152,20 @@ ReaderOverlay {
         }
 
         // ===== action row (both modes; hidden while the note editor is open) =====
-        Row {
+        Item {
             id: cardRow
             visible: !menu.noteEditing
             anchors.verticalCenter: parent.verticalCenter
             anchors.left: parent.left
             anchors.leftMargin: 14
-            spacing: 12
-
-            // three color dots — select: highlight-in-color; existing: re-color.
+            implicitWidth: colorActions.implicitWidth + textActions.implicitWidth + 25
+            width: menu.phoneLayout ? parent.width - 28 : implicitWidth
+            height: menu.phoneLayout ? 104 : 44
+            Row {
+                id: colorActions
+                x: menu.phoneLayout ? (cardRow.width - width) / 2 : 0
+                height: menu.phoneLayout ? 48 : 44
+                spacing: 12
             Repeater {
                 id: colorRepeater
                 model: menu.swatches
@@ -153,8 +173,8 @@ ReaderOverlay {
                     id: dot
                     required property var modelData
                     required property int index
-                    width: 20
-                    height: card.height
+                    width: menu.phoneLayout ? 48 : 20
+                    height: menu.phoneLayout ? 48 : card.height
                     function focusKeyboard() { dotMa.forceActiveFocus(Qt.OtherFocusReason) }
                     Rectangle {
                         anchors.centerIn: parent
@@ -178,26 +198,40 @@ ReaderOverlay {
                 }
             }
 
-            // divider
-            Rectangle {
-                anchors.verticalCenter: parent.verticalCenter
-                width: 1
-                height: 20
-                color: Theme.barBorder
             }
-
-            // ---- select-mode text actions: Note · Define · Copy ----
+            Rectangle {
+                visible: !menu.phoneLayout
+                x: colorActions.width + 12
+                anchors.verticalCenter: parent.verticalCenter
+                width: 1; height: 20; color: Theme.barBorder
+            }
+            Row {
+                id: textActions
+                x: menu.phoneLayout ? 0 : colorActions.width + 25
+                y: menu.phoneLayout ? 56 : 0
+                height: menu.phoneLayout ? 48 : 44
+                spacing: 12
+            // ---- select-mode text actions: Note Â· Define Â· Copy ----
             TextAction {
+                objectName: "reader2SelectionNote"
+                width: menu.phoneLayout ? (menu.mode === "existing" ? cardRow.width : (cardRow.width - 24) / 3) : implicitWidth
+                btnHeight: menu.phoneLayout ? 48 : 44
                 label: "Note"
                 visible: menu.mode === "select"
                 onTriggered: menu.noteEditing = true
             }
             TextAction {
+                objectName: "reader2SelectionDefine"
+                width: menu.phoneLayout ? (menu.mode === "existing" ? cardRow.width : (cardRow.width - 24) / 3) : implicitWidth
+                btnHeight: menu.phoneLayout ? 48 : 44
                 label: "Define"
                 visible: menu.mode === "select"
                 onTriggered: menu.defineRequested()
             }
             TextAction {
+                objectName: "reader2SelectionCopy"
+                width: menu.phoneLayout ? (menu.mode === "existing" ? cardRow.width : (cardRow.width - 24) / 3) : implicitWidth
+                btnHeight: menu.phoneLayout ? 48 : 44
                 label: "Copy"
                 visible: menu.mode === "select"
                 onTriggered: menu.copyRequested()
@@ -205,10 +239,12 @@ ReaderOverlay {
 
             // ---- existing-mode action: Delete ----
             TextAction {
+                width: menu.phoneLayout ? (menu.mode === "existing" ? cardRow.width : (cardRow.width - 24) / 3) : implicitWidth
+                btnHeight: menu.phoneLayout ? 48 : 44
                 label: "Delete"
                 visible: menu.mode === "existing"
                 onTriggered: menu.deleteRequested()
-            }
+            }            }
         }
 
         // ===== note editor (select mode only; opened by Note) =====
@@ -224,7 +260,7 @@ ReaderOverlay {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: parent.height - 34
+                height: Math.max(0, parent.height - (menu.phoneLayout ? 58 : 34))
                 radius: 8
                 color: Qt.rgba(1, 1, 1, 0.05)
                 border.color: Theme.barBorder
@@ -241,6 +277,7 @@ ReaderOverlay {
 
                     TextEdit {
                         id: noteInput
+                        objectName: "reader2SelectionNoteInput"
                         width: noteFlick.width
                         wrapMode: TextEdit.Wrap
                         font.family: Theme.ui
@@ -262,26 +299,27 @@ ReaderOverlay {
                     anchors.top: parent.top
                     anchors.margins: 8
                     visible: noteInput.text.length === 0
-                    text: "Add a note…"
+                    text: "Add a noteâ€¦"
                     font.family: Theme.ui
                     font.pixelSize: 13
                     color: Theme.inkFaint
                 }
             }
 
-            // Cancel · Save
+            // Cancel Â· Save
             Row {
                 anchors.right: parent.right
                 anchors.bottom: parent.bottom
                 spacing: 16
                 TextAction {
                     label: "Cancel"
-                    btnHeight: 24
+                    width: menu.phoneLayout ? 64 : implicitWidth
+                    btnHeight: menu.phoneLayout ? 48 : 24
                     onTriggered: menu.dismissed()
                 }
                 Item {
-                    width: saveText.implicitWidth + 8
-                    height: 24
+                    width: menu.phoneLayout ? 64 : saveText.implicitWidth + 8
+                    height: menu.phoneLayout ? 48 : 24
                     readonly property bool canSave: noteInput.text.trim().length > 0
                     Text {
                         id: saveText
@@ -311,7 +349,8 @@ ReaderOverlay {
         property alias label: t.text
         property int btnHeight: 44
         signal triggered()
-        width: t.implicitWidth + 8
+        implicitWidth: t.implicitWidth + 8
+        width: implicitWidth
         height: btnHeight
         Text {
             id: t

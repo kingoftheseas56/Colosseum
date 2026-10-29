@@ -118,7 +118,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Search"
                 color: searchAction.interactionActive ? theme.ink : Qt.rgba(1, 1, 1, 0.78)
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
         }
         KeyboardAction {
@@ -235,7 +235,7 @@ Item {
                                 width: Math.min(implicitWidth, parent.width - 16)
                                 text: tile.modelData.name
                                 color: Qt.rgba(1, 1, 1, 0.86)
-                                font.family: theme.ui; font.pixelSize: 11
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                 elide: Text.ElideRight
                             }
                         }
@@ -254,7 +254,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: tile.installed ? "✓" : "+"
                                 color: "white"
-                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                             }
                             KeyboardAction {
                                 id: toggleAction

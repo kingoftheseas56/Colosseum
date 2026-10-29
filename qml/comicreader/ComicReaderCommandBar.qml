@@ -204,7 +204,7 @@ Item {
                         text: bar.labelFor(cmd.modelData)
                         color: cmd.on ? theme.gold : (cmdMa.containsMouse ? theme.ink : theme.inkDim)
                         font.family: theme.hud
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.bold: cmd.on
                     }
                 }

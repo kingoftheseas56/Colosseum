@@ -91,7 +91,7 @@ Item {
             anchors.centerIn: parent
             text: "COLOSSEUM \u00b7 TANKOBAN"
             color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3
+            font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 3
         }
         Row {
             anchors.right: parent.right; anchors.rightMargin: theme.margin
@@ -147,18 +147,18 @@ Item {
             Text {
                 id: storyTitle
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.rightMargin: 20
-                text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold
+                text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30); font.weight: Font.DemiBold
                 elide: Text.ElideRight; maximumLineCount: 1
             }
             Row {
                 id: metaRow
                 anchors.top: parent.top; anchors.topMargin: storyTitle.implicitHeight + 12; anchors.left: parent.left; spacing: 7
-                Text { visible: root.author.length > 0; text: root.author; color: theme.ink; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { visible: root.author.length > 0; text: root.author; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold }
                 Text { visible: root.author.length > 0 && root.status.length > 0; text: "\u00b7"; color: theme.inkDimmer }
                 Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim }
                 Text { visible: root.year > 0; text: "\u00b7 " + root.year; color: theme.inkDim }
                 Image { visible: root.score > 0; source: "../assets/icons/rating-star.svg"; width: 12; height: 12 }
-                Text { visible: root.score > 0; text: root.score.toFixed(1); color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { visible: root.score > 0; text: root.score.toFixed(1); color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold }
                 // Anime-Planet stat line: volumes/chapters promoted to full ink (mock .meta .stat).
                 Text {
                     visible: root.library.showVolumes && (root.author.length > 0 || root.status.length > 0 || root.year > 0 || root.score > 0)
@@ -166,7 +166,7 @@ Item {
                 }
                 Text {
                     visible: root.library.showVolumes
-                    text: root.library.volumeRows.length + " volumes"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11
+                    text: root.library.volumeRows.length + " volumes"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
                 Text {
                     visible: root.chapters.length > 0 && (root.library.showVolumes || root.author.length > 0 || root.status.length > 0 || root.year > 0 || root.score > 0)
@@ -174,7 +174,7 @@ Item {
                 }
                 Text {
                     visible: root.chapters.length > 0
-                    text: root.chapters.length + " chapters"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11
+                    text: root.chapters.length + " chapters"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
             }
             // Synopsis behind a tap (mock .syn): clamped to one line, tap expands/collapses.
@@ -189,7 +189,7 @@ Item {
                     id: synopsisText
                     width: parent.width
                     text: root.synopsis
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                     maximumLineCount: root.synopsisExpanded ? 100000 : 1
                     elide: Text.ElideRight
@@ -198,7 +198,7 @@ Item {
                     id: synopsisMore
                     anchors.top: synopsisText.bottom; anchors.topMargin: 3
                     text: root.synopsisExpanded ? "less" : "more"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.4
                 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -212,12 +212,12 @@ Item {
             anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
             anchors.rightMargin: 20; anchors.topMargin: 15; anchors.bottomMargin: 14
             width: Math.max(360, parent.width * 0.26)
-            Text { id: deviceLabel; text: "ON THIS DEVICE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.2 }
+            Text { id: deviceLabel; text: "ON THIS DEVICE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 2.2 }
             Text {
                 id: deviceCount
                 anchors.left: deviceLabel.right; anchors.leftMargin: 12; anchors.verticalCenter: deviceLabel.verticalCenter
                 text: root.library.ownedCount + " OF " + root.library.volumeRows.length
-                color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
             }
             Rectangle {
                 id: deviceProgress
@@ -234,7 +234,7 @@ Item {
                     Keys.onReturnPressed: root.primaryRequested(); Keys.onEnterPressed: root.primaryRequested()
                     Row { id: openLabel; anchors.centerIn: parent; spacing: 7
                         Image { source: "../assets/icons/play-dark.svg"; width: 13; height: 13 }
-                        Text { text: root.continueText; color: "#171205"; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: root.continueText; color: "#171205"; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.primaryRequested() }
                 }
@@ -268,7 +268,7 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 34
             color: Qt.rgba(0.08, 0.04, 0.05, 0.92)
             Text { anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter
-                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight; maximumLineCount: 1 }
+                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight; maximumLineCount: 1 }
         }
     }
 

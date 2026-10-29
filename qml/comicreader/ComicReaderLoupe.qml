@@ -435,7 +435,7 @@ Item {
                 text: root.magnificationText(root.magnification)
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 font.bold: true
             }
             Text {
@@ -443,7 +443,7 @@ Item {
                 text: root.pinned ? "Pinned" : "Following"
                 color: root.pinned ? theme.gold : theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
             }
             Item {
                 anchors.verticalCenter: parent.verticalCenter

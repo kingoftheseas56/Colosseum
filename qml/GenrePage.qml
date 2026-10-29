@@ -14,6 +14,9 @@ import "GenreApi.js" as Api
 Item {
     id: root
     anchors.fill: parent
+    readonly property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneNarrow: androidHost && width < 600
+    readonly property real contentMargin: phoneNarrow ? 20 : theme.margin
 
     // shell contract (mirrors UniversePage / the world-page layers)
     property Item backdrop: null
@@ -91,7 +94,7 @@ Item {
             Item {
                 id: hero
                 width: parent.width
-                height: 300
+                height: root.phoneNarrow ? 380 : 300
 
                 // montage: the genre's own top covers, washed behind the title
                 Row {
@@ -134,28 +137,36 @@ Item {
 
                 // hero text
                 Column {
+                    id: heroCopy
                     anchors.left: parent.left; anchors.bottom: parent.bottom
-                    anchors.leftMargin: theme.margin; anchors.bottomMargin: 30
-                    width: Math.min(parent.width - theme.margin * 2, 760)
+                    anchors.leftMargin: root.contentMargin; anchors.bottomMargin: root.phoneNarrow ? 24 : 30
+                    width: Math.min(parent.width - root.contentMargin * 2, 760)
                     spacing: 0
 
                     Row {
                         spacing: 7
                         Text { text: "TANKOBAN · MANGA · "; color: theme.inkDimmer
-                               font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.4; font.weight: Font.DemiBold }
+                               font.family: theme.ui; font.pixelSize: theme.fontSize(root.phoneNarrow ? 10 : 12); font.letterSpacing: root.phoneNarrow ? 1.2 : 2.4; font.weight: Font.DemiBold }
                         Text { text: "GENRE"; color: theme.gold
-                               font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.4; font.bold: true }
+                               font.family: theme.ui; font.pixelSize: theme.fontSize(root.phoneNarrow ? 10 : 12); font.letterSpacing: root.phoneNarrow ? 1.2 : 2.4; font.bold: true }
                     }
                     Text {
-                        text: root.genreName; color: theme.ink
-                        font.family: theme.display; font.pixelSize: 72; font.letterSpacing: -1
+                        width: parent.width
+                        text: root.genreName
+                        color: theme.ink
+                        font.family: theme.display
+                        font.pixelSize: theme.fontSize(root.phoneNarrow ? 42 : 72)
+                        font.letterSpacing: -1
                         topPadding: 8
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: 3
+                        elide: Text.ElideRight
                     }
                     Text {
                         text: root.genreData.desc
                         visible: text.length > 0
                         color: theme.inkDim; font.family: theme.display; font.italic: true
-                        font.pixelSize: 18; font.weight: Font.Light
+                        font.pixelSize: theme.fontSize(root.phoneNarrow ? 16 : 18); font.weight: Font.Light
                         lineHeight: 1.42; wrapMode: Text.WordWrap
                         width: parent.width; topPadding: 14
                         maximumLineCount: 3; elide: Text.ElideRight
@@ -165,9 +176,13 @@ Item {
                         Rectangle { width: 34; height: 3; radius: 2; color: theme.gold
                                     anchors.verticalCenter: parent.verticalCenter }
                         Text {
+                            width: heroCopy.width - 50
                             anchors.verticalCenter: parent.verticalCenter
                             textFormat: Text.StyledText
-                            font.family: theme.ui; font.pixelSize: 14
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                             text: root.loading
                                   ? "<font color='#9a99a5'>Loading…</font>"
                                   : "<b><font color='#f7f7f5'>" + root.genreData.count.toLocaleString()
@@ -180,7 +195,7 @@ Item {
 
             // ===== body =====
             Column {
-                x: theme.margin; width: parent.width - theme.margin * 2
+                x: root.contentMargin; width: parent.width - root.contentMargin * 2
                 spacing: 0; topPadding: 20
 
                 // ---- sibling-genre hop ----
@@ -200,7 +215,7 @@ Item {
                             Text {
                                 id: gpl; anchors.centerIn: parent; text: modelData
                                 color: selected ? theme.gold : (gpMa.containsMouse ? theme.ink : theme.inkDim)
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 font.weight: selected ? Font.DemiBold : Font.Normal
                             }
                             MouseArea {
@@ -227,7 +242,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Explore"
                             color: theme.gold
-                            font.family: theme.ui; font.pixelSize: 13
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
                         MouseArea {
@@ -246,16 +261,20 @@ Item {
 
                 // ---- listing controls ----
                 Item {
-                    width: parent.width; height: 40; y: 0
+                    width: parent.width; height: root.phoneNarrow ? 66 : 40; y: 0
                     Item { height: 26 }
                     Text {
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        anchors.left: parent.left
+                        height: 16
+                        y: root.phoneNarrow ? 0 : (parent.height - height) / 2
                         text: root.sortMode === "score" ? "TOP RATED" : "MOST READ"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold; font.letterSpacing: 1.6
                     }
                     Row {
-                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        anchors.right: parent.right
+                        y: root.phoneNarrow ? 28 : (parent.height - height) / 2
+                        height: 36
                         spacing: 12
                         // sort: readers ⇄ score (real — reloads)
                         Rectangle {
@@ -265,7 +284,7 @@ Item {
                             Text {
                                 id: srt; anchors.centerIn: parent
                                 textFormat: Text.StyledText
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 text: "<font color='#c9c8d0'>Sorted by </font><b><font color='#f7f7f5'>"
                                       + (root.sortMode === "score" ? "Score" : "Readers") + "</font></b> ⇅"
                             }
@@ -290,7 +309,7 @@ Item {
                                     border.width: 1; border.color: theme.edge
                                     Text { anchors.centerIn: parent; text: modelData.g
                                            color: (root.compact === modelData.c) ? theme.ink : theme.inkDimmer
-                                           font.pixelSize: 15 }
+                                           font.pixelSize: theme.fontSize(15) }
                                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                                                 onClicked: root.compact = modelData.c }
                                     KeyboardAction {
@@ -358,7 +377,7 @@ Item {
                 Text {
                     visible: !root.loading && root.genreData.cards.length === 0
                     text: "Nothing in this genre yet — try another."
-                    color: theme.inkDimmer; font.family: theme.display; font.italic: true; font.pixelSize: 16
+                    color: theme.inkDimmer; font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(16)
                     topPadding: 30
                 }
 
@@ -390,15 +409,15 @@ Item {
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; onTriggered: root.searchClicked() } }
-            Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
-            Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
-            Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; onTriggered: root.closeRequested() } }
+            Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7; visible: !root.androidHost
+                    MouseArea { anchors.fill: parent; visible: !root.androidHost; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                    KeyboardAction { anchors.fill: parent; visible: !root.androidHost; pointerEnabled: false; accessibleName: "Minimize"; onTriggered: root.minimizeRequested() } }
+            Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7; visible: !root.androidHost
+                    MouseArea { anchors.fill: parent; visible: !root.androidHost; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                    KeyboardAction { anchors.fill: parent; visible: !root.androidHost; pointerEnabled: false; accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() } }
+            Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7; visible: !root.androidHost
+                    MouseArea { anchors.fill: parent; visible: !root.androidHost; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                    KeyboardAction { anchors.fill: parent; visible: !root.androidHost; pointerEnabled: false; accessibleName: "Close"; onTriggered: root.closeRequested() } }
         }
     }
 
@@ -420,7 +439,7 @@ Item {
             Text {
                 anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 12
                 text: dc.rank < 10 ? "0" + dc.rank : "" + dc.rank
-                color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 15
+                color: theme.inkDimmer; font.family: theme.display; font.pixelSize: theme.fontSize(15)
                 opacity: 0.7; z: 2
             }
 
@@ -444,7 +463,7 @@ Item {
                     Text {
                         Layout.fillWidth: true
                         text: dc.card.title || ""; color: theme.ink
-                        font.family: theme.display; font.pixelSize: 18; font.weight: Font.Medium
+                        font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.Medium
                         font.letterSpacing: -0.2; lineHeight: 1.08
                         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                         rightPadding: 22
@@ -453,7 +472,7 @@ Item {
                         Layout.fillWidth: true; topPadding: 6
                         text: [dc.card.type, dc.card.year, dc.card.status].filter(function(s){return s}).join(" · ")
                               + "  ·  " + (dc.card.metaCounts || "")
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         elide: Text.ElideRight
                     }
                     // genre chips (current genre lit gold)
@@ -470,14 +489,14 @@ Item {
                                 border.color: selected ? Qt.rgba(0.94,0.77,0.29,0.45) : Qt.rgba(1,1,1,0.10)
                                 Text { id: chl; anchors.centerIn: parent; text: modelData
                                        color: selected ? theme.gold : theme.inkDim
-                                       font.family: theme.ui; font.pixelSize: 11 }
+                                       font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
                             }
                         }
                     }
                     Text {
                         Layout.fillWidth: true; Layout.fillHeight: true; topPadding: 10
                         text: dc.card.synopsis || ""
-                        color: theme.inkDim; font.family: theme.display; font.pixelSize: 13
+                        color: theme.inkDim; font.family: theme.display; font.pixelSize: theme.fontSize(13)
                         font.weight: Font.Light; lineHeight: 1.4
                         wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
                         clip: true
@@ -490,13 +509,13 @@ Item {
                             Text { text: "★"; color: theme.gold; font.pixelSize: 13
                                    anchors.verticalCenter: parent.verticalCenter }
                             Text { text: (dc.card.score !== null && dc.card.score !== undefined) ? dc.card.score : "—"
-                                   color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                   color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                                    anchors.verticalCenter: parent.verticalCenter }
                         }
                         Text { text: (dc.card.members || "0") + " readers"
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                         Text { Layout.fillWidth: true; text: dc.card.authors || ""
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                elide: Text.ElideRight }
                         // + Library (self-contained added state until the library store lands)
                         Rectangle {
@@ -510,7 +529,7 @@ Item {
                             Text { id: addl; anchors.centerIn: parent
                                    text: parent.added ? "✓ In Library" : "+ Library"
                                    color: parent.added ? theme.gold : theme.inkDim
-                                   font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                                   font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
                             MouseArea { id: addMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
                                         onClicked: dc.toggleLibrary() }
@@ -565,13 +584,13 @@ Item {
                     color: Qt.rgba(0,0,0,0.62)
                     Text { id: scl; anchors.centerIn: parent
                            text: "★ " + ((ct.card.score !== null && ct.card.score !== undefined) ? ct.card.score : "—")
-                           color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
+                           color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold }
                 }
             }
             Text {
                 anchors.top: cv.bottom; anchors.topMargin: 7
                 width: parent.width; text: ct.card.title || ""
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 wrapMode: Text.WordWrap; maximumLineCount: 1; elide: Text.ElideRight
             }
             MouseArea { id: ctMa; anchors.fill: parent; hoverEnabled: true

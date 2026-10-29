@@ -140,7 +140,7 @@ Item {
                 anchors.left: parent.left
                 text: "STORAGE"
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1.5; font.weight: Font.DemiBold
             }
             // S9 — the marquee "· N folders" line (VaultLibrary.rootCount() through
             // rootFolderCount): the roots strip's one honest count, singular/plural correct,
@@ -152,7 +152,7 @@ Item {
                 anchors.right: toggleBtn.left; anchors.rightMargin: 8
                 text: "· " + rail.rootFolderCount + (rail.rootFolderCount === 1 ? " folder" : " folders")
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 11
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
             Rectangle {
                 id: toggleBtn
@@ -166,7 +166,7 @@ Item {
                     anchors.centerIn: parent
                     text: rail.expanded ? "‹" : "›"   // ‹ / › — collapse/expand chevron
                     color: theme.inkDimmer
-                    font.pixelSize: 15
+                    font.pixelSize: theme.fontSize(15)
                 }
                 MouseArea {
                     id: toggleMa
@@ -310,14 +310,14 @@ Item {
                             // S9: the muted row's name sits at the away-name dimness.
                             color: rootRow.muted ? theme.inkDimmer
                                                  : (rootRow.available ? theme.ink : theme.inkDimmer)
-                            font.family: theme.ui; font.pixelSize: 13
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         }
                         Text {
                             width: parent.width
                             elide: Text.ElideRight
                             text: rootRow.available ? ((rootRow.modelData.itemCount || 0) + " items · " + (rootRow.modelData.fileCount || 0) + " files") : "Drive disconnected"
                             color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 10
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                         }
                     }
                 }
@@ -436,7 +436,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Hidden" + (rail.hiddenCount > 0 ? " · " + rail.hiddenCount : "")
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
             }
             MouseArea {
@@ -489,7 +489,7 @@ Item {
                     anchors.verticalCenter: parent.verticalCenter
                     text: "Add storage"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
             }
             MouseArea {
@@ -520,7 +520,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Ignore patterns"
                 color: ignoreMa.containsMouse ? theme.ink : theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 12
+                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
             MouseArea {
                 id: ignoreMa
@@ -588,7 +588,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Rescan"
                         color: rescanMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                     MouseArea {
                         id: rescanMa
@@ -622,7 +622,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Forget this storage…"
                         color: forgetMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                         MouseArea {
                             id: forgetMa
@@ -656,7 +656,7 @@ Item {
                     elide: Text.ElideMiddle
                     text: rail.menuRow ? rail.menuRow.rootPath : ""
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     topPadding: 8; bottomPadding: 6; leftPadding: 10
                 }
                 // S11 — the "needs attention" count line: LAST row of the menu, present only
@@ -679,7 +679,7 @@ Item {
                         visible: attLine.lineVisible
                         text: rail.attentionLabel
                         color: attMa.containsMouse ? "#dc9e39" : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                     MouseArea {
                         id: attMa
@@ -725,7 +725,7 @@ Item {
                     text: "Forget this storage? It is removed from Colosseum only — "
                           + "your files on disk are untouched."
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12; lineHeight: 1.25
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); lineHeight: 1.25
                 }
                 Row {
                     spacing: 8
@@ -736,7 +736,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Forget"
                             color: "#141207"
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         }
                         MouseArea {
                             objectName: "vaultBrowseRailMenuConfirm"
@@ -769,7 +769,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Cancel"
                             color: theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 12
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         }
                         MouseArea {
                             objectName: "vaultBrowseRailMenuCancel"
@@ -812,7 +812,7 @@ Item {
                     objectName: "vaultBrowseRailAttentionTitle"
                     text: "NEEDS ATTENTION"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.4
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4
                                               font.weight: Font.DemiBold
                     bottomPadding: 4
                 }
@@ -830,13 +830,13 @@ Item {
                             elide: Text.ElideMiddle
                             text: attItem.modelData.path || ""
                             color: theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 11
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                         }
                         Text {
                             width: parent.width * 0.58 - 8
                             text: attItem.modelData.reason || ""
                             color: theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 11
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             wrapMode: Text.WordWrap
                         }
                     }
@@ -850,7 +850,7 @@ Item {
                                   - ((rail.menuRow ? rail.menuRow.errorItems : []) || []).length)
                           + " more"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
                 Text {
                     objectName: "vaultBrowseRailAttentionWatcherNote"
@@ -861,7 +861,7 @@ Item {
                           ? "Watcher degraded — changes in this root can be missed until it is rescanned."
                           : ""
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11; lineHeight: 1.25
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); lineHeight: 1.25
                     topPadding: 4
                 }
                 Rectangle { width: parent.width; height: 1; color: theme.edge; opacity: 0.6 }
@@ -873,7 +873,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "‹ Back"
                         color: attBackMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     }
                     MouseArea {
                         id: attBackMa
@@ -901,7 +901,7 @@ Item {
                     elide: Text.ElideMiddle
                     text: rail.menuRow ? rail.menuRow.rootPath : ""
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 10
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                     topPadding: 4; bottomPadding: 2; leftPadding: 10
                 }
             }
@@ -959,7 +959,7 @@ Item {
                 Text {
                     text: "IGNORE PATTERNS"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.4
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4
                                               font.weight: Font.DemiBold
                 }
                 Text {
@@ -967,7 +967,7 @@ Item {
                     wrapMode: Text.WordWrap
                     text: "Folders whose full path contains any of these words are skipped while scanning."
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11; lineHeight: 1.25
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); lineHeight: 1.25
                 }
                 Rectangle {
                     width: parent.width
@@ -985,7 +985,7 @@ Item {
                         color: theme.ink
                         selectionColor: theme.gold
                         selectedTextColor: "#141207"
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         verticalAlignment: TextInput.AlignVCenter
                         clip: true
                         KeyNavigation.tab: ignoreSaveKey
@@ -1001,7 +1001,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Save"
                             color: "#141207"
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         }
                         MouseArea {
                             objectName: "vaultBrowseRailIgnoreSave"
@@ -1038,7 +1038,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Cancel"
                             color: theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 12
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         }
                         MouseArea {
                             objectName: "vaultBrowseRailIgnoreCancel"

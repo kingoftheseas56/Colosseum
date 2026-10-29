@@ -66,7 +66,7 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             text: mrow.label
             color: mrow.danger ? "#f0b4a6" : theme.ink
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
         KeyboardAction {
             id: rowAction
@@ -218,7 +218,7 @@ Item {
                     width: parent.width - 36
                     text: "Quit Colosseum?"
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 17
+                    font.family: theme.display; font.pixelSize: theme.fontSize(17)
                 }
                 MenuRow {
                     id: quitNoRow

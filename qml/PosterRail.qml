@@ -29,6 +29,9 @@ Column {
     property var seeAllPin: null
     // "classic" | "gallery" — gallery is Theatre's approved polish profile.
     property string visualProfile: "classic"
+    property int posterWidthOverride: 0
+    property int cardGapOverride: 0
+    property bool compactLayout: false
 
     // ── horizontal-position seam (saved/restored by LazyPosterShelf across unload/remount) ──
     property real initialContentX: 0
@@ -41,14 +44,14 @@ Column {
 
     readonly property var _m: Metrics.profile(rail.visualProfile)
     readonly property bool _gallery: rail.visualProfile === "gallery"
-    readonly property int posterWidth: rail._m.posterWidth
+    readonly property int posterWidth: rail.posterWidthOverride > 0 ? rail.posterWidthOverride : rail._m.posterWidth
     readonly property int posterHeight: Math.floor(rail.posterWidth * rail._m.posterRatio)
-    readonly property int cardGap: rail.ranked ? 30 : rail._m.cardGap
+    readonly property int cardGap: rail.cardGapOverride > 0 ? rail.cardGapOverride : rail.ranked ? 30 : rail._m.cardGap
     // reserved space below the poster: the title top gap + the (one- or two-line) title measure.
     readonly property int titleReserve: (rail._gallery ? 10 : 8) + rail._m.titleMinHeight
     readonly property int railListHeight: rail.posterHeight + rail.titleReserve
     // ranked cells grow to seat the oversized numeral; the poster itself stays posterWidth.
-    readonly property int cellWidth: rail.ranked ? (rail.posterWidth + 52) : rail.posterWidth
+    readonly property int cellWidth: rail.ranked && !rail.compactLayout ? (rail.posterWidth + 52) : rail.posterWidth
     // the ListView's final contentWidth (cells + gaps, margins excluded) — computed from the model so
     // the restore clamps against the TRUE extent, not a partial mid-layout value.
     readonly property real _fullContentWidth: {
@@ -107,8 +110,8 @@ Column {
         cacheBuffer: width * 0.75
         boundsBehavior: Flickable.StopAtBounds
         model: rail.visibleItems
-        leftMargin: 6
-        rightMargin: 26
+        leftMargin: rail.compactLayout ? 0 : 6
+        rightMargin: rail.compactLayout ? 0 : 26
         activeFocusOnTab: true
 
         // Restore the saved horizontal position ONCE, after layout has a real contentWidth. We wait
@@ -152,13 +155,17 @@ Column {
                 id: rankNum
                 visible: rail.ranked
                 text: cell.index + 1
-                color: Qt.rgba(1, 1, 1, 0.16)
+                color: rail.compactLayout ? theme.ink : Qt.rgba(1, 1, 1, 0.16)
                 font.family: theme.display
                 font.bold: true
-                font.pixelSize: 132
+                font.pixelSize: theme.fontSize(rail.compactLayout ? 32 : 132)
+                style: rail.compactLayout ? Text.Outline : Text.Normal
+                styleColor: "#050608"
+                z: rail.compactLayout ? 1 : 0
                 anchors.left: parent.left
+                anchors.leftMargin: rail.compactLayout ? 6 : 0
                 anchors.bottom: parent.bottom
-                anchors.bottomMargin: -8
+                anchors.bottomMargin: rail.compactLayout ? rail.titleReserve + 6 : -8
             }
 
             CataloguePosterCard {
@@ -176,8 +183,8 @@ Column {
                 // Theatre poster ratings all derive from IMDb; surface that on gallery hover only.
                 hoverSourceText: rail._gallery ? "IMDb" : ""
                 keyboardFocused: rail.railFocused && cell.index === rail.currentIndex
-                anchors.left: rail.ranked ? rankNum.right : parent.left
-                anchors.leftMargin: rail.ranked ? -32 : 0
+                anchors.left: rail.ranked && !rail.compactLayout ? rankNum.right : parent.left
+                anchors.leftMargin: rail.ranked && !rail.compactLayout ? -32 : 0
                 anchors.top: parent.top
                 item: cell.modelData
                 onActivated: (it) => rail.itemRequested(it)

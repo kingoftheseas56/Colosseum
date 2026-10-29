@@ -97,14 +97,14 @@ Glass {
             text: "THEATRE"
             color: theme.gold
             font.family: theme.ui
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
             font.letterSpacing: 3
         }
         Text {
             text: marquee.hero.title !== undefined ? marquee.hero.title : "Theatre"
             color: theme.ink
             font.family: theme.display
-            font.pixelSize: 46
+            font.pixelSize: theme.fontSize(46)
             wrapMode: Text.WordWrap
             maximumLineCount: 2
         }
@@ -112,7 +112,7 @@ Glass {
             text: marquee.hero.blurb !== undefined ? marquee.hero.blurb : "Movies, shows, addons, and continue watching."
             color: theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             lineHeight: 1.25
             wrapMode: Text.WordWrap
             maximumLineCount: 3
@@ -129,7 +129,7 @@ Glass {
                 text: "Open Theatre"
                 color: "#1a1408"
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.DemiBold
             }
         }
@@ -203,7 +203,7 @@ Glass {
                     text: card.itemData.caption !== undefined ? card.itemData.caption : ""
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.Medium
                     maximumLineCount: 1
                     elide: Text.ElideRight

@@ -37,7 +37,7 @@ Item {
             Text {
                 text: "COLOSSEUM"
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 2.5
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 2.5
             }
             Item { width: 1; height: 8 }
             Text {
@@ -45,7 +45,7 @@ Item {
                 text: "Profile"
                 color: theme.ink
                 wrapMode: Text.WordWrap
-                font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold
+                font.family: theme.display; font.pixelSize: theme.fontSize(30); font.weight: Font.DemiBold
             }
             Item { width: 1; height: 22 }
 
@@ -74,7 +74,7 @@ Item {
                             text: row.modelData.label
                             color: theme.ink
                             wrapMode: Text.WordWrap
-                            font.family: theme.ui; font.pixelSize: 17; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(17); font.weight: Font.DemiBold
                         }
                         Text {
                             width: parent.width
@@ -82,7 +82,7 @@ Item {
                             text: row.modelData.note || ""
                             color: theme.inkDim
                             wrapMode: Text.WordWrap
-                            font.family: theme.ui; font.pixelSize: 13
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         }
                     }
                     // a chevron drawn from two bars, so no font has to supply the glyph

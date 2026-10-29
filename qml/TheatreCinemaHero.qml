@@ -84,7 +84,7 @@ Item {
                             text: hero.eyebrow
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             font.weight: Font.Bold
                             font.letterSpacing: 4.4
                             font.capitalization: Font.AllUppercase
@@ -94,7 +94,7 @@ Item {
                             text: slide.modelData.title !== undefined ? slide.modelData.title : ""
                             color: theme.ink
                             font.family: theme.display
-                            font.pixelSize: hero.compactCopy ? 50 : 64
+                            font.pixelSize: theme.fontSize(hero.compactCopy ? 50 : 64)
                             font.weight: Font.DemiBold
                             lineHeight: 0.94
                             wrapMode: Text.WordWrap
@@ -110,7 +110,7 @@ Item {
                                 text: slide.modelData.releaseInfo || ""
                                 color: theme.ink
                                 font.family: theme.ui
-                                font.pixelSize: 13
+                                font.pixelSize: theme.fontSize(13)
                                 font.weight: Font.DemiBold
                             }
                             Text {
@@ -118,7 +118,7 @@ Item {
                                 text: slide.modelData.type === "series" ? "Series" : "Movie"
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 13
+                                font.pixelSize: theme.fontSize(13)
                             }
                         }
                         Text {
@@ -126,7 +126,7 @@ Item {
                             text: slide.modelData.blurb !== undefined ? slide.modelData.blurb : ""
                             color: theme.inkDim
                             font.family: theme.ui
-                            font.pixelSize: hero.compactCopy ? 14 : 15
+                            font.pixelSize: theme.fontSize(hero.compactCopy ? 14 : 15)
                             lineHeight: 1.28
                             wrapMode: Text.WordWrap
                             maximumLineCount: hero.compactCopy ? 2 : 3
@@ -146,7 +146,7 @@ Item {
                                     text: hero.primaryLabel
                                     color: "#090a0d"
                                     font.family: theme.ui
-                                    font.pixelSize: 14
+                                    font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.DemiBold
                                 }
                                 MouseArea {
@@ -174,7 +174,7 @@ Item {
                                     text: hero.secondaryLabel
                                     color: theme.ink
                                     font.family: theme.ui
-                                    font.pixelSize: 14
+                                    font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.Medium
                                 }
                                 MouseArea {

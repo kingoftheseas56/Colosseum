@@ -101,7 +101,7 @@ Item {
                     : "Colosseum runs completely locally on this device."
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 wrapMode: Text.WordWrap
 
                 Theme { id: theme }

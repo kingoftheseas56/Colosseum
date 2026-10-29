@@ -54,7 +54,7 @@ FocusScope {
                 text: root.sourceText
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
             }
         }
         Rectangle {
@@ -84,7 +84,7 @@ FocusScope {
         text: root.titleText
         color: theme.ink
         font.family: theme.ui
-        font.pixelSize: 14
+        font.pixelSize: theme.fontSize(14)
         font.weight: Font.DemiBold
         lineHeight: 1.18
         wrapMode: Text.WordWrap

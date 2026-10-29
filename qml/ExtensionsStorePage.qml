@@ -23,7 +23,7 @@ Item {
     signal searchClicked()
     signal universeHallRequested()
 
-    property var catalogue: []               // every cleaned add-on, most starred first
+    property var catalogue: StoreApi.withTorrentio([]) // bundled source remains available while the catalogue loads
     property string loadError: ""
     property bool loading: true
     property int revision: 0                 // bumps on every Extensions change
@@ -193,7 +193,7 @@ Item {
             text: root.loading ? "Opening the Store…"
                                : "The Store couldn't reach stremio-addons.net (" + root.loadError + "). Try again in a moment."
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
 
         ExtensionsStoreRail {
@@ -238,7 +238,7 @@ Item {
             width: parent.width
             text: "Community add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum."
             color: Qt.rgba(1, 1, 1, 0.34)
-            font.family: theme.ui; font.pixelSize: 12
+            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
         }
     }
 
@@ -273,7 +273,7 @@ Item {
             elide: Text.ElideRight
             text: root.installError
             color: theme.ink
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
         }
     }
 

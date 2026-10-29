@@ -24,7 +24,7 @@ Button {
             : (control.enabled ? theme.ink : theme.inkDimmer)
         opacity: control.enabled ? 1.0 : 0.58
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

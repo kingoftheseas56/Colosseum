@@ -1,6 +1,7 @@
 pragma ComponentBehavior: Bound
 
 import QtQuick
+import QtQuick.Controls
 
 Item {
     id: root
@@ -11,6 +12,8 @@ Item {
     signal closeRequested()
     visible: shown
     enabled: visible
+    readonly property bool compactPhoneLayout: Qt.platform.os === "android"
+        && Math.min(width, height) < 600
 
     readonly property string status: syncState ? String(syncState.status || "notConnected") : "notConnected"
     readonly property bool busy: status === "connecting" || status === "syncing"
@@ -51,6 +54,13 @@ Item {
         confirmation = ""
         closeRequested()
     }
+    function revealPanelAction(item) {
+        const itemY = item.mapToItem(panelScroll.contentItem, 0, 0).y
+        if (itemY < panelScroll.contentY)
+            panelScroll.contentY = itemY
+        else if (itemY + item.height > panelScroll.contentY + panelScroll.height)
+            panelScroll.contentY = itemY + item.height - panelScroll.height
+    }
 
     onShownChanged: if (shown) Qt.callLater(function() { primaryAction.focusInput() })
     Keys.onEscapePressed: {
@@ -65,100 +75,187 @@ Item {
     Rectangle {
         objectName: "stremioSyncPanel"
         anchors.centerIn: parent
-        width: Math.min(620, parent.width - 48)
-        height: root.confirmation.length > 0 ? 470 : 440
-        radius: 24
+        width: root.compactPhoneLayout
+            ? Math.max(1, Math.min(620, parent.width - 24))
+            : Math.min(620, parent.width - 48)
+        height: root.compactPhoneLayout
+            ? Math.max(1, Math.min(root.confirmation.length > 0 ? 470 : 440, parent.height - 24))
+            : root.confirmation.length > 0 ? 470 : 440
+        radius: root.compactPhoneLayout ? 16 : 24
         color: "#151821"
         border.width: 1
         border.color: theme.edge
 
-        Column {
+        Flickable {
+            id: panelScroll
             anchors.fill: parent
-            anchors.margins: 34
-            spacing: 18
-            Row {
-                width: parent.width
-                spacing: 14
-                Image {
-                    objectName: "stremioPanelOfficialAsset"
-                    width: 38; height: 38
-                    source: "../assets/icons/stremio-official.svg"
-                    fillMode: Image.PreserveAspectFit
-                }
-                Column {
-                    width: parent.width - 52
-                    spacing: 5
-                    Text { text: root.heading(); color: theme.ink; font.family: theme.display; font.pixelSize: 30 }
-                    Text { width: parent.width; text: root.detail(); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap }
-                }
+            anchors.margins: root.compactPhoneLayout ? 12 : 34
+            clip: true
+            contentWidth: width
+            contentHeight: panelContent.implicitHeight
+            boundsBehavior: Flickable.StopAtBounds
+            activeFocusOnTab: true
+            ScrollBar.vertical: ScrollBar {
+                policy: panelScroll.contentHeight > panelScroll.height
+                    ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff
             }
-            Rectangle { width: parent.width; height: 1; color: theme.edge }
-            Grid {
-                columns: 2
-                columnSpacing: 28
-                rowSpacing: 8
-                Text { text: qsTr("Account"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                Text { text: root.syncState && root.syncState.accountDisplayName ? root.syncState.accountDisplayName : qsTr("Not connected"); color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
-                Text { text: qsTr("Last sync"); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
-                Text { text: root.formatLastSync(root.syncState ? root.syncState.lastSuccessAt : 0); color: theme.ink; font.family: theme.ui; font.pixelSize: 12 }
-            }
-            Text {
-                objectName: "stremioSyncResult"
-                width: parent.width
-                visible: root.syncState && String(root.syncState.lastResultSummary || "").length > 0
-                text: visible ? root.syncState.lastResultSummary : ""
-                color: theme.gold
-                font.family: theme.ui
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-            }
-            Text {
-                visible: root.confirmation.length > 0
-                width: parent.width
-                text: root.confirmation === "switch"
-                    ? qsTr("Switching accounts keeps everything already merged, then connects a replacement Stremio account.")
-                    : qsTr("Disconnecting stops sync and removes this device's credential. Everything already merged stays in Colosseum.")
-                color: theme.ink
-                font.family: theme.ui
-                font.pixelSize: 13
-                wrapMode: Text.WordWrap
-            }
-            Row {
-                spacing: 12
-                PanelAction {
-                    id: primaryAction
-                    objectName: "stremioSyncPrimaryAction"
-                    label: root.confirmation.length > 0
-                        ? (root.confirmation === "switch" ? qsTr("Confirm switch") : qsTr("Confirm disconnect"))
-                        : root.primaryLabel()
-                    primary: true
-                    enabled: !root.busy
-                        && root.status !== "unavailable"
-                        && root.status !== "paused"
-                    onTriggered: {
-                        if (root.confirmation === "switch") { root.confirmation = ""; root.syncState.switchAccount() }
-                        else if (root.confirmation === "disconnect") { root.confirmation = ""; root.syncState.disconnectCurrentProfile() }
-                        else root.primaryAction()
+
+            Column {
+                id: panelContent
+                width: panelScroll.width
+                spacing: root.compactPhoneLayout ? 10 : 18
+
+                Row {
+                    id: panelHeading
+                    width: parent.width
+                    spacing: root.compactPhoneLayout ? 8 : 14
+                    Image {
+                        id: panelIcon
+                        objectName: "stremioPanelOfficialAsset"
+                        width: root.compactPhoneLayout ? 30 : 38
+                        height: width
+                        source: "../assets/icons/stremio-official.svg"
+                        fillMode: Image.PreserveAspectFit
+                    }
+                    Column {
+                        width: parent.width - panelIcon.width
+                            - (root.compactPhoneLayout ? panelClose.width : 0)
+                            - panelHeading.spacing * (root.compactPhoneLayout ? 2 : 1)
+                        spacing: 5
+                        Text {
+                            width: parent.width
+                            text: root.heading()
+                            color: theme.ink
+                            font.family: theme.display
+                            font.pixelSize: theme.fontSize(root.compactPhoneLayout ? 22 : 30)
+                            wrapMode: Text.WordWrap
+                        }
+                        Text {
+                            width: parent.width
+                            text: root.detail()
+                            color: theme.inkDim
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(13)
+                            wrapMode: Text.WordWrap
+                        }
+                    }
+                    PanelAction {
+                        id: panelClose
+                        objectName: "stremioSyncPanelClose"
+                        visible: root.compactPhoneLayout
+                        label: root.confirmation.length > 0 ? qsTr("Cancel") : qsTr("Close")
+                        onTriggered: {
+                            if (root.confirmation.length > 0) root.confirmation = ""
+                            else root.closePanel()
+                        }
                     }
                 }
-                PanelAction {
-                    objectName: "stremioSwitchAccountAction"
-                    label: qsTr("Switch account")
-                    visible: root.connected && root.confirmation.length === 0
-                    onTriggered: root.confirmation = "switch"
+
+                Rectangle { width: parent.width; height: 1; color: theme.edge }
+
+                Grid {
+                    width: parent.width
+                    columns: 2
+                    columnSpacing: root.compactPhoneLayout ? 12 : 28
+                    rowSpacing: 8
+                    readonly property real labelColumnWidth:
+                        Math.max(accountLabel.implicitWidth, lastSyncLabel.implicitWidth)
+                    Text {
+                        id: accountLabel
+                        width: parent.labelColumnWidth
+                        text: qsTr("Account")
+                        color: theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(12)
+                    }
+                    Text {
+                        width: parent.width - parent.labelColumnWidth - parent.columnSpacing
+                        text: root.syncState && root.syncState.accountDisplayName
+                            ? root.syncState.accountDisplayName : qsTr("Not connected")
+                        color: theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(12)
+                        wrapMode: Text.WordWrap
+                    }
+                    Text {
+                        id: lastSyncLabel
+                        width: parent.labelColumnWidth
+                        text: qsTr("Last sync")
+                        color: theme.inkDimmer
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(12)
+                    }
+                    Text {
+                        width: parent.width - parent.labelColumnWidth - parent.columnSpacing
+                        text: root.formatLastSync(root.syncState ? root.syncState.lastSuccessAt : 0)
+                        color: theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: theme.fontSize(12)
+                        wrapMode: Text.WordWrap
+                    }
                 }
-                PanelAction {
-                    objectName: "stremioDisconnectAction"
-                    label: qsTr("Disconnect")
-                    visible: root.connected && root.confirmation.length === 0
-                    onTriggered: root.confirmation = "disconnect"
+
+                Text {
+                    objectName: "stremioSyncResult"
+                    width: parent.width
+                    visible: root.syncState && String(root.syncState.lastResultSummary || "").length > 0
+                    text: visible ? root.syncState.lastResultSummary : ""
+                    color: theme.gold
+                    font.family: theme.ui
+                    font.pixelSize: theme.fontSize(13)
+                    wrapMode: Text.WordWrap
                 }
-                PanelAction {
-                    objectName: "stremioCancelAction"
-                    label: root.confirmation.length > 0 ? qsTr("Cancel") : qsTr("Close")
-                    onTriggered: {
-                        if (root.confirmation.length > 0) root.confirmation = ""
-                        else root.closePanel()
+
+                Text {
+                    visible: root.confirmation.length > 0
+                    width: parent.width
+                    text: root.confirmation === "switch"
+                        ? qsTr("Switching accounts keeps everything already merged, then connects a replacement Stremio account.")
+                        : qsTr("Disconnecting stops sync and removes this device's credential. Everything already merged stays in Colosseum.")
+                    color: theme.ink
+                    font.family: theme.ui
+                    font.pixelSize: theme.fontSize(13)
+                    wrapMode: Text.WordWrap
+                }
+
+                Flow {
+                    width: parent.width
+                    spacing: root.compactPhoneLayout ? 8 : 12
+                    PanelAction {
+                        id: primaryAction
+                        objectName: "stremioSyncPrimaryAction"
+                        label: root.confirmation.length > 0
+                            ? (root.confirmation === "switch" ? qsTr("Confirm switch") : qsTr("Confirm disconnect"))
+                            : root.primaryLabel()
+                        primary: true
+                        enabled: !root.busy
+                            && root.status !== "unavailable"
+                            && root.status !== "paused"
+                        onTriggered: {
+                            if (root.confirmation === "switch") { root.confirmation = ""; root.syncState.switchAccount() }
+                            else if (root.confirmation === "disconnect") { root.confirmation = ""; root.syncState.disconnectCurrentProfile() }
+                            else root.primaryAction()
+                        }
+                    }
+                    PanelAction {
+                        objectName: "stremioSwitchAccountAction"
+                        label: qsTr("Switch account")
+                        visible: root.connected && root.confirmation.length === 0
+                        onTriggered: root.confirmation = "switch"
+                    }
+                    PanelAction {
+                        objectName: "stremioDisconnectAction"
+                        label: qsTr("Disconnect")
+                        visible: root.connected && root.confirmation.length === 0
+                        onTriggered: root.confirmation = "disconnect"
+                    }
+                    PanelAction {
+                        objectName: "stremioCancelAction"
+                        label: root.confirmation.length > 0 ? qsTr("Cancel") : qsTr("Close")
+                        onTriggered: {
+                            if (root.confirmation.length > 0) root.confirmation = ""
+                            else root.closePanel()
+                        }
                     }
                 }
             }
@@ -172,13 +269,20 @@ Item {
         signal triggered()
         function focusInput() { actionInput.forceActiveFocus(Qt.PopupFocusReason) }
         width: labelText.implicitWidth + 30
-        height: 42
+        height: root.compactPhoneLayout ? 48 : 42
         radius: 10
         color: primary ? theme.gold : Qt.rgba(1, 1, 1, 0.06)
         border.width: primary ? 0 : 1
         border.color: theme.edge
         opacity: enabled ? 1 : 0.5
-        Text { id: labelText; anchors.centerIn: parent; text: action.label; color: action.primary ? "#17130a" : theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
-        KeyboardAction { id: actionInput; anchors.fill: parent; accessibleName: action.label; focusRadius: action.radius; onTriggered: action.triggered() }
+        Text { id: labelText; anchors.centerIn: parent; text: action.label; color: action.primary ? "#17130a" : theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
+        KeyboardAction {
+            id: actionInput
+            anchors.fill: parent
+            accessibleName: action.label
+            focusRadius: action.radius
+            onActiveFocusChanged: if (activeFocus) root.revealPanelAction(action)
+            onTriggered: action.triggered()
+        }
     }
 }

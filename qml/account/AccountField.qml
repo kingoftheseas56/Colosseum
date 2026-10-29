@@ -34,7 +34,7 @@ Item {
         text: root.label
         color: theme.inkDim
         font.family: theme.ui
-        font.pixelSize: 12
+        font.pixelSize: theme.fontSize(12)
         font.weight: Font.DemiBold
     }
 
@@ -48,7 +48,7 @@ Item {
         text: root.hint
         color: theme.inkDimmer
         font.family: theme.ui
-        font.pixelSize: 11
+        font.pixelSize: theme.fontSize(11)
         wrapMode: Text.WordWrap
     }
 
@@ -66,7 +66,7 @@ Item {
         placeholderTextColor: theme.inkDimmer
         placeholderText: root.placeholderText
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         echoMode: root.password && !root.reveal
             ? TextInput.Password
             : TextInput.Normal
@@ -101,7 +101,7 @@ Item {
             text: root.reveal ? "○" : "◉"
             color: revealButton.hovered ? theme.ink : theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 15
+            font.pixelSize: theme.fontSize(15)
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }

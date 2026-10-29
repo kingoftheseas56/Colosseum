@@ -532,7 +532,7 @@ Item {
             anchors.centerIn: parent
             visible: sheet.livePhase === "live" && sheet.liveFraction >= 0
             text: Math.round(sheet.liveFraction * 100) + "%"
-            color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             font.weight: Font.DemiBold
         }
         Text {
@@ -564,7 +564,7 @@ Item {
             id: toastText
             anchors.centerIn: parent
             color: sheet.toastError ? "#e6a3a3" : theme.ink
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
         }
     }
 
@@ -616,14 +616,14 @@ Item {
         Text {
             width: parent.width
             text: "SOURCES · TANKOBAN VOLUME"
-            color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             font.letterSpacing: 4; elide: Text.ElideRight
         }
         Text {
             width: parent.width
             text: sheet.titleText()
             color: theme.ink; font.family: theme.display
-            font.pixelSize: 56; font.weight: Font.DemiBold
+            font.pixelSize: theme.fontSize(56); font.weight: Font.DemiBold
             maximumLineCount: 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
@@ -631,7 +631,7 @@ Item {
             width: parent.width
             visible: sheet.identityLine.length > 0
             text: sheet.identityLine
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             font.letterSpacing: 1; elide: Text.ElideRight
         }
         // Slice D (mock .hsyn): this volume's own synopsis when the enricher accepted one,
@@ -645,7 +645,7 @@ Item {
             text: heroSynopsis.hasSynopsis
                 ? String(sheet.context.synopsis)
                 : "No synopsis for this volume yet."
-            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             font.italic: !heroSynopsis.hasSynopsis
             wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight
         }
@@ -672,13 +672,13 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: sheet.rows.length + (sheet.rows.length === 1 ? " source" : " sources")
                       + (sheet.loading ? "   ·   still searching…" : "")
-                color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
             }
             Text {
                 anchors.right: parent.right; anchors.rightMargin: 26
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Nyaa"
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 1
             }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
         }
@@ -700,7 +700,7 @@ Item {
                         ? ("Some sources didn’t answer — " + sheet.failureText)
                         : "No releases matched this volume yet."))
             color: sheet.failureText.length > 0 ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 16
+            font.family: theme.ui; font.pixelSize: theme.fontSize(16)
         }
         // The route to Extensions (R1): the ONLY way nyaa ever turns on — no
         // auto-enable, no nag anywhere else on this page. A plain, truthful link,
@@ -717,7 +717,7 @@ Item {
                 id: enableLabel
                 anchors.centerIn: parent
                 text: "Open Extensions"
-                color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             }
             MouseArea {
                 id: enableMa; anchors.fill: parent; hoverEnabled: true
@@ -808,20 +808,20 @@ Item {
                             spacing: 12
                             Text {
                                 text: (row.modelData && row.modelData.uploader) ? row.modelData.uploader : "Nyaa"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Text {
                                 text: sheet.confidenceLabel(row.modelData || null)
                                 color: sheet.confidenceColor(row.modelData || null)
-                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; font.letterSpacing: 0.5
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
                         Text {
                             width: parent.width
                             text: (row.modelData && row.modelData.releaseTitle) ? row.modelData.releaseTitle : ""
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); elide: Text.ElideRight
                         }
                         Row {
                             spacing: 7
@@ -833,7 +833,7 @@ Item {
                                     color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
                                     Text {
                                         id: ev; anchors.centerIn: parent; text: parent.modelData
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                         font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                     }
                                 }
@@ -849,7 +849,7 @@ Item {
                                 return p.join("   ·   ")
                             }
                             color: row.carriesDisc ? theme.gold : theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         }
                     }
 

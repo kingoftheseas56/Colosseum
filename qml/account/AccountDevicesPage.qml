@@ -398,7 +398,7 @@ Item {
                     text: qsTr("Devices")
                     color: theme.ink
                     font.family: theme.ui
-                    font.pixelSize: 26
+                    font.pixelSize: theme.fontSize(26)
                     font.weight: Font.DemiBold
                     font.letterSpacing: -0.5
                 }
@@ -444,7 +444,7 @@ Item {
                             text: root.visibleDeviceCount
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: 42
+                            font.pixelSize: theme.fontSize(42)
                             font.weight: Font.DemiBold
                             font.letterSpacing: -1.8
                         }
@@ -453,7 +453,7 @@ Item {
                             text: root.countLabel()
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                         }
                     }
 
@@ -465,7 +465,7 @@ Item {
                         text: qsTr("Revoking a device ends its account access. It can sign in again later if you approve it.")
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         lineHeightMode: Text.ProportionalHeight
                         lineHeight: 1.55
                         wrapMode: Text.WordWrap
@@ -485,7 +485,7 @@ Item {
                 text: root.operationErrorMessage
                 color: "#f0a3a3"
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 wrapMode: Text.WordWrap
                 Accessible.name: qsTr("Devices error: %1").arg(root.operationErrorMessage)
             }
@@ -501,7 +501,7 @@ Item {
                     text: qsTr("Trusted devices")
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold
                 }
 
@@ -510,7 +510,7 @@ Item {
                     text: root.sectionCountLabel().toUpperCase()
                     color: theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 0.8
                 }
             }
@@ -528,7 +528,7 @@ Item {
                 text: qsTr("No trusted devices were returned by the account service.")
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 wrapMode: Text.WordWrap
             }
 
@@ -603,7 +603,7 @@ Item {
                                         text: root.deviceLabel(deviceDelegate.entry)
                                         color: theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: 14
+                                        font.pixelSize: theme.fontSize(14)
                                         font.weight: Font.DemiBold
                                         elide: Text.ElideRight
                                     }
@@ -615,7 +615,7 @@ Item {
                                         text: qsTr("This device").toUpperCase()
                                         color: theme.gold
                                         font.family: theme.ui
-                                        font.pixelSize: 9
+                                        font.pixelSize: theme.fontSize(9)
                                         font.letterSpacing: 0.9
                                     }
                                 }
@@ -625,7 +625,7 @@ Item {
                                     text: root.deviceMeta(deviceDelegate.entry)
                                     color: theme.inkDimmer
                                     font.family: theme.ui
-                                    font.pixelSize: 11
+                                    font.pixelSize: theme.fontSize(11)
                                     elide: Text.ElideRight
                                 }
                             }
@@ -683,7 +683,7 @@ Item {
                                     .arg(root.deviceLabel(deviceDelegate.entry))
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.5
                                 wrapMode: Text.WordWrap

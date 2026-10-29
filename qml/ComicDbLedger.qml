@@ -15,6 +15,10 @@ import "ComicResolve.js" as Resolve
 
 Item {
     id: ledger
+    objectName: "comicDbLedger"
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneNarrow: androidHost && width < 600
+    property var comicsApi: typeof Comics !== "undefined" ? Comics : null
 
     property var    theme                       // injected from ComicSeriesPage
     property var    dbSeries: null              // ComicsDb series record { title, publisher, cover, editions[] }
@@ -111,13 +115,18 @@ Item {
         spacing: 0
 
         // ================= HERO =================
-        Row {
+        Grid {
+            objectName: "comicDbHeroContent"
             width: parent.width
-            spacing: 26
+            columns: ledger.phoneNarrow ? 1 : 2
+            columnSpacing: 26
+            rowSpacing: 18
+            verticalItemAlignment: Grid.AlignVCenter
             bottomPadding: 26
 
             Rectangle {                                   // series cover
-                width: 158; height: 236; radius: 9
+                width: ledger.phoneNarrow ? 128 : 158
+                height: ledger.phoneNarrow ? 192 : 236; radius: 9
                 color: "#15171f"; border.width: 1; border.color: theme.edge; clip: true
                 Image {
                     anchors.fill: parent; anchors.margins: 1
@@ -127,18 +136,20 @@ Item {
                 }
             }
             Column {
-                width: parent.width - 158 - 26
-                anchors.verticalCenter: parent.verticalCenter
+                width: ledger.phoneNarrow ? parent.width : parent.width - 158 - 26
                 spacing: 8
                 Text { text: "Comics"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11
                     font.letterSpacing: 3.4; font.capitalization: Font.AllUppercase }
-                Text { width: parent.width; text: seriesTitle
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 50; font.weight: Font.DemiBold
-                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
+                Text { objectName: "comicDbHeroTitle"; width: parent.width; text: seriesTitle
+                    color: theme.ink; font.family: theme.display; font.pixelSize: ledger.phoneNarrow ? 32 : 50; font.weight: Font.DemiBold
+                    wrapMode: Text.WordWrap; maximumLineCount: ledger.phoneNarrow ? 3 : 2; elide: Text.ElideRight }
                 Text { visible: heroCreators.length > 0; width: parent.width; text: "by " + heroCreators
                     color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
                     elide: Text.ElideRight }
                 Text {
+                    objectName: "comicDbHeroMetadata"
+                    width: parent.width
+                    wrapMode: Text.WordWrap
                     text: {
                         var b = []
                         if (dbSeries && dbSeries.rank) b.push("#" + dbSeries.rank + " Most-Read")
@@ -155,6 +166,7 @@ Item {
                     wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
                     lineHeight: 1.35; topPadding: 5 }
                 LibraryButton {
+                    height: ledger.phoneNarrow ? 48 : 42
                     world: "tankoban"
                     visible: !!ledger.libraryEntry
                     entry: ledger.libraryEntry
@@ -189,8 +201,11 @@ Item {
                     delegate: Item {
                         id: ed
                         required property var modelData
+                        objectName: "comicDbEdition_" + chId
                         width: col.width
-                        height: 192 + sourceRail.implicitHeight
+                        readonly property real phoneContentBottom: Math.max(edCover.y + edCover.height, edDetails.y + edDetails.implicitHeight)
+                        height: ledger.phoneNarrow ? phoneContentBottom + 12 + 48 + (sourceRail.visible ? 10 + sourceRail.implicitHeight : 0) + 18
+                                                   : 192 + sourceRail.implicitHeight
 
                         property string chId: String(ed.modelData.locg_comic_id || ed.modelData.slug || "")
                         property var sourceRows: ed.modelData.sources || []
@@ -206,6 +221,7 @@ Item {
                         property string dlState: "none"     // none|resolving|queued|downloading|extracting|done|error|dead
                         property real   dlDone: 0
                         property real   dlTotal: 0
+                        property bool cancelPending: false
                         readonly property bool inFlight: dlState === "downloading" || dlState === "queued"
                                                       || dlState === "resolving"   || dlState === "extracting"
                                                       || dlState === "choosing"
@@ -214,33 +230,46 @@ Item {
                         readonly property bool canAlternate: chId.length > 0 && !inFlight && dlState !== "done"
 
                         function refreshDl() {
-                            if (typeof Comics === "undefined" || !chId.length) return
-                            var st = Comics.statusOf(chId)
+                            if (!ledger.comicsApi || !chId.length) return
+                            var st = ledger.comicsApi.statusOf(chId)
                             ed.dlState = st.state; ed.dlDone = st.done; ed.dlTotal = st.total
                         }
+                        function cancel() {
+                            if (!ledger.comicsApi || !ed.inFlight || ed.cancelPending) return
+                            ed.cancelPending = true
+                            ledger.comicsApi.cancelDownload(ed.chId)
+                        }
                         function primary() {
-                            if (typeof Comics === "undefined" || !chId.length || !canAcquire) return
+                            if (!ledger.comicsApi || !chId.length || !canAcquire) return
                             if (dlState === "dead") return
                             if (dlState === "done") { ledger.readRequested(chId, String(ed.modelData.display_title || ed.modelData.title || "")); return }
                             if (inFlight) return
                             ed.dlState = "queued"
                             var editionTitle = String(ed.modelData.display_title || ed.modelData.title || "")
-                            Comics.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
+                            ledger.comicsApi.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
                                                  editionTitle, 0)
                             if (ledger.libraryEntry) Collection.add("tankoban", ledger.libraryEntry)
                         }
                         Component.onCompleted: refreshDl()
                         Connections {
-                            target: typeof Comics !== "undefined" ? Comics : null
+                            target: ledger.comicsApi
                             function onProgress(cid, done, total) {
                                 if (cid !== ed.chId) return
                                 ed.dlState = "downloading"; ed.dlDone = done; ed.dlTotal = total
                             }
-                            function onFinished(cid) { if (cid === ed.chId) ed.dlState = "done" }
-                            function onFailed(cid, reason) {
-                                if (cid === ed.chId) ed.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                            function onFinished(cid) {
+                                if (cid !== ed.chId) return
+                                ed.cancelPending = false; ed.dlState = "done"
                             }
-                            function onRemoved(cid) { if (cid === ed.chId) ed.dlState = "none" }
+                            function onFailed(cid, reason) {
+                                if (cid !== ed.chId) return
+                                ed.cancelPending = false
+                                ed.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                            }
+                            function onRemoved(cid) {
+                                if (cid !== ed.chId) return
+                                ed.cancelPending = false; ed.dlState = "none"
+                            }
                         }
 
                         Rectangle { anchors.fill: parent; color: ed.canAcquire && edMa.containsMouse ? Qt.rgba(1,1,1,0.045) : "transparent"; radius: 8 }
@@ -250,7 +279,8 @@ Item {
                             id: edCover
                             anchors.left: parent.left; anchors.leftMargin: 4
                             anchors.top: parent.top; anchors.topMargin: 18
-                            width: 104; height: 156; radius: 7
+                            width: ledger.phoneNarrow ? 76 : 104
+                            height: ledger.phoneNarrow ? 114 : 156; radius: 7
                             color: "#15171f"
                             border.width: 1
                             border.color: ed.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
@@ -275,19 +305,23 @@ Item {
                         }
 
                         Column {                             // title · spec · blurb
-                            anchors.left: edCover.right; anchors.leftMargin: 20
-                            anchors.right: ed.canAlternate ? altBtn.left : edState.left; anchors.rightMargin: 16
-                            anchors.verticalCenter: edCover.verticalCenter
+                            id: edDetails
+                            objectName: "comicDbEditionText_" + ed.chId
+                            x: edCover.x + edCover.width + (ledger.phoneNarrow ? 14 : 20)
+                            y: ledger.phoneNarrow ? 18 : edCover.y + (edCover.height - height) / 2
+                            width: ledger.phoneNarrow ? parent.width - x - 8 : (ed.canAlternate ? altBtn.x : edState.x) - 16 - x
                             spacing: 7
                             Text { width: parent.width; text: ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
                                 color: edMa.containsMouse && ed.canAcquire ? theme.gold : theme.ink
                                 opacity: 1
                                 font.family: theme.display; font.pixelSize: 21; font.weight: Font.Medium
-                                elide: Text.ElideRight }
+                                wrapMode: ledger.phoneNarrow ? Text.WordWrap : Text.NoWrap
+                                maximumLineCount: ledger.phoneNarrow ? 3 : 1; elide: Text.ElideRight }
                             // "Collects #1-6" lines REMOVED (Hemanth 2026-07-17, reversing his
                             // 2026-07-13 headline-datum call): GCD titles collected editions like
                             // single issues, so "…#1 · Collects #1-6" read as confusion, not data.
-                            Row {
+                            Flow {
+                                width: parent.width
                                 spacing: 13; visible: specRep.count > 0
                                 Repeater { id: specRep; model: ledger.specLine(ed.modelData)
                                     delegate: Row { spacing: 13
@@ -308,9 +342,9 @@ Item {
 
                         Column {
                             id: sourceRail
-                            anchors.left: edCover.right; anchors.leftMargin: 20
-                            anchors.right: parent.right; anchors.rightMargin: 8
-                            anchors.top: edCover.bottom; anchors.topMargin: 10
+                            x: ledger.phoneNarrow ? 4 : edCover.x + edCover.width + 20
+                            y: ledger.phoneNarrow ? ed.phoneContentBottom + 12 + 48 + 10 : edCover.y + edCover.height + 10
+                            width: parent.width - x - 8
                             spacing: 4
                             visible: ed.officialSources.length > 0 || ed.communitySources.length > 0
 
@@ -349,14 +383,17 @@ Item {
                         // Unavailable editions stay visible as bibliography with no action glyph.
                         Item {
                             id: edState
+                            objectName: "comicDbEditionState_" + ed.chId
                             anchors.right: parent.right; anchors.rightMargin: 8
-                            anchors.verticalCenter: edCover.verticalCenter
-                            width: 40; height: 40
+                            y: ledger.phoneNarrow ? ed.phoneContentBottom + 12 : edCover.y + (edCover.height - height) / 2
+                            width: ed.inFlight ? 156 : ledger.androidHost ? 48 : 40
+                            height: ledger.androidHost ? 48 : 40
                             Image {                          // read (downloaded)
                                 anchors.centerIn: parent; visible: ed.dlState === "done"
                                 source: "../assets/icons/books.svg"; width: 24; height: 24 }
                             Text {                           // download progress %
-                                anchors.centerIn: parent; visible: ed.inFlight
+                                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                                width: 48; horizontalAlignment: Text.AlignHCenter; visible: ed.inFlight
                                 text: ed.dlTotal > 0 ? Math.round(ed.dlDone / ed.dlTotal * 100) + "%" : "…"
                                 color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
                             Image {                          // verified GetComics download
@@ -380,15 +417,38 @@ Item {
                             onTriggered: ed.primary()
                         }
 
+                        Rectangle {
+                            objectName: "comicDbCancel_" + ed.chId
+                            visible: ed.inFlight
+                            enabled: !ed.cancelPending
+                            x: edState.x + edState.width - width
+                            y: edState.y
+                            width: 100; height: 48; radius: 12
+                            color: cancelAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
+                            border.width: 1; border.color: theme.edge
+                            Text {
+                                anchors.centerIn: parent
+                                text: ed.cancelPending ? "Cancelling…" : "Cancel"
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+                            }
+                            KeyboardAction {
+                                id: cancelAction
+                                anchors.fill: parent
+                                accessibleName: "Cancel download of " + ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
+                                onTriggered: ed.cancel()
+                            }
+                        }
+
                         // ── Find alternate sources: a smaller circular action with its OWN
                         //    MouseArea, declared AFTER edMa so it stacks above it — clicking
                         //    here opens the torrent picker and NEVER the GetComics download. ──
                         Rectangle {
                             id: altBtn
+                            objectName: "comicDbEditionAlternate_" + ed.chId
                             visible: ed.canAlternate
                             anchors.right: edState.left; anchors.rightMargin: 12
-                            anchors.verticalCenter: edCover.verticalCenter
-                            width: 38; height: 38; radius: 19
+                            y: ledger.phoneNarrow ? edState.y : edCover.y + (edCover.height - height) / 2
+                            width: ledger.androidHost ? 48 : 38; height: width; radius: width / 2
                             color: altMa.containsMouse ? Qt.rgba(1,1,1,0.10) : Qt.rgba(1,1,1,0.05)
                             border.width: 1
                             border.color: altMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.45) : theme.edge

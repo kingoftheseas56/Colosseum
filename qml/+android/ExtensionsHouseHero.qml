@@ -33,7 +33,7 @@ Item {
         { name: "LibGen", id: "colosseum.well.libgen", icon: "../../assets/addon-logos/libgen.ico", kind: "source" },
         { name: "AudioBookBay", id: "colosseum.well.audiobookbay", icon: "../../assets/addon-logos/audiobookbay.png", kind: "source" }
     ]
-    readonly property real sourceToggleMinimumTouchTarget: 44
+    readonly property real sourceToggleMinimumTouchTarget: 48
     property int universeIndex: 0
 
     width: parent ? parent.width : 1400
@@ -115,9 +115,9 @@ Item {
     // ---- Search: the Store's add-on search ----
     Rectangle {
         anchors.right: parent.right; anchors.top: parent.top
-        anchors.rightMargin: 26; anchors.topMargin: 20
-        width: searchRow.implicitWidth + 36; height: 34
-        radius: 17
+        anchors.rightMargin: 26; anchors.topMargin: hero.phoneLayout ? 6 : 20
+        width: searchRow.implicitWidth + 36; height: 48
+        radius: 24
         color: Qt.rgba(15 / 255, 16 / 255, 22 / 255, 0.78)
         border.width: 1
         border.color: searchAction.interactionActive ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12)
@@ -136,7 +136,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Search"
                 color: searchAction.interactionActive ? theme.ink : Qt.rgba(1, 1, 1, 0.78)
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
         }
         KeyboardAction {
@@ -202,15 +202,15 @@ Item {
                     }
                     Text {
                         anchors.verticalCenter: parent.verticalCenter
-                        width: Math.max(0, mobileRow.width - 44 - 24 - (mobileRow.hasToggle ? 54 : 0))
+                        width: Math.max(0, mobileRow.width - 44 - 24 - (mobileRow.hasToggle ? 60 : 0))
                         text: mobileRow.modelData.name
                         color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 16; font.weight: Font.Medium
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(16); font.weight: Font.Medium
                         wrapMode: Text.WordWrap
                     }
                     Item {
                         visible: mobileRow.hasToggle
-                        width: visible ? 42 : 0
+                        width: visible ? 48 : 0
                         height: parent.height
                         Rectangle {
                             id: mobileToggle
@@ -218,13 +218,13 @@ Item {
                             readonly property bool checked: mobileRow.installed
                             anchors.centerIn: parent
                             width: 42; height: 28; radius: 14
-                            color: mobileRow.installed ? "#328d67" : "#454953"
+                            color: mobileRow.installed ? theme.gold : "#454953"
                             opacity: hero.isPresent(mobileRow.modelData.id) ? 1 : 0.5
                             Rectangle {
                                 x: mobileRow.installed ? parent.width - width - 4 : 4
                                 anchors.verticalCenter: parent.verticalCenter
                                 width: 20; height: 20; radius: 10
-                                color: "white"
+                                color: mobileRow.installed ? "#0b0d12" : "white"
                             }
                         }
                         KeyboardAction {
@@ -338,7 +338,7 @@ Item {
                                 width: Math.min(implicitWidth, parent.width - 16)
                                 text: tile.modelData.name
                                 color: Qt.rgba(1, 1, 1, 0.86)
-                                font.family: theme.ui; font.pixelSize: 11
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                 elide: Text.ElideRight
                             }
                         }
@@ -357,7 +357,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: tile.installed ? "✓" : "+"
                                 color: "white"
-                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                             }
                             KeyboardAction {
                                 id: toggleAction

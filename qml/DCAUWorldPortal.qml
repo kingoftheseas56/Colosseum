@@ -94,7 +94,7 @@ FocusScope {
             text: root.ordinal
             color: Qt.rgba(247 / 255, 247 / 255, 245 / 255, 0.55)
             font.family: theme.ui
-            font.pixelSize: 9
+            font.pixelSize: theme.fontSize(9)
             font.letterSpacing: 1.62
         }
         Text {
@@ -102,7 +102,7 @@ FocusScope {
             text: root.title
             color: root.selected ? theme.gold : theme.ink
             font.family: theme.display
-            font.pixelSize: 24
+            font.pixelSize: theme.fontSize(24)
             font.weight: Font.DemiBold
             font.letterSpacing: -0.6
             lineHeightMode: Text.FixedHeight

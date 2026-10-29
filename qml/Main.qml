@@ -197,6 +197,8 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
+    // Ephemeral input owner only; Collection/Progress remain the canonical library stores.
+    property var phoneLibrarySelectionOwner: null
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -894,10 +896,12 @@ Window {
         return {
             androidHost: win.androidHost,
             keyboardVisible: win.androidHost && Qt.inputMethod.visible,
+            librarySelectionActive: !!win.phoneLibrarySelectionOwner,
             transitioning: fullscreenTransition.transitioning,
             bootVisible: boot.visible,
             accountHostVisible: accountHost.visible,
             identityCeremonyOpen: identityCeremonyDialog.opened,
+            theatreRemovalOpen: theatreRemoval.shown,
             watchPartyJoinOpen: watchPartyJoinSheet.opened,
             wallpaperActive: wallpaperLayer.active,
             accountFlyoutVisible: accountFlyout.visible,
@@ -1016,6 +1020,10 @@ Window {
     }
     function handleEscape() {
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
+        if (action === "librarySelection") {
+            if (win.phoneLibrarySelectionOwner) win.phoneLibrarySelectionOwner.handleBack()
+            return
+        }
         if (action === "dismissKeyboard") {
             if (typeof PlatformRuntime !== "undefined" && PlatformRuntime)
                 PlatformRuntime.dismissKeyboard()
@@ -1027,6 +1035,7 @@ Window {
         switch (action) {
         case "consume": return
         case "cancelIdentityCeremony": identityCeremonyDialog.cancelRequested(); return
+        case "theatreRemoval": theatreRemoval.closeRequested(); return
         case "watchPartyJoin": watchPartyJoinSheet.close(); return
         case "wallpaper": win.closeWallpaperSearch(); return
         case "accountFlyout": accountFlyout.close(); return
@@ -1064,7 +1073,11 @@ Window {
                     && theatreSeriesLayer.item.requestEscape()) return
             win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
-        case "series": win.closeSeries(); return
+        case "series":
+            if (win.androidHost && seriesLayer.item
+                    && seriesLayer.item.requestEscape
+                    && seriesLayer.item.requestEscape()) return
+            win.closeSeries(); return
         case "onePieceArc": win.closeOnePieceArc(); return
         case "onePieceAtlasTransient": win.requestOnePieceAtlasEscape(); return
         case "universe": win.requestUniverseEscape(); return
@@ -4058,8 +4071,8 @@ Window {
                                 anchors.margins: 44
                                 width: Math.min(620, parent.width - anchors.leftMargin * 2)
                                 spacing: 12
-                                Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3 }
-                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: 48 }
+                                Text { text: "TRIBUTE"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 3 }
+                                Text { text: slide.modelData.name; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(48) }
                                 // (the blurb line went with the baked list — the roster carries
                                 // identity and art, no prose, and a faked one would be a lie)
                                 Row {
@@ -4076,7 +4089,7 @@ Window {
                                         Row {
                                             id: exploreRow; anchors.centerIn: parent; spacing: 10
                                             Text { text: "Explore the tribute"; color: theme.ink
-                                                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                                                 anchors.verticalCenter: parent.verticalCenter }
                                             Text { text: "→"; color: theme.gold; font.pixelSize: 16
                                                 anchors.verticalCenter: parent.verticalCenter
@@ -4142,7 +4155,7 @@ Window {
                         spacing: 7
                         Text { text: win.installedUniverses.length + (win.installedUniverses.length === 1 ? " tribute" : " tributes")
                                color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDim
-                               font.family: theme.display; font.pixelSize: 16
+                               font.family: theme.display; font.pixelSize: theme.fontSize(16)
                                Behavior on color { ColorAnimation { duration: 120 } } }
                         Text { text: "›"
                                color: (hallMa.containsMouse || hallKey.interactionActive) ? theme.gold : theme.inkDimmer
@@ -4357,7 +4370,7 @@ Window {
                     anchors.centerIn: parent
                     visible: Qt.platform.os === "android" && worldLoader.status !== Loader.Ready
                     text: qsTr("Loading %1…").arg(worldLoader.mode)
-                    color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: 14
+                    color: "#9a99a5"; font.family: "Segoe UI"; font.pixelSize: theme.fontSize(14)
                 }
                 // Pass the initial activation state into the component before Component.onCompleted.
                 // This keeps opt-in warmers from running a world's synchronous setup while hidden.
@@ -4767,7 +4780,7 @@ Window {
     Loader {
         id: comicSeriesLayer
         anchors.fill: parent
-        z: 50
+        z: 53     // Comic detail, including Continue routes, opens above the Universe (52).
         active: false
         visible: active
         property string title: ""
@@ -6028,13 +6041,13 @@ Window {
             spacing: 18
             Text {
                 text: localLaunchToast.message
-                color: "#e9e9ec"; font.pixelSize: 14
+                color: "#e9e9ec"; font.pixelSize: theme.fontSize(14)
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 visible: localLaunchToast.showPick
                 text: "Select Media Files…"
-                color: "#ffffff"; font.pixelSize: 14; font.underline: true
+                color: "#ffffff"; font.pixelSize: theme.fontSize(14); font.underline: true
                 anchors.verticalCenter: parent.verticalCenter
                 MouseArea {
                     anchors.fill: parent

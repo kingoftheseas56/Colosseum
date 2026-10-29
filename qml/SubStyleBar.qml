@@ -204,7 +204,7 @@ Item {
                 text: cluster.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
                 font.weight: Font.Bold
             }
             MiniButton { text: "-"; onClicked: cluster.minus() }
@@ -214,7 +214,7 @@ Item {
                 text: cluster.valueText
                 color: theme.ink
                 font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 horizontalAlignment: Text.AlignHCenter
             }
             MiniButton { text: "+"; onClicked: cluster.plus() }
@@ -238,7 +238,7 @@ Item {
                 text: cluster.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
                 font.weight: Font.Bold
             }
             Text {
@@ -246,7 +246,7 @@ Item {
                 text: cluster.valueText
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 font.weight: Font.DemiBold
             }
         }
@@ -287,7 +287,7 @@ Item {
                 text: swatches.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
                 font.weight: Font.Bold
             }
             Repeater {
@@ -326,7 +326,7 @@ Item {
             text: button.text
             color: theme.ink
             font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
             font.weight: Font.Bold
         }
         MouseArea {

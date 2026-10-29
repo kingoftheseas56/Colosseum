@@ -37,13 +37,13 @@ Rectangle {
         Text {
             text: lib.saved ? "✓" : "+"
             color: lib.saved ? theme.gold : theme.ink
-            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             text: lib.saved ? "In Library" : "Library"
             color: theme.ink
-            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
             anchors.verticalCenter: parent.verticalCenter
         }
     }

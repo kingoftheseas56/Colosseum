@@ -606,13 +606,13 @@ Item {
 
                     Text {
                         text: "Manga · Tankoban"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                         font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                     }
                     Text {
                         width: parent.width
                         text: page.seriesTitle
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 64
+                        color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(64)
                         font.weight: Font.DemiBold
                         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                         style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
@@ -621,26 +621,26 @@ Item {
                     Row {
                         spacing: 11
                         Text { visible: page.author.length; text: page.author
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.author.length && (page.status.length || page.year)
                             text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.status.length; text: page.status
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14); anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.status.length && page.year
                             text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.year > 0; text: page.year
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14); anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.score > 0
                             text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.score > 0; text: "★ " + page.score
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                             anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.genres.length > 0
                             text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
                         Text { visible: page.genres.length > 0
                             text: page.genres.slice(0, 3).join(" · ")
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14); anchors.verticalCenter: parent.verticalCenter }
                     }
                     // Primary CTA — Read. Theatre names the exact episode its button will
                     // play ("Watch S1 · E3"); the same promise here names the volume, so the
@@ -654,7 +654,7 @@ Item {
                                 id: readRow; anchors.centerIn: parent; spacing: 9
                                 PlayerIcon { kind: "play"; ink: "#1a1306"; width: 16; height: 16; iconSize: 14
                                     anchors.verticalCenter: parent.verticalCenter }
-                                Text { text: page.readCtaLabel; color: "#1a1306"; font.family: theme.ui; font.pixelSize: 14
+                                Text { text: page.readCtaLabel; color: "#1a1306"; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                                     font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                             }
                             MouseArea { anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -678,7 +678,7 @@ Item {
                     visible: page.synopsis.length > 0
                     width: 580
                     text: page.synopsis
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                     lineHeight: 1.5; wrapMode: Text.WordWrap
                     topPadding: 22; bottomPadding: 6
                 }
@@ -693,9 +693,9 @@ Item {
                             required property var modelData
                             spacing: 18
                             Text { text: factRow.modelData.k; color: theme.inkDim; width: 104
-                                   font.family: theme.ui; font.pixelSize: 13 }
+                                   font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                             Text { text: factRow.modelData.v; color: theme.ink
-                                   font.family: theme.ui; font.pixelSize: 13 }
+                                   font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                         }
                     }
                 }
@@ -713,7 +713,7 @@ Item {
                     spacing: 14
                     Text {
                         text: "Volumes"
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 22
+                        color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22)
                         font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -739,13 +739,13 @@ Item {
                             }
                             Text {
                                 text: tankLib.inFlightIds.length; color: theme.gold
-                                font.family: theme.display; font.pixelSize: 14
+                                font.family: theme.display; font.pixelSize: theme.fontSize(14)
                                 font.weight: Font.DemiBold
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Text {
                                 text: "downloading"; color: theme.gold
-                                font.family: theme.ui; font.pixelSize: 11
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
@@ -758,7 +758,7 @@ Item {
                             return owned > 0 ? (n + " books · " + owned + " on this device")
                                              : (n + " books")
                         }
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -830,10 +830,10 @@ Item {
                                     // tail past the last volume; otherwise it is the whole run
                                     text: page.tankobanMode ? "Latest chapters" : "Chapters"
                                     color: theme.ink
-                                    font.family: theme.display; font.pixelSize: 19; font.weight: Font.DemiBold
+                                    font.family: theme.display; font.pixelSize: theme.fontSize(19); font.weight: Font.DemiBold
                                     anchors.verticalCenter: parent.verticalCenter }
                                 Text { text: page.visibleChapters.length + " chapters"; color: theme.inkDim
-                                    font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter }
                                 // per-volume download — lives with the volume it acts on (DL wired in a later layer)
                                 Rectangle {
                                     anchors.verticalCenter: parent.verticalCenter
@@ -849,7 +849,7 @@ Item {
                                             // the loose tail, or (flat state) the whole run
                                             text: page.tankobanMode ? "Download latest" : "Download all"
                                             color: theme.inkDim; font.family: theme.ui
-                                            font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                                            font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter }
                                     }
                                     MouseArea { id: dlVolMa; anchors.fill: parent; hoverEnabled: true
                                         cursorShape: Qt.PointingHandCursor
@@ -957,7 +957,7 @@ Item {
                                         border.color: row.dlState === "done" ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
                                         Text { anchors.centerIn: parent; visible: thumbImg.status !== Image.Ready
                                             text: row.modelData.number || "?"; color: theme.inkDimmer
-                                            font.family: theme.display; font.pixelSize: 30 }
+                                            font.family: theme.display; font.pixelSize: theme.fontSize(30) }
                                     }
                                     Image { id: thumbImg; anchors.fill: parent; anchors.margins: 1
                                         source: row.thumbUrl; visible: status === Image.Ready
@@ -972,11 +972,11 @@ Item {
                                     anchors.verticalCenter: parent.verticalCenter; spacing: 4
                                     Text { width: parent.width; text: row.chLabel()
                                         color: rowMa.containsMouse ? theme.gold : theme.ink
-                                        font.family: theme.ui; font.pixelSize: 17; elide: Text.ElideRight }
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(17); elide: Text.ElideRight }
                                     Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
                                         color: row.dlState === "done" ? theme.gold
                                              : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
-                                        font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight }
                                 }
 
                                 // trailing control: ✓→✕ delete (done) · ✕ cancel (in-flight) · ↓/↻ download/retry
@@ -995,7 +995,7 @@ Item {
                                         color: (row.dlState === "done" && trMa.containsMouse) ? "#e6a3a3"
                                              : row.dlState === "done" ? theme.gold
                                              : trMa.containsMouse ? theme.gold : theme.inkDim
-                                        font.pixelSize: 16
+                                        font.pixelSize: theme.fontSize(16)
                                         font.weight: (row.dlState === "done" && !trMa.containsMouse) ? Font.Bold : Font.Normal
                                     }
                                     MouseArea {
@@ -1030,7 +1030,7 @@ Item {
                 wrapMode: Text.WordWrap
                 text: page.errorText
                 color: page.volumes.length ? theme.inkDimmer : "#e6a3a3"
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 topPadding: 18
             }
 
@@ -1090,14 +1090,14 @@ Item {
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.seriesTitle
-            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(34)
             wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
         }
         Text {
             width: parent.width; horizontalAlignment: Text.AlignHCenter
             text: page.errorText.length ? page.errorText : "Loading…"
             color: page.errorMsg.length ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
 
