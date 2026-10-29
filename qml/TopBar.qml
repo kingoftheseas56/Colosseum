@@ -60,6 +60,7 @@ Item {
     signal stremioClicked()
     signal settingsClicked()
     signal wallpaperClicked()
+    signal dlnaClicked(real anchorRight, real anchorBottom)
     signal accountClicked(real anchorRight, real anchorBottom)
     signal fullscreenClicked()
     signal minimizeClicked()
@@ -92,6 +93,14 @@ Item {
         if (trackersButton.visible)
             trackersInput.forceActiveFocus(Qt.TabFocusReason)
     }
+
+    // DLNA sharing door ("Share on your Wi-Fi"). `dlnaSharing` is a context property that
+    // only exists when the native feature is compiled in, so every read is guarded.
+    readonly property var dlnaState: typeof dlnaSharing !== "undefined" ? dlnaSharing : null
+    readonly property bool dlnaAvailable: !!bar.dlnaState
+    readonly property bool dlnaRunning: bar.dlnaAvailable && bar.dlnaState.running === true
+    readonly property bool dlnaVisible: bar.dlnaAvailable && bar.lifecycleActive
+        && (bar.activeMedium === "" || bar.dlnaRunning)
 
     // Update availability flags (home only): drive the silver badge on the home
     // Update glyph the same way the taskbar badge pulses on updateUnseen. Bound
@@ -139,6 +148,7 @@ Item {
         property url source
         property string accessibleName: ""
         property bool showLabel: false
+        property bool lit: false      // full-strength (e.g. a running state), regardless of hover
         signal clicked()
         width: showLabel ? 82 : 22; height: 22
         Image {
@@ -148,7 +158,7 @@ Item {
             source: sysRoot.source
             sourceSize.width: 22; sourceSize.height: 22
             fillMode: Image.PreserveAspectFit
-            opacity: input.interactionActive ? 1.0 : 0.72
+            opacity: (sysRoot.lit || input.interactionActive) ? 1.0 : 0.72
         }
         Text {
             visible: sysRoot.showLabel
@@ -508,6 +518,24 @@ Item {
                     const anchor = accountButton.mapToItem(null, accountButton.width, accountButton.height)
                     bar.accountClicked(anchor.x, anchor.y)
                 }
+            }
+        }
+        // Share on your Wi-Fi (DLNA). Home always; inside worlds only while sharing runs, so
+        // the gold glyph tells you the library is still visible to TVs. Gold = running.
+        SysIcon {
+            id: dlnaButton
+            // Retained worlds each own a TopBar; only the live copy carries the bare name.
+            objectName: !bar.lifecycleActive ? ""
+                        : bar.activeMedium === "" ? "topBarDlnaButton"
+                        : "topBarDlnaButton_" + bar.activeMedium
+            visible: bar.dlnaVisible
+            lit: bar.dlnaRunning
+            source: bar.dlnaRunning ? "../assets/icons/access-point-gold.svg"
+                                    : "../assets/icons/access-point.svg"
+            accessibleName: "Share on your Wi-Fi"
+            onClicked: {
+                const anchor = dlnaButton.mapToItem(null, dlnaButton.width, dlnaButton.height)
+                bar.dlnaClicked(anchor.x, anchor.y)
             }
         }
         // Automation identity (Lanista): the wallpaper control is a production shell

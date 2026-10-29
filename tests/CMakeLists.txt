@@ -851,6 +851,42 @@ set_tests_properties(colosseum.qttest.vault_index PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+# ── DLNA library projection (Arc 71, 2026-10-29) ─────────────────────────────
+# DlnaLibrary — builds the immutable DlnaSnapshot (container tree, opaque stable ids,
+# fail-closed eligibility, physical dedupe, systemUpdateId, debounce) from a real
+# VaultIndex + VaultConfig in a temp dir and a QObject audiobook fake. Qt6::Sql; same
+# qsqlite deploy trap as tst_vault_index (run it with the Qt plugin path set when the exe
+# is not beside an app-deployed sqldrivers/). GUILESS; no network.
+add_executable(tst_dlna_library
+    auto/dlna/tst_dlna_library.cpp
+    "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaLibrary.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaLibrary.h"
+    "${COLOSSEUM_NATIVE_DIR}/dlna/DlnaSnapshot.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultConfig.h"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.h")
+target_include_directories(tst_dlna_library PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_dlna_library PRIVATE Qt6::Core Qt6::Sql Qt6::Concurrent Qt6::Test)
+set_target_properties(tst_dlna_library PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_dlna_library POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Test>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_custom_command(TARGET tst_dlna_library POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+            "$<TARGET_FILE:Qt6::Sql>"
+            "${CMAKE_CURRENT_BINARY_DIR}/..")
+add_test(NAME colosseum.qttest.dlna_library
+         COMMAND tst_dlna_library)
+set_tests_properties(colosseum.qttest.dlna_library PROPERTIES
+    LABELS "unit;qttest;dlna"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 120)
+
 # ── Tankoban catalogue (catalogue-independence Slice 1, 2026-08-20) ──────────
 # TankobanCatalog — the baked, provider-free volume-count/cover store: series
 # count/count_basis round-trip, "1".."N" number synthesis from a known count,
