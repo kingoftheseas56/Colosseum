@@ -32,6 +32,10 @@ const char* const kCdType = "urn:schemas-upnp-org:service:ContentDirectory:1";
 const char* const kCdId = "urn:upnp-org:serviceId:ContentDirectory";
 const char* const kCmType = "urn:schemas-upnp-org:service:ConnectionManager:1";
 const char* const kCmId = "urn:upnp-org:serviceId:ConnectionManager";
+// Microsoft's registrar: Xbox 360 and Windows Media Player-family clients look for it before
+// they will browse; Kodi (via Platinum's MediaConnect) answers it with constants.
+const char* const kRgType = "urn:microsoft.com:service:X_MS_MediaReceiverRegistrar:1";
+const char* const kRgId = "urn:microsoft.com:serviceId:X_MS_MediaReceiverRegistrar";
 
 // ContentDirectory:1 SCPD — exactly the actions implemented, with the standard evented
 // state variables (ContainerUpdateIDs/TransferIDs included so the GENA contract is honest).
@@ -141,6 +145,43 @@ const char* const kCmScpd =
     "  </serviceStateTable>\n"
     "</scpd>\n";
 
+// X_MS_MediaReceiverRegistrar:1 SCPD (the three actions and the four evented counters).
+const char* const kRgScpd =
+    "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+    "<scpd xmlns=\"urn:schemas-upnp-org:service-1-0\">\n"
+    "  <specVersion><major>1</major><minor>0</minor></specVersion>\n"
+    "  <actionList>\n"
+    "    <action><name>IsAuthorized</name>\n"
+    "      <argumentList>\n"
+    "        <argument><name>DeviceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_DeviceID</relatedStateVariable></argument>\n"
+    "        <argument><name>Result</name><direction>out</direction><relatedStateVariable>A_ARG_TYPE_Result</relatedStateVariable></argument>\n"
+    "      </argumentList>\n"
+    "    </action>\n"
+    "    <action><name>RegisterDevice</name>\n"
+    "      <argumentList>\n"
+    "        <argument><name>RegistrationReqMsg</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_RegistrationReqMsg</relatedStateVariable></argument>\n"
+    "        <argument><name>RegistrationRespMsg</name><direction>out</direction><relatedStateVariable>A_ARG_TYPE_RegistrationRespMsg</relatedStateVariable></argument>\n"
+    "      </argumentList>\n"
+    "    </action>\n"
+    "    <action><name>IsValidated</name>\n"
+    "      <argumentList>\n"
+    "        <argument><name>DeviceID</name><direction>in</direction><relatedStateVariable>A_ARG_TYPE_DeviceID</relatedStateVariable></argument>\n"
+    "        <argument><name>Result</name><direction>out</direction><relatedStateVariable>A_ARG_TYPE_Result</relatedStateVariable></argument>\n"
+    "      </argumentList>\n"
+    "    </action>\n"
+    "  </actionList>\n"
+    "  <serviceStateTable>\n"
+    "    <stateVariable sendEvents=\"no\"><name>A_ARG_TYPE_DeviceID</name><dataType>string</dataType></stateVariable>\n"
+    "    <stateVariable sendEvents=\"no\"><name>A_ARG_TYPE_RegistrationReqMsg</name><dataType>bin.base64</dataType></stateVariable>\n"
+    "    <stateVariable sendEvents=\"no\"><name>A_ARG_TYPE_RegistrationRespMsg</name><dataType>bin.base64</dataType></stateVariable>\n"
+    "    <stateVariable sendEvents=\"no\"><name>A_ARG_TYPE_Result</name><dataType>int</dataType></stateVariable>\n"
+    "    <stateVariable sendEvents=\"yes\"><name>AuthorizationGrantedUpdateID</name><dataType>ui4</dataType></stateVariable>\n"
+    "    <stateVariable sendEvents=\"yes\"><name>AuthorizationDeniedUpdateID</name><dataType>ui4</dataType></stateVariable>\n"
+    "    <stateVariable sendEvents=\"yes\"><name>ValidationSucceededUpdateID</name><dataType>ui4</dataType></stateVariable>\n"
+    "    <stateVariable sendEvents=\"yes\"><name>ValidationRevokedUpdateID</name><dataType>ui4</dataType></stateVariable>\n"
+    "  </serviceStateTable>\n"
+    "</scpd>\n";
+
 // Pull <name>value</name> out of an action request document (the spike's proven walker).
 std::string actionArg(IXML_Document* doc, const char* name)
 {
@@ -215,6 +256,7 @@ DlnaServer::DlnaServer(QObject* parent) : QObject(parent)
     m_core->modelNumber = QString::fromLatin1(COLOSSEUM_VERSION);
     m_core->cdScpd = QByteArray(kCdScpd);
     m_core->cmScpd = QByteArray(kCmScpd);
+    m_core->mrrScpd = QByteArray(kRgScpd);
     loadIconAndScpdBytes();
     m_ownSettings = std::make_unique<QSettings>();
     m_settings = m_ownSettings.get();
@@ -638,12 +680,14 @@ QByteArray DlnaServer::buildDescription(const DlnaServerCore& core)
 {
     // Kodi-like identity: MediaServer:1 with DMS-1.50 X_DLNADOC, dlna namespace on the root,
     // PNG icons from the vdir, no presentationURL. Relative service URLs — pupnp rewrites the
-    // URLBase from the bound address (BUF_DESC + config_baseURL=1).
+    // URLBase from the bound address (BUF_DESC + config_baseURL=1). specVersion 1.0 like Kodi:
+    // pupnp emits URLBase and no BOOTID/CONFIGID headers, which a 1.1 description would
+    // promise. Icon depth 24 is the DLNA device-icon table's value.
     static const char* tmpl =
         "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
         "<root xmlns=\"urn:schemas-upnp-org:device-1-0\" "
         "xmlns:dlna=\"urn:schemas-dlna-org:device-1-0\">\n"
-        "  <specVersion><major>1</major><minor>1</minor></specVersion>\n"
+        "  <specVersion><major>1</major><minor>0</minor></specVersion>\n"
         "  <device>\n"
         "    <deviceType>urn:schemas-upnp-org:device:MediaServer:1</deviceType>\n"
         "    <friendlyName>%1</friendlyName>\n"
@@ -656,9 +700,9 @@ QByteArray DlnaServer::buildDescription(const DlnaServerCore& core)
         "    <dlna:X_DLNADOC>DMS-1.50</dlna:X_DLNADOC>\n"
         "    <iconList>\n"
         "      <icon><mimetype>image/png</mimetype><width>48</width><height>48</height>"
-        "<depth>32</depth><url>/icons/colosseum-48.png</url></icon>\n"
+        "<depth>24</depth><url>/icons/colosseum-48.png</url></icon>\n"
         "      <icon><mimetype>image/png</mimetype><width>120</width><height>120</height>"
-        "<depth>32</depth><url>/icons/colosseum-120.png</url></icon>\n"
+        "<depth>24</depth><url>/icons/colosseum-120.png</url></icon>\n"
         "    </iconList>\n"
         "    <serviceList>\n"
         "      <service>\n"
@@ -675,13 +719,21 @@ QByteArray DlnaServer::buildDescription(const DlnaServerCore& core)
         "        <controlURL>/control/cm</controlURL>\n"
         "        <eventSubURL>/event/cm</eventSubURL>\n"
         "      </service>\n"
+        "      <service>\n"
+        "        <serviceType>%8</serviceType>\n"
+        "        <serviceId>%9</serviceId>\n"
+        "        <SCPDURL>/scpd/mrr.xml</SCPDURL>\n"
+        "        <controlURL>/control/mrr</controlURL>\n"
+        "        <eventSubURL>/event/mrr</eventSubURL>\n"
+        "      </service>\n"
         "    </serviceList>\n"
         "  </device>\n"
         "</root>\n";
     return QString(tmpl)
         .arg(xmlEscape(core.friendlyName), xmlEscape(core.modelNumber),
              QString::fromLatin1(core.udn), QLatin1String(kCdType), QLatin1String(kCdId),
-             QLatin1String(kCmType), QLatin1String(kCmId))
+             QLatin1String(kCmType), QLatin1String(kCmId), QLatin1String(kRgType),
+             QLatin1String(kRgId))
         .toUtf8();
 }
 
@@ -842,6 +894,24 @@ void handleAction(DlnaServerCore* core, UpnpActionRequest* ar)
         return;
     }
 
+    if (strcmp(service, kRgId) == 0) {
+        // Kodi's constants: every device is authorized and validated; registration is empty.
+        if (strcmp(action, "IsAuthorized") == 0 || strcmp(action, "IsValidated") == 0) {
+            IXML_Document* resp = nullptr;
+            UpnpAddToActionResponse(&resp, action, kRgType, "Result", "1");
+            UpnpActionRequest_set_ActionResult(ar, resp);
+            UpnpActionRequest_set_ErrCode(ar, UPNP_E_SUCCESS);
+        } else if (strcmp(action, "RegisterDevice") == 0) {
+            IXML_Document* resp = nullptr;
+            UpnpAddToActionResponse(&resp, "RegisterDevice", kRgType, "RegistrationRespMsg", "");
+            UpnpActionRequest_set_ActionResult(ar, resp);
+            UpnpActionRequest_set_ErrCode(ar, UPNP_E_SUCCESS);
+        } else {
+            actionError(ar, 401, "Invalid Action");
+        }
+        return;
+    }
+
     actionError(ar, 401, "Invalid Action");
 }
 
@@ -864,6 +934,11 @@ void handleGetVar(DlnaServerCore* core, UpnpStateVarRequest* sv)
     else if (strcmp(var, "SinkProtocolInfo") == 0)
         value = "";
     else if (strcmp(var, "CurrentConnectionIDs") == 0)
+        value = "0";
+    else if (strcmp(var, "AuthorizationGrantedUpdateID") == 0
+             || strcmp(var, "AuthorizationDeniedUpdateID") == 0
+             || strcmp(var, "ValidationSucceededUpdateID") == 0
+             || strcmp(var, "ValidationRevokedUpdateID") == 0)
         value = "0";
     else {
         UpnpStateVarRequest_set_ErrCode(sv, 404);
@@ -896,6 +971,12 @@ void handleSubscribe(DlnaServerCore* core, UpnpSubscriptionRequest* sr)
                                 "CurrentConnectionIDs"};
         const char* values[3] = {source.constData(), "", "0"};
         UpnpAcceptSubscription(core->deviceHandle.load(), udn, serviceId, names, values, 3,
+                               sid);
+    } else if (strcmp(serviceId, kRgId) == 0) {
+        const char* names[4] = {"AuthorizationGrantedUpdateID", "AuthorizationDeniedUpdateID",
+                                "ValidationSucceededUpdateID", "ValidationRevokedUpdateID"};
+        const char* values[4] = {"0", "0", "0", "0"};
+        UpnpAcceptSubscription(core->deviceHandle.load(), udn, serviceId, names, values, 4,
                                sid);
     }
 }

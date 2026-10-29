@@ -187,6 +187,22 @@ struct MediaFile {
     uint64_t epoch = 0;
 };
 
+// The icons and SCPDs served straight from memory; null for anything else.
+const QByteArray* memoryEntry(const DlnaServerCore* core, const QString& path)
+{
+    if (path == QLatin1String("/icons/colosseum-48.png"))
+        return &core->icon48;
+    if (path == QLatin1String("/icons/colosseum-120.png"))
+        return &core->icon120;
+    if (path == QLatin1String("/scpd/cd.xml"))
+        return &core->cdScpd;
+    if (path == QLatin1String("/scpd/cm.xml"))
+        return &core->cmScpd;
+    if (path == QLatin1String("/scpd/mrr.xml"))
+        return &core->mrrScpd;
+    return nullptr;
+}
+
 int vdir_get_info(const char* filename, UpnpFileInfo* info, const void* cookie,
                   const void** requestCookie)
 {
@@ -195,23 +211,16 @@ int vdir_get_info(const char* filename, UpnpFileInfo* info, const void* cookie,
     if (!core->serving.load())
         return -1;
     const QString path = stripQuery(filename);
-    const QByteArray* memory = nullptr;
-    if (path == QLatin1String("/icons/colosseum-48.png")) {
-        memory = &core->icon48;
-    } else if (path == QLatin1String("/icons/colosseum-120.png")) {
-        memory = &core->icon120;
-    } else if (path == QLatin1String("/scpd/cd.xml")) {
-        memory = &core->cdScpd;
-    } else if (path == QLatin1String("/scpd/cm.xml")) {
-        memory = &core->cmScpd;
-    }
+    const QByteArray* memory = memoryEntry(core, path);
     if (memory) {
         UpnpFileInfo_set_FileLength(info, static_cast<int64_t>(memory->size()));
         UpnpFileInfo_set_LastModified(info, 0);
         UpnpFileInfo_set_IsDirectory(info, 0);
         UpnpFileInfo_set_IsReadable(info, 1);
-        UpnpFileInfo_set_ContentType(
-            info, path.startsWith(QLatin1String("/icons")) ? "image/png" : "text/xml");
+        UpnpFileInfo_set_ContentType(info,
+                                     path.startsWith(QLatin1String("/icons"))
+                                         ? "image/png"
+                                         : "text/xml; charset=\"utf-8\"");
         return 0;
     }
 
@@ -267,15 +276,7 @@ UpnpWebFileHandle vdir_open(const char* filename, enum UpnpOpenFileMode mode, co
         return nullptr;
     const QString path = stripQuery(filename);
 
-    const QByteArray* memory = nullptr;
-    if (path == QLatin1String("/icons/colosseum-48.png"))
-        memory = &core->icon48;
-    else if (path == QLatin1String("/icons/colosseum-120.png"))
-        memory = &core->icon120;
-    else if (path == QLatin1String("/scpd/cd.xml"))
-        memory = &core->cdScpd;
-    else if (path == QLatin1String("/scpd/cm.xml"))
-        memory = &core->cmScpd;
+    const QByteArray* memory = memoryEntry(core, path);
     if (memory) {
         auto* mf = new MediaFile;
         mf->mem = *memory;
