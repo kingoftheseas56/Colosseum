@@ -47,7 +47,7 @@ These five worlds share Home, Continue, Collection, Downloads, settings, and ope
 > [!IMPORTANT]
 > **Colosseum 1.1.10 is the current published release**, with installers for Windows 10/11 and Linux amd64. [Download 1.1.10](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10).
 >
-> Upgrading to 1.1.10 currently requires a **manual installation**. The full automatic signed-update chain has not yet been qualified end to end. Use the published release assets and checksums.
+> **Updates:** On Windows, Colosseum 1.1.9 has an in-app updater and the live first-party signed feed currently offers 1.1.10. The 1.1.9 → 1.1.10 installer upgrade passed Windows smoke testing, but the complete in-app check, download, and restart journey has not been separately verified. Manual installation remains a fallback. **Linux updates are manual.**
 
 ## What's new in 1.1.10
 
@@ -199,7 +199,7 @@ See [SECURITY.md](SECURITY.md) to report a vulnerability.
 
 Download [`Colosseum-1.1.10-setup.exe`](https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.10/Colosseum-1.1.10-setup.exe) from the [v1.1.10 release](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10). Close Colosseum and run the installer. Windows 10/11 installation is per-user and does not require administrator access.
 
-**Upgrading to 1.1.10 is manual.** Versions 1.1.5 and earlier also require a manual install because the 1.1.6 update-signing trust root changed. Colosseum uses a first-party update feed with signed update validation, but full end-to-end automatic-update qualification is still outstanding. Do not rely on automatic updating for this upgrade.
+**Windows updates:** Colosseum 1.1.9 can check the first-party signed update feed for 1.1.10. A real 1.1.9 → 1.1.10 installer upgrade passed a clean Windows smoke test, including preservation of test-profile state; the complete app-initiated update journey has not yet been independently verified. If the in-app update is unavailable or fails, close Colosseum and install 1.1.10 manually. Versions 1.1.5 and earlier require manual installation because the signing trust root changed in 1.1.6.
 
 The release includes `SHA256SUMS`, an update manifest, and its production Ed25519 signature.
 
@@ -241,7 +241,7 @@ The repository includes Lanista UI journeys and the Night Watch/Guardian verific
 ## Known boundaries
 
 - Issues reported in 1.1.9 included comics loading speed/alignment and unexpected Vault visibility during One Piece tribute navigation. Their status in 1.1.10 has not been re-qualified.
-- Linux updates are currently manual, and the full automatic signed-update flow has not been qualified end to end.
+- Linux updates are manual. Windows has a live signed update feed, but its complete in-app update journey has not yet been independently verified.
 - Home does not have one cross-world search yet. Search is per world.
 - After dismissing the Tankoban volume sources picker, volume cards can remain unresponsive for a few seconds before recovering.
 - Tankoban and Biblio can use compatible extension catalogues for discovery, but their native acquisition paths are not generic Stremio stream consumers. Theatre handles generic torrent and direct-stream playback from compatible add-ons.
