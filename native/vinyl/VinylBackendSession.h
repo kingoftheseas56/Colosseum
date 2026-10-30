@@ -24,6 +24,12 @@ class VinylBackendSession : public QObject {
     Q_OBJECT
     Q_PROPERTY(QObject *source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(QObject *surface READ surface WRITE setSurface NOTIFY surfaceChanged)
+    Q_PROPERTY(QObject *videoSurface READ videoSurface WRITE setVideoSurface NOTIFY videoSurfaceChanged)
+    Q_PROPERTY(bool hasVideo READ hasVideo NOTIFY stateChanged)
+    Q_PROPERTY(bool videoActive READ videoActive NOTIFY stateChanged)
+    Q_PROPERTY(bool videoBusy READ videoBusy NOTIFY stateChanged)
+    Q_PROPERTY(bool videoSwitchCancellable READ videoSwitchCancellable NOTIFY stateChanged)
+    Q_PROPERTY(QString videoError READ videoError NOTIFY stateChanged)
     Q_PROPERTY(QObject *collectionStore READ collectionStore WRITE setCollectionStore NOTIFY collectionStoreChanged)
     Q_PROPERTY(QObject *preferences MEMBER m_preferences)
     Q_PROPERTY(QString profileScope READ profileScope WRITE setProfileScope NOTIFY profileScopeChanged)
@@ -44,12 +50,21 @@ class VinylBackendSession : public QObject {
     Q_PROPERTY(QString repeatMode READ repeatMode NOTIFY stateChanged)
     Q_PROPERTY(QString playbackEndingReason READ playbackEndingReason NOTIFY stateChanged)
     Q_PROPERTY(QString listeningOrigin READ listeningOrigin NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap lyricsContext READ lyricsContext NOTIFY queueChanged)
+    Q_PROPERTY(QVariant recordingTimeOffsetMs READ recordingTimeOffsetMs NOTIFY stateChanged)
 public:
     explicit VinylBackendSession(QObject *parent=nullptr);
     ~VinylBackendSession() override;
     QObject *source() const { return m_source; }
     void setSource(QObject *source);
     QObject *surface() const { return m_surface; }
+    QObject *videoSurface() const { return m_videoSurface; }
+    void setVideoSurface(QObject *surface);
+    bool hasVideo() const { return !m_videoCandidate.isEmpty(); }
+    bool videoActive() const { return m_videoActive; }
+    bool videoBusy() const { return m_videoBusy; }
+    bool videoSwitchCancellable() const;
+    QString videoError() const { return m_videoError; }
     QObject *collectionStore() const { return m_collection; }
     void setCollectionStore(QObject *store) { if(m_collection==store)return;m_collection=store;emit collectionStoreChanged(); }
     void setSurface(QObject *surface) { if(m_surface==surface)return;m_surface=surface;emit surfaceChanged(); }
@@ -73,6 +88,8 @@ public:
     QString playbackEndingReason() const {return m_endingReason;}
     QString listeningOrigin() const {return m_listeningOrigin;}
     Q_INVOKABLE QVariantMap listeningIdentity() const;
+    QVariantMap lyricsContext() const;
+    QVariant recordingTimeOffsetMs() const;
 
     Q_INVOKABLE bool replaceRows(const QVariantList &rows,int index,bool shuffle);
     Q_INVOKABLE bool appendRows(const QVariantList &rows,bool playNext);
@@ -86,6 +103,7 @@ public:
     Q_INVOKABLE void next(int delta);
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void retry();
+    Q_INVOKABLE void toggleVideo();
     Q_INVOKABLE void suspend();
     Q_INVOKABLE void clearProfile();
     Q_INVOKABLE void shutdown();
@@ -111,6 +129,7 @@ signals:
     void queueChanged();
     void sourceChanged();
     void surfaceChanged();
+    void videoSurfaceChanged();
     void collectionStoreChanged();
     void profileScopeChanged();
     void playbackRequested();
@@ -130,6 +149,13 @@ private:
     bool tryFallback(const QString &reason,std::optional<double> resume=std::nullopt);
     void retirePlayer();
     void cancelResolution();
+    void resetVideo();
+    void discoverVideo();
+    int requestSource(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options={});
+    void videoCompleted(const QString &lane,int request,const QVariantMap &data,const QString &error);
+    void resolveVideoMode(bool video);
+    bool commitVideoMode(bool video,const QVariantMap &resource);
+    void attachVideoSurface();
     void fail(const QString &message);
     void naturalEnd(const vinyl::PlaybackWorkToken &token);
     void dispatchSeek(const vinyl::PlaybackSeekCommand &command);
@@ -143,6 +169,14 @@ private:
     void publishState();
     void endPlayback(const QString &reason);
     QPointer<QObject> m_source,m_surface;
+    QPointer<QObject> m_videoSurface;
+    QVariantMap m_videoCandidate,m_audioResource;
+    QString m_videoError,m_videoAudioUrl,m_videoOccurrence;
+    bool m_videoActive=false,m_videoBusy=false,m_targetVideo=false,m_resumeListeningFacts=false;
+    int m_videoMatchRequest=-1,m_videoRequest=-1;
+    int m_playerVolume=100;
+    bool m_playerMute=false;
+    double m_playerSpeed=1;
     QPointer<QObject> m_collection,m_preferences;
     QPointer<MpvItem> m_player;
     QString m_profile,m_repeat="off",m_state="idle",m_error,m_quality="Local audio";

@@ -30,18 +30,31 @@ Item {
         if(!isCurrent || !timedLyrics) return -1;
         var found=-1;for(var i=0;i<lyrics.length;i++) if(Number(lyrics[i].time!==undefined ? lyrics[i].time : lyrics[i].seconds)<=session.position) found=i;return found;
     }
-    property bool lyricsShown: false
-    property bool autoNotes: false
+    readonly property string readingContextKey: JSON.stringify([album.id,playingEditionId,rawTrack.id,trackIndex])
+    readonly property string lyricsDocumentId: rawTrack.lyricsDocumentId || ""
+    VinylReadingState { id:reading;songKey:root.readingContextKey;documentId:root.lyricsDocumentId }
+    property alias lyricsShown: reading.lyricsShown
+    property alias autoNotes: reading.autoNotes
+    property alias lyricsFollowing: reading.lyricsFollowing
+    property alias lyricsScrollY: reading.lyricsScrollY
+    property alias notesScrollY: reading.notesScrollY
     property bool videoShown: false
-    property int manualNoteLine: -1
-    readonly property int activeNoteLine: manualNoteLine>=0 ? manualNoteLine : autoNotes && hasNotes ? Math.max(0,currentLineIndex) : -1
+    property alias manualNoteLine: reading.manualNoteLine
+    readonly property int activeNoteLine: manualNoteLine>=0 ? notes[manualNoteLine] ? manualNoteLine : -1
+        : autoNotes && hasNotes ? Math.max(0,currentLineIndex) : -1
     function artwork(url){return url || "";}
     function play(){session.playAlbum(album,trackIndex,playingEditionId);}
     function enqueuePlayingSong(playNext){return session.enqueueSong(album,trackIndex,playingEditionId,!!playNext);}
     function togglePlayingSongSaved(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.toggleSongSaved==="function")return session.toggleSongSaved(personalRow);return false;}
     function addPlayingSongToPlaylist(){if(personalEnabled && personalRow!==null && personalRow!==undefined && typeof session.addRowsToPlaylist==="function")return session.addRowsToPlaylist([personalRow]);return false;}
     function seekToLine(index){if(isCurrent && timedLyrics && lyrics[index]) session.seek(Number(lyrics[index].time!==undefined ? lyrics[index].time : lyrics[index].seconds));}
-    function showNotes(index){manualNoteLine=index;}
+    function toggleLyrics(){reading.toggleLyrics(hasLyrics);}
+    function toggleNotes(){reading.toggleNotes(hasNotes);}
+    function pauseLyrics(y){reading.pauseLyrics(y);}
+    function resumeLyrics(){reading.resumeLyrics();}
+    function toggleVideo(){}
+    function showNotes(index){if(notes[index])reading.showNotes(index);}
+    function selectNoteLine(index){if(Number.isInteger(index) && index>=0 && index<lyrics.length)reading.showNotes(index);}
     function noteWindow(index){return 12;}
-    onRawTrackChanged:{manualNoteLine=-1;lyricsShown=false;}
+    onReadingContextKeyChanged:lyricsShown=false
 }

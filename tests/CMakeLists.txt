@@ -1760,6 +1760,11 @@ foreach(vinyl_suite IN ITEMS
     vinyl_page_data
     vinyl_personal_state
     vinyl_song_page
+    vinyl_song_action_menu
+    vinyl_hud_context
+    vinyl_lyrics_column
+    vinyl_reading_state
+    vinyl_notes_column
     vinyl_world_journeys
     vinyl_world_lists
     vinyl_world_navigation
@@ -2558,6 +2563,48 @@ target_link_libraries(tst_vinyl_music_actions PRIVATE Qt6::Core Qt6::Sql Qt6::Te
 set_target_properties(tst_vinyl_music_actions PROPERTIES AUTOMOC ON RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.vinyl_music_actions COMMAND tst_vinyl_music_actions)
 set_tests_properties(colosseum.qttest.vinyl_music_actions PROPERTIES LABELS "vinyl;activity;history;unit" TIMEOUT 60)
+add_executable(vinyl_genius_contracts vinyl_genius_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
+target_include_directories(vinyl_genius_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_genius_contracts PRIVATE colosseum_vinyl_backend Qt6::Network Qt6::Test)
+set_target_properties(vinyl_genius_contracts PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.vinyl_genius_contracts COMMAND vinyl_genius_contracts)
+set_tests_properties(colosseum.vinyl_genius_contracts PROPERTIES LABELS "vinyl;annotations;unit" TIMEOUT 60)
+
+add_executable(vinyl_genius_live vinyl_genius_live.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
+target_include_directories(vinyl_genius_live PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_genius_live PRIVATE colosseum_vinyl_backend Qt6::Network)
+set_target_properties(vinyl_genius_live PROPERTIES AUTOMOC ON)
+if(MSVC)
+    target_compile_options(vinyl_genius_live PRIVATE /utf-8)
+    target_compile_options(vinyl_genius_contracts PRIVATE /utf-8)
+endif()
+
+add_executable(vinyl_lyrics_contracts vinyl_lyrics_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.h")
+target_include_directories(vinyl_lyrics_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_lyrics_contracts PRIVATE colosseum_vinyl_backend Qt6::Test)
+set_target_properties(vinyl_lyrics_contracts PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.vinyl_lyrics_contracts COMMAND vinyl_lyrics_contracts)
+set_tests_properties(colosseum.vinyl_lyrics_contracts PROPERTIES LABELS "vinyl;lyrics;unit" TIMEOUT 60)
+
+add_executable(vinyl_timed_text_core_test "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/bc1-timed-text-prototype/test_timed_text.cpp")
+add_executable(vinyl_translation_test "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/bc2-translation-prototype/test_translation.cpp")
+add_executable(vinyl_annotation_meaning_test "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/bc3-annotation-prototype/test_annotation_meaning.cpp")
+foreach(content_test IN ITEMS vinyl_timed_text_core_test vinyl_translation_test vinyl_annotation_meaning_test)
+    target_link_libraries(${content_test} PRIVATE colosseum_vinyl_backend Qt6::Core)
+    add_test(NAME colosseum.${content_test} COMMAND ${content_test})
+    set_tests_properties(colosseum.${content_test} PROPERTIES LABELS "vinyl;lyrics;contracts" TIMEOUT 60)
+endforeach()
+
 add_executable(vinyl_recommendation_history_test vinyl_recommendation_history_test.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
 target_include_directories(vinyl_recommendation_history_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")

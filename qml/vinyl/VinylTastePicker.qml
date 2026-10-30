@@ -10,6 +10,7 @@ Item {
     required property Flickable pageFlick
     readonly property string query: worldData.pickerQuery
     readonly property var selected: worldData.pickerDraft
+    readonly property int minimumArtistCount: Number(worldData.minimumArtistCount) || 5
     readonly property var offered: worldData.artistOptions(query)
     readonly property bool editing: worldData.onboardingState === "editing"
     implicitHeight: pageFlick ? pageFlick.height : header.height + 30 + grid.implicitHeight
@@ -45,7 +46,7 @@ Item {
 
         Text {
             objectName: "vinylPickerQuestion"
-            text: "What do you listen to?"
+            text: "Choose at least " + root.minimumArtistCount + " artists"
             width: Math.max(0, parent.width - actions.width - 24)
             elide: Text.ElideRight
             fontSizeMode: Text.Fit
@@ -72,17 +73,8 @@ Item {
                 onTriggered: root.worldData.cancelTasteEdit()
             }
             VinylWorldButton {
-                objectName: "vinylPickerSkip"
-                visible: !root.editing
-                enabled: visible
-                label: "Skip artist onboarding"
-                accessibleName: label
-                symbol: "playNext"
-                backdrop: root.backdrop
-                onTriggered: root.worldData.skipPicker()
-            }
-            VinylWorldButton {
                 objectName: "vinylPickerDone"
+                enabled: root.selected.length >= root.minimumArtistCount
                 label: "Done with artist selection"
                 accessibleName: label
                 symbol: "check"
@@ -97,13 +89,14 @@ Item {
         objectName: "vinylPickerStatus"
         y: 112
         width: Math.max(0, parent.width - 96)
-        text: root.worldData.artistSearchError
-            ? root.worldData.artistSearchError
-            : root.worldData.artistSearchLoading
-                ? "Searching artists…"
-                : root.offered.length === 0
-                    ? (root.query ? "No artists found." : "No artist suggestions yet.")
-                    : root.selected.length + (root.selected.length === 1 ? " artist selected." : " artists selected.")
+        text: root.selected.length + " / " + root.minimumArtistCount + " artists selected."
+            + (root.worldData.artistSearchError
+                ? " " + root.worldData.artistSearchError
+                : root.worldData.artistSearchLoading
+                    ? " Searching artists…"
+                    : root.offered.length === 0
+                        ? (root.query ? " No artists found." : " No artist suggestions yet.")
+                        : "")
         color: root.worldData.artistSearchError ? theme.ink : theme.inkDim
         font.family: theme.ui
         font.pixelSize: 12

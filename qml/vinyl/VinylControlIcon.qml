@@ -10,6 +10,20 @@ Item {
 
     readonly property string iconMarkup: {
         switch (root.symbol) {
+        case "video":
+            return "<rect x=\"3\" y=\"5\" width=\"13\" height=\"14\" rx=\"3\"/><path d=\"m16 9 5-3v12l-5-3z\"/>";
+        case "previous":
+            return "<path d=\"M18.5 5.5v13l-10-6.5z\" fill=\"ICON_COLOR\" stroke=\"none\"/><path d=\"M5 5v14\"/>";
+        case "playViewed":
+            return "<circle cx=\"9\" cy=\"12\" r=\"7\"/><circle cx=\"9\" cy=\"12\" r=\"1.5\"/><path d=\"m16 8 5 4-5 4z\" fill=\"ICON_COLOR\"/>";
+        case "playlistAdd":
+            return "<path d=\"m19 21-7-4-7 4V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2zM12 7v6M9 10h6\"/>";
+        case "queueNext":
+            return "<path d=\"M5 4v7a5 5 0 0 0 5 5h10M16 12l4 4-4 4\"/>";
+        case "queueAdd":
+            return "<circle cx=\"12\" cy=\"12\" r=\"9\"/><path d=\"M12 8v8M8 12h8\"/>";
+        case "queueOpen":
+            return "<path d=\"M3 5h11M3 10h9M3 15h6M18 8v10M18 8l3-1\"/><ellipse cx=\"15.5\" cy=\"18\" rx=\"2.5\" ry=\"2\"/>";
         case "play":
             return "<path d=\"M8 5.5v13l10-6.5z\" fill=\"ICON_COLOR\" stroke=\"none\"/>";
         case "playNext":

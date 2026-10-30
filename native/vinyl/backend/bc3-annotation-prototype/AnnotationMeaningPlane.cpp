@@ -259,6 +259,9 @@ AnnotationResult<AnnotationReferent> AnnotationReferent::cueLinked(
     TimedTextCueId cueId,
     std::optional<AnnotationTextAnchor> textAnchor)
 {
+    if(!sourceDocument.recordingMbid())
+        return fail<AnnotationReferent>(AnnotationErrorCode::RecordingMismatch,
+            QStringLiteral("recordingMbid"),QStringLiteral("Legacy annotation linking requires a verified recording mapping."));
     const auto cue = std::find_if(
         sourceDocument.cues().cbegin(),
         sourceDocument.cues().cend(),
@@ -278,7 +281,7 @@ AnnotationResult<AnnotationReferent> AnnotationReferent::cueLinked(
             QStringLiteral("textAnchor"), QStringLiteral("Fragment anchor must use the selected cue's normalized text."));
     }
     return create(
-        sourceDocument.recordingMbid(),
+        *sourceDocument.recordingMbid(),
         std::optional<TimedTextDocumentId>{sourceDocument.documentId()},
         std::optional<TimedTextCueId>{std::move(cueId)},
         std::move(textAnchor));

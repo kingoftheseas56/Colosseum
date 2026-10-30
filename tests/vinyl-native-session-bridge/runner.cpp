@@ -19,8 +19,30 @@
 #include <chrono>
 #include "vinyl/VinylLocalSource.h"
 #include "vinyl/VinylBackendSession.h"
+#include "vinyl/VinylLyricsService.h"
+#include "vinyl/VinylGeniusService.h"
 #include "vinyl/VinylRecommendationService.h"
 #include "engine/VaultIdentity.h"
+// Controllable transport boundary for cancellation and untrusted-video tests.
+// Successful decoding remains exercised by the native player/provider journey.
+class VideoTestSource : public QObject {
+    Q_OBJECT
+public:
+    explicit VideoTestSource(QObject *parent=nullptr):QObject(parent){}
+    Q_INVOKABLE int request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options) {
+        const int id=++serial;emit requested(lane,id,operation,value,options);return id;
+    }
+    Q_INVOKABLE void cancel(const QString &lane){emit cancelled(lane);}
+    Q_INVOKABLE void reply(const QString &lane,int id,const QVariantMap &data,const QString &error) {
+        emit completed(lane,id,data,error);
+    }
+signals:
+    void requested(const QString &lane,int id,const QString &operation,const QString &value,const QVariantMap &options);
+    void cancelled(const QString &lane);
+    void completed(const QString &lane,int id,const QVariant &data,const QString &error);
+private:
+    int serial=0;
+};
 class Setup : public QObject {
     Q_OBJECT
     QTemporaryDir directory;
@@ -243,7 +265,10 @@ public slots:
     }
 
     void qmlEngineAvailable(QQmlEngine *engine) {
+        qmlRegisterType<VideoTestSource>("Colosseum.Vinyl",1,0,"VideoTestSource");
         qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl",1,0,"VinylBackendSession");
+        qmlRegisterType<VinylLyricsService>("Colosseum.Vinyl",1,0,"VinylLyricsService");
+        qmlRegisterType<VinylGeniusService>("Colosseum.Vinyl",1,0,"VinylGeniusService");
         qmlRegisterType<VinylRecommendationService>("Colosseum.Vinyl",1,0,"VinylRecommendationService");
         engine->addImportPath(QStringLiteral(VINYL_CONTRACT_IMPORTS));
         QDir().mkpath(directory.path()+"/identity");

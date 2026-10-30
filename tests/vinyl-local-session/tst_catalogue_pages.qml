@@ -174,8 +174,22 @@ TestCase {
         return searchCalls(query, kind)[index === undefined ? searchCalls(query, kind).length - 1 : index] || null;
     }
 
+    function searchGroup(page, kind) {
+        var groups = page && page.searchProvider ? page.searchProvider.groups : [];
+        return groups.find(function(group) { return group.key === kind; }) || null;
+    }
+
+    function queueFingerprint() {
+        return JSON.stringify(world.session.queue.map(function(row) {
+            return [row.queueId, row.trackId];
+        }));
+    }
+
     function enterDiscover() {
-        world.enterDiscoverSearch(true, false);
+        // Preserve the legacy in-world Discover tests while the top-bar action now
+        // opens the shared full-page search layer without changing tabs.
+        world.worldView.setTab("discover");
+        world.worldData.setOnlineMode(true);
         tryVerify(function() {
             return world.page === "discover" && world.worldData.activeTab === "discover";
         });
@@ -191,6 +205,133 @@ TestCase {
                 return call.operation === "cataloguePage" && call.key === query;
             }).length === 4;
         }, 2000, "A catalogue query should request all four typed result pages.");
+    }
+
+    function test_topBarSearchUsesSharedPageAndRestoresNativeCatalogueRoute() {
+        world.worldView.setTab("discover");
+        world.worldData.setOnlineMode(true);
+        var originalQuery = "saved Discover query";
+        world.worldData.setQuery(originalQuery);
+
+        // Give route restoration a real queue to preserve, not an empty baseline.
+        world.session.playAlbum(albumRecord("queue-before-search"), 0);
+        compare(world.session.queue.length, 1);
+        var originalQueue = queueFingerprint();
+
+        var topBar = findChild(world, "vinylTopBar");
+        verify(topBar !== null);
+        topBar.searchClicked();
+        tryVerify(function() { return world.searchOpen && world.searchPage !== null; });
+        compare(world.page, "discover");
+        compare(world.worldView.currentTab, "discover");
+
+        var page = world.searchPage;
+        compare(page.searchMode, "Vinyl");
+        compare(page.historyScope(), "vinyl");
+        verify(findChild(world, "searchSurfaceInput") !== null,
+            "Top-bar search should expose the shared SearchSurface input.");
+        compare(findChild(world, "vinylSearchInput"), null,
+            "The prototype inline search input should be removed.");
+
+        var query = "shared typed query";
+        page.fillAndSearch(query);
+        tryVerify(function() {
+            return kinds.every(function(kind) { return searchCall(query, kind, 0) !== null; });
+        }, 2000, "The shared Vinyl search should fan out to all typed catalogue lanes.");
+        var queryCalls = source.calls.filter(function(call) {
+            return call.operation === "cataloguePage" && call.key === query;
+        });
+        compare(queryCalls.length, 4);
+        verify(page.searching, "The shared surface must report in-flight native pages.");
+        compare(queryCalls.map(function(call) { return call.options.kind; }).sort().join(","),
+            "albums,artists,playlists,songs");
+
+        kinds.forEach(function(kind) {
+            var request = searchCall(query, kind, 0);
+            completePage(query, kind, request,
+                firstPage(query, kind, "shared-first-" + kind, kind !== "songs"));
+        });
+        wait(0);
+
+        var groups = page.searchProvider.groups;
+        compare(groups.map(function(group) { return group.key; }).join(","),
+            "artists,songs,albums,playlists");
+        groups.forEach(function(group) {
+            compare(group.items.length, 1, "First page should populate " + group.key + ".");
+            compare(group.loading, false);
+            compare(group.error, "");
+        });
+        compare(searchGroup(page, "songs").hasMore, true);
+        tryCompare(page, "searching", false);
+
+        page.searchProvider.loadMore("songs");
+        var more = searchCall(query, "songs", 1);
+        verify(more !== null);
+        compare(more.options.cursor.token, "cursor-songs-2");
+        compare(more.options.cursor.offset, 1);
+        var nextSongAlbum = "song-album-shared-next";
+        completePage(query, "songs", more,
+            pageEnvelope(query, "songs", 1, [itemFor("songs", nextSongAlbum)],
+                [albumRecord(nextSongAlbum)], true, {}, 2));
+        tryVerify(function() { return searchGroup(page, "songs").items.length === 2; }, 2000);
+        compare(searchGroup(page, "songs").hasMore, false);
+        page.expandedGroups = ["Songs"];
+        page.contentY = 80;
+
+        var songItem = searchGroup(page, "songs").items[1].data;
+        compare(songItem.record.id, nextSongAlbum);
+        page.openItem(songItem);
+        tryCompare(world, "page", "song", 2000);
+        compare(world.browsingSong, true);
+        compare(queueFingerprint(), originalQueue,
+            "Opening a shared-page song must not replace the playback queue.");
+
+        world.goBack();
+        tryVerify(function() { return world.searchOpen && world.searchPage !== null; }, 2000);
+        tryVerify(function() {
+            return world.searchPage.query === query
+                && searchGroup(world.searchPage, "songs").items.length === 2;
+        }, 2000, "Back should restore the shared search query and appended songs.");
+        compare(world.page, "discover");
+        compare(world.worldView.currentTab, "discover");
+        compare(queueFingerprint(), originalQueue);
+        wait(300);
+        compare(world.searchPage.expandedGroups.join(","), "Songs",
+            "Restoring a query must not debounce into a new collapsed search.");
+
+        world.searchPage.backRequested();
+        tryVerify(function() { return !world.searchOpen; }, 2000);
+        compare(world.page, "discover");
+        compare(world.worldView.currentTab, "discover");
+        compare(world.worldData.query, originalQuery,
+            "Closing shared search should return to the original Discover query.");
+        compare(world.session.catalogueQuery, "",
+            "Closing shared search should restore the catalogue state from before the overlay.");
+        compare(Object.keys(world.session.cataloguePages).length, 0);
+    }
+
+    function test_closedSharedSearchIgnoresLateCatalogueReply() {
+        world.worldView.setTab("library");
+        var topBar = findChild(world, "vinylTopBar");
+        verify(topBar !== null);
+        topBar.searchClicked();
+        tryVerify(function() { return world.searchOpen && world.searchPage !== null; });
+        var page = world.searchPage;
+        var query = "late shared reply";
+        page.fillAndSearch(query);
+        tryVerify(function() { return searchCall(query, "artists", 0) !== null; });
+        var lateArtist = searchCall(query, "artists", 0);
+
+        page.backRequested();
+        tryVerify(function() { return !world.searchOpen; }, 2000);
+        completePage(query, "artists", lateArtist,
+            firstPage(query, "artists", "late-shared", true));
+        wait(0);
+        compare(world.session.catalogueQuery, "");
+        compare(Object.keys(world.session.cataloguePages).length, 0,
+            "A reply from a closed shared search must not repopulate the restored catalogue.");
+        compare(world.worldView.currentTab, "library",
+            "Closing search from Library should return to the original tab.");
     }
 
     function completePage(query, kind, call, data, error) {

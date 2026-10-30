@@ -5,6 +5,7 @@ write the resolver response to the library, progress store, logs, or a snapshot.
 """
 import datetime
 import json
+import math
 import re
 import socket
 import sys
@@ -31,6 +32,24 @@ SHELF_TITLES = {
     "other": "Other releases",
 }
 SHELF_ORDER = ["albums", "singles", "compilations", "soundtracks", "live", "other"]
+YTM_VIDEO_TYPES = frozenset({
+    "MUSIC_VIDEO_TYPE_ATV", "MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_UGC",
+})
+LRCLIB_ENDPOINT = "https://lrclib.net/api/get"
+LRCLIB_USER_AGENT = "Colosseum Vinyl/2.0 (first-party lyrics lookup)"
+LRCLIB_TIMEOUT_SECONDS = 8
+LRCLIB_MAX_RESPONSE_BYTES = 512 * 1024
+LRCLIB_MAX_METADATA_CHARS = 300
+LRCLIB_MAX_LYRICS_CHARS = 256 * 1024
+
+VIDEO_FORMAT_SELECTOR = ("bv[height<=1080][protocol=https]+ba[protocol=https]"
+                         "/b[height<=1080][protocol=https]")
+VIDEO_URL_MAX_CHARS = 8192
+VIDEO_HEADER_TOKEN_RE = re.compile(r"[!#$%&'*+\-.^_`|~0-9A-Za-z]+")
+VIDEO_MAX_HEADERS = 32
+VIDEO_MAX_HEADER_NAME_CHARS = 128
+VIDEO_MAX_HEADER_VALUE_CHARS = 4096
+VIDEO_MAX_TOTAL_HEADER_CHARS = 16384
 
 
 class ProviderError(ValueError):
@@ -105,7 +124,7 @@ def normalize_album(record, key, track_offset=0):
     result["tracks"] = []
     for index, track in enumerate(record.get("tracks") or []):
         video = track.get("videoId") or ""
-        result["tracks"].append({
+        normalized = {
             "id": identity("recording", video) if video else identity("unavailable", key + ":" + str(track_offset + index)),
             "videoId": video, "title": track.get("title") or "Unavailable track",
             "artists": artists(track) or result["artists"],
@@ -113,7 +132,17 @@ def normalize_album(record, key, track_offset=0):
                           for a in track.get("artists", []) if a.get("name")],
             "seconds": int(track.get("duration_seconds") or 0),
             "available": bool(video) and track.get("isAvailable", True),
-            "explicit": bool(track.get("isExplicit"))})
+            "explicit": bool(track.get("isExplicit"))}
+        track_album = track.get("album")
+        album_name = track_album.get("name") if isinstance(track_album, dict) else None
+        if not isinstance(album_name, str) or not album_name.strip():
+            album_name = record.get("title") if record.get("type", "Album") == "Album" else None
+        if isinstance(album_name, str) and album_name.strip():
+            normalized["albumName"] = album_name
+        video_type = track.get("videoType")
+        if isinstance(video_type, str) and video_type in YTM_VIDEO_TYPES:
+            normalized["videoType"] = video_type
+        result["tracks"].append(normalized)
     # A truncated album is not silently presented as a complete release.
     expected = record.get("trackCount")
     if isinstance(expected, int) and expected > len(result["tracks"]):
@@ -137,10 +166,10 @@ def song_record(raw):
     video = raw.get("videoId", "")
     if any("podcast" in str(raw.get(field, "")).lower() for field in ("resultType", "type", "category")):
         return None
+    video_type = raw.get("videoType")
     if (not isinstance(video, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video)
             or not raw.get("title") or raw.get("isAvailable") is False
-            or raw.get("videoType", "MUSIC_VIDEO_TYPE_ATV") not in
-            {"MUSIC_VIDEO_TYPE_ATV", "MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_UGC"}):
+            or ("videoType" in raw and (not isinstance(video_type, str) or video_type not in YTM_VIDEO_TYPES))):
         return None
     record = normalize_album({"title": raw["title"], "artists": raw.get("artists", []),
                               "thumbnails": raw.get("thumbnails", []), "type": "Song",
@@ -448,6 +477,168 @@ def resolve(video):
     bitrate = data.get("abr")
     return {"videoId": video, "url": url, "headers": data.get("http_headers") or {},
             "qualityLabel": codec.upper() + (" · " + str(round(bitrate)) + " kbps" if bitrate else "")}
+
+
+def resolve_video(video):
+    """Qualify one exact caller-supplied YouTube video ID for native playback.
+
+    The caller owns matching; this transport never searches or substitutes.
+    """
+    if not isinstance(video, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
+        raise InvalidArgumentError("Invalid YouTube video ID")
+    from yt_dlp import YoutubeDL
+    class QuietLogger:
+        def debug(self, message): pass
+        def warning(self, message): pass
+        def error(self, message): pass
+    with YoutubeDL({"quiet": True, "no_warnings": True, "logger": QuietLogger(),
+                    "format": VIDEO_FORMAT_SELECTOR, "skip_download": True,
+                    "noplaylist": True, "socket_timeout": 20, "retries": 1,
+                    "extractor_retries": 1}) as client:
+        data = client.extract_info("https://www.youtube.com/watch?v=" + video, download=False)
+    return _validated_video_resolution(video, data)
+
+
+def _video_codec(value):
+    return isinstance(value, str) and value not in ("", "none")
+
+
+def _video_stream_kind(fmt):
+    has_video, has_audio = _video_codec(fmt.get("vcodec")), _video_codec(fmt.get("acodec"))
+    if has_video and has_audio:
+        return "muxed"
+    if has_video:
+        return "video"
+    if has_audio:
+        return "audio"
+    return None
+
+
+def _video_headers(raw):
+    if raw is None:
+        return {}
+    if not isinstance(raw, dict):
+        raise ValueError("Provider returned unsupported HTTP headers")
+    if len(raw) > VIDEO_MAX_HEADERS:
+        raise ValueError("Provider returned unsupported HTTP headers")
+    total = 0
+    names = set()
+    for name, value in raw.items():
+        if (not isinstance(name, str) or not name or len(name) > VIDEO_MAX_HEADER_NAME_CHARS
+                or not VIDEO_HEADER_TOKEN_RE.fullmatch(name)):
+            raise ValueError("Provider returned unsupported HTTP headers")
+        if name.lower() in names:
+            raise ValueError("Provider returned duplicate HTTP headers")
+        names.add(name.lower())
+        if (not isinstance(value, str) or not value.strip() or len(value) > VIDEO_MAX_HEADER_VALUE_CHARS
+                or any(ord(ch) < 0x20 or 0x7f <= ord(ch) <= 0x9f for ch in value)):
+            raise ValueError("Provider returned unsupported HTTP headers")
+        total += len(name) + len(value)
+    if total > VIDEO_MAX_TOTAL_HEADER_CHARS:
+        raise ValueError("Provider returned unsupported HTTP headers")
+    return dict(raw)
+
+
+def _video_stream_headers(data, fmt):
+    # A requested format inherits the info dict's common headers when it carries none.
+    raw = fmt["http_headers"] if "http_headers" in fmt else data.get("http_headers")
+    return _video_headers(raw)
+
+
+def _video_media_url(url):
+    if (not isinstance(url, str) or not url or len(url) > VIDEO_URL_MAX_CHARS
+            or re.search(r"[\s\x00-\x1f\x7f-\x9f]", url)):
+        raise ValueError("Provider returned an unsupported video location")
+    parsed = urlparse(url)
+    if (parsed.scheme != "https" or not (parsed.hostname or "").endswith(".googlevideo.com")
+            or parsed.username is not None or parsed.password is not None
+            or parsed.fragment or parsed.port not in (None, 443)):
+        raise ValueError("Provider returned an unsupported video location")
+    return url
+
+
+def _video_expiry_ms(urls, now_ms):
+    earliest = None
+    for url in urls:
+        for raw in urllib.parse.parse_qs(urlparse(url).query, keep_blank_values=True).get("expire", []):
+            try:
+                seconds = float(raw)
+            except ValueError:
+                raise ValueError("Provider returned an invalid stream expiry") from None
+            # A known expiry must be a plausible future epoch timestamp, never invented.
+            if not math.isfinite(seconds) or not 0 < seconds < 1e12:
+                raise ValueError("Provider returned an invalid stream expiry")
+            if earliest is None or seconds < earliest:
+                earliest = seconds
+    if earliest is None:
+        return None
+    expires_ms = int(earliest * 1000)
+    if expires_ms <= now_ms:
+        raise ValueError("Provider returned an expired stream location")
+    return expires_ms
+
+
+def _validated_video_resolution(video, data):
+    if not isinstance(data, dict):
+        raise ValueError("Provider returned an invalid video response")
+    if data.get("id") != video:
+        raise ValueError("Provider returned a different video")
+    if data.get("_type") not in (None, "video") or "entries" in data:
+        raise ValueError("Provider returned more than a single video")
+    if data.get("is_live") or data.get("live_status") == "is_live":
+        raise ValueError("Provider returned an ongoing live stream")
+    requested = data.get("requested_formats")
+    separate_streams = False
+    if isinstance(requested, list) and requested:
+        if len(requested) > 2 or any(not isinstance(fmt, dict) for fmt in requested):
+            raise ValueError("Provider returned an ambiguous stream selection")
+        kinds = [_video_stream_kind(fmt) for fmt in requested]
+        separate_streams = len(requested) == 2
+        if separate_streams:
+            if set(kinds) != {"audio", "video"}:
+                raise ValueError("Provider did not return one video and one audio stream")
+            video_format = requested[kinds.index("video")]
+            audio_format = requested[kinds.index("audio")]
+        elif kinds != ["muxed"]:
+            raise ValueError("Provider returned an ambiguous stream selection")
+        else:
+            video_format = audio_format = requested[0]
+        for fmt in (video_format, audio_format):
+            if fmt.get("protocol") not in (None, "https"):
+                raise ValueError("Provider returned an unsupported stream transport")
+        url = _video_media_url(video_format.get("url"))
+        audio_url = _video_media_url(audio_format.get("url"))
+        height = video_format.get("height")
+        headers = _video_stream_headers(data, video_format)
+        # The mpv core installs one header map for both resources.
+        if {name.lower(): value for name, value in headers.items()} != {
+                name.lower(): value for name, value in _video_stream_headers(data, audio_format).items()}:
+            raise ValueError("The separate streams require different HTTP headers")
+    else:
+        if _video_stream_kind(data) != "muxed":
+            raise ValueError("Provider returned no playable video stream")
+        if data.get("protocol") not in (None, "https"):
+            raise ValueError("Provider returned an unsupported stream transport")
+        url = _video_media_url(data.get("url"))
+        audio_url = url
+        height = data.get("height")
+        headers = _video_headers(data.get("http_headers"))
+    if (not isinstance(height, (int, float)) or isinstance(height, bool)
+            or not math.isfinite(height) or not 0 < height <= 1080):
+        raise ValueError("Provider returned an unbounded video resolution")
+    now_ms = int(time.time() * 1000)
+    result = {"version": 1, "videoId": video, "url": url,
+              "audioUrl": audio_url if separate_streams else "",
+              "headers": headers, "hasVideo": True, "hasAudio": True,
+              "qualityLabel": str(int(height)) + "p", "resolvedAtMs": now_ms}
+    expires_ms = _video_expiry_ms(dict.fromkeys((url, audio_url)), now_ms)
+    if expires_ms is not None:
+        result["expiresAtMs"] = expires_ms
+    duration = data.get("duration")
+    if (isinstance(duration, (int, float)) and not isinstance(duration, bool)
+            and math.isfinite(duration) and duration > 0):
+        result["durationMs"] = int(round(duration * 1000))
+    return result
 
 
 def now_iso(fetched_at=None):
@@ -1637,6 +1828,207 @@ def handle_home(request, client=None, mb_client=None, population_client=None):
         return result
 
 
+def _lyrics_input_text(request, key, required=True):
+    value = request.get(key)
+    if value is None and not required:
+        return ""
+    if not isinstance(value, str):
+        raise InvalidArgumentError("Invalid lyrics request metadata.")
+    value = value.strip()
+    if ((required and not value) or len(value) > LRCLIB_MAX_METADATA_CHARS):
+        raise InvalidArgumentError("Invalid lyrics request metadata.")
+    return value
+
+
+def _lrclib_retry_after(headers):
+    try:
+        value = headers.get("Retry-After", 60) if headers is not None else 60
+        if not isinstance(value, (str, int)) or len(str(value)) > 12:
+            return 60
+        return max(1, min(3600, int(value)))
+    except (TypeError, ValueError, OverflowError):
+        return 60
+
+
+def _lrclib_not_found():
+    return {"source": "lrclib", "status": "not_found", "fetchedAt": now_iso(), "record": None}
+
+
+def _validated_lrclib_record(value):
+    if not isinstance(value, dict):
+        raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    required = ("id", "trackName", "artistName", "albumName", "duration",
+                "instrumental", "plainLyrics", "syncedLyrics")
+    if any(key not in value for key in required):
+        raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    record_id = value["id"]
+    if not isinstance(record_id, int) or isinstance(record_id, bool) or not 1 <= record_id <= 2**53 - 1:
+        raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    for key in ("trackName", "artistName"):
+        text = value[key]
+        if not isinstance(text, str) or not text.strip() or len(text) > LRCLIB_MAX_METADATA_CHARS:
+            raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    album_name = value["albumName"]
+    if (album_name is not None and
+            (not isinstance(album_name, str) or len(album_name) > LRCLIB_MAX_METADATA_CHARS)):
+        raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    duration = value["duration"]
+    if (not isinstance(duration, (int, float)) or isinstance(duration, bool)
+            or not 1 <= duration <= 3600 or not math.isfinite(duration)):
+        raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    if not isinstance(value["instrumental"], bool):
+        raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    for key in ("plainLyrics", "syncedLyrics"):
+        lyrics = value[key]
+        if lyrics is not None and (not isinstance(lyrics, str) or len(lyrics) > LRCLIB_MAX_LYRICS_CHARS):
+            raise ProviderUnavailableError("LRCLIB returned an invalid record.")
+    return {key: ("" if key == "albumName" and value[key] is None else value[key]) for key in required}
+
+
+def fetch_lyrics(request, opener=None):
+    """Fetch one bounded LRCLIB record for caller-supplied track metadata."""
+    if not isinstance(request, dict):
+        raise InvalidArgumentError("Invalid lyrics request.")
+    opaque_value = request.get("value")
+    if (not isinstance(opaque_value, str) or not opaque_value.strip()
+            or len(opaque_value) > LRCLIB_MAX_METADATA_CHARS):
+        raise InvalidArgumentError("Invalid lyrics request identity.")
+    track_name = _lyrics_input_text(request, "trackName")
+    artist_name = _lyrics_input_text(request, "artistName")
+    album_name = _lyrics_input_text(request, "albumName", required=False)
+    duration = request.get("duration")
+    if (not isinstance(duration, (int, float)) or isinstance(duration, bool)
+            or not 1 <= duration <= 3600 or not math.isfinite(duration)):
+        raise InvalidArgumentError("Invalid lyrics request duration.")
+    params = {"track_name": track_name, "artist_name": artist_name, "duration": str(duration)}
+    if album_name:
+        params["album_name"] = album_name
+    url = LRCLIB_ENDPOINT + "?" + urllib.parse.urlencode(params)
+    request_object = urllib.request.Request(
+        url,
+        headers={"User-Agent": LRCLIB_USER_AGENT, "Accept": "application/json"},
+    )
+    open_url = urllib.request.urlopen if opener is None else opener
+    try:
+        with open_url(request_object, timeout=LRCLIB_TIMEOUT_SECONDS) as response:
+            status = getattr(response, "status", None)
+            if status is None and hasattr(response, "getcode"):
+                status = response.getcode()
+            headers = getattr(response, "headers", None)
+            if status == 404:
+                return _lrclib_not_found()
+            if status in (429, 503):
+                raise RateLimitError(retry_after=_lrclib_retry_after(headers))
+            if status != 200:
+                raise ProviderUnavailableError("LRCLIB request failed.")
+            content_type = headers.get("Content-Type", "") if headers is not None else ""
+            if not isinstance(content_type, str) or content_type.split(";", 1)[0].strip().lower() != "application/json":
+                raise ProviderUnavailableError("LRCLIB returned an invalid response.")
+            body = response.read(LRCLIB_MAX_RESPONSE_BYTES + 1)
+    except urllib.error.HTTPError as exc:
+        if exc.code == 404:
+            return _lrclib_not_found()
+        if exc.code in (429, 503):
+            raise RateLimitError(retry_after=_lrclib_retry_after(exc.headers)) from None
+        raise ProviderUnavailableError("LRCLIB request failed.") from None
+    except ProviderError:
+        raise
+    except Exception as exc:
+        if _is_timeout_exception(exc):
+            raise ProviderTimeoutError("LRCLIB request timed out.") from None
+        raise ProviderUnavailableError("LRCLIB is unavailable.") from None
+    if not isinstance(body, bytes) or len(body) > LRCLIB_MAX_RESPONSE_BYTES:
+        raise ProviderUnavailableError("LRCLIB returned an invalid response.")
+    try:
+        payload = json.loads(body)
+        record = _validated_lrclib_record(payload)
+    except ProviderError:
+        raise
+    except Exception:
+        raise ProviderUnavailableError("LRCLIB returned an invalid response.") from None
+    return {"source": "lrclib", "status": "found", "fetchedAt": now_iso(), "record": record}
+
+def _video_title_key(text):
+    if not isinstance(text, str):
+        return ""
+    text = unicodedata.normalize("NFKC", text).casefold()
+    return " ".join("".join(" " if unicodedata.category(c)[0] in "PZ" else c for c in text).split())
+
+
+def fetch_related_video(client, video, request):
+    """Qualify one official video, never a first-result or uploader-name guess.
+
+    Catalogue artist IDs and the complete version title must agree. A relation
+    does not establish a musical time offset for a different video edit.
+    """
+    if not isinstance(video, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video):
+        raise InvalidArgumentError("Invalid YouTube video ID")
+    result = {"version": 1, "sourceVideoId": video, "status": "unavailable"}
+    source = _call_provider(client.get_song, video)
+    details = source.get("videoDetails", {}) if isinstance(source, dict) else {}
+    title = details.get("title")
+    if (details.get("videoId") != video or details.get("isLiveContent") is True
+            or source.get("playabilityStatus", {}).get("status") != "OK"
+            or not isinstance(title, str) or not title.strip()):
+        return result
+    expected_title = request.get("title") or title
+    key = _video_title_key(expected_title)
+    if not key or key != _video_title_key(title):
+        return result
+    # Live/performance discovery is a separate explicit-choice journey.
+    if re.search(r"(?:\(|\[)[^)\]]*\b(live|concert|unplugged|session|performance)\b|\blive (?:at|in|from)\b",
+                 expected_title, flags=re.IGNORECASE):
+        return result
+    if details.get("musicVideoType") == "MUSIC_VIDEO_TYPE_OMV":
+        result.update({"status": "ready", "videoId": video, "title": title,
+                       "relationship": "same-video", "sameMediaClock": True,
+                       "mediaTimeOffsetMs": 0})
+        return result
+    if details.get("musicVideoType") != "MUSIC_VIDEO_TYPE_ATV":
+        return result
+    raw_ids = request.get("artistIds")
+    if not isinstance(raw_ids, list):
+        return result
+    artist_ids = {x.removeprefix("ytm:artist:") for x in raw_ids if isinstance(x, str)}
+    artist_ids = {x for x in artist_ids if re.fullmatch(r"UC[A-Za-z0-9_-]{22}", x)}
+    if not artist_ids or details.get("channelId") not in artist_ids:
+        return result
+    author = details.get("author")
+    if not isinstance(author, str) or not author.strip():
+        return result
+    found = _call_provider(client.search, (author + " " + title)[:300], filter="videos", limit=20)
+    if not isinstance(found, list):
+        return result
+    candidates = {}
+    for item in found[:40]:
+        if not isinstance(item, dict) or item.get("videoType") != "MUSIC_VIDEO_TYPE_OMV":
+            continue
+        candidate_id = item.get("videoId")
+        artists = item.get("artists")
+        if (not isinstance(candidate_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", candidate_id)
+                or _video_title_key(item.get("title")) != key or not isinstance(artists, list)):
+            continue
+        ids = {a.get("id") for a in artists if isinstance(a, dict) and isinstance(a.get("id"), str)}
+        if artist_ids.intersection(ids):
+            candidates[candidate_id] = item
+    if len(candidates) > 1:
+        result["status"] = "ambiguous"
+        return result
+    if not candidates:
+        return result
+    candidate_id, candidate = next(iter(candidates.items()))
+    response = _call_provider(client.get_song, candidate_id)
+    actual = response.get("videoDetails", {}) if isinstance(response, dict) else {}
+    if (actual.get("videoId") != candidate_id or actual.get("isLiveContent") is True
+            or actual.get("musicVideoType") != "MUSIC_VIDEO_TYPE_OMV"
+            or _video_title_key(actual.get("title")) != key
+            or response.get("playabilityStatus", {}).get("status") != "OK"):
+        return result
+    result.update({"status": "ready", "videoId": candidate_id, "title": candidate["title"],
+                   "relationship": "catalogue-artist-and-version", "sameMediaClock": False})
+    return result
+
+
 def handle(request, client=None, mb_client=None, population_client=None):
     if request.get("operation") in HOME_OPERATIONS:
         return handle_home(request, client, mb_client, population_client)
@@ -1655,8 +2047,14 @@ def handle(request, client=None, mb_client=None, population_client=None):
         validate_page_request(request, operation, value, kind, region)
     if operation == "resolve":
         return resolve(value)
+    if operation == "resolveVideo":
+        return resolve_video(value)
+    if operation == "relatedVideo" and (not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", value)):
+        raise InvalidArgumentError("Invalid YouTube video ID")
     if operation == "artistArtwork":
         return fetch_artist_artwork(value)
+    if operation == "lyrics":
+        return fetch_lyrics(request)
     fetched_at = request.get("fetchedAt")
     if operation == "artistIdentity":
         identifier = request.get("mbid") or request.get("name") or value
@@ -1678,6 +2076,8 @@ def handle(request, client=None, mb_client=None, population_client=None):
     if client is None:
         from ytmusicapi import YTMusic
         client = YTMusic(location=request.get("region", "IN"))
+    if operation == "relatedVideo":
+        return fetch_related_video(client, value, request)
     if operation == "discover":
         return fetch_discovery(client, value, region, fetched_at)
     if operation == "playlist":

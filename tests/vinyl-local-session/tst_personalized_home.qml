@@ -291,8 +291,9 @@ TestCase {
         var songPage=findChild(world,"vinylSongPage");
         verify(songPage !== null);
         compare(songPage.pageData.playingTrack.available,false);
-        var play=findChild(world,"vinylSongPlay");
-        verify(play !== null && play.activate(Qt.MouseFocusReason));
+        var play=findChild(world,"vinylBarPlay");
+        verify(play !== null && !play.enabled);
+        verify(!play.activate(Qt.MouseFocusReason));
         compare(world.session.playingIndex,-1);
         compare(world.session.queue.length,0);
     }
