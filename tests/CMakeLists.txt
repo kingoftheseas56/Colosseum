@@ -4795,6 +4795,49 @@ set_tests_properties(colosseum.qttest.tracker_mal PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
 
+# Arc 76: native AniList GraphQL protocol, transport classification, and API
+# client. Fake transport only; no production AniList build definitions reach
+# this target, so its unconfigured case proves an unregistered build stays
+# fail-closed.
+add_executable(tst_tracker_anilist
+    auto/tracker_anilist/tst_tracker_anilist.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.h")
+target_include_directories(tst_tracker_anilist PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_anilist PRIVATE
+    Qt6::Core
+    Qt6::Network
+    Qt6::Test)
+set_target_properties(tst_tracker_anilist PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_anilist PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_anilist POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:tst_tracker_anilist>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_anilist
+         COMMAND tst_tracker_anilist)
+set_tests_properties(colosseum.qttest.tracker_anilist PROPERTIES
+    LABELS "unit;qttest;tracker;anilist"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
 # Direct Trakt keeps production registration defines out of the fixture build.
 add_executable(tst_trakt_direct
     auto/trakt_direct/tst_trakt_direct.cpp
