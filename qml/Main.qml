@@ -1184,6 +1184,7 @@ Window {
             identityCeremonyOpen: identityCeremonyDialog.opened,
             watchPartyJoinOpen: watchPartyJoinSheet.opened,
             wallpaperActive: wallpaperLayer.active,
+            dlnaPopupVisible: dlnaSharePopup.visible,
             accountFlyoutVisible: accountFlyout.visible,
             accountCenterVisible: accountCenter.visible,
             openRecentOpen: openRecentPanel.open,
@@ -1304,6 +1305,7 @@ Window {
         case "cancelIdentityCeremony": identityCeremonyDialog.cancelRequested(); return
         case "watchPartyJoin": watchPartyJoinSheet.close(); return
         case "wallpaper": win.closeWallpaperSearch(); return
+        case "dlnaPopup": dlnaSharePopup.close(); return
         case "accountFlyout": accountFlyout.close(); return
         case "accountCenter": accountCenter.close(); return
         case "openRecent": openRecentPanel.open = false; return
@@ -4021,6 +4023,7 @@ Window {
         width: win.width - theme.margin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
+        onDlnaClicked: (anchorRight, anchorBottom) => dlnaSharePopup.toggleAt(anchorRight, anchorBottom)
         onFullscreenClicked: win.toggleFullscreenShell()
         onMinimizeClicked: win.minimizeShell()
         onPowerClicked: win.requestApplicationQuit()
@@ -4672,6 +4675,9 @@ Window {
                                              : mode === "Biblio"  ? "book" : "tankoban")
                     })
                     if (item.wallpaperClicked) item.wallpaperClicked.connect(function() { win.openWallpaperSearch(mode) })
+                    if (item.dlnaClicked) item.dlnaClicked.connect(function(anchorRight, anchorBottom) {
+                        dlnaSharePopup.toggleAt(anchorRight, anchorBottom)
+                    })
                     // Next Up rows (spec 2026-07-18): Theatre's direct play walks the same
                     // openMovieSession door as the series page; Tankoban's read walks the
                     // same openComicSession door as Continue resume. Guarded — only the
@@ -6408,6 +6414,14 @@ Window {
                         ? AccountController.username : "";
             return who.length > 0 ? who.charAt(0).toUpperCase() : "?";
         }
+    }
+
+    // "Share on your Wi-Fi" (DLNA) flyout, opened from the top-bar access-point glyph on home
+    // and on every world while sharing runs. Same plain-layer shape as the account flyout.
+    DlnaSharePopup {
+        id: dlnaSharePopup
+        objectName: "dlnaSharePopup"
+        backdrop: wall
     }
 
     // Account onboarding + session surfaces (Bundle 8C adoption, 2026-08-16).

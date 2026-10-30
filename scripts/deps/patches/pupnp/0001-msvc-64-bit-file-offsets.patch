@@ -1,0 +1,393 @@
+diff --git a/upnp/inc/UpnpFileInfo.h b/upnp/inc/UpnpFileInfo.h
+index ac413f25..b82395c4 100644
+--- a/upnp/inc/UpnpFileInfo.h
++++ b/upnp/inc/UpnpFileInfo.h
+@@ -17,6 +17,7 @@
+ 
+ #include "UpnpInet.h"
+ #include "UpnpString.h"
++#include <stdint.h> /* for int64_t file lengths */
+ #include "ixml.h"
+ #include "list.h"
+ #include <sys/types.h>
+@@ -42,9 +43,9 @@ UPNP_EXPORT_SPEC int UpnpFileInfo_assign(
+ 	UpnpFileInfo *p, const UpnpFileInfo *q);
+ 
+ /*! UpnpFileInfo_get_FileLength */
+-UPNP_EXPORT_SPEC off_t UpnpFileInfo_get_FileLength(const UpnpFileInfo *p);
++UPNP_EXPORT_SPEC int64_t UpnpFileInfo_get_FileLength(const UpnpFileInfo *p);
+ /*! UpnpFileInfo_set_FileLength */
+-UPNP_EXPORT_SPEC int UpnpFileInfo_set_FileLength(UpnpFileInfo *p, off_t n);
++UPNP_EXPORT_SPEC int UpnpFileInfo_set_FileLength(UpnpFileInfo *p, int64_t n);
+ 
+ /*! UpnpFileInfo_get_LastModified */
+ UPNP_EXPORT_SPEC time_t UpnpFileInfo_get_LastModified(const UpnpFileInfo *p);
+diff --git a/upnp/inc/upnp.h b/upnp/inc/upnp.h
+index 6a2f4f04..3e63599b 100644
+--- a/upnp/inc/upnp.h
++++ b/upnp/inc/upnp.h
+@@ -44,6 +44,7 @@
+ #include "UpnpGlobal.h"
+ #include "UpnpInet.h" /* IWYU pragma: keep */
+ #include "ixml.h"
++#include <stdint.h> /* for int64_t in VDCallback_Seek */
+ #include "upnpconfig.h" /* IWYU pragma: keep */
+ 
+ /*
+@@ -2797,7 +2798,7 @@ typedef int (*VDCallback_Seek)(
+ 	/*! [in] The number of bytes to move in the file.  Positive values
+ 	 * move forward and negative values move backward.  Note that
+ 	 * this must be positive if the \b origin is \c SEEK_SET. */
+-	off_t offset,
++	int64_t offset,
+ 	/*! [in] The position to move relative to.  It can be \c SEEK_CUR
+ 	 * to move relative to the current position, \c SEEK_END to
+ 	 * move relative to the end of the file, or \c SEEK_SET to
+diff --git a/upnp/src/api/UpnpFileInfo.c b/upnp/src/api/UpnpFileInfo.c
+index 43b28757..22f3ef7b 100644
+--- a/upnp/src/api/UpnpFileInfo.c
++++ b/upnp/src/api/UpnpFileInfo.c
+@@ -14,6 +14,7 @@
+ #include "list.h"
+ 
+ #include <stdlib.h> /* for calloc(), free() */		   // IWYU pragma: keep
++#include <stdint.h>
+ #include <string.h> /* for strlen(), strdup(), memset() */ // IWYU pragma: keep
+ #include <sys/types.h>
+ #include <time.h>
+@@ -22,7 +23,7 @@
+ 
+ struct s_UpnpFileInfo
+ {
+-	off_t m_FileLength;
++	int64_t m_FileLength;
+ 	time_t m_LastModified;
+ 	int m_IsDirectory;
+ 	int m_IsReadable;
+@@ -109,12 +110,12 @@ UpnpFileInfo *UpnpFileInfo_dup(const UpnpFileInfo *q)
+ 	return p;
+ }
+ 
+-off_t UpnpFileInfo_get_FileLength(const UpnpFileInfo *p)
++int64_t UpnpFileInfo_get_FileLength(const UpnpFileInfo *p)
+ {
+ 	return p->m_FileLength;
+ }
+ 
+-int UpnpFileInfo_set_FileLength(UpnpFileInfo *p, off_t n)
++int UpnpFileInfo_set_FileLength(UpnpFileInfo *p, int64_t n)
+ {
+ 	p->m_FileLength = n;
+ 
+diff --git a/upnp/src/gena/gena_device.c b/upnp/src/gena/gena_device.c
+index 70e79c75..7339867b 100644
+--- a/upnp/src/gena/gena_device.c
++++ b/upnp/src/gena/gena_device.c
+@@ -1121,7 +1121,7 @@ static int respond_ok(
+ 		    "ssc"
+ 		    "scc",
+ 		    HTTP_OK,
+-		    (off_t)0,
++		    (int64_t)0,
+ 		    X_USER_AGENT,
+ 		    "SID: ",
+ 		    sub->sid,
+diff --git a/upnp/src/genlib/net/http/httpreadwrite.c b/upnp/src/genlib/net/http/httpreadwrite.c
+index f05a1915..6422c25d 100644
+--- a/upnp/src/genlib/net/http/httpreadwrite.c
++++ b/upnp/src/genlib/net/http/httpreadwrite.c
+@@ -550,7 +550,7 @@ int http_SendMessage(SOCKINFO *info, int *TimeOut, const char *fmt, ...)
+ 	/* 10 byte allocated for chunk header. */
+ 	char Chunk_Header[CHUNK_HEADER_SIZE];
+ 	size_t num_read;
+-	off_t amount_to_be_read = 0;
++	int64_t amount_to_be_read = 0;
+ 	size_t Data_Buf_Size = WEB_SERVER_BUF_SIZE;
+ #endif /* EXCLUDE_WEB_SERVER */
+ 	va_list argp;
+@@ -574,8 +574,8 @@ int http_SendMessage(SOCKINFO *info, int *TimeOut, const char *fmt, ...)
+ 			if (Instr->ReadSendSize >= 0)
+ 				amount_to_be_read = Instr->ReadSendSize;
+ 			else
+-				amount_to_be_read = (off_t)Data_Buf_Size;
+-			if (amount_to_be_read < (off_t)WEB_SERVER_BUF_SIZE)
++				amount_to_be_read = (int64_t)Data_Buf_Size;
++			if (amount_to_be_read < (int64_t)WEB_SERVER_BUF_SIZE)
+ 				Data_Buf_Size = (size_t)amount_to_be_read;
+ 			ChunkBuf = malloc(
+ 				(size_t)(Data_Buf_Size + CHUNK_HEADER_SIZE +
+@@ -624,7 +624,7 @@ int http_SendMessage(SOCKINFO *info, int *TimeOut, const char *fmt, ...)
+ 				if (Instr) {
+ 					size_t n =
+ 						amount_to_be_read >=
+-								(off_t)Data_Buf_Size
++								(int64_t)Data_Buf_Size
+ 							? Data_Buf_Size
+ 							: (size_t)amount_to_be_read;
+ 					if (Instr->IsVirtualFile) {
+@@ -646,11 +646,11 @@ int http_SendMessage(SOCKINFO *info, int *TimeOut, const char *fmt, ...)
+ 							n,
+ 							Fp);
+ 					}
+-					amount_to_be_read -= (off_t)num_read;
++					amount_to_be_read -= (int64_t)num_read;
+ 					if (Instr->ReadSendSize < 0) {
+ 						/* read until close */
+ 						amount_to_be_read =
+-							(off_t)Data_Buf_Size;
++							(int64_t)Data_Buf_Size;
+ 					}
+ 				} else {
+ 					num_read = fread(file_buf,
+@@ -1110,7 +1110,7 @@ int MakeGenericMessage(http_method_t method,
+ 	if (ret_code == 0) {
+ 		if (contentLength >= 0)
+ 			ret_code = http_MakeMessage(
+-				request, 1, 1, "Nc", (off_t)contentLength);
++				request, 1, 1, "Nc", (int64_t)contentLength);
+ 		else if (contentLength == UPNP_USING_CHUNKED)
+ 			ret_code = http_MakeMessage(request, 1, 1, "Kc");
+ 		else if (contentLength == UPNP_UNTIL_CLOSE)
+@@ -1730,7 +1730,7 @@ int http_MakeMessage(membuffer *buf,
+ 	char c;
+ 	char *s = NULL;
+ 	size_t num;
+-	off_t bignum;
++	int64_t bignum;
+ 	size_t length;
+ 	time_t *loc_time;
+ 	time_t curr_time;
+@@ -1852,7 +1852,7 @@ int http_MakeMessage(membuffer *buf,
+ 				goto error_handler;
+ 		} else if (c == 'h') {
+ 			/* off_t */
+-			bignum = (off_t)va_arg(argp, off_t);
++			bignum = va_arg(argp, int64_t);
+ 			rc = snprintf(tempbuf,
+ 				sizeof(tempbuf),
+ 				"%" PRId64,
+@@ -1921,7 +1921,7 @@ int http_MakeMessage(membuffer *buf,
+ 			}
+ 		} else if (c == 'N') {
+ 			/* content-length header */
+-			bignum = (off_t)va_arg(argp, off_t);
++			bignum = va_arg(argp, int64_t);
+ 			assert(bignum >= 0);
+ 			if (http_MakeMessage(buf,
+ 				    http_major_version,
+@@ -1989,7 +1989,7 @@ int http_MakeMessage(membuffer *buf,
+ 				"</h1></body></html>");
+ 			if (rc < 0 || (unsigned int)rc >= sizeof(tempbuf))
+ 				goto error_handler;
+-			bignum = (off_t)strlen(tempbuf);
++			bignum = (int64_t)strlen(tempbuf);
+ 			if (http_MakeMessage(buf,
+ 				    http_major_version,
+ 				    http_minor_version,
+diff --git a/upnp/src/genlib/net/http/webserver.c b/upnp/src/genlib/net/http/webserver.c
+index 6b73e13c..c6ddafca 100644
+--- a/upnp/src/genlib/net/http/webserver.c
++++ b/upnp/src/genlib/net/http/webserver.c
+@@ -692,7 +692,7 @@ static UPNP_INLINE int get_alias(
+ {
+ 	int cmp = strcmp(alias->name.buf, request_file);
+ 	if (cmp == 0) {
+-		UpnpFileInfo_set_FileLength(info, (off_t)alias->doc.length);
++		UpnpFileInfo_set_FileLength(info, (int64_t)alias->doc.length);
+ 		UpnpFileInfo_set_IsDirectory(info, 0);
+ 		UpnpFileInfo_set_IsReadable(info, 1);
+ 		UpnpFileInfo_set_LastModified(info, alias->last_modified);
+@@ -838,9 +838,9 @@ static int GetNextRange(
+ 	/*! string containing the token / range. */
+ 	char **SrcRangeStr,
+ 	/*! gets the first byte of the token. */
+-	off_t *FirstByte,
++	int64_t *FirstByte,
+ 	/*! gets the last byte of the token. */
+-	off_t *LastByte)
++	int64_t *LastByte)
+ {
+ 	char *Ptr;
+ 	char *Tok;
+@@ -871,13 +871,13 @@ static int GetNextRange(
+ 			}
+ 		}
+ 		if (Is_Suffix_byte_Range) {
+-			*FirstByte = (off_t)L;
+-			*LastByte = (off_t)F;
++			*FirstByte = (int64_t)L;
++			*LastByte = (int64_t)F;
+ 			return 1;
+ 		}
+ 	}
+-	*FirstByte = (off_t)F;
+-	*LastByte = (off_t)L;
++	*FirstByte = (int64_t)F;
++	*LastByte = (int64_t)L;
+ 
+ 	return 1;
+ }
+@@ -896,12 +896,12 @@ static int CreateHTTPRangeResponseHeader(
+ 	/*! String containing the range. */
+ 	char *ByteRangeSpecifier,
+ 	/*! Length of the file. */
+-	off_t FileLength,
++	int64_t FileLength,
+ 	/*! [out] SendInstruction object where the range operations will be
+ 	   stored. */
+ 	struct SendInstruction *Instr)
+ {
+-	off_t FirstByte, LastByte;
++	int64_t FirstByte, LastByte;
+ 	char *RangeInput;
+ 	char *Ptr;
+ 	int rc = 0;
+@@ -1032,7 +1032,7 @@ static int CheckOtherHTTPHeaders(
+ 	/*! [out] Send Instruction object to data for the response. */
+ 	struct SendInstruction *RespInstr,
+ 	/*! Size of the file containing the request document. */
+-	off_t FileSize)
++	int64_t FileSize)
+ {
+ 	http_header_t *header;
+ 	ListNode *node;
+diff --git a/upnp/src/inc/webserver.h b/upnp/src/inc/webserver.h
+index 575f422d..15f8683d 100644
+--- a/upnp/src/inc/webserver.h
++++ b/upnp/src/inc/webserver.h
+@@ -36,6 +36,7 @@
+ #include "httpparser.h"
+ #include "sock.h"
+ #include <time.h>
++#include <stdint.h>
+ 
+ #ifdef __cplusplus
+ extern "C" {
+@@ -49,9 +50,9 @@ struct SendInstruction
+ 	int IsTrailers;
+ 	char RangeHeader[200];
+ 	char AcceptLanguageHeader[200];
+-	off_t RangeOffset;
++	int64_t RangeOffset;
+ 	/*! Read from local source and send on the network. */
+-	off_t ReadSendSize;
++	int64_t ReadSendSize;
+ 	/*! Recv from the network and write into local file. */
+ 	long RecvWriteSize;
+ 	/*! CorsHeader. */
+diff --git a/upnp/src/soap/soap_ctrlpt.c b/upnp/src/soap/soap_ctrlpt.c
+index 94ad7d10..fe072e92 100644
+--- a/upnp/src/soap/soap_ctrlpt.c
++++ b/upnp/src/soap/soap_ctrlpt.c
+@@ -533,7 +533,7 @@ int SoapSendAction(char *action_url,
+ 	char *upnp_error_str;
+ 	int got_response = 0;
+ 
+-	off_t content_length;
++	int64_t content_length;
+ 	const char *xml_start =
+ 		"<s:Envelope "
+ 		"xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" "
+@@ -591,7 +591,7 @@ int SoapSendAction(char *action_url,
+ 
+ 	/* make request msg */
+ 	request.size_inc = 50;
+-	content_length = (off_t)(xml_start_len + action_str_len + xml_end_len);
++	content_length = (int64_t)(xml_start_len + action_str_len + xml_end_len);
+ 	if (http_MakeMessage(&request,
+ 		    1,
+ 		    1,
+@@ -716,7 +716,7 @@ int SoapSendActionEx(char *action_url,
+ 	size_t xml_body_start_len;
+ 	size_t action_str_len;
+ 	size_t xml_end_len;
+-	off_t content_length;
++	int64_t content_length;
+ 
+ 	*response_node = NULL; /* init */
+ 
+@@ -774,7 +774,7 @@ int SoapSendActionEx(char *action_url,
+ 	/* make request msg */
+ 	request.size_inc = 50;
+ 	content_length =
+-		(off_t)(xml_start_len + xml_header_start_len +
++		(int64_t)(xml_start_len + xml_header_start_len +
+ 			xml_header_str_len + xml_header_end_len +
+ 			xml_body_start_len + action_str_len + xml_end_len);
+ 	if (http_MakeMessage(&request,
+@@ -884,7 +884,7 @@ int SoapGetServiceVarStatus(char *action_url, char *var_name, char **var_value)
+ 	int ret_code;
+ 	http_parser_t response;
+ 	int upnp_error_code;
+-	off_t content_length;
++	int64_t content_length;
+ 	const char *xml_start =
+ 		"<s:Envelope "
+ 		"xmlns:s=\"http://schemas.xmlsoap.org/soap/envelope/\" "
+@@ -908,7 +908,7 @@ int SoapGetServiceVarStatus(char *action_url, char *var_name, char **var_value)
+ 	/* make headers */
+ 	request.size_inc = 50;
+ 	content_length =
+-		(off_t)(strlen(xml_start) + strlen(var_name) + strlen(xml_end));
++		(int64_t)(strlen(xml_start) + strlen(var_name) + strlen(xml_end));
+ 	if (http_MakeMessage(&request,
+ 		    1,
+ 		    1,
+diff --git a/upnp/src/soap/soap_device.c b/upnp/src/soap/soap_device.c
+index 5343be6f..1eb9ecd2 100644
+--- a/upnp/src/soap/soap_device.c
++++ b/upnp/src/soap/soap_device.c
+@@ -120,7 +120,7 @@ static void send_error_response(
+ 	/*! [in] HTTP request. */
+ 	http_message_t *hmsg)
+ {
+-	off_t content_length;
++	int64_t content_length;
+ 	int timeout_secs = SOAP_TIMEOUT;
+ 	int major;
+ 	int minor;
+@@ -152,7 +152,7 @@ static void send_error_response(
+ 	snprintf(err_code_str, sizeof(err_code_str), "%d", error_code);
+ 	/* calc body len */
+ 	content_length =
+-		(off_t)(strlen(start_body) + strlen(err_code_str) +
++		(int64_t)(strlen(start_body) + strlen(err_code_str) +
+ 			strlen(mid_body) + strlen(err_msg) + strlen(end_body));
+ 	http_CalcResponseVersion(
+ 		hmsg->major_version, hmsg->minor_version, &major, &minor);
+@@ -193,7 +193,7 @@ static UPNP_INLINE void send_var_query_response(
+ 	/*! [in] HTTP request. */
+ 	http_message_t *hmsg)
+ {
+-	off_t content_length;
++	int64_t content_length;
+ 	int timeout_secs = SOAP_TIMEOUT;
+ 	int major;
+ 	int minor;
+@@ -214,7 +214,7 @@ static UPNP_INLINE void send_var_query_response(
+ 
+ 	http_CalcResponseVersion(
+ 		hmsg->major_version, hmsg->minor_version, &major, &minor);
+-	content_length = (off_t)(strlen(start_body) + strlen(var_value) +
++	content_length = (int64_t)(strlen(start_body) + strlen(var_value) +
+ 				 strlen(end_body));
+ 	/* make headers */
+ 	membuffer_init(&response);
+@@ -256,7 +256,7 @@ static UPNP_INLINE void send_action_response(
+ 	membuffer headers;
+ 	int major, minor;
+ 	int err_code;
+-	off_t content_length;
++	int64_t content_length;
+ 	int ret_code;
+ 	int timeout_secs = SOAP_TIMEOUT;
+ 	static const char *start_body =
+@@ -275,7 +275,7 @@ static UPNP_INLINE void send_action_response(
+ 	xml_response = ixmlPrintNode((IXML_Node *)action_resp);
+ 	if (!xml_response)
+ 		goto error_handler;
+-	content_length = (off_t)(strlen(start_body) + strlen(xml_response) +
++	content_length = (int64_t)(strlen(start_body) + strlen(xml_response) +
+ 				 strlen(end_body));
+ 	/* make headers */
+ 	if (http_MakeMessage(&headers,

@@ -56,6 +56,7 @@ Item {
     signal powerClicked()
     signal playbackRequested()
     signal accountClicked(real anchorRight, real anchorBottom)
+    signal dlnaClicked(real anchorRight, real anchorBottom)
     function captureRoute() {
         var focusItem=Window.window ? Window.window.activeFocusItem : null;
         return {page:page,searchOpen:searchOpen,focus:focusItem,keyboardFocus:!!focusItem && focusItem.accessibleName!==undefined,
@@ -459,6 +460,7 @@ Item {
         anchors {left:parent.left;right:parent.right;top:parent.top;margins:theme.margin}
         backdrop:root.chromeBackdrop;activeMedium:"Vinyl";lifecycleActive:root.lifecycleActive
         onAccountClicked:(anchorRight,anchorBottom)=>root.accountClicked(anchorRight,anchorBottom)
+        onDlnaClicked:(anchorRight,anchorBottom)=>root.dlnaClicked(anchorRight,anchorBottom)
         onHomeRequested:root.homeRequested()
         onMediumSelected:medium=>root.mediumSelected(medium)
         onSearchClicked:root.enterDiscoverSearch(true,false)

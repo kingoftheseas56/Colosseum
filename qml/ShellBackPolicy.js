@@ -19,6 +19,7 @@ function actionFor(state) {
     if (on(s.stremioSyncOpen)) return "stremioSync"
     if (on(s.watchPartyJoinOpen)) return "watchPartyJoin"
     if (on(s.wallpaperActive)) return "wallpaper"
+    if (on(s.dlnaPopupVisible)) return "dlnaPopup"
     if (on(s.accountFlyoutVisible)) return "accountFlyout"
     if (on(s.accountCenterVisible)) return "accountCenter"
     if (on(s.collectionsModalOpen)) return "collections"

@@ -909,7 +909,39 @@ if(NOT ANDROID)
         player/powerstore.h
         player/streamserver.cpp
         player/streamserver.h
+        # ── DLNA MediaServer (Arc 71): the library projection + the pupnp server behind the
+        #    top-bar `dlnaSharing` door. Gated on the optional pupnp dependency below
+        #    (COLOSSEUM_HAVE_DLNA); DlnaLibrary/DlnaSnapshot compile in either case so the
+        #    projection stays testable without pupnp. ──
+        dlna/DlnaLibrary.cpp
+        dlna/DlnaLibrary.h
+        dlna/DlnaSnapshot.h
     )
+    # Optional pupnp (libupnp) 22.x — built by scripts/deps/build-pupnp.ps1. Without it the
+    # DLNA server compiles out entirely (QML already tolerates a missing `dlnaSharing`).
+    set(UPNP_ROOT "C:/tools/pupnp-22.1.9-msvc" CACHE PATH "pupnp install prefix (DLNA MediaServer)")
+    if(UPNP_ROOT AND EXISTS "${UPNP_ROOT}")
+        list(PREPEND CMAKE_PREFIX_PATH "${UPNP_ROOT}")
+    endif()
+    find_package(UPNP CONFIG QUIET COMPONENTS Static)
+    if(TARGET UPNP::Static)
+        message(STATUS "DLNA sharing enabled: pupnp found at ${UPNP_ROOT}")
+        target_sources(colosseum PRIVATE
+            dlna/DlnaNetwork.cpp
+            dlna/DlnaNetwork.h
+            dlna/DlnaContentDirectory.cpp
+            dlna/DlnaContentDirectory.h
+            dlna/DlnaMediaFiles.cpp
+            dlna/DlnaMediaFiles.h
+            dlna/DlnaServer.cpp
+            dlna/DlnaServer.h
+            dlna/DlnaServerCore.h
+            dlna/dlna_icons.qrc)
+        target_compile_definitions(colosseum PRIVATE COLOSSEUM_HAVE_DLNA=1 UPNP_STATIC_LIB)
+        target_link_libraries(colosseum PRIVATE UPNP::Static)
+    else()
+        message(STATUS "DLNA sharing compiled out: pupnp not found (build it with scripts/deps/build-pupnp.ps1)")
+    endif()
 endif()
 
 if(ANDROID)
