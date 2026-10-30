@@ -8,6 +8,8 @@
 #include <QNetworkReply>
 #include <QNetworkRequest>
 #include <QTemporaryDir>
+#include <QStandardPaths>
+#include <QUuid>
 #include <QTimer>
 #include <QThread>
 #include <QWaitCondition>
@@ -225,11 +227,28 @@ void testSaveWatcherCancellation(QCoreApplication &app, const QString &root)
 int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
+    QStandardPaths::setTestModeEnabled(true);
+    QCoreApplication::setApplicationName(QStringLiteral("downloads-delete-all-")
+                                        + QUuid::createUuid().toString(QUuid::Id128));
     QTemporaryDir scratch;
     CHECK(scratch.isValid(), "temporary cleanup root is available");
     if (scratch.isValid()) {
         testCleanupAndQueue(app, scratch.path());
         testSaveWatcherCancellation(app, scratch.path());
+        ImmediateErrorNam nam;
+        MangaDownloader downloader(&nam);
+        const QString partial = downloader.baseDir() + QStringLiteral("/series/failed-chapter");
+        createPayload(partial);
+        MangaDownloader::Entry indexed;
+        indexed.dir = partial;
+        downloader.m_index.insert(QStringLiteral("still-indexed"), indexed);
+        CHECK(!downloader.removeIncompleteDownloads().value(QStringLiteral("success")).toBool(),
+              "partial purge refuses to remove indexed downloads");
+        CHECK(QDir(partial).exists(), "failed indexed deletions keep their files");
+        downloader.m_index.clear();
+        CHECK(downloader.removeIncompleteDownloads().value(QStringLiteral("success")).toBool(),
+              "partial purge succeeds after completed downloads are gone");
+        CHECK(!QDir(partial).exists(), "failed and orphaned chapter bytes are really removed");
     }
     if (failures == 0)
         std::printf("MANGA_DOWNLOADER_CANCEL_RUNTIME_OK\n");

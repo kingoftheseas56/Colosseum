@@ -679,6 +679,15 @@ QVariantMap AudiobookDownloader::deleteAudiobook(const QString& pairKey)
     return DownloadFileOps::toMap(result);
 }
 
+QVariantMap AudiobookDownloader::removeIncompleteDownloads()
+{
+    if (m_active || !m_queue.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Audiobook downloads are still stopping.")});
+    if (!m_index.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Some downloaded audiobooks could not be deleted.")});
+    return DownloadFileOps::toMap(DownloadFileOps::removeTree(baseDir()));
+}
+
 void AudiobookDownloader::cancelJob(Job* job)
 {
     cleanupInFlight(job);

@@ -1509,8 +1509,11 @@ void VaultLibrary::publishAllConfirmed()
         const QVariantMap m = r.toMap();
         if (m.value(QStringLiteral("hidden")).toBool())
             continue;
-        if (m.value(QStringLiteral("confirmed")).toBool() ||
-            m.value(QStringLiteral("synthetic")).toBool())
+        // Synthetic rows come from their owner below. Scanning a logical root
+        // as an absent drive would resurrect deleted downloads as away entries.
+        if (m.value(QStringLiteral("synthetic")).toBool())
+            continue;
+        if (m.value(QStringLiteral("confirmed")).toBool())
             confirmed.append(m.value(QStringLiteral("path")).toString());
     }
 
