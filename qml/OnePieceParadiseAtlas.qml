@@ -9,6 +9,7 @@ import "OnePieceAtlasBadgeLayout.js" as BadgeLayout
 
 FocusScope {
     id: root
+    objectName: "paradiseAtlas"
     focus: true
     property bool reducedMotion: false
     property string displayFamily: "Georgia"
@@ -567,7 +568,8 @@ FocusScope {
                         width: parent.width - 88
                         spacing: 5
                         Text { width: parent.width; text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / " + root.selectedArc.sagaLabel.toUpperCase() : ""; color: "#96764d"; font.family: root.bodyFamily; font.pixelSize: 10; wrapMode: Text.WordWrap }
-                        Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: root.displayFamily; font.pixelSize: 23; wrapMode: Text.WordWrap }
+                        Text { width: parent.width; objectName: "paradisePreviewTitle"
+                            text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: root.displayFamily; font.pixelSize: 23; wrapMode: Text.WordWrap }
                         Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: root.bodyFamily; font.pixelSize: 11; font.italic: true; wrapMode: Text.WordWrap }
                     }
                 }

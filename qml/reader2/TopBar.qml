@@ -161,7 +161,7 @@ Item {
             font.pixelSize: 13
             rightPadding: 4
         }
-        IconButton { id: searchBtn; anchors.verticalCenter: parent.verticalCenter
+        IconButton { id: searchBtn; objectName: "reader2SearchAction"; anchors.verticalCenter: parent.verticalCenter
             label: "Search"; source: Qt.resolvedUrl("../../assets/icons/reader2/search.svg"); onClicked: root.searchRequested() }
         IconButton { id: contentsBtn; anchors.verticalCenter: parent.verticalCenter
             label: "Contents"; source: Qt.resolvedUrl("../../assets/icons/reader2/contents.svg"); onClicked: root.contentsRequested() }

@@ -1357,6 +1357,7 @@ Item {
                             Text { text: "Your folders"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
                             ListView {
                                 id: foldersList
+                                objectName: "vaultFolderList"
                                 width: parent.width; height: 80; spacing: 12
                                 orientation: ListView.Horizontal; clip: true
                                 boundsBehavior: Flickable.StopAtBounds
@@ -1370,6 +1371,7 @@ Item {
                                 }
                                     delegate: Rectangle {
                                         id: folderTile
+                                        objectName: "vaultFolderTile_" + folderTile.modelData.key
                                         required property var modelData
                                         width: Math.max(200, (foldersList.width - 36) / 4)
                                         height: 68; radius: 14

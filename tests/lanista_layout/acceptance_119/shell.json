@@ -1,0 +1,63 @@
+{
+  "checkpoint": "acceptance119-shell",
+  "rules": [
+    {
+      "kind": "actionableNonzero",
+      "name": "Tankoban actionable",
+      "target": "modePill_Tankoban"
+    },
+    {
+      "kind": "contained",
+      "name": "Tankoban within actual window",
+      "target": "modePill_Tankoban",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "Biblio actionable",
+      "target": "modePill_Biblio"
+    },
+    {
+      "kind": "contained",
+      "name": "Biblio within actual window",
+      "target": "modePill_Biblio",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "Theatre actionable",
+      "target": "modePill_Theatre"
+    },
+    {
+      "kind": "contained",
+      "name": "Theatre within actual window",
+      "target": "modePill_Theatre",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "Universes actionable",
+      "target": "modePill_Universes"
+    },
+    {
+      "kind": "contained",
+      "name": "Universes within actual window",
+      "target": "modePill_Universes",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "noPeerOverlap",
+      "name": "four current world pills",
+      "peers": [
+        "modePill_Tankoban",
+        "modePill_Biblio",
+        "modePill_Theatre",
+        "modePill_Universes"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,1208 @@
+{
+  "name": "SHELL-LOCAL-WORLDS",
+  "comment": "Fresh account-free real-control routes. Native session owns unique profile/pipe; wrapper grades quit. Catalogue provider responses are not asserted as deterministic local success.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "01 owned protocol drive enabled",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "gates.write",
+          "op": "==",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "02 visible isolated app",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "03 bootSplash.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "04 accountWelcomeContinueLocal.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "05 activate accountWelcomeContinueLocal",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "06 accountHost.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "07 homePageFlickable.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "08 Tankoban displayed pill",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.label",
+          "op": "==",
+          "value": "Tankoban"
+        },
+        {
+          "path": "props.comingSoon",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Tankoban",
+        "props": [
+          "visible",
+          "enabled",
+          "label",
+          "comingSoon"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "09 Tankoban useful actual hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "rect.width",
+          "op": ">",
+          "value": "40"
+        },
+        {
+          "path": "rect.height",
+          "op": ">",
+          "value": "30"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Tankoban"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "10 Biblio displayed pill",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.label",
+          "op": "==",
+          "value": "Biblio"
+        },
+        {
+          "path": "props.comingSoon",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Biblio",
+        "props": [
+          "visible",
+          "enabled",
+          "label",
+          "comingSoon"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "11 Biblio useful actual hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "rect.width",
+          "op": ">",
+          "value": "40"
+        },
+        {
+          "path": "rect.height",
+          "op": ">",
+          "value": "30"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Biblio"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "12 Theatre displayed pill",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.label",
+          "op": "==",
+          "value": "Theatre"
+        },
+        {
+          "path": "props.comingSoon",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Theatre",
+        "props": [
+          "visible",
+          "enabled",
+          "label",
+          "comingSoon"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "13 Theatre useful actual hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "rect.width",
+          "op": ">",
+          "value": "40"
+        },
+        {
+          "path": "rect.height",
+          "op": ">",
+          "value": "30"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Theatre"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "14 Universes displayed pill",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.label",
+          "op": "==",
+          "value": "Universes"
+        },
+        {
+          "path": "props.comingSoon",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Universes",
+        "props": [
+          "visible",
+          "enabled",
+          "label",
+          "comingSoon"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "15 Universes useful actual hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "rect.width",
+          "op": ">",
+          "value": "40"
+        },
+        {
+          "path": "rect.height",
+          "op": ">",
+          "value": "30"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "modePill_Universes"
+      }
+    },
+    {
+      "label": "16 four current pills non-overlap and contained",
+      "layout_verdict": {
+        "checkpoint": "${SOURCE_ROOT}/tests/lanista_layout/acceptance_119/shell.json",
+        "out": "${OUTPUT_ROOT}/shell-layout.json"
+      }
+    },
+    {
+      "cmd": "dump-ui",
+      "label": "17 world picker visual order",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "truncated",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "root": "topBarWorldPicker",
+        "maxDepth": 2,
+        "maxItems": 100
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "18 home after local onboarding",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists",
+          "value": ""
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "19 activate modePill_Tankoban",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Tankoban"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "20 tankobanWorld.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "tankobanWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "21 Tankoban live world chrome visible",
+      "payload": {
+        "object": "worldTopBar_Tankoban",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "22 Tankoban scoped world identity",
+      "payload": {
+        "object": "worldTopBar_Tankoban",
+        "props": [
+          "activeMedium",
+          "visible",
+          "width"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeMedium",
+          "op": "==",
+          "value": "Tankoban"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.width",
+          "op": ">",
+          "value": "500"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "23 press Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "24 homePageFlickable.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "25 activate modePill_Biblio",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Biblio"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "26 biblioWorld.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "biblioWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "27 Biblio live world chrome visible",
+      "payload": {
+        "object": "worldTopBar_Biblio",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "28 Biblio scoped world identity",
+      "payload": {
+        "object": "worldTopBar_Biblio",
+        "props": [
+          "activeMedium",
+          "visible",
+          "width"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeMedium",
+          "op": "==",
+          "value": "Biblio"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.width",
+          "op": ">",
+          "value": "500"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "29 press Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "30 homePageFlickable.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "31 activate modePill_Theatre",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Theatre"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "32 theatreWorld.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "theatreWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "33 Theatre live world chrome visible",
+      "payload": {
+        "object": "worldTopBar_Theatre",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "34 Theatre scoped world identity",
+      "payload": {
+        "object": "worldTopBar_Theatre",
+        "props": [
+          "activeMedium",
+          "visible",
+          "width"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeMedium",
+          "op": "==",
+          "value": "Theatre"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.width",
+          "op": ">",
+          "value": "500"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "35 press Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "36 homePageFlickable.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "37 activate modePill_Universes",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "38 universesWorld.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "39 Universes live world chrome visible",
+      "payload": {
+        "object": "worldTopBar_Universes",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "40 Universes scoped world identity",
+      "payload": {
+        "object": "worldTopBar_Universes",
+        "props": [
+          "activeMedium",
+          "visible",
+          "width"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeMedium",
+          "op": "==",
+          "value": "Universes"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.width",
+          "op": ">",
+          "value": "500"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "41 press Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "42 homePageFlickable.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "43 Vault separate door",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "rect.width",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "taskbarVaultDoor"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "44 activate taskbarVaultDoor",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "taskbarVaultDoor"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "45 vaultState.pageOpen",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultState",
+        "prop": "pageOpen",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "46 vaultDropSurface.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultDropSurface",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "47 empty Vault separate page",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists",
+          "value": ""
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "48 press Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "49 vaultState.pageOpen",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultState",
+        "prop": "pageOpen",
+        "value": false,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "50 homePageFlickable.visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "51 press Tab",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Tab"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "52 keyboard entry left ignition",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "keyboardIgnition",
+        "props": [
+          "activeFocus"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "53 local shell keyboard recovery",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists",
+          "value": ""
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    }
+  ]
+}

@@ -1,0 +1,83 @@
+{
+  "v": 1,
+  "defaultsVersion": 14,
+  "extensions": [
+    {
+      "id": "com.colosseum.universe.onepiece",
+      "transportUrl": "http://127.0.0.1:9/disabled/manifest.json",
+      "enabled": true,
+      "core": false,
+      "installedAt": 0,
+      "manifest": {
+        "id": "com.colosseum.universe.onepiece",
+        "name": "One Piece",
+        "version": "1.1.9-fixture",
+        "description": "Inert synthetic acceptance fixture. No acquisition provider.",
+        "resources": [
+          "universe"
+        ],
+        "types": [
+          "universe"
+        ],
+        "background": "file://${FIXTURE_ROOT}/intentionally-missing-universe-banner.png"
+      }
+    },
+    {
+      "id": "com.colosseum.universe.cosmere",
+      "transportUrl": "http://127.0.0.1:9/disabled/manifest.json",
+      "enabled": true,
+      "core": false,
+      "installedAt": 0,
+      "manifest": {
+        "id": "com.colosseum.universe.cosmere",
+        "name": "Cosmere",
+        "version": "1.1.9-fixture",
+        "description": "Inert synthetic acceptance fixture. No acquisition provider.",
+        "resources": [
+          "universe"
+        ],
+        "types": [
+          "universe"
+        ]
+      }
+    },
+    {
+      "id": "com.colosseum.universe.dcau",
+      "transportUrl": "http://127.0.0.1:9/disabled/manifest.json",
+      "enabled": true,
+      "core": false,
+      "installedAt": 0,
+      "manifest": {
+        "id": "com.colosseum.universe.dcau",
+        "name": "DC Animated Universe",
+        "version": "1.1.9-fixture",
+        "description": "Inert synthetic acceptance fixture. No acquisition provider.",
+        "resources": [
+          "universe"
+        ],
+        "types": [
+          "universe"
+        ]
+      }
+    },
+    {
+      "id": "com.colosseum.universe.starwars",
+      "transportUrl": "http://127.0.0.1:9/disabled/manifest.json",
+      "enabled": true,
+      "core": false,
+      "installedAt": 0,
+      "manifest": {
+        "id": "com.colosseum.universe.starwars",
+        "name": "Star Wars",
+        "version": "1.1.9-fixture",
+        "description": "Inert synthetic acceptance fixture. No acquisition provider.",
+        "resources": [
+          "universe"
+        ],
+        "types": [
+          "universe"
+        ]
+      }
+    }
+  ]
+}

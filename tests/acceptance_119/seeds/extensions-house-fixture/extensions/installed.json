@@ -1,0 +1,44 @@
+{
+  "v": 1,
+  "defaultsVersion": 14,
+  "extensions": [
+    {
+      "id": "colosseum.well.nyaa",
+      "transportUrl": "http://127.0.0.1:9/disabled/manifest.json",
+      "enabled": true,
+      "core": false,
+      "installedAt": 0,
+      "manifest": {
+        "id": "colosseum.well.nyaa",
+        "name": "Acceptance 1.1.9 inert Nyaa fixture",
+        "version": "1.1.9-fixture",
+        "description": "Inert synthetic acceptance fixture. No acquisition provider.",
+        "resources": [
+          "stream"
+        ],
+        "types": [
+          "anime"
+        ]
+      }
+    },
+    {
+      "id": "com.colosseum.universe.starwars",
+      "transportUrl": "http://127.0.0.1:9/disabled/manifest.json",
+      "enabled": true,
+      "core": false,
+      "installedAt": 0,
+      "manifest": {
+        "id": "com.colosseum.universe.starwars",
+        "name": "Star Wars",
+        "version": "1.1.9-fixture",
+        "description": "Inert synthetic acceptance fixture. No acquisition provider.",
+        "resources": [
+          "universe"
+        ],
+        "types": [
+          "universe"
+        ]
+      }
+    }
+  ]
+}

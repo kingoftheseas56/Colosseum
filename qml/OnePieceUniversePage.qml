@@ -143,6 +143,7 @@ FocusScope {
 
     ChromeScrim { z: 16 }
     BackAction {
+        objectName: "onePieceUniverseBack"
         x: theme.margin
         y: 28
         z: 20

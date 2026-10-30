@@ -176,6 +176,9 @@ Item {
     // ---- pinned top bar (this medium selected; "‹ Home" shown) ----
     TopBar {
         id: topbar
+        // Scope acceptance reads to this retained world's real chrome; the
+        // shared pill names also exist on Home and other retained worlds.
+        objectName: "worldTopBar_" + world.medium
         backdrop: world.backdrop
         activeMedium: world.medium
         backOnly: world.topBarBackOnly

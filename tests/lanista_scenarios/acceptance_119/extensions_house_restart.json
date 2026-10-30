@@ -1,0 +1,399 @@
+{
+  "name": "EXT-HOUSE-RESTART",
+  "comment": "Restart only the retained owned profile from EXT-HOUSE-STATE. No seed overwrite and no onboarding. Check the disabled reviewed fixture and missing tile survived process restart, default House route and bundled wallpaper Ready.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Native protocol and isolated drive-only session",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "==",
+          "value": "colosseum.dev.v1.0"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "gates.write",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 App window and tagged profile are observable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        },
+        {
+          "path": "cacheRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "005 Open Extensions with the production keyboard shortcut",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Ctrl+Shift+E"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+Shift+E"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "006 extensionsLayer.active reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "extensionsLayer",
+        "prop": "active",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 extensionsHousePage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "extensionsHousePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "008 Observe extensionsStorePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.section",
+          "op": "==",
+          "value": "house"
+        }
+      ],
+      "payload": {
+        "object": "extensionsStorePage",
+        "props": [
+          "section"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "009 extensionsHouseTab_house.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "extensionsHouseTab_house",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "010 Observe extensionsStorePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.section",
+          "op": "==",
+          "value": "house"
+        }
+      ],
+      "payload": {
+        "object": "extensionsStorePage",
+        "props": [
+          "section"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "011 Observe housePageToggle_colosseum.well.nyaa",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.installedState",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "housePageToggle_colosseum.well.nyaa",
+        "props": [
+          "installedState",
+          "enabled"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "012 Observe housePageToggle_colosseum.well.tankoyomi",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.installedState",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "housePageToggle_colosseum.well.tankoyomi",
+        "props": [
+          "installedState",
+          "enabled"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "013 extensionsHouseWallpaper_starwars.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "extensionsHouseWallpaper_starwars",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "014 Observe extensionsHousePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.prototypeMode",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "extensionsHousePage",
+        "props": [
+          "visible",
+          "prototypeMode"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "015 Request normal application shutdown; runner checks owned PID exit",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Ctrl+Q"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+Q"
+      }
+    }
+  ]
+}

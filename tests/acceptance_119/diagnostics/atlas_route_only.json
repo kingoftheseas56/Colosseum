@@ -1,0 +1,6955 @@
+{
+  "name": "ATLAS-ROUTE-ONLY-DIAGNOSTIC-NOT-RELEASE-QUALIFICATION",
+  "comment": "Separately labeled route-discovery subset of ATLAS-FOUR-SEA. Removes all zoom actions and zoom/retention assertions because the permanent taskbar occludes those controls in the current packaged app. Preserves all baseline map geometry, local image readiness, real sea gates, preview/arc identity, actual mouse/index and keyboard interactions, and existing focus assertions. Use keep-going only to preserve real focus failures while discovering later routes; the command must still return FAIL for those assertions. Do not import into the main suite, replace ATLAS-FOUR-SEA, or report a passing subset as full atlas qualification. Intended actual normal window1280x720; the separate1364x1024 clipping failure remains valid. Original step labels retained for protocol comparison, so numeric gaps are intentional.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Native protocol and isolated drive-only session",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "==",
+          "value": "colosseum.dev.v1.0"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "gates.write",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 App window and tagged profile are observable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        },
+        {
+          "path": "cacheRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountWelcomeContinueLocal.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "005 accountWelcomeContinueLocal has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Continue locally through onboarding",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "008 modePill_Universes has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "009 Click modePill_Universes",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Universes"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "010 universesWorld.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "011 Observe universesCount",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "20 universes"
+        }
+      ],
+      "payload": {
+        "object": "universesCount",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "012 universesTributeCarouselView.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarouselView",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "013 Observe universesTributeCarousel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.primaryLabel",
+          "op": "==",
+          "value": "Enter tribute"
+        },
+        {
+          "path": "props.secondaryLabel",
+          "op": "==",
+          "value": "Browse universe"
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarousel",
+        "props": [
+          "visible",
+          "primaryLabel",
+          "secondaryLabel"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "014 Observe universesTributeCarousel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.index",
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarousel",
+        "props": [
+          "index"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "015 Enter One Piece Tribute from the focused carousel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "016 onePieceUniversePage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "017 Observe universeLayer",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.extensionId",
+          "op": "==",
+          "value": "com.colosseum.universe.onepiece"
+        },
+        {
+          "path": "props.plain",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "props.templatePage",
+          "op": "==",
+          "value": ""
+        }
+      ],
+      "payload": {
+        "object": "universeLayer",
+        "props": [
+          "extensionId",
+          "plain",
+          "templatePage"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "018 onePieceUniversePage.activeSeaId reaches east-blue",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "east-blue"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "activeSeaId",
+        "value": "east-blue",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "019 eastBlueAtlas.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "020 eastBlueAtlas.captureReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "prop": "captureReady",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "021 Observe eastBlueAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "props": [
+          "visible",
+          "enabled"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 eastBlueAtlasPlate.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlasPlate",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "023 eastBlueBadge-romance.artworkStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-romance",
+        "prop": "artworkStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "024 eastBlueBadge-romance has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-romance"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "025 eastBlueBadge-orange.artworkStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-orange",
+        "prop": "artworkStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "026 eastBlueBadge-orange has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-orange"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "027 eastBlueBadge-syrup.artworkStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-syrup",
+        "prop": "artworkStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "028 eastBlueBadge-syrup has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-syrup"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "029 eastBlueBadge-baratie.artworkStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-baratie",
+        "prop": "artworkStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "030 eastBlueBadge-baratie has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-baratie"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "031 eastBlueBadge-arlong.artworkStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-arlong",
+        "prop": "artworkStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "032 eastBlueBadge-arlong has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-arlong"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "033 eastBlueBadge-loguetown.artworkStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-loguetown",
+        "prop": "artworkStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "034 eastBlueBadge-loguetown has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-loguetown"
+      }
+    },
+    {
+      "label": "035 east-blue: bounded native layout verdict for every badge",
+      "layout_verdict": {
+        "checkpoint": "${SOURCE_ROOT}/tests/lanista_layout/acceptance_119/atlas_east-blue.json",
+        "out": "${OUTPUT_ROOT}/atlas_east-blue_layout.json"
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "036 eastBlueIndexButton has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "037 Open the actual story index",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "eastBlueIndexButton"
+        }
+      ],
+      "payload": {
+        "target": "eastBlueIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "038 eastBlueIndexPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueIndexPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "039 eastBlueCanonRow-romance has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "eastBlueCanonRow-romance"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "040 Select Romance Dawn through the visible index row",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "eastBlueCanonRow-romance"
+        }
+      ],
+      "payload": {
+        "target": "eastBlueCanonRow-romance"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "041 eastBlueAtlas.selectedArcId reaches romance",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "romance"
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "prop": "selectedArcId",
+        "value": "romance",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "042 eastBlueArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "043 Observe eastBluePreviewTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Romance Dawn"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBluePreviewTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "044 eastBlueArcPreviewPoster.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "eastBlueArcPreviewPoster",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "045 Observe eastBlueAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "romance"
+        },
+        {
+          "path": "props.selectedMarkerId",
+          "op": "==",
+          "value": "romance"
+        },
+        {
+          "path": "props.previewVisible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "props": [
+          "selectedArcId",
+          "selectedMarkerId",
+          "previewVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "046 Dismiss the preview without leaving the sea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Escape"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "047 eastBlueArcPreview.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "eastBlueArcPreview",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "048 eastBlueBadge-romance.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueBadge-romance",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "049 Reopen the focused island preview",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "050 eastBlueArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "051 Observe eastBlueAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "romance"
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "props": [
+          "selectedArcId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "052 eastBlueOpenArc has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "053 Open the selected arc through its visible action",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "eastBlueOpenArc"
+        }
+      ],
+      "payload": {
+        "target": "eastBlueOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "054 onePieceArcPage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "055 Observe onePieceArcPage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.arcId",
+          "op": "==",
+          "value": "romance"
+        },
+        {
+          "path": "props.seaId",
+          "op": "==",
+          "value": "east-blue"
+        },
+        {
+          "path": "props.extensionId",
+          "op": "==",
+          "value": "com.colosseum.universe.onepiece"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "props": [
+          "arcId",
+          "seaId",
+          "extensionId"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "056 Observe onePieceArcTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Romance Dawn"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "057 onePieceArcHero.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcHero",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "058 Observe onePieceArcCatalogue",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcCatalogue",
+        "props": [
+          "visible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "059 Return from the selected arc using its Back control",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "onePieceArcBack"
+        }
+      ],
+      "payload": {
+        "target": "onePieceArcBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "060 onePieceUniversePage.arcPageOpen reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "arcPageOpen",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "060a Diagnose actual arc-return focus ownership: onePieceUniversePage",
+      "payload": {
+        "object": "onePieceUniversePage",
+        "props": [
+          "visible",
+          "enabled",
+          "activeFocus",
+          "arcPageOpen",
+          "activeSeaId"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "060b Diagnose actual arc-return focus ownership: eastBlueAtlas",
+      "payload": {
+        "object": "eastBlueAtlas",
+        "props": [
+          "visible",
+          "enabled",
+          "activeFocus",
+          "focus",
+          "previewVisible",
+          "selectedArcId"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "060c Diagnose actual arc-return focus ownership: eastBlueOpenArc",
+      "payload": {
+        "object": "eastBlueOpenArc",
+        "props": [
+          "visible",
+          "enabled",
+          "activeFocus",
+          "focus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "060d Diagnose actual arc-return focus ownership: keyboardIgnition",
+      "payload": {
+        "object": "keyboardIgnition",
+        "props": [
+          "visible",
+          "enabled",
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "061 eastBlueAtlas.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "062 Observe onePieceUniversePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeSeaId",
+          "op": "==",
+          "value": "east-blue"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "props": [
+          "activeSeaId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "065 eastBlueToParadise has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "eastBlueToParadise"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "066 Sail from east-blue using the real sea gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "eastBlueToParadise"
+        }
+      ],
+      "payload": {
+        "target": "eastBlueToParadise"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "067 onePieceUniversePage.activeSeaId reaches paradise",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "paradise"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "activeSeaId",
+        "value": "paradise",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "068 paradiseAtlas.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "069 paradiseAtlas.captureReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "prop": "captureReady",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "070 Observe paradiseAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "props": [
+          "visible",
+          "enabled"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "071 paradiseBadge-reverse-mountain.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-reverse-mountain",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "072 paradiseMarker-reverse-mountain has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-reverse-mountain"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "073 paradiseBadge-whisky-peak.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-whisky-peak",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "074 paradiseMarker-whisky-peak has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-whisky-peak"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "075 paradiseBadge-little-garden.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-little-garden",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "076 paradiseMarker-little-garden has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-little-garden"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "077 paradiseBadge-drum-island.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-drum-island",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "078 paradiseMarker-drum-island has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-drum-island"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "079 paradiseBadge-arabasta.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-arabasta",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "080 paradiseMarker-arabasta has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-arabasta"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "081 paradiseBadge-jaya.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-jaya",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "082 paradiseMarker-jaya has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-jaya"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "083 paradiseBadge-skypiea.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-skypiea",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "084 paradiseMarker-skypiea has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-skypiea"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "085 paradiseBadge-long-ring-long-land.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-long-ring-long-land",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "086 paradiseMarker-long-ring-long-land has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-long-ring-long-land"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "087 paradiseBadge-water-7.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-water-7",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "088 paradiseMarker-water-7 has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-water-7"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "089 paradiseBadge-enies-lobby.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-enies-lobby",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "090 paradiseMarker-enies-lobby has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-enies-lobby"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "091 paradiseBadge-thriller-bark.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-thriller-bark",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "092 paradiseMarker-thriller-bark has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-thriller-bark"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "093 paradiseBadge-sabaody.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-sabaody",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "094 paradiseMarker-sabaody has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-sabaody"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "095 paradiseBadge-amazon-lily.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-amazon-lily",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "096 paradiseMarker-amazon-lily has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-amazon-lily"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "097 paradiseBadge-impel-down.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-impel-down",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "098 paradiseMarker-impel-down has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-impel-down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "099 paradiseBadge-marineford.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-marineford",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "100 paradiseMarker-marineford has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-marineford"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "101 paradiseBadge-post-war.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseBadge-post-war",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "102 paradiseMarker-post-war has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-post-war"
+      }
+    },
+    {
+      "label": "103 paradise: bounded native layout verdict for every badge",
+      "layout_verdict": {
+        "checkpoint": "${SOURCE_ROOT}/tests/lanista_layout/acceptance_119/atlas_paradise.json",
+        "out": "${OUTPUT_ROOT}/atlas_paradise_layout.json"
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "104 paradiseIndexButton has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "paradiseIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "105 Open the actual story index",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "paradiseIndexButton"
+        }
+      ],
+      "payload": {
+        "target": "paradiseIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "106 paradiseIndexPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseIndexPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "106a Select the first Paradise index row explicitly, regardless of restored arc selection",
+      "payload": {
+        "key": "Home"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Home"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "107 paradiseIndexRow-reverse-mountain.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseIndexRow-reverse-mountain",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "108 Open the first indexed arc using the keyboard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "109 paradiseAtlas.selectedArcId reaches reverse-mountain",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "reverse-mountain"
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "prop": "selectedArcId",
+        "value": "reverse-mountain",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "110 paradiseArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "111 Observe paradisePreviewTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Reverse Mountain"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradisePreviewTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "112 paradiseArcPoster.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "paradiseArcPoster",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "113 Observe paradiseAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "reverse-mountain"
+        },
+        {
+          "path": "props.selectedMarkerId",
+          "op": "==",
+          "value": "reverse-mountain"
+        },
+        {
+          "path": "props.previewVisible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "props": [
+          "selectedArcId",
+          "selectedMarkerId",
+          "previewVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "114 Dismiss the preview without leaving the sea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Escape"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "115 paradiseArcPreview.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "paradiseArcPreview",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "116 paradiseMarker-reverse-mountain.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseMarker-reverse-mountain",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "117 Reopen the focused island preview",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "118 paradiseArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "119 Observe paradiseAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "reverse-mountain"
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "props": [
+          "selectedArcId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "120 paradiseOpenArc has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "121 Open the selected arc through its visible action",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "paradiseOpenArc"
+        }
+      ],
+      "payload": {
+        "target": "paradiseOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "122 onePieceArcPage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "123 Observe onePieceArcPage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.arcId",
+          "op": "==",
+          "value": "reverse-mountain"
+        },
+        {
+          "path": "props.seaId",
+          "op": "==",
+          "value": "paradise"
+        },
+        {
+          "path": "props.extensionId",
+          "op": "==",
+          "value": "com.colosseum.universe.onepiece"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "props": [
+          "arcId",
+          "seaId",
+          "extensionId"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "124 Observe onePieceArcTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Reverse Mountain"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "125 onePieceArcHero.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcHero",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "126 Observe onePieceArcCatalogue",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcCatalogue",
+        "props": [
+          "visible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "127 Return from the selected arc using its Back control",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "onePieceArcBack"
+        }
+      ],
+      "payload": {
+        "target": "onePieceArcBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "128 onePieceUniversePage.arcPageOpen reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "arcPageOpen",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "129 paradiseAtlas.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "130 Observe onePieceUniversePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeSeaId",
+          "op": "==",
+          "value": "paradise"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "props": [
+          "activeSeaId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "133 paradiseNewWorld has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseNewWorld"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "134 Sail from paradise using the real sea gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "paradiseNewWorld"
+        }
+      ],
+      "payload": {
+        "target": "paradiseNewWorld"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "135 onePieceUniversePage.activeSeaId reaches new-world",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "new-world"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "activeSeaId",
+        "value": "new-world",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "136 newWorldAtlas.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "137 newWorldAtlas.captureReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "prop": "captureReady",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "138 Observe newWorldAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "props": [
+          "visible",
+          "enabled"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "139 newWorldBadge-fish-man-island.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "newWorldBadge-fish-man-island",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "140 newWorldMarker-fish-man-island has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldMarker-fish-man-island"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "141 newWorldBadge-punk-hazard.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "newWorldBadge-punk-hazard",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "142 newWorldMarker-punk-hazard has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldMarker-punk-hazard"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "143 newWorldBadge-dressrosa.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "newWorldBadge-dressrosa",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "144 newWorldMarker-dressrosa has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldMarker-dressrosa"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "145 newWorldBadge-zou.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "newWorldBadge-zou",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "146 newWorldMarker-zou has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldMarker-zou"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "147 newWorldBadge-whole-cake-island.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "newWorldBadge-whole-cake-island",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "148 newWorldMarker-whole-cake-island has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldMarker-whole-cake-island"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "149 newWorldBadge-wano-country.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "newWorldBadge-wano-country",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "150 newWorldMarker-wano-country has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldMarker-wano-country"
+      }
+    },
+    {
+      "label": "151 new-world: bounded native layout verdict for every badge",
+      "layout_verdict": {
+        "checkpoint": "${SOURCE_ROOT}/tests/lanista_layout/acceptance_119/atlas_new-world.json",
+        "out": "${OUTPUT_ROOT}/atlas_new-world_layout.json"
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "152 newWorldIndexButton has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "newWorldIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "153 Open the actual story index",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "newWorldIndexButton"
+        }
+      ],
+      "payload": {
+        "target": "newWorldIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "154 newWorldIndexPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldIndexPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "155 newWorldIndexRow-fish-man-island.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldIndexRow-fish-man-island",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "156 Open the first indexed arc using the keyboard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "157 newWorldAtlas.selectedArcId reaches fish-man-island",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "fish-man-island"
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "prop": "selectedArcId",
+        "value": "fish-man-island",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "158 newWorldArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "159 Observe newWorldPreviewTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Fish-Man Island"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldPreviewTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "160 newWorldPreviewHero.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "newWorldPreviewHero",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "161 Observe newWorldAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "fish-man-island"
+        },
+        {
+          "path": "props.selectedMarkerId",
+          "op": "==",
+          "value": "fish-man-island"
+        },
+        {
+          "path": "props.previewVisible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "props": [
+          "selectedArcId",
+          "selectedMarkerId",
+          "previewVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "162 Dismiss the preview without leaving the sea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Escape"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "163 newWorldArcPreview.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "newWorldArcPreview",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "164 newWorldMarker-fish-man-island.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldMarker-fish-man-island",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "165 Reopen the focused island preview",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "166 newWorldArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "167 Observe newWorldAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "fish-man-island"
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "props": [
+          "selectedArcId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "168 newWorldOpenArc has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "169 Open the selected arc through its visible action",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "newWorldOpenArc"
+        }
+      ],
+      "payload": {
+        "target": "newWorldOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "170 onePieceArcPage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "171 Observe onePieceArcPage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.arcId",
+          "op": "==",
+          "value": "fish-man-island"
+        },
+        {
+          "path": "props.seaId",
+          "op": "==",
+          "value": "new-world"
+        },
+        {
+          "path": "props.extensionId",
+          "op": "==",
+          "value": "com.colosseum.universe.onepiece"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "props": [
+          "arcId",
+          "seaId",
+          "extensionId"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "172 Observe onePieceArcTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Fish-Man Island"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "173 onePieceArcHero.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcHero",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "174 Observe onePieceArcCatalogue",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcCatalogue",
+        "props": [
+          "visible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "175 Return from the selected arc using its Back control",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "onePieceArcBack"
+        }
+      ],
+      "payload": {
+        "target": "onePieceArcBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "176 onePieceUniversePage.arcPageOpen reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "arcPageOpen",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "177 newWorldAtlas.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "178 Observe onePieceUniversePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeSeaId",
+          "op": "==",
+          "value": "new-world"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "props": [
+          "activeSeaId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "181 newWorldBeyondWano has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldBeyondWano"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "182 Sail from new-world using the real sea gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "newWorldBeyondWano"
+        }
+      ],
+      "payload": {
+        "target": "newWorldBeyondWano"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "183 onePieceUniversePage.activeSeaId reaches final-sea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "final-sea"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "activeSeaId",
+        "value": "final-sea",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "184 finalSeaAtlas.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaAtlas",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "185 finalSeaAtlas.captureReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaAtlas",
+        "prop": "captureReady",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "186 Observe finalSeaAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "finalSeaAtlas",
+        "props": [
+          "visible",
+          "enabled"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "187 finalSeaMapImage.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "finalSeaMapImage",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "188 finalSeaBadge-egghead.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "finalSeaBadge-egghead",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "189 finalSeaMarker-egghead has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "finalSeaMarker-egghead"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "190 finalSeaBadge-elbaf.status reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "finalSeaBadge-elbaf",
+        "prop": "status",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "191 finalSeaMarker-elbaf has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "finalSeaMarker-elbaf"
+      }
+    },
+    {
+      "label": "192 final-sea: bounded native layout verdict for every badge",
+      "layout_verdict": {
+        "checkpoint": "${SOURCE_ROOT}/tests/lanista_layout/acceptance_119/atlas_final-sea.json",
+        "out": "${OUTPUT_ROOT}/atlas_final-sea_layout.json"
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "193 finalSeaIndexButton has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "finalSeaIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "194 Open the actual story index",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "finalSeaIndexButton"
+        }
+      ],
+      "payload": {
+        "target": "finalSeaIndexButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "195 finalSeaIndexPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaIndexPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "196 finalSeaIndexRow-egghead.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaIndexRow-egghead",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "197 Open the first indexed arc using the keyboard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "198 finalSeaAtlas.selectedArcId reaches egghead",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "egghead"
+        }
+      ],
+      "payload": {
+        "object": "finalSeaAtlas",
+        "prop": "selectedArcId",
+        "value": "egghead",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "199 finalSeaArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "200 Observe finalSeaPreviewTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Egghead"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaPreviewTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "201 finalSeaPreviewHero.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "finalSeaPreviewHero",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "202 Observe finalSeaAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "egghead"
+        },
+        {
+          "path": "props.selectedMarkerId",
+          "op": "==",
+          "value": "egghead"
+        },
+        {
+          "path": "props.previewVisible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "finalSeaAtlas",
+        "props": [
+          "selectedArcId",
+          "selectedMarkerId",
+          "previewVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "203 Dismiss the preview without leaving the sea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Escape"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "204 finalSeaArcPreview.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "finalSeaArcPreview",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "205 finalSeaMarker-egghead.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaMarker-egghead",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "206 Reopen the focused island preview",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "207 finalSeaArcPreview.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaArcPreview",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "208 Observe finalSeaAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedArcId",
+          "op": "==",
+          "value": "egghead"
+        }
+      ],
+      "payload": {
+        "object": "finalSeaAtlas",
+        "props": [
+          "selectedArcId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "209 finalSeaOpenArc has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "finalSeaOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "210 Open the selected arc through its visible action",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "finalSeaOpenArc"
+        }
+      ],
+      "payload": {
+        "target": "finalSeaOpenArc"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "211 onePieceArcPage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "212 Observe onePieceArcPage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.arcId",
+          "op": "==",
+          "value": "egghead"
+        },
+        {
+          "path": "props.seaId",
+          "op": "==",
+          "value": "final-sea"
+        },
+        {
+          "path": "props.extensionId",
+          "op": "==",
+          "value": "com.colosseum.universe.onepiece"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcPage",
+        "props": [
+          "arcId",
+          "seaId",
+          "extensionId"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "213 Observe onePieceArcTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Egghead"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "214 onePieceArcHero.status reaches Ready",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Ready"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcHero",
+        "prop": "status",
+        "value": "Ready",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "215 Observe onePieceArcCatalogue",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "onePieceArcCatalogue",
+        "props": [
+          "visible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "216 Return from the selected arc using its Back control",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "onePieceArcBack"
+        }
+      ],
+      "payload": {
+        "target": "onePieceArcBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "217 onePieceUniversePage.arcPageOpen reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "arcPageOpen",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "218 finalSeaAtlas.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "finalSeaAtlas",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "219 Observe onePieceUniversePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeSeaId",
+          "op": "==",
+          "value": "final-sea"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "props": [
+          "activeSeaId"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "222 finalSeaToNewWorld has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "finalSeaToNewWorld"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "223 Return through the previous-sea control",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "finalSeaToNewWorld"
+        }
+      ],
+      "payload": {
+        "target": "finalSeaToNewWorld"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "224 onePieceUniversePage.activeSeaId reaches new-world",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "new-world"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "activeSeaId",
+        "value": "new-world",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "225 newWorldAtlas.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "226 Observe newWorldAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "newWorldAtlas",
+        "props": [
+          "activeFocus"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "227 newWorldToParadise has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "newWorldToParadise"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "228 Return through the previous-sea control",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "newWorldToParadise"
+        }
+      ],
+      "payload": {
+        "target": "newWorldToParadise"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "229 onePieceUniversePage.activeSeaId reaches paradise",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "paradise"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "activeSeaId",
+        "value": "paradise",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "230 paradiseAtlas.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "231 Observe paradiseAtlas",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "paradiseAtlas",
+        "props": [
+          "activeFocus"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "232 paradiseEastBlue has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 44
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 44
+        }
+      ],
+      "payload": {
+        "object": "paradiseEastBlue"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "233 Return through the previous-sea control",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "paradiseEastBlue"
+        }
+      ],
+      "payload": {
+        "target": "paradiseEastBlue"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "234 onePieceUniversePage.activeSeaId reaches east-blue",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "east-blue"
+        }
+      ],
+      "payload": {
+        "object": "onePieceUniversePage",
+        "prop": "activeSeaId",
+        "value": "east-blue",
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "235 eastBlueAtlas.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "236 Observe returned eastBlueAtlas focus without a zoom-retention claim",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "eastBlueAtlas",
+        "props": [
+          "activeFocus"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "237 Click onePieceUniverseBack",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "onePieceUniverseBack"
+        }
+      ],
+      "payload": {
+        "target": "onePieceUniverseBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "238 universeLayer.active reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "universeLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "239 universesWorld.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "240 keyboardIgnition.activeFocus reaches True",
+      "payload": {
+        "object": "keyboardIgnition",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "241 Recover keyboard focus onto a real visible world control",
+      "payload": {
+        "key": "Tab"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Tab"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "242 universesWorld.automationFocusedObjectFullyVisible reaches True",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "automationFocusedObjectFullyVisible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "243 The Universe Home control owns reachable focus",
+      "payload": {
+        "object": "universesWorld",
+        "props": [
+          "automationFocusedObject",
+          "automationFocusedObjectFullyVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "Home"
+        },
+        {
+          "path": "props.automationFocusedObjectFullyVisible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "244 Activate the focused Home control using keyboard input",
+      "payload": {
+        "key": "Return"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "245 universesWorld.visible reaches False",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "246 homePageFlickable.visible reaches True",
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "247 Request normal application shutdown; runner checks owned PID exit",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Ctrl+Q"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+Q"
+      }
+    }
+  ]
+}

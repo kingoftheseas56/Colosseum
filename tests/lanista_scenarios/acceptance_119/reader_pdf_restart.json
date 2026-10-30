@@ -1,0 +1,609 @@
+{
+  "name": "reader-pdf-restart",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 Wait for asynchronously created Home Continue action",
+      "payload": {
+        "object": "continueResume_${PDF_ID}",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "006 continueResume_${PDF_ID} is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "continueResume_${PDF_ID}"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "007 Reopen PDF using Home Continue after restart",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "continueResume_${PDF_ID}"
+        }
+      ],
+      "payload": {
+        "target": "continueResume_${PDF_ID}"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "008 bookReaderShell.lastCfi reaches epubcfi(/6/6)",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "lastCfi",
+        "value": "epubcfi(/6/6)",
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "009 Real fixed-layout relocated event after PDF render promise and iframe load",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/search.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.lastCfi",
+          "op": "==",
+          "value": "epubcfi(/6/6)"
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": "==",
+          "value": "2"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "lastCfi",
+          "pageInChapter",
+          "pagesInChapter",
+          "openErrorShown"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "010 Activate reader2SearchAction",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchAction"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchAction"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "011 Search input is visible before interaction",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "012 Focus actual visible search input",
+      "payload": {
+        "target": "reader2SearchInput"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchInput"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "013 Search input owns keyboard focus before typing",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "014 Type known PDF search term",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "typed",
+          "op": "==",
+          "value": "ORBIT"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchInput",
+        "text": "ORBIT"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "015 Typed query reached real TextInput",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "text",
+        "value": "ORBIT",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "016 Search input retains keyboard focus before Return",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "017 Submit actual search input",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "018 bookReaderShell.searchLastQuery reaches ORBIT",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchLastQuery",
+        "value": "ORBIT",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "019 bookReaderShell.searchCount reaches 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchCount",
+        "value": 3,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "020 reader2SearchCount is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchCount"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "021 Visible result count agrees with real PDF search",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "3 results"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchCount",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 reader2SearchResults.count reaches 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchResults",
+        "prop": "count",
+        "value": 3,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "023 Search still works after restart",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "bookReaderShell",
+          "timeoutMs": 6000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "024 Keyboard Esc",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Esc"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "025 Activate bookReaderBack",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "bookReaderBack"
+        }
+      ],
+      "payload": {
+        "target": "bookReaderBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "026 homePageFlickable.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    }
+  ]
+}

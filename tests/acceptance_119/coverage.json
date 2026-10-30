@@ -1,0 +1,284 @@
+{
+  "schema": "colosseum.acceptance119.coverage.v1",
+  "baseline": "a6104f7a8d9aab9766e71f031b7908beaeca85ad",
+  "release_notes": "docs/release-notes/v1.1.9.md",
+  "status_policy": "Consult evidence/result JSON per execution. Authored coverage defaults NOT RUN; no PASS is implied by a listed case.",
+  "areas": [
+    {
+      "area": 1,
+      "behavior": "Local-only boot, four worlds, separate Vault, keyboard, narrow layout",
+      "case_ids": [
+        "SHELL-LOCAL-WORLDS",
+        "SHELL-LOCAL-RESTART",
+        "ACC-LOCAL-UI",
+        "ACC-LOCAL-RESTART"
+      ],
+      "execution_layer": "assembled-app + normal AppRun narrow check",
+      "fixtures": "fresh profile / no account",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Exact visible controls, world chrome, native layout verdict, keyboard route; source-scope test separately covers Feria absence."
+    },
+    {
+      "area": 2,
+      "behavior": "Universes identity, categories, Tributes, offline artwork",
+      "case_ids": [
+        "UNI-FILTER",
+        "UNI-OFFLINE-BANNER"
+      ],
+      "execution_layer": "assembled-app + focused QML",
+      "fixtures": "bundled catalogues / missing-image extension seed",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Displayed banners/identity and actual category results, keyboard return. Live providers are separate."
+    },
+    {
+      "area": 3,
+      "behavior": "Twelve structured franchises and standard One Piece 56 works",
+      "case_ids": [
+        "UNI-01",
+        "UNI-02",
+        "UNI-03",
+        "UNI-04",
+        "UNI-05",
+        "UNI-06",
+        "UNI-07",
+        "UNI-08",
+        "UNI-09",
+        "UNI-10",
+        "UNI-11",
+        "UNI-12"
+      ],
+      "execution_layer": "assembled-app + focused QML",
+      "fixtures": "pinned built-in franchise data",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Banner to title/shelves/medium counts and return. Opening every work/provider is not covered."
+    },
+    {
+      "area": 4,
+      "behavior": "Four-sea atlas navigation, previews, images, geometry and focus",
+      "case_ids": [
+        "ATLAS-FOUR-SEA"
+      ],
+      "execution_layer": "assembled-app + focused QML",
+      "fixtures": "bundled maps/posters",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Native geometry checkpoints and actual navigation; arbitrary window/DPI combinations remain receiving checks."
+    },
+    {
+      "area": 5,
+      "behavior": "Vault roots, real scan, drill-down, breadcrumbs, refreshed contents",
+      "case_ids": [
+        "VAULT-EMPTY",
+        "VAULT-UNAVAILABLE",
+        "VAULT-FILM",
+        "VAULT-NESTED-PREPARE",
+        "VAULT-NESTED-RESTART",
+        "VAULT-SIBLING-SEASONS",
+        "VAULT-ANIME",
+        "VAULT-CLIPS-PREPARE",
+        "VAULT-CLIPS-REFRESHED",
+        "VAULT-NATIVE-ADD-FOLDER"
+      ],
+      "execution_layer": "assembled-app",
+      "fixtures": "deterministic playable media / seeded root records",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Seeded scanner entry does not prove native Add Folder dialog. Refreshed fixture is observed on restart, not live watcher timing."
+    },
+    {
+      "area": 6,
+      "behavior": "Standalone CBZ identity, Continue and persisted page",
+      "case_ids": [
+        "READER-COMIC-PREPARE",
+        "READER-COMIC-SAME-NAME",
+        "READER-COMIC-RESTART",
+        "READER-COMIC-SAME-NAME-RESTART",
+        "READER-COMIC-MISSING",
+        "READER-COMIC-SHUTDOWN"
+      ],
+      "execution_layer": "assembled-app + focused component",
+      "fixtures": "two same-name eight-page numbered CBZ files",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Exact canonical file ID, source path, presented page and Image.Ready. Native open picker separate. Positive active-reader shutdown separately requires acknowledged Ctrl+Q and exit zero; baseline comparison uses its own manifest and QML identity."
+    },
+    {
+      "area": 7,
+      "behavior": "Reader2 real PDF search, hit navigation, no-match and failures",
+      "case_ids": [
+        "READER-PDF-SEARCH",
+        "READER-PDF-RESTART",
+        "READER-PDF-MALFORMED",
+        "READER-PDF-UNAVAILABLE"
+      ],
+      "execution_layer": "assembled-app + actual browser/PDFjs component",
+      "fixtures": "four-page text PDF and malformed/missing inputs",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Real rendered relocation and visible count. Browser component PASS does not automatically qualify Qt assembled search."
+    },
+    {
+      "area": 8,
+      "behavior": "Extensions House default, routes, installed/disabled/missing and art",
+      "case_ids": [
+        "EXT-HOUSE-STATE",
+        "EXT-HOUSE-RESTART",
+        "EXT-MISSING-ART-NEG"
+      ],
+      "execution_layer": "assembled-app + focused QML",
+      "fixtures": "reviewed inert built-in-id extension records",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "No arbitrary provider installation. Broken supplied banner URL fallback is separate from absent-background bundled fallback."
+    },
+    {
+      "area": 9,
+      "behavior": "Local accounts, synthetic service refresh/retry, trackers",
+      "case_ids": [
+        "ACC-LOCAL-UI",
+        "ACC-LOCAL-RESTART",
+        "ACC-TRACKERS-LINUX-UI"
+      ],
+      "execution_layer": "assembled-app + native + isolated PostgreSQL service",
+      "fixtures": "disposable account-service database / no real account",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Four real desktop credential-vault restart trials require Windows; Linux service tests are separate."
+    },
+    {
+      "area": 10,
+      "behavior": "Normal repeated shutdown, persistence, Watch Party and owned helpers",
+      "case_ids": [
+        "SHELL-LOCAL-WORLDS",
+        "SHELL-LOCAL-RESTART"
+      ],
+      "execution_layer": "assembled-app + native + Windows receiving",
+      "fixtures": "owned PID/tag/profile only",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Native Watch Party component cases and actual per-journey exits. Forced termination is recovery/failure."
+    },
+    {
+      "area": 11,
+      "behavior": "Chronicle, signing trust, discovery, tamper and transfer edges",
+      "case_ids": [
+        "UPD-CHRONICLE-UI"
+      ],
+      "execution_layer": "assembled-app + native updater harnesses + static contracts",
+      "fixtures": "authentic checked-in 1.1.9 chronicle and signed test fixtures",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Exact production-key continuity/signature evidence distinct from test-key legacy harness; no feed changes."
+    },
+    {
+      "area": 12,
+      "behavior": "Windows manual migration and authentic automatic handoff",
+      "case_ids": [
+        "WIN-AUTOMATIC-UPDATE"
+      ],
+      "execution_layer": "Windows receiving",
+      "fixtures": "assigned installer + authentic 1.1.8 + synthetic progress",
+      "platforms": [
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Manual install checklist separate. Automatic requires genuine higher-version signed staging; Linux cannot qualify it."
+    },
+    {
+      "area": 13,
+      "behavior": "Fresh Linux package, extraction, normal startup and shutdown",
+      "case_ids": [
+        "SHELL-LOCAL-WORLDS",
+        "READER-COMIC-PREPARE",
+        "VAULT-FILM"
+      ],
+      "execution_layer": "package closure + assembled AppRun",
+      "fixtures": "fresh Release binary + instrumented QML + clean extraction",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Explicit-QML Lanista runs bypass startup manifest; normal AppRun proof required. Debian13 results do not qualify Windows or Ubuntu."
+    },
+    {
+      "area": 14,
+      "behavior": "Decisive negative controls",
+      "case_ids": [
+        "UNI-WRONG-IDENTITY-NEG",
+        "EXT-MISSING-ART-NEG",
+        "READER-COMIC-NEGATIVE-PAGE",
+        "READER-COMIC-NEGATIVE-IDENTITY"
+      ],
+      "execution_layer": "assembled oracle + updater/native + modeled runner",
+      "fixtures": "wrong expected value / missing image / tampered signed bytes",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "Exact expected failed assertion must be detected with healthy protocol and other steps passing. Oracle PASS is not product acceptance."
+    },
+    {
+      "area": 15,
+      "behavior": "CI/cache/docs/Chocolatey metadata and future integrations",
+      "case_ids": [],
+      "execution_layer": "static documentation/scope only",
+      "fixtures": "pinned release notes",
+      "platforms": [],
+      "status": "NOT RUN",
+      "evidence": "run.json, per-case result.json; component/package/receiving records linked by delivery",
+      "limits": "AniList/CloudStream/Aniyomi/Nuvio research is not shipped integration. No CI execution inferred from static workflow inspection."
+    }
+  ]
+}

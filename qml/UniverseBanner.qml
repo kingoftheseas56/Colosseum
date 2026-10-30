@@ -21,6 +21,11 @@ Item {
     signal hoverExited()
     signal activated()
 
+    // Read-only render observations; activation continues through the real portal controls.
+    readonly property int artworkStatus: artRaw.status
+    readonly property int markStatus: markImage.status
+    readonly property string displayedName: banner.entry.name || ""
+
     readonly property bool lit: banner.hot || banner.keyboardSelected
     readonly property string holds: (banner.entry.chips || []).map(function(c) { return c.t }).join("  ·  ")
     // the mark's box inside the 80x74 rail slot: wide wordmarks, tall emblems, square badges
@@ -88,6 +93,7 @@ Item {
         height: parent.height
         visible: banner.hasMark
         Image {
+            id: markImage
             objectName: "universeBannerMark"
             anchors.centerIn: parent
             anchors.horizontalCenterOffset: -9          // centred in the 80px slot left of the hairline
@@ -115,6 +121,7 @@ Item {
         spacing: 7
         Text {
             width: parent.width
+            objectName: banner.objectName + "_title"
             text: banner.entry.name || ""
             color: theme.ink
             font.family: theme.display; font.pixelSize: 30

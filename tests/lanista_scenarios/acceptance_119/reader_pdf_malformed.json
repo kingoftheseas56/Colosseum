@@ -1,0 +1,412 @@
+{
+  "name": "reader-pdf-malformed",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "004 Continue locally without account sign-in",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Open taskbar dock",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "colosseumTaskbarHomeButton"
+        }
+      ],
+      "payload": {
+        "target": "colosseumTaskbarHomeButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 openRecentDisclosure.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentDisclosure",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "008 openRecentDisclosure is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "openRecentDisclosure"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "009 Open actual Recent panel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentDisclosure"
+        }
+      ],
+      "payload": {
+        "target": "openRecentDisclosure"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "010 openRecentPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "011 openRecentPanel.rowCount reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "prop": "rowCount",
+        "value": 1,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "012 openRecentRow_0 is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "openRecentRow_0"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "013 Route seeded local file through production Recent action",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentRow_0"
+        }
+      ],
+      "payload": {
+        "target": "openRecentRow_0"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "014 bookReaderShell.openErrorShown reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "openErrorShown",
+        "value": true,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "015 Malformed real PDF is rejected by Reader2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/malformed.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "openErrorShown",
+          "openErrorText"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "016 Malformed error contains an explanation",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.openErrorText",
+          "op": "!=",
+          "value": ""
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "openErrorText"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "017 Malformed PDF error evidence",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "bookReaderShell",
+          "timeoutMs": 6000
+        }
+      }
+    }
+  ]
+}

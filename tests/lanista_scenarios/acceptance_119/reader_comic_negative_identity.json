@@ -1,0 +1,1228 @@
+{
+  "name": "reader-comic-negative-identity",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "004 Continue locally without account sign-in",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Open taskbar dock",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "colosseumTaskbarHomeButton"
+        }
+      ],
+      "payload": {
+        "target": "colosseumTaskbarHomeButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 openRecentDisclosure.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentDisclosure",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "008 openRecentDisclosure is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "openRecentDisclosure"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "009 Open actual Recent panel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentDisclosure"
+        }
+      ],
+      "payload": {
+        "target": "openRecentDisclosure"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "010 openRecentPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "011 openRecentPanel.rowCount reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "prop": "rowCount",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "012 openRecentRow_0 is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "openRecentRow_0"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "013 Route seeded local file through production Recent action",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentRow_0"
+        }
+      ],
+      "payload": {
+        "target": "openRecentRow_0"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "014 comicReaderShell.readerPageCount reaches 8",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerPageCount",
+        "value": 8,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "015 Open reader Layout menu",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "readerCommand_layout"
+        }
+      ],
+      "payload": {
+        "target": "readerCommand_layout"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "016 layoutPopover.open reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "layoutPopover",
+        "prop": "open",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "017 Choose Single page through actual UI",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "layoutChoice_single_page"
+        }
+      ],
+      "payload": {
+        "target": "layoutChoice_single_page"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "018 comicReaderShell.layout reaches single_page",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "layout",
+        "value": "single_page",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "019 Dismiss layout menu and restore reader focus",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Esc"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "020 Keyboard Home",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "021 comicReaderShell.readerSourceId reaches ${FIXTURE_ROOT}/comics/a/twin.cbz",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerSourceId",
+        "value": "${FIXTURE_ROOT}/comics/a/twin.cbz",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 comicReaderShell.currentPage reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "currentPage",
+        "value": 1,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "023 comicReaderShell.readerReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "024 Exact standalone identity and presented page",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/comics/a/twin.cbz"
+        },
+        {
+          "path": "props.seriesId",
+          "op": "==",
+          "value": "${COMIC_A_ID}"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "8"
+        },
+        {
+          "path": "props.readerPageIndex",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.presentedPage",
+          "op": "==",
+          "value": "1"
+        },
+        {
+          "path": "props.layout",
+          "op": "==",
+          "value": "single_page"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "seriesId",
+          "readerPageCount",
+          "readerPageIndex",
+          "presentedPage",
+          "layout",
+          "readerReady"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "025 singleSurface.contentRendered reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "prop": "contentRendered",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "026 Actual visible Image.Ready evidence, not an error placard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.active",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.pageIndex",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.contentRendered",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "props": [
+          "active",
+          "pageIndex",
+          "contentRendered"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "027 Keyboard Left",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "028 comicReaderShell.readerSourceId reaches ${FIXTURE_ROOT}/comics/a/twin.cbz",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerSourceId",
+        "value": "${FIXTURE_ROOT}/comics/a/twin.cbz",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "029 comicReaderShell.currentPage reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "currentPage",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "030 comicReaderShell.readerReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "031 Exact standalone identity and presented page",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/comics/a/twin.cbz"
+        },
+        {
+          "path": "props.seriesId",
+          "op": "==",
+          "value": "${COMIC_A_ID}"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "8"
+        },
+        {
+          "path": "props.readerPageIndex",
+          "op": "==",
+          "value": "1"
+        },
+        {
+          "path": "props.presentedPage",
+          "op": "==",
+          "value": "2"
+        },
+        {
+          "path": "props.layout",
+          "op": "==",
+          "value": "single_page"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "seriesId",
+          "readerPageCount",
+          "readerPageIndex",
+          "presentedPage",
+          "layout",
+          "readerReady"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "032 singleSurface.contentRendered reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "prop": "contentRendered",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "033 Actual visible Image.Ready evidence, not an error placard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.active",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.pageIndex",
+          "op": "==",
+          "value": "1"
+        },
+        {
+          "path": "props.contentRendered",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "props": [
+          "active",
+          "pageIndex",
+          "contentRendered"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "034 Keyboard Left",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "035 comicReaderShell.readerSourceId reaches ${FIXTURE_ROOT}/comics/a/twin.cbz",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerSourceId",
+        "value": "${FIXTURE_ROOT}/comics/a/twin.cbz",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "036 comicReaderShell.currentPage reaches 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "currentPage",
+        "value": 3,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "037 comicReaderShell.readerReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "038 Exact standalone identity and presented page",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/comics/a/twin.cbz"
+        },
+        {
+          "path": "props.seriesId",
+          "op": "==",
+          "value": "${COMIC_A_ID}"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "8"
+        },
+        {
+          "path": "props.readerPageIndex",
+          "op": "==",
+          "value": "2"
+        },
+        {
+          "path": "props.presentedPage",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.layout",
+          "op": "==",
+          "value": "single_page"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "seriesId",
+          "readerPageCount",
+          "readerPageIndex",
+          "presentedPage",
+          "layout",
+          "readerReady"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "039 singleSurface.contentRendered reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "prop": "contentRendered",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "040 Actual visible Image.Ready evidence, not an error placard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.active",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.pageIndex",
+          "op": "==",
+          "value": "2"
+        },
+        {
+          "path": "props.contentRendered",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "props": [
+          "active",
+          "pageIndex",
+          "contentRendered"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "041 Keyboard Left",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Left"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "042 comicReaderShell.readerSourceId reaches ${FIXTURE_ROOT}/comics/a/twin.cbz",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerSourceId",
+        "value": "${FIXTURE_ROOT}/comics/a/twin.cbz",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "043 comicReaderShell.currentPage reaches 4",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "currentPage",
+        "value": 4,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "044 comicReaderShell.readerReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerReady",
+        "value": true,
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "045 Exact standalone identity and presented page",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/comics/a/twin.cbz"
+        },
+        {
+          "path": "props.seriesId",
+          "op": "==",
+          "value": "${COMIC_A_ID}"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "8"
+        },
+        {
+          "path": "props.readerPageIndex",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.presentedPage",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.layout",
+          "op": "==",
+          "value": "single_page"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "seriesId",
+          "readerPageCount",
+          "readerPageIndex",
+          "presentedPage",
+          "layout",
+          "readerReady"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "046 singleSurface.contentRendered reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "prop": "contentRendered",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "047 Actual visible Image.Ready evidence, not an error placard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.active",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.pageIndex",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.contentRendered",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "singleSurface",
+        "props": [
+          "active",
+          "pageIndex",
+          "contentRendered"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "048 Negative control: deliberately wrong same-name identity must fail",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/comics/b/twin.cbz"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId"
+        ]
+      }
+    }
+  ]
+}

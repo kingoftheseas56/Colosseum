@@ -181,6 +181,7 @@ WorldPage {
             model: universes.shown
             delegate: UniverseBanner {
                 id: bar
+                objectName: "universeBanner_" + String(modelData.name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-+|-+$/g, "")
                 required property var modelData
                 required property int index
                 entry: bar.modelData

@@ -1,0 +1,1862 @@
+{
+  "name": "UNI-06",
+  "comment": "Fresh local profile. Real banner entry and shelf tabs verify Avatar: The Last Airbender, 10 curated works, visible medium headings/counts, and return focus. Artwork networking is deliberately not a prerequisite; this does not claim provider playback or external catalogue success.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Native protocol and isolated drive-only session",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "==",
+          "value": "colosseum.dev.v1.0"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "gates.write",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 App window and tagged profile are observable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        },
+        {
+          "path": "cacheRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountWelcomeContinueLocal.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "005 accountWelcomeContinueLocal has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Continue locally through onboarding",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "008 modePill_Universes has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "009 Click modePill_Universes",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Universes"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "010 universesWorld.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "011 Observe universesCount",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "20 universes"
+        }
+      ],
+      "payload": {
+        "object": "universesCount",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "012 universesTributeCarouselView.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarouselView",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "013 Observe universesTributeCarousel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.primaryLabel",
+          "op": "==",
+          "value": "Enter tribute"
+        },
+        {
+          "path": "props.secondaryLabel",
+          "op": "==",
+          "value": "Browse universe"
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarousel",
+        "props": [
+          "visible",
+          "primaryLabel",
+          "secondaryLabel"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "014 Keyboard moves from Tribute carousel to category strip",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "015 universesFilter.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesFilter",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "016 Keyboard enters the banner ledger",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "017 universesLedger.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "018 Observe universesLedger",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "props": [
+          "currentIndex"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "019 Walk to roster position 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "020 universesLedger.currentIndex reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 1,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "021 Observe universeBanner_avatar-the-last-airbender",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.displayedName",
+          "op": "==",
+          "value": "Avatar: The Last Airbender"
+        },
+        {
+          "path": "props.keyboardSelected",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_avatar-the-last-airbender",
+        "props": [
+          "displayedName",
+          "keyboardSelected"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 universeBanner_avatar-the-last-airbender.markStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_avatar-the-last-airbender",
+        "prop": "markStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "023 universeBanner_avatar-the-last-airbender has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_avatar-the-last-airbender"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "024 Observe universeBanner_avatar-the-last-airbender_title",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Avatar: The Last Airbender"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_avatar-the-last-airbender_title",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "025 Enter the selected standard Universe with the keyboard",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "026 shelvesUniversePage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "027 shelvesUniversePage.workCount reaches 10",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 10
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "workCount",
+        "value": 10,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "028 Observe universeLayer",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.universeName",
+          "op": "==",
+          "value": "Avatar: The Last Airbender"
+        },
+        {
+          "path": "props.templatePage",
+          "op": "==",
+          "value": "shelves"
+        },
+        {
+          "path": "props.extensionId",
+          "op": "==",
+          "value": "archive.shelves"
+        }
+      ],
+      "payload": {
+        "object": "universeLayer",
+        "props": [
+          "universeName",
+          "templatePage",
+          "extensionId"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "029 Observe shelvesUniverseTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Avatar: The Last Airbender"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniverseTitle",
+        "props": [
+          "text",
+          "visible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "030 Observe shelvesUniversePage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.universeName",
+          "op": "==",
+          "value": "Avatar: The Last Airbender"
+        },
+        {
+          "path": "props.workCount",
+          "op": "==",
+          "value": 10
+        },
+        {
+          "path": "props.kicker",
+          "op": "==",
+          "value": "UNIVERSE"
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniversePage",
+        "props": [
+          "universeName",
+          "workCount",
+          "kicker"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "031 shelvesTab_0 has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "shelvesTab_0"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "032 Use the Series tab to reveal its real section",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "shelvesTab_0"
+        }
+      ],
+      "payload": {
+        "target": "shelvesTab_0"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "033 Observe shelvesMedium_series",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.title",
+          "op": "==",
+          "value": "Series"
+        },
+        {
+          "path": "props.total",
+          "op": "==",
+          "value": 3
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesMedium_series",
+        "props": [
+          "title",
+          "total",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "034 Observe shelvesTitle_series",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Series"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesTitle_series",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "035 Series heading is in the viewport",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "shelvesTitle_series"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "036 Observe shelvesCount_series",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesCount_series",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "037 Observe shelvesMedium_series",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.kind",
+          "op": "==",
+          "value": "series"
+        }
+      ],
+      "payload": {
+        "object": "shelvesMedium_series",
+        "props": [
+          "kind"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "038 Observe shelvesWork_series_0",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.workTitle",
+          "op": "==",
+          "value": "Avatar: The Last Airbender"
+        },
+        {
+          "path": "props.workIdentity",
+          "op": "==",
+          "value": "series:0"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesWork_series_0",
+        "props": [
+          "workTitle",
+          "workIdentity",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "039 shelvesTab_1 has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "shelvesTab_1"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "040 Use the Films tab to reveal its real section",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "shelvesTab_1"
+        }
+      ],
+      "payload": {
+        "target": "shelvesTab_1"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "041 Observe shelvesMedium_films",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.title",
+          "op": "==",
+          "value": "Films"
+        },
+        {
+          "path": "props.total",
+          "op": "==",
+          "value": 2
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesMedium_films",
+        "props": [
+          "title",
+          "total",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "042 Observe shelvesTitle_films",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Films"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesTitle_films",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "043 Films heading is in the viewport",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "shelvesTitle_films"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "044 Observe shelvesCount_films",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "2"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesCount_films",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "045 Observe shelvesMedium_films",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.kind",
+          "op": "==",
+          "value": "movie"
+        }
+      ],
+      "payload": {
+        "object": "shelvesMedium_films",
+        "props": [
+          "kind"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "046 Observe shelvesWork_films_0",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.workTitle",
+          "op": "==",
+          "value": "The Last Airbender"
+        },
+        {
+          "path": "props.workIdentity",
+          "op": "==",
+          "value": "films:0"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesWork_films_0",
+        "props": [
+          "workTitle",
+          "workIdentity",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "047 shelvesTab_2 has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "shelvesTab_2"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "048 Use the Books tab to reveal its real section",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "shelvesTab_2"
+        }
+      ],
+      "payload": {
+        "target": "shelvesTab_2"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "049 Observe shelvesMedium_books",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.title",
+          "op": "==",
+          "value": "Books"
+        },
+        {
+          "path": "props.total",
+          "op": "==",
+          "value": 5
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesMedium_books",
+        "props": [
+          "title",
+          "total",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "050 Observe shelvesTitle_books",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Books"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesTitle_books",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "051 Books heading is in the viewport",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "shelvesTitle_books"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "052 Observe shelvesCount_books",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "5"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesCount_books",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "053 Observe shelvesMedium_books",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.kind",
+          "op": "==",
+          "value": "book"
+        }
+      ],
+      "payload": {
+        "object": "shelvesMedium_books",
+        "props": [
+          "kind"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "054 Observe shelvesWork_books_0",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.workTitle",
+          "op": "==",
+          "value": "The Rise of Kyoshi"
+        },
+        {
+          "path": "props.workIdentity",
+          "op": "==",
+          "value": "books:0"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesWork_books_0",
+        "props": [
+          "workTitle",
+          "workIdentity",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "055 Return from the standard page with Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Escape"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "056 universeLayer.active reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "universeLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "057 universesWorld.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "058 keyboardIgnition.activeFocus reaches True",
+      "payload": {
+        "object": "keyboardIgnition",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "059 Recover keyboard focus onto a real visible world control",
+      "payload": {
+        "key": "Tab"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Tab"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "060 universesWorld.automationFocusedObjectFullyVisible reaches True",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "automationFocusedObjectFullyVisible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "061 The Universe Home control owns reachable focus",
+      "payload": {
+        "object": "universesWorld",
+        "props": [
+          "automationFocusedObject",
+          "automationFocusedObjectFullyVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "Home"
+        },
+        {
+          "path": "props.automationFocusedObjectFullyVisible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "062 Activate the focused Home control using keyboard input",
+      "payload": {
+        "key": "Return"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "063 universesWorld.visible reaches False",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "064 homePageFlickable.visible reaches True",
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "065 Visible Home confirms keyboard route after Universe back navigation",
+      "payload": {
+        "object": "homePageFlickable",
+        "props": [
+          "visible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "066 Request normal application shutdown; runner checks owned PID exit",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Ctrl+Q"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+Q"
+      }
+    }
+  ]
+}

@@ -1,0 +1,574 @@
+{
+  "name": "ACC-LOCAL-RESTART-UI",
+  "comment": "Restart phase of ACC-LOCAL-UI using the same owned profile and a new unique pipe after clean shutdown. No onboarding click: the auth host remains closed and the actual account-free state, Not signed in identity presentation, reachable Sign in action and local return survive restart. No six-digit identity is exposed by this pinned candidate. Restarted AccountOnboarding retains its Welcome route: keyboard account re-entry must show actual Welcome choices, then the real Sign in choice opens Sign in. Fresh-session route state differs; this observed distinction is explicitly exercised.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "isolated local-device session is alive",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "visible assembled app answers state exchange",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "boot splash is gone",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "restarted profile preserves local mode without blocking auth",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "Device control is visible",
+      "payload": {
+        "object": "colosseumTopbarAccountButton",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "top bar uses the generic Device label",
+      "payload": {
+        "object": "colosseumTopbarDeviceLabel",
+        "props": [
+          "text",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Device"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "open local AccountFlyout from Device",
+      "payload": {
+        "target": "colosseumTopbarAccountButton"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "local AccountFlyout is visible",
+      "payload": {
+        "object": "accountFlyout",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "actual flyout state remains account-free",
+      "payload": {
+        "object": "accountFlyout",
+        "props": [
+          "visible",
+          "accountPresent",
+          "onlineAccount"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.accountPresent",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.onlineAccount",
+          "op": "==",
+          "value": "false"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "actual local identity presentation is Not signed in",
+      "payload": {
+        "object": "accountFlyoutUsername",
+        "props": [
+          "text",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Not signed in"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "actual Sign in action receives keyboard focus",
+      "payload": {
+        "object": "accountFlyoutSessionAction",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "Sign in action is visible enabled and reachable",
+      "payload": {
+        "object": "accountFlyoutSessionAction",
+        "props": [
+          "visible",
+          "enabled",
+          "activeFocus"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.activeFocus",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "keyboard Enter reopens account choices after process restart",
+      "payload": {
+        "key": "Enter"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "accountHost becomes visible after account re-entry",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "accountWelcome becomes visible after account re-entry",
+      "payload": {
+        "object": "accountWelcome",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "restarted Welcome has reachable Sign in choice",
+      "payload": {
+        "object": "accountWelcomeSignIn",
+        "props": [
+          "visible",
+          "enabled"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "select real Sign in choice after restarted account re-entry",
+      "payload": {
+        "target": "accountWelcomeSignIn"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "existing Sign in surface is visible",
+      "payload": {
+        "object": "accountSignIn",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 8000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "continue without an account",
+      "payload": {
+        "target": "accountSignInContinueLocal"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "auth host closes back into the local shell",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "local shell still exposes generic Device after returning",
+      "payload": {
+        "object": "colosseumTopbarDeviceLabel",
+        "props": [
+          "text",
+          "visible"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Device"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "reopen Account menu after local return",
+      "payload": {
+        "target": "colosseumTopbarAccountButton"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "flyout reaches its keyboard action",
+      "payload": {
+        "object": "accountFlyoutSessionAction",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "Escape dismisses local account menu",
+      "payload": {
+        "key": "Escape"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "flyout is dismissed",
+      "payload": {
+        "object": "accountFlyout",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 5000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "local account return screenshot",
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    }
+  ]
+}

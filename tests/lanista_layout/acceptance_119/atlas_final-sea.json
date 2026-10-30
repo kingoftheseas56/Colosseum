@@ -1,0 +1,38 @@
+{
+  "checkpoint": "1.1.9 final-sea badge geometry at declared viewport",
+  "root": "finalSeaAtlas",
+  "rules": [
+    {
+      "kind": "actionableNonzero",
+      "name": "finalSeaMarker-egghead-actionable",
+      "target": "finalSeaMarker-egghead"
+    },
+    {
+      "kind": "contained",
+      "name": "finalSeaMarker-egghead-contained",
+      "target": "finalSeaMarker-egghead",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "finalSeaMarker-elbaf-actionable",
+      "target": "finalSeaMarker-elbaf"
+    },
+    {
+      "kind": "contained",
+      "name": "finalSeaMarker-elbaf-contained",
+      "target": "finalSeaMarker-elbaf",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "noPeerOverlap",
+      "name": "finalSea-badge-hit-regions-do-not-overlap",
+      "peers": [
+        "finalSeaMarker-egghead",
+        "finalSeaMarker-elbaf"
+      ]
+    }
+  ]
+}

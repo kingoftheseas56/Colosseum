@@ -1,0 +1,311 @@
+{
+  "name": "reader-pdf-unavailable",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "004 Continue locally without account sign-in",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Activate colosseumTaskbarHomeButton",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "colosseumTaskbarHomeButton"
+        }
+      ],
+      "payload": {
+        "target": "colosseumTaskbarHomeButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 openRecentDisclosure.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentDisclosure",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "008 Activate openRecentDisclosure",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentDisclosure"
+        }
+      ],
+      "payload": {
+        "target": "openRecentDisclosure"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "009 openRecentPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "010 Unavailable PDF stays explicitly unavailable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.rowCount",
+          "op": "==",
+          "value": "1"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "props": [
+          "rowCount"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "011 Unavailable file has the actual visible unavailable label",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Unavailable"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentAvailability_0",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "012 Click unavailable row; it must not route another book",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentRow_0"
+        }
+      ],
+      "payload": {
+        "target": "openRecentRow_0"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "013 Missing Recent entry did not start a reader",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.openCount",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.lastRouteKind",
+          "op": "==",
+          "value": ""
+        }
+      ],
+      "payload": {
+        "object": "localLaunchState",
+        "props": [
+          "openCount",
+          "lastRouteKind"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "014 Unavailable PDF row remains visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "openRecentPanel",
+          "timeoutMs": 6000
+        }
+      }
+    }
+  ]
+}

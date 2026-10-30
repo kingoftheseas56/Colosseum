@@ -1,0 +1,661 @@
+{
+  "name": "UNI-WRONG-IDENTITY-NEG",
+  "comment": "Open Attack on Titan through its real banner, positively observe its displayed title, then deliberately require One Piece. The case must FAIL; the wrapper must not silently skip it or count its expected failure as franchise qualification.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Native protocol and isolated drive-only session",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "==",
+          "value": "colosseum.dev.v1.0"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "gates.write",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 App window and tagged profile are observable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        },
+        {
+          "path": "cacheRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountWelcomeContinueLocal.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "005 accountWelcomeContinueLocal has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Continue locally through onboarding",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "008 modePill_Universes has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "009 Click modePill_Universes",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Universes"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "010 universesWorld.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "011 Observe universesCount",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "20 universes"
+        }
+      ],
+      "payload": {
+        "object": "universesCount",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "012 universesTributeCarouselView.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarouselView",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "013 Observe universesTributeCarousel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.primaryLabel",
+          "op": "==",
+          "value": "Enter tribute"
+        },
+        {
+          "path": "props.secondaryLabel",
+          "op": "==",
+          "value": "Browse universe"
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarousel",
+        "props": [
+          "visible",
+          "primaryLabel",
+          "secondaryLabel"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "014 Keyboard moves from Tribute carousel to category strip",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "015 universesFilter.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesFilter",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "016 Keyboard enters the banner ledger",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "017 universesLedger.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "018 Observe universesLedger",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "props": [
+          "currentIndex"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "019 Press Return",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "020 shelvesUniversePage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "021 Wait for the routed curated catalogue to load",
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "workCount",
+        "value": 11,
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 11
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 Wait for exact displayed title after asynchronous Loader completion",
+      "payload": {
+        "object": "shelvesUniverseTitle",
+        "prop": "text",
+        "value": "Attack on Titan",
+        "timeout_ms": 15000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": "Attack on Titan"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "023 Observe shelvesUniverseTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Attack on Titan"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniverseTitle",
+        "props": [
+          "text",
+          "visible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "024 NEGATIVE CONTROL: wrong visible identity must FAIL despite a healthy route",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "One Piece"
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniverseTitle",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "025 Request normal application shutdown; runner checks owned PID exit",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Ctrl+Q"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+Q"
+      }
+    }
+  ]
+}

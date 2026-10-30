@@ -1,0 +1,965 @@
+{
+  "name": "vault-nested-prepare",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "004 Continue locally without account sign-in",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Enter Vault through its separate door",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "taskbarVaultDoor"
+        }
+      ],
+      "payload": {
+        "target": "taskbarVaultDoor"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 vaultPage.hasConfirmedStorage reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultPage",
+        "prop": "hasConfirmedStorage",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "008 vaultPage.scanning reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultPage",
+        "prop": "scanning",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "009 vaultPage.currentBrowsePath reaches ${VAULT_NESTED_ROOT}",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultPage",
+        "prop": "currentBrowsePath",
+        "value": "${VAULT_NESTED_ROOT}",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "vault-forensics",
+      "label": "010 Confirm exact owned fixture root",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "==",
+          "value": "colosseum.vault.forensics.v1"
+        },
+        {
+          "path": "roots.count",
+          "op": "==",
+          "value": "1"
+        },
+        {
+          "path": "roots.rows.0.path",
+          "op": "==",
+          "value": "${VAULT_NESTED_ROOT}"
+        },
+        {
+          "path": "truncated",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "scope": "summary",
+        "limit": 10
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "011 vaultBrowseGrid.count reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 1,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "012 Fresh current UI starts with expanded rail",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.expanded",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseRail",
+        "props": [
+          "expanded"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "013 Collapse root rail",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseRailToggle"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseRailToggle"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "014 vaultBrowseRail.expanded reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseRail",
+        "prop": "expanded",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "015 Expand root rail again",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseRailToggle"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseRailToggle"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "016 vaultBrowseRail.expanded reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseRail",
+        "prop": "expanded",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "017 Physical disk node has expected kind",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.nodeType",
+          "op": "==",
+          "value": "show"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested",
+        "props": [
+          "nodeType",
+          "displayTitle",
+          "physicalFact"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "018 vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested_hitArea is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "019 Activate vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested_hitArea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested_hitArea"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "020 vaultBrowseCrumb.currentPath reaches ${VAULT_NESTED_ROOT}/acceptance-nested",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCrumb",
+        "prop": "currentPath",
+        "value": "${VAULT_NESTED_ROOT}/acceptance-nested",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "021 vaultBrowseGrid.count reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "022 Physical disk node has expected kind",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.nodeType",
+          "op": "==",
+          "value": "season"
+        },
+        {
+          "path": "props.displayTitle",
+          "op": "==",
+          "value": "Season 1"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1",
+        "props": [
+          "nodeType",
+          "displayTitle",
+          "physicalFact"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "023 Scroll season cards fully into viewport",
+      "payload": {
+        "target": "vaultBrowseGrid",
+        "dy": -600
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "scrolled",
+          "op": "==",
+          "value": "vaultBrowseGrid"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "024 Wait for real grid scroll to settle",
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 20000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "025 vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "026 Activate vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "027 vaultBrowseCrumb.currentPath reaches ${VAULT_NESTED_ROOT}/acceptance-nested/season 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCrumb",
+        "prop": "currentPath",
+        "value": "${VAULT_NESTED_ROOT}/acceptance-nested/season 1",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "028 vaultBrowseGrid.count reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "029 Physical disk node has expected kind",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.nodeType",
+          "op": "==",
+          "value": "episode"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4",
+        "props": [
+          "nodeType",
+          "displayTitle",
+          "physicalFact"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "030 Nested show and season breadcrumb",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "vaultPage",
+          "timeoutMs": 6000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "031 Escape ascends exactly one folder",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Esc"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "032 vaultBrowseCrumb.currentPath reaches ${VAULT_NESTED_ROOT}/acceptance-nested",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCrumb",
+        "prop": "currentPath",
+        "value": "${VAULT_NESTED_ROOT}/acceptance-nested",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "033 vaultBrowseGrid.count reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "034 Scroll season cards fully into viewport",
+      "payload": {
+        "target": "vaultBrowseGrid",
+        "dy": -600
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "scrolled",
+          "op": "==",
+          "value": "vaultBrowseGrid"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "035 Wait for real grid scroll to settle",
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "moving",
+        "value": false,
+        "timeout_ms": 20000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-query",
+      "label": "036 vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "037 Activate vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "038 vaultBrowseCrumb.currentPath reaches ${VAULT_NESTED_ROOT}/acceptance-nested/season 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCrumb",
+        "prop": "currentPath",
+        "value": "${VAULT_NESTED_ROOT}/acceptance-nested/season 1",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "039 vaultBrowseGrid.count reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "040 Leave collapsed rail for restart proof",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseRailToggle"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseRailToggle"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "041 vaultBrowseRail.expanded reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseRail",
+        "prop": "expanded",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "042 Persisted nested season state",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "vaultPage",
+          "timeoutMs": 6000
+        }
+      }
+    }
+  ]
+}

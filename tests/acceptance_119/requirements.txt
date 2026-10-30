@@ -1,0 +1,2 @@
+# PNG evidence must pass actual decoding, never a signature/zlib-only approximation.
+Pillow==12.3.0

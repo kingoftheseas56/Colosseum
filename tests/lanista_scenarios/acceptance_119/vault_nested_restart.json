@@ -1,0 +1,544 @@
+{
+  "name": "vault-nested-restart",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "005 Activate taskbarVaultDoor",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "taskbarVaultDoor"
+        }
+      ],
+      "payload": {
+        "target": "taskbarVaultDoor"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "006 vaultPage.scanning reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultPage",
+        "prop": "scanning",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 vaultBrowseCrumb.currentPath reaches ${VAULT_NESTED_ROOT}/acceptance-nested/season 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCrumb",
+        "prop": "currentPath",
+        "value": "${VAULT_NESTED_ROOT}/acceptance-nested/season 1",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "008 vaultBrowseGrid.count reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "009 Rail state survived restart",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.expanded",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseRail",
+        "props": [
+          "expanded"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "010 Physical disk node has expected kind",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.nodeType",
+          "op": "==",
+          "value": "episode"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4",
+        "props": [
+          "nodeType",
+          "displayTitle",
+          "physicalFact"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "011 vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4_hitArea is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "012 Activate vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4_hitArea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4_hitArea"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseCard_${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "013 player.playerActive reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "playerActive",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "014 player.decodedWidth reaches 160",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "decodedWidth",
+        "value": 160,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "015 player.decodedHeight reaches 90",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "decodedHeight",
+        "value": 90,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "016 player.playerReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "playerReady",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "017 Actual local source and decoded video, not a file stub",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.mediaLocalPath",
+          "op": "==",
+          "value": "${VAULT_NESTED_ROOT}/acceptance-nested/season 1/acceptance-nested-s01e01.mp4"
+        },
+        {
+          "path": "props.decodedWidth",
+          "op": "==",
+          "value": "160"
+        },
+        {
+          "path": "props.decodedHeight",
+          "op": "==",
+          "value": "90"
+        },
+        {
+          "path": "props.playerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "props": [
+          "mediaLocalPath",
+          "decodedWidth",
+          "decodedHeight",
+          "playerReady"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "018 Require actual playback time to advance beyond startup",
+      "payload": {
+        "object": "player",
+        "prop": "playbackStarted",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "019 Require opening state to retire",
+      "payload": {
+        "object": "player",
+        "prop": "starting",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "020 Assert playback advanced, opening cleared, and source remains exact",
+      "payload": {
+        "object": "player",
+        "props": [
+          "playbackStarted",
+          "playbackPosition",
+          "starting",
+          "statusMsg",
+          "errored",
+          "mediaLocalPath",
+          "decodedWidth",
+          "decodedHeight",
+          "playerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.playbackStarted",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.starting",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.playbackPosition",
+          "op": ">",
+          "value": "0.25"
+        },
+        {
+          "path": "props.statusMsg",
+          "op": "==",
+          "value": ""
+        },
+        {
+          "path": "props.errored",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.playerReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.decodedWidth",
+          "op": "==",
+          "value": "160"
+        },
+        {
+          "path": "props.decodedHeight",
+          "op": "==",
+          "value": "90"
+        }
+      ]
+    },
+    {
+      "label": "021 Settle the documented 300 ms loader opacity fade after state readiness",
+      "presentation_wait_ms": 350,
+      "animation_settle": "player-loading-opacity-300ms"
+    },
+    {
+      "cmd": "get-state",
+      "label": "022 Capture playing fixture after startup and fade; inspect actual pixels separately",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "player",
+          "timeoutMs": 6000
+        }
+      }
+    }
+  ]
+}

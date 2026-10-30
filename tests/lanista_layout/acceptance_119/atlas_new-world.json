@@ -1,0 +1,90 @@
+{
+  "checkpoint": "1.1.9 new-world badge geometry at declared viewport",
+  "root": "newWorldAtlas",
+  "rules": [
+    {
+      "kind": "actionableNonzero",
+      "name": "newWorldMarker-fish-man-island-actionable",
+      "target": "newWorldMarker-fish-man-island"
+    },
+    {
+      "kind": "contained",
+      "name": "newWorldMarker-fish-man-island-contained",
+      "target": "newWorldMarker-fish-man-island",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "newWorldMarker-punk-hazard-actionable",
+      "target": "newWorldMarker-punk-hazard"
+    },
+    {
+      "kind": "contained",
+      "name": "newWorldMarker-punk-hazard-contained",
+      "target": "newWorldMarker-punk-hazard",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "newWorldMarker-dressrosa-actionable",
+      "target": "newWorldMarker-dressrosa"
+    },
+    {
+      "kind": "contained",
+      "name": "newWorldMarker-dressrosa-contained",
+      "target": "newWorldMarker-dressrosa",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "newWorldMarker-zou-actionable",
+      "target": "newWorldMarker-zou"
+    },
+    {
+      "kind": "contained",
+      "name": "newWorldMarker-zou-contained",
+      "target": "newWorldMarker-zou",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "newWorldMarker-whole-cake-island-actionable",
+      "target": "newWorldMarker-whole-cake-island"
+    },
+    {
+      "kind": "contained",
+      "name": "newWorldMarker-whole-cake-island-contained",
+      "target": "newWorldMarker-whole-cake-island",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "newWorldMarker-wano-country-actionable",
+      "target": "newWorldMarker-wano-country"
+    },
+    {
+      "kind": "contained",
+      "name": "newWorldMarker-wano-country-contained",
+      "target": "newWorldMarker-wano-country",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "noPeerOverlap",
+      "name": "newWorld-badge-hit-regions-do-not-overlap",
+      "peers": [
+        "newWorldMarker-fish-man-island",
+        "newWorldMarker-punk-hazard",
+        "newWorldMarker-dressrosa",
+        "newWorldMarker-zou",
+        "newWorldMarker-whole-cake-island",
+        "newWorldMarker-wano-country"
+      ]
+    }
+  ]
+}

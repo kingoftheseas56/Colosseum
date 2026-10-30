@@ -1,0 +1,220 @@
+{
+  "checkpoint": "1.1.9 paradise badge geometry at declared viewport",
+  "root": "paradiseAtlas",
+  "rules": [
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-reverse-mountain-actionable",
+      "target": "paradiseMarker-reverse-mountain"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-reverse-mountain-contained",
+      "target": "paradiseMarker-reverse-mountain",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-whisky-peak-actionable",
+      "target": "paradiseMarker-whisky-peak"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-whisky-peak-contained",
+      "target": "paradiseMarker-whisky-peak",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-little-garden-actionable",
+      "target": "paradiseMarker-little-garden"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-little-garden-contained",
+      "target": "paradiseMarker-little-garden",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-drum-island-actionable",
+      "target": "paradiseMarker-drum-island"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-drum-island-contained",
+      "target": "paradiseMarker-drum-island",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-arabasta-actionable",
+      "target": "paradiseMarker-arabasta"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-arabasta-contained",
+      "target": "paradiseMarker-arabasta",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-jaya-actionable",
+      "target": "paradiseMarker-jaya"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-jaya-contained",
+      "target": "paradiseMarker-jaya",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-skypiea-actionable",
+      "target": "paradiseMarker-skypiea"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-skypiea-contained",
+      "target": "paradiseMarker-skypiea",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-long-ring-long-land-actionable",
+      "target": "paradiseMarker-long-ring-long-land"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-long-ring-long-land-contained",
+      "target": "paradiseMarker-long-ring-long-land",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-water-7-actionable",
+      "target": "paradiseMarker-water-7"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-water-7-contained",
+      "target": "paradiseMarker-water-7",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-enies-lobby-actionable",
+      "target": "paradiseMarker-enies-lobby"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-enies-lobby-contained",
+      "target": "paradiseMarker-enies-lobby",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-thriller-bark-actionable",
+      "target": "paradiseMarker-thriller-bark"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-thriller-bark-contained",
+      "target": "paradiseMarker-thriller-bark",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-sabaody-actionable",
+      "target": "paradiseMarker-sabaody"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-sabaody-contained",
+      "target": "paradiseMarker-sabaody",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-amazon-lily-actionable",
+      "target": "paradiseMarker-amazon-lily"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-amazon-lily-contained",
+      "target": "paradiseMarker-amazon-lily",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-impel-down-actionable",
+      "target": "paradiseMarker-impel-down"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-impel-down-contained",
+      "target": "paradiseMarker-impel-down",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-marineford-actionable",
+      "target": "paradiseMarker-marineford"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-marineford-contained",
+      "target": "paradiseMarker-marineford",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "paradiseMarker-post-war-actionable",
+      "target": "paradiseMarker-post-war"
+    },
+    {
+      "kind": "contained",
+      "name": "paradiseMarker-post-war-contained",
+      "target": "paradiseMarker-post-war",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "noPeerOverlap",
+      "name": "paradise-badge-hit-regions-do-not-overlap",
+      "peers": [
+        "paradiseMarker-reverse-mountain",
+        "paradiseMarker-whisky-peak",
+        "paradiseMarker-little-garden",
+        "paradiseMarker-drum-island",
+        "paradiseMarker-arabasta",
+        "paradiseMarker-jaya",
+        "paradiseMarker-skypiea",
+        "paradiseMarker-long-ring-long-land",
+        "paradiseMarker-water-7",
+        "paradiseMarker-enies-lobby",
+        "paradiseMarker-thriller-bark",
+        "paradiseMarker-sabaody",
+        "paradiseMarker-amazon-lily",
+        "paradiseMarker-impel-down",
+        "paradiseMarker-marineford",
+        "paradiseMarker-post-war"
+      ]
+    }
+  ]
+}

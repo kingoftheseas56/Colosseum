@@ -1,0 +1,1507 @@
+{
+  "name": "UNI-OFFLINE-BANNER",
+  "comment": "Seed the One Piece manifest background with a known nonexistent local file. The real Image loader must report Error while the local mark, actual title, hit target and keyboard standard-page route remain usable. No qml-set or injected route is used. Other incidental live art requests are not graded.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Native protocol and isolated drive-only session",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "==",
+          "value": "colosseum.dev.v1.0"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "gates.write",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 App window and tagged profile are observable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        },
+        {
+          "path": "cacheRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountWelcomeContinueLocal.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "005 accountWelcomeContinueLocal has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Continue locally through onboarding",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "008 modePill_Universes has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "009 Click modePill_Universes",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "modePill_Universes"
+        }
+      ],
+      "payload": {
+        "target": "modePill_Universes"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "010 universesWorld.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "011 Observe universesCount",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "20 universes"
+        }
+      ],
+      "payload": {
+        "object": "universesCount",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "012 universesTributeCarouselView.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarouselView",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "013 Observe universesTributeCarousel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.primaryLabel",
+          "op": "==",
+          "value": "Enter tribute"
+        },
+        {
+          "path": "props.secondaryLabel",
+          "op": "==",
+          "value": "Browse universe"
+        }
+      ],
+      "payload": {
+        "object": "universesTributeCarousel",
+        "props": [
+          "visible",
+          "primaryLabel",
+          "secondaryLabel"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "014 Keyboard moves from Tribute carousel to category strip",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "015 universesFilter.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesFilter",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "016 Keyboard enters the banner ledger",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "017 universesLedger.activeFocus reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "018 Observe universesLedger",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "props": [
+          "currentIndex"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "019 Walk to roster position 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "020 universesLedger.currentIndex reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 1,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "021 Walk to roster position 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 universesLedger.currentIndex reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 2
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 2,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "023 Walk to roster position 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "024 universesLedger.currentIndex reaches 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 3
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 3,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "025 Walk to roster position 4",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "026 universesLedger.currentIndex reaches 4",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 4
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 4,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "027 Walk to roster position 5",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "028 universesLedger.currentIndex reaches 5",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 5
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 5,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "029 Walk to roster position 6",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "030 universesLedger.currentIndex reaches 6",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 6
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 6,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "031 Walk to roster position 7",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "032 universesLedger.currentIndex reaches 7",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 7
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 7,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "033 Walk to roster position 8",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "034 universesLedger.currentIndex reaches 8",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 8
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 8,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "035 Walk to roster position 9",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "036 universesLedger.currentIndex reaches 9",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 9
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 9,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "037 Walk to roster position 10",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "038 universesLedger.currentIndex reaches 10",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 10
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 10,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "039 Walk to roster position 11",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Down"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "040 universesLedger.currentIndex reaches 11",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 11
+        }
+      ],
+      "payload": {
+        "object": "universesLedger",
+        "prop": "currentIndex",
+        "value": 11,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "041 universeBanner_one-piece.artworkStatus reaches 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 3
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_one-piece",
+        "prop": "artworkStatus",
+        "value": 3,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "042 universeBanner_one-piece.markStatus reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_one-piece",
+        "prop": "markStatus",
+        "value": 1,
+        "timeout_ms": 15000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "043 Observe universeBanner_one-piece_title",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "One Piece"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_one-piece_title",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "044 universeBanner_one-piece has a visible, enabled in-window hit target",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": false
+        },
+        {
+          "path": "rect.width",
+          "op": ">=",
+          "value": 1
+        },
+        {
+          "path": "rect.height",
+          "op": ">=",
+          "value": 1
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_one-piece"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "045 Observe universeBanner_one-piece",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.displayedName",
+          "op": "==",
+          "value": "One Piece"
+        },
+        {
+          "path": "props.keyboardSelected",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "props.artworkStatus",
+          "op": "==",
+          "value": 3
+        },
+        {
+          "path": "props.markStatus",
+          "op": "==",
+          "value": 1
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        },
+        {
+          "path": "grabPath",
+          "op": "matches",
+          "value": "\\.png$"
+        }
+      ],
+      "payload": {
+        "object": "universeBanner_one-piece",
+        "props": [
+          "displayedName",
+          "keyboardSelected",
+          "artworkStatus",
+          "markStatus"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "046 Press Return",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "047 shelvesUniversePage.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "048 shelvesUniversePage.workCount reaches 56",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": 56
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniversePage",
+        "prop": "workCount",
+        "value": 56,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "049 Observe shelvesUniverseTitle",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "One Piece"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "shelvesUniverseTitle",
+        "props": [
+          "text",
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "050 Press Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Escape"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "051 universesWorld.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ],
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "052 keyboardIgnition.activeFocus reaches True",
+      "payload": {
+        "object": "keyboardIgnition",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "053 Recover keyboard focus onto a real visible world control",
+      "payload": {
+        "key": "Tab"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Tab"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "054 universesWorld.automationFocusedObjectFullyVisible reaches True",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "automationFocusedObjectFullyVisible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "055 The Universe Home control owns reachable focus",
+      "payload": {
+        "object": "universesWorld",
+        "props": [
+          "automationFocusedObject",
+          "automationFocusedObjectFullyVisible"
+        ],
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.automationFocusedObject",
+          "op": "==",
+          "value": "Home"
+        },
+        {
+          "path": "props.automationFocusedObjectFullyVisible",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "056 Activate the focused Home control using keyboard input",
+      "payload": {
+        "key": "Return"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Return"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "057 universesWorld.visible reaches False",
+      "payload": {
+        "object": "universesWorld",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": false
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "058 homePageFlickable.visible reaches True",
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": true
+        },
+        {
+          "path": "value",
+          "op": "==",
+          "value": true
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "059 Request normal application shutdown; runner checks owned PID exit",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "pressed",
+          "op": "==",
+          "value": "Ctrl+Q"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+Q"
+      }
+    }
+  ]
+}

@@ -122,6 +122,7 @@ Item {
 
             Image {
                 anchors.fill: parent
+                objectName: "extensionsHouseWallpaper_starwars"
                 source: root.extensionBackground("com.colosseum.universe.starwars", "../assets/extensions/house/starwars-banner.jpg")
                 fillMode: Image.PreserveAspectCrop
                 horizontalAlignment: Image.AlignHCenter
@@ -135,6 +136,7 @@ Item {
 
         Image {
             anchors.fill: parent
+            objectName: "extensionsHouseWallpaper_dcau"
             source: "../assets/extensions/house/dcau.jpg"
             fillMode: Image.PreserveAspectCrop
             horizontalAlignment: Image.AlignHCenter
@@ -149,6 +151,7 @@ Item {
 
         Image {
             anchors.fill: parent
+            objectName: "extensionsHouseWallpaper_cosmere"
             source: "../assets/extensions/house/cosmere.jpg"
             fillMode: Image.PreserveAspectCrop
             horizontalAlignment: Image.AlignHCenter
@@ -229,6 +232,7 @@ Item {
 
             Rectangle {
                 id: chainTab
+                objectName: "extensionsHouseTab_chain"
                 width: 70
                 height: 34
                 radius: height / 2
@@ -257,6 +261,7 @@ Item {
 
             Rectangle {
                 id: houseTab
+                objectName: "extensionsHouseTab_house"
                 width: 72
                 height: 34
                 radius: height / 2
@@ -281,6 +286,7 @@ Item {
 
             Rectangle {
                 id: storeTab
+                objectName: "extensionsHouseTab_store"
                 width: 68
                 height: 34
                 radius: height / 2
@@ -418,6 +424,7 @@ Item {
                 model: houseModel
                 delegate: Item {
                     id: tileItem
+                    objectName: "housePageTile_" + (extensionId || tileKind)
                     required property string tileName
                     required property string extensionId
                     required property string icon
@@ -532,6 +539,7 @@ Item {
 
                         Rectangle {
                             id: downloadButton
+                            objectName: "housePageToggle_" + tileItem.extensionId
                             visible: tileItem.downloadable
                             readonly property bool installedState: root.isInstalled(tileItem.extensionId)
                             width: root.width < 1250 ? 28 : 30

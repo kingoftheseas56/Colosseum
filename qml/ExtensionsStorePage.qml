@@ -155,8 +155,8 @@ Item {
 
         Row {
             spacing: 24
-            BackAction { label: "Chain"; onTriggered: root.openSection("chain") }
-            BackAction { label: "House"; onTriggered: root.openSection("house") }
+            BackAction { objectName: "extensionsStoreBack_chain"; label: "Chain"; onTriggered: root.openSection("chain") }
+            BackAction { objectName: "extensionsStoreBack_house"; label: "House"; onTriggered: root.openSection("house") }
         }
 
         ExtensionsHouseHero {

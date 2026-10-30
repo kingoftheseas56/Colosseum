@@ -8,6 +8,7 @@ import "FinalSeaGeometry.js" as Geometry
 
 FocusScope {
     id: root
+    objectName: "finalSeaAtlas"
     focus: true
     clip: true
 
@@ -679,6 +680,7 @@ FocusScope {
                         }
                         Text {
                             width: parent.width
+                            objectName: "finalSeaPreviewTitle"
                             text: root.selectedArc ? root.selectedArc.title : ""
                             color: "#523a25"
                             font.family: root.displayFamily

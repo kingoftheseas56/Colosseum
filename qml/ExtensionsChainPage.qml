@@ -704,6 +704,7 @@ Item {
 
                     Rectangle {
                         id: chainTab
+                        objectName: "extensionsChainTab_chain"
                         width: 70
                         height: 34
                         radius: height / 2
@@ -728,6 +729,7 @@ Item {
 
                     Rectangle {
                         id: houseTab
+                        objectName: "extensionsChainTab_house"
                         width: 72
                         height: 34
                         radius: height / 2
@@ -756,6 +758,7 @@ Item {
 
                     Rectangle {
                         id: storeTab
+                        objectName: "extensionsChainTab_store"
                         width: 68
                         height: 34
                         radius: height / 2

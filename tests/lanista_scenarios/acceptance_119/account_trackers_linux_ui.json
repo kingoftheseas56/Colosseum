@@ -1,0 +1,844 @@
+{
+  "name": "ACC-TRACKER-LINUX-UI",
+  "comment": "Linux-only assembled UI assertions for intentionally unavailable tracker vault providers. Uses actual mouse scroll/click and keyboard controls, Image.Ready provider marks, disabled connection, exact selected identity, and return focus. Live provider credentials/network are outside this deterministic case. Run in a fresh suite-owned account-free profile.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 driven session exchanges valid protocol",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 assembled app state is visible",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible becomes False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "004 continue locally from fresh onboarding before tracker route",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 accountHost.visible becomes False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 activate topBarTrackersButton",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "topBarTrackersButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 syncCenterLayer.active becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "syncCenterLayer",
+        "prop": "active",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "008 trackerSyncCenterPage.visible becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "009 observe trackerEmptyState",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "trackerEmptyState",
+        "props": [
+          "visible"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "010 observe trackerSyncAllButton",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncAllButton",
+        "props": [
+          "enabled"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-scroll",
+      "label": "011 bring actual catalogue controls into viewport",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "trackerSyncCenterScroll",
+        "dy": -2400,
+        "xFraction": 0.8,
+        "yFraction": 0.8
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "012 observe trackerCatalogueStatus_simkl",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Unavailable on Linux"
+        }
+      ],
+      "payload": {
+        "object": "trackerCatalogueStatus_simkl",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "013 observe trackerProviderIcon_simkl",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.status",
+          "op": "==",
+          "value": "1"
+        }
+      ],
+      "payload": {
+        "object": "trackerProviderIcon_simkl",
+        "props": [
+          "status"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "014 observe trackerCatalogueStatus_trakt",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Unavailable on Linux"
+        }
+      ],
+      "payload": {
+        "object": "trackerCatalogueStatus_trakt",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "015 observe trackerProviderIcon_trakt",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.status",
+          "op": "==",
+          "value": "1"
+        }
+      ],
+      "payload": {
+        "object": "trackerProviderIcon_trakt",
+        "props": [
+          "status"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "016 observe trackerCatalogueStatus_mal",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Unavailable on Linux"
+        }
+      ],
+      "payload": {
+        "object": "trackerCatalogueStatus_mal",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "017 observe trackerProviderIcon_mal",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.status",
+          "op": "==",
+          "value": "1"
+        }
+      ],
+      "payload": {
+        "object": "trackerProviderIcon_mal",
+        "props": [
+          "status"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "018 observe trackerCatalogueStatus_anilist",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Coming soon"
+        }
+      ],
+      "payload": {
+        "object": "trackerCatalogueStatus_anilist",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "019 activate trackerCatalogue_simkl",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "trackerCatalogue_simkl"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "020 trackerSyncCenterPage.dossierOpen becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "prop": "dossierOpen",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "021 observe trackerSyncCenterPage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedProviderKey",
+          "op": "==",
+          "value": "simkl"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "props": [
+          "selectedProviderKey"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "022 observe trackerDossierStatus",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Unavailable on Linux"
+        }
+      ],
+      "payload": {
+        "object": "trackerDossierStatus",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "023 observe trackerConnectButton",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.enabled",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Unavailable on Linux"
+        }
+      ],
+      "payload": {
+        "object": "trackerConnectButton",
+        "props": [
+          "enabled",
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "024 activate trackerConnectButton",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "target": "trackerConnectButton"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "025 observe trackerSyncCenterPage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.connectionPanelOpen",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.selectedProviderKey",
+          "op": "==",
+          "value": "simkl"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "props": [
+          "connectionPanelOpen",
+          "selectedProviderKey"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "026 unavailable provider screenshot",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "027 keyboard Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "028 trackerSyncCenterPage.dossierOpen becomes False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "prop": "dossierOpen",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "029 trackerCatalogue_simkl.activeFocus becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "trackerCatalogue_simkl",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "030 keyboard Enter",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Enter"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "031 trackerSyncCenterPage.dossierOpen becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "prop": "dossierOpen",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "032 observe trackerSyncCenterPage",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.selectedProviderKey",
+          "op": "==",
+          "value": "simkl"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "props": [
+          "selectedProviderKey"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "033 keyboard Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "034 trackerSyncCenterPage.dossierOpen becomes False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "trackerSyncCenterPage",
+        "prop": "dossierOpen",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "035 keyboard Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "036 syncCenterLayer.active becomes False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "syncCenterLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "037 topBarTrackersInput.activeFocus becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "topBarTrackersInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "038 keyboard Enter",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Enter"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "039 syncCenterLayer.active becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "syncCenterLayer",
+        "prop": "active",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "040 keyboard Escape",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Escape"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "041 syncCenterLayer.active becomes False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "syncCenterLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 10000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "042 topBarTrackersInput.activeFocus becomes True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "topBarTrackersInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      }
+    }
+  ]
+}

@@ -1,0 +1,216 @@
+{
+  "name": "reader-comic-missing",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "004 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 Wait for asynchronously created missing-file Continue action",
+      "payload": {
+        "object": "continueResume_${COMIC_A_ID}",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Attempt Continue after owned A file is unavailable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "continueResume_${COMIC_A_ID}"
+        }
+      ],
+      "payload": {
+        "target": "continueResume_${COMIC_A_ID}"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 comicReaderShell.readerSourceId reaches ${FIXTURE_ROOT}/comics/a/twin.cbz",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "prop": "readerSourceId",
+        "value": "${FIXTURE_ROOT}/comics/a/twin.cbz",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "008 Missing file cannot silently route to same-named B",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.readerSourceId",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/comics/a/twin.cbz"
+        },
+        {
+          "path": "props.seriesId",
+          "op": "==",
+          "value": "${COMIC_A_ID}"
+        },
+        {
+          "path": "props.readerPageCount",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.readerReady",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "comicReaderShell",
+        "props": [
+          "readerSourceId",
+          "seriesId",
+          "readerPageCount",
+          "readerReady"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "009 Missing-file presentation for receiving review",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "comicReaderShell",
+          "timeoutMs": 6000
+        }
+      }
+    }
+  ]
+}

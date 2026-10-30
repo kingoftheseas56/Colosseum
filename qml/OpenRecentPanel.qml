@@ -139,6 +139,7 @@ Rectangle {
                             color: "#e9e9ec"; font.pixelSize: 13; elide: Text.ElideRight
                         }
                         Text {
+                            objectName: "openRecentAvailability_" + index
                             text: modelData.available ? "Local" : "Unavailable"
                             color: "#8a8a92"; font.pixelSize: 10
                         }

@@ -9,6 +9,8 @@ Item {
     focus: true
     activeFocusOnTab: true
 
+    readonly property string arcId: root.arc ? root.arc.id : ""
+    readonly property string seaId: root.arc ? root.arc.seaId || "east-blue" : ""
     required property var arc
     property string extensionId: ""
     property var installedExtensions: []

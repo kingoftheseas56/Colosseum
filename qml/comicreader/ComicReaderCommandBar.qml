@@ -169,6 +169,7 @@ Item {
             model: bar.commands
             delegate: Item {
                 id: cmd
+                objectName: "readerCommand_" + cmd.modelData
                 required property string modelData
                 readonly property bool on: bar.activeFor(modelData)
                 // width/height come from the content: a command is its icon and its name, nothing else.

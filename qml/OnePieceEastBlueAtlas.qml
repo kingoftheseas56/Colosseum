@@ -7,11 +7,13 @@ import "OnePieceEastBlueData.js" as EastBlue
 
 FocusScope {
     id: root
+    objectName: "eastBlueAtlas"
 
     property bool reducedMotion: false
     property real zoom: 1.0
     property string selectedMarkerId: ""
     property var selectedArc: null
+    readonly property string selectedArcId: root.selectedArc ? root.selectedArc.id : ""
     property bool previewVisible: false
     property bool indexVisible: false
     property bool nonCanonMode: false
@@ -323,6 +325,7 @@ FocusScope {
                     required property var modelData
                     property string markerId: modelData.id
                     property var markerArc: root.arcFor(markerId)
+                    readonly property int artworkStatus: badgeImage.status
                     property bool markerHovered: markerHover.hovered
                     objectName: "eastBlueBadge-" + markerId
                     Accessible.role: Accessible.Button
@@ -822,7 +825,7 @@ FocusScope {
                 width: parent.width - 150
                 spacing: 6
                 Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.2 }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
+                Text { objectName: "eastBluePreviewTitle"; width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
                 Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.italic: true; wrapMode: Text.WordWrap }
                 Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: 12; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
                 Row {

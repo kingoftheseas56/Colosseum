@@ -1,0 +1,90 @@
+{
+  "checkpoint": "1.1.9 east-blue badge geometry at declared viewport",
+  "root": "eastBlueAtlas",
+  "rules": [
+    {
+      "kind": "actionableNonzero",
+      "name": "eastBlueBadge-romance-actionable",
+      "target": "eastBlueBadge-romance"
+    },
+    {
+      "kind": "contained",
+      "name": "eastBlueBadge-romance-contained",
+      "target": "eastBlueBadge-romance",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "eastBlueBadge-orange-actionable",
+      "target": "eastBlueBadge-orange"
+    },
+    {
+      "kind": "contained",
+      "name": "eastBlueBadge-orange-contained",
+      "target": "eastBlueBadge-orange",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "eastBlueBadge-syrup-actionable",
+      "target": "eastBlueBadge-syrup"
+    },
+    {
+      "kind": "contained",
+      "name": "eastBlueBadge-syrup-contained",
+      "target": "eastBlueBadge-syrup",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "eastBlueBadge-baratie-actionable",
+      "target": "eastBlueBadge-baratie"
+    },
+    {
+      "kind": "contained",
+      "name": "eastBlueBadge-baratie-contained",
+      "target": "eastBlueBadge-baratie",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "eastBlueBadge-arlong-actionable",
+      "target": "eastBlueBadge-arlong"
+    },
+    {
+      "kind": "contained",
+      "name": "eastBlueBadge-arlong-contained",
+      "target": "eastBlueBadge-arlong",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "actionableNonzero",
+      "name": "eastBlueBadge-loguetown-actionable",
+      "target": "eastBlueBadge-loguetown"
+    },
+    {
+      "kind": "contained",
+      "name": "eastBlueBadge-loguetown-contained",
+      "target": "eastBlueBadge-loguetown",
+      "viewport": "$rootWindow",
+      "toleranceLogicalPx": 0
+    },
+    {
+      "kind": "noPeerOverlap",
+      "name": "eastBlue-badge-hit-regions-do-not-overlap",
+      "peers": [
+        "eastBlueBadge-romance",
+        "eastBlueBadge-orange",
+        "eastBlueBadge-syrup",
+        "eastBlueBadge-baratie",
+        "eastBlueBadge-arlong",
+        "eastBlueBadge-loguetown"
+      ]
+    }
+  ]
+}

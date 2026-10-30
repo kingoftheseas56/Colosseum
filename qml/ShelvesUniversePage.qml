@@ -17,6 +17,7 @@ import "Universes.js" as UDB
 
 Item {
     id: root
+    objectName: "shelvesUniversePage"
     anchors.fill: parent
 
     // shell contract — the same verbs the other template pages speak (Main's template
@@ -82,6 +83,7 @@ Item {
             if ((root.activeShelves[j].form === "table") === isTable) k++
         return isTable ? tableRepeater.itemAt(k) : mediumRepeater.itemAt(k)
     }
+    readonly property int workCount: root.works.length
     readonly property var works: {
         let out = []
         root.activeShelves.forEach(function(s) {
@@ -373,6 +375,7 @@ Item {
                     }
                     Text {
                         width: parent.width
+                        objectName: "shelvesUniverseTitle"
                         text: root.uni.name || root.universeName
                         color: root.paper; font.family: root.displayFace
                         font.pixelSize: root.compact ? 40 : 72
@@ -681,6 +684,7 @@ Item {
                     id: tab
                     required property var modelData
                     required property int index
+                    objectName: "shelvesTab_" + tab.index
                     readonly property bool active: root.activeTab === tab.index
                     width: tabText.implicitWidth + 36; height: 36; radius: 18
                     color: tab.active ? root.paper : (tabKey.hovered ? theme.glassTint : "transparent")
@@ -713,6 +717,7 @@ Item {
     }
 
     BackAction {
+        objectName: "shelvesBackAction"
         x: theme.margin; y: 28; z: 20
         onTriggered: root.backRequested()
     }
@@ -863,10 +868,10 @@ Item {
                 Row {
                     id: headingLeft
                     spacing: 12
-                    Text { text: medium.title; color: root.paper
+                    Text { objectName: "shelvesTitle_" + medium.key; text: medium.title; color: root.paper
                            font.family: root.displayFace; font.pixelSize: 22
                            anchors.baseline: countText.baseline }
-                    Text { id: countText; text: medium.total
+                    Text { id: countText; objectName: "shelvesCount_" + medium.key; text: medium.total
                            color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
                 }
             }
@@ -953,6 +958,7 @@ Item {
                                             width: root.tileW
                                             spacing: 0
                                             ShelfTile {
+                                                objectName: "shelvesWork_" + medium.key + "_" + (run.runBase + work.index)
                                                 item: work.modelData
                                                 current: root.selectedKey === root.keyOf(work.modelData)
                                                 keyboardSelected: rowFocus.activeFocus
@@ -1098,10 +1104,10 @@ Item {
                 width: parent.width - 48; height: 30
                 Row {
                     spacing: 12
-                    Text { text: table.title; color: root.paper
+                    Text { objectName: "shelvesTitle_" + table.key; text: table.title; color: root.paper
                            font.family: root.displayFace; font.pixelSize: 22
                            anchors.baseline: tableCount.baseline }
-                    Text { id: tableCount; text: table.total
+                    Text { id: tableCount; objectName: "shelvesCount_" + table.key; text: table.total
                            color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
                 }
                 Text {
@@ -1272,6 +1278,10 @@ Item {
     component ShelfTile: Rectangle {
         id: tile
         property var item: null
+        readonly property string workIdentity: root.keyOf(tile.item)
+        readonly property string workTitle: tile.item ? tile.item.title : ""
+        readonly property int artworkStatus: art.status
+        readonly property bool fallbackVisible: fallbackTitle.visible
         readonly property string rowLabel: item && item.shelfTitle ? String(item.shelfTitle) : ""
         property bool current: false            // the pointer is on it (gold edge)
         property bool keyboardSelected: false   // the row's keyboard selection (house ring)
@@ -1288,6 +1298,8 @@ Item {
             clip: true
             Text {
                 anchors.centerIn: parent; width: parent.width - 24
+                id: fallbackTitle
+                objectName: tile.objectName + "_fallback"
                 text: tile.item ? tile.item.title : ""
                 color: theme.inkDim; font.family: root.displayFace
                 font.pixelSize: 16; wrapMode: Text.WordWrap

@@ -1,0 +1,2088 @@
+{
+  "name": "reader-pdf-search",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "004 Continue locally without account sign-in",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Open taskbar dock",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "colosseumTaskbarHomeButton"
+        }
+      ],
+      "payload": {
+        "target": "colosseumTaskbarHomeButton"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 openRecentDisclosure.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentDisclosure",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "008 openRecentDisclosure is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "openRecentDisclosure"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "009 Open actual Recent panel",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentDisclosure"
+        }
+      ],
+      "payload": {
+        "target": "openRecentDisclosure"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "010 openRecentPanel.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "011 openRecentPanel.rowCount reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "openRecentPanel",
+        "prop": "rowCount",
+        "value": 1,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "012 openRecentRow_0 is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "openRecentRow_0"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "013 Route seeded local file through production Recent action",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "openRecentRow_0"
+        }
+      ],
+      "payload": {
+        "target": "openRecentRow_0"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "014 bookReaderShell.bookReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "bookReady",
+        "value": true,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "015 bookReaderShell.lastCfi reaches epubcfi(/6/2)",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "lastCfi",
+        "value": "epubcfi(/6/2)",
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "016 Real fixed-layout relocated event after PDF render promise and iframe load",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/search.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.lastCfi",
+          "op": "==",
+          "value": "epubcfi(/6/2)"
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "lastCfi",
+          "pageInChapter",
+          "pagesInChapter",
+          "openErrorShown"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "017 Open actual Reader2 search sheet",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchAction"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchAction"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "018 Search input is visible before interaction",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "019 Focus actual visible search input",
+      "payload": {
+        "target": "reader2SearchInput"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchInput"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "020 Search input owns keyboard focus before typing",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "021 Type known PDF search term",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "typed",
+          "op": "==",
+          "value": "ORBIT"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchInput",
+        "text": "ORBIT"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 Typed query reached real TextInput",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "text",
+        "value": "ORBIT",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "023 Search input retains keyboard focus before Return",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "024 Submit actual search input",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "025 bookReaderShell.searchLastQuery reaches ORBIT",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchLastQuery",
+        "value": "ORBIT",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "026 bookReaderShell.searchCount reaches 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchCount",
+        "value": 3,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "027 reader2SearchCount is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchCount"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "028 Visible result count agrees with real PDF search",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "3 results"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchCount",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "029 reader2SearchResults.count reaches 3",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchResults",
+        "prop": "count",
+        "value": 3,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "030 Move keyboard focus into actual result list",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Tab"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "031 Keyboard Home",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "032 Keyboard Return",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "033 bookReaderShell.lastCfi reaches epubcfi(/6/2)",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "lastCfi",
+        "value": "epubcfi(/6/2)",
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "034 Real fixed-layout relocated event after PDF render promise and iframe load",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/search.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.lastCfi",
+          "op": "==",
+          "value": "epubcfi(/6/2)"
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": "==",
+          "value": "0"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "lastCfi",
+          "pageInChapter",
+          "pagesInChapter",
+          "openErrorShown"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "035 Keyboard Down",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "036 Keyboard Return",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "037 bookReaderShell.lastCfi reaches epubcfi(/6/4)",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "lastCfi",
+        "value": "epubcfi(/6/4)",
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "038 Real fixed-layout relocated event after PDF render promise and iframe load",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/search.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.lastCfi",
+          "op": "==",
+          "value": "epubcfi(/6/4)"
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": "==",
+          "value": "1"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "lastCfi",
+          "pageInChapter",
+          "pagesInChapter",
+          "openErrorShown"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "039 Keyboard Down",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Down"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "040 Keyboard Return",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "041 bookReaderShell.lastCfi reaches epubcfi(/6/8)",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "lastCfi",
+        "value": "epubcfi(/6/8)",
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "042 Real fixed-layout relocated event after PDF render promise and iframe load",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/search.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.lastCfi",
+          "op": "==",
+          "value": "epubcfi(/6/8)"
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": "==",
+          "value": "3"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "lastCfi",
+          "pageInChapter",
+          "pagesInChapter",
+          "openErrorShown"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "043 Previous search result crosses back to page two",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Up"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "044 Keyboard Return",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "045 bookReaderShell.lastCfi reaches epubcfi(/6/4)",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "lastCfi",
+        "value": "epubcfi(/6/4)",
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "046 Real fixed-layout relocated event after PDF render promise and iframe load",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/search.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.lastCfi",
+          "op": "==",
+          "value": "epubcfi(/6/4)"
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": "==",
+          "value": "1"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "lastCfi",
+          "pageInChapter",
+          "pagesInChapter",
+          "openErrorShown"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "047 Activate reader2SearchInput",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchInput"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchInput"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "048 Keyboard Ctrl+A",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+A"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "049 Keyboard Backspace",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Backspace"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "050 Search input is visible before interaction",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "051 Focus actual visible search input",
+      "payload": {
+        "target": "reader2SearchInput"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchInput"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "052 Search input owns keyboard focus before typing",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "053 Type known PDF search term",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "typed",
+          "op": "==",
+          "value": "NO_SUCH_TOKEN"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchInput",
+        "text": "NO_SUCH_TOKEN"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "054 Typed query reached real TextInput",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "text",
+        "value": "NO_SUCH_TOKEN",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "055 Search input retains keyboard focus before Return",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "056 Submit actual search input",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "057 bookReaderShell.searchLastQuery reaches NO_SUCH_TOKEN",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchLastQuery",
+        "value": "NO_SUCH_TOKEN",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "058 bookReaderShell.searchCount reaches 0",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchCount",
+        "value": 0,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "059 reader2SearchEmpty is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchEmpty"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "060 No-match is visible, not just an empty model",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "No results"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchEmpty",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "061 Activate reader2SearchInput",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchInput"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchInput"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "062 Keyboard Ctrl+A",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+A"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "063 Keyboard Backspace",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Backspace"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "064 Search input is visible before interaction",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "065 Focus actual visible search input",
+      "payload": {
+        "target": "reader2SearchInput"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchInput"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "066 Search input owns keyboard focus before typing",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-text-input",
+      "label": "067 Type known PDF search term",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "typed",
+          "op": "==",
+          "value": "NEPTUNE"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchInput",
+        "text": "NEPTUNE"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "068 Typed query reached real TextInput",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "text",
+        "value": "NEPTUNE",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "069 Search input retains keyboard focus before Return",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "070 Submit actual search input",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "071 bookReaderShell.searchLastQuery reaches NEPTUNE",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchLastQuery",
+        "value": "NEPTUNE",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "072 bookReaderShell.searchCount reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchCount",
+        "value": 1,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "073 reader2SearchCount is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchCount"
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "074 Visible result count agrees with real PDF search",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "1 result"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchCount",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "075 reader2SearchResults.count reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchResults",
+        "prop": "count",
+        "value": 1,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "076 Keyboard Tab",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Tab"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "077 Keyboard Home",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Home"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "078 Keyboard Return",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "079 bookReaderShell.lastCfi reaches epubcfi(/6/6)",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "lastCfi",
+        "value": "epubcfi(/6/6)",
+        "timeout_ms": 40000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "080 Real fixed-layout relocated event after PDF render promise and iframe load",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.bookPath",
+          "op": "==",
+          "value": "${FIXTURE_ROOT}/books/search.pdf"
+        },
+        {
+          "path": "props.bookReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.lastCfi",
+          "op": "==",
+          "value": "epubcfi(/6/6)"
+        },
+        {
+          "path": "props.pageInChapter",
+          "op": "==",
+          "value": "2"
+        },
+        {
+          "path": "props.pagesInChapter",
+          "op": "==",
+          "value": "4"
+        },
+        {
+          "path": "props.openErrorShown",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "props": [
+          "bookPath",
+          "bookReady",
+          "lastCfi",
+          "pageInChapter",
+          "pagesInChapter",
+          "openErrorShown"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "081 Unique match and rendered page three",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "bookReaderShell",
+          "timeoutMs": 6000
+        }
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "082 Activate reader2SearchInput",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "reader2SearchInput"
+        }
+      ],
+      "payload": {
+        "target": "reader2SearchInput"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "083 Keyboard Ctrl+A",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Ctrl+A"
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "084 Keyboard Backspace",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Backspace"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "085 Clear removed actual input text",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "text",
+        "value": "",
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "086 Cleared input retains keyboard focus",
+      "payload": {
+        "object": "reader2SearchInput",
+        "prop": "activeFocus",
+        "value": true,
+        "timeout_ms": 10000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "087 Submit cleared query",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Return"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "088 bookReaderShell.searchCount reaches 0",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchCount",
+        "value": 0,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "089 bookReaderShell.searchLastQuery reaches ",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bookReaderShell",
+        "prop": "searchLastQuery",
+        "value": "",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "090 Clear returns visible prompt",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Type to search"
+        }
+      ],
+      "payload": {
+        "object": "reader2SearchEmpty",
+        "props": [
+          "text"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "091 Dismiss search sheet",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ],
+      "payload": {
+        "key": "Esc"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "092 Close reader and persist physical page",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "bookReaderBack"
+        }
+      ],
+      "payload": {
+        "target": "bookReaderBack"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "093 homePageFlickable.visible reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "homePageFlickable",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    }
+  ]
+}

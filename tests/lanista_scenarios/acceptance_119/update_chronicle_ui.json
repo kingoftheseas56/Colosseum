@@ -1,0 +1,1466 @@
+{
+  "name": "UPD-CHRONICLE-UI",
+  "comment": "Shipping-build fresh-profile journey. The outer runner must assert candidate executable/source identity, unique pipe and tagged roots. Real UI controls inspect all six signed 1.1.9 chapters, keyboard Escape and visible Back/reopen. No update presentation injection, no live feed activation, no install claim; GUI download/restart remains separate. On remount the actual Loader constructs chapter one again.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "01: Unique owned session answers a valid protocol request",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "02: Visible assembled app and both resolved roots are observable",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "exists"
+        },
+        {
+          "path": "cacheRoot",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "03: Cold boot splash completes",
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "04: Continue fresh onboarding locally with no account",
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "05: Local onboarding releases the shell",
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "06: Installed chronicle entry is visible",
+      "payload": {
+        "object": "colosseumTopbarUpdateButton",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "07: Open installed chronicle through the top bar",
+      "payload": {
+        "target": "colosseumTopbarUpdateButton"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "08: Installed chronicle route opens",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "09: Displayed installed version is exactly 1.1.9",
+      "payload": {
+        "object": "colosseumUpdateVersionTitle",
+        "prop": "text",
+        "value": "1.1.9",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "10: Production chronicle has six chapters",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "props": [
+          "chapterCount",
+          "currentIndex"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.chapterCount",
+          "op": "==",
+          "value": 6
+        },
+        {
+          "path": "props.currentIndex",
+          "op": "==",
+          "value": 0
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "11: Visible chapter 1 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "Your fourth world",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "12: Visible chapter 1 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Explore franchise banners, cross-media shelves and a separate Tributes carousel.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "13: Chapter counter is 1 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "01 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "14: Chapter 1 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "15: Chapter 1 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Your fourth world"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "16: First installed chapter and version evidence",
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "17: Next control changes to the second displayed chapter",
+      "payload": {
+        "target": "colosseumUpdateNextChapter"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "18: Visible chapter 2 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "Sail all four seas",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "19: Visible chapter 2 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Explore interactive atlases from East Blue to the Final Sea, with arc previews and local artwork.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "20: Chapter counter is 2 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "02 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "21: Chapter 2 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "22: Chapter 2 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Sail all four seas"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "23: Activate Next to chapter 3",
+      "payload": {
+        "target": "colosseumUpdateNextChapter"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "24: Visible chapter 3 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "Your local media library",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "25: Visible chapter 3 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Browse poster rails, folder breadcrumbs and detail sheets in the redesigned Vault.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "26: Chapter counter is 3 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "03 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "27: Chapter 3 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "28: Chapter 3 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Your local media library"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "29: Activate Next to chapter 4",
+      "payload": {
+        "target": "colosseumUpdateNextChapter"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "30: Visible chapter 4 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "Welcome to the House",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "31: Visible chapter 4 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Manage extension tiles and move between Chain, House and Store.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "32: Chapter counter is 4 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "04 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "33: Chapter 4 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "34: Chapter 4 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Welcome to the House"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "35: Activate Next to chapter 5",
+      "payload": {
+        "target": "colosseumUpdateNextChapter"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "36: Visible chapter 5 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "Resume and search reliably",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "37: Visible chapter 5 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Resume local comics at their saved reading position and search PDF text in Reader2.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "38: Chapter counter is 5 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "05 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "39: Chapter 5 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "40: Chapter 5 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Resume and search reliably"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "41: Activate Next to chapter 6",
+      "payload": {
+        "target": "colosseumUpdateNextChapter"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "42: Visible chapter 6 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "First-party Windows updates",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "43: Visible chapter 6 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Signed update discovery now uses getcolosseum.world. Install 1.1.9 manually once to migrate from 1.1.8. Linux updates remain manual.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "44: Chapter counter is 6 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "06 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "45: Chapter 6 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "46: Chapter 6 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "First-party Windows updates"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "47: Sixth chapter contains manual 1.1.8 migration information",
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-keypress",
+      "label": "48: Escape returns from the installed chronicle",
+      "payload": {
+        "key": "Escape"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "49: Escape unloads the update route",
+      "payload": {
+        "object": "updateLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "50: Reopen chronicle after keyboard exit",
+      "payload": {
+        "target": "colosseumTopbarUpdateButton"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "51: Chronicle remounts after Escape",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "52: Reopened version remains 1.1.9",
+      "payload": {
+        "object": "colosseumUpdateVersionTitle",
+        "prop": "text",
+        "value": "1.1.9",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "53: Visible chapter 1 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "Your fourth world",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "54: Visible chapter 1 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Explore franchise banners, cross-media shelves and a separate Tributes carousel.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "55: Chapter counter is 1 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "01 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "56: Chapter 1 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "57: Chapter 1 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Your fourth world"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "58: Visible Back control returns to shell",
+      "payload": {
+        "target": "colosseumUpdateBackAction"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "59: Back unloads the update route",
+      "payload": {
+        "object": "updateLayer",
+        "prop": "active",
+        "value": false,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-click",
+      "label": "60: Reopen chronicle after visible Back",
+      "payload": {
+        "target": "colosseumTopbarUpdateButton"
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "61: Chronicle remounts after Back",
+      "payload": {
+        "object": "colosseumUpdatePage",
+        "prop": "visible",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "62: Second reopen retains installed identity",
+      "payload": {
+        "object": "colosseumUpdateVersionTitle",
+        "prop": "text",
+        "value": "1.1.9",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "63: Visible chapter 1 title is the signed 1.1.9 content",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "prop": "text",
+        "value": "Your fourth world",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "64: Visible chapter 1 body matches release content",
+      "payload": {
+        "object": "colosseumUpdateChapterBody",
+        "prop": "text",
+        "value": "Explore franchise banners, cross-media shelves and a separate Tributes carousel.",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "65: Chapter counter is 1 of six",
+      "payload": {
+        "object": "colosseumUpdateChapterCount",
+        "prop": "text",
+        "value": "01 / 06",
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "66: Chapter 1 completed its rendered frame swaps",
+      "payload": {
+        "object": "colosseumUpdateGallery",
+        "prop": "automationVisualReady",
+        "value": true,
+        "timeout_ms": 12000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "67: Chapter 1 copy is actually visible",
+      "payload": {
+        "object": "colosseumUpdateChapterTitle",
+        "props": [
+          "visible",
+          "text"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.text",
+          "op": "==",
+          "value": "Your fourth world"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "68: Reopened installed chronicle evidence",
+      "payload": {
+        "grab": {
+          "target": "window",
+          "timeoutMs": 4000
+        }
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ]
+    }
+  ]
+}

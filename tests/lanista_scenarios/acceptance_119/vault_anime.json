@@ -1,0 +1,745 @@
+{
+  "name": "vault-anime",
+  "comment": "1.1.9 authored native Lanista journey. NOT RUN until qualified against the candidate; every protocol command explicitly requires type=reply. Seeded Recent/config setup is distinct from native picker interaction.",
+  "steps": [
+    {
+      "cmd": "ping",
+      "label": "001 Prove native protocol and drive gate",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "matches",
+          "value": "^colosseum\\.dev\\.v1"
+        },
+        {
+          "path": "gates.drive",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "get-state",
+      "label": "002 Prove visible owned disposable profile",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "windows.0.visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "appDataRoot",
+          "op": "contains",
+          "value": "Colosseum-dltest-"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "003 bootSplash.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "bootSplash",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "004 Continue locally without account sign-in",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "accountWelcomeContinueLocal"
+        }
+      ],
+      "payload": {
+        "target": "accountWelcomeContinueLocal"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "005 accountHost.visible reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "accountHost",
+        "prop": "visible",
+        "value": false,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "006 Enter Vault through its separate door",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "taskbarVaultDoor"
+        }
+      ],
+      "payload": {
+        "target": "taskbarVaultDoor"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "007 vaultPage.hasConfirmedStorage reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultPage",
+        "prop": "hasConfirmedStorage",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "008 vaultPage.scanning reaches False",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultPage",
+        "prop": "scanning",
+        "value": false,
+        "timeout_ms": 60000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "009 vaultPage.currentBrowsePath reaches ${VAULT_ANIME_ROOT}",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultPage",
+        "prop": "currentBrowsePath",
+        "value": "${VAULT_ANIME_ROOT}",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "vault-forensics",
+      "label": "010 Confirm exact owned fixture root",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "schema",
+          "op": "==",
+          "value": "colosseum.vault.forensics.v1"
+        },
+        {
+          "path": "roots.count",
+          "op": "==",
+          "value": "1"
+        },
+        {
+          "path": "roots.rows.0.path",
+          "op": "==",
+          "value": "${VAULT_ANIME_ROOT}"
+        },
+        {
+          "path": "truncated",
+          "op": "==",
+          "value": "false"
+        }
+      ],
+      "payload": {
+        "scope": "summary",
+        "limit": 10
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "011 vaultBrowseGrid.count reaches 1",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 1,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "012 Physical disk node has expected kind",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.nodeType",
+          "op": "==",
+          "value": "show"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime",
+        "props": [
+          "nodeType",
+          "displayTitle",
+          "physicalFact"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "013 vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime_hitArea is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "014 Activate vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime_hitArea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime_hitArea"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "015 vaultBrowseCrumb.currentPath reaches ${VAULT_ANIME_ROOT}/acceptance-anime",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCrumb",
+        "prop": "currentPath",
+        "value": "${VAULT_ANIME_ROOT}/acceptance-anime",
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "016 vaultBrowseGrid.count reaches 2",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseGrid",
+        "prop": "count",
+        "value": 2,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "017 Physical disk node has expected kind",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.nodeType",
+          "op": "==",
+          "value": "episode"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime/acceptance-anime-001.mp4",
+        "props": [
+          "nodeType",
+          "displayTitle",
+          "physicalFact"
+        ]
+      }
+    },
+    {
+      "cmd": "get-state",
+      "label": "018 Anime absolute episode numbering",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "vaultPage",
+          "timeoutMs": 6000
+        }
+      }
+    },
+    {
+      "cmd": "ui-query",
+      "label": "019 vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime/acceptance-anime-001.mp4_hitArea is visible, enabled, and within window",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "visible",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "enabled",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "clippedByWindow",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "localRect.width",
+          "op": ">",
+          "value": "0"
+        },
+        {
+          "path": "localRect.height",
+          "op": ">",
+          "value": "0"
+        }
+      ],
+      "payload": {
+        "object": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime/acceptance-anime-001.mp4_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-click",
+      "label": "020 Activate vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime/acceptance-anime-001.mp4_hitArea",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "clicked",
+          "op": "==",
+          "value": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime/acceptance-anime-001.mp4_hitArea"
+        }
+      ],
+      "payload": {
+        "target": "vaultBrowseCard_${VAULT_ANIME_ROOT}/acceptance-anime/acceptance-anime-001.mp4_hitArea"
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "021 player.playerActive reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "playerActive",
+        "value": true,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "022 player.decodedWidth reaches 160",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "decodedWidth",
+        "value": 160,
+        "timeout_ms": 30000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "023 player.decodedHeight reaches 90",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "decodedHeight",
+        "value": 90,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "024 player.playerReady reaches True",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "prop": "playerReady",
+        "value": true,
+        "timeout_ms": 20000
+      }
+    },
+    {
+      "cmd": "qml-get",
+      "label": "025 Actual local source and decoded video, not a file stub",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.mediaLocalPath",
+          "op": "==",
+          "value": "${VAULT_ANIME_ROOT}/acceptance-anime/acceptance-anime-001.mp4"
+        },
+        {
+          "path": "props.decodedWidth",
+          "op": "==",
+          "value": "160"
+        },
+        {
+          "path": "props.decodedHeight",
+          "op": "==",
+          "value": "90"
+        },
+        {
+          "path": "props.playerReady",
+          "op": "==",
+          "value": "true"
+        }
+      ],
+      "payload": {
+        "object": "player",
+        "props": [
+          "mediaLocalPath",
+          "decodedWidth",
+          "decodedHeight",
+          "playerReady"
+        ]
+      }
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "026 Require actual playback time to advance beyond startup",
+      "payload": {
+        "object": "player",
+        "prop": "playbackStarted",
+        "value": true,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "ui-wait-for",
+      "label": "027 Require opening state to retire",
+      "payload": {
+        "object": "player",
+        "prop": "starting",
+        "value": false,
+        "timeout_ms": 30000
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "matched",
+          "op": "==",
+          "value": "true"
+        }
+      ]
+    },
+    {
+      "cmd": "qml-get",
+      "label": "028 Assert playback advanced, opening cleared, and source remains exact",
+      "payload": {
+        "object": "player",
+        "props": [
+          "playbackStarted",
+          "playbackPosition",
+          "starting",
+          "statusMsg",
+          "errored",
+          "mediaLocalPath",
+          "decodedWidth",
+          "decodedHeight",
+          "playerReady"
+        ]
+      },
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "props.playbackStarted",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.starting",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.playbackPosition",
+          "op": ">",
+          "value": "0.25"
+        },
+        {
+          "path": "props.statusMsg",
+          "op": "==",
+          "value": ""
+        },
+        {
+          "path": "props.errored",
+          "op": "==",
+          "value": "false"
+        },
+        {
+          "path": "props.playerReady",
+          "op": "==",
+          "value": "true"
+        },
+        {
+          "path": "props.decodedWidth",
+          "op": "==",
+          "value": "160"
+        },
+        {
+          "path": "props.decodedHeight",
+          "op": "==",
+          "value": "90"
+        }
+      ]
+    },
+    {
+      "label": "029 Settle the documented 300 ms loader opacity fade after state readiness",
+      "presentation_wait_ms": 350,
+      "animation_settle": "player-loading-opacity-300ms"
+    },
+    {
+      "cmd": "get-state",
+      "label": "030 Capture playing fixture after startup and fade; inspect actual pixels separately",
+      "expect": [
+        {
+          "path": "type",
+          "op": "==",
+          "value": "reply"
+        },
+        {
+          "path": "grabPath",
+          "op": "exists"
+        }
+      ],
+      "payload": {
+        "grab": {
+          "target": "player",
+          "timeoutMs": 6000
+        }
+      }
+    }
+  ]
+}

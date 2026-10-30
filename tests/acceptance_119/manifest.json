@@ -1,0 +1,643 @@
+{
+  "schema": "colosseum.acceptance119.manifest.v1",
+  "source_sha": "a6104f7a8d9aab9766e71f031b7908beaeca85ad",
+  "version": "1.1.9",
+  "cases": [
+    {
+      "id": "SHELL-LOCAL-WORLDS",
+      "scenario": "tests/lanista_scenarios/acceptance_119/shell_local_worlds.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "profile_group": "shell-local"
+    },
+    {
+      "id": "SHELL-LOCAL-RESTART",
+      "scenario": "tests/lanista_scenarios/acceptance_119/shell_local_restart.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "profile_group": "shell-local",
+      "phase": "restart"
+    },
+    {
+      "id": "ACC-LOCAL-UI",
+      "scenario": "tests/lanista_scenarios/acceptance_119/account_local_ui.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "profile_group": "account-local"
+    },
+    {
+      "id": "ACC-LOCAL-RESTART",
+      "scenario": "tests/lanista_scenarios/acceptance_119/account_local_restart_ui.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "profile_group": "account-local",
+      "phase": "restart"
+    },
+    {
+      "id": "ACC-TRACKERS-LINUX-UI",
+      "scenario": "tests/lanista_scenarios/acceptance_119/account_trackers_linux_ui.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ]
+    },
+    {
+      "id": "UPD-CHRONICLE-UI",
+      "scenario": "tests/lanista_scenarios/acceptance_119/update_chronicle_ui.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ]
+    },
+    {
+      "id": "UNI-01",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_james-bond.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-02",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_marvel-cinematic-universe.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-03",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_star-trek.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-04",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_star-wars.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-05",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_dc-animated-universe.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-06",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_avatar-the-last-airbender.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-07",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_studio-ghibli.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-08",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_weekly-shonen-jump.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-09",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_one-piece.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-10",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_dragon-ball.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-11",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_naruto.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-12",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_attack-on-titan.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "UNI-FILTER",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_category_navigation.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "ATLAS-FOUR-SEA",
+      "scenario": "tests/lanista_scenarios/acceptance_119/atlas_four_sea_journey.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh"
+    },
+    {
+      "id": "EXT-HOUSE-STATE",
+      "scenario": "tests/lanista_scenarios/acceptance_119/extensions_house_routes_state.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "seed": "tests/acceptance_119/seeds/extensions-house-fixture",
+      "profile_group": "extensions-house-state"
+    },
+    {
+      "id": "EXT-HOUSE-RESTART",
+      "scenario": "tests/lanista_scenarios/acceptance_119/extensions_house_restart.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "profile_group": "extensions-house-state"
+    },
+    {
+      "id": "EXT-MISSING-ART-NEG",
+      "scenario": "tests/lanista_scenarios/acceptance_119/extensions_missing_artwork_negative.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "seed": "tests/acceptance_119/seeds/extensions-missing-artwork",
+      "expected_failure": {
+        "exit_code": 1,
+        "label": "015 NEGATIVE CONTROL: missing asset must FAIL the Image.Ready acceptance assertion"
+      }
+    },
+    {
+      "id": "UNI-OFFLINE-BANNER",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_missing_banner_fallback.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "seed": "tests/acceptance_119/seeds/extensions-universe-missing-banner"
+    },
+    {
+      "id": "UNI-WRONG-IDENTITY-NEG",
+      "scenario": "tests/lanista_scenarios/acceptance_119/universe_wrong_identity_negative.json",
+      "layer": "assembled-app-lanista",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "expected_failure": {
+        "exit_code": 1,
+        "label": "024 NEGATIVE CONTROL: wrong visible identity must FAIL despite a healthy route"
+      }
+    },
+    {
+      "id": "READER-COMIC-PREPARE",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_prepare.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "prepare",
+      "profile_group": "reader-comic",
+      "seed": "comic",
+      "limitations": [
+        "Recent seed opens outside a managed series; native file picker is separate."
+      ],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "READER-COMIC-SAME-NAME",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_same_name.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "human_phase": "same-name",
+      "profile_group": "reader-comic",
+      "seed": null,
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "READER-COMIC-RESTART",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_restart.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "human_phase": "restart",
+      "profile_group": "reader-comic",
+      "seed": null,
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "READER-COMIC-SAME-NAME-RESTART",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_same_name_restart.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "human_phase": "same-name-restart",
+      "profile_group": "reader-comic",
+      "seed": null,
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "READER-COMIC-NEGATIVE-PAGE",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_negative_page.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "negative",
+      "profile_group": "reader-comic-negative-page",
+      "seed": "comic",
+      "limitations": [
+        "Fresh independent profile; exactly the final wrong-page assertion must fail and all other steps must pass."
+      ],
+      "mutation_before": null,
+      "expected_failure": {
+        "exit_code": 1,
+        "label": "048 Negative control: deliberately wrong page must fail"
+      }
+    },
+    {
+      "id": "READER-COMIC-NEGATIVE-IDENTITY",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_negative_identity.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "negative",
+      "profile_group": "reader-comic-negative-identity",
+      "seed": "comic",
+      "limitations": [
+        "Fresh independent profile; exactly the final wrong-file assertion must fail and all other steps must pass."
+      ],
+      "mutation_before": null,
+      "expected_failure": {
+        "exit_code": 1,
+        "label": "048 Negative control: deliberately wrong same-name identity must fail"
+      }
+    },
+    {
+      "id": "READER-PDF-SEARCH",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_pdf_search.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "prepare",
+      "profile_group": "reader-pdf",
+      "seed": "pdf",
+      "limitations": [
+        "PDF readiness uses fixed-layout relocation after native renderer load, not direct pixel comparison."
+      ],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "READER-PDF-RESTART",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_pdf_restart.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "human_phase": "restart",
+      "profile_group": "reader-pdf",
+      "seed": null,
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "READER-PDF-MALFORMED",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_pdf_malformed.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "fresh",
+      "profile_group": "reader_pdf_malformed",
+      "seed": "pdf-malformed",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "READER-PDF-UNAVAILABLE",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_pdf_unavailable.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "fresh",
+      "profile_group": "reader_pdf_unavailable",
+      "seed": "pdf-unavailable",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-EMPTY",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_empty.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "fresh",
+      "profile_group": "vault_empty",
+      "seed": "vault-empty",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-UNAVAILABLE",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_unavailable.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "fresh",
+      "profile_group": "vault_unavailable",
+      "seed": "vault-unavailable",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-FILM",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_film.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "fresh",
+      "profile_group": "vault_film",
+      "seed": "vault-film",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-NESTED-PREPARE",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_nested_prepare.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "prepare",
+      "profile_group": "vault-nested",
+      "seed": "vault-nested",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-NESTED-RESTART",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_nested_restart.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "human_phase": "restart",
+      "profile_group": "vault-nested",
+      "seed": null,
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-SIBLING-SEASONS",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_sibling_seasons.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "fresh",
+      "profile_group": "vault_sibling_seasons",
+      "seed": "vault-sibling",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-ANIME",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_anime.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "fresh",
+      "profile_group": "vault_anime",
+      "seed": "vault-anime",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-CLIPS-PREPARE",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_clips_prepare.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "prepare",
+      "profile_group": "vault-clips",
+      "seed": "vault-clips",
+      "limitations": [],
+      "mutation_before": null,
+      "expected_failure": null
+    },
+    {
+      "id": "VAULT-CLIPS-REFRESHED",
+      "scenario": "tests/lanista_scenarios/acceptance_119/vault_clips_refreshed.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "human_phase": "refresh",
+      "profile_group": "vault-clips",
+      "seed": null,
+      "limitations": [
+        "Refresh at restart; live watcher arrival must be qualified separately."
+      ],
+      "mutation_before": "vault-add-clip",
+      "expected_failure": null
+    },
+    {
+      "id": "READER-COMIC-MISSING",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_missing.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "restart",
+      "human_phase": "missing",
+      "profile_group": "reader-comic",
+      "seed": null,
+      "limitations": [
+        "Wrong-file guard only; no claim of a friendly missing-file error because no explicit error observable exists."
+      ],
+      "mutation_before": "comic-a-missing",
+      "expected_failure": null
+    },
+    {
+      "id": "WIN-AUTOMATIC-UPDATE",
+      "layer": "windows-receiving",
+      "platforms": [
+        "windows"
+      ],
+      "blocked_reason": "An authentic higher-version signed fixture and supported private staging route are required; no production feed/key use is authorized."
+    },
+    {
+      "id": "VAULT-NATIVE-ADD-FOLDER",
+      "layer": "assembled-app-native-dialog",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "blocked_reason": "Lanista addresses QQuick root items, not native FolderDialog. Seeded scanning is separate; a cloud desktop manual Add Folder check is required."
+    },
+    {
+      "id": "READER-COMIC-SHUTDOWN",
+      "scenario": "tests/lanista_scenarios/acceptance_119/reader_comic_shutdown.json",
+      "layer": "linux-gui/windows-receiving",
+      "platforms": [
+        "linux",
+        "windows"
+      ],
+      "phase": "fresh",
+      "human_phase": "active-reader-shutdown",
+      "profile_group": "reader-comic-shutdown",
+      "seed": "comic",
+      "limitations": [
+        "Leaves real A04 reader active; abnormal shutdown remains FAIL."
+      ],
+      "mutation_before": null,
+      "expected_failure": null
+    }
+  ]
+}

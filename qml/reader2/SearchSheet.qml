@@ -141,6 +141,7 @@ Item {
 
             Text {
                 id: countLabel
+                objectName: "reader2SearchCount"
                 anchors.right: parent.right
                 anchors.rightMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
@@ -173,6 +174,7 @@ Item {
 
             // quiet empty state: "Type to search" before a search, "No results" after one.
             Text {
+                objectName: "reader2SearchEmpty"
                 anchors.centerIn: parent
                 visible: !sheet.hasResults
                 text: sheet.lastQuery === "" ? "Type to search" : "No results"

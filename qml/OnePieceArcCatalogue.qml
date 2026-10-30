@@ -170,6 +170,7 @@ Item {
                     font.letterSpacing: 2.6
                 }
                 Text {
+                    objectName: "onePieceArcTitle"
                     text: root.arc ? root.arc.title : ""
                     color: theme.ink
                     font.family: theme.display
@@ -405,6 +406,7 @@ Item {
 
     ChromeScrim { z: 16 }
     BackAction {
+        objectName: "onePieceArcBack"
         x: theme.margin
         y: 28
         z: 20
