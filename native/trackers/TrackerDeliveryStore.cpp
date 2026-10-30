@@ -197,7 +197,8 @@ bool providerSupportsDelivery(TrackerProviderId providerId, TrackerMediaDomain d
             || domain == TrackerMediaDomain::Movie
             || domain == TrackerMediaDomain::Television;
     }
-    if (providerId == TrackerProviderId::Mal) {
+    if (providerId == TrackerProviderId::Mal
+        || providerId == TrackerProviderId::AniList) {
         return domain == TrackerMediaDomain::Anime
             || domain == TrackerMediaDomain::Manga;
     }
@@ -222,6 +223,25 @@ bool providerSupportsMappedDelivery(TrackerProviderId providerId,
         return domain == TrackerMediaDomain::Movie
             ? parts.first() == QLatin1String("movie")
             : parts.first() == QLatin1String("episode");
+    }
+    if (providerId == TrackerProviderId::AniList) {
+        // AniList ids are `anilist:<anime|manga>:<id>:<episode|chapter>:<n>`;
+        // aggregate list ids are not deliverable. Which Colosseum history
+        // kinds may reach AniList (never Tankoban) is decided by the sync
+        // runtime, which sees the fact's history kind.
+        if (parts.size() != 5 || parts.at(0) != QLatin1String("anilist"))
+            return false;
+        parts.at(2).toULongLong(&numeric);
+        bool unitOk = false;
+        const int unit = parts.at(4).toInt(&unitOk);
+        if (!numeric || !unitOk || unit <= 0)
+            return false;
+        return (domain == TrackerMediaDomain::Anime
+                && parts.at(1) == QLatin1String("anime")
+                && parts.at(3) == QLatin1String("episode"))
+            || (domain == TrackerMediaDomain::Manga
+                && parts.at(1) == QLatin1String("manga")
+                && parts.at(3) == QLatin1String("chapter"));
     }
     if (providerId == TrackerProviderId::Mal) {
         // Only exact unit identities are deliverable; aggregate list IDs are not.

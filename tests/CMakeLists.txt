@@ -281,6 +281,18 @@ function(colosseum_add_tracker_delivery_runtime_sources target)
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalConnectionController.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListSyncRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListSyncRuntime.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TraktCodec.cpp"
@@ -4842,6 +4854,50 @@ endif()
 add_test(NAME colosseum.qttest.tracker_anilist
          COMMAND tst_tracker_anilist)
 set_tests_properties(colosseum.qttest.tracker_anilist PROPERTIES
+    LABELS "unit;qttest;tracker;anilist"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 76 S3/S4: AniList mapping, domain gate and sync runtime against a fake
+# transport, an in-memory vault and synthetic profiles in temp directories.
+add_executable(tst_tracker_anilist_sync
+    auto/tracker_anilist/tst_tracker_anilist_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+colosseum_add_tracker_delivery_runtime_sources(tst_tracker_anilist_sync)
+target_include_directories(tst_tracker_anilist_sync PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_tracker_anilist_sync PRIVATE
+    COLOSSEUM_TRACKER_DELIVERY_TESTING=1)
+target_link_libraries(tst_tracker_anilist_sync PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_tracker_anilist_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_anilist_sync PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_anilist_sync POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Gui>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE:Qt6::Sql>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_anilist_sync>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_anilist_sync COMMAND tst_tracker_anilist_sync)
+set_tests_properties(colosseum.qttest.tracker_anilist_sync PROPERTIES
     LABELS "unit;qttest;tracker;anilist"
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
