@@ -8,6 +8,7 @@ Item {
     id: panel
     objectName: "collectionsPanel"
     required property var nativeStore
+    property Item wallpaperItem: null
     property var publicationController: null
     property bool sharingActive: false
     property var openedGiftIds: ({})
@@ -143,12 +144,24 @@ Item {
     Keys.onEscapePressed: panel.requestEscape()
     Timer { id: messageTimer; interval: 4200; onTriggered: panel.message = "" }
 
-    Rectangle {
+    Item {
         anchors.fill: parent
         visible: panel.showing
-        gradient: Gradient {
-            GradientStop { position: 0; color: theme.biblioWashTop }
-            GradientStop { position: 1; color: theme.biblioWashBottom }
+        Rectangle {
+            anchors.fill: parent
+            color: Qt.rgba(theme.biblioWashBottom.r, theme.biblioWashBottom.g, theme.biblioWashBottom.b, 1)
+        }
+        ShaderEffectSource {
+            anchors.fill: parent
+            sourceItem: panel.showing ? panel.wallpaperItem : null
+            live: panel.showing
+        }
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0; color: Qt.rgba(theme.biblioWashTop.r, theme.biblioWashTop.g, theme.biblioWashTop.b, 0.66) }
+                GradientStop { position: 1; color: Qt.rgba(theme.biblioWashBottom.r, theme.biblioWashBottom.g, theme.biblioWashBottom.b, 0.66) }
+            }
         }
         MouseArea { anchors.fill: parent; acceptedButtons: Qt.AllButtons; onWheel: function(wheel) { wheel.accepted = true } }
     }

@@ -92,6 +92,8 @@ QString CollectionPublicationController::operationId(const QString &action, cons
         }
         QJsonParseError error;
         const auto doc = QJsonDocument::fromJson(input.readAll(), &error);
+        // Windows cannot atomically replace the journal while its reader is open.
+        input.close();
         if (error.error != QJsonParseError::NoError || !doc.isObject()) {
             fail(tr("The publication retry journal is damaged. Nothing was sent.")); return {};
         }
@@ -341,6 +343,7 @@ bool CollectionPublicationController::saveSource(const QString &id, const QStrin
         if (!input.open(QIODevice::ReadOnly) || input.size() > 1024 * 1024) return false;
         QJsonParseError error;
         const auto doc = QJsonDocument::fromJson(input.readAll(), &error);
+        input.close();
         if (error.error != QJsonParseError::NoError || !doc.isObject()) return false;
         sources = doc.object();
     }
@@ -360,6 +363,7 @@ bool CollectionPublicationController::finishOperation() {
     if (!input.open(QIODevice::ReadOnly) || input.size() > 1024 * 1024) return false;
     QJsonParseError error;
     const auto document = QJsonDocument::fromJson(input.readAll(), &error);
+    input.close();
     if (error.error != QJsonParseError::NoError || !document.isObject()) return false;
     auto operations = document.object();
     operations.remove(m_operationKey);

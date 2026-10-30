@@ -145,7 +145,7 @@ private slots:
         transport.finish({409,{},"revision_conflict","Refresh and retry",false});QTRY_VERIFY(!controller.busy());
         QVERIFY(!controller.error().isEmpty());
         QFile journal(store.filePath()+".publication-operations.json"); QVERIFY(journal.open(QIODevice::ReadOnly));
-        auto bytes=journal.readAll(); QVERIFY(!bytes.contains("phrase")); QVERIFY(!bytes.contains("token"));
+        auto bytes=journal.readAll(); journal.close(); QVERIFY(!bytes.contains("phrase")); QVERIFY(!bytes.contains("token"));
         CollectionPublicationController restart(&client,QUrl("https://service.test"));restart.activate(&store,true);
         QVERIFY(restart.publish(id,false,"phrase"));QVERIFY(transport.request.body.value("operation_id").toString()!=op);
     }
