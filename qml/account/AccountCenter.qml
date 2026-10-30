@@ -17,6 +17,9 @@ Rectangle {
     property bool feriaOnly: false
     property var ownedFeriaView: null
     signal feriaActivityRequested(string section)
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal quitRequested()
     function configureFeriaContent() {
         if (!feriaController || !feriaContent.item) return
         ownedFeriaView = feriaContent.item
@@ -257,6 +260,16 @@ Rectangle {
             anchors.fill: parent
             onClicked: root.close()
         }
+    }
+
+    HouseWindowControls {
+        objectPrefix: "accountCenterWindow"
+        anchors.right: parent.right; anchors.rightMargin: 32
+        y: 30
+        z: 10
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onQuitRequested: root.quitRequested()
     }
 
     Row {

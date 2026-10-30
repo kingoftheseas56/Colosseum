@@ -565,6 +565,19 @@ Item {
         onRemoveRequested: (entry) => root.removeInstalled(entry)
     }
 
+    // Keep the existing Back-only Store masthead, but restore the house
+    // Minimize / Fullscreen / Quit trio on Store, Search and Your Add-ons.
+    HouseWindowControls {
+        objectPrefix: "extensionsWindow"
+        anchors.right: parent.right; anchors.rightMargin: theme.margin
+        y: 46
+        z: 15
+        visible: Qt.platform.os !== "android" && !tankoyomiConfiguration.visible
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onQuitRequested: root.closeRequested()
+    }
+
     Rectangle {
         visible: root.installError.length > 0
         z: 15

@@ -1129,6 +1129,9 @@ Window {
         id: collectionsPanel
         anchors.fill: parent
         z: 58.6
+        onMinimizeRequested: win.minimizeShell()
+        onFullscreenRequested: win.toggleFullscreenShell()
+        onQuitRequested: win.requestApplicationQuit()
         nativeStore: typeof NamedCollections !== "undefined" ? NamedCollections : null
         bottomInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
         onOpenReferenceRequested: reference => win.openNamedCollectionReference(reference)
@@ -5859,6 +5862,9 @@ Window {
             })
             item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.backRequested.connect(win.closeSyncCenterPage)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.mainSyncRequested.connect(win.openStremioSyncPanel)
             item.takeKeyboardFocus()
         }
@@ -5885,6 +5891,9 @@ Window {
             })
             item.reducedMotion = Qt.binding(function() { return win.reducedMotion })
             item.backRequested.connect(win.closeHistoryStatsPage)
+            item.minimizeRequested.connect(win.minimizeShell)
+            item.fullscreenRequested.connect(win.toggleFullscreenShell)
+            item.closeRequested.connect(function() { win.requestApplicationQuit() })
             item.syncCenterRequested.connect(win.openSyncCenterPage)
             item.takeKeyboardFocus()
         }
@@ -6350,6 +6359,9 @@ Window {
     AccountCenter {
         id: accountCenter
         objectName: "accountCenter"
+        onMinimizeRequested: win.minimizeShell()
+        onFullscreenRequested: win.toggleFullscreenShell()
+        onQuitRequested: win.requestApplicationQuit()
         feriaController: feriaLayer.item
         feriaEnabled: win.feriaAvailable && !win.feriaComingSoon
         onFeriaActivityRequested: function(section) { win.openYourFeriaPage(section) }

@@ -129,6 +129,9 @@ Item {
     readonly property bool motionEnabled: !reducedMotion
 
     signal backRequested()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal closeRequested()
     signal mainSyncRequested()
 
     Connections {
@@ -1629,6 +1632,17 @@ Item {
                 GradientStop { position: 1; color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.45) }
             }
         }
+    }
+
+    // Above Connections content, below z >= 20 modal/review overlays.
+    HouseWindowControls {
+        objectPrefix: "trackerWindow"
+        anchors.right: parent.right; anchors.rightMargin: root.pageInset
+        y: 14
+        z: 10
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onQuitRequested: root.closeRequested()
     }
 
     Flickable {

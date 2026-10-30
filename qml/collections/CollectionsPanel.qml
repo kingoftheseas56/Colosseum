@@ -23,6 +23,9 @@ Item {
     property bool initialized: false
     readonly property bool pendingChanges: !!(detailPage() && detailPage().editing)
     signal closed()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal quitRequested()
     signal navigationCanceled()
     signal openReferenceRequested(var reference)
     visible: showing || pickerActive || deleteActive || message.length > 0
@@ -188,9 +191,10 @@ Item {
         }
     }
     CollectionActionButton {
-        anchors.top: parent.top
-        anchors.right: parent.right
-        anchors.margins: 16
+        anchors.top: windowControls.visible ? windowControls.top : parent.top
+        anchors.topMargin: windowControls.visible ? -11 : 16
+        anchors.right: windowControls.visible ? windowControls.left : parent.right
+        anchors.rightMargin: windowControls.visible ? 18 : 16
         visible: panel.showing
         objectName: "closeCollectionsButton"
         iconName: "close"
@@ -200,6 +204,17 @@ Item {
         ToolTip.visible: hovered
         ToolTip.text: qsTr("Close Collections")
         onClicked: panel.requestClose()
+    }
+    HouseWindowControls {
+        id: windowControls
+        objectPrefix: "collectionsWindow"
+        anchors.right: parent.right; anchors.rightMargin: 26
+        y: 20
+        z: 10
+        visible: panel.showing && Qt.platform.os !== "android"
+        onMinimizeRequested: panel.minimizeRequested()
+        onFullscreenRequested: panel.fullscreenRequested()
+        onQuitRequested: panel.quitRequested()
     }
     Rectangle {
         anchors.horizontalCenter: parent.horizontalCenter
