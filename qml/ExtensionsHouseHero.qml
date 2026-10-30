@@ -1,7 +1,7 @@
 // ExtensionsHouseHero — the Store's top card (agents/colosseum-extensions-world-mock.html): the
 // universe banners crossfade behind a glass tray of Colosseum's own House apps. Universes opens the
-// Hall, Tankoyomi opens its settings, each House source has its add / on button; Search sits in
-// the corner (the Store's top bar carries only Back).
+// Hall, Tankoyomi opens its settings, each House source has its add / on button; Search and
+// Install from URL sit in the corner (the Store's top bar carries only Back).
 // Tile data and toggles come from ExtensionsHousePage.qml (the full-page House it grew out of).
 pragma ComponentBehavior: Bound
 
@@ -14,6 +14,7 @@ Item {
     property int revision: 0                 // bump when Extensions changes
     signal universesRequested()
     signal searchRequested()
+    signal installUrlRequested()
     signal configureRequested(string extensionId)
 
     readonly property bool compact: width < 1250
@@ -96,6 +97,7 @@ Item {
 
     // ---- Search: the Store's add-on search ----
     Rectangle {
+        id: searchPill
         anchors.right: parent.right; anchors.top: parent.top
         anchors.rightMargin: 26; anchors.topMargin: 20
         width: searchRow.implicitWidth + 36; height: 34
@@ -128,6 +130,42 @@ Item {
             accessibleName: "Search add-ons"
             focusRadius: 17
             onTriggered: hero.searchRequested()
+        }
+    }
+
+    // The custom manifest entry lives beside Search, not in a separate store or browser.
+    Rectangle {
+        anchors.right: searchPill.left; anchors.rightMargin: 12
+        anchors.top: searchPill.top
+        width: installUrlRow.implicitWidth + 30; height: 34
+        radius: 17
+        color: Qt.rgba(15 / 255, 16 / 255, 22 / 255, 0.78)
+        border.width: 1
+        border.color: installUrlAction.interactionActive ? Qt.rgba(1, 1, 1, 0.28) : Qt.rgba(1, 1, 1, 0.12)
+        Row {
+            id: installUrlRow
+            anchors.centerIn: parent
+            spacing: 7
+            Text {
+                text: "+"
+                color: theme.gold
+                font.family: theme.ui; font.pixelSize: 18; font.weight: Font.DemiBold
+                anchors.verticalCenter: parent.verticalCenter
+            }
+            Text {
+                text: hero.width < 650 ? "From URL" : "Install from URL"
+                color: installUrlAction.interactionActive ? theme.ink : Qt.rgba(1, 1, 1, 0.78)
+                font.family: theme.ui; font.pixelSize: 14
+                anchors.verticalCenter: parent.verticalCenter
+            }
+        }
+        KeyboardAction {
+            id: installUrlAction
+            objectName: "extensionsInstallUrlButton"
+            anchors.fill: parent
+            accessibleName: "Install add-on from URL"
+            focusRadius: 17
+            onTriggered: hero.installUrlRequested()
         }
     }
 

@@ -1,11 +1,12 @@
 // ExtensionsStorePage — Extensions as a world (agents/colosseum-extensions-world-mock.html):
 // a top bar with only Back and the page name (as Your Colosseum), the House hero, the Essentials row, then the Store rows filled
-// live from stremio-addons.net (ExtensionsStoreApi.js). Search lives in the House corner. An
-// add-on that needs setup is set up inside the app (ExtensionsSetupSheet), never in the outside
+// live from stremio-addons.net (ExtensionsStoreApi.js). Search and the manifest-preview URL installer
+// live in the House corner. An add-on needing setup uses ExtensionsSetupSheet, not the outside
 // browser — except on Android, which has no QtWebEngine and hands setup to the phone's browser
 // (ExtensionsSetupSheetAndroid). Tankoyomi's own settings open from its House tile
 // (TankoyomiConfigurationPage).
 import QtQuick
+import QtQuick.Controls
 import QtQuick.Window
 import "ExtensionsStoreApi.js" as StoreApi
 
@@ -35,6 +36,13 @@ Item {
     property string configuringExtensionId: ""   // a House source whose settings page is open
     property var seeAllRow: null             // a row whose "See all ›" is open
     property bool searching: false           // the Store's own search is open
+    property bool installUrlOpen: false
+    property string installUrlNormalized: ""
+    property var installUrlManifest: null
+    property string installUrlError: ""
+    property bool installUrlPreviewing: false
+    property bool installUrlInstalling: false
+    property bool installUrlComplete: false
     readonly property var searchPool: root.catalogue.filter(function(a) { return StoreApi.visible(a, root.showExplicit) })
 
     readonly property var essentials: StoreApi.essentials(root.catalogue)
@@ -75,6 +83,70 @@ Item {
     function openConfiguration(extensionId) { root.configuringExtensionId = extensionId }
     function closeConfiguration() { root.configuringExtensionId = "" }
 
+    function openUrlInstaller() {
+        root.installUrlNormalized = ""
+        root.installUrlManifest = null
+        root.installUrlError = ""
+        root.installUrlPreviewing = false
+        root.installUrlInstalling = false
+        root.installUrlComplete = false
+        urlInput.text = ""
+        root.installUrlOpen = true
+        Qt.callLater(function() { urlInput.forceActiveFocus() })
+    }
+    function closeUrlInstaller() {
+        if (root.installUrlPreviewing || root.installUrlInstalling) return
+        root.installUrlOpen = false
+        Qt.callLater(root.takeKeyboardFocus)
+    }
+    function previewInstallUrl() {
+        if (root.installUrlPreviewing || root.installUrlInstalling) return
+        var pasted = urlInput.text.trim()
+        if (!pasted.length) { root.installUrlError = "Paste an add-on link first."; return }
+        var normalized = Extensions.normalizeUrl(pasted)
+        if (!normalized.length) { root.installUrlError = "That isn't a valid add-on address."; return }
+        root.installUrlManifest = null
+        root.installUrlComplete = false
+        root.installUrlError = ""
+        root.installUrlNormalized = normalized
+        root.installUrlPreviewing = true
+        Extensions.preview(pasted)
+    }
+    function installPreviewedUrl() {
+        if (!root.installUrlManifest || root.installUrlInstalling || root.installUrlComplete) return
+        if (Extensions.isInstalled(root.installUrlNormalized)) {
+            root.installUrlError = "This add-on address is already installed."
+            return
+        }
+        root.installUrlError = ""
+        root.installUrlInstalling = true
+        Extensions.install(root.installUrlNormalized)
+    }
+    function configurePreviewedUrl() {
+        if (!root.installUrlManifest || !root.installUrlNormalized.length) return
+        var url = root.installUrlNormalized
+        root.installUrlOpen = false
+        setup.addon = {
+            name: String(root.installUrlManifest.name || "Extension"),
+            manifestUrl: url,
+            configureUrl: url.replace(/\/manifest\.json(?=[?#]|$)/i, "/configure"),
+            configurable: true,
+            setupRequired: true
+        }
+    }
+    function needsSetup(manifest) {
+        return !!(manifest && manifest.behaviorHints && manifest.behaviorHints.configurationRequired)
+    }
+    function manifestResources(manifest) {
+        var resources = manifest && manifest.resources ? manifest.resources : []
+        var names = []
+        for (var i = 0; i < resources.length; i++) {
+            var name = typeof resources[i] === "string" ? resources[i] : resources[i].name
+            if (name && names.indexOf(name) < 0) names.push(name)
+        }
+        return names.length ? names.join(" · ") : "No resources declared"
+    }
+
     function takeKeyboardFocus() {
         if (tankoyomiConfiguration.visible) tankoyomiConfiguration.takeKeyboardFocus()
         else if (seeAll.visible) seeAll.takeKeyboardFocus()
@@ -82,6 +154,7 @@ Item {
     }
     // Main asks first: setup closes, then a settings page, then search / See all, then the world.
     function requestEscape() {
+        if (root.installUrlOpen) { root.closeUrlInstaller(); return true }
         if (setup && setup.open) { setup.addon = null; return true }
         if (root.configuringExtensionId.length) { root.closeConfiguration(); return true }
         if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
@@ -96,6 +169,10 @@ Item {
         function onChanged() { root.revision++ }
         function onInstallFinished(id, name) {
             root.busy = ({})
+            if (root.installUrlOpen && root.installUrlInstalling) {
+                root.installUrlInstalling = false
+                root.installUrlComplete = true
+            }
             // Installing means switching on. A built-in Theatre add-on that ships switched off
             // (Torrentio, NoTorrent) is "updated in place" by an install at its own address and
             // kept its off switch: the Store went on saying Set up and no stream ever appeared
@@ -112,8 +189,24 @@ Item {
         }
         function onInstallFailed(url, reason) {
             root.busy = ({})
+            if (root.installUrlOpen && root.installUrlInstalling) {
+                root.installUrlInstalling = false
+                root.installUrlError = "Couldn't install it: " + reason
+                return
+            }
             if (setup.open) setup.status = "Couldn't add it: " + reason
             else { root.installError = "Couldn't add it: " + reason; installErrorTimer.restart() }
+        }
+        function onPreviewReady(url, manifest) {
+            if (!root.installUrlOpen || !root.installUrlPreviewing
+                    || url !== root.installUrlNormalized) return
+            root.installUrlPreviewing = false
+            root.installUrlManifest = manifest
+        }
+        function onPreviewFailed(url, reason) {
+            if (!root.installUrlOpen || !root.installUrlPreviewing) return
+            root.installUrlPreviewing = false
+            root.installUrlError = "Couldn't preview it: " + reason
         }
     }
     // A direct install that fails says so (it used to clear the busy badge and nothing else).
@@ -159,6 +252,7 @@ Item {
             revision: root.revision
             onUniversesRequested: root.universeHallRequested()
             onSearchRequested: root.searching = true
+            onInstallUrlRequested: root.openUrlInstaller()
             onConfigureRequested: (id) => root.openConfiguration(id)
         }
 
@@ -275,5 +369,223 @@ Item {
         onMinimizeRequested: root.minimizeRequested()
         onFullscreenRequested: root.fullscreenRequested()
         onCloseRequested: root.closeRequested()
+    }
+
+    // A catalogue-independent entry point into the existing native preview/install flow.
+    Item {
+        id: urlInstallOverlay
+        anchors.fill: parent
+        z: 40
+        visible: root.installUrlOpen
+        focus: visible
+        Keys.onEscapePressed: root.closeUrlInstaller()
+
+        Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.72) }
+        MouseArea { anchors.fill: parent; onClicked: root.closeUrlInstaller() }
+
+        Rectangle {
+            id: urlInstallPanel
+            objectName: "extensionsInstallUrlDialog"
+            anchors.centerIn: parent
+            width: Math.min(parent.width - 32, 540)
+            height: Math.min(parent.height - 24, root.installUrlManifest ? 488 : 358)
+            radius: 24
+            color: "#141820"
+            border.width: 1
+            border.color: Qt.rgba(1, 1, 1, 0.22)
+            MouseArea { anchors.fill: parent; onClicked: {} }
+
+            Column {
+                anchors.left: parent.left; anchors.right: parent.right
+                anchors.top: parent.top
+                anchors.margins: 26
+                spacing: 12
+
+                Item {
+                    width: parent.width; height: 37
+                    Text {
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        text: "Install from URL"
+                        color: theme.ink
+                        font.family: theme.display; font.pixelSize: 28; font.weight: Font.DemiBold
+                    }
+                    Rectangle {
+                        anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+                        width: 32; height: 32; radius: 16
+                        color: closeUrlAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
+                        Text { anchors.centerIn: parent; text: "×"; color: theme.inkDim; font.pixelSize: 22 }
+                        KeyboardAction {
+                            id: closeUrlAction
+                            objectName: "extensionsInstallUrlClose"
+                            anchors.fill: parent; focusRadius: 16
+                            accessibleName: "Close install from URL"
+                            onTriggered: root.closeUrlInstaller()
+                        }
+                    }
+                }
+                Text {
+                    width: parent.width
+                    text: "Add a Stremio-compatible extension, even if it isn't in the Store."
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 14
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    text: "ADD-ON ADDRESS"
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                }
+                Rectangle {
+                    width: parent.width; height: 50; radius: 14
+                    color: Qt.rgba(1, 1, 1, 0.055)
+                    border.width: 1
+                    border.color: urlInput.activeFocus ? theme.gold : Qt.rgba(1, 1, 1, 0.18)
+                    TextField {
+                        id: urlInput
+                        objectName: "extensionsInstallUrlField"
+                        anchors.fill: parent
+                        leftPadding: 15; rightPadding: 15
+                        color: theme.ink
+                        placeholderText: "https://example.com/manifest.json"
+                        placeholderTextColor: theme.inkDimmer
+                        font.family: theme.ui; font.pixelSize: 13
+                        background: null
+                        selectByMouse: true
+                        enabled: !root.installUrlPreviewing && !root.installUrlInstalling
+                        onAccepted: root.previewInstallUrl()
+                        onTextChanged: {
+                            root.installUrlManifest = null
+                            root.installUrlComplete = false
+                            root.installUrlError = ""
+                        }
+                        Keys.onEscapePressed: root.closeUrlInstaller()
+                    }
+                }
+                Text {
+                    width: parent.width
+                    text: "HTTPS and stremio:// links are supported."
+                    color: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 12
+                }
+                Rectangle {
+                    visible: root.installUrlManifest !== null
+                    width: parent.width; height: 132; radius: 16
+                    color: Qt.rgba(1, 1, 1, 0.045)
+                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
+                    Row {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.top: parent.top; anchors.margins: 14
+                        spacing: 13
+                        Rectangle {
+                            width: 52; height: 52; radius: 13
+                            color: Qt.rgba(1, 1, 1, 0.10)
+                            Text {
+                                anchors.centerIn: parent
+                                text: root.installUrlManifest
+                                      ? String(root.installUrlManifest.name || "?").slice(0, 1).toUpperCase() : "?"
+                                color: theme.gold; font.family: theme.display; font.pixelSize: 25
+                            }
+                        }
+                        Column {
+                            width: parent.width - 65; spacing: 5
+                            Text {
+                                width: parent.width; elide: Text.ElideRight
+                                text: root.installUrlManifest
+                                      ? String(root.installUrlManifest.name || "Unnamed extension") : ""
+                                color: theme.ink
+                                font.family: theme.ui; font.pixelSize: 16; font.weight: Font.DemiBold
+                            }
+                            Text {
+                                width: parent.width; wrapMode: Text.WordWrap
+                                maximumLineCount: 2; elide: Text.ElideRight
+                                text: root.installUrlManifest
+                                      ? String(root.installUrlManifest.description || "No description provided.") : ""
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                            }
+                        }
+                    }
+                    Text {
+                        anchors.left: parent.left; anchors.right: parent.right
+                        anchors.bottom: parent.bottom; anchors.margins: 14
+                        elide: Text.ElideRight
+                        text: "Provides: " + root.manifestResources(root.installUrlManifest)
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    }
+                }
+                Text {
+                    visible: root.installUrlError.length > 0
+                    width: parent.width
+                    text: root.installUrlError
+                    color: "#ffb4ab"
+                    font.family: theme.ui; font.pixelSize: 12
+                    wrapMode: Text.WordWrap
+                }
+                Text {
+                    visible: root.installUrlComplete
+                    text: "Added to your extensions."
+                    color: theme.gold
+                    font.family: theme.ui; font.pixelSize: 13
+                }
+            }
+            Row {
+                anchors.right: parent.right; anchors.bottom: parent.bottom
+                anchors.margins: 26
+                spacing: 10
+                Rectangle {
+                    width: 102; height: 42; radius: 21
+                    color: cancelUrlAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.065)
+                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.17)
+                    Text {
+                        anchors.centerIn: parent; text: "Cancel"
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    }
+                    KeyboardAction {
+                        id: cancelUrlAction
+                        anchors.fill: parent; focusRadius: 21
+                        accessibleName: "Cancel URL installation"
+                        onTriggered: root.closeUrlInstaller()
+                    }
+                }
+                Rectangle {
+                    width: 154; height: 42; radius: 21
+                    color: theme.gold
+                    opacity: installUrlPrimary.enabled ? 1 : 0.46
+                    Text {
+                        anchors.centerIn: parent
+                        text: root.installUrlComplete ? "Done"
+                              : root.installUrlPreviewing ? "Checking…"
+                              : root.installUrlInstalling ? "Installing…"
+                              : root.installUrlManifest
+                                ? (Extensions.isInstalled(root.installUrlNormalized)
+                                   ? "Already installed"
+                                   : root.needsSetup(root.installUrlManifest) ? "Set up add-on" : "Install add-on")
+                                : "Preview add-on"
+                        color: "#17150f"
+                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        id: installUrlPrimary
+                        objectName: "extensionsInstallUrlConfirm"
+                        anchors.fill: parent; focusRadius: 21; focusPrimary: true
+                        enabled: !root.installUrlPreviewing && !root.installUrlInstalling
+                                 && (root.installUrlComplete
+                                     || (root.installUrlManifest !== null
+                                         && !Extensions.isInstalled(root.installUrlNormalized))
+                                     || (root.installUrlManifest === null
+                                         && urlInput.text.trim().length > 0))
+                        accessibleName: root.installUrlComplete ? "Done"
+                                         : root.installUrlManifest ? "Install add-on" : "Preview add-on"
+                        onTriggered: {
+                            if (root.installUrlComplete) root.closeUrlInstaller()
+                            else if (root.installUrlManifest) {
+                                if (root.needsSetup(root.installUrlManifest)) root.configurePreviewedUrl()
+                                else root.installPreviewedUrl()
+                            }
+                            else root.previewInstallUrl()
+                        }
+                    }
+                }
+            }
+        }
     }
 }
