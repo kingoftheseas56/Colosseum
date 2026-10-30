@@ -2,6 +2,7 @@
 
 #include "../ba0-domain-prototype/VinylDomainTypes.h"
 #include "../ba1-queue-core-prototype/VinylQueue.h"
+#include "../be1-recommendation-candidate-prototype/RecommendationEntityRef.h"
 
 #include <QString>
 #include <QVector>
@@ -186,6 +187,14 @@ class TimedTextDocument final
 {
 public:
     static TimedTextResult<TimedTextDocument> unavailable(
+        RecommendationEntityRef recording, TimedTextProvenance provenance);
+    static TimedTextResult<TimedTextDocument> plain(
+        RecommendationEntityRef recording, TimedTextProvenance provenance, QString text);
+    static TimedTextResult<TimedTextDocument> synchronized(
+        RecommendationEntityRef recording, TimedTextProvenance provenance,
+        TimedTextKind kind, QVector<TimedTextCue> cues, qint64 providerOffsetMs = 0);
+
+    static TimedTextResult<TimedTextDocument> unavailable(
         RecordingMbid recordingMbid,
         TimedTextProvenance provenance);
 
@@ -201,7 +210,11 @@ public:
         QVector<TimedTextCue> cues,
         qint64 providerOffsetMs = 0);
 
-    const RecordingMbid &recordingMbid() const noexcept { return m_recordingMbid; }
+    std::optional<RecordingMbid> recordingMbid() const {
+        return m_recordingIdentity.isCanonical()
+            ? RecordingMbid::parse(m_recordingIdentity.mbidString()).value : std::nullopt;
+    }
+    const RecommendationEntityRef &recordingIdentity() const noexcept { return m_recordingIdentity; }
     const TimedTextDocumentId &documentId() const noexcept { return m_documentId; }
     TimedTextKind kind() const noexcept { return m_kind; }
     const TimedTextProvenance &provenance() const noexcept { return m_provenance; }
@@ -213,21 +226,21 @@ public:
 
 private:
     static TimedTextDocumentId deriveDocumentId(
-        const RecordingMbid &recordingMbid,
+        const RecommendationEntityRef &recordingMbid,
         const TimedTextProvenance &provenance,
         TimedTextKind kind,
         qint64 providerOffsetMs,
         const QString &plainText,
         const QVector<TimedTextCue> &cues);
 
-    TimedTextDocument(RecordingMbid recordingMbid,
+    TimedTextDocument(RecommendationEntityRef recordingMbid,
                       TimedTextDocumentId documentId,
                       TimedTextKind kind,
                       TimedTextProvenance provenance,
                       qint64 providerOffsetMs,
                       QString plainText,
                       QVector<TimedTextCue> cues)
-        : m_recordingMbid(std::move(recordingMbid))
+        : m_recordingIdentity(std::move(recordingMbid))
         , m_documentId(std::move(documentId))
         , m_kind(kind)
         , m_provenance(std::move(provenance))
@@ -237,7 +250,7 @@ private:
     {
     }
 
-    RecordingMbid m_recordingMbid;
+    RecommendationEntityRef m_recordingIdentity;
     TimedTextDocumentId m_documentId;
     TimedTextKind m_kind = TimedTextKind::Unavailable;
     TimedTextProvenance m_provenance;
@@ -299,22 +312,30 @@ class TimedTextRequestKey final
 {
 public:
     TimedTextRequestKey(RecordingMbid recordingMbid, QueueOccurrenceId occurrenceId)
-        : m_recordingMbid(std::move(recordingMbid))
+        : TimedTextRequestKey(RecommendationEntityRef(CanonicalEntityRef::from(recordingMbid)),std::move(occurrenceId))
+    {
+    }
+    TimedTextRequestKey(RecommendationEntityRef recording, QueueOccurrenceId occurrenceId)
+        : m_recordingIdentity(std::move(recording))
         , m_occurrenceId(std::move(occurrenceId))
     {
     }
 
-    const RecordingMbid &recordingMbid() const noexcept { return m_recordingMbid; }
+    std::optional<RecordingMbid> recordingMbid() const {
+        return m_recordingIdentity.isCanonical()
+            ? RecordingMbid::parse(m_recordingIdentity.mbidString()).value : std::nullopt;
+    }
+    const RecommendationEntityRef &recordingIdentity() const noexcept { return m_recordingIdentity; }
     const QueueOccurrenceId &occurrenceId() const noexcept { return m_occurrenceId; }
 
     bool operator==(const TimedTextRequestKey &other) const noexcept
     {
-        return m_recordingMbid == other.m_recordingMbid
+        return m_recordingIdentity == other.m_recordingIdentity
             && m_occurrenceId == other.m_occurrenceId;
     }
 
 private:
-    RecordingMbid m_recordingMbid;
+    RecommendationEntityRef m_recordingIdentity;
     QueueOccurrenceId m_occurrenceId;
 };
 

@@ -98,10 +98,28 @@ Window {
     }
 
     property string currentSurface: "Home"
-    readonly property bool feriaComingSoon: true
+    readonly property bool feriaComingSoon: false
     property bool feriaRuntimeReady: false
     readonly property alias televisionMode: phoneShell.televisionMode
     property var vinylWorld: null
+    readonly property bool vinylVideoFullscreen: !!win.vinylWorld && worldStack.current === "Vinyl"
+        && win.vinylWorld.videoFullscreen === true
+    property var vinylVideoReturnWindowed: null
+    onVinylVideoFullscreenChanged: {
+        if (vinylVideoFullscreen && vinylVideoReturnWindowed === null && typeof WindowMode !== "undefined")
+            vinylVideoReturnWindowed = WindowMode.shellWindowed
+        win.syncVinylVideoWindowMode()
+    }
+    function syncVinylVideoWindowMode() {
+        if (typeof WindowMode === "undefined" || fullscreenTransition.transitioning) return
+        var wanted = vinylVideoFullscreen ? false : vinylVideoReturnWindowed
+        if (wanted === null) return
+        if (WindowMode.shellWindowed !== wanted) {
+            win.toggleFullscreenShell()
+            return
+        }
+        if (!vinylVideoFullscreen) vinylVideoReturnWindowed = null
+    }
     property var pendingVinylResume: null
     property bool audioHandoffBusy: false
     property string audioOwner: ""
@@ -361,7 +379,10 @@ Window {
         scope: "application"
         sequences: ["F11"]
         icon: "fullscreen.svg"
-        onTriggered: win.toggleFullscreenShell()
+        onTriggered: {
+            if (win.vinylVideoFullscreen) win.vinylWorld.exitVideoFullscreen()
+            else win.toggleFullscreenShell()
+        }
     }
     KeyboardCommand {
         id: quitCommand
@@ -1229,7 +1250,7 @@ Window {
                     && universeLayer.item.atlasTransientOpen === true,
             universeActive: universeLayer.active,
             searchActive: searchLayer.active,
-            worldSearchActive: worldSearchLayer.active,
+            worldSearchActive: worldSearchLayer.active || (worldStack.current === "Vinyl" && win.vinylWorld && win.vinylWorld.searchOpen),
             comicSeriesActive: comicSeriesLayer.active,
             locgPublisherActive: locgPublisherLayer.active,
             comicIndexActive: comicIndexLayer.active,
@@ -1377,7 +1398,8 @@ Window {
     }
     Shortcut {
         sequences: escapeCommand.sequences
-        enabled: !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
+        enabled: !win.vinylVideoFullscreen
+            && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         onActivated: escapeCommand.invoke("shortcut")
     }
     // Backspace is Back too (world-feel Slice 6). Text fields keep it (they claim it before any
@@ -3284,6 +3306,7 @@ Window {
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Search")
         var w = worldStack.current
+        if (w === "Vinyl" && win.vinylWorld) { win.vinylWorld.enterDiscoverSearch(true, false); return }
         if (w === "Biblio") { searchLayer.active = true; return }
         if (w === "Tankoban") {
             worldSearchLayer.searchMode = "Tankoban"
@@ -3300,6 +3323,7 @@ Window {
         setGuiStallContext("navigate", currentSurface || "Home")
     }
     function closeWorldSearch() {
+        if (win.vinylWorld && win.vinylWorld.searchOpen) win.vinylWorld.closeSearch()
         worldSearchLayer.active = false
         setGuiStallContext("navigate", currentSurface || "Home")
     }
@@ -3956,6 +3980,7 @@ Window {
         // nothing visually; the object and its caches stay alive, so returning from the player
         // re-shows instantly with no re-fetch. (2026-07-29 render-load diet.)
         visible: !win.immersiveSurfaceOpen
+            && !win.vinylVideoFullscreen
         // Real OS wallpaper — a placeholder PICK (Windows 11 "Captured Motion"; its translucent
         // glass-ribbon motif echoes our material, and it's dark enough for the glass to read).
         // Swap from the parked personalization gallery later. Glass composites over WHATEVER sits in
@@ -5967,6 +5992,7 @@ Window {
         id: taskbar
         z: 900
         visible: !win.immersiveSurfaceOpen
+            && !win.vinylVideoFullscreen
             && !win.androidHost
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
@@ -6469,6 +6495,7 @@ Window {
         // shield animates and holds a 250ms settle timer, so a get-state fired straight
         // after F11 reads the OLD window state and reports a phantom failure.
         objectName: "fullscreenTransition"
+        onTransitioningChanged: if (!transitioning) win.syncVinylVideoWindowMode()
         anchors.fill: parent
         onApplyRequested: WindowMode.toggleShellMode(win)
     }

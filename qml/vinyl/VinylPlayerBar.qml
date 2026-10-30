@@ -7,10 +7,24 @@ Item {
     objectName: "vinylPlayerBar"
     required property var pageData
     required property Item backdrop
+    property var songPageData: null
+    readonly property var songData: songPageData || pageData
+    property bool videoFullscreen: false
+    property bool showSongPlay: false
+    readonly property bool hasPlayingSong: pageData.playingIndex === undefined || pageData.playingIndex >= 0
+    readonly property bool playViewedWithoutSession: showSongPlay && !hasPlayingSong
+    readonly property var displayedSong: playViewedWithoutSession ? songData : pageData
     property string page: "album"
     property bool queueEnabled: true
     property bool trackNavigationEnabled: true
-    readonly property int toolCount: page === "song" ? 6 : 1
+    readonly property bool compactTools: page === "song" && (width < 1000 || (showSongPlay && hasPlayingSong && width < 1120))
+    readonly property bool metadataRow: page === "song" && width < 760
+    readonly property bool stackedTools: page === "song" && width < 520
+    readonly property real transportTop: page === "song" ? (metadataRow ? 72 : 12) : 8
+    readonly property real toolsTop: metadataRow ? 124 : 76
+    readonly property real timelineTop: stackedTools ? toolsTop + 88 : compactTools ? toolsTop + 46 : 72
+    readonly property real timelineInset: 26 + Math.max(32, elapsedLabel.implicitWidth, totalTimeLabel.implicitWidth)
+    readonly property real transportCenter: width / 2
     readonly property bool busy: pageData.sourceState === "finding" || pageData.sourceState === "retrying"
     property bool scrubbing: false
     property real previewPosition: 0
@@ -29,10 +43,12 @@ Item {
     readonly property real seekFraction: pageData.duration > 0 ? displayedPosition / pageData.duration : 0
     signal songRequested
     signal creditsRequested
+    signal videoFullscreenRequested()
+    signal selectedSongPlayRequested()
     Theme {
         id: theme
     }
-    height: 72
+    height: page === "song" ? timelineTop + 32 : 72
     Glass {
         anchors.fill: parent
         backdrop: root.backdrop
@@ -103,11 +119,15 @@ Item {
     component Tool: KeyboardAction {
         id: control
         property string glyph
+        property string symbol: ""
         property bool selected: false
         focusOnPointer: false
         width: 34
         height: 34
         opacity: enabled ? 1 : 0.34
+        ToolTip.visible: hovered
+        ToolTip.text: accessibleName
+        ToolTip.delay: 500
         Rectangle {
             anchors.fill: parent
             radius: 10
@@ -118,7 +138,16 @@ Item {
             anchors.centerIn: parent
             width: 17
             height: 17
-            source: root.iconSvg(control.glyph, control.selected)
+            visible: !control.symbol.length
+            source: visible ? root.iconSvg(control.glyph, control.selected) : ""
+        }
+        VinylControlIcon {
+            objectName: control.objectName + "Glyph"
+            anchors.centerIn: parent
+            width: 18; height: 18
+            visible: control.symbol.length > 0
+            symbol: control.symbol
+            color: control.selected ? theme.gold : theme.inkDim
         }
     }
     KeyboardAction {
@@ -135,25 +164,31 @@ Item {
         Image {
             id: cover
             anchors.fill: parent
-            source: root.pageData.artwork(root.pageData.playingEdition.cover)
+            source: root.displayedSong.artwork(root.displayedSong.playingEdition.cover)
             fillMode: Image.PreserveAspectCrop
         }
     }
-    Item {
+    KeyboardAction {
+        id: nowPlaying
         objectName: "vinylBarNowPlaying"
+        focusOnPointer: false
+        enabled: root.page !== "song" && root.hasPlayingSong
+        focusRadius: 6
+        accessibleName: "Open playing song: " + root.displayedSong.playingTrack.title
+        onTriggered: root.songRequested()
         x: 70
         y: 12
-        width: Math.max(120, root.width * 0.25 - 75)
+        width: root.page === "song" ? Math.max(0, (root.metadataRow ? sourceIndicator.x - 12
+            : root.compactTools ? Math.min(x + 220, root.transportCenter - 82) : collections.x - 14) - x)
+                                   : Math.max(120, root.width * 0.25 - 75)
         height: 48
-        Accessible.role: Accessible.StaticText
-        Accessible.name: root.pageData.playingTrack.title
         Column {
             anchors.verticalCenter: parent.verticalCenter
             width: parent.width
             spacing: 3
             Text {
                 width: parent.width
-                text: root.pageData.playingTrack.title
+                text: root.displayedSong.playingTrack.title
                 color: theme.ink
                 font.family: theme.ui
                 font.pixelSize: 12
@@ -162,7 +197,7 @@ Item {
             }
             Text {
                 width: parent.width
-                text: root.pageData.playingEdition.artist + " · " + root.pageData.playingEdition.name
+                text: root.displayedSong.playingEdition.artist + (root.page === "song" ? "" : " · " + root.displayedSong.playingEdition.name)
                 color: theme.inkDimmer
                 font.family: theme.ui
                 font.pixelSize: 10
@@ -171,8 +206,8 @@ Item {
         }
     }
     Row {
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 8
+        x: root.transportCenter - width / 2
+        y: root.transportTop
         spacing: 12
         KeyboardAction {
             objectName: "vinylBarPrev"
@@ -183,13 +218,7 @@ Item {
             height: 36
             accessibleName: "Previous track"
             onTriggered: root.pageData.next(-1)
-            Text {
-                anchors.centerIn: parent
-                text: "‹‹"
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 17
-            }
+            VinylControlIcon { anchors.centerIn: parent; width: 21; height: 21; symbol: "previous"; color: theme.ink }
         }
         KeyboardAction {
             objectName: "vinylBarPlay"
@@ -198,26 +227,29 @@ Item {
             focusPrimary: true
             width: 36
             height: 36
-            accessibleName: root.busy ? "Waiting for source" : "Play or pause"
-            enabled: !root.busy && (root.pageData.playingIndex === undefined || root.pageData.playingIndex >= 0)
-            onTriggered: root.pageData.paused = !root.pageData.paused
+            accessibleName: root.playViewedWithoutSession ? "Play viewed song" : root.busy ? "Waiting for source" : "Play or pause"
+            enabled: root.playViewedWithoutSession ? root.songData.playingTrack.available !== false : !root.busy && root.hasPlayingSong
+            onTriggered: {
+                if(root.playViewedWithoutSession)root.selectedSongPlayRequested();
+                else root.pageData.paused = !root.pageData.paused;
+            }
             Rectangle {
                 anchors.fill: parent
                 radius: 18
                 color: theme.gold
             }
-            Text {
+            VinylControlIcon {
                 anchors.centerIn: parent
-                text: root.pageData.paused ? "▶" : "Ⅱ"
-                visible: !root.busy
+                width: 18; height: 18
+                symbol: root.playViewedWithoutSession || root.pageData.paused ? "play" : "pause"
+                visible: root.playViewedWithoutSession || !root.busy
                 color: theme.biblioWashBottom
-                font.family: theme.ui
-                font.pixelSize: 17
             }
             BusyIndicator {
                 anchors.fill: parent
-                running: root.busy
-                visible: root.busy
+                running: root.busy && !root.playViewedWithoutSession
+                visible: running
+                palette.dark: "#000000"
             }
         }
         KeyboardAction {
@@ -229,13 +261,7 @@ Item {
             height: 36
             accessibleName: "Next track"
             onTriggered: root.pageData.next(1)
-            Text {
-                anchors.centerIn: parent
-                text: "››"
-                color: theme.inkDim
-                font.family: theme.ui
-                font.pixelSize: 17
-            }
+            VinylControlIcon { anchors.centerIn: parent; width: 21; height: 21; symbol: "playNext"; color: theme.ink }
         }
     }
     Item {
@@ -264,9 +290,11 @@ Item {
             event.accepted = true;
         }
         FocusRing { anchors.fill: parent; shown: seek.activeFocus; radius: 5 }
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 48
-        width: root.width * 0.31
+        x: root.page === "song" ? root.timelineInset : root.transportCenter - width / 2
+        y: root.page === "song" ? root.timelineTop : 48
+        width: root.page === "song"
+            ? Math.max(0, root.width - 2 * root.timelineInset)
+            : Math.min(root.width * 0.31, Math.max(0, (tools.x - root.width / 2 - 12) * 2))
         height: 22
         Rectangle {
             anchors.verticalCenter: parent.verticalCenter
@@ -291,95 +319,109 @@ Item {
             onCanceled: root.cancelScrub()
         }
         Text {
+            id: elapsedLabel
             objectName: "vinylBarElapsed"
             anchors.right: parent.left
             anchors.rightMargin: 9
             anchors.verticalCenter: parent.verticalCenter
             text: root.pageData.formatTime(root.displayedPosition)
             font.family: theme.ui
-            font.pixelSize: 9
+            font.pixelSize: root.page === "song" ? 10 : 9
             color: theme.inkDimmer
         }
         Text {
+            id: totalTimeLabel
+            objectName: "vinylBarDuration"
             anchors.left: parent.right
             anchors.leftMargin: 9
             anchors.verticalCenter: parent.verticalCenter
             text: root.pageData.formatTime(root.pageData.duration)
             font.family: theme.ui
-            font.pixelSize: 9
+            font.pixelSize: root.page === "song" ? 10 : 9
             color: theme.inkDimmer
         }
     }
+    Item {
+        id: collections
+        scale: root.stackedTools ? Math.min(1, Math.max(0, root.width - 24) / width) : 1
+        width: (root.page === "song" ? songActions.collectionWidth + tools.spacing : 0) + 34
+        height: 34
+        x: root.page === "song" ? (root.stackedTools ? (root.width - width) / 2
+            : root.transportCenter - (root.compactTools ? 12 : 92) - width) : tools.x - width - 42
+        y: root.page === "song" ? (root.compactTools ? root.toolsTop : 14) : (root.height - height) / 2
+        Tool {
+            x: collections.width - width
+            objectName: "vinylBarQueue"
+            enabled: root.queueEnabled
+            symbol: "queueOpen"
+            accessibleName: "Open queue"
+            onTriggered: root.pageData.queueRequested()
+        }
+    }
     Row {
-        anchors.right: parent.right
-        anchors.rightMargin: 12
-        anchors.verticalCenter: parent.verticalCenter
-        spacing: 7
+        id: tools
+        scale: root.stackedTools ? Math.min(1, Math.max(0, root.width - 24) / width) : 1
+        x: root.page === "song" ? (root.stackedTools ? (root.width - width) / 2 : root.transportCenter + (root.compactTools ? 12 : 92)) : root.width - width - 12
+        y: root.page === "song" ? (root.compactTools ? root.toolsTop + (root.stackedTools ? 42 : 0) : 14) : (root.height - height) / 2
+        spacing: root.page === "song" ? (root.compactTools ? 8 : 12) : 7
         Tool {
             objectName: "vinylBarLyrics"
             visible: root.page === "song"
             glyph: "♩"
-            accessibleName: "Lyrics"
-            enabled: root.pageData.hasLyrics
-            selected: root.pageData.lyricsShown
-            onTriggered: root.pageData.toggleLyrics()
-        }
-        Tool {
-            objectName: "vinylBarVideo"
-            visible: root.page === "song"
-            glyph: "▹"
-            accessibleName: "Video"
-            enabled: root.pageData.hasVideo
-            selected: root.pageData.videoShown
-            onTriggered: root.pageData.toggleVideo()
+            accessibleName: !root.songData.hasLyrics && root.songData.lyricsError ? "Retry lyrics" : "Lyrics"
+            enabled: !!root.songData.hasLyrics || !!root.songData.lyricsError
+            selected: !!root.songData.lyricsShown
+            onTriggered: root.songData.toggleLyrics()
         }
         Tool {
             objectName: "vinylBarNotes"
             visible: root.page === "song"
             glyph: "≡"
-            accessibleName: "Annotations"
-            enabled: root.pageData.hasNotes
-            selected: root.pageData.autoNotes
-            onTriggered: root.pageData.toggleNotes()
+            accessibleName: root.songData.manualNoteLine >= 0 ? "Resume automatic annotations" : "Automatic annotations"
+            enabled: !!root.songData.hasNotes
+            selected: !!root.songData.autoNotes && root.songData.manualNoteLine < 0 && !!root.songData.lyricsShown
+            ToolTip.visible: hovered
+            ToolTip.text: root.songData.autoNotes && root.songData.manualNoteLine < 0 && !root.songData.timedLyrics
+                ? "Automatic annotations enabled; start synced playback to follow" : accessibleName
+            onTriggered: root.songData.toggleNotes()
         }
-        Item {
-            width: 2
-            height: 1
+        VinylSongActionMenu {
+            id: songActions
+            objectName: "vinylBarSongActions"
+            collectionHost: collections
+            spacing: tools.spacing
+            videoFullscreen: root.videoFullscreen
             visible: root.page === "song"
+            songData: root.songData
+            showPlay: root.showSongPlay && root.hasPlayingSong
+            showReaderTools: true
+            contextKey: JSON.stringify([root.page, root.songData.readingContextKey,
+                root.songData.playingEditionId, root.songData.playingIndex, root.songData.playingTrack.id])
+            onPlayRequested: root.selectedSongPlayRequested()
+            onVideoFullscreenRequested: root.videoFullscreenRequested()
+            onVideoRequested: root.songData.toggleVideo()
+            onCreditsRequested: root.creditsRequested()
         }
-        Tool {
-            objectName: "vinylBarCredits"
-            visible: root.page === "song"
-            glyph: "♙"
-            accessibleName: "Credits"
-            enabled: root.pageData.playingCredits === undefined || root.pageData.playingCredits.length > 0
-            onTriggered: root.creditsRequested()
+    }
+    Item {
+        id: sourceIndicator
+        // Passive provenance symbol; labels are accessibility-only.
+        objectName: "vinylBarSourceIndicator"
+        readonly property string kind: root.pageData.sourceKind || ""
+        readonly property string sourceName: kind==="torrent" ? "Torrent" : kind==="youtube" ? "YouTube" : kind==="local" ? "Local file" : "Audio source"
+        readonly property string description: root.busy ? (root.pageData.sourceState==="retrying" ? "Trying another source" : "Finding a source") : sourceName+(kind==="youtube" && root.pageData.qualityLabel ? " · "+root.pageData.qualityLabel : "")
+        x: root.page === "song" ? root.width - width - 14 : tools.x - width - 7
+        y: 20
+        width: 28
+        height: 34
+        Accessible.role: Accessible.StaticText
+        Accessible.name: sourceIndicator.description
+        Image {
+            anchors.centerIn: parent
+            width: 18;height:18
+            source: root.iconSvg(["torrent","youtube","local"].indexOf(sourceIndicator.kind)>=0 ? sourceIndicator.kind : "unknown",false)
+            opacity:0.8;visible:!root.busy
         }
-        Tool {
-            objectName: "vinylBarQueue"
-            enabled: root.queueEnabled
-            glyph: "☷"
-            accessibleName: "Queue"
-            onTriggered: root.pageData.queueRequested()
-        }
-        Item {
-            id: sourceIndicator
-            // Passive provenance symbol; labels are accessibility-only.
-            objectName: "vinylBarSourceIndicator"
-            readonly property string kind: root.pageData.sourceKind || ""
-            readonly property string sourceName: kind==="torrent" ? "Torrent" : kind==="youtube" ? "YouTube" : kind==="local" ? "Local file" : "Audio source"
-            readonly property string description: root.busy ? (root.pageData.sourceState==="retrying" ? "Trying another source" : "Finding a source") : sourceName+(kind==="youtube" && root.pageData.qualityLabel ? " · "+root.pageData.qualityLabel : "")
-            width: 28
-            height: 34
-            Accessible.role: Accessible.StaticText
-            Accessible.name: sourceIndicator.description
-            Image {
-                anchors.centerIn: parent
-                width: 18;height:18
-                source: root.iconSvg(["torrent","youtube","local"].indexOf(sourceIndicator.kind)>=0 ? sourceIndicator.kind : "unknown",false)
-                opacity:0.8;visible:!root.busy
-            }
-            BusyIndicator {anchors.centerIn:parent;width:22;height:22;running:root.busy;visible:root.busy}
-        }
+        BusyIndicator {anchors.centerIn:parent;width:22;height:22;running:root.busy;visible:root.busy}
     }
 }

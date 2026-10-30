@@ -128,7 +128,7 @@ void VinylRecommendationService::cancelTasteEdit(){if(m_state!="editing")return;
 void VinylRecommendationService::toggleDraftArtist(const QVariantMap &value) {
     if(!m_active||(m_state!="draft"&&m_state!="editing"))return;
     const auto row=artist(value);if(row.isEmpty())return;const auto key=row.value("key");
-    for(int i=0;i<m_draft.size();++i)if(m_draft[i].toMap().value("key")==key){m_draft.removeAt(i);emit stateChanged();return;}
+    for(int i=0;i<m_draft.size();++i)if(m_draft[i].toMap().value("key")==key){m_draft.removeAt(i);m_error.clear();emit stateChanged();return;}
     if(m_draft.size()>=512){m_error="The artist selection limit has been reached.";emit stateChanged();return;}
     m_draft.append(row);m_error.clear();emit stateChanged();
 }

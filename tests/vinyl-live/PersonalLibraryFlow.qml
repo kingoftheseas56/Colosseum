@@ -19,7 +19,11 @@ Main {
         return null;
     }
     function control(name){return item(root.contentItem,name);}
-    function activate(name){var c=control(name);if(!check(c && c.visible && c.enabled,"Unavailable control: "+name))return false;c.activate(Qt.MouseFocusReason);return true;}
+    function activate(name){
+        if(/^vinylSong(Save|Playlist|Next|Queue|Play)$/.test(name))control("vinylBarSongActions").openActionMenu();
+        var c=control(name);if(!check(c && c.visible && c.enabled,"Unavailable control: "+name))return false;
+        if(typeof c.activate==="function")c.activate(Qt.MouseFocusReason);else if(typeof c.triggered==="function")c.triggered();else return check(false,"No action handler: "+name);return true;
+    }
     function next(value){stage=value;ticks=0;console.log("VINYL_PERSONAL_STAGE",value);}
     function check(ok,message){if(!ok){console.error("VINYL_PERSONAL_FAIL",stage,message);Qt.exit(12);}return !!ok;}
     function capture(name,nextStage){next("capture");contentItem.grabToImage(function(result){result.saveToFile(Qt.application.arguments[3]+"/"+name+".png");root.next(nextStage);});}

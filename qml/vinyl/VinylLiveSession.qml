@@ -8,6 +8,7 @@ import Colosseum.Vinyl 1.0
 Item {
     id: root
     objectName: "vinylLiveSession"
+    signal playbackDiscontinuity(real seconds)
     property var emptyEdition: ({id:"", name:"", title:"", artist:"", artists:[], artistIds:[], year:"", cover:"", about:"", discs:[[]], credits:[]})
     property var shownEdition: emptyEdition
     readonly property var activeQueueRow: queueIndex>=0 && queueIndex<queue.length ? queue[queueIndex] : null
@@ -71,6 +72,7 @@ Item {
     property string browseValue: ""
     property int playRequest: -1
     property var source: typeof VinylCatalogueSource !== "undefined" ? VinylCatalogueSource : (typeof VinylLocalSource !== "undefined" ? VinylLocalSource : null)
+    property var contentProvider: typeof VinylProvider !== "undefined" ? VinylProvider : null
     property var onlineArtists: []
     property var onlineAlbums: []
     property bool searchingOnline: false
@@ -267,12 +269,16 @@ Item {
         objectName: "vinylBackendSession"
         source: root.source
         surface: root
+        videoSurface: root.videoSurface
         collectionStore: root.collectionStore
         preferences: root.activityPreferences
         profileScope: typeof VinylProfileScope !== "undefined" ? VinylProfileScope : "local-test"
-        onPlaybackRequested: {root.manualNoteLine=-1;root.videoShown=false;root.playbackRequested();}
+        onPlaybackRequested: root.playbackRequested()
         onPlaybackEnding: natural => root.activityEnd(natural)
-        onDiscontinuity: seconds => root.activityDiscontinuity(seconds)
+        onDiscontinuity: seconds => {
+            root.activityDiscontinuity(seconds);
+            root.playbackDiscontinuity(seconds);
+        }
     }
     onLoadedChanged: { if(loaded) activityBegin(); }
     readonly property bool activityEnabled: profileActive && !shuttingDown && activitySink!==null
@@ -371,31 +377,75 @@ Item {
     property var library: []
     readonly property bool hasLyrics: lyrics.length > 0
     readonly property bool hasNotes: Object.keys(notes).length > 0
-    readonly property bool hasVideo: false
+    readonly property bool hasVideo: backend.hasVideo
+    readonly property bool videoBusy: backend.videoBusy
+    readonly property bool videoSwitchCancellable: backend.videoSwitchCancellable
+    readonly property string videoError: backend.videoError
+    property Item videoSurface: null
     readonly property var credits: shownEdition.credits || []
     readonly property var playingCredits: creditGroups(playingTrack.credits || playingEdition.credits || [])
-    readonly property var lyrics: lyricLines(playingTrack.lyrics)
-    readonly property var notes: noteGroups(playingTrack.notes || playingEdition.notes)
+    VinylLyricsService {
+        id: lyricService
+        objectName: "vinylLyricsService"
+        provider: root.contentProvider
+        context: root.profileActive && !root.shuttingDown ? backend.lyricsContext : ({})
+        recordingTimeOffsetMs: backend.recordingTimeOffsetMs
+        position: backend.position
+    }
+    readonly property var lyrics: plainData(lyricService.lines) || []
+    readonly property string lyricsDocumentId: lyricService.documentId
+    readonly property string lyricsStatus: lyricService.status
+    readonly property string lyricsError: lyricService.error
+    readonly property string lyricsSource: lyricService.sourceName
+    readonly property string readingContextKey: JSON.stringify([profileScope,activeQueueRow ? activeQueueRow.queueId : ""])
+    readonly property var suppliedNotes: playingEdition.origin==="local" && playingTrack.lyrics
+        ? noteGroups(playingTrack.notes || playingEdition.notes) : ({})
+    VinylGeniusService {
+        id: geniusService
+        objectName: "vinylGeniusService"
+        provider: root.contentProvider
+        context: root.profileActive && !root.shuttingDown && root.contentProvider
+            && root.contentProvider.annotationsVersion===1 && Object.keys(root.suppliedNotes).length===0
+            ? backend.lyricsContext : ({})
+        documentId: lyricService.documentId
+        lyrics: lyricService.lines
+    }
+    readonly property bool usingGeniusNotes: Object.keys(suppliedNotes).length===0
+    readonly property var notes: usingGeniusNotes ? plainData(geniusService.notes) || ({}) : suppliedNotes
+    readonly property string annotationsStatus: geniusService.status
+    readonly property string annotationsError: geniusService.error
+    readonly property string geniusSongId: geniusService.geniusSongId
+    readonly property int annotationCount: geniusService.annotationCount
     readonly property var videos: []
     readonly property var moreAlbums: []
     readonly property var information: shownEdition.id ? [["source","Source",shownEdition.origin==="local" ? "Local library" : "Music catalogue"],["tracks","Tracks",totalTracks(shownEdition)],["length","Length",shownEdition.length || "Unknown"]] : []
-    readonly property bool timedLyrics: lyrics.length > 0 && lyrics.every(l => typeof l.time === "number")
-    readonly property int currentLineIndex: {
-        if (!timedLyrics) return -1;
-        var found=-1; for(var i=0;i<lyrics.length;++i) if(lyrics[i].time<=position) found=i;
-        return found;
+    readonly property bool timedLyrics: lyricService.timed
+    readonly property int currentLineIndex: lyricService.currentLineIndex
+    VinylReadingState {
+        id: reading
+        songKey: root.readingContextKey
+        documentId: root.lyricsDocumentId
     }
-    property int manualNoteLine: -1
+    property alias manualNoteLine: reading.manualNoteLine
+    property alias lyricsFollowing: reading.lyricsFollowing
+    property alias lyricsScrollY: reading.lyricsScrollY
+    property alias notesScrollY: reading.notesScrollY
     readonly property int activeNoteLine: {
-        if(manualNoteLine>=0 && notes[manualNoteLine]) return manualNoteLine;
+        if(manualNoteLine>=0) return notes[manualNoteLine] ? manualNoteLine : -1;
         if(!autoNotes || !hasNotes) return -1;
+        if(usingGeniusNotes) {
+            if(!timedLyrics)return -1;
+            var anchors=plainData(geniusService.anchors) || {};
+            return typeof anchors[currentLineIndex]==="number" ? anchors[currentLineIndex] : -1;
+        }
         var keys=Object.keys(notes).map(Number).sort((a,b)=>a-b);
-        if(!timedLyrics) return keys[0];
+        if(!timedLyrics) return -1;
         var found=-1;keys.forEach(index=>{if(index<=currentLineIndex) found=index;});return found;
     }
-    property bool lyricsShown: false
-    property bool autoNotes: false
-    property bool videoShown: false
+    onActiveNoteLineChanged: notesScrollY=0
+    property alias lyricsShown: reading.lyricsShown
+    property alias autoNotes: reading.autoNotes
+    readonly property bool videoShown: backend.videoActive
     signal editionSelected()
     signal albumOpened()
     signal artistRequested(string name)
@@ -437,13 +487,24 @@ Item {
             if(notes.length) result[key]=notes;
         });return result;
     }
-    function toggleLyrics() { if(hasLyrics) lyricsShown=!lyricsShown; }
-    function toggleNotes() { if(hasNotes) {autoNotes=!autoNotes;lyricsShown=true;} }
-    function toggleVideo() {}
-    function showNotes(index) { if(notes[index]) {manualNoteLine=index;lyricsShown=true;} }
-    function seekToLine(index) { if(timedLyrics && lyrics[index]) seek(lyrics[index].time); }
+    function toggleLyrics() { if(!hasLyrics && lyricsError)lyricService.retry();else reading.toggleLyrics(hasLyrics); }
+    function toggleNotes() { reading.toggleNotes(hasNotes); }
+    function pauseLyrics(y) { reading.pauseLyrics(y); }
+    function resumeLyrics() { reading.resumeLyrics(); }
+    function retryLyrics() { lyricService.retry(); }
+    function toggleVideo() { backend.toggleVideo(); }
+    function showNotes(index) { if(notes[index]) reading.showNotes(index); }
+    function selectNoteLine(index) { if(Number.isInteger(index) && index>=0 && index<lyrics.length) reading.showNotes(index); }
+    function seekToLine(index) { var time=lyricService.seekTime(index);if(typeof time==="number" && isFinite(time))seek(time); }
     function noteWindow(index) {
         if(!timedLyrics || !lyrics[index]) return 0;
+        if(usingGeniusNotes) {
+            var ends=plainData(geniusService.groupEndLines) || {};
+            var last=ends[index];
+            if(typeof last!=="number")return 0;
+            var end=last+1<lyrics.length ? lyrics[last+1].time : duration;
+            return typeof end==="number" ? Math.max(0,(end-lyrics[index].time)*1000) : 0;
+        }
         for(var i=index+1;i<lyrics.length;++i) if(notes[i]) return Math.max(0,(lyrics[i].time-lyrics[index].time)*1000);
         return Math.max(0,(duration-lyrics[index].time)*1000);
     }
@@ -915,7 +976,7 @@ Item {
         if(shuttingDown) return;
         profileGeneration++;cancelImport();cancelImportIdentity();snapshot();activityEnd(false);
         resetting=true;profileActive=false;backend.clearProfile();cancelBrowse();cancelQueueRequest();clearDiscovery();clearCatalogue();
-        shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;videoShown=false;
+        shownDisc=0;manualNoteLine=-1;lyricsShown=false;autoNotes=false;
         shownEdition=emptyEdition;results=[];onlineArtists=[];onlineAlbums=[];searchingOnline=false;catalogueNotice="";library=[];saved=false;browsing=false;browseError="";personalError="";
         resetting=false;
         if(source && source.setAlbums) source.setAlbums([]);

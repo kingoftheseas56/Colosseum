@@ -23,6 +23,7 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(QVariantMap artistResults READ artistResults NOTIFY resultsChanged)
     Q_PROPERTY(QVariantList draftArtists READ draftArtists NOTIFY stateChanged)
     Q_PROPERTY(QVariantList selectedArtists READ selectedArtists NOTIFY stateChanged)
+    Q_PROPERTY(int minimumArtistCount READ minimumArtistCount CONSTANT)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap homeCollections READ homeCollections WRITE setHomeCollections NOTIFY homeChanged)
     Q_PROPERTY(QVariantList homeSections READ homeSections NOTIFY homeChanged)
@@ -42,6 +43,8 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(bool keepHistory READ keepHistory WRITE setKeepHistory NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap historySnapshot READ historySnapshot NOTIFY homeChanged)
 public:
+    static constexpr int MinimumArtistCount = 5;
+    int minimumArtistCount() const { return MinimumArtistCount; }
     explicit VinylRecommendationService(QObject *parent=nullptr,std::function<qint64()> clock={});
     ~VinylRecommendationService() override;
     QObject* source() const{return m_source;}
@@ -51,7 +54,7 @@ public:
     bool profileActive() const{return m_active;}
     QVariantList suggestions() const{return m_suggestions;}
     QString onboardingState() const{return m_state;}
-    int minimumArtists() const{return 5;}
+    int minimumArtists() const{return MinimumArtistCount;}
     bool canEnterVinyl() const;
     int draftArtistCount() const;
     QVariantMap artistResults() const{return m_results;}

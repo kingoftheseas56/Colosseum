@@ -338,7 +338,7 @@ Item {
         Image {
             anchors.centerIn: parent
             width: tile.kind === "video" ? 18 : 21; height: width
-            source: tile.kind === "video" ? "../assets/icons/play.svg"
+            source: tile.kind === "video" || tile.kind === "music" ? "../assets/icons/play.svg"
                   : tile.kind === "book"  ? "../assets/icons/books.svg"
                   : "../assets/icons/manga.svg"
             fillMode: Image.PreserveAspectFit

@@ -33,7 +33,10 @@ Flickable {
     readonly property string currentSectionKey: sidebar.currentIndex >= 0 ? sidebar.visibleRows[sidebar.currentIndex].key : ""
     readonly property real inset: Math.max(54, (width - 1280) / 2)
     readonly property real usable: width - 2 * inset
-    readonly property real coverSize: Math.min(440, albumInfoColumn.width)
+    readonly property real albumMetadataHeight: albumTitle.height + albumArtist.height
+        + albumFacts.height + albumActionsRow.height + albumInfoColumn.spacing * 4
+    readonly property real coverSize: Math.max(96,
+        Math.min(440, albumInfoColumn.width, height - albumMetadataHeight - 48))
     readonly property bool albumDetailsFit: albumInfoColumn.height + 48 <= height
     readonly property bool trackSaveAvailable: !!pageData
         && typeof pageData.personalEnabled === "boolean"

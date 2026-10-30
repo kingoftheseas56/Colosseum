@@ -10,6 +10,7 @@ Item {
     required property Flickable pageFlick
     readonly property string query: worldData.pickerQuery
     readonly property var selected: worldData.pickerDraft
+    readonly property int minimumArtistCount: Number(worldData.minimumArtistCount) || 5
     readonly property var offered: worldData.artistOptions(query)
     readonly property bool editing: worldData.onboardingState === "editing"
     readonly property int minimumArtists: worldData.recommendationService
@@ -65,7 +66,7 @@ Item {
 
         Text {
             objectName: "vinylPickerQuestion"
-            text: "What do you listen to?"
+            text: "Choose at least " + root.minimumArtistCount + " artists"
             width: Math.max(0, parent.width - actions.width - 24)
             elide: Text.ElideRight
             fontSizeMode: Text.Fit

@@ -140,7 +140,7 @@ TimedTextTranslationDocument::plain(
     TranslationProvenance provenance,
     std::optional<QString> translatedText)
 {
-    if (original.kind() != TimedTextKind::Plain) {
+    if (!original.recordingMbid() || original.kind() != TimedTextKind::Plain) {
         return failure<TimedTextTranslationDocument>(
             TranslationErrorCode::SourceKindMismatch,
             QStringLiteral("sourceKind"),
@@ -155,7 +155,7 @@ TimedTextTranslationDocument::plain(
 
     return TranslationResult<TimedTextTranslationDocument>::success(
         TimedTextTranslationDocument(
-            original.recordingMbid(),
+            *original.recordingMbid(),
             original.documentId(),
             original.kind(),
             std::move(targetLanguage),
@@ -171,7 +171,7 @@ TimedTextTranslationDocument::synchronized(
     TranslationProvenance provenance,
     QVector<CueTranslation> cueTranslations)
 {
-    if (!isSynchronizedKind(original.kind())) {
+    if (!original.recordingMbid() || !isSynchronizedKind(original.kind())) {
         return failure<TimedTextTranslationDocument>(
             TranslationErrorCode::SourceKindMismatch,
             QStringLiteral("sourceKind"),
@@ -203,7 +203,7 @@ TimedTextTranslationDocument::synchronized(
 
     return TranslationResult<TimedTextTranslationDocument>::success(
         TimedTextTranslationDocument(
-            original.recordingMbid(),
+            *original.recordingMbid(),
             original.documentId(),
             original.kind(),
             std::move(targetLanguage),
