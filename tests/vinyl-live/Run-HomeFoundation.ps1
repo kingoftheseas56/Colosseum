@@ -38,7 +38,7 @@ $sources=@(& git -C $repo ls-files -m -o --exclude-standard | ForEach-Object {
     $path=Join-Path $repo $_
     if(Test-Path -LiteralPath $path -PathType Leaf){[ordered]@{path=$_;sha256=(Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash}}
 })
-$sources|ConvertTo-Json -Depth 3|Set-Content -LiteralPath ($prefix+'.sources.json') -Encoding utf8
+ConvertTo-Json -InputObject $sources -Depth 3|Set-Content -LiteralPath ($prefix+'.sources.json') -Encoding utf8
 $receipt=[ordered]@{phase=$Phase;profile=$ProfileTag;sourceHead=(& git -C $repo rev-parse HEAD).Trim();
     appSha256=(Get-FileHash -LiteralPath $app -Algorithm SHA256).Hash;
     driverSha256=(Get-FileHash -LiteralPath $driver -Algorithm SHA256).Hash;
