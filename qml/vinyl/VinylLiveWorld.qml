@@ -197,7 +197,12 @@ Item {
     function enterDiscoverSearch(online,modeToggle) {
         if(searchOpen) return;
         var pickingArtists=page==="home" && world.currentTab==="home" && worldData.tastePickerOpen===true;
-        if(pickingArtists) {world.focusArtistSearch();return;}
+        if(pickingArtists) {
+            Qt.callLater(function(){
+                if(!root.searchOpen && worldData.tastePickerOpen===true)world.focusArtistSearch();
+            });
+            return;
+        }
         if(!pickingArtists && !root.canEnterVinyl){root.enforceTasteGate();return;}
         if(session.browsing && session.browseOperation==="album") {
             session.cancelBrowse();pendingAlbumRoute=null;

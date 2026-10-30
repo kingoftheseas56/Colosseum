@@ -221,6 +221,26 @@ TestCase {
             "Artist search must not replace the saved Discover query.");
     }
 
+    function test_closingCatalogueBeforeArtistEditKeepsSearchFocus() {
+        for(var i=0;i<5;i++)
+            service.toggleDraftArtist(artist("UC"+String.fromCharCode(97+i).repeat(22), "Native Artist "+i));
+        verify(service.commitTaste(false));
+        world.showHome();
+        world.enterDiscoverSearch(true, false);
+        tryCompare(world, "searchOpen", true);
+        tryVerify(function(){return world.searchPage !== null;});
+
+        world.closeSearch();
+        world.worldData.beginTasteEdit();
+        findChild(world, "vinylTopBar").searchClicked();
+
+        var field=findChild(world, "vinylPickerArtistSearch");
+        verify(field !== null);
+        tryCompare(field, "activeFocus", true);
+        verify(!world.searchOpen, "A queued catalogue-close focus must not steal artist-search focus.");
+        compare(service.draftArtistCount, 5);
+    }
+
     function test_editCancelDoesNotEraseTaste() {
         world.showHome();
         tryCompare(service, "onboardingState", "draft");

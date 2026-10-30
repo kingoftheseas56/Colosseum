@@ -113,7 +113,10 @@ Main {
             if(root.stage==="artist-search") {
                 var artistField=root.find(w,"vinylPickerArtistSearch");
                 if(!root.check(!w.searchOpen && w.page==="home" && artistField && artistField.activeFocus,
-                    "Artist picker lost its dedicated focused search"))return;
+                    "Artist picker lost its dedicated focused search: "+JSON.stringify({searchOpen:w.searchOpen,
+                        page:w.page,picker:w.worldData.tastePickerOpen,exists:!!artistField,
+                        visible:artistField ? artistField.visible : false,focused:artistField ? artistField.activeFocus : false,
+                        focus:root.activeFocusItem ? root.activeFocusItem.objectName : ""})))return;
                 artistField.text="Ilaiyaraaja";artistField.textEdited();root.next("artist-results");return;
             }
             if(root.stage==="artist-results") {
@@ -121,6 +124,9 @@ Main {
                 var choice=w.worldData.artistOptions(w.worldData.pickerQuery).find(item=>item.title==="Ilaiyaraaja");
                 if(!root.check(!!choice,"Real artist search missing Ilaiyaraaja: "+w.worldData.artistSearchError))return;
                 if(!choice.selected)w.worldData.togglePickerArtist(choice);
+                root.next("artist-selected");return;
+            }
+            if(root.stage==="artist-selected") {
                 if(!root.check(!w.searchOpen && w.worldData.artistOptions(w.worldData.pickerQuery)
                     .some(i=>i.title==="Ilaiyaraaja" && i.selected),"Artist selection did not remain in the dedicated picker"))return;
                 root.capture("dedicated-artist-search-selection","artist-cancel");return;
