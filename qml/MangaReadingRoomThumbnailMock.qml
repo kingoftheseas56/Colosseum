@@ -7,6 +7,8 @@ import "MangaVolumes.js" as Vol
 
 Item {
     id: root
+    AdaptiveLayout { id: detailLayout; page:root }
+    readonly property bool phoneLayout:detailLayout.phoneLayout
     objectName: "mangaReadingRoom"
 
     property Item backdrop
@@ -79,7 +81,7 @@ Item {
         height: 58
 
         BackAction {
-            x: theme.margin; anchors.verticalCenter: parent.verticalCenter
+            x:root.phoneLayout ? detailLayout.pageMargin : theme.margin; anchors.verticalCenter: parent.verticalCenter
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
             Accessible.name: "Back to series"
@@ -89,11 +91,13 @@ Item {
         }
         Text {
             anchors.centerIn: parent
+            visible:!root.phoneLayout
             text: "COLOSSEUM \u00b7 TANKOBAN"
             color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3
+            font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 3
         }
         Row {
+            visible:!root.phoneLayout
             anchors.right: parent.right; anchors.rightMargin: theme.margin
             anchors.verticalCenter: parent.verticalCenter; spacing: 12
             Item {
@@ -125,8 +129,56 @@ Item {
         }
     }
 
+    Flickable {
+        id:phoneScroll
+        objectName:"thumbnailMangaDetailScroll"
+        anchors.fill:parent
+        anchors.topMargin:chrome.height
+        visible:root.phoneLayout
+        contentWidth:width
+        contentHeight:phoneHeader.height+collectionSurface.height+20
+        clip:true
+        flickableDirection:Flickable.VerticalFlick
+        boundsBehavior:Flickable.StopAtBounds
+    }
+    MediaDetailScaffold {
+        id:phoneHeader
+        parent:phoneScroll.contentItem
+        visible:root.phoneLayout
+        width:phoneScroll.width
+        pageOwner:root
+        contentInset:detailLayout.pageMargin
+        compactCoverWidth:112
+        compactCoverHeight:168
+        showCover:root.cover.length>0
+        coverItem:phoneCover
+        summaryItem:phoneSummary
+        actionsItem:phoneActions
+        Rectangle {
+            id:phoneCover
+            height:phoneHeader.coverHeight
+            color:"#17171f"
+            visible:root.cover.length>0
+            Image { anchors.fill:parent; source:root.cover; sourceSize:Qt.size(224,336); fillMode:Image.PreserveAspectCrop; asynchronous:true }
+        }
+        Column {
+            id:phoneSummary
+            spacing:12
+            Text { width:parent.width; text:root.seriesTitle; color:theme.ink; font.family:theme.display; font.pixelSize:theme.fontSize(32); wrapMode:Text.WordWrap }
+            Text { width:parent.width; text:[root.author,root.status,root.year>0 ? String(root.year) : ""].filter(value=>value.length>0).join(" · "); color:theme.inkDim; font.family:theme.ui; font.pixelSize:theme.fontSize(13); wrapMode:Text.WordWrap }
+            Text { width:parent.width; text:root.synopsis; visible:text.length>0; color:theme.inkDim; font.family:theme.ui; font.pixelSize:theme.fontSize(13); wrapMode:Text.WordWrap }
+        }
+        Column {
+            id:phoneActions
+            spacing:10
+            PhoneActionRow { width:parent.width; text:root.continueText; onClicked:root.primaryRequested() }
+            Loader { width:parent.width; active:root.collectionEntry!==null && typeof Collection!=="undefined"; sourceComponent:LibraryButton { width:phoneActions.width; height:detailLayout.touchTargetSize; world:"tankoban"; entry:root.collectionEntry } }
+        }
+    }
+
     Item {
         id: storyMasthead
+        visible:!root.phoneLayout
         anchors.top: chrome.bottom; anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
         readonly property int baseHeight: root.height < 760 ? 118 : 104
@@ -147,18 +199,18 @@ Item {
             Text {
                 id: storyTitle
                 anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right; anchors.rightMargin: 20
-                text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 30; font.weight: Font.DemiBold
+                text: root.seriesTitle; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30); font.weight: Font.DemiBold
                 elide: Text.ElideRight; maximumLineCount: 1
             }
             Row {
                 id: metaRow
                 anchors.top: parent.top; anchors.topMargin: storyTitle.implicitHeight + 12; anchors.left: parent.left; spacing: 7
-                Text { visible: root.author.length > 0; text: root.author; color: theme.ink; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { visible: root.author.length > 0; text: root.author; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold }
                 Text { visible: root.author.length > 0 && root.status.length > 0; text: "\u00b7"; color: theme.inkDimmer }
                 Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim }
                 Text { visible: root.year > 0; text: "\u00b7 " + root.year; color: theme.inkDim }
                 Image { visible: root.score > 0; source: "../assets/icons/rating-star.svg"; width: 12; height: 12 }
-                Text { visible: root.score > 0; text: root.score.toFixed(1); color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
+                Text { visible: root.score > 0; text: root.score.toFixed(1); color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold }
                 // Anime-Planet stat line: volumes/chapters promoted to full ink (mock .meta .stat).
                 Text {
                     visible: root.library.showVolumes && (root.author.length > 0 || root.status.length > 0 || root.year > 0 || root.score > 0)
@@ -166,7 +218,7 @@ Item {
                 }
                 Text {
                     visible: root.library.showVolumes
-                    text: root.library.volumeRows.length + " volumes"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11
+                    text: root.library.volumeRows.length + " volumes"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
                 Text {
                     visible: root.chapters.length > 0 && (root.library.showVolumes || root.author.length > 0 || root.status.length > 0 || root.year > 0 || root.score > 0)
@@ -174,7 +226,7 @@ Item {
                 }
                 Text {
                     visible: root.chapters.length > 0
-                    text: root.chapters.length + " chapters"; color: theme.ink; font.family: theme.ui; font.pixelSize: 11
+                    text: root.chapters.length + " chapters"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
             }
             // Synopsis behind a tap (mock .syn): clamped to one line, tap expands/collapses.
@@ -189,7 +241,7 @@ Item {
                     id: synopsisText
                     width: parent.width
                     text: root.synopsis
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                     maximumLineCount: root.synopsisExpanded ? 100000 : 1
                     elide: Text.ElideRight
@@ -198,7 +250,7 @@ Item {
                     id: synopsisMore
                     anchors.top: synopsisText.bottom; anchors.topMargin: 3
                     text: root.synopsisExpanded ? "less" : "more"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.4
                 }
                 MouseArea {
                     anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -212,12 +264,12 @@ Item {
             anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
             anchors.rightMargin: 20; anchors.topMargin: 15; anchors.bottomMargin: 14
             width: Math.max(360, parent.width * 0.26)
-            Text { id: deviceLabel; text: "ON THIS DEVICE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.2 }
+            Text { id: deviceLabel; text: "ON THIS DEVICE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 2.2 }
             Text {
                 id: deviceCount
                 anchors.left: deviceLabel.right; anchors.leftMargin: 12; anchors.verticalCenter: deviceLabel.verticalCenter
                 text: root.library.ownedCount + " OF " + root.library.volumeRows.length
-                color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
             }
             Rectangle {
                 id: deviceProgress
@@ -234,7 +286,7 @@ Item {
                     Keys.onReturnPressed: root.primaryRequested(); Keys.onEnterPressed: root.primaryRequested()
                     Row { id: openLabel; anchors.centerIn: parent; spacing: 7
                         Image { source: "../assets/icons/play-dark.svg"; width: 13; height: 13 }
-                        Text { text: root.continueText; color: "#171205"; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                        Text { text: root.continueText; color: "#171205"; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                     }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.primaryRequested() }
                 }
@@ -248,10 +300,13 @@ Item {
 
     Item {
         id: collectionSurface
-        anchors.top: storyMasthead.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin; anchors.topMargin: 10; anchors.bottomMargin: 10
+        parent:root.phoneLayout ? phoneScroll.contentItem : root
+        height:root.phoneLayout ? tankLib.flowHeight : 0
+        anchors.top: root.phoneLayout ? phoneHeader.bottom : storyMasthead.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: root.phoneLayout ? undefined : parent.bottom
+        anchors.leftMargin: root.phoneLayout ? detailLayout.pageMargin : theme.margin; anchors.rightMargin: root.phoneLayout ? detailLayout.pageMargin : theme.margin; anchors.topMargin: 10; anchors.bottomMargin: 10
         MangaTankobanLibraryThumbnailMock {
             id: tankLib
+            pageFlick:root.phoneLayout ? phoneScroll : null
             objectName: "readingRoomLibrary"
             anchors.fill: parent
             seriesId: root.seriesId; seriesTitle: root.seriesTitle
@@ -268,7 +323,7 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 34
             color: Qt.rgba(0.08, 0.04, 0.05, 0.92)
             Text { anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter
-                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight; maximumLineCount: 1 }
+                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight; maximumLineCount: 1 }
         }
     }
 

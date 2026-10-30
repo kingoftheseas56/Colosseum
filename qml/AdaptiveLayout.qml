@@ -7,9 +7,19 @@ QtObject {
     id: metrics
 
     property Item page: null
-    property real viewportWidth: page ? page.width : 0
-    property real viewportHeight: page ? page.height : 0
+    function viewportFor(item) {
+        let ancestor=item ? item.parent : null
+        while (ancestor) {
+            if (ancestor.clip) return ancestor
+            ancestor=ancestor.parent
+        }
+        return item
+    }
+    readonly property Item viewportItem: viewportFor(page)
+    property real viewportWidth: page && viewportItem ? Math.min(page.width, viewportItem.width) : 0
+    property real viewportHeight: viewportItem ? viewportItem.height : 0
     property bool touch: Qt.platform.os === "android"
+        || !!(page && page["androidHost"] === true)
         || !!(page && page.Window.window && page.Window.window.androidHost)
     property var safeInsets: page ? page.SafeArea.margins : ({left:0, top:0, right:0, bottom:0})
     property real railInset: 0

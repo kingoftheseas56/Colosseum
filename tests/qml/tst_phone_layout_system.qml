@@ -74,6 +74,24 @@ TestCase {
         spy.destroy()
     }
     Component { id: signalSpy; SignalSpy { signalName:"triggered" } }
+    Component {
+        id: clippedPageComponent
+        Item {
+            width:800; height:1280; clip:true
+            Item { id:longPage; width:1100; height:4000 }
+            property alias metrics:pageLayout
+            App.AdaptiveLayout { id:pageLayout; page:longPage; touch:true }
+        }
+    }
+    function test_clipped_page_uses_visible_viewport() {
+        const fixture=createTemporaryObject(clippedPageComponent,host.contentItem)
+        compare(fixture.metrics.usableWidth,800)
+        compare(fixture.metrics.viewportHeight,1280)
+        compare(fixture.metrics.layoutClass,"tablet-portrait")
+        fixture.width=354; fixture.height=792
+        compare(fixture.metrics.usableWidth,354)
+        compare(fixture.metrics.layoutClass,"compact-phone")
+    }
     function init() {
         host.requestActivate()
         tryVerify(function() { return host.active })

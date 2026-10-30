@@ -16,6 +16,7 @@ Item {
     id: detail
     objectName: "biblioBookDetail"   // test-only seam: Lanista qml-get reads localPath/readError/pendingReadTransport
     property var book: ({})
+    property bool androidHost: Qt.platform.os === "android"
     property Item backdrop
     property var editions: []
     property bool edLoading: false
@@ -160,9 +161,9 @@ Item {
             detail._resolvePendingLookup(detail.pendingReadGeneration)
         }
     }
-    function edMeta(ed) {
+    function edMeta(ed, plainText) {
         var p = []
-        if (ed.size) p.push("<b>" + ed.size + "</b>")
+        if (ed.size) p.push(plainText ? ed.size : "<b>" + ed.size + "</b>")
         if (ed.source) p.push(String(ed.source).toUpperCase())   // LIBGEN / OCEANOFPDF / …
         if (ed.year) p.push(ed.year)
         if (ed.language) p.push(ed.language)
@@ -677,7 +678,7 @@ Item {
                 onTriggered: { detail._invalidateReadIntent(); detail.backRequested() }
             }
             Text {
-                text: "Biblio"; color: theme.ink; font.family: theme.display; font.pixelSize: 20
+                text: "Biblio"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20)
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
@@ -692,7 +693,7 @@ Item {
                     required property var modelData
                     width: 30; height: 30; radius: 8
                     color: sysMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-                    Text { anchors.centerIn: parent; text: modelData.g; color: theme.inkDimmer; font.pixelSize: 14 }
+                    Text { anchors.centerIn: parent; text: modelData.g; color: theme.inkDimmer; font.pixelSize: theme.fontSize(14) }
                     MouseArea {
                         id: sysMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: {
@@ -728,28 +729,25 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         ScrollBar.vertical: HouseScrollBar { flick: page }
 
-        Item {
+        MediaDetailScaffold {
             id: body
             objectName: "biblioBookBody"
-            x: theme.margin
-            width: detail.width - theme.margin * 2
-            readonly property bool stackColumns: width < 268 + 64 + 320
-            implicitHeight: stackColumns
-                            ? coverCol.implicitHeight + 32 + textCol.implicitHeight + 36
-                            : Math.max(coverCol.implicitHeight, textCol.implicitHeight) + 36
-
-            // ── cover column ──
+            pageOwner: detail
+            x: body.phoneLayout ? Math.max(layout.pageMargin, detail.SafeArea.margins.left) : theme.margin
+            width: detail.width - x - (body.phoneLayout ? Math.max(layout.pageMargin, detail.SafeArea.margins.right) : theme.margin)
+            coverItem: coverCol
+            summaryItem: textCol
+            actionsItem: bookActions
+            sectionsItem: bookSections
             Column {
                 id: coverCol
                 objectName: "biblioBookCoverColumn"
-                x: body.stackColumns ? Math.max(0, (body.width - width) / 2) : 0
-                width: 268
-                topPadding: 16
-                spacing: 28
+                topPadding: body.shortPhone ? 0 : (body.phoneLayout ? 12 : 16)
+                spacing: body.phoneLayout ? 12 : 28
 
                 // the book as a physical object: soft shadow + cover + spine + page edge
                 Item {
-                    width: 268; height: 402
+                    width: body.coverWidth; height: body.coverHeight
 
                     Rectangle {                       // page edge (right)
                         anchors.right: parent.right; anchors.rightMargin: -5
@@ -791,21 +789,79 @@ Item {
                     }
                 }
 
-                Column {                              // actions
-                    width: 268; spacing: 12
+
+            }
+            Column {
+                id: textCol
+                objectName: "biblioBookTextColumn"
+                topPadding: body.shortPhone ? 0 : (body.phoneLayout ? 8 : 18)
+                spacing: 0
+                Text {                                // eyebrow
+                    text: (detail.book && detail.book.genreLine ? detail.book.genreLine : "").toUpperCase()
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(body.phoneLayout ? 10 : 12)
+                    font.weight: Font.DemiBold; font.letterSpacing: 1.8
+                }
+                Item { width: 1; height: body.phoneLayout ? 8 : 14 }
+                Text {                                // title
+                    objectName: "biblioBookTitle"
+                    text: detail.book && detail.book.title ? detail.book.title : ""
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(body.shortPhone ? 30 : (body.phoneLayout ? 34 : 54))
+                    width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.02
+                }
+                Item { width: 1; height: body.phoneLayout ? 10 : 20 }
+                Text {                                // tagline — the hero
+                    visible: text.length > 0
+                    text: detail.book && detail.book.tagline ? "“" + detail.book.tagline + "”" : ""
+                    color: theme.ink; opacity: 0.92
+                    font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(body.shortPhone ? 20 : (body.phoneLayout ? 22 : 28))
+                    width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.3
+                }
+                Item { width: 1; height: body.phoneLayout ? 16 : 30 }
+                Item {                                // hairline rule with a gold tick
+                    width: parent.width; height: 3
+                    Rectangle {
+                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                        width: parent.width; height: 1
+                        gradient: Gradient {
+                            orientation: Gradient.Horizontal
+                            GradientStop { position: 0; color: theme.edge }
+                            GradientStop { position: 0.7; color: "transparent" }
+                        }
+                    }
+                    Rectangle { anchors.left: parent.left; anchors.top: parent.top; width: 34; height: 3; radius: 2; color: theme.gold }
+                }
+                Item { width: 1; height: body.phoneLayout ? 14 : 26 }
+                Text {                                // synopsis with a raised initial
+                    width: Math.min(parent.width, 640)
+                    textFormat: Text.RichText
+                    text: detail.dropCapHtml(detail.book ? detail.book.synopsis : "")
+                    color: theme.inkDim; font.family: theme.display; font.pixelSize: theme.fontSize(body.phoneLayout ? 15 : 17)
+                    wrapMode: Text.WordWrap; lineHeight: 1.7
+                }
+
+            }
+            Column {
+                id: bookActions
+                objectName: "biblioBookActions"                              // actions
+                    spacing: body.phoneLayout ? 8 : 12
                     Rectangle {
                         id: primaryCta
                         objectName: "biblioPrimaryRead"
-                        width: parent.width; height: 50; radius: 13; color: theme.gold
+                        width: parent.width; height: body.phoneLayout ? 48 : 50; radius: 13; color: theme.gold
                         opacity: enabled ? 1.0 : 0.5
                         enabled: detail.localPath.length > 0 || detail.pendingReadActive
                                  || detail.edLoading || detail.torLoading
                                  || detail.editions.length > 0 || detail.torrents.length > 0
                         Text {
                             anchors.centerIn: parent
+                            width: parent.width - 24
                             text: detail.primaryReadLabel()
                             color: "#241a05"
-                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(body.phoneLayout ? 13 : 15); font.weight: Font.DemiBold
+                            wrapMode: body.phoneLayout ? Text.WordWrap : Text.NoWrap
+                            maximumLineCount: body.phoneLayout ? 2 : 1
+                            elide: body.phoneLayout ? Text.ElideRight : Text.ElideNone
+                            horizontalAlignment: Text.AlignHCenter
                         }
                         MouseArea {
                             anchors.fill: parent; enabled: primaryCta.enabled
@@ -821,16 +877,16 @@ Item {
                     Text {
                         objectName: "biblioPrimaryReadStatus"
                         width: parent.width
-                        text: detail.primaryReadStatus()
+                            text: detail.primaryReadStatus()
                         color: detail.readError.length ? "#e6a3a3" : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(body.phoneLayout ? 11 : 12)
                         wrapMode: Text.WordWrap
                         horizontalAlignment: Text.AlignHCenter
                     }
                     LibraryButton {
                         objectName: "biblioLibraryButton"
                         width: parent.width
-                        height: 50
+                        height: body.phoneLayout ? 48 : 50
                         radius: 13
                         world: "biblio"
                         entry: detail.collectionEntry()
@@ -839,68 +895,17 @@ Item {
                     // the audiobook player. A downloaded audiobook auto-attaches; Read opens the
                     // book and the reader's HUD transport + Audio tab carry playback.)
                 }
-            }
-
-            // ── text column ──
             Column {
-                id: textCol
-                objectName: "biblioBookTextColumn"
-                x: body.stackColumns ? 0 : coverCol.x + coverCol.width + 64
-                y: body.stackColumns ? coverCol.implicitHeight + 32 : 0
-                width: body.stackColumns ? body.width : body.width - coverCol.width - 64
-                topPadding: 18
+                id: bookSections
+                objectName: "biblioBookSections"
                 spacing: 0
-
-                Text {                                // eyebrow
-                    text: (detail.book && detail.book.genreLine ? detail.book.genreLine : "").toUpperCase()
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
-                    font.weight: Font.DemiBold; font.letterSpacing: 1.8
-                }
-                Item { width: 1; height: 14 }
-                Text {                                // title
-                    objectName: "biblioBookTitle"
-                    text: detail.book && detail.book.title ? detail.book.title : ""
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 54
-                    width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.02
-                }
-                Item { width: 1; height: 20 }
-                Text {                                // tagline — the hero
-                    visible: text.length > 0
-                    text: detail.book && detail.book.tagline ? "“" + detail.book.tagline + "”" : ""
-                    color: theme.ink; opacity: 0.92
-                    font.family: theme.display; font.italic: true; font.pixelSize: 28
-                    width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.3
-                }
-                Item { width: 1; height: 30 }
-                Item {                                // hairline rule with a gold tick
-                    width: parent.width; height: 3
-                    Rectangle {
-                        anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-                        width: parent.width; height: 1
-                        gradient: Gradient {
-                            orientation: Gradient.Horizontal
-                            GradientStop { position: 0; color: theme.edge }
-                            GradientStop { position: 0.7; color: "transparent" }
-                        }
-                    }
-                    Rectangle { anchors.left: parent.left; anchors.top: parent.top; width: 34; height: 3; radius: 2; color: theme.gold }
-                }
-                Item { width: 1; height: 26 }
-                Text {                                // synopsis with a raised initial
-                    width: Math.min(parent.width, 640)
-                    textFormat: Text.RichText
-                    text: detail.dropCapHtml(detail.book ? detail.book.synopsis : "")
-                    color: theme.inkDim; font.family: theme.display; font.pixelSize: 17
-                    wrapMode: Text.WordWrap; lineHeight: 1.7
-                }
-
                 // ── Torrents — live federated indexer search; ranked best-match × seeders ──
                 Item { width: 1; height: 40; visible: typeof BookTorrents !== 'undefined' }
                 Text {
                     visible: typeof BookTorrents !== 'undefined'
                     text: "TORRENTS" + (detail.torLoading ? "  ·  SEARCHING…"
                           : (detail.torrents.length > 0 ? "  ·  " + detail.torrents.length : "  ·  NONE"))
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
                 }
                 Item { width: 1; height: 12; visible: typeof BookTorrents !== 'undefined' }
@@ -929,7 +934,7 @@ Item {
                                 anchors.left: parent.left; anchors.leftMargin: 18
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: detail.torLoading ? "Searching torrents…" : "No torrents found"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
                         }
                         Repeater {
@@ -976,12 +981,12 @@ Item {
                                         width: parent.width
                                         text: torRow.modelData.title
                                         elide: Text.ElideRight; maximumLineCount: 1
-                                        color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                                     }
                                     Text {                       // seeders · size · pack
                                         text: "▲ " + torRow.modelData.seeders + "   " + torRow.modelData.size
                                               + (torRow.modelData.pack ? "   ·  PACK" : "")
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                     }
                                 }
                                 Text {                           // download-state indicator
@@ -994,7 +999,7 @@ Item {
                                         : torRow.dlState === "failed" ? "retry" : "↓"
                                     color: torRow.dlState === "done" ? theme.gold : (torMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
-                                    font.pixelSize: (torRow.dlState === "downloading" || torRow.dlState === "failed") ? 12 : 16
+                                    font.pixelSize: theme.fontSize((torRow.dlState === "downloading" || torRow.dlState === "failed") ? 12 : 16)
                                 }
                                 MouseArea { id: torMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: torRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
@@ -1015,7 +1020,7 @@ Item {
                                 text: detail.torExpanded ? "See less"
                                       : ("See " + (detail.torrents.length - detail.torCap) + " more")
                                 color: seeMoreMa.containsMouse ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold; font.letterSpacing: 0.6
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold; font.letterSpacing: 0.6
                             }
                             MouseArea { id: seeMoreMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: detail.torExpanded = !detail.torExpanded }
@@ -1032,7 +1037,7 @@ Item {
                 Text {
                     text: "EDITIONS" + (detail.edLoading ? "  ·  SEARCHING…"
                           : (detail.editions.length > 0 ? "  ·  " + detail.editions.length : "  ·  NONE"))
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
                 }
                 Item { width: 1; height: 12 }
@@ -1061,7 +1066,7 @@ Item {
                                 anchors.left: parent.left; anchors.leftMargin: 18
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: detail.edLoading ? "Searching LibGen…" : "No editions found"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
                         }
 
@@ -1094,26 +1099,43 @@ Item {
                                     : (modelData.best ? Qt.rgba(0.94,0.77,0.29,0.06) : "transparent")) }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 Row {
+                                    id: edMetaRow
                                     anchors.left: parent.left; anchors.leftMargin: 18
                                     anchors.verticalCenter: parent.verticalCenter
+                                    width: body.phoneLayout ? Math.max(0, edInd.x - 30) : implicitWidth
                                     spacing: 16
                                     Rectangle {
+                                        id: edFormatPill
                                         width: Math.max(54, fmtT.implicitWidth + 16); height: 24; radius: 7; color: "transparent"
                                         border.width: 1
                                         border.color: modelData.best ? Qt.rgba(0.94,0.77,0.29,0.5) : theme.edge
                                         anchors.verticalCenter: parent.verticalCenter
                                         Text { id: fmtT; anchors.centerIn: parent; text: detail.fmtLabel(modelData)
                                             color: modelData.best ? theme.gold : theme.inkDim
-                                            font.family: theme.ui; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.8 }
+                                            font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.Bold; font.letterSpacing: 0.8 }
                                     }
                                     Text {
+                                        objectName: body.phoneLayout ? "biblioEditionMeta_" + edRow.index : ""
+                                        visible: body.phoneLayout
+                                        width: Math.max(0, edMetaRow.width - edFormatPill.width - edMetaRow.spacing)
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: detail.edMeta(modelData, true)
+                                        textFormat: Text.PlainText
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                        elide: Text.ElideRight
+                                    }
+                                    Text {
+                                        objectName: body.phoneLayout ? "" : "biblioEditionMeta_" + edRow.index
+                                        visible: !body.phoneLayout
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: detail.edMeta(modelData)
                                         textFormat: Text.RichText
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                     }
                                 }
                                 Text {
+                                    id: edInd
+                                    objectName: "biblioEditionIndicator_" + edRow.index
                                     anchors.right: parent.right; anchors.rightMargin: 18
                                     anchors.verticalCenter: parent.verticalCenter
                                     text: edRow.dlState === "done" ? "✓"
@@ -1123,7 +1145,7 @@ Item {
                                         : (edRow.modelData.md5 ? "↓" : "↗")
                                     color: edRow.dlState === "done" ? theme.gold : (edMa.containsMouse ? theme.gold : theme.inkDimmer)
                                     font.family: theme.ui
-                                    font.pixelSize: (edRow.dlState === "downloading" || edRow.dlState === "failed") ? 12 : 16
+                                    font.pixelSize: theme.fontSize((edRow.dlState === "downloading" || edRow.dlState === "failed") ? 12 : 16)
                                 }
                                 MouseArea { id: edMa; anchors.fill: parent; hoverEnabled: true
                                     cursorShape: edRow.dlState === "done" ? Qt.ArrowCursor : Qt.PointingHandCursor
@@ -1143,7 +1165,7 @@ Item {
                 Text {
                     text: "AUDIOBOOK" + (detail.abLoading ? "  ·  SEARCHING…"
                           : (detail.abRows.length > 0 ? "  ·  " + detail.abRows.length : "  ·  NONE"))
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
                 }
                 Item { width: 1; height: 12 }
@@ -1198,7 +1220,7 @@ Item {
                                 anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
                                 text: abCol.abState === "resolving" ? "Downloading in the background — resolving…"
                                     : ("Downloading in the background — " + Math.round(abCol.abPct * 100) + "%")
-                                color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
                         }
                         Item {                              // loading / empty
@@ -1206,7 +1228,7 @@ Item {
                             width: parent.width; height: 52
                             Text { anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter
                                 text: detail.abLoading ? "Searching AudioBookBay…" : "No audiobook found"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                         }
                         Repeater {
                             id: audiobookRepeater
@@ -1223,26 +1245,40 @@ Item {
                                     : (abRowMa.containsMouse ? Qt.rgba(1,1,1,0.06) : "transparent") }
                                 Rectangle { visible: index > 0; anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                                 Row {
+                                    id: abMetaRow
                                     anchors.left: parent.left; anchors.leftMargin: 18; anchors.verticalCenter: parent.verticalCenter; spacing: 16
+                                    width: body.phoneLayout ? Math.max(0, abInd.x - 30) : implicitWidth
                                     Rectangle {
+                                        id: abFormatPill
                                         width: 58; height: 24; radius: 7; color: "transparent"; border.width: 1; border.color: theme.edge
                                         anchors.verticalCenter: parent.verticalCenter
                                         Text { anchors.centerIn: parent
                                             text: (abRow.modelData.format || "AUDIO").toUpperCase().substring(0,6)
-                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11; font.weight: Font.Bold; font.letterSpacing: 0.6 }
+                                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.Bold; font.letterSpacing: 0.6 }
                                     }
-                                    Text { anchors.verticalCenter: parent.verticalCenter
+                                    Text { objectName: body.phoneLayout ? "biblioAudiobookMeta_" + abRow.index : ""
+                                        visible: body.phoneLayout
+                                        width: Math.max(0, abMetaRow.width - abFormatPill.width - abMetaRow.spacing)
+                                        anchors.verticalCenter: parent.verticalCenter
                                         text: [abRow.modelData.size, abRow.modelData.language, abRow.modelData.posted].filter(function(s){return s}).join("   ·   ")
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                        elide: Text.ElideRight }
+                                    Text { objectName: body.phoneLayout ? "" : "biblioAudiobookMeta_" + abRow.index
+                                        visible: !body.phoneLayout
+                                        anchors.verticalCenter: parent.verticalCenter
+                                        text: [abRow.modelData.size, abRow.modelData.language, abRow.modelData.posted].filter(function(s){return s}).join("   ·   ")
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                                 }
                                 Text {
+                                    id: abInd
+                                    objectName: "biblioAudiobookIndicator_" + abRow.index
                                     anchors.right: parent.right; anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
                                     text: abRow.rowState === "done" ? "✓"
                                         : abRow.rowState === "downloading" ? (Math.round(abCol.abPct*100) + "%")
                                         : abRow.rowState === "resolving" ? "…"
                                         : abRow.rowState === "failed" ? "retry" : "↓"
                                     color: abRow.rowState === "done" ? theme.gold : (abRowMa.containsMouse ? theme.gold : theme.inkDimmer)
-                                    font.family: theme.ui; font.pixelSize: (abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize((abRow.rowState === "downloading" || abRow.rowState === "failed") ? 12 : 16)
                                 }
                                 MouseArea { id: abRowMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                     onClicked: {
@@ -1255,7 +1291,7 @@ Item {
                         }
                     }
                 }
-            }
+                        }
         }
     }
 
@@ -1300,12 +1336,12 @@ Item {
                 spacing: 14
                 Text {
                     text: "Choose an edition"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 28
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(28)
                 }
                 Text {
                     width: parent.width
                     text: "Read will continue into Reader2 when this exact edition is ready."
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     wrapMode: Text.WordWrap
                 }
                 Repeater {
@@ -1326,15 +1362,15 @@ Item {
                             anchors.right: readChoiceVerb.left; anchors.rightMargin: 14
                             anchors.verticalCenter: parent.verticalCenter; spacing: 3
                             Text { width: parent.width; text: modelData.label || "Edition"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                                 elide: Text.ElideRight }
                             Text { width: parent.width; text: modelData.meta || ""
-                                textFormat: Text.AutoText; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                                textFormat: Text.AutoText; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                 elide: Text.ElideRight }
                         }
                         Text { id: readChoiceVerb; anchors.right: parent.right; anchors.rightMargin: 16
                             anchors.verticalCenter: parent.verticalCenter; text: "Read"
-                            color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
                         MouseArea { id: readChoiceMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: detail.chooseReadSource(modelData) }
                     }
@@ -1343,7 +1379,7 @@ Item {
                     width: readChoiceCol.width; height: 42; radius: 10; color: "transparent"
                     border.width: 1; border.color: theme.edge
                     Text { anchors.centerIn: parent; text: "Cancel"; color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13 }
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: detail.cancelReadChoice() }
                 }

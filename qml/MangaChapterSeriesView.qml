@@ -7,8 +7,9 @@ import "MangaChapterGrouping.js" as Grouping
 
 Item {
     id: root
+    AdaptiveLayout { id: detailLayout; page: root }
     objectName: "mangaChapterSeriesView"
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    readonly property bool phoneNarrow: detailLayout.phoneLayout
 
     property Item backdrop
     property string seriesId: ""              // canonical Colosseum identity (mal:N)
@@ -72,6 +73,13 @@ Item {
     signal openExtensionsRequested()
 
     function requestExtensions() { root.openExtensionsRequested() }
+    function requestEscape() {
+        if (pagePopup.opened) {
+            pagePopup.close()
+            return true
+        }
+        return sharedHeader.requestEscape()
+    }
     function setPageMenuOpen(open) {
         if (open && root.pageCount > 0) pagePopup.open()
         else pagePopup.close()
@@ -165,7 +173,7 @@ Item {
                     anchors.top: root.phoneNarrow ? parent.top : undefined
                     anchors.topMargin: root.phoneNarrow ? 16 : 0
                     text: "CHAPTERS  " + root.chapters.length
-                    color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 12; font.letterSpacing: 2.2
+                    color: theme.inkDimmer; font.family: theme.display; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.2
                 }
 
                 Item {
@@ -180,7 +188,7 @@ Item {
                     Accessible.role: Accessible.ComboBox
                     Accessible.name: "Chapter page selector"
                     Rectangle { anchors.fill: parent; radius: 17; color: theme.glassTint; border.width: 1; border.color: root.pageMenuOpen ? theme.gold : theme.edge }
-                    Text { anchors.centerIn: parent; text: root.pageSelectorLabel + "  ▾"; color: root.pageMenuOpen ? theme.gold : theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                    Text { anchors.centerIn: parent; text: root.pageSelectorLabel + "  ▾"; color: root.pageMenuOpen ? theme.gold : theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.togglePageMenu() }
                     Keys.onReturnPressed: root.togglePageMenu()
                     Keys.onEnterPressed: root.togglePageMenu()
@@ -213,7 +221,7 @@ Item {
                             anchors.top: root.phoneNarrow ? parent.top : undefined
                             anchors.topMargin: root.phoneNarrow ? 12 : 0
                             text: root.activeRangeLabel
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20); font.weight: Font.DemiBold
                         }
                         Text {
                             anchors.left: parent.left; anchors.leftMargin: root.phoneNarrow ? 16 : 190
@@ -221,7 +229,7 @@ Item {
                             anchors.top: root.phoneNarrow ? parent.top : undefined
                             anchors.topMargin: root.phoneNarrow ? 44 : 0
                             text: root.activeChapterCount + (root.activeChapterCount === 1 ? " chapter" : " chapters")
-                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         }
                         Rectangle {
                             anchors.right: parent.right; anchors.rightMargin: root.phoneNarrow ? 16 : 22
@@ -232,7 +240,7 @@ Item {
                             height: root.phoneNarrow ? 44 : 30; radius: 8
                             color: batchMouse.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: theme.edge
-                            Text { id: batchLabel; anchors.centerIn: parent; text: "↓  Download page"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12 }
+                            Text { id: batchLabel; anchors.centerIn: parent; text: "↓  Download page"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                             MouseArea { id: batchMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: {
                                     if (!root.downloader) return
@@ -306,7 +314,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     text: String(modelData.number !== undefined && modelData.number !== null ? modelData.number : "?")
                                     color: theme.ink; font.family: theme.display
-                                    font.pixelSize: root.phoneNarrow ? 20 : 24; font.weight: Font.DemiBold
+                                    font.pixelSize: theme.fontSize(root.phoneNarrow ? 20 : 24); font.weight: Font.DemiBold
                                 }
                                 Item {
                                     id: thumb
@@ -315,7 +323,7 @@ Item {
                                     width: root.phoneNarrow ? 52 : 100
                                     height: root.phoneNarrow ? 76 : 140
                                     Rectangle { anchors.fill: parent; radius: 6; color: "#15171f"; border.width: 1; border.color: row.dlState === "done" ? Qt.rgba(.94,.77,.29,.5) : theme.edge }
-                                    Text { anchors.centerIn: parent; visible: thumbImage.status !== Image.Ready; text: String(modelData.number || "?"); color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 28 }
+                                    Text { anchors.centerIn: parent; visible: thumbImage.status !== Image.Ready; text: String(modelData.number || "?"); color: theme.inkDimmer; font.family: theme.display; font.pixelSize: theme.fontSize(28) }
                                     Image { id: thumbImage; anchors.fill: parent; anchors.margins: 1; source: row.thumbUrl; visible: status === Image.Ready; fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true; sourceSize.width: 280 }
                                 }
                                 Column {
@@ -328,7 +336,7 @@ Item {
                                         text: row.chapterLabel
                                         color: rowMouse.containsMouse ? theme.gold : theme.ink
                                         font.family: theme.ui
-                                        font.pixelSize: root.phoneNarrow ? 14 : 17
+                                        font.pixelSize: theme.fontSize(root.phoneNarrow ? 14 : 17)
                                         font.weight: Font.DemiBold
                                         wrapMode: root.phoneNarrow ? Text.Wrap : Text.NoWrap
                                         elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
@@ -341,7 +349,7 @@ Item {
                                             : row.dlState === "downloading" ? (row.dlTotal > 0 ? ("Downloading " + Math.round(row.dlDone / row.dlTotal * 100) + "%") : "Downloading…")
                                             : row.dlState === "error" ? "Failed · Retry" : "Available"
                                         color: row.dlState === "done" ? theme.gold : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
-                                        font.family: theme.ui; font.pixelSize: 12
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                     }
                                 }
                                 Item {
@@ -356,7 +364,7 @@ Item {
                                         text: row.dlState === "done" ? (trailingMouse.containsMouse ? "✕" : "✓")
                                             : row.inFlight ? "✕" : row.dlState === "error" ? "↻" : "↓"
                                         color: row.dlState === "done" ? theme.gold : (trailingMouse.containsMouse ? theme.gold : theme.inkDim)
-                                        font.pixelSize: 16
+                                        font.pixelSize: theme.fontSize(16)
                                     }
                                     MouseArea {
                                         id: trailingMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; z: 3
@@ -395,7 +403,7 @@ Item {
                             wrapMode: root.phoneNarrow ? Text.WordWrap : Text.NoWrap
                             text: root.loading ? "Loading chapters..." : (root.errorText.length ? root.errorText : "No chapters available")
                             color: root.errorText.length ? "#e6a3a3" : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 14
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                         }
                         Rectangle {
                             visible: root.extensionGateVisible
@@ -408,7 +416,7 @@ Item {
                                 anchors.centerIn: parent
                                 text: "Open Extensions"
                                 color: extensionsMouse.containsMouse ? theme.gold : theme.ink
-                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                             }
                             MouseArea {
                                 id: extensionsMouse
@@ -471,7 +479,7 @@ Item {
                     text: "Page " + (index + 1)
                     color: index === root.currentPageIndex ? theme.gold : theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                 }
                 MouseArea {
                     id: pageOptionMouse

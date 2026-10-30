@@ -4,8 +4,10 @@ import QtQuick.Effects
 
 Item {
     id: root
+    AdaptiveLayout { id: detailLayout; page: root }
     objectName: "mangaSeriesSharedHeader"
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    readonly property bool phoneNarrow: detailLayout.phoneLayout
+    readonly property real detailInset:phoneNarrow ? detailLayout.pageMargin : theme.margin
     height: root.phoneNarrow ? chrome.height + hero.height : 263
 
     property bool tankobanMode: true
@@ -43,6 +45,13 @@ Item {
         return -1
     }
 
+    function requestEscape() {
+        if (!languageCombo.popup.visible)
+            return false
+        languageCombo.popup.close()
+        return true
+    }
+
     function toggleLibrary() {
         if (!root.libraryAvailable) return
         var id = String(root.collectionEntry.id)
@@ -65,7 +74,7 @@ Item {
         BackAction {
             id: sharedHeaderBack
             objectName: root.tankobanMode ? "tankobanReadingRoomBack" : "mangaChapterSeriesBack"
-            x: theme.margin
+            x: root.detailInset
             anchors.verticalCenter: parent.verticalCenter
             activeFocusOnTab: true
             onTriggered: root.backRequested()
@@ -74,11 +83,11 @@ Item {
             anchors.centerIn: parent
             text: "Tankoban"
             color: "#deddd8"
-            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
         }
         Row {
             visible: !root.phoneNarrow && Qt.platform.os !== "android"
-            anchors.right: parent.right; anchors.rightMargin: theme.margin
+            anchors.right: parent.right; anchors.rightMargin: root.detailInset
             anchors.verticalCenter: parent.verticalCenter; spacing: 8
             Item {
                 width: 36; height: 36; activeFocusOnTab: true
@@ -108,11 +117,20 @@ Item {
             }
         }
     }
-    Item {
+    MediaDetailScaffold {
+        pageOwner:root
+        coverItem:phoneCover
+        summaryItem:titleBlock
+        manageDesktop:false
+        compactCoverWidth:112
+        compactCoverHeight:168
+        contentTop:12
+        contentInset:root.detailInset
+
         id: hero
         anchors.top: chrome.bottom; anchors.left: parent.left; anchors.right: parent.right
         height: root.phoneNarrow
-            ? Math.max(205, synopsisText.y + (synopsisText.visible ? synopsisText.height : 0) + 24)
+            ? Math.max(205, languageSelector.y + languageSelector.height + 24)
             : 205
         clip: true
         Image {
@@ -155,7 +173,7 @@ Item {
                 visible: phoneCoverImage.status !== Image.Ready
                 text: root.seriesTitle
                 color: theme.inkDim
-                font.family: theme.display; font.pixelSize: 17
+                font.family: theme.display; font.pixelSize: theme.fontSize(17)
                 wrapMode: Text.Wrap
                 horizontalAlignment: Text.AlignHCenter
                 verticalAlignment: Text.AlignVCenter
@@ -163,13 +181,13 @@ Item {
         }
         Column {
             id: titleBlock
-            anchors.left: parent.left; anchors.leftMargin: theme.margin
-            anchors.right: root.phoneNarrow ? parent.right : undefined
-            anchors.rightMargin: root.phoneNarrow ? theme.margin : 0
-            anchors.top: root.phoneNarrow ? phoneCover.bottom : parent.top
+            anchors.left: root.phoneNarrow ? undefined : parent.left; anchors.leftMargin: root.detailInset
+            anchors.right: undefined
+            anchors.rightMargin: root.phoneNarrow ? root.detailInset : 0
+            anchors.top: root.phoneNarrow ? undefined : parent.top
             anchors.topMargin: root.phoneNarrow ? 14 : 22
             spacing: 5
-            Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
+            Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 2.4 }
             Row {
                 id: titleRow
                 spacing: 10
@@ -177,7 +195,7 @@ Item {
                 Text {
                     id: titleText
                     text: root.seriesTitle; color: theme.ink; font.family: theme.display
-                    font.pixelSize: root.phoneNarrow ? 30 : 34; font.weight: Font.DemiBold
+                    font.pixelSize: theme.fontSize(root.phoneNarrow ? 30 : 34); font.weight: Font.DemiBold
                     wrapMode: root.phoneNarrow ? Text.WordWrap : Text.NoWrap
                     elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
                     width: root.phoneNarrow
@@ -188,7 +206,7 @@ Item {
                 Item {
                     id: libraryIconButton
                     objectName: "mangaSeriesLibraryButton"
-                    width: 36; height: 36
+                    width:detailLayout.touch ? detailLayout.touchTargetSize : 36; height:width
                     visible: root.libraryAvailable
                     activeFocusOnTab: visible
                     Accessible.role: Accessible.Button
@@ -220,36 +238,36 @@ Item {
             Row {
                 visible: !root.phoneNarrow
                 spacing: 7
-                Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                 Text { visible: root.author.length > 0 && root.status.length > 0; text: "·"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
-                Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-                Text { visible: root.year > 0; text: "· " + root.year; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-                Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                Text { visible: root.year > 0; text: "· " + root.year; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
             }
         }
 
         Flow {
             id: phoneFacts
             visible: root.phoneNarrow
-            anchors.left: parent.left; anchors.leftMargin: theme.margin
-            anchors.right: parent.right; anchors.rightMargin: theme.margin
-            anchors.top: languageSelector.bottom; anchors.topMargin: 14
+            anchors.left: parent.left; anchors.leftMargin: root.detailInset
+            anchors.right: parent.right; anchors.rightMargin: root.detailInset
+            anchors.top: titleBlock.bottom; anchors.topMargin: 14
             spacing: 9
-            Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-            Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-            Text { visible: root.year > 0; text: String(root.year); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
-            Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+            Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+            Text { visible: root.year > 0; text: String(root.year); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+            Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
         }
 
         Text {
             id: synopsisText
-            anchors.left: parent.left; anchors.leftMargin: theme.margin
+            anchors.left: parent.left; anchors.leftMargin: root.detailInset
             anchors.right: parent.right
-            anchors.rightMargin: root.phoneNarrow ? theme.margin : 300
+            anchors.rightMargin: root.phoneNarrow ? root.detailInset : 300
             anchors.top: root.phoneNarrow ? phoneFacts.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 14 : 111
             text: root.synopsis
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.45
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); lineHeight: 1.45
             wrapMode: Text.WordWrap
             maximumLineCount: root.phoneNarrow ? 1000 : 2
             elide: root.phoneNarrow ? Text.ElideNone : Text.ElideRight
@@ -262,13 +280,13 @@ Item {
             id: languageSelector
             objectName: "mangaLanguageSelector"
             anchors.left: root.phoneNarrow ? parent.left : undefined
-            anchors.leftMargin: theme.margin
+            anchors.leftMargin: root.detailInset
             anchors.right: root.phoneNarrow ? undefined : parent.right
-            anchors.rightMargin: theme.margin
+            anchors.rightMargin: root.detailInset
             anchors.top: root.phoneNarrow ? modeSwitch.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 10 : 76
-            width: root.phoneNarrow ? hero.width - 2 * theme.margin : 258
-            height: root.phoneNarrow ? 40 : 36
+            width: root.phoneNarrow ? hero.width - 2 * root.detailInset : 258
+            height:detailLayout.touch ? detailLayout.touchTargetSize+8 : 36
             radius: 10; z: 11
             color: Qt.rgba(.06,.065,.075,.92)
             border.width: 1; border.color: theme.edge
@@ -276,14 +294,14 @@ Item {
                 anchors.left: parent.left; anchors.leftMargin: 12
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Language"; color: root.tankobanMode ? theme.inkDimmer : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
             ComboBox {
                 id: languageCombo
                 objectName: "mangaLanguageCombo"
                 anchors.right: parent.right; anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
-                width: 166; height: 28
+                width: 166; height: detailLayout.touch ? detailLayout.touchTargetSize : 28
                 model: root.chapterLanguages
                 textRole: "label"
                 enabled: !root.tankobanMode
@@ -299,7 +317,7 @@ Item {
                     leftPadding: 10; rightPadding: 24; verticalAlignment: Text.AlignVCenter
                     text: languageCombo.displayText
                     color: languageCombo.enabled ? theme.ink : theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight
                 }
                 indicator: Text {
                     x: languageCombo.width - width - 9; anchors.verticalCenter: parent.verticalCenter
@@ -325,13 +343,13 @@ Item {
             id: modeSwitch
             objectName: "mangaSeriesModeSwitch"
             anchors.left: root.phoneNarrow ? parent.left : undefined
-            anchors.leftMargin: theme.margin
+            anchors.leftMargin: root.detailInset
             anchors.right: root.phoneNarrow ? undefined : parent.right
-            anchors.rightMargin: theme.margin
-            anchors.top: root.phoneNarrow ? titleBlock.bottom : parent.top
+            anchors.rightMargin: root.detailInset
+            anchors.top: root.phoneNarrow ? (synopsisText.visible ? synopsisText.bottom : phoneFacts.bottom) : parent.top
             anchors.topMargin: root.phoneNarrow ? 12 : 31
-            width: root.phoneNarrow ? hero.width - 2 * theme.margin : 258
-            height: root.phoneNarrow ? 44 : 36
+            width: root.phoneNarrow ? hero.width - 2 * root.detailInset : 258
+            height: detailLayout.touch ? detailLayout.touchTargetSize+8 : 36
             radius: 10; z: 10
             color: Qt.rgba(.06,.065,.075,.92)
             border.width: 1; border.color: theme.edge
@@ -339,16 +357,16 @@ Item {
                 anchors.centerIn: parent
                 Rectangle {
                     objectName: "mangaModeTankoban"
-                    width: 125; height: 28; radius: 7
+                    width:root.phoneNarrow ? (modeSwitch.width-8)/2 : 125; height:detailLayout.touch ? detailLayout.touchTargetSize : 28; radius:7
                     color: root.tankobanMode ? theme.gold : "transparent"
-                    Text { anchors.centerIn: parent; text: "Tankoban Mode"; color: root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: root.tankobanMode ? Font.DemiBold : Font.Normal }
+                    Text { anchors.centerIn: parent; text: "Tankoban Mode"; color: root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: root.tankobanMode ? Font.DemiBold : Font.Normal }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.tankobanRequested() }
                 }
                 Rectangle {
                     objectName: "mangaModeChapter"
-                    width: 125; height: 28; radius: 7
+                    width:root.phoneNarrow ? (modeSwitch.width-8)/2 : 125; height:detailLayout.touch ? detailLayout.touchTargetSize : 28; radius:7
                     color: !root.tankobanMode ? theme.gold : "transparent"
-                    Text { anchors.centerIn: parent; text: "Chapter Mode"; color: !root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: !root.tankobanMode ? Font.DemiBold : Font.Normal }
+                    Text { anchors.centerIn: parent; text: "Chapter Mode"; color: !root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: !root.tankobanMode ? Font.DemiBold : Font.Normal }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chapterRequested() }
                 }
             }

@@ -1,6 +1,5 @@
-// >>> PARKED 2026-07-12 (Hemanth: GetComics = brain AND content). No door routes here —
-// >>> the live comic page is ComicSeries.qml (the GetComics shelf). Revive with LOCG
-// >>> when an RCO/Batcave-class source restores the catalogue split. Do not delete.
+// Main.openComicSeries routes LOCG catalogue titles here. GetComics/DCAU entries
+// use the peer ComicSeries.qml page through Main.openGcdSeries.
 // ComicSeriesPage — the comic series detail page (Tankoban mode): LOCG catalogue issue rows
 // with GetComics content attached. The LOCG catalogue is the brain (issue list, never
 // dark); GetComics attaches downloadable archives onto those rows via ComicResolve.
@@ -23,11 +22,16 @@ import "ComicsDb.js" as ComicsDb
 
 Item {
     id: page
+    AdaptiveLayout { id: detailLayout; page: page }
+    objectName: "locgComicSeriesPage"
     focus: true
     activeFocusOnTab: true
     property Item backdrop
     property string seriesTitle: ""
     property string cover: ""
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneNarrow: detailLayout.phoneLayout
+    readonly property real contentMargin: phoneNarrow ? 20 : theme.margin
 
     signal backRequested()
     signal minimizeRequested()
@@ -201,7 +205,9 @@ Item {
 
     // ---- window controls (minimize / power) ----
     Row {
+        objectName: "locgComicDesktopWindowControls"
         z: 30
+        visible: !page.androidHost
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
         Item {
@@ -264,8 +270,8 @@ Item {
 
         Column {
             id: pageCol
-            x: theme.margin; y: 96
-            width: parent.width - theme.margin * 2
+            x: page.contentMargin; y: 96
+            width: parent.width - page.contentMargin * 2
             spacing: 26
 
             // No Ratings & Reviews action here: comics are outside the admitted
@@ -302,90 +308,143 @@ Item {
             }
 
             // ===== hero (live-flow fallback when the series isn't in the DB) =====
-            Row {
+            MediaDetailScaffold {
+                pageOwner:page
+                coverItem:coverArt
+                summaryItem:heroDetailsBox
+                footerPadding:0
+                centerCover:false
+                desktopCoverWidth:196; desktopCoverHeight:294
+                compactCoverWidth:128; compactCoverHeight:192
+                desktopColumnGap:34; compactRowGap:18
+                objectName: "locgComicHeroContent"
                 visible: !page.dbSeries
-                spacing: 34
+                width: parent.width
+
                 Rectangle {
-                    width: 196; height: 294; radius: 10
-                    color: "#15171f"; border.width: 1; border.color: theme.edge
+                    id: coverArt
+                    width: page.phoneNarrow ? Math.min(128, parent.width) : 196
+                    height: page.phoneNarrow ? width * 1.5 : 294
+                    radius: 10
+                    color: "#15171f"
+                    border.width: 1
+                    border.color: theme.edge
                     clip: true
                     Image {
-                        anchors.fill: parent; anchors.margins: 1
-                        source: page.cover; fillMode: Image.PreserveAspectCrop
-                        asynchronous: true; cache: true; sourceSize.width: 400
+                        anchors.fill: parent
+                        anchors.margins: 1
+                        source: page.cover
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        cache: true
+                        sourceSize.width: 400
                         visible: status === Image.Ready
                     }
                     Text {
-                        anchors.centerIn: parent; visible: page.cover.length === 0
-                        text: "Comics"; color: theme.inkDimmer
-                        font.family: theme.display; font.pixelSize: 26
+                        anchors.centerIn: parent
+                        visible: page.cover.length === 0
+                        text: "Comics"
+                        color: theme.inkDimmer
+                        font.family: theme.display
+                        font.pixelSize: theme.fontSize(page.phoneNarrow ? 22 : 26)
                     }
                 }
-                Column {
-                    anchors.verticalCenter: parent.verticalCenter
-                    spacing: 14
-                    width: pageCol.width - 196 - 34
-                    Text {
-                        text: "Comics · Tankoban"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: 11
-                        font.letterSpacing: 3; font.capitalization: Font.AllUppercase
-                    }
-                    Text {
+                Item {
+                    id: heroDetailsBox
+                    width: page.phoneNarrow ? parent.width : pageCol.width - 196 - 34
+                    height: Math.max(coverArt.height, heroDetails.implicitHeight)
+                    Column {
+                        id: heroDetails
+                        anchors.verticalCenter: parent.verticalCenter
                         width: parent.width
-                        text: page.seriesTitle
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 48
-                        font.weight: Font.DemiBold
-                        wrapMode: Text.WordWrap; maximumLineCount: 3; elide: Text.ElideRight
-                    }
-                    Text {
-                        text: page.metaLine()
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 15
-                    }
-                    // Continue affordance
-                    Rectangle {
-                        visible: !!page.resumeRec && !!page.resumeRec.resume
-                        width: contRow.implicitWidth + 36; height: 40; radius: 9
-                        color: theme.gold
-                        Row {
-                            id: contRow; anchors.centerIn: parent; spacing: 10
-                            Text { text: "▸"; color: "#1a1306"; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
-                            Text { text: "Continue"; color: "#1a1306"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
-                            Text {
-                                visible: !!page.resumeRec && !!page.resumeRec.resume
-                                text: {
-                                    var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : ({})
-                                    return r.chapterLabel ? r.chapterLabel : "Resume"
+                        spacing: page.phoneNarrow ? 10 : 14
+                        Text {
+                            text: "Comics · Tankoban"
+                            color: theme.gold
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(11)
+                            font.letterSpacing: 3
+                            font.capitalization: Font.AllUppercase
+                        }
+                        Text {
+                            objectName: "locgComicHeroTitle"
+                            width: parent.width
+                            text: page.seriesTitle
+                            color: theme.ink
+                            font.family: theme.display
+                            font.pixelSize: theme.fontSize(page.phoneNarrow ? 34 : 48)
+                            font.weight: Font.DemiBold
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: page.phoneNarrow ? 4 : 3
+                            elide: Text.ElideRight
+                        }
+                        Text {
+                            width: parent.width
+                            text: page.metaLine()
+                            color: theme.inkDim
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(15)
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
+                        }
+                        // Continue affordance
+                        Rectangle {
+                            visible: !!page.resumeRec && !!page.resumeRec.resume
+                            width: contRow.implicitWidth + 36
+                            height: 40
+                            radius: 9
+                            color: theme.gold
+                            Row {
+                                id: contRow
+                                anchors.centerIn: parent
+                                spacing: 10
+                                Text { text: "▸"; color: "#1a1306"; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                                Text { text: "Continue"; color: "#1a1306"; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                                Text {
+                                    visible: !!page.resumeRec && !!page.resumeRec.resume
+                                    text: {
+                                        var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : ({})
+                                        return r.chapterLabel ? r.chapterLabel : "Resume"
+                                    }
+                                    color: Qt.rgba(0.1, 0.075, 0.02, 0.66)
+                                    font.family: theme.ui
+                                    font.pixelSize: theme.fontSize(13)
+                                    anchors.verticalCenter: parent.verticalCenter
                                 }
-                                color: Qt.rgba(0.1, 0.075, 0.02, 0.66); font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter
+                            }
+                            MouseArea {
+                                anchors.fill: parent
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: {
+                                    var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
+                                    if (r && r.chapterId) { page.openChapterId = r.chapterId; page.openChapterLabel = r.chapterLabel || "" }
+                                }
+                            }
+                            KeyboardAction {
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                focusEnabled: visible
+                                accessibleName: "Continue reading " + page.seriesTitle
+                                onTriggered: {
+                                    var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
+                                    if (r && r.chapterId) { page.openChapterId = r.chapterId; page.openChapterLabel = r.chapterLabel || "" }
+                                }
                             }
                         }
-                        MouseArea {
-                            anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                            onClicked: {
-                                var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
-                                if (r && r.chapterId) { page.openChapterId = r.chapterId; page.openChapterLabel = r.chapterLabel || "" }
-                            }
+                        Text {
+                            visible: page.errorMsg.length > 0
+                            width: parent.width
+                            text: page.errorMsg
+                            color: "#e6a3a3"
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(14)
+                            wrapMode: Text.WordWrap
                         }
-                        KeyboardAction {
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            focusEnabled: visible
-                            accessibleName: "Continue reading " + page.seriesTitle
-                            onTriggered: {
-                                var r = page.resumeRec && page.resumeRec.resume ? page.resumeRec.resume : null
-                                if (r && r.chapterId) { page.openChapterId = r.chapterId; page.openChapterLabel = r.chapterLabel || "" }
-                            }
+                        LibraryButton {
+                            world: "tankoban"
+                            entry: page.collectionEntry()
                         }
-                    }
-                    Text {
-                        visible: page.errorMsg.length > 0
-                        text: page.errorMsg
-                        color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 14
-                    }
-
-                    LibraryButton {
-                        world: "tankoban"
-                        entry: page.collectionEntry()
                     }
                 }
             }
@@ -409,9 +468,9 @@ Item {
                         Row {
                             anchors.left: parent.left; anchors.leftMargin: 24
                             anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                            Text { text: "Issues"; color: theme.ink; font.family: theme.display; font.pixelSize: 20; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "Issues"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20); anchors.verticalCenter: parent.verticalCenter }
                             Text { text: page.gcIssueRows.length + " issues · #1 first"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter }
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
                     }
@@ -508,7 +567,7 @@ Item {
                                 clip: true
                                 Text { anchors.centerIn: parent; visible: thumbImg.status !== Image.Ready
                                     text: (row.modelData.label || "").replace(/[^0-9]/g, "") || "#"
-                                    color: theme.inkDimmer; font.family: theme.display; font.pixelSize: 17 }
+                                    color: theme.inkDimmer; font.family: theme.display; font.pixelSize: theme.fontSize(17) }
                                 Image { id: thumbImg; anchors.fill: parent; anchors.margins: 1
                                     source: row.thumbUrl; visible: status === Image.Ready
                                     fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true
@@ -523,11 +582,11 @@ Item {
                                 Text { width: parent.width; text: row.modelData.label || ""
                                     color: rowMa.containsMouse && !row.gcUnmatched ? theme.gold : theme.ink
                                     opacity: row.gcUnmatched ? 0.45 : 1.0
-                                    font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(16); elide: Text.ElideRight }
                                 Text { width: parent.width; text: row.statusLine(); visible: text.length > 0
                                     color: row.dlState === "done" ? theme.gold
                                          : (row.dlState === "error" ? "#e6a3a3" : theme.inkDim)   // dead → dim, informational
-                                    font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight }
                             }
 
                             // date (right-aligned, before the trailing action)
@@ -536,7 +595,7 @@ Item {
                                 anchors.right: trailing.left; anchors.rightMargin: 16
                                 anchors.verticalCenter: parent.verticalCenter
                                 text: row.dlState === "none" ? (row.modelData.date || "") : ""
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
 
                             // trailing action glyph
@@ -548,7 +607,7 @@ Item {
                                 Text { anchors.centerIn: parent
                                     text: (row.gcUnmatched || row.dlState === "dead") ? ""
                                         : (row.dlState === "done" ? "▸" : (row.inFlight ? "…" : "↓"))
-                                    color: theme.inkDim; font.pixelSize: 18 }
+                                    color: theme.inkDim; font.pixelSize: theme.fontSize(18) }
                             }
 
                             // gold progress line while downloading
@@ -595,9 +654,9 @@ Item {
                         Row {
                             anchors.left: parent.left; anchors.leftMargin: 24
                             anchors.verticalCenter: parent.verticalCenter; spacing: 14
-                            Text { text: "Collected editions"; color: theme.ink; font.family: theme.display; font.pixelSize: 20; anchors.verticalCenter: parent.verticalCenter }
+                            Text { text: "Collected editions"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20); anchors.verticalCenter: parent.verticalCenter }
                             Text { text: ((page.gcMatch && page.gcMatch.collections) || []).length + " on GetComics"
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter }
                         }
                         Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
                     }
@@ -668,11 +727,11 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter; spacing: 4
                                 Text { width: parent.width; text: crow.modelData.name || ""
                                     color: crowMa.containsMouse ? theme.gold : theme.ink
-                                    font.family: theme.ui; font.pixelSize: 16; elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(16); elide: Text.ElideRight }
                                 Text { width: parent.width; text: crow.statusLine(); visible: text.length > 0
                                     color: crow.dlState === "done" ? theme.gold
                                          : (crow.dlState === "error" ? "#e6a3a3" : theme.inkDim)
-                                    font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight }
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); elide: Text.ElideRight }
                             }
                             Item {
                                 id: ctrail
@@ -682,7 +741,7 @@ Item {
                                 Text { anchors.centerIn: parent
                                     text: crow.dlState === "dead" ? ""
                                         : (crow.dlState === "done" ? "▸" : (crow.inFlight ? "…" : "↓"))
-                                    color: theme.inkDim; font.pixelSize: 18 }
+                                    color: theme.inkDim; font.pixelSize: theme.fontSize(18) }
                             }
                             Rectangle {
                                 anchors.bottom: parent.bottom; anchors.left: parent.left
@@ -721,7 +780,7 @@ Item {
         anchors.centerIn: parent
         visible: page.loading
         text: "Loading…"
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
     }
 
     // honest empty state: catalogued, but no reading source carries it yet. This is a LIVE-path-
@@ -731,8 +790,8 @@ Item {
         visible: page.notAvailable && !page.dbSeries
         anchors.centerIn: parent
         spacing: 8
-        Text { text: "Not available from sources yet"; color: "#e8e8e8"; font.pixelSize: 18; anchors.horizontalCenter: parent.horizontalCenter }
-        Text { text: "This series is catalogued, but no reading source carries it."; color: "#9a9a9a"; font.pixelSize: 13; anchors.horizontalCenter: parent.horizontalCenter }
+        Text { text: "Not available from sources yet"; color: "#e8e8e8"; font.pixelSize: theme.fontSize(18); anchors.horizontalCenter: parent.horizontalCenter }
+        Text { text: "This series is catalogued, but no reading source carries it."; color: "#9a9a9a"; font.pixelSize: theme.fontSize(13); anchors.horizontalCenter: parent.horizontalCenter }
     }
 
     // ---- reader overlay: Comics store + comic progress; chapters = newest-first ----

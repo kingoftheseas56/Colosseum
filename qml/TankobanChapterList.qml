@@ -15,6 +15,16 @@ import "MangaChapterGrouping.js" as Grouping
 
 Item {
     id: root
+    property Flickable pageFlick:null
+    readonly property real flowHeight:bar.y+bar.height+scroll.contentHeight
+    function revealRow(item) {
+        const viewport=pageFlick || scroll
+        const point=item.mapToItem(viewport.contentItem,0,0)
+        if (point.y+item.height>viewport.contentY+viewport.height-12)
+            viewport.contentY=Math.max(0,Math.min(viewport.contentHeight-viewport.height,point.y+item.height-viewport.height+12))
+        else if (point.y<viewport.contentY+12)
+            viewport.contentY=Math.max(0,point.y-12)
+    }
     objectName: "mangaChapterSeriesView"
 
     property string seriesId: ""              // canonical Colosseum identity (mal:N)
@@ -103,9 +113,7 @@ Item {
             if (it && it.chapterId === root.focusChapterId) {
                 root.focusChapterId = ""
                 it.takeFocus()
-                var p = it.mapToItem(listCol, 0, 0)
-                if (p.y + it.height > scroll.contentY + scroll.height) scroll.contentY = p.y + it.height - scroll.height + 12
-                else if (p.y < scroll.contentY) scroll.contentY = Math.max(0, p.y - 12)
+                root.revealRow(it)
                 return
             }
         }
@@ -142,12 +150,12 @@ Item {
                 Text {
                     text: root.activeRangeLabel.length ? root.activeRangeLabel : "Chapters"
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
+                    font.family: theme.display; font.pixelSize: theme.fontSize(20); font.weight: Font.DemiBold
                 }
                 Text {
                     text: root.chapters.length.toLocaleString(Qt.locale(), "f", 0) + (root.chapters.length === 1 ? " chapter" : " chapters")
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.3
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.3
                 }
             }
         }
@@ -193,7 +201,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Page " + (root.currentPageIndex + 1) + " of " + root.pageCount
                             color: pageMenu.visible ? theme.gold : theme.ink
-                            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                         }
                         KeyboardAction {
                             objectName: "mangaChapterPageMenu"
@@ -243,7 +251,7 @@ Item {
                     visible: goTo.text.length === 0
                     text: "Go to chapter"
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
                 TextInput {
                     id: goTo
@@ -254,7 +262,7 @@ Item {
                     color: theme.ink
                     selectionColor: theme.gold
                     selectedTextColor: "#111111"
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     validator: RegularExpressionValidator { regularExpression: /[0-9]{0,6}([.][0-9]{0,2})?/ }
                     activeFocusOnTab: true
                     Keys.onReturnPressed: { if (root.goToChapter(text)) text = "" }
@@ -277,7 +285,7 @@ Item {
                     anchors.centerIn: parent
                     text: "↓  Download page"
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                 }
                 KeyboardAction {
                     id: dlPage
@@ -343,7 +351,7 @@ Item {
                             return "Page " + (pageRow.index + 1) + "  ·  " + cs[0].number + "–" + cs[cs.length - 1].number
                         }
                         color: pageRow.index === root.currentPageIndex ? theme.gold : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     }
                     MouseArea {
                         id: pageRowMa
@@ -361,6 +369,7 @@ Item {
     // ---- the chapters of this page ----
     Flickable {
         id: scroll
+        interactive:root.pageFlick === null
         anchors.top: bar.bottom
         anchors.left: parent.left
         anchors.right: parent.right
@@ -369,7 +378,7 @@ Item {
         contentHeight: listCol.height + 110
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: scroll }
+        ScrollBar.vertical: HouseScrollBar { flick: scroll; visible:root.pageFlick === null }
 
         Column {
             id: listCol
@@ -462,7 +471,7 @@ Item {
                         horizontalAlignment: Text.AlignHCenter
                         text: String(row.modelData.number !== undefined && row.modelData.number !== null ? row.modelData.number : "?")
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 22; font.weight: Font.DemiBold
+                        font.family: theme.display; font.pixelSize: theme.fontSize(22); font.weight: Font.DemiBold
                         font.features: { "tnum": 1 }
                     }
                     Item {
@@ -474,7 +483,7 @@ Item {
                                     border.color: row.dlState === "done" ? Qt.rgba(0.94, 0.77, 0.29, 0.5) : theme.edge }
                         Text { anchors.centerIn: parent; visible: thumbImage.status !== Image.Ready
                                text: String(row.modelData.number || "?"); color: theme.inkDimmer
-                               font.family: theme.display; font.pixelSize: 16 }
+                               font.family: theme.display; font.pixelSize: theme.fontSize(16) }
                         Image {
                             id: thumbImage
                             anchors.fill: parent; anchors.margins: 1
@@ -494,7 +503,7 @@ Item {
                             width: parent.width
                             text: row.chapterLabel
                             color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
                         Text {
@@ -506,7 +515,7 @@ Item {
                                 : row.dlState === "downloading" ? (row.dlTotal > 0 ? ("Downloading " + Math.round(row.dlDone / row.dlTotal * 100) + "%") : "Downloading…")
                                 : row.dlState === "error" ? "Failed · press the retry button" : ""
                             color: row.dlState === "done" ? theme.gold : (row.dlState === "error" ? "#e6a3a3" : theme.inkDimmer)
-                            font.family: theme.ui; font.pixelSize: 12
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         }
                     }
 
@@ -538,9 +547,7 @@ Item {
                             }
                         }
                         onActiveFocusChanged: if (activeFocus) {
-                            var p = row.mapToItem(listCol, 0, 0)
-                            if (p.y + row.height > scroll.contentY + scroll.height) scroll.contentY = p.y + row.height - scroll.height + 12
-                            else if (p.y < scroll.contentY) scroll.contentY = Math.max(0, p.y - 12)
+                            root.revealRow(row)
                         }
                     }
                     MouseArea {     // hover is focus; the KeyboardAction below it still owns the click
@@ -566,7 +573,7 @@ Item {
                             text: row.dlState === "done" ? (trailingAction.interactionActive ? "✕" : "✓")
                                 : row.inFlight ? "✕" : row.dlState === "error" ? "↻" : "↓"
                             color: row.dlState === "done" ? theme.gold : (trailingAction.interactionActive ? theme.gold : theme.inkDim)
-                            font.pixelSize: 16
+                            font.pixelSize: theme.fontSize(16)
                         }
                         KeyboardAction {
                             id: trailingAction
@@ -596,7 +603,7 @@ Item {
                         anchors.horizontalCenter: parent.horizontalCenter
                         text: root.loading ? "Loading chapters…" : (root.errorText.length ? root.errorText : "No chapters available")
                         color: root.errorText.length ? "#e6a3a3" : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                     Rectangle {
                         visible: root.extensionGateVisible
@@ -609,7 +616,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Open Extensions"
                             color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                         }
                         KeyboardAction {
                             id: extensionsAction

@@ -34,7 +34,10 @@ import QtQuick
 
 Item {
     id: root
+    AdaptiveLayout { id: detailLayout; page: root }
     objectName: "mangaReadingRoom"
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: detailLayout.phoneLayout
 
     property Item backdrop
     property string seriesId: ""
@@ -84,8 +87,25 @@ Item {
 
     Rectangle { anchors.fill: parent; color: "#050608" }
 
+    Flickable {
+        id: phoneScroll
+        objectName: "readingRoomPhoneScroll"
+        visible: root.phoneLayout
+        anchors.fill: parent
+        contentWidth: width
+        contentHeight: phoneStack.height
+        boundsBehavior: Flickable.StopAtBounds
+        clip: true
+        Item {
+            id: phoneStack
+            width: phoneScroll.width
+            height: sharedHeader.height + collectionSurface.height
+        }
+    }
+
     MangaSeriesSharedHeader {
         id: sharedHeader
+        parent: root.phoneLayout ? phoneStack : root
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         tankobanMode: true
         seriesTitle: root.seriesTitle
@@ -108,7 +128,11 @@ Item {
 
     Item {
         id: collectionSurface
-        anchors.top: sharedHeader.bottom; anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
+        parent: root.phoneLayout ? phoneStack : root
+        anchors.top: sharedHeader.bottom; anchors.left: parent.left; anchors.right: parent.right
+        anchors.bottom: root.phoneLayout ? undefined : parent.bottom
+        height: root.phoneLayout ? Math.max(280, root.height - 64) : 0
+        clip: root.phoneLayout
         anchors.leftMargin: 0; anchors.rightMargin: 0; anchors.topMargin: 0; anchors.bottomMargin: 0
         MangaTankobanLibrary {
             id: tankLib
@@ -126,7 +150,7 @@ Item {
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top; height: 34
             color: Qt.rgba(0.08, 0.04, 0.05, 0.92)
             Text { anchors.fill: parent; anchors.leftMargin: 12; anchors.rightMargin: 12; verticalAlignment: Text.AlignVCenter
-                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight; maximumLineCount: 1 }
+                text: root.errorText; color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: theme.fontSize(12); elide: Text.ElideRight; maximumLineCount: 1 }
         }
     }
 
