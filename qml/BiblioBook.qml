@@ -691,7 +691,7 @@ Item {
                 model: [ { g: "—", a: "min" }, { g: "⛶", a: "fs" }, { g: "⏻", a: "pow" } ]   // min · fullscreen · power (fullscreen rule removed 2026-07-20)
                 delegate: Rectangle {
                     required property var modelData
-                    width: 30; height: 30; radius: 8
+                    width: body.layout.targetSize(30); height: body.layout.targetSize(30); radius: 8
                     color: sysMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
                     Text { anchors.centerIn: parent; text: modelData.g; color: theme.inkDimmer; font.pixelSize: theme.fontSize(14) }
                     MouseArea {
@@ -1013,7 +1013,7 @@ Item {
                         }
                         Item {                                   // See more / See less — only when capped
                             visible: detail.torrents.length > detail.torCap
-                            width: parent.width; height: 46
+                            width: parent.width; height: body.layout.targetSize(46)
                             Rectangle { anchors.top: parent.top; width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.06) }
                             Text {
                                 anchors.centerIn: parent
@@ -1376,7 +1376,7 @@ Item {
                     }
                 }
                 Rectangle {
-                    width: readChoiceCol.width; height: 42; radius: 10; color: "transparent"
+                    width: readChoiceCol.width; height: body.layout.targetSize(42); radius: 10; color: "transparent"
                     border.width: 1; border.color: theme.edge
                     Text { anchors.centerIn: parent; text: "Cancel"; color: theme.inkDim
                         font.family: theme.ui; font.pixelSize: theme.fontSize(13) }

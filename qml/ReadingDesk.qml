@@ -179,7 +179,7 @@ Glass {
                     delegate: Rectangle {
                         required property var modelData
                         required property int index
-                        width: chipText.implicitWidth + 24; height: 26; radius: 13
+                        width: metrics.targetSize(chipText.implicitWidth + 24); height: metrics.targetSize(26); radius: 13
                         color: Qt.rgba(1, 1, 1, 0.06)
                         border.width: genreFlow.activeFocus && genreFlow.currentIndex === index ? 2 : 1
                         border.color: genreFlow.activeFocus && genreFlow.currentIndex === index ? theme.gold
@@ -316,7 +316,7 @@ Glass {
                 model: Catalog.biblioGenres.slice(0, 4)
                 delegate: Rectangle {
                     required property var modelData
-                    width: compactChipText.implicitWidth + 22; height: 28; radius: 14
+                    width: metrics.targetSize(compactChipText.implicitWidth + 22); height: metrics.targetSize(28); radius: 14
                     color: Qt.rgba(1, 1, 1, 0.06)
                     border.width: 1
                     border.color: compactChipHit.containsMouse ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.5) : theme.edge

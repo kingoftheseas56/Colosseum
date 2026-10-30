@@ -35,7 +35,12 @@ Item {
     readonly property bool extensionGateVisible: !root.sourceEnabled
 
     property int currentPageIndex: 0
-    readonly property bool pageMenuOpen: pagePopup.opened
+    readonly property bool pageMenuOpen: detailLayout.touch ? !!(pageChoices.activeSheet && pageChoices.activeSheet.visible) : pagePopup.opened
+    readonly property var activeChoiceSheet:pageChoices.activeSheet
+    PhoneChoiceHost {
+        id:pageChoices
+        onPicked:(purpose,key)=>root.selectPage(Number(key))
+    }
     readonly property int pageSelectorControlCount: 1
     readonly property var groupedResult: Grouping.group(root.chapters || [], root.exactRangeRecord || ({}), root.seriesId)
     readonly property var pageWindows: {
@@ -74,26 +79,36 @@ Item {
 
     function requestExtensions() { root.openExtensionsRequested() }
     function requestEscape() {
-        if (pagePopup.opened) {
-            pagePopup.close()
+        if (pageMenuOpen) {
+            setPageMenuOpen(false)
             return true
         }
         return sharedHeader.requestEscape()
     }
     function setPageMenuOpen(open) {
+        if(detailLayout.touch) {
+            if(open && root.pageCount>0) {
+                const choices=[]
+                for(let index=0;index<root.pageCount;++index)choices.push({key:String(index),text:qsTr("Page %1").arg(index+1)})
+                pageChoices.showChoices(qsTr("Chapter pages"),choices,String(root.currentPageIndex),"page",pageSelector)
+            } else pageChoices.close()
+            return
+        }
         if (open && root.pageCount > 0) pagePopup.open()
         else pagePopup.close()
     }
-    function togglePageMenu() { root.setPageMenuOpen(!pagePopup.opened) }
+    function togglePageMenu() { root.setPageMenuOpen(!pageMenuOpen) }
     function selectPage(index) {
         var i = Math.max(0, Math.min(Number(index), root.pageCount - 1))
         if (!isFinite(i)) i = 0
         root.currentPageIndex = i
+        pageChoices.close()
         pagePopup.close()
     }
     onPageCountChanged: {
         if (root.pageCount <= 0) {
             root.currentPageIndex = 0
+            pageChoices.close()
             pagePopup.close()
         } else if (root.currentPageIndex >= root.pageCount) {
             root.currentPageIndex = root.pageCount - 1
@@ -183,7 +198,7 @@ Item {
                     anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
                     anchors.top: root.phoneNarrow ? parent.top : undefined
                     anchors.topMargin: root.phoneNarrow ? 54 : 0
-                    width: 116; height: root.phoneNarrow ? 44 : 34; z: 20
+                    width: 116; height: detailLayout.targetSize(root.phoneNarrow ? 44 : 34); z: 20
                     activeFocusOnTab: true
                     Accessible.role: Accessible.ComboBox
                     Accessible.name: "Chapter page selector"
@@ -236,8 +251,8 @@ Item {
                             anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
                             anchors.top: root.phoneNarrow ? parent.top : undefined
                             anchors.topMargin: root.phoneNarrow ? 76 : 0
-                            width: batchLabel.implicitWidth + 28
-                            height: root.phoneNarrow ? 44 : 30; radius: 8
+                            width: detailLayout.targetSize(batchLabel.implicitWidth + 28)
+                            height: detailLayout.targetSize(root.phoneNarrow ? 44 : 30); radius: 8
                             color: batchMouse.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: theme.edge
                             Text { id: batchLabel; anchors.centerIn: parent; text: "↓  Download page"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
@@ -356,8 +371,8 @@ Item {
                                     id: trailing
                                     anchors.right: parent.right; anchors.rightMargin: root.phoneNarrow ? 12 : 22
                                     anchors.verticalCenter: parent.verticalCenter
-                                    width: root.phoneNarrow ? 44 : 38
-                                    height: root.phoneNarrow ? 44 : 38
+                                    width: detailLayout.targetSize(root.phoneNarrow ? 44 : 38)
+                                    height: detailLayout.targetSize(root.phoneNarrow ? 44 : 38)
                                     Rectangle { anchors.fill: parent; radius: 19; color: trailingMouse.containsMouse ? theme.glassHi : "transparent" }
                                     Text {
                                         anchors.centerIn: parent
@@ -408,7 +423,7 @@ Item {
                         Rectangle {
                             visible: root.extensionGateVisible
                             anchors.horizontalCenter: parent.horizontalCenter
-                            width: extensionsLabel.implicitWidth + 32; height: 34; radius: 17
+                            width: detailLayout.targetSize(extensionsLabel.implicitWidth + 32); height: detailLayout.targetSize(34); radius: 17
                             color: extensionsMouse.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: extensionsMouse.containsMouse ? theme.gold : theme.edge
                             Text {
@@ -467,7 +482,7 @@ Item {
             delegate: Rectangle {
                 required property int index
                 width: pageList.width
-                height: 36
+                height: detailLayout.targetSize(36)
                 radius: 7
                 color: index === root.currentPageIndex
                     ? theme.glassHi

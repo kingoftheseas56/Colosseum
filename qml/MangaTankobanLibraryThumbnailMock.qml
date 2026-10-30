@@ -18,6 +18,7 @@ import QtQuick
 import "MangaVolumes.js" as Vol
 
 Item {
+    AdaptiveLayout { id:touchLayoutMetrics;page:root }
     id: root
     property Flickable pageFlick:null
     readonly property real flowHeight:volumeGrid.contentHeight
@@ -1132,8 +1133,8 @@ Item {
                                     }
 
                                     Item {
-                                        width: 38
-                                        height: 38
+                                        width: touchLayoutMetrics.targetSize(38)
+                                        height: touchLayoutMetrics.targetSize(38)
 
                                         Rectangle {
                                             anchors.fill: parent
@@ -1256,7 +1257,7 @@ Item {
         height: 42; width: selectedText.implicitWidth + downloadSelectedText.implicitWidth + 58; radius: 10
         color: Qt.rgba(0.03, 0.035, 0.045, 0.96); border.width: 1; border.color: theme.edge
         Text { id: selectedText; anchors.left: parent.left; anchors.leftMargin: 16; anchors.verticalCenter: parent.verticalCenter; text: root.selectedNumbers.length + " selected"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
-        Rectangle { anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter; width: downloadSelectedText.implicitWidth + 20; height: 30; radius: 7; color: theme.gold
+        Rectangle { anchors.right: parent.right; anchors.rightMargin: 6; anchors.verticalCenter: parent.verticalCenter; width: touchLayoutMetrics.targetSize(downloadSelectedText.implicitWidth + 20); height: touchLayoutMetrics.targetSize(30); radius: 7; color: theme.gold
             Text { id: downloadSelectedText; anchors.centerIn: parent; text: "Download selected"; color: "#171205"; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold }
             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.downloadSelected() }
         }

@@ -521,7 +521,7 @@ SettingsScaffold {
 
                 delegate: Rectangle {
                     required property var modelData
-                    width: compactLabel.implicitWidth + 40
+                    width: root.layout.targetSize(compactLabel.implicitWidth + 40)
                     height: compactSections.height
                     radius: 9
                     color: root.activeSection === modelData.id
@@ -564,7 +564,7 @@ SettingsScaffold {
                 id: backAction
                 x: root.compactPhoneLayout ? 16 : 34
                 y: root.compactPhoneLayout ? 60 : 30
-                width: root.compactPhoneLayout ? Math.max(48, implicitWidth + 16) : implicitWidth
+                width: root.layout.targetSize(root.compactPhoneLayout ? Math.max(48, implicitWidth + 16) : implicitWidth)
                 height: root.compactPhoneLayout ? 48 : implicitHeight
                 text: qsTr("‹ Back")
                 color: backAction.activeFocus || backMa.containsMouse

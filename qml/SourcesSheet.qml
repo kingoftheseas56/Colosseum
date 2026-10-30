@@ -509,8 +509,8 @@ Item {
                 property bool on: sheet.qualityFilter === pill.modelData
                 property int n: sheet.countFor(pill.modelData)
                 visible: n > 0 || pill.modelData === "all"
-                width: pillRow.implicitWidth + (sheet.phoneLayout ? 24 : 36)
-                height: sheet.phoneLayout ? 48 : 40; radius: height / 2
+                width: layout.targetSize(pillRow.implicitWidth + (sheet.phoneLayout ? 24 : 36))
+                height: layout.targetSize(sheet.phoneLayout ? 48 : 40); radius: height / 2
                 color: pill.on ? theme.gold : (pMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05))
                 border.width: pills.activeFocus && pills.currentIndex === index ? 2 : (pill.on ? 0 : 1)
                 border.color: pills.activeFocus && pills.currentIndex === index ? theme.gold : theme.edge
@@ -608,8 +608,8 @@ Item {
                      && sheet.rowCount === 0 && sheet.askedCount === 0
             anchors.top: emptyText.bottom; anchors.topMargin: 12
             anchors.horizontalCenter: parent.horizontalCenter
-            width: Math.max(112, extensionsActionLabel.implicitWidth + 32)
-            height: sheet.phoneLayout ? 48 : 44; radius: height / 2
+            width: layout.targetSize(Math.max(112, extensionsActionLabel.implicitWidth + 32))
+            height: layout.targetSize(sheet.phoneLayout ? 48 : 44); radius: height / 2
             color: extensionsActionKeyboard.interactionActive ? theme.glassHi : "transparent"
             border.width: 1; border.color: theme.gold
             Text {
@@ -689,8 +689,8 @@ Item {
                 // Slice 7 flips this when a series pre-picks the source that worked last episode.
                 property bool preselected: false
                 width: ListView.view.width
-                height: sheet.phoneLayout ? Math.max(44, mobileContent.implicitHeight)
-                    : (codecUnsupported ? 168 : 150)
+                height:layout.targetSize(sheet.phoneLayout ? Math.max(44,mobileContent.implicitHeight)
+                    : (codecUnsupported ? 168 : 150))
 
                 Rectangle { anchors.fill: parent; color: list.activeFocus && list.currentIndex === row.index
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.08)
@@ -938,7 +938,7 @@ Item {
                 model: sheet.sourceContextOptions()
                 delegate: Rectangle {
                     required property string modelData; required property int index
-                    width: sourceContextCol.width; height: 36; radius: 8
+                    width: sourceContextCol.width; height: layout.targetSize(36); radius: 8
                     color: sourceContextFocus.activeFocus && sheet.sourceContextChoice === index ? Qt.rgba(1,1,1,0.11) : "transparent"
                     Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: sheet.activateSourceContext(index) }

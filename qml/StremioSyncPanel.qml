@@ -283,8 +283,8 @@ SettingsScaffold {
         property bool primary: false
         signal triggered()
         function focusInput() { actionInput.forceActiveFocus(Qt.PopupFocusReason) }
-        width: labelText.implicitWidth + 30
-        height: root.compactPhoneLayout ? 48 : 42
+        width: root.layout.targetSize(labelText.implicitWidth + 30)
+        height: root.layout.targetSize(root.compactPhoneLayout ? 48 : 42)
         radius: 10
         color: primary ? theme.gold : Qt.rgba(1, 1, 1, 0.06)
         border.width: primary ? 0 : 1

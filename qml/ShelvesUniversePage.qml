@@ -730,7 +730,7 @@ UniverseScaffold {
                            : root.gutter + 118 * Math.max(0, Math.min(1, (120 - ride) / 50))
         y: root.shortPhone ? 22 : Math.max(22, ride)
         width: root.phoneLayout
-               ? Math.min(tabRow.implicitWidth + 8, Math.max(0, root.width-x-(root.shortPhone ? root.chromeReservedWidth+12 : root.universeInset)))
+               ? Math.min(tabRow.implicitWidth+8,Math.max(0,root.width-x-root.universeInset))
                : tabRow.width + 8
         height: root.layout.touch ? 56 : 46
         UniverseShelfViewport {

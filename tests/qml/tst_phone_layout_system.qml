@@ -25,6 +25,16 @@ TestCase {
         App.AdaptiveLayout { touch: true; viewportHeight: 900 }
     }
     Component {
+        id:touchOwnerComponent
+        App.BrowseScaffold {
+            property bool androidHost:true
+            width:400;height:800
+            App.TouchTarget { objectName:"inheritedTouchTarget" }
+            App.TouchComboBox { objectName:"inheritedTouchCombo";y:100;width:200;model:["English","Español"] }
+        }
+    }
+    SignalSpy { id:comboSpy;signalName:"activated" }
+    Component {
         id: sheetComponent
         App.PhoneModalSheet {
             parent: host.contentItem
@@ -110,8 +120,29 @@ TestCase {
         compare(fixture.metrics.layoutClass,"compact-phone")
     }
     function init() {
+        host.width=412;host.height=900;host.androidHost=true
         host.requestActivate()
         tryVerify(function() { return host.active })
+    }
+    function test_touch_parts_inherit_the_page_owner_and_combo_selection() {
+        host.androidHost=false
+        const owner=createTemporaryObject(touchOwnerComponent,host.contentItem)
+        const target=findChild(owner,"inheritedTouchTarget")
+        verify(target.touch && target.width>=48 && target.height>=48)
+        const combo=findChild(owner,"inheritedTouchCombo")
+        comboSpy.target=combo;comboSpy.clear()
+        mouseClick(combo,combo.width/2,combo.height/2)
+        const popup=combo.activePhoneSheet
+        verify(popup!==null)
+        tryCompare(popup,"opened",true)
+        wait(40)
+        compare(popup.width,host.width,"the choice sheet uses the window rather than the small ComboBox")
+        const choice=findChild(popup.contentItem,"touchComboChoice_1")
+        verify(choice!==null && choice.height>=48)
+        mouseClick(choice,choice.width/2,choice.height/2)
+        compare(combo.currentIndex,1)
+        compare(comboSpy.count,1)
+        compare(popup.visible,false)
     }
     function test_sheet_opaque_back_focus_and_outside() {
         previousFocus.forceActiveFocus()

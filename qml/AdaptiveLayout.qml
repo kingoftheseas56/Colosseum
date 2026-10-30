@@ -28,6 +28,7 @@ QtObject {
     property real viewportWidth: page && viewportItem ? Math.min(page.width, viewportItem.width) : 0
     property real viewportHeight: inheritedLayout ? inheritedLayout.viewportHeight : viewportItem ? viewportItem.height : 0
     property bool touch: Qt.platform.os === "android"
+        || !!(inheritedLayout && inheritedLayout.touch)
         || !!(page && page["androidHost"] === true)
         || !!(page && page.Window.window && page.Window.window.androidHost)
     property var safeInsets: page ? page.SafeArea.margins : ({left:0, top:0, right:0, bottom:0})
@@ -52,6 +53,7 @@ QtObject {
     readonly property bool wideWithRail: largeTablet && !shortLandscape
     readonly property bool phoneLayout: touch && (compactChrome || shortLandscape)
     readonly property real touchTargetSize: touch ? TouchMetrics.minimumTargetSize : 0
+    function targetSize(size) { return touch && size>0 ? Math.max(TouchMetrics.minimumTargetSize,size) : size }
     function canFitRail(railWidth) {
         return usableWidth - Math.max(0, railWidth) >= 840 && !shortLandscape
     }

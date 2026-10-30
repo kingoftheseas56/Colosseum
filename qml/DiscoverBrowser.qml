@@ -320,7 +320,7 @@ BrowseScaffold {
         filterPicker.open = false
         catalogFocusReturn = invoker || null
         catalogMenuOpen = true
-        if (browser.phoneNarrow) {
+        if (browser.layout.touch) {
             browser.showChoices(qsTr("Categories"),browser.sourceCatalogs,browser.currentCatalogKey,"catalog",catalogFocusReturn || catalogAction)
             return
         }
@@ -888,7 +888,7 @@ BrowseScaffold {
         Rectangle {
             id: catalogMenu
             objectName: "discoverCatalogMenu"
-            visible: browser.catalogMenuOpen && !browser.phoneNarrow
+            visible: browser.catalogMenuOpen && !browser.layout.touch
             anchors.right: parent.right
             anchors.top: parent.bottom
             anchors.topMargin: 6
@@ -931,7 +931,7 @@ BrowseScaffold {
                     objectName: browser.automationPrefix.length
                                 ? browser.automationPrefix + "DiscoverCategory_" + String(mrow.modelData.key).replace(/[^A-Za-z0-9]/g, "_") : ""
                     width: menuList.width
-                    height: 38
+                    height: browser.layout.targetSize(38)
                     radius: 9
                     color: mrow.sel ? Qt.rgba(240/255, 196/255, 74/255, 0.16)
                          : (mrowMa.containsMouse || mrow.keyboardSelected) ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
@@ -962,7 +962,7 @@ BrowseScaffold {
     MouseArea {
         anchors.fill: parent
         z: 95
-        visible: browser.catalogMenuOpen && !browser.phoneNarrow
+        visible: browser.catalogMenuOpen && !browser.layout.touch
         onClicked: browser.closeCatalogMenu(true)
     }
 
@@ -987,7 +987,7 @@ BrowseScaffold {
             id: phoneSources
             objectName: browser.automationPrefix + "DiscoverSourcesButton"
             visible: browser.phoneNarrow && browser.adapter !== null
-            width: Math.max(80, sourcesLabel.implicitWidth + 24); height: 48; radius: 12
+            width: browser.layout.targetSize(Math.max(80, sourcesLabel.implicitWidth + 24)); height: 48; radius: 12
             color: theme.glassTint
             border.width: 1; border.color: theme.edge
             Text {

@@ -713,7 +713,7 @@ Item {
             visible: sheet.rows.length === 0 && !sheet.sourcesEnabled
             anchors.top: emptyText.bottom; anchors.topMargin: 18
             anchors.horizontalCenter: parent.horizontalCenter
-            width: enableLabel.implicitWidth + 32; height: layout.touch ? layout.touchTargetSize : 40; radius: 20
+            width: layout.targetSize(enableLabel.implicitWidth + 32); height: layout.touch ? layout.touchTargetSize : 40; radius: 20
             color: enableMa.containsMouse ? theme.glassHi : "transparent"
             border.width: 1; border.color: theme.gold
             Text {

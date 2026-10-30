@@ -1222,7 +1222,7 @@ Item {
                     id: moreLink
                     visible: synopsisText.truncated || page.synopsisExpanded
                     anchors.bottom: synopsisText.bottom
-                    width: moreText.implicitWidth + 8
+                    width: detailLayout.targetSize(moreText.implicitWidth + 8)
                     height: detailLayout.touch ? detailLayout.touchTargetSize : 22
                     Text {
                         id: moreText
@@ -1250,7 +1250,7 @@ Item {
                     objectName: "tankobanSeriesPrimaryAction"
                     visible: page.primaryAction === "search" && !page.chapterMode
                     height: detailLayout.touch ? detailLayout.touchTargetSize : 40
-                    width: primaryText.implicitWidth + 36
+                    width: detailLayout.targetSize(primaryText.implicitWidth + 36)
                     radius: 11
                     color: theme.gold
                     Rectangle {
@@ -1350,9 +1350,10 @@ Item {
                     color: theme.inkDimmer
                     font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
-                ComboBox {
+                TouchComboBox {
                     id: languageCombo
                     objectName: "mangaLanguageCombo"
+                    sheetTitle:qsTr("Chapter language")
                     anchors.right: parent.right; anchors.rightMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
                     width: 170; height: detailLayout.touch ? detailLayout.touchTargetSize : 30

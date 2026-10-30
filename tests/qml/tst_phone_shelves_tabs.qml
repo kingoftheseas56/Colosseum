@@ -219,14 +219,13 @@ TestCase {
         verify(findAction(shelvesPage, "Minimize") === null)
     }
 
-    function test_tablet_tabs_and_wide_actions_share_touch_geometry() {
+    function test_tablet_tabs_share_touch_geometry_without_desktop_actions() {
         setPhoneViewport(800,1280)
         compare(shelvesPage.phoneLayout,true)
         const tab=findChild(shelvesPage,"shelvesTab_0")
         verify(tab!==null && tab.height>=48)
         setPhoneViewport(1280,800)
-        const close=findAction(shelvesPage,"Close Colosseum")
-        verify(close!==null && close.width>=48 && close.height>=48)
+        verify(findAction(shelvesPage,"Close Colosseum")===null,"Android retains its existing OS-owned window actions")
     }
     function test_desktop_shelf_tab_geometry_and_window_chrome_are_preserved() {
         host.width = 1280

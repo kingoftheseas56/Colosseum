@@ -165,8 +165,8 @@ Item {
                     objectName: tabs.tabPrefix + "_" + pill.modelData.key
                     readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
-                    width: tabs.scrollingTabs ? Math.max(76, pillLabel.implicitWidth + 24)
-                           : Math.max(0, (pillRow.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length))
+                    width: metrics.targetSize(tabs.scrollingTabs ? Math.max(76,pillLabel.implicitWidth+24)
+                           : Math.max(0,(pillRow.width-tabs.pillSpacing*(tabs.tabModel.length-1))/Math.max(1,tabs.tabModel.length)))
                     height: pillRow.height
                     Accessible.role: Accessible.Button
                     Accessible.name: pill.modelData.label

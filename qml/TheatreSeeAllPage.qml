@@ -129,7 +129,7 @@ BrowseScaffold {
             anchors.left: parent.left; anchors.leftMargin: 12
             anchors.verticalCenter: parent.verticalCenter
             width: chev.width + backLbl.width + 8
-            height: 40
+            height: seeAll.layout.targetSize(40)
             Text {
                 id: chev
                 text: "‹"                       // ‹ chevron (glyph, not emoji)
@@ -212,7 +212,7 @@ BrowseScaffold {
             anchors.horizontalCenter: parent.horizontalCenter
         }
         Rectangle {
-            width: 120; height: 36; radius: 8
+            width: 120; height: seeAll.layout.targetSize(36); radius: 8
             anchors.horizontalCenter: parent.horizontalCenter
             color: retryMa.containsMouse ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
             border.width: 1; border.color: theme.edge

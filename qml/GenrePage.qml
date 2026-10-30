@@ -207,8 +207,8 @@ BrowseScaffold {
                         delegate: Rectangle {
                             required property string modelData
                             readonly property bool selected: modelData === root.genreName
-                            height: 34; radius: 17
-                            width: gpl.implicitWidth + 28
+                            height: root.layout.targetSize(34); radius: 17
+                            width: root.layout.targetSize(gpl.implicitWidth + 28)
                             color: selected ? Qt.rgba(0.94,0.77,0.29,0.16)
                                       : (gpMa.containsMouse ? theme.glassHi : theme.glassTint)
                             border.width: 1
@@ -233,8 +233,8 @@ BrowseScaffold {
                         }
                     }
                     Rectangle {
-                        height: 34; radius: 17
-                        width: exploreLabel.implicitWidth + 30
+                        height: root.layout.targetSize(34); radius: 17
+                        width: root.layout.targetSize(exploreLabel.implicitWidth + 30)
                         color: exploreMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.18) : theme.glassTint
                         border.width: 1
                         border.color: exploreMa.containsMouse ? Qt.rgba(0.94,0.77,0.29,0.55) : Qt.rgba(0.94,0.77,0.29,0.32)
@@ -279,7 +279,7 @@ BrowseScaffold {
                         spacing: 12
                         // sort: readers ⇄ score (real — reloads)
                         Rectangle {
-                            height: 36; radius: 10; width: srt.implicitWidth + 28
+                            height: root.layout.targetSize(36); radius: 10; width: root.layout.targetSize(srt.implicitWidth + 28)
                             color: srtMa.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: theme.edge
                             Text {
@@ -305,7 +305,7 @@ BrowseScaffold {
                                 model: [ { c: false, g: "▤" }, { c: true, g: "▦" } ]
                                 delegate: Rectangle {
                                     required property var modelData
-                                    width: 38; height: 36
+                                    width: root.layout.targetSize(38); height: root.layout.targetSize(36)
                                     color: (root.compact === modelData.c) ? theme.glassHi : theme.glassTint
                                     border.width: 1; border.color: theme.edge
                                     Text { anchors.centerIn: parent; text: modelData.g
@@ -522,7 +522,7 @@ BrowseScaffold {
                         Rectangle {
                             id: libraryButton
                             property bool added: false
-                            height: 28; radius: 9; width: addl.implicitWidth + 22
+                            height: root.layout.targetSize(28); radius: 9; width: root.layout.targetSize(addl.implicitWidth + 22)
                             color: added ? Qt.rgba(0.94,0.77,0.29,0.16)
                                          : (addMa.containsMouse ? theme.glassHi : Qt.rgba(1,1,1,0.05))
                             border.width: 1

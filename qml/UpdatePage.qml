@@ -252,7 +252,7 @@ SettingsScaffold {
             activeFocusOnTab: visible && enabled
             anchors.right: parent.right
             anchors.verticalCenter: statusColumn.verticalCenter
-            width: actionRow.implicitWidth + 36; height: (root.layout.touch ? root.layout.touchTargetSize : 44); radius: 22
+            width: root.layout.targetSize(actionRow.implicitWidth + 36); height: (root.layout.touch ? root.layout.touchTargetSize : 44); radius: 22
             color: primaryAction.activeFocus
                 ? Qt.rgba(1, 1, 1, 0.16)
                 : (primaryActionMa.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07))

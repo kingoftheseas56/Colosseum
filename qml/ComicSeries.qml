@@ -478,8 +478,8 @@ Item {
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
         Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
+            width: detailLayout.targetSize(22); height: detailLayout.targetSize(22)
+            Image { anchors.centerIn:parent; width:22; height:22; source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -493,10 +493,10 @@ Item {
             }
         }
         Item {
-            width: 22
-            height: 22
+            width: detailLayout.targetSize(22)
+            height: detailLayout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                         ? "../assets/icons/fullscreen.svg"
                         : "../assets/icons/fullscreen-exit.svg"
@@ -521,8 +521,8 @@ Item {
             }
         }
         Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
+            width: detailLayout.targetSize(22); height: detailLayout.targetSize(22)
+            Image { anchors.centerIn:parent; width:22; height:22; source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -697,7 +697,7 @@ Item {
                     Item {
                         id: clearBtn
                         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-                        width: page.phoneLayout ? 48 : 24; height: width
+                        width: detailLayout.targetSize(page.phoneLayout ? 48 : 24); height: width
                         visible: filterInput.text.length > 0
                         Text { anchors.centerIn: parent; text: "✕"
                             color: clearMa.containsMouse ? theme.gold : theme.inkDim; font.pixelSize: 13 }
@@ -746,8 +746,8 @@ Item {
                             id: sopt
                             objectName: "comicSeriesSort_" + modelData.k
                             required property var modelData
-                            width: page.phoneLayout ? Math.max(64, soptText.implicitWidth + 16) : soptText.implicitWidth
-                            height: page.phoneLayout ? 48 : 26
+                            width: detailLayout.targetSize(page.phoneLayout ? Math.max(64, soptText.implicitWidth + 16) : soptText.implicitWidth)
+                            height: detailLayout.targetSize(page.phoneLayout ? 48 : 26)
                             readonly property bool on: page.sortMode === sopt.modelData.k
                             Text { id: soptText; text: sopt.modelData.l
                                 anchors.centerIn: page.phoneLayout ? parent : undefined
@@ -959,7 +959,7 @@ Item {
                                             z: page.phoneLayout ? 2 : 0
                                             anchors.right: trailing.left; anchors.rightMargin: 10
                                             y: page.phoneNarrow ? parent.height - height - 12 : (parent.height - height) / 2
-                                            width: Math.max(86, readText.implicitWidth + 28); height: page.phoneLayout ? 48 : 36
+                                            width: detailLayout.targetSize(Math.max(86, readText.implicitWidth + 28)); height: detailLayout.targetSize(page.phoneLayout ? 48 : 36)
                                             Rectangle {
                                                 anchors.fill: parent; radius: 9
                                                 color: page.pendingReadReleaseId === row.relId ? theme.glassTint : theme.gold
@@ -988,7 +988,7 @@ Item {
                                             z: page.phoneLayout ? 2 : 0
                                             anchors.right: parent.right; anchors.rightMargin: page.phoneNarrow ? 12 : 22
                                             y: page.phoneNarrow ? parent.height - height - 12 : (parent.height - height) / 2
-                                            width: page.phoneLayout ? 48 : 36; height: width
+                                            width: detailLayout.targetSize(page.phoneLayout ? 48 : 36); height: width
                                             Rectangle { anchors.fill: parent; radius: 18
                                                 color: trMa.containsMouse ? theme.glassHi : "transparent" }
                                             Text {
@@ -1073,7 +1073,7 @@ Item {
         visible: flick.contentHeight > flick.height + 8 && !page.loading
         anchors.right: parent.right; anchors.rightMargin: 4
         y: 76
-        width: 12
+        width: detailLayout.targetSize(12)
         height: parent.height - 96
         Rectangle {   // track
             anchors.horizontalCenter: parent.horizontalCenter

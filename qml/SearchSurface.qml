@@ -334,7 +334,7 @@ BrowseScaffold {
             Rectangle {
                 objectName: "searchClearAction"
                 visible: queryInput.text.length > 0
-                width: surf.phoneNarrow ? 48 : 26; height: width; radius: height / 2
+                width: surf.layout.targetSize(surf.phoneNarrow ? 48 : 26); height: width; radius: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(12) }
@@ -346,7 +346,7 @@ BrowseScaffold {
             }
             Rectangle {
                 visible: !surf.phoneNarrow
-                width: escTxt.width + 16; height: 24; radius: 6
+                width: escTxt.width + 16; height: surf.layout.targetSize(24); radius: 6
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"; border.width: 1; border.color: theme.edge
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
@@ -513,8 +513,8 @@ BrowseScaffold {
                                 required property var modelData
                                 required property int index
                                 readonly property bool keyboardSelected: recentFlow.activeFocus && recentFlow.currentIndex === index
-                                height: surf.phoneNarrow ? Math.max(48, rcLabel.implicitHeight + 16) : 40
-                                radius: 999; width: surf.phoneNarrow ? recentFlow.width : rcRow.width + 30
+                                height: surf.layout.targetSize(surf.phoneNarrow ? Math.max(48, rcLabel.implicitHeight + 16) : 40)
+                                radius: 999; width: surf.layout.targetSize(surf.phoneNarrow ? recentFlow.width : rcRow.width + 30)
                                 color: rcMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
                                 border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                                 MouseArea { id: rcMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -526,7 +526,7 @@ BrowseScaffold {
                                         wrapMode: surf.phoneNarrow ? Text.Wrap : Text.NoWrap
                                         anchors.verticalCenter: parent.verticalCenter }
                                     Rectangle { objectName: "searchRecentRemove"
-                                        width: surf.phoneNarrow ? 48 : 20; height: width; radius: height / 2
+                                        width: surf.layout.targetSize(surf.phoneNarrow ? 48 : 20); height: width; radius: height / 2
                                         anchors.verticalCenter: parent.verticalCenter
                                         color: xMa.containsMouse ? Qt.rgba(1,1,1,0.18) : "transparent"
                                         Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(10) }
@@ -569,7 +569,7 @@ BrowseScaffold {
                                 required property var modelData
                                 required property int index
                                 readonly property bool keyboardSelected: genreFlow.activeFocus && genreFlow.currentIndex === index
-                                height: 44; radius: 999; width: surf.phoneNarrow ? genreFlow.width : gLbl.width + 36
+                                height: surf.layout.targetSize(44); radius: 999; width: surf.layout.targetSize(surf.phoneNarrow ? genreFlow.width : gLbl.width + 36)
                                 color: gMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
                                 border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                                 Text { id: gLbl; anchors.centerIn: parent; text: modelData
@@ -584,7 +584,7 @@ BrowseScaffold {
 
                     // SURPRISE ME — random genre → random top title → opens it
                     Item {
-                        width: parent.width; height: surf.phoneNarrow ? 44 : 24
+                        width: parent.width; height: surf.layout.targetSize(surf.phoneNarrow ? 44 : 24)
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
                             Text { visible: Qt.platform.os !== "android"; text: "✦"; color: surMa.containsMouse ? theme.gold : theme.inkDimmer; font.pixelSize: 14
@@ -881,8 +881,8 @@ BrowseScaffold {
                         Rectangle {
                             id: seeMorePill
                             visible: modelData.items.length > secGrid.columns
-                            height: surf.phoneNarrow ? 44 : 34; radius: height / 2
-                            width: seeMoreRow.implicitWidth + 30
+                            height: surf.layout.targetSize(surf.phoneNarrow ? 44 : 34); radius: height / 2
+                            width: surf.layout.targetSize(seeMoreRow.implicitWidth + 30)
                             color: seeMoreMa.containsMouse ? theme.glassHi : theme.glassTint
                             border.width: 1; border.color: seeMoreMa.containsMouse ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
                             Row {
@@ -946,10 +946,10 @@ BrowseScaffold {
         y: 34
         spacing: 20
         Item {
-            width: 22
-            height: 22
+            width: surf.layout.targetSize(22)
+            height: surf.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22
@@ -967,10 +967,10 @@ BrowseScaffold {
                 onTriggered: surf.minimizeRequested() }
         }
         Item {
-            width: 22
-            height: 22
+            width: surf.layout.targetSize(22)
+            height: surf.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                         ? "../assets/icons/fullscreen.svg"
                         : "../assets/icons/fullscreen-exit.svg"
@@ -990,10 +990,10 @@ BrowseScaffold {
             }
         }
         Item {
-            width: 22
-            height: 22
+            width: surf.layout.targetSize(22)
+            height: surf.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/power.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22

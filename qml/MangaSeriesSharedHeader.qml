@@ -90,14 +90,14 @@ Item {
             anchors.right: parent.right; anchors.rightMargin: root.detailInset
             anchors.verticalCenter: parent.verticalCenter; spacing: 8
             Item {
-                width: 36; height: 36; activeFocusOnTab: true
+                width: detailLayout.targetSize(36); height: detailLayout.targetSize(36); activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMa.containsMouse ? 1 : .72 }
                 MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
                 Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
             }
             Item {
-                width: 36; height: 36; activeFocusOnTab: true
+                width: detailLayout.targetSize(36); height: detailLayout.targetSize(36); activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Toggle full screen"
                 Image {
                     anchors.centerIn: parent; width: 20; height: 20
@@ -109,7 +109,7 @@ Item {
                 Keys.onReturnPressed: root.fullscreenRequested(); Keys.onEnterPressed: root.fullscreenRequested()
             }
             Item {
-                width: 36; height: 36; activeFocusOnTab: true
+                width: detailLayout.targetSize(36); height: detailLayout.targetSize(36); activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Close series view"
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMa.containsMouse ? 1 : .72 }
                 MouseArea { id: closeMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
@@ -296,9 +296,10 @@ Item {
                 text: "Language"; color: root.tankobanMode ? theme.inkDimmer : theme.inkDim
                 font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
-            ComboBox {
+            TouchComboBox {
                 id: languageCombo
                 objectName: "mangaLanguageCombo"
+                sheetTitle:qsTr("Chapter language")
                 anchors.right: parent.right; anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 width: 166; height: detailLayout.touch ? detailLayout.touchTargetSize : 28

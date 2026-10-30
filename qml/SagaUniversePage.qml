@@ -1109,7 +1109,7 @@ UniverseScaffold {
         x: root.shortPhone ? sagaBack.x + sagaBack.width + 12 : root.gutter + (docked ? 118 : 0)
         y: root.shortPhone ? 22 : Math.max(22, hero.height - page.contentY)
         width: Math.min(tabRow.implicitWidth + 8,
-                        Math.max(0, root.width - x - (root.shortPhone ? root.chromeReservedWidth+12 : root.layout.touch ? root.universeInset : root.gutter)))
+                        Math.max(0,root.width-x-(root.layout.touch ? root.universeInset : root.gutter)))
         height: root.layout.touch ? 56 : 46
         Behavior on x { NumberAnimation { duration: root.reducedMotion ? 0 : 220; easing.type: Easing.OutCubic } }
         UniverseShelfViewport {
@@ -1136,7 +1136,7 @@ UniverseScaffold {
                         required property var modelData
                         required property int index
                         readonly property bool active: root.activeTab === tab.index
-                        width: tabText.implicitWidth + 36
+                        width: root.layout.targetSize(tabText.implicitWidth + 36)
                         height: root.tabTouchHeight
                         radius: height / 2
                         color: tab.active ? root.paper : (tabKey.hovered ? theme.glassTint : "transparent")
@@ -1246,7 +1246,7 @@ UniverseScaffold {
         id: chevron
         property bool atRight: false
         signal triggered()
-        width: 46; z: 5
+        width: root.layout.targetSize(46); z: 5
         Rectangle {
             anchors.fill: parent
             gradient: Gradient {

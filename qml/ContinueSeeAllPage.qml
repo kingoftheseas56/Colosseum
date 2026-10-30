@@ -86,8 +86,8 @@ BrowseScaffold {
         property string label
         property bool on: false
         signal picked()
-        height: 30; radius: 15
-        width: chipText.implicitWidth + 28
+        height: root.layout.targetSize(30); radius: 15
+        width: root.layout.targetSize(chipText.implicitWidth + 28)
         color: on ? Qt.rgba(0.94, 0.77, 0.29, 0.10) : Qt.rgba(1, 1, 1, 0.04)
         border.width: 1
         border.color: on ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : Qt.rgba(1, 1, 1, 0.16)
@@ -277,10 +277,10 @@ BrowseScaffold {
         y: 34
         spacing: 20
         Item {
-            width: 22
-            height: 22
+            width: root.layout.targetSize(22)
+            height: root.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22
@@ -298,10 +298,10 @@ BrowseScaffold {
                 accessibleName: "Minimize"; focusRadius: 6; onTriggered: root.minimizeRequested() }
         }
         Item {
-            width: 22
-            height: 22
+            width: root.layout.targetSize(22)
+            height: root.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                         ? "../assets/icons/fullscreen.svg"
                         : "../assets/icons/fullscreen-exit.svg"
@@ -321,10 +321,10 @@ BrowseScaffold {
                 accessibleName: "Toggle fullscreen"; focusRadius: 6; onTriggered: root.fullscreenRequested() }
         }
         Item {
-            width: 22
-            height: 22
+            width: root.layout.targetSize(22)
+            height: root.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/power.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22

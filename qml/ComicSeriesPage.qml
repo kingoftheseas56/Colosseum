@@ -211,8 +211,8 @@ Item {
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
         Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/minimize.svg"
+            width: detailLayout.targetSize(22); height: detailLayout.targetSize(22)
+            Image { anchors.centerIn:parent; width:22; height:22; source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: minMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: minMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -221,10 +221,10 @@ Item {
                 onTriggered: page.minimizeRequested() }
         }
         Item {
-            width: 22
-            height: 22
+            width: detailLayout.targetSize(22)
+            height: detailLayout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                         ? "../assets/icons/fullscreen.svg"
                         : "../assets/icons/fullscreen-exit.svg"
@@ -244,8 +244,8 @@ Item {
                 onTriggered: page.fullscreenRequested() }
         }
         Item {
-            width: 22; height: 22
-            Image { anchors.fill: parent; source: "../assets/icons/power.svg"
+            width: detailLayout.targetSize(22); height: detailLayout.targetSize(22)
+            Image { anchors.centerIn:parent; width:22; height:22; source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: clMa.containsMouse ? 1.0 : 0.72 }
             MouseArea { id: clMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -391,8 +391,8 @@ Item {
                         // Continue affordance
                         Rectangle {
                             visible: !!page.resumeRec && !!page.resumeRec.resume
-                            width: contRow.implicitWidth + 36
-                            height: 40
+                            width: detailLayout.targetSize(contRow.implicitWidth + 36)
+                            height: detailLayout.targetSize(40)
                             radius: 9
                             color: theme.gold
                             Row {

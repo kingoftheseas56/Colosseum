@@ -1207,8 +1207,8 @@ Item {
                         }
                         Item {
                             visible: !page.phoneNarrow && (synopsisText.truncated || page.synopsisExpanded)
-                            width: moreText.implicitWidth + 8
-                            height: 26
+                            width: detailLayout.targetSize(moreText.implicitWidth + 8)
+                            height: detailLayout.targetSize(26)
                             Text {
                                 id: moreText
                                 anchors.verticalCenter: parent.verticalCenter
@@ -1236,8 +1236,8 @@ Item {
                         Rectangle {
                             objectName: "theatreSeriesWatch"
                             visible: page.mediaType !== "series" || page.heroEpisode() !== null
-                            width: watchRow.implicitWidth + 40
-                            height: 44
+                            width: detailLayout.targetSize(watchRow.implicitWidth + 40)
+                            height: detailLayout.targetSize(44)
                             radius: 12
                             color: theme.gold
                             scale: heroWatchKeyboard.activeFocus ? 1.04 : 1.0
@@ -1302,8 +1302,8 @@ Item {
                             visible: page.mediaType === "series" && (typeof Collection !== "undefined")
                                      && (Collection.revision, Collection.has("theatre", String(page.collectionEntry().id)))
                             readonly property bool on: (typeof Collection !== "undefined") ? (Collection.revision, page.libNotifOn()) : false
-                            width: notifText.implicitWidth + 32
-                            height: 42
+                            width: detailLayout.targetSize(notifText.implicitWidth + 32)
+                            height: detailLayout.targetSize(42)
                             radius: 11
                             color: notificationKeyboard.interactionActive ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1
@@ -1638,7 +1638,7 @@ Item {
                                         // Automation identity (Lanista): keyed by the episode's stream id,
                                         // stable while the virtual window recreates rows.
                                         objectName: "theatreEpisodePlay_" + String(ep.sid)
-                                        width: 40; height: 40; radius: 20
+                                        width: detailLayout.targetSize(40); height: detailLayout.targetSize(40); radius: 20
                                         color: playMa.containsMouse ? theme.ink : Qt.rgba(1, 1, 1, 0.07)
                                         border.width: 1
                                         border.color: ep.nextUp ? theme.gold : theme.edge
@@ -1666,7 +1666,7 @@ Item {
                                     }
                                     Rectangle {
                                         visible: typeof Download !== "undefined"
-                                        width: 40; height: 40; radius: 20
+                                        width: detailLayout.targetSize(40); height: detailLayout.targetSize(40); radius: 20
                                         color: dlMa.containsMouse && !ep.onDisk && !ep.inQueue
                                                ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.05)
                                         border.width: 1
@@ -1791,8 +1791,8 @@ Item {
                             id: orderBtn
                             required property string modelData
                             readonly property bool on: page.effectiveEpisodeOrder === orderBtn.modelData
-                            width: orderText.implicitWidth + 28
-                            height: 28
+                            width: detailLayout.targetSize(orderText.implicitWidth + 28)
+                            height: detailLayout.targetSize(28)
                             Rectangle { anchors.fill: parent; radius: 14
                                         color: orderBtn.on ? Qt.rgba(1, 1, 1, 0.14) : (orderAction.interactionActive ? Qt.rgba(1, 1, 1, 0.08) : "transparent") }
                             Text {
@@ -1838,8 +1838,8 @@ Item {
                             id: seasonBtn
                             required property var modelData
                             readonly property bool on: page.activeSeason === seasonBtn.modelData
-                            width: seasonText.implicitWidth + 26
-                            height: 36
+                            width: detailLayout.targetSize(seasonText.implicitWidth + 26)
+                            height: detailLayout.targetSize(36)
                             Rectangle { anchors.fill: parent; anchors.topMargin: 3; anchors.bottomMargin: 3; radius: 15
                                         color: seasonBtn.on ? Qt.rgba(1, 1, 1, 0.14) : (seasonAction.interactionActive ? Qt.rgba(1, 1, 1, 0.08) : "transparent") }
                             Text {
@@ -1880,7 +1880,7 @@ Item {
                 Rectangle {
                     id: seasonTrigger
                     width: seasonTrigT.implicitWidth + 50
-                    height: 36
+                    height: detailLayout.targetSize(36)
                     radius: 18
                     color: (seasonTriggerKeyboard.interactionActive || page.seasonMenuOpen) ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.06)
                     border.width: 1
@@ -1951,7 +1951,7 @@ Item {
                             required property var modelData
                             required property int index
                             width: seasonMenuList.width
-                            height: 36
+                            height: detailLayout.targetSize(36)
                             radius: 9
                             color: seasonMenuFocus.activeFocus && page.seasonMenuKeyboardIndex === smRow.index
                                 ? Qt.rgba(0.94, 0.77, 0.29, 0.12)
@@ -1995,8 +1995,8 @@ Item {
                 id: seasonDownloadAction
                 visible: typeof Download !== "undefined" && page.episodes.length > 0
                          && page.effectiveEpisodeOrder !== "absolute" && (ledgerBarFloat.width > 1180 || page.phoneNarrow)
-                height: 36
-                width: dlSeasonRow.implicitWidth + 28
+                height: detailLayout.targetSize(36)
+                width: detailLayout.targetSize(dlSeasonRow.implicitWidth + 28)
                 radius: 18
                 color: seasonDownloadKeyboard.interactionActive && !page.seasonQueued[page.activeSeason]
                        ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
@@ -2032,8 +2032,8 @@ Item {
             // Next: jump straight to the episode you are on.
             Rectangle {
                 visible: page.nextUpEpisodeIndex >= 0 && page.episodes.length > 1
-                height: 36
-                width: nextText.implicitWidth + 28
+                height: detailLayout.targetSize(36)
+                width: detailLayout.targetSize(nextText.implicitWidth + 28)
                 radius: 18
                 color: nextAction.interactionActive ? Qt.rgba(0.94, 0.77, 0.29, 0.16) : Qt.rgba(0.94, 0.77, 0.29, 0.08)
                 border.width: 1
@@ -2213,7 +2213,7 @@ Item {
                 model: page.episodeContextOptions(page.episodeKeyboardIndex)
                 delegate: Rectangle {
                     required property string modelData; required property int index
-                    width: episodeContextCol.width; height: 36; radius: 8
+                    width: episodeContextCol.width; height: detailLayout.targetSize(36); radius: 8
                     color: episodeContextFocus.activeFocus && page.episodeContextChoice === index ? Qt.rgba(1, 1, 1, 0.11) : "transparent"
                     Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.activateEpisodeContext(index) }

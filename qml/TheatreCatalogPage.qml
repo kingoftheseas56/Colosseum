@@ -421,7 +421,7 @@ BrowseColumnScaffold {
     // ── quiet Customize control (never consumes a content row) ──
     Item {
         width: parent.width
-        height: page.phonePortrait ? 48 : 24
+        height: page.layout.targetSize(page.phonePortrait ? 48 : 24)
         Rectangle {
             visible: page.phonePortrait
             objectName: "theatreRowsButton_" + page.pageKey

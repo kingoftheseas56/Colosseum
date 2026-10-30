@@ -262,7 +262,7 @@ Item {
         anchors.leftMargin: root.phoneLayout ? 0 : Math.max(64, theme.margin); anchors.rightMargin: root.phoneLayout ? 0 : Math.max(64, theme.margin)
         height: root.phoneLayout ? 64 : 76; z: 20
 
-        TextField {
+        TouchTextField {
             id: searchField
             objectName: "biblioLibrarySearch"
             anchors.right: parent.right; anchors.top: root.phoneLayout ? parent.top : undefined
@@ -290,7 +290,7 @@ Item {
             property string label: ""
             property bool active: false
             signal picked()
-            implicitWidth: pillText.implicitWidth + 30; height: layout.touch ? layout.touchTargetSize : 34; radius: 14
+            implicitWidth: layout.targetSize(pillText.implicitWidth + 30); height: layout.touch ? layout.touchTargetSize : 34; radius: 14
             color: active ? theme.gold : (pillHover.hovered ? Qt.rgba(1, 1, 1, 0.10) : "transparent")
             border.width: active ? 0 : 1; border.color: Qt.rgba(1, 1, 1, 0.14)
             Behavior on color { ColorAnimation { duration: 130 } }

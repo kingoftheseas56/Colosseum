@@ -14,6 +14,7 @@ import QtQuick.Controls
 import "MangaChapterGrouping.js" as Grouping
 
 Item {
+    AdaptiveLayout { id:touchLayoutMetrics;page:root }
     id: root
     property Flickable pageFlick:null
     readonly property real flowHeight:bar.y+bar.height+scroll.contentHeight
@@ -181,7 +182,7 @@ Item {
                     id: pagerRow
                     anchors.centerIn: parent
                     Item {
-                        width: 32; height: 32
+                        width: touchLayoutMetrics.targetSize(32); height: touchLayoutMetrics.targetSize(32)
                         opacity: root.currentPageIndex > 0 ? 1.0 : 0.35
                         Text { anchors.centerIn: parent; text: "‹"; color: theme.ink; font.pixelSize: 20 }
                         KeyboardAction {
@@ -195,7 +196,7 @@ Item {
                         }
                     }
                     Item {
-                        width: pageLabel.implicitWidth + 16; height: 32
+                        width: touchLayoutMetrics.targetSize(pageLabel.implicitWidth + 16); height: touchLayoutMetrics.targetSize(32)
                         Text {
                             id: pageLabel
                             anchors.centerIn: parent
@@ -220,7 +221,7 @@ Item {
                         }
                     }
                     Item {
-                        width: 32; height: 32
+                        width: touchLayoutMetrics.targetSize(32); height: touchLayoutMetrics.targetSize(32)
                         opacity: root.currentPageIndex < root.pageCount - 1 ? 1.0 : 0.35
                         Text { anchors.centerIn: parent; text: "›"; color: theme.ink; font.pixelSize: 20 }
                         KeyboardAction {
@@ -274,8 +275,8 @@ Item {
 
             Rectangle {
                 visible: root.activeChapters.length > 0 && root.downloader !== null
-                height: 36
-                width: dlPageText.implicitWidth + 32
+                height: touchLayoutMetrics.targetSize(36)
+                width: touchLayoutMetrics.targetSize(dlPageText.implicitWidth + 32)
                 radius: 18
                 color: dlPage.interactionActive ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
                 border.width: 1
@@ -334,7 +335,7 @@ Item {
                     id: pageRow
                     required property int index
                     width: pageList.width
-                    height: 36
+                    height: touchLayoutMetrics.targetSize(36)
                     radius: 8
                     color: pageList.currentIndex === pageRow.index && pageList.activeFocus
                         ? Qt.rgba(0.94, 0.77, 0.29, 0.14)
@@ -561,7 +562,7 @@ Item {
                         id: trailing
                         anchors.right: parent.right; anchors.rightMargin: theme.margin + 16
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 40; height: 40
+                        width: touchLayoutMetrics.targetSize(40); height: touchLayoutMetrics.targetSize(40)
                         Rectangle {
                             anchors.fill: parent; radius: 20
                             color: trailingAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
@@ -608,7 +609,7 @@ Item {
                     Rectangle {
                         visible: root.extensionGateVisible
                         anchors.horizontalCenter: parent.horizontalCenter
-                        width: extensionsLabel.implicitWidth + 32; height: 36; radius: 18
+                        width: touchLayoutMetrics.targetSize(extensionsLabel.implicitWidth + 32); height: touchLayoutMetrics.targetSize(36); radius: 18
                         color: extensionsAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.06)
                         border.width: 1; border.color: theme.edge
                         Text {

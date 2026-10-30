@@ -194,8 +194,8 @@ BrowseScaffold {
                         delegate: Rectangle {
                             required property var modelData
                             required property int index
-                            height: 28; radius: 14
-                            width: pillT.implicitWidth + 30
+                            height: page.layout.targetSize(28); radius: 14
+                            width: page.layout.targetSize(pillT.implicitWidth + 30)
                             property bool on: page.sortMode === modelData.k
                             color: on ? Qt.rgba(0.94, 0.77, 0.29, 0.14) : theme.glassTint
                             border.width: 1

@@ -699,7 +699,7 @@ Item {
                 Row {
                     spacing: 14
                     Rectangle {
-                        width: 190; height: 44; radius: 12
+                        width: 190; height: layout.targetSize(44); radius: 12
                         color: anotherMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Try another source"; color: theme.ink
@@ -710,7 +710,7 @@ Item {
                             onTriggered: sheet.rejectIncomplete(false) }
                     }
                     Rectangle {
-                        width: 190; height: 44; radius: 12
+                        width: 190; height: layout.targetSize(44); radius: 12
                         color: manualMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Search manually"; color: theme.ink
@@ -741,7 +741,7 @@ Item {
                 Row {
                     spacing: 14
                     Rectangle {
-                        width: 150; height: 44; radius: 12
+                        width: 150; height: layout.targetSize(44); radius: 12
                         color: combBackMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Go back"; color: theme.ink
@@ -752,7 +752,7 @@ Item {
                             onTriggered: sheet.rejectCombined() }
                     }
                     Rectangle {
-                        width: 260; height: 44; radius: 12
+                        width: 260; height: layout.targetSize(44); radius: 12
                         color: combGoMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
                         Behavior on color { ColorAnimation { duration: 140 } }
                         Text { anchors.centerIn: parent; text: "Download whole archive anyway"; color: "#1a1306"
@@ -801,7 +801,7 @@ Item {
                     anchors.right: parent.right
                     spacing: 14
                     Rectangle {
-                        width: 120; height: 44; radius: 12
+                        width: 120; height: layout.targetSize(44); radius: 12
                         color: backMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Go back"; color: theme.ink
@@ -812,7 +812,7 @@ Item {
                             onTriggered: sheet.cancelWeakSelection() }
                     }
                     Rectangle {
-                        width: 150; height: 44; radius: 12; color: caMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
+                        width: 150; height: layout.targetSize(44); radius: 12; color: caMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
                         Behavior on color { ColorAnimation { duration: 140 } }
                         Text { anchors.centerIn: parent; text: "Choose anyway"; color: "#1a1306"
                             font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }

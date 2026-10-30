@@ -3,8 +3,8 @@ import "TouchMetrics.js" as TouchMetrics
 
 KeyboardAction {
     id: control
-    property bool touch: Qt.platform.os === "android"
-        || !!(Window.window && Window.window.androidHost)
+    AdaptiveLayout { id:metrics;page:control }
+    property bool touch:metrics.touch
     property real visualWidth: 24
     property real visualHeight: 24
     readonly property real minimumTargetSize: touch ? TouchMetrics.minimumTargetSize : 0

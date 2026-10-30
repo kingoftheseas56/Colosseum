@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Window
 
 Item {
+    AdaptiveLayout { id:touchLayoutMetrics;page:root }
     id: root
     required property Item owner
     required property LibrarySelectionState selection
@@ -71,7 +72,7 @@ Item {
         id: action
         property string label
         signal triggered()
-        width: Math.max(48, text.implicitWidth + 24); height: 48; radius: 12
+        width: touchLayoutMetrics.targetSize(Math.max(48, text.implicitWidth + 24)); height: 48; radius: 12
         color: input.interactionActive ? Qt.rgba(240/255,196/255,74/255,0.24) : "#26252d"
         Text { id: text; anchors.centerIn: parent; text: action.label; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
         KeyboardAction { id: input; anchors.fill: parent; accessibleName: action.label; onTriggered: action.triggered() }

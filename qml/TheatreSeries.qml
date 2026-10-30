@@ -988,10 +988,10 @@ Item {
         y: 34
         spacing: 20
         Item {
-            width: 22
-            height: 22
+            width: detailLayout.targetSize(22)
+            height: detailLayout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22
@@ -1011,10 +1011,10 @@ Item {
             }
         }
         Item {
-            width: 22
-            height: 22
+            width: detailLayout.targetSize(22)
+            height: detailLayout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                         ? "../assets/icons/fullscreen.svg"
                         : "../assets/icons/fullscreen-exit.svg"
@@ -1036,10 +1036,10 @@ Item {
             }
         }
         Item {
-            width: 22
-            height: 22
+            width: detailLayout.targetSize(22)
+            height: detailLayout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/power.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22
@@ -1264,8 +1264,8 @@ Item {
                         Rectangle {
                             objectName: "theatreSeriesWatch"
                             visible: page.mediaType !== "series" || page.heroEpisode() !== null
-                            width: watchRow.implicitWidth + 40
-                            height: 42
+                            width: detailLayout.targetSize(watchRow.implicitWidth + 40)
+                            height: detailLayout.targetSize(42)
                             radius: 11
                             color: theme.gold
                             Row {
@@ -1316,8 +1316,8 @@ Item {
                             visible: page.mediaType === "series" && (typeof Collection !== "undefined")
                                      && (Collection.revision, Collection.has("theatre", String(page.collectionEntry().id)))
                             readonly property bool on: (Collection.revision, page.libNotifOn())
-                            width: notifText.implicitWidth + 32
-                            height: 42
+                            width: detailLayout.targetSize(notifText.implicitWidth + 32)
+                            height: detailLayout.targetSize(42)
                             radius: 11
                             color: notifMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                             border.width: 1
@@ -1669,8 +1669,8 @@ Item {
                                 objectName: "theatreEpisodePlay_" + String(page.episodeStreamId(ep.modelData))
                                 x: rowActions.x
                                 y: rowActions.y
-                                width: 38
-                                height: 38
+                                width: detailLayout.targetSize(38)
+                                height: detailLayout.targetSize(38)
                                 radius: 19
                                 color: playMa.containsMouse ? theme.ink : Qt.rgba(1, 1, 1, 0.07)
                                 border.width: 1
@@ -1706,8 +1706,8 @@ Item {
                                 visible: typeof Download !== "undefined"
                                 x: rowActions.x + 46
                                 y: rowActions.y
-                                width: 38
-                                height: 38
+                                width: detailLayout.targetSize(38)
+                                height: detailLayout.targetSize(38)
                                 radius: 19
                                 color: epDlMa.containsMouse && !epDl.onDisk && !epDl.inQueue
                                        ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.05)
@@ -1804,7 +1804,7 @@ Item {
                 model: page.episodeContextOptions(page.episodeKeyboardIndex)
                 delegate: Rectangle {
                     required property string modelData; required property int index
-                    width: episodeContextCol.width; height: 36; radius: 8
+                    width: episodeContextCol.width; height: detailLayout.targetSize(36); radius: 8
                     color: episodeContextFocus.activeFocus && page.episodeContextChoice===index ? Qt.rgba(1,1,1,0.11) : "transparent"
                     Text { anchors.centerIn: parent; text: modelData; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: page.activateEpisodeContext(index) }
@@ -1927,7 +1927,7 @@ Item {
                         x: theme.margin
                         anchors.verticalCenter: parent.verticalCenter
                         width: seasonTrigT.implicitWidth + 52
-                        height: 38
+                        height: detailLayout.targetSize(38)
                         radius: 19
                         color: seasonTrigMa.containsMouse || page.seasonMenuOpen
                                ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.06)
@@ -2007,7 +2007,7 @@ Item {
                                     required property var modelData
                                     required property int index
                                     width: seasonMenuList.width
-                                    height: 36
+                                    height: detailLayout.targetSize(36)
                                     radius: 9
                                     color: seasonMenuFocus.activeFocus && page.seasonMenuKeyboardIndex === smRow.index
                                         ? Qt.rgba(0.94,0.77,0.29,0.10)
@@ -2171,7 +2171,7 @@ Item {
                         anchors.verticalCenter: page.phoneNarrow ? undefined : parent.verticalCenter
                         y: page.phoneNarrow ? 96 : 0
                         width: 176
-                        height: 40
+                        height: detailLayout.targetSize(40)
                         radius: 9
                         color: dlSeasonMa.containsMouse && !page.seasonQueued[page.activeSeason]
                                ? Qt.rgba(1, 1, 1, 0.11) : Qt.rgba(1, 1, 1, 0.06)
@@ -2309,7 +2309,7 @@ Item {
                         }
                         Rectangle {
                             width: 72
-                            height: 34
+                            height: detailLayout.targetSize(34)
                             radius: 8
                             color: theme.ink
                             opacity: page.episodeJumpDraft.length ? 1.0 : 0.45
@@ -2361,8 +2361,8 @@ Item {
                                 required property int index
                                 property int start: index * 50 + 1
                                 property int end: Math.min(start + 49, page.episodes.length)
-                                width: label.implicitWidth + 18
-                                height: 25
+                                width: detailLayout.targetSize(label.implicitWidth + 18)
+                                height: detailLayout.targetSize(25)
                                 radius: 6
                                 color: jumpRanges.activeFocus && jumpRanges.currentIndex === rangeBtn.index
                                     ? Qt.rgba(0.94,0.77,0.29,0.10) : Qt.rgba(1, 1, 1, 0.06)

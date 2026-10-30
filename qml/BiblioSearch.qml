@@ -262,7 +262,7 @@ BrowseScaffold {
             spacing: search.phoneNarrow ? 0 : 12
             Rectangle {                              // clear
                 visible: queryInput.text.length > 0
-                width: search.phoneNarrow ? 44 : 26; height: width; radius: height / 2
+                width: search.layout.targetSize(search.phoneNarrow ? 44 : 26); height: width; radius: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(12) }
@@ -273,7 +273,7 @@ BrowseScaffold {
             }
             Rectangle {                              // Esc hint
                 visible: !search.phoneNarrow
-                width: escTxt.width + 16; height: 24; radius: 6
+                width: escTxt.width + 16; height: search.layout.targetSize(24); radius: 6
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"; border.width: 1; border.color: theme.edge
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
@@ -335,7 +335,7 @@ BrowseScaffold {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: recentFlow.activeFocus && recentFlow.currentIndex === index
-                            height: search.phoneNarrow ? Math.max(48, rcLabel.implicitHeight + 16) : 40
+                            height: search.layout.targetSize(search.phoneNarrow ? Math.max(48, rcLabel.implicitHeight + 16) : 40)
                             radius: 999; width: search.phoneNarrow ? recentFlow.width : rcLabel.implicitWidth + 57
                             color: rcMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.12) : theme.glassTint
                             border.width: keyboardSelected ? 2 : 1
@@ -350,7 +350,7 @@ BrowseScaffold {
                                 anchors.top: parent.top; anchors.bottom: parent.bottom; hoverEnabled: true
                                 objectName: "biblioRecentBody"; cursorShape: Qt.PointingHandCursor
                                 onClicked: search.fillAndSearch(modelData) }
-                            Rectangle { id: removeRecentButton; width: search.phoneNarrow ? 44 : 28; height: parent.height; radius: height / 2
+                            Rectangle { id: removeRecentButton; width: search.layout.targetSize(search.phoneNarrow ? 44 : 28); height: parent.height; radius: height / 2
                                 anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
                                 color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
                                 Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(11) }
@@ -386,7 +386,7 @@ BrowseScaffold {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: jumpRow.activeFocus && jumpRow.currentIndex === index
-                            height: 48; radius: 999; width: search.phoneNarrow ? jumpRow.width : jLbl.width + 44
+                            height: 48; radius: 999; width: search.layout.targetSize(search.phoneNarrow ? jumpRow.width : jLbl.width + 44)
                             color: jMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.12) : theme.glassTint
                             border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: jLbl; anchors.centerIn: parent; text: modelData.t; color: theme.ink
@@ -424,7 +424,7 @@ BrowseScaffold {
                             required property var modelData
                             required property int index
                             readonly property bool keyboardSelected: genreFlow.activeFocus && genreFlow.currentIndex === index
-                            height: 44; radius: 999; width: search.phoneNarrow ? genreFlow.width : gLbl.width + 36
+                            height: search.layout.targetSize(44); radius: 999; width: search.layout.targetSize(search.phoneNarrow ? genreFlow.width : gLbl.width + 36)
                             color: gMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.10) : theme.glassTint
                             border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: gLbl; anchors.centerIn: parent; text: modelData.t
@@ -745,10 +745,10 @@ BrowseScaffold {
         y: 34
         spacing: 20
         Item {
-            width: 22
-            height: 22
+            width: search.layout.targetSize(22)
+            height: search.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22
@@ -766,10 +766,10 @@ BrowseScaffold {
                 onTriggered: search.minimizeRequested() }
         }
         Item {
-            width: 22
-            height: 22
+            width: search.layout.targetSize(22)
+            height: search.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                         ? "../assets/icons/fullscreen.svg"
                         : "../assets/icons/fullscreen-exit.svg"
@@ -789,10 +789,10 @@ BrowseScaffold {
             }
         }
         Item {
-            width: 22
-            height: 22
+            width: search.layout.targetSize(22)
+            height: search.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/power.svg"
                 sourceSize.width: 22
                 sourceSize.height: 22

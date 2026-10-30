@@ -126,9 +126,9 @@ BrowseScaffold {
         anchors.topMargin: 34
         spacing: 20
         Item {
-            width: 22; height: 22
+            width: root.layout.targetSize(22); height: root.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/minimize.svg"
                 sourceSize.width: 22; sourceSize.height: 22
                 fillMode: Image.PreserveAspectFit
@@ -144,9 +144,9 @@ BrowseScaffold {
                 accessibleName: "Minimize"; onTriggered: root.minimizeRequested() }
         }
         Item {
-            width: 22; height: 22
+            width: root.layout.targetSize(22); height: root.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
                         ? "../assets/icons/fullscreen.svg"
                         : "../assets/icons/fullscreen-exit.svg"
@@ -164,9 +164,9 @@ BrowseScaffold {
                 accessibleName: "Toggle fullscreen"; onTriggered: root.fullscreenRequested() }
         }
         Item {
-            width: 22; height: 22
+            width: root.layout.targetSize(22); height: root.layout.targetSize(22)
             Image {
-                anchors.fill: parent
+                anchors.centerIn:parent; width:22; height:22
                 source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22
                 fillMode: Image.PreserveAspectFit
@@ -301,8 +301,8 @@ BrowseScaffold {
                     delegate: Item {
                         id: sortTarget
                         required property var modelData
-                        width: sortLabel.implicitWidth + (root.compactPhoneLayout ? 18 : 26)
-                        height: root.compactPhoneLayout ? 48 : 30
+                        width: root.layout.targetSize(sortLabel.implicitWidth + (root.compactPhoneLayout ? 18 : 26))
+                        height: root.layout.targetSize(root.compactPhoneLayout ? 48 : 30)
 
                         Rectangle {
                             id: sortPill
@@ -633,7 +633,7 @@ BrowseScaffold {
                     id: resultTile
                     required property var modelData
                     width: root.compactPhoneLayout ? Math.max(1, grid.cellWidth - 10) : 144
-                    height: root.compactPhoneLayout ? Math.max(1, grid.cellHeight - 12) : 92
+                    height: root.layout.targetSize(root.compactPhoneLayout ? Math.max(1, grid.cellHeight - 12) : 92)
                     radius: 8
                     color: "#101014"
                     border.width: root.selectedPick.source_id === resultTile.modelData.source_id ? 2 : 1
@@ -683,7 +683,7 @@ BrowseScaffold {
                         anchors.centerIn: parent
                         visible: root.canLoadMore || root.loading
                         width: 148
-                        height: root.compactPhoneLayout ? 48 : 36
+                        height: root.layout.targetSize(root.compactPhoneLayout ? 48 : 36)
                         radius: 999
                         color: root.loading ? Qt.rgba(255, 255, 255, 0.08)
                              : moreMa.containsMouse ? "#d6b357" : "#c9a44a"
@@ -768,7 +768,7 @@ BrowseScaffold {
                         id: scopeButton
                         required property var modelData
                         width: root.selectedButtonWidth
-                        height: root.compactPhoneLayout ? 48 : 40
+                        height: root.layout.targetSize(root.compactPhoneLayout ? 48 : 40)
                         radius: 999
                         color: buttonMa.containsMouse ? "#d6b357" : (scopeButton.modelData.scope === "all" ? "#c9a44a" : Qt.rgba(255, 255, 255, 0.10))
                         border.width: scopeButton.modelData.scope === "all" ? 0 : 1
@@ -814,7 +814,7 @@ BrowseScaffold {
         z: 60
         x: root.selectedPanelX + (root.compactPhoneLayout ? 12 : 16)
         y: root.selectedButtonY
-        width: root.selectedButtonWidth; height: root.compactPhoneLayout ? 48 : 40
+        width: root.selectedButtonWidth; height: root.layout.targetSize(root.compactPhoneLayout ? 48 : 40)
         MouseArea {
             anchors.fill: parent
             onClicked: root.applyRequested("all", root.targetWorld, root.selectedPick)
@@ -827,7 +827,7 @@ BrowseScaffold {
         x: root.selectedPanelX + (root.compactPhoneLayout ? 12 : 16)
             + root.selectedButtonWidth + 10
         y: root.selectedButtonY
-        width: root.selectedButtonWidth; height: root.compactPhoneLayout ? 48 : 40
+        width: root.selectedButtonWidth; height: root.layout.targetSize(root.compactPhoneLayout ? 48 : 40)
         MouseArea {
             anchors.fill: parent
             onClicked: root.applyRequested("world", root.targetWorld, root.selectedPick)

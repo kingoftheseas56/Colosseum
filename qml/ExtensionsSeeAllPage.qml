@@ -88,7 +88,7 @@ BrowseScaffold {
         anchors.topMargin: page.phoneLandscape ? 6 : page.phoneLayout ? 14 : 22
         spacing: page.phoneLandscape ? 2 : 6
         // Search box: the serif headline itself becomes the field.
-        TextField {
+        TouchTextField {
             id: box
             objectName: "extensionsSearchField"
             visible: page.searching

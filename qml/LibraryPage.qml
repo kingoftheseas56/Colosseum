@@ -220,7 +220,7 @@ Item {
         id: header
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
         anchors.leftMargin: root.phoneLayout ? 0 : Math.max(64, theme.margin); anchors.rightMargin: root.phoneLayout ? 0 : Math.max(64, theme.margin)
-        height: root.phoneLayout ? searchField.height + 12 + ledger.implicitHeight : 76; z: 20
+        height: layout.targetSize(root.phoneLayout ? searchField.height + 12 + ledger.implicitHeight : 76); z: 20
 
         // THE SHELF LEDGER â€” every fragment is the filter itself (gold + underline when active)
         Flow {
@@ -244,7 +244,7 @@ Item {
             LedgerFrag { label: "downloaded"; value: root.counts.downloaded; fragKey: "downloaded" }
         }
 
-        TextField {
+        TouchTextField {
             id: searchField
             objectName: "theatreLibrarySearch"
             anchors.right: parent.right; anchors.top: root.phoneLayout ? parent.top : undefined
@@ -268,8 +268,8 @@ Item {
         property int value: 0
         property string fragKey: ""
         readonly property bool active: fragKey === "" ? root.stateFilter === "" : root.stateFilter === fragKey
-        implicitWidth: fragRow.implicitWidth + (root.phoneLayout ? 12 : 0)
-        implicitHeight: root.phoneLayout ? 48 : 22
+        implicitWidth: layout.targetSize(fragRow.implicitWidth + (root.phoneLayout ? 12 : 0))
+        implicitHeight: layout.targetSize(root.phoneLayout ? 48 : 22)
         Row {
             id: fragRow; x: root.phoneLayout ? 6 : 0; anchors.verticalCenter: parent.verticalCenter; spacing: 0
             Text {
@@ -312,7 +312,7 @@ Item {
             property string label: ""
             property bool active: false
             signal picked()
-            implicitWidth: pillText.implicitWidth + 30; height: layout.touch ? layout.touchTargetSize : 34; radius: 14
+            implicitWidth: layout.targetSize(pillText.implicitWidth + 30); height: layout.touch ? layout.touchTargetSize : 34; radius: 14
             color: active ? theme.gold : (pillHover.hovered ? Qt.rgba(1, 1, 1, 0.10) : "transparent")
             border.width: active ? 0 : 1; border.color: Qt.rgba(1, 1, 1, 0.14)
             Behavior on color { ColorAnimation { duration: 130 } }

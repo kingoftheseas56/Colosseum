@@ -63,7 +63,7 @@ Item {
         Flow {
             width:parent.width
             spacing:8
-            Button {
+            TouchButton {
                 id:primary
                 objectName:card.actionObjectName
                 width:Math.min(parent.width, Math.max(80, implicitWidth))
@@ -77,7 +77,7 @@ Item {
             }
             Repeater {
                 model:card.secondaryActions
-                delegate:Button {
+                delegate:TouchButton {
                     required property var modelData
                     objectName:modelData.objectName || ""
                     text:modelData.label

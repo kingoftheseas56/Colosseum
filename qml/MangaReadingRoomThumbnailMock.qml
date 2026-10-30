@@ -101,14 +101,14 @@ Item {
             anchors.right: parent.right; anchors.rightMargin: theme.margin
             anchors.verticalCenter: parent.verticalCenter; spacing: 12
             Item {
-                width: 36; height: 36; activeFocusOnTab: true
+                width: detailLayout.targetSize(36); height: detailLayout.targetSize(36); activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Minimize window"
                 Keys.onReturnPressed: root.minimizeRequested(); Keys.onEnterPressed: root.minimizeRequested()
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/minimize.svg"; opacity: minMouse.containsMouse ? 1 : 0.72 }
                 MouseArea { id: minMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
             }
             Item {
-                width: 36; height: 36; activeFocusOnTab: true
+                width: detailLayout.targetSize(36); height: detailLayout.targetSize(36); activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Enter full screen"
                 Keys.onReturnPressed: root.fullscreenRequested(); Keys.onEnterPressed: root.fullscreenRequested()
                 Image {
@@ -120,7 +120,7 @@ Item {
                 MouseArea { id: fullscreenMouse; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
             }
             Item {
-                width: 36; height: 36; activeFocusOnTab: true
+                width: detailLayout.targetSize(36); height: detailLayout.targetSize(36); activeFocusOnTab: true
                 Accessible.role: Accessible.Button; Accessible.name: "Close series view"
                 Keys.onReturnPressed: root.closeRequested(); Keys.onEnterPressed: root.closeRequested()
                 Image { anchors.centerIn: parent; width: 20; height: 20; source: "../assets/icons/power.svg"; opacity: closeMouse.containsMouse ? 1 : 0.72 }
@@ -235,7 +235,7 @@ Item {
                 anchors.top: metaRow.bottom; anchors.topMargin: 10
                 anchors.left: parent.left; anchors.right: parent.right; anchors.rightMargin: 20
                 visible: root.synopsis.length > 0
-                height: visible ? synopsisText.height + synopsisMore.height + 3 : 0
+                height: detailLayout.targetSize(visible ? synopsisText.height + synopsisMore.height + 3 : 0)
 
                 Text {
                     id: synopsisText
@@ -281,7 +281,7 @@ Item {
                 id: actionRow
                 anchors.left: parent.left; anchors.top: deviceProgress.bottom; anchors.topMargin: 10; spacing: 8
                 Rectangle {
-                    width: openLabel.implicitWidth + 30; height: 34; radius: 8; color: theme.gold
+                    width: detailLayout.targetSize(openLabel.implicitWidth + 30); height: detailLayout.targetSize(34); radius: 8; color: theme.gold
                     activeFocusOnTab: true; Accessible.role: Accessible.Button; Accessible.name: root.continueText
                     Keys.onReturnPressed: root.primaryRequested(); Keys.onEnterPressed: root.primaryRequested()
                     Row { id: openLabel; anchors.centerIn: parent; spacing: 7

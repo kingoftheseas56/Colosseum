@@ -12,8 +12,7 @@ Item {
     readonly property bool portraitPosters:metrics.touch && metrics.phone && metrics.portrait
     readonly property real universeInset:metrics.touch ? Math.max(metrics.pageMargin,metrics.safeInsets.left,metrics.safeInsets.right) : desktopPageInset
     readonly property real bandCopyTop:metrics.touch ? Math.max(84,metrics.safeInsets.top+64) : 120
-    readonly property bool showWindowActions:!metrics.phoneLayout
-    readonly property real chromeReservedWidth:metrics.touch && showWindowActions ? metrics.touchTargetSize*3+40+universeInset : 0
+    readonly property bool showWindowActions:!androidHost
     readonly property real standardPosterWidth:metrics.touch ? Math.max(64,Math.min(150,Math.floor((width-universeInset*2-16)/2))) : 150
     readonly property real standardPosterHeight:metrics.touch ? Math.round(standardPosterWidth*1.5) : 236
     readonly property real captionHeight:metrics.touch ? Math.max(56,titleMetrics.height*2+yearMetrics.height+12) : 56

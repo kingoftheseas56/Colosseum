@@ -339,7 +339,7 @@ SettingsScaffold {
                         Item {
                             id: masterSwitch
                             objectName: "tankoyomiMasterSwitch"
-                            width: root.androidHost ? 48 : 44; height: root.androidHost ? 48 : 24
+                            width: root.layout.targetSize(root.androidHost ? 48 : 44); height: root.layout.targetSize(root.androidHost ? 48 : 24)
                             Accessible.role: Accessible.CheckBox
                             Accessible.name: "Enable Tankoyomi"
                             Rectangle { id: masterTrack; anchors.centerIn: parent; width: 44; height: 24; radius: 12
@@ -581,7 +581,7 @@ SettingsScaffold {
                             Rectangle {
                                 id: resetButton
                                 objectName: "tankoyomiResetOrder"
-                                width: 112; height: root.androidHost ? 48 : 34; radius: 10; color: Qt.rgba(1,1,1,0.05); border.width: 1; border.color: theme.edge
+                                width: 112; height: root.layout.targetSize(root.androidHost ? 48 : 34); radius: 10; color: Qt.rgba(1,1,1,0.05); border.width: 1; border.color: theme.edge
                                 Text { anchors.centerIn: parent; text: "Reset order"; color: resetInput.interactionActive ? theme.ink : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                                 MouseArea { anchors.fill: parent; onClicked: root.resetProviderOrder(root.selectedLanguage) }
                                 KeyboardAction { id: resetInput; anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: "Reset provider order"
