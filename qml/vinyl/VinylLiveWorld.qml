@@ -197,14 +197,14 @@ Item {
     function enterDiscoverSearch(online,modeToggle) {
         if(searchOpen) return;
         var pickingArtists=page==="home" && world.currentTab==="home" && worldData.tastePickerOpen===true;
+        if(pickingArtists) {world.focusArtistSearch();return;}
         if(!pickingArtists && !root.canEnterVinyl){root.enforceTasteGate();return;}
         if(session.browsing && session.browseOperation==="album") {
             session.cancelBrowse();pendingAlbumRoute=null;
         }
         searchOriginCatalogue=session.captureCatalogue();
         searchSnapshot=null;
-        artistSearchOpen=page==="home" && world.currentTab==="home" && worldData.tastePickerOpen===true;
-        if(artistSearchOpen) worldData.prepareArtistSearch();
+        artistSearchOpen=false;
         searchOpen=true;
     }
     function closeSearch() {

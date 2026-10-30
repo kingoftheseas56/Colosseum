@@ -213,8 +213,6 @@ Item {
         }
         Rectangle {anchors.fill: parent;radius: 17;color: theme.glassTint}
         VinylControlIcon {anchors.centerIn: parent;symbol: "nowPlaying";color: theme.ink}
-        ToolTip.visible: hovered
-        ToolTip.text: "Return to current line"
     }
     KeyboardAction {
         id: sourceCredit

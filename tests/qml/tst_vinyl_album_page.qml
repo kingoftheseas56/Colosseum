@@ -65,9 +65,14 @@ TestCase {
     }
     function test_barStates() {
         var bar = item("vinylPlayerBar");
-        compare(bar.toolCount, 1);
+        verify(item("vinylBarQueue").visible);
+        verify(!item("vinylBarLyrics").visible);
+        verify(!item("vinylBarNotes").visible);
         host.page = "song";
-        compare(bar.toolCount, 4);
+        verify(item("vinylBarQueue").visible);
+        verify(item("vinylBarLyrics").visible);
+        verify(item("vinylBarNotes").visible);
+        verify(item("vinylBarVideo").visible);
         host.pageData.setFixture("mounamela");
         verify(!item("vinylBarVideo").enabled);
         host.pageData.setSourceState("finding");

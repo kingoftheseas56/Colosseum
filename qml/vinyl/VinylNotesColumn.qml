@@ -241,8 +241,6 @@ Item {
                             enabled: root.autoMode && typeof root.pageData.showNotes === "function"
                             accessibleName: qsTr("Read full annotation")
                             onTriggered: root.openFullAnnotation()
-                            ToolTip.visible: hovered
-                            ToolTip.text: qsTr("Read full annotation")
                         }
                     }
                     Column {

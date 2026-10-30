@@ -192,14 +192,12 @@ TestCase {
 
         compare(world.page, "home");
         compare(world.worldView.currentTab, "home");
-        verify(world.searchOpen, "The shared top search entry should open artist search in the picker.");
-        verify(world.searchPage !== null && world.searchPage.artistPicker,
-            "Onboarding artist search should use the shared search page in picker mode.");
-        compare(findChild(world, "vinylPickerSearch"), null,
-            "The picker must not add a second search field.");
-        var sharedSearch = findChild(world, "searchSurfaceInput");
+        verify(!world.searchOpen, "The top search entry must keep the dedicated artist picker visible.");
+        compare(world.searchPage, null, "Artist setup must not create a general catalogue search page.");
+        var sharedSearch = findChild(world, "vinylPickerArtistSearch");
         verify(sharedSearch !== null && sharedSearch.visible,
-            "Artist search should reuse the shared search page field.");
+            "Artist setup and editing retain their dedicated artist search field.");
+        tryCompare(sharedSearch, "activeFocus", true);
 
         sharedSearch.forceActiveFocus();
         typeText("native");

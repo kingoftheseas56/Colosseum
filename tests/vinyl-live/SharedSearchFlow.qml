@@ -110,17 +110,20 @@ Main {
                 root.tastesBefore=JSON.stringify(w.recommendationService.selectedArtists.map(a=>a.key));
                 w.worldData.beginTasteEdit();w.enterDiscoverSearch(true,false);root.next("artist-search");return;
             }
-            if(root.stage==="artist-search" && p) {
-                if(!root.check(p.artistPicker && w.page==="home","Artist picker did not use shared page"))return;
-                p.fillAndSearch("Ilaiyaraaja");root.next("artist-results");return;
+            if(root.stage==="artist-search") {
+                var artistField=root.find(w,"vinylPickerArtistSearch");
+                if(!root.check(!w.searchOpen && w.page==="home" && artistField && artistField.activeFocus,
+                    "Artist picker lost its dedicated focused search"))return;
+                artistField.text="Ilaiyaraaja";artistField.textEdited();root.next("artist-results");return;
             }
-            if(root.stage==="artist-results" && p) {
-                if(p.searching)return;
-                var choice=p.results.find(item=>item.title==="Ilaiyaraaja");
-                if(!root.check(!!choice,"Real artist search missing Ilaiyaraaja: "+p.searchError))return;
-                if(!choice.selected)p.openItem(choice.data);
-                if(!root.check(w.searchOpen && p.results.some(i=>i.title==="Ilaiyaraaja" && i.selected),"Artist selection did not remain on shared search"))return;
-                root.capture("shared-search-artist-selection","artist-cancel");return;
+            if(root.stage==="artist-results") {
+                if(w.worldData.artistSearchLoading)return;
+                var choice=w.worldData.artistOptions(w.worldData.pickerQuery).find(item=>item.title==="Ilaiyaraaja");
+                if(!root.check(!!choice,"Real artist search missing Ilaiyaraaja: "+w.worldData.artistSearchError))return;
+                if(!choice.selected)w.worldData.togglePickerArtist(choice);
+                if(!root.check(!w.searchOpen && w.worldData.artistOptions(w.worldData.pickerQuery)
+                    .some(i=>i.title==="Ilaiyaraaja" && i.selected),"Artist selection did not remain in the dedicated picker"))return;
+                root.capture("dedicated-artist-search-selection","artist-cancel");return;
             }
             if(root.stage==="artist-cancel") {
                 w.closeSearch();w.worldData.cancelTasteEdit();

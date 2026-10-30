@@ -247,8 +247,6 @@ Item {
         height: 32
         focusRadius: 16
         Accessible.role: isLink ? Accessible.Link : Accessible.Button
-        ToolTip.text: accessibleName
-        ToolTip.visible: hovered
         Rectangle {
             anchors.fill: parent
             radius: 16
@@ -375,8 +373,6 @@ Item {
                     focusRadius: 8
                     accessibleName: "Open " + modelData.label
                     Accessible.role: Accessible.Link
-                    ToolTip.text: accessibleName
-                    ToolTip.visible: hovered
                     onTriggered: {
                         if (modelData.kind === "lyrics")
                             root.requestLyricsSource(modelData.url);
@@ -473,8 +469,6 @@ Item {
                         visible: contributorRow.profileUrl.length > 0
                         accessibleName: contributorRow.modelData.name + " on Genius"
                         Accessible.role: Accessible.Link
-                        ToolTip.text: accessibleName
-                        ToolTip.visible: hovered
                         onTriggered: root.requestContributorProfile(contributorRow.profileUrl)
                         Rectangle {
                             anchors.fill: parent

@@ -190,9 +190,6 @@ Item {
             running: control.loading && control.visible
             visible: running
         }
-        ToolTip.visible: hovered
-        ToolTip.text: accessibleName
-        ToolTip.delay: 500
     }
 
     Row {

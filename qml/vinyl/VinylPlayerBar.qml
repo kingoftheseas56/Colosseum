@@ -125,9 +125,6 @@ Item {
         width: 34
         height: 34
         opacity: enabled ? 1 : 0.34
-        ToolTip.visible: hovered
-        ToolTip.text: accessibleName
-        ToolTip.delay: 500
         Rectangle {
             anchors.fill: parent
             radius: 10
@@ -380,9 +377,6 @@ Item {
             accessibleName: root.songData.manualNoteLine >= 0 ? "Resume automatic annotations" : "Automatic annotations"
             enabled: !!root.songData.hasNotes
             selected: !!root.songData.autoNotes && root.songData.manualNoteLine < 0 && !!root.songData.lyricsShown
-            ToolTip.visible: hovered
-            ToolTip.text: root.songData.autoNotes && root.songData.manualNoteLine < 0 && !root.songData.timedLyrics
-                ? "Automatic annotations enabled; start synced playback to follow" : accessibleName
             onTriggered: root.songData.toggleNotes()
         }
         VinylSongActionMenu {
