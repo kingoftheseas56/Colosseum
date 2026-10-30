@@ -1133,6 +1133,7 @@ Window {
         onFullscreenRequested: win.toggleFullscreenShell()
         onQuitRequested: win.requestApplicationQuit()
         nativeStore: typeof NamedCollections !== "undefined" ? NamedCollections : null
+        wallpaperItem: wall
         bottomInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
         onOpenReferenceRequested: reference => win.openNamedCollectionReference(reference)
         onCollectionIdChanged: win.cancelNamedCollectionsOpen()
@@ -4156,7 +4157,7 @@ Window {
         id: page
         objectName: "homePageFlickable"
         z: 0
-        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === ""
+        visible: !win.immersiveSurfaceOpen && !feriaLayer.open && worldStack.current === "" && !collectionsPanel.showing
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         y: topbar.y + topbar.height + 10
@@ -4569,6 +4570,7 @@ Window {
     ListModel { id: openModes }
     Item {
         id: worldStack
+        visible: !collectionsPanel.showing
         anchors.fill: parent
         anchors.leftMargin: win.wideWorldNavigationLeftInset
         property string current: ""                      // "" = home; else the visible mode
