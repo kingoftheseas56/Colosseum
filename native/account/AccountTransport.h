@@ -14,6 +14,7 @@ struct AccountTransportRequest {
     QJsonObject body;
     QByteArray bearerToken;
     int timeoutMs = 15000;
+    qint64 maxReplyBytes = 0; // 0 retains the legacy transport contract.
 };
 
 struct AccountTransportReply {

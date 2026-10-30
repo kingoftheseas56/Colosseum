@@ -3,14 +3,14 @@ project(colosseum_collections_identity_test LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_AUTOMOC ON)
-find_package(Qt6 REQUIRED COMPONENTS Core)
+find_package(Qt6 REQUIRED COMPONENTS Core Gui)
 add_executable(collections_identity_test
     collections_identity_test.cpp
     ../../native/NamedCollectionsStore.cpp
     ../../native/NamedCollectionsStore.h
     ../../native/engine/ColosseumTitleIdentityRegistry.cpp
     ../../native/engine/ColosseumTitleIdentityRegistry.h)
-target_link_libraries(collections_identity_test PRIVATE Qt6::Core)
+target_link_libraries(collections_identity_test PRIVATE Qt6::Core Qt6::Gui)
 enable_testing()
 add_test(NAME colosseum.collections_identity_test COMMAND collections_identity_test)
 set_tests_properties(colosseum.collections_identity_test PROPERTIES LABELS "unit;collections;identity" TIMEOUT 30)

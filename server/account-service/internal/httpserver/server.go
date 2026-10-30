@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/account"
+	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/httpserver/collectionviewer"
 )
 
 type Pinger interface {
@@ -52,6 +53,9 @@ func New(
 	}
 
 	mux := http.NewServeMux()
+	mux.Handle("/collections/", collectionviewer.Handler())
+	mux.HandleFunc("GET /v1/collections/shared/{shareID}", handler.openCollectionPublication)
+	mux.HandleFunc("POST /v1/collections/shared/{shareID}/open", handler.openCollectionPublication)
 	mux.HandleFunc("GET /healthz", handler.health)
 	mux.HandleFunc("GET /readyz", handler.ready)
 
@@ -67,6 +71,10 @@ func New(
 	mux.HandleFunc("POST /v1/account/deletion/retry", handler.retryDeleteAccount)
 
 	protected := http.NewServeMux()
+	protected.HandleFunc("POST /v1/collections/publications", handler.publishCollection)
+	protected.HandleFunc("GET /v1/collections/publications", handler.listCollectionPublications)
+	protected.HandleFunc("PUT /v1/collections/publications/{shareID}", handler.updateCollectionPublication)
+	protected.HandleFunc("DELETE /v1/collections/publications/{shareID}", handler.revokeCollectionPublication)
 	protected.HandleFunc("DELETE /v1/sessions/current", handler.logoutCurrent)
 	protected.HandleFunc("POST /v1/sessions/logout-all", handler.logoutEverywhere)
 	protected.HandleFunc("POST /v1/password/change", handler.changePassword)

@@ -1,8 +1,10 @@
 import QtQuick
+import "../CollectionsReferences.js" as CollectionsReferences
 
 QtObject {
     id: adapter
     required property var nativeStore
+    property string activeCollectionId: ""
     property var transientReference: ({})
     readonly property int revision: nativeStore ? nativeStore.revision : 0
     readonly property bool healthy: !!nativeStore && nativeStore.healthy
@@ -50,7 +52,13 @@ QtObject {
     function getCollection(id) {
         return adapter.collections.find(function(row) { return row.id === id }) || null
     }
-    function reference(key) {
+    function reference(key, collectionId) {
+        const ownerId = collectionId || adapter.activeCollectionId
+        const active = ownerId ? adapter.getCollection(ownerId) : null
+        if (active) {
+            const member = (active.members || []).find(function(row) { return row.key === key })
+            if (member) return member
+        }
         return adapter.references[key]
             || (adapter.transientReference.key === key ? adapter.transientReference : null)
     }
@@ -59,23 +67,26 @@ QtObject {
         if (kind === "movie" || kind === "film") return "film"
         return adapter.groups.some(function(row) { return row.key === kind }) ? kind : "other"
     }
-    function media(key) {
-        const ref = adapter.reference(key) || {}
+    function media(key, collectionId) {
+        const ref = adapter.reference(key, collectionId) || {}
+        const reopen = ref.route ? ref : CollectionsReferences.sharedReopenReference(ref,
+            typeof VaultLibrary !== "undefined" && Qt.platform.os !== "android" ? VaultLibrary : null,
+            typeof CollectionsIdentity !== "undefined" ? CollectionsIdentity : null)
         const kind = adapter.mediaKind(ref)
         const group = adapter.groups.find(function(row) { return row.key === kind })
         const worlds = { theatre: "Theatre", tankoban: "Tankoban", biblio: "Biblio", vinyl: "Vinyl", vault: "Vault" }
         return { id: key, title: ref.title || qsTr("Untitled"), creator: ref.creator || "",
             year: ref.year || "", kind: kind, kindLabel: group.singular,
             world: worlds[ref.world] || qsTr("Original source"), cover: ref.cover || "",
-            available: !!ref.route, route: ref.route || "", reference: ref }
+            available: !!reopen.route, route: reopen.route || "", reference: ref }
     }
-    function filterOptions(ids) {
+    function filterOptions(ids, collectionId) {
         const present = Object.create(null)
-        for (const key of ids || []) present[adapter.media(key).kind] = true
+        for (const key of ids || []) present[adapter.media(key, collectionId).kind] = true
         return [{key:"all", label:qsTr("All titles")}].concat(adapter.groups.filter(function(group) { return !!present[group.key] }))
     }
     function summary(collection) {
-        return adapter.filterOptions(collection.items).slice(1).map(function(group) { return group.label }).join(" · ")
+        return adapter.filterOptions(collection.items, collection.id).slice(1).map(function(group) { return group.label }).join(" · ")
     }
     function memberships(key) {
         return adapter.nativeStore ? adapter.nativeStore.memberships(key) : []
