@@ -1515,7 +1515,7 @@ def fetch_artist_artwork(mbid, get_json=None):
 
 
 # Home operations are deliberately separate from full artist-page enumeration.
-HOME_OPERATIONS = {"artistCandidates", "recommendationIdentity", "recordingMatch", "populationCandidates"}
+HOME_OPERATIONS = {"artistCandidates", "songCandidates", "recommendationIdentity", "recordingMatch", "populationCandidates"}
 LB_ARTIST_EVIDENCE_QUALIFIED = True  # Public artist-radio route qualified 2026-10-22; failures remain optional.
 
 
@@ -1603,6 +1603,14 @@ def home_card(kind, raw, relation):
     if kind == "song":
         out["seconds"] = home_duration(raw)
         out["videoId"] = key
+        album = raw.get("album")
+        album_id = album.get("id") if isinstance(album, dict) else None
+        if source_key(album_id):
+            out["albumRef"] = {"kind": "album", "provider": "youtube-music",
+                                "providerId": album_id, "id": "ytm:album:" + album_id}
+        video_type = raw.get("videoType")
+        if isinstance(video_type, str) and video_type in YTM_VIDEO_TYPES:
+            out["videoType"] = video_type
         if raw.get("version"):
             out["version"] = str(raw["version"])[:300]
     return out
@@ -1613,6 +1621,401 @@ def home_duration(raw):
     if isinstance(duration, (int, float)) and not isinstance(duration, bool) and 0 < duration <= 86400:
         return int(duration)
     return secs(raw.get("duration")) or 0
+
+
+def song_candidate_duration_seconds(raw):
+    field = next((key for key in ("duration_seconds", "seconds", "duration", "length") if key in raw), None)
+    if field is None:
+        return 0
+    value = raw[field]
+    if isinstance(value, bool) or not isinstance(value, (str, int, float)):
+        return 0
+    try:
+        if isinstance(value, str):
+            if not value.strip():
+                return 0
+            seconds = secs(value.strip())
+        else:
+            if not math.isfinite(value):
+                return 0
+            seconds = int(value)
+    except (TypeError, ValueError, OverflowError):
+        return 0
+    if seconds is None or seconds <= 0 or seconds > 86400:
+        return 0
+    return int(seconds)
+
+
+def song_candidate_artwork(raw):
+    if not isinstance(raw, dict):
+        return raw
+    normalized = dict(raw)
+
+    def valid_thumbnails(values):
+        if not isinstance(values, list):
+            return []
+        out = []
+        for value in values:
+            if not isinstance(value, dict):
+                continue
+            url = value.get("url")
+            if not isinstance(url, str) or not url.strip():
+                continue
+            thumbnail = dict(value)
+            width = thumbnail.get("width")
+            try:
+                valid_width = (not isinstance(width, bool) and isinstance(width, (int, float))
+                               and math.isfinite(width) and width >= 0)
+            except (OverflowError, TypeError, ValueError):
+                valid_width = False
+            if not valid_width:
+                thumbnail["width"] = 0
+            else:
+                thumbnail["width"] = int(width)
+            out.append(thumbnail)
+        return out
+
+    thumbnails = valid_thumbnails(raw.get("thumbnails"))
+    if not thumbnails:
+        thumbnails = valid_thumbnails(raw.get("thumbnail"))
+    normalized["thumbnails"] = thumbnails
+    return normalized
+
+
+def song_candidate_request(request):
+    value = request.get("value")
+    seed = request.get("seed")
+    recording = request.get("recording")
+    fetched_at = request.get("fetchedAt")
+    if not isinstance(value, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", value):
+        raise InvalidArgumentError("A YouTube recording identity is required.")
+    if (not isinstance(seed, dict) or seed.get("provider") != "youtube-music"
+            or seed.get("kind") != "artist"
+            or not isinstance(seed.get("providerId"), str)
+            or not re.fullmatch(r"UC[A-Za-z0-9_-]{22}", seed["providerId"])
+            or ("name" in seed and (not isinstance(seed["name"], str) or len(seed["name"]) > 300))
+            or len(json.dumps(seed, ensure_ascii=True).encode("utf-8")) > 4096):
+        raise InvalidArgumentError("A selected YouTube Music artist reference is required.")
+    if (not isinstance(recording, dict) or recording.get("kind") != "song"
+            or recording.get("provider") != "youtube-music"
+            or recording.get("providerId") != value
+            or recording.get("seedArtistRef") != seed):
+        raise InvalidArgumentError("The selected top recording must match its artist and video identity.")
+    if fetched_at is not None and (not isinstance(fetched_at, str) or len(fetched_at) > 128):
+        raise InvalidArgumentError("The recommendation timestamp is invalid.")
+    return value, seed
+
+
+def song_candidate_metadata_valid(raw):
+    if not isinstance(raw, dict):
+        return False
+    raw = song_candidate_artwork(raw)
+    title = raw.get("title")
+    if not isinstance(title, str) or not title.strip() or len(title) > 4096:
+        return False
+    for field in ("resultType", "type", "category"):
+        classification = raw.get(field)
+        if classification is None or classification == "":
+            continue
+        if not isinstance(classification, str):
+            return False
+        key = classification.strip().casefold().replace("_", " ")
+        if key in {"song", "track", "music", "audio"}:
+            continue
+        if (key in {"video", "music video"}
+                and raw.get("videoType") in {"MUSIC_VIDEO_TYPE_OMV", "MUSIC_VIDEO_TYPE_UGC"}):
+            continue
+        return False
+    try:
+        record = song_record(raw)
+    except (TypeError, ValueError, OverflowError):
+        return False
+    return bool(record and home_artist_refs(raw.get("artists", [])))
+
+
+def song_candidate_row(raw, seed, relation):
+    raw = song_candidate_artwork(raw)
+    if not song_candidate_metadata_valid(raw):
+        return None
+    seconds = song_candidate_duration_seconds(raw)
+    if seconds <= 0:
+        return None
+    normalized = dict(raw)
+    normalized["duration_seconds"] = seconds
+    try:
+        record = song_record(normalized)
+    except (TypeError, ValueError, OverflowError):
+        return None
+    if (not record or seconds <= 0 or not record.get("tracks")
+            or record["tracks"][0].get("seconds", 0) <= 0
+            or not home_artist_refs(normalized.get("artists", []))):
+        return None
+    card = home_card("song", normalized, relation)
+    if not card:
+        return None
+    card["seedArtistRef"] = seed
+    card["seconds"] = seconds
+    card["record"] = record
+    return card
+
+
+def related_row_matches_existing(raw, existing):
+    if not song_candidate_metadata_valid(raw):
+        return False
+    if any(key in raw for key in ("duration_seconds", "seconds", "duration", "length")):
+        if song_candidate_duration_seconds(raw) <= 0:
+            return False
+    if fold(str(raw.get("title") or "").strip()) != fold(str(existing.get("title") or "").strip()):
+        return False
+    related_refs = home_artist_refs(raw.get("artists", []))
+    existing_refs = existing.get("artistRefs", [])
+    related_ids = {ref["providerId"] for ref in related_refs}
+    existing_ids = {ref.get("providerId") for ref in existing_refs if isinstance(ref, dict)}
+    if not related_ids or related_ids != existing_ids:
+        return False
+    related_type = raw.get("videoType")
+    if related_type and existing.get("videoType") and related_type != existing["videoType"]:
+        return False
+    return True
+
+
+def song_hydration_result(raw, video_id, response):
+    if not isinstance(response, dict) or not isinstance(response.get("videoDetails"), dict):
+        return None, "metadata_unavailable"
+    details = response["videoDetails"]
+    if details.get("videoId") != video_id:
+        return None, "video_id_mismatch"
+    title = details.get("title")
+    if (not isinstance(title, str)
+            or fold(title.strip()) != fold(str(raw.get("title") or "").strip())
+            or recording_version(raw) != recording_version({"title": title,
+                                                           "version": details.get("version")})):
+        return None, "title_mismatch"
+    if details.get("isLiveContent") is True:
+        return None, "nonmusic"
+    if (details.get("musicVideoType") and raw.get("videoType")
+            and details["musicVideoType"] != raw["videoType"]):
+        return None, "video_type_mismatch"
+    if (not isinstance(response.get("playabilityStatus"), dict)
+            or response["playabilityStatus"].get("status") != "OK"):
+        return None, "unavailable"
+    length = details.get("lengthSeconds")
+    if isinstance(length, str) and re.fullmatch(r"[0-9]{1,6}", length.strip()):
+        seconds = int(length.strip())
+    elif isinstance(length, int) and not isinstance(length, bool):
+        seconds = length
+    else:
+        return None, "invalid_duration"
+    if not 0 < seconds <= 86400:
+        return None, "invalid_duration"
+    return seconds, None
+
+
+def song_candidate_error(exc):
+    code = getattr(exc, "code", None)
+    status = getattr(exc, "code", None) if isinstance(exc, urllib.error.HTTPError) else getattr(
+        getattr(exc, "response", None), "status_code", None)
+    if code == "rate_limited" or status in (429, 503):
+        code = "rate_limited"
+    elif not isinstance(code, str):
+        code = "timeout" if _is_timeout_exception(exc) else "unavailable"
+    result = {"status": "unavailable", "candidateCount": 0, "errorCode": code}
+    if code == "rate_limited":
+        headers = getattr(exc, "headers", None) or getattr(getattr(exc, "response", None), "headers", {})
+        try:
+            retry = int(getattr(exc, "retry_after", headers.get("Retry-After", 60)))
+        except (AttributeError, TypeError, ValueError, OverflowError):
+            retry = 60
+        result["retryAfterSeconds"] = max(1, min(3600, retry))
+    return result
+
+
+def song_candidate_counts(result):
+    counts = {"radio": 0, "related": 0}
+    for item in result["items"]:
+        for source in item.get("candidateSources", []):
+            if source in counts:
+                counts[source] += 1
+    for source, count in counts.items():
+        result["provenance"]["sources"][source]["candidateCount"] = count
+
+
+def song_candidates(request, client):
+    value, seed = song_candidate_request(request)
+    result = home_envelope(request, "youtube-music", "unavailable", False)
+    result["provenance"] = {"source": "youtube-music", "generator": "song-radio-related",
+                            "sources": {}}
+    result["capabilities"] = {"songRadio": False, "songRelated": False}
+    try:
+        playlist = _call_provider(client.get_watch_playlist, videoId=value, radio=True, limit=25)
+        if not isinstance(playlist, dict):
+            raise ProviderUnavailableError("The song radio response is invalid.")
+    except Exception as exc:
+        result["provenance"]["sources"]["radio"] = song_candidate_error(exc)
+        result["provenance"]["sources"]["related"] = {
+            "status": "not_attempted", "candidateCount": 0, "errorCode": "not_attempted"}
+        result["sourceStatus"] = result["provenance"]["sources"]["radio"]["errorCode"]
+        if "retryAfterSeconds" in result["provenance"]["sources"]["radio"]:
+            result["sourceStatus"] = "rate_limited"
+            result["retryAfterSeconds"] = result["provenance"]["sources"]["radio"]["retryAfterSeconds"]
+        result["error"] = "The song radio source is unavailable."
+        return result
+
+    radio_rows = playlist.get("tracks")
+    radio_error = None
+    if not isinstance(radio_rows, list):
+        radio_error = {"status": "unavailable", "candidateCount": 0,
+                       "errorCode": "invalid_response"}
+        radio_rows = []
+    else:
+        result["capabilities"]["songRadio"] = True
+        radio_error = {"status": "ready", "candidateCount": 0}
+    result["provenance"]["sources"]["radio"] = radio_error
+
+    seen = {}
+    source_counts = {"radio": 0, "related": 0}
+
+    def collect(rows, source, relation, row_limit):
+        for raw in rows[:row_limit]:
+            card = song_candidate_row(raw, seed, relation)
+            if not card:
+                continue
+            video_id = card["providerId"]
+            existing = seen.get(video_id)
+            if existing is not None:
+                if source not in existing["candidateSources"] and source_counts[source] < 20:
+                    existing["candidateSources"].append(source)
+                    source_counts[source] += 1
+                continue
+            if source_counts[source] >= 20:
+                break
+            card["candidateSources"] = [source]
+            seen[video_id] = card
+            result["items"].append(card)
+            source_counts[source] += 1
+
+    def collect_related(rows):
+        hydration = {"attempted": 0, "accepted": 0, "failed": 0, "deferred": 0, "budget": 2}
+        attempted_ids = set()
+        hydration_error = None
+        retry_after = None
+        for raw in rows[:2000]:
+            if source_counts["related"] >= 20:
+                break
+            if not song_candidate_metadata_valid(raw):
+                continue
+            video_id = raw.get("videoId")
+            if not isinstance(video_id, str) or not re.fullmatch(r"[A-Za-z0-9_-]{11}", video_id):
+                continue
+            has_duration = any(key in raw for key in ("duration_seconds", "seconds", "duration", "length"))
+            seconds = song_candidate_duration_seconds(raw)
+            if has_duration and seconds <= 0:
+                continue
+            existing = seen.get(video_id)
+            if existing is not None:
+                if ("related" not in existing["candidateSources"]
+                        and source_counts["related"] < 20
+                        and related_row_matches_existing(raw, existing)):
+                    existing["candidateSources"].append("related")
+                    source_counts["related"] += 1
+                continue
+            candidate_raw = raw
+            if not has_duration:
+                if video_id in attempted_ids:
+                    continue
+                if hydration["attempted"] >= hydration["budget"]:
+                    hydration["deferred"] += 1
+                    continue
+                attempted_ids.add(video_id)
+                hydration["attempted"] += 1
+                try:
+                    metadata = _call_provider(client.get_song, video_id)
+                except Exception as exc:
+                    hydration["failed"] += 1
+                    error = song_candidate_error(exc)
+                    hydration_error = error["errorCode"]
+                    retry_after = error.get("retryAfterSeconds", retry_after)
+                    continue
+                seconds, error_code = song_hydration_result(raw, video_id, metadata)
+                if error_code:
+                    hydration["failed"] += 1
+                    hydration_error = error_code
+                    continue
+                candidate_raw = dict(raw)
+                candidate_raw["duration_seconds"] = seconds
+            card = song_candidate_row(candidate_raw, seed, "song-related")
+            if not card:
+                if not has_duration:
+                    hydration["failed"] += 1
+                    hydration_error = hydration_error or "metadata_unavailable"
+                continue
+            if source_counts["related"] >= 20:
+                break
+            card["candidateSources"] = ["related"]
+            seen[video_id] = card
+            result["items"].append(card)
+            source_counts["related"] += 1
+            if not has_duration:
+                hydration["accepted"] += 1
+        source = {"status": "ready", "candidateCount": 0}
+        if hydration["attempted"] or hydration["deferred"]:
+            source["hydration"] = hydration
+        if hydration_error or hydration["deferred"]:
+            source["status"] = "partial"
+            source["errorCode"] = hydration_error or "hydration_budget"
+            if retry_after:
+                source["retryAfterSeconds"] = retry_after
+        return source
+
+    if radio_error["status"] == "ready":
+        collect(radio_rows, "radio", "song-radio", 25)
+
+    related_token = playlist.get("related")
+    if not isinstance(related_token, str) or not source_key(related_token):
+        related_source = {"status": "unavailable", "candidateCount": 0,
+                          "errorCode": "missing_related_token"}
+    else:
+        try:
+            related_rows = _call_provider(client.get_song_related, related_token)
+            if not isinstance(related_rows, list):
+                raise ProviderUnavailableError("The Related response is invalid.")
+            result["capabilities"]["songRelated"] = True
+            rows = []
+            for shelf in related_rows[:20]:
+                if isinstance(shelf, dict) and isinstance(shelf.get("contents"), list):
+                    rows.extend(shelf["contents"][:100])
+            related_source = collect_related(rows)
+        except Exception as exc:
+            related_source = song_candidate_error(exc)
+    result["provenance"]["sources"]["related"] = related_source
+    song_candidate_counts(result)
+
+    source_ok = [radio_error["status"] == "ready", related_source["status"] == "ready"]
+    if all(source_ok):
+        result["status"] = "ready" if result["items"] else "empty"
+    elif any(source_ok):
+        result["status"] = "partial"
+    else:
+        result["status"] = "unavailable"
+
+    errors = [radio_error, related_source]
+    rate_limit = next((entry for entry in errors if entry.get("errorCode") == "rate_limited"), None)
+    source_error = rate_limit or next((entry for entry in errors
+                                       if entry.get("status") in {"unavailable", "partial"}
+                                       and entry.get("errorCode")), None)
+    if source_error:
+        result["sourceStatus"] = source_error["errorCode"]
+        if source_error.get("retryAfterSeconds"):
+            result["sourceStatus"] = "rate_limited"
+            result["retryAfterSeconds"] = source_error["retryAfterSeconds"]
+        result["error"] = "One or more song recommendation sources are unavailable."
+
+    while len(json.dumps({"ok": True, "data": result}, ensure_ascii=True).encode("utf-8")) > 256 * 1024 and result["items"]:
+        result["items"].pop()
+        result["status"] = "partial"
+        result["provenance"]["truncatedForResponseLimit"] = True
+        song_candidate_counts(result)
+    return result
 
 
 def artist_candidates(request, client):
@@ -1809,7 +2212,21 @@ def population_candidates(request, population_client=None):
 def handle_home(request, client=None, mb_client=None, population_client=None):
     operation = request.get("operation")
     source = "musicbrainz" if operation == "recommendationIdentity" else "listenbrainz" if operation == "populationCandidates" else "youtube-music"
-    result = home_envelope(request, source)
+    envelope_request = request
+    if operation == "songCandidates":
+        seed = request.get("seed")
+        try:
+            seed_size = len(json.dumps(seed, ensure_ascii=True).encode("utf-8"))
+        except (TypeError, ValueError):
+            seed_size = 4097
+        if not isinstance(seed, dict) or seed_size > 4096:
+            envelope_request = dict(request, seed={})
+        fetched_at = request.get("fetchedAt")
+        if fetched_at is not None and (not isinstance(fetched_at, str) or len(fetched_at) > 128):
+            envelope_request = dict(envelope_request, fetchedAt=None)
+    result = home_envelope(envelope_request, source)
+    if operation == "songCandidates":
+        result["provenance"]["generator"] = "song-radio-related"
     try:
         if len(json.dumps(request).encode()) > 256 * 1024:
             raise InvalidArgumentError("The recommendation request is oversized.")
@@ -1817,6 +2234,8 @@ def handle_home(request, client=None, mb_client=None, population_client=None):
             return population_candidates(request, population_client)
         if operation in {"artistCandidates", "recommendationIdentity"}:
             home_seed(request)
+        if operation == "songCandidates":
+            song_candidate_request(request)
         region = requested_region(request)
         if client is None:
             import functools
@@ -1827,6 +2246,8 @@ def handle_home(request, client=None, mb_client=None, population_client=None):
             client = YTMusic(requests_session=session, **ytmusic_location_options(region))
         if operation == "artistCandidates":
             return artist_candidates(request, client)
+        if operation == "songCandidates":
+            return song_candidates(request, client)
         if operation == "recommendationIdentity":
             return recommendation_identity(request, client, mb_client)
         if operation == "recordingMatch":

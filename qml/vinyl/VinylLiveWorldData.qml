@@ -437,7 +437,9 @@ Item {
         var snapshot=recommendationHomeSnapshot;
         var generation=recommendationProfileGeneration();
         var result=[],historyRows=[];
-        if(homeQuickPicks.length)result.push({key:"quick-picks",title:"Quick picks",kind:"songs",items:homeQuickPicks});
+        if(homeQuickPicks.length)result.push({key:"quick-picks",title:"Quick picks",kind:"songs",items:homeQuickPicks,
+            recommendation:true,sectionId:"quick-picks",profileGeneration:generation,
+            exposureSnapshotId:String(snapshot.exposureSnapshotId || "")});
         if(homeListeningCards.length)result.push({key:"mixes-radio",title:"Mixes & radio",kind:"mixes",items:homeListeningCards});
         var continuing=[],active=session.activeQueueRow;
         if(active && session.sourceState!=="ended" && (!(session.duration>0) || session.position<session.duration-0.5))continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,

@@ -103,6 +103,7 @@ struct RecommendationCanonicalContext final {
     std::optional<ReleaseGroupMbid> releaseGroupMbid;
     std::optional<RecommendationEntityRef> providerArtist;
     std::optional<RecommendationEntityRef> providerReleaseGroup;
+    std::optional<RecommendationEntityRef> providerRelease;
 };
 
 class RecommendationSeed final

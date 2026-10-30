@@ -651,7 +651,7 @@ Item {
         importFinished(outcome);
         return outcome;
     }
-    function refreshSource() {
+    function refreshSource(pendingRows) {
         if(source && source.setCollectionStore) source.setCollectionStore(collectionStore);
         if (!source || !source.setAlbums) return;
         // Native setAlbums accumulates track sources across entries, while the last
@@ -662,6 +662,9 @@ Item {
         function retain(album) {if(album && !seen.has(album)) {records.push(album);seen.add(album);}}
         retain(shownEdition.sourceAlbum);retain(playingEdition.sourceAlbum);
         queue.forEach(r=>retain(r.edition.sourceAlbum));
+        // Cached recommendation cards can reach the queue before their
+        // background provider callbacks. Register the selected records first.
+        (pendingRows || []).forEach(row=>retain(row.edition.sourceAlbum));
         records=records.concat(library);
         source.setAlbums(records);
     }
@@ -786,7 +789,7 @@ Item {
         var at=selected ? rows.findIndex(r=>r.discIndex===selected.discIndex && r.trackIndex===selected.trackIndex) : -1;
         if(at<0){browseError="This song is unavailable.";return;}
         if(rows.length>10000){browseError="This collection exceeds the queue limit.";return;}
-        manualPlaybackStarted();snapshot();cancelQueueRequest();refreshSource();browseError="";backend.replaceRows(rows,at,false);snapshot();
+        manualPlaybackStarted();snapshot();cancelQueueRequest();refreshSource(rows);browseError="";backend.replaceRows(rows,at,false);snapshot();
     }
     function shuffleAlbum(album) {if(!validAlbum(album)) return;if(album.type==="Playlist"&&album.complete!==true){playCatalogueAlbum(album.id,true);return;}playSongs(editionRows(normalize(album)).map(r=>({album:album,track:r.track})),true);}
     function playSongs(songs,shuffleOrder) {
@@ -795,7 +798,7 @@ Item {
         if(songs.length>10000){browseError="This collection exceeds the queue limit.";return;}
         var rows=rowsForSongs(songs);
         if(!rows.length){browseError="No available songs could be played.";return;}
-        manualPlaybackStarted();snapshot();cancelQueueRequest();refreshSource();browseError="";backend.replaceRows(rows,0,!!shuffleOrder);snapshot();
+        manualPlaybackStarted();snapshot();cancelQueueRequest();refreshSource(rows);browseError="";backend.replaceRows(rows,0,!!shuffleOrder);snapshot();
     }
     function rowsForSongs(songs) {
         if(!Array.isArray(songs))return [];
@@ -823,7 +826,7 @@ Item {
         if(rows.length!==songs.length){browseError="Some songs are no longer available. Refresh the mix.";return false;}
         if(!rows.length || !Number.isInteger(index) || index<0 || index>=rows.length)return false;
         if(!context || context.kind!=="artist-radio")manualPlaybackStarted();
-        snapshot();cancelQueueRequest();refreshSource();browseError="";
+        snapshot();cancelQueueRequest();refreshSource(rows);browseError="";
         if(!backend.replaceRows(rows,index,!!shuffleOrder))return false;
         backend.radioContext=context || {};snapshot();return true;
     }

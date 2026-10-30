@@ -93,3 +93,34 @@ QVariantMap convert(const QVariantMap &item,bool includeArtists) {
 QVariantMap VinylRecommendationIdentity::fromCatalogue(const QVariantMap &item) {
     return convert(item,true);
 }
+
+QVariantMap VinylRecommendationIdentity::fromProviderSong(const QVariantMap &item) {
+    auto result=convert(item,true);
+    const auto destination=result.value("destination").toMap();
+    if(!result.value("ok").toBool() || destination.value("kind")!="song"
+        || destination.value("provider")!="youtube-music"
+        || result.value("mappingStatus")=="ambiguous" || result.value("mappingStatus")=="unavailable")
+        return failure("The provider song identity is unavailable.");
+    const auto record=item.value("record").toMap();
+    const auto tracks=record.value("tracks").toList();const int index=item.value("trackIndex",0).toInt();
+    if(record.value("origin")!="youtube-music" || index<0 || index>=tracks.size())
+        return failure("The provider song has no bound catalogue record.");
+    const auto track=tracks[index].toMap();
+    if(track.value("videoId")!=destination.value("providerId") || track.value("title")!=item.value("title")
+        || !positiveInteger(item.value("seconds")) || item.value("seconds").toLongLong()>86400
+        || item.value("seconds").toLongLong()!=track.value("seconds").toLongLong()
+        || track.value("available").metaType().id()!=QMetaType::Bool || !track.value("available").toBool())
+        return failure("The provider song metadata does not match its playback ID.");
+    QSet<QString> expected,actual;
+    for(const auto &value:item.value("artistRefs").toList()) {
+        const auto credit=value.toMap();
+        const auto checked=convert(credit,false);
+        if(!checked.value("ok").toBool() || credit.value("kind")!="artist" || credit.value("provider")!="youtube-music")
+            return failure("The provider song has invalid artist credits.");
+        expected.insert("ytm:artist:"+credit.value("providerId").toString());
+    }
+    for(const auto &id:track.value("artistIds").toStringList()) if(!id.isEmpty())actual.insert(id);
+    if(expected.isEmpty() || expected!=actual)return failure("The provider song credits do not match its catalogue record.");
+    auto playable=destination;playable["playable"]=true;result["destination"]=playable;
+    return result;
+}

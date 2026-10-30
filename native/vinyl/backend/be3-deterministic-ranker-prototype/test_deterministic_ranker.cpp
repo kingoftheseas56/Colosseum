@@ -714,6 +714,144 @@ int main(int argc, char **argv)
                 RankEvidenceKind::ExplorationBonus),
         "bounded exploration bonus must apply only where unplayed evidence is actually known");
 
+    const auto providerId = mustDomain(
+        ProviderId::parse(QStringLiteral("catalog.fixture")),
+        "provider ID should parse");
+    const auto providerAlbum = [&](const QString &itemId) {
+        const auto parsedItemId = mustDomain(
+            ProviderItemId::parse(itemId),
+            "provider album ID should parse");
+        return RecommendationEntityRef::fromProvider(
+            CanonicalEntityKind::Release,
+            ProviderItemRef(providerId, parsedItemId));
+    };
+    const auto albumOne = providerAlbum(QStringLiteral("album-one"));
+    const auto albumTwo = providerAlbum(QStringLiteral("album-two"));
+    require(
+        !albumOne.isCanonical()
+            && albumOne.kind() == CanonicalEntityKind::Release,
+        "provider album context must retain its typed provider Release identity");
+
+    const auto contextEvidence = mustCandidate(
+        RecommendationReasonEvidence::create(
+            RecommendationEvidenceKind::HistorySignal,
+            QStringLiteral("provider album context fixture")),
+        "provider album context evidence should construct");
+    const auto contextProvenance = mustCandidate(
+        RecommendationCandidateProvenance::create(
+            generator("plain.gen"), RecommendationSourceFamily::History),
+        "provider album context provenance should construct");
+    auto canonicalReleaseContext = RecommendationCanonicalContext{};
+    const auto canonicalReleaseId = mustDomain(
+        ReleaseMbid::parse(QStringLiteral("aaaaaaaa-1111-4111-8111-111111111111")),
+        "canonical release ID should parse");
+    canonicalReleaseContext.providerRelease = RecommendationEntityRef(
+        CanonicalEntityRef::from(canonicalReleaseId));
+    const auto canonicalReleaseContribution = RecommendationContribution::create(
+        canonicalReleaseContext,
+        contextProvenance,
+        std::nullopt,
+        QVector<RecommendationReasonEvidence>{contextEvidence});
+    require(
+        !canonicalReleaseContribution.ok()
+            && canonicalReleaseContribution.error.code
+                == RecommendationCandidateErrorCode::InvalidSeedContext,
+        "provider Release context must reject canonical Release identities");
+
+    auto providerReleaseGroupContext = RecommendationCanonicalContext{};
+    providerReleaseGroupContext.providerRelease =
+        RecommendationEntityRef::fromProvider(
+            CanonicalEntityKind::ReleaseGroup,
+            ProviderItemRef(
+                providerId,
+                mustDomain(
+                    ProviderItemId::parse(QStringLiteral("wrong-kind-group")),
+                    "provider release-group ID should parse")));
+    const auto providerReleaseGroupContribution =
+        RecommendationContribution::create(
+            providerReleaseGroupContext,
+            contextProvenance,
+            std::nullopt,
+            QVector<RecommendationReasonEvidence>{contextEvidence});
+    require(
+        !providerReleaseGroupContribution.ok()
+            && providerReleaseGroupContribution.error.code
+                == RecommendationCandidateErrorCode::InvalidSeedContext,
+        "provider Release context must reject another provider entity kind");
+
+    const auto providerAlbumCandidate = [&](const RecordingMbid &recordingId,
+                                            const RecommendationEntityRef &album) {
+        RecommendationCanonicalContext context;
+        context.providerRelease = album;
+        return makeCandidate(
+            CanonicalEntityRef::from(recordingId),
+            "plain.gen",
+            std::nullopt,
+            context);
+    };
+    const auto albumDiversitySet = RecommendationCandidateSet::normalize(
+        QVector<RecommendationCandidate>{
+            providerAlbumCandidate(recC, albumOne),
+            providerAlbumCandidate(recA, albumOne),
+            providerAlbumCandidate(recB, albumTwo),
+        });
+    auto albumDiversityConfig = baseConfig();
+    albumDiversityConfig.maxResults = 3;
+    albumDiversityConfig.maxRecordingsPerReleaseGroup = 1;
+    const auto albumDiversityRun = rankDeterministically(
+        albumDiversitySet,
+        neutralTaste,
+        emptyHistory,
+        emptyExposure,
+        RankerFeatureContext{},
+        albumDiversityConfig);
+    require(albumDiversityRun.ok(), "provider album diversity ranking should succeed");
+    require(
+        albumDiversityRun.value->ranked().size() == 2
+            && albumDiversityRun.value->ranked()[0].entity() == aRef
+            && albumDiversityRun.value->ranked()[1].entity() == bRef,
+        "provider album IDs must enforce the opted-in one-recording cap while another album remains available");
+
+    RecommendationCanonicalContext releaseGroupPreferredContext;
+    releaseGroupPreferredContext.providerReleaseGroup =
+        RecommendationEntityRef::fromProvider(
+            CanonicalEntityKind::ReleaseGroup,
+            ProviderItemRef(
+                providerId,
+                mustDomain(
+                    ProviderItemId::parse(QStringLiteral("true-release-group")),
+                    "provider release-group ID should parse")));
+    const auto releaseGroupPreferredCandidate =
+        [&](const RecordingMbid &recordingId, const QString &albumId) {
+            auto context = releaseGroupPreferredContext;
+            context.providerRelease = providerAlbum(albumId);
+            return makeCandidate(
+                CanonicalEntityRef::from(recordingId),
+                "plain.gen",
+                std::nullopt,
+                context);
+        };
+    const auto releaseGroupPreferredSet =
+        RecommendationCandidateSet::normalize(
+            QVector<RecommendationCandidate>{
+                releaseGroupPreferredCandidate(recC, QStringLiteral("other-album")),
+                releaseGroupPreferredCandidate(recB, QStringLiteral("album-b")),
+                providerAlbumCandidate(recA, albumTwo),
+            });
+    const auto releaseGroupPreferredRun = rankDeterministically(
+        releaseGroupPreferredSet,
+        neutralTaste,
+        emptyHistory,
+        emptyExposure,
+        RankerFeatureContext{},
+        albumDiversityConfig);
+    require(
+        releaseGroupPreferredRun.ok()
+            && releaseGroupPreferredRun.value->ranked().size() == 2
+            && releaseGroupPreferredRun.value->ranked()[0].entity() == aRef
+            && releaseGroupPreferredRun.value->ranked()[1].entity() == bRef,
+        "release-group identity must remain preferred over differing provider album IDs");
+
     for (const auto &ranked : output.ranked()) {
         require(
             !ranked.explanation().isEmpty(),

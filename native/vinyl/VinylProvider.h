@@ -34,7 +34,7 @@ public:
         m_clock(clock?std::move(clock):std::function<qint64()>([]{return QDateTime::currentMSecsSinceEpoch();})),
         m_cacheRoot(cacheRoot.isEmpty()?QStandardPaths::writableLocation(QStandardPaths::CacheLocation)+"/vinyl/catalogue":std::move(cacheRoot)) {}
     ~VinylProvider() override {cancelAll();}
-    static bool homeOperation(const QString &op){return QStringList{"artistCandidates","recommendationIdentity","recordingMatch","populationCandidates"}.contains(op);}
+    static bool homeOperation(const QString &op){return QStringList{"artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates"}.contains(op);}
     static bool normalizeHome(const QString &op,const QString &value,const QVariantMap &options,const QVariant &raw,QVariantMap *out){
         if(raw.metaType().id()!=QMetaType::QVariantMap||QJsonDocument::fromVariant(raw).toJson(QJsonDocument::Compact).size()>256*1024)return false;
         auto data=raw.toMap();
@@ -51,6 +51,13 @@ public:
             if(seed.value("kind")!="artist"||seed.value("provider")!="youtube-music"||seed.value("providerId")!=value)return false;
             const auto checked=VinylRecommendationIdentity::fromCatalogue(seed);
             if(!checked.value("ok").toBool())return false;
+        }else if(op=="songCandidates"){
+            const auto recording=options.value("recording").toMap();
+            if(seed.value("kind")!="artist"||seed.value("provider")!="youtube-music"
+                ||!VinylRecommendationIdentity::fromCatalogue(seed).value("ok").toBool()
+                ||!QRegularExpression("^[A-Za-z0-9_-]{11}$").match(value).hasMatch()
+                ||recording.value("kind")!="song"||recording.value("provider")!="youtube-music"
+                ||recording.value("providerId")!=value||recording.value("seedArtistRef").toMap()!=seed)return false;
         }else if(op=="populationCandidates"){
             auto checked=vinyl::RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(seed));
             if(!checked.ok()||!checked.value->isCanonical()||checked.value->kind()!=vinyl::CanonicalEntityKind::Artist||checked.value->mbidString()!=value)return false;
@@ -63,7 +70,7 @@ public:
         if(items.size()>60||((status=="unavailable"||status=="empty"||status=="ambiguous"||status=="unresolved")&&!items.isEmpty())
             ||(status=="ready"&&items.isEmpty())||(status=="verified"&&!data.value("complete").toBool()))return false;
         QVariantList normalized;QSet<QString> seen;
-        const QSet<QString> itemFields{"kind","provider","providerId","id","title","name","image","cover","relation","artistRefs","artists","year","releaseDate","dateSource","releaseType","seconds","videoId","mapping","mappingStatus","playbackMatch","ref","key","destination","available","artistMbid","artistName","recordingMbid","seedArtistRef","version"};
+        const QSet<QString> itemFields{"kind","provider","providerId","id","title","name","image","cover","relation","artistRefs","artists","year","releaseDate","dateSource","releaseType","seconds","videoId","mapping","mappingStatus","playbackMatch","ref","key","destination","available","artistMbid","artistName","recordingMbid","seedArtistRef","version","albumRef","record","trackIndex","candidateSources","videoType"};
         for(const auto &entry:items){
             if(entry.metaType().id()!=QMetaType::QVariantMap)return false;
             auto item=entry.toMap();for(auto it=item.cbegin();it!=item.cend();++it)if(!itemFields.contains(it.key()))return false;
@@ -76,7 +83,22 @@ public:
                 if(item.value("provider")!="youtube-music")return false;
                 if(op=="artistCandidates"&&(item.value("seedArtistRef").toMap()!=seed
                     ||!QStringList{"own-release","top-recording","related-artist"}.contains(item.value("relation").toString())))return false;
-                const auto converted=VinylRecommendationIdentity::fromCatalogue(item);
+                if(op=="songCandidates"){
+                    const auto sources=item.value("candidateSources").toStringList();
+                    if(item.value("kind")!="song"||item.value("seedArtistRef").toMap()!=seed||sources.isEmpty()
+                        ||sources.size()>2||!QStringList{"song-radio","song-related"}.contains(item.value("relation").toString()))return false;
+                    QSet<QString> unique;
+                    for(const auto &source:sources){if(!QStringList{"radio","related"}.contains(source)||unique.contains(source))return false;unique.insert(source);}
+                    if(item.value("relation")=="song-radio"&&!unique.contains("radio"))return false;
+                    if(item.value("relation")=="song-related"&&!unique.contains("related"))return false;
+                }
+                if(item.contains("albumRef")){
+                    const auto album=item.value("albumRef").toMap();
+                    if(album.value("kind")!="album"||album.value("provider")!="youtube-music"
+                        ||!VinylRecommendationIdentity::fromCatalogue(album).value("ok").toBool())return false;
+                }
+                const auto converted=op=="songCandidates"?VinylRecommendationIdentity::fromProviderSong(item)
+                    :VinylRecommendationIdentity::fromCatalogue(item);
                 if(!converted.value("ok").toBool())return false;
                 for(const auto &field:{"ref","key","destination","artists","mappingStatus"})item[field]=converted.value(field);
             }
@@ -142,9 +164,12 @@ public:
         prune();
     }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
-        static const QStringList operations{"search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","recommendationIdentity","recordingMatch","populationCandidates","lyrics"};
+        static const QStringList operations{"search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","songCandidates","recommendationIdentity","recordingMatch","populationCandidates","lyrics"};
         static const QStringList lanes{"browse","queue","play","playFallback","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
-        if(!operations.contains(operation)||!lanes.contains(lane)||value.size()>300)return -1;
+        const bool songLane=lane=="home-song-0"||lane=="home-song-1";
+        if(!operations.contains(operation)||(!lanes.contains(lane)&&!songLane)||value.size()>300)return -1;
+        if(songLane&&operation!="songCandidates")return -1;
+        if(operation=="songCandidates"&&!songLane)return -1;
         if(lane.startsWith("home-listening-") && operation!="album" && operation!="artistCandidates")return -1;
         // Collections may read exact album metadata, never resolve playback or
         // take ownership of an existing browse/play/queue request.
@@ -232,12 +257,12 @@ public:
         const auto python=qEnvironmentVariable("COLOSSEUM_VINYL_PYTHON",bundled);
         auto launch=[this,process,deadline,lane,python,requestBytes,operation,home]{
             if(m_active.value(lane)!=process)return;
-            if(home)m_running.insert(process);
+            if(home){m_running.insert(process);if(operation=="songCandidates")deadline->start(20000);}
             else deadline->start(operation=="lyrics"?12000:operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
             process->start(python,{"-I",m_helper});
             if(m_active.value(lane)==process){process->write(requestBytes);process->closeWriteChannel();}
         };
-        if(home){deadline->start(8000);m_waiting.enqueue({QPointer<QProcess>(process),launch});QTimer::singleShot(0,this,[this]{startWaiting();});}
+        if(home){if(operation!="songCandidates")deadline->start(8000);m_waiting.enqueue({QPointer<QProcess>(process),launch});QTimer::singleShot(0,this,[this]{startWaiting();});}
         else QTimer::singleShot(0,process,launch);
         return id;
     }

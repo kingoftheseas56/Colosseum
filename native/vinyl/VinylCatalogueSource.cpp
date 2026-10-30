@@ -82,6 +82,7 @@ QVariantMap VinylCatalogueSource::remember(QVariantMap album){
 }
 int VinylCatalogueSource::request(const QString &lane,const QString &operation,const QString &value){return request(lane,operation,value,{});}
 int VinylCatalogueSource::request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options){
+    if(operation=="songCandidates"&&lane!="home-song-0"&&lane!="home-song-1")return -1;
     cancel(lane);const int id=++m_serial;
     bool local=operation=="search"||value.startsWith("vault:")||value.startsWith("vinyl:local-");
     QString remoteValue=value,remoteOperation=operation;
@@ -146,6 +147,7 @@ void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &dat
             remember({{"id",track.value("id")},{"browseId",track.value("id")},{"type","Song"},{"title",track.value("title")},
                 {"artists",names},{"artistIds",ids},{"origin","youtube-music"},{"cover",track.value("cover")},{"tracks",QVariantList{track}}});
         }
+        if(pending.operation=="songCandidates")for(const auto &entry:normalized.value("items").toList())remember(entry.toMap().value("record").toMap());
         emit completed(lane,pending.id,normalized,{});return;
     }
     if(error.isEmpty()){
