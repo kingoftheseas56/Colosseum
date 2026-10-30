@@ -44,6 +44,8 @@ class VinylBackendSession : public QObject {
     Q_PROPERTY(QString repeatMode READ repeatMode NOTIFY stateChanged)
     Q_PROPERTY(QString playbackEndingReason READ playbackEndingReason NOTIFY stateChanged)
     Q_PROPERTY(QString listeningOrigin READ listeningOrigin NOTIFY stateChanged)
+    Q_PROPERTY(qint64 lastPlaybackAtMs READ lastPlaybackAtMs NOTIFY stateChanged)
+    Q_PROPERTY(QVariantMap radioContext READ radioContext WRITE setRadioContext NOTIFY stateChanged)
 public:
     explicit VinylBackendSession(QObject *parent=nullptr);
     ~VinylBackendSession() override;
@@ -72,6 +74,9 @@ public:
     QString repeatMode() const { return m_repeat; }
     QString playbackEndingReason() const {return m_endingReason;}
     QString listeningOrigin() const {return m_listeningOrigin;}
+    qint64 lastPlaybackAtMs() const { return m_lastPlaybackAtMs; }
+    QVariantMap radioContext() const { return m_radioContext; }
+    void setRadioContext(const QVariantMap &context);
     Q_INVOKABLE QVariantMap listeningIdentity() const;
 
     Q_INVOKABLE bool replaceRows(const QVariantList &rows,int index,bool shuffle);
@@ -84,6 +89,7 @@ public:
     Q_INVOKABLE void cycleRepeat();
     Q_INVOKABLE void setPaused(bool paused);
     Q_INVOKABLE void next(int delta);
+    Q_INVOKABLE bool continueRadio();
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void retry();
     Q_INVOKABLE void suspend();
@@ -148,9 +154,11 @@ private:
     QString m_profile,m_repeat="off",m_state="idle",m_error,m_quality="Local audio";
     QString m_sourceKind,m_fallbackReason;
     QString m_endingReason="stop",m_listeningOrigin="manual";
+    QVariantMap m_radioContext;
     bool m_naturalAdvancing=false,m_navigationBack=false;
     bool m_forceFallback=false,m_fallbackAttempted=false;
     qint64 m_lastProgressMs=0;
+    qint64 m_lastPlaybackAtMs=0;
     double m_lastProgress=0;
     bool m_paused=true,m_loaded=false,m_shutdown=false,m_profileActive=false,m_shuffleEnabled=false;
     bool m_publishedPaused=true;

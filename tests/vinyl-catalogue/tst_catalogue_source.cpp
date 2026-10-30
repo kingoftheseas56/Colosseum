@@ -16,6 +16,7 @@
 #include <QBuffer>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QHash>
 
 namespace {
 qint64 cacheTreeBytes(const QString &root){
@@ -304,6 +305,73 @@ private slots:
         QTRY_COMPARE_WITH_TIMEOUT(done.size(),2,10000);
         QVERIFY(done.last()[3].toString().isEmpty());
         QCOMPARE(done.last()[2].toMap().value("browseId").toString(),QString("MPRE_test"));
+    }
+    void homeListeningMetadataLanesAreAllowlistedAndIsolated(){
+        QTemporaryDir dir;QVERIFY(dir.isValid());
+        VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);
+        VinylProvider provider(QStringLiteral(VINYL_FAKE_TRANSPORT),nullptr,128*1024*1024,{},dir.filePath("cache"));
+        VinylCatalogueSource source(&local,&provider,nullptr);QSignalSpy done(&source,&VinylCatalogueSource::completed);
+        const QString channel="UCedvOgsKFzcK3hA5taf3KoQ";
+        const QVariantMap seed{{"provider","youtube-music"},{"providerId",channel},{"kind","artist"},{"name","Artist"}};
+
+        const int browseId=source.request("browse","catalogueSearch","slow");
+        const int queueId=source.request("queue","album","queue-release");
+        const int albumId=source.request("home-listening-0","album","MPRE_test");
+        const int candidateId=source.request("home-listening-1","artistCandidates",channel,{{"seed",seed}});
+        QVERIFY(browseId>0);QVERIFY(queueId>0);QVERIFY(albumId>0);QVERIFY(candidateId>0);
+
+        QHash<QString,int> expectedIds{{"browse",browseId},{"queue",queueId},
+            {"home-listening-0",albumId},{"home-listening-1",candidateId}};
+        QHash<QString,QVariantMap> responses;
+        QTRY_COMPARE_WITH_TIMEOUT(done.size(),expectedIds.size(),10000);
+        for(const auto &completion:done){
+            const auto lane=completion[0].toString();
+            QVERIFY(expectedIds.contains(lane));
+            QCOMPARE(completion[1].toInt(),expectedIds.value(lane));
+            QVERIFY2(completion[3].toString().isEmpty(),qPrintable(completion[3].toString()));
+            responses.insert(lane,completion[2].toMap());
+        }
+        QCOMPARE(responses.size(),expectedIds.size());
+
+        const auto homeAlbum=responses.value("home-listening-0");
+        QCOMPARE(homeAlbum.value("id").toString(),QString("provider-release"));
+        QCOMPARE(homeAlbum.value("browseId").toString(),QString("MPRE_test"));
+        QCOMPARE(homeAlbum.value("tracks").toList().size(),1);
+
+        const auto candidateResponse=responses.value("home-listening-1");
+        QCOMPARE(candidateResponse.value("seed").toMap(),seed);
+        const auto items=candidateResponse.value("items").toList();QCOMPARE(items.size(),1);
+        const auto item=items.first().toMap();
+        QCOMPARE(item.value("kind").toString(),QString("album"));
+        QCOMPARE(item.value("ref").toMap().value("kind").toString(),QString("release"));
+        QCOMPARE(item.value("ref").toMap().value("itemId").toString(),QString("MPRE_test"));
+        QCOMPARE(item.value("destination").toMap().value("id").toString(),QString("ytm:album:MPRE_test"));
+        QVERIFY(!item.value("destination").toMap().value("playable").toBool());
+
+        const auto browse=responses.value("browse");
+        QCOMPARE(browse.value("request").toMap().value("operation").toString(),QString("catalogueSearch"));
+        const auto queue=responses.value("queue");
+        QCOMPARE(queue.value("browseId").toString(),QString("queue-release"));
+        QCOMPARE(queue.value("tracks").toList().size(),1);
+
+        const int lane0CandidateId=source.request("home-listening-0","artistCandidates",channel,{{"seed",seed}});
+        QVERIFY(lane0CandidateId>0);QTRY_COMPARE_WITH_TIMEOUT(done.size(),5,10000);
+        QCOMPARE(done.last()[0].toString(),QString("home-listening-0"));
+        QCOMPARE(done.last()[1].toInt(),lane0CandidateId);QVERIFY(done.last()[3].toString().isEmpty());
+        const auto lane0Items=done.last()[2].toMap().value("items").toList();QCOMPARE(lane0Items.size(),1);
+        QCOMPARE(lane0Items.first().toMap().value("destination").toMap().value("id").toString(),QString("ytm:album:MPRE_test"));
+
+        const int lane1AlbumId=source.request("home-listening-1","album","MPRE_test");
+        QVERIFY(lane1AlbumId>0);QTRY_COMPARE_WITH_TIMEOUT(done.size(),6,10000);
+        QCOMPARE(done.last()[0].toString(),QString("home-listening-1"));
+        QCOMPARE(done.last()[1].toInt(),lane1AlbumId);QVERIFY(done.last()[3].toString().isEmpty());
+        QCOMPARE(done.last()[2].toMap().value("browseId").toString(),QString("MPRE_test"));
+
+        QVERIFY(source.request("home-listening-2","album","MPRE_test")<0);
+        QVERIFY(source.request("home-listening-0","resolve","provider-recording")<0);
+        QVERIFY(source.request("home-listening-1","resolve","provider-recording")<0);
+        QTest::qWait(50);
+        QCOMPARE(done.size(),expectedIds.size()+2);
     }
     void matchedRecordingIsRequestBoundAndUsesExistingResolver(){
         QTemporaryDir dir;VaultIdentity identity(dir.filePath("identity.json"));VinylLocalSource local(&identity);

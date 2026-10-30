@@ -20,6 +20,10 @@ Item {
     property alias worldView: world
     property alias personalLibrary: personalData
     readonly property var recommendationService: recommendations
+    readonly property bool canEnterVinyl: componentReady && session.profileActive && !session.shuttingDown
+        && recommendations.profileActive && recommendations.profileScope === session.profileScope
+        && recommendations.profileGeneration === session.profileGeneration
+        && recommendations.canEnterVinyl === true
     property string importStatus: ""
     readonly property bool importing: session.importing
     readonly property string importProgressText: {
@@ -40,9 +44,15 @@ Item {
     property real shellDockBottomExtent: 0
     property bool searchOpen: false
     property bool artistSearchOpen: false
+    property string homeListeningError: ""
+    readonly property string homeRadioStatus: !canEnterVinyl || !recommendations.homeRadioActive ? ""
+        : recommendations.homeRadioState==="loading" ? "Loading radio…"
+        : recommendations.homeRadioState==="error" ? "Radio could not load more music."
+        : recommendations.homeRadioState==="exhausted" && session.sourceState==="ended" ? "Radio finished." : ""
     readonly property real footerLeft: Math.max(theme.margin, shellDockRight > 0 ? shellDockRight + 12 : 0)
     readonly property real contentBottom: bar.visible ? bar.y - 54 : height - Math.max(62, shellDockBottomExtent)
-    readonly property bool worldVisible: ["home","discover","library"].indexOf(page)>=0
+    readonly property bool worldVisible: canEnterVinyl
+        ? ["home","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
     readonly property Item chromeBackdrop: worldVisible && root.backdrop ? root.backdrop : vinylBackdrop
     readonly property bool discoverOnlineMode: {
         if(worldData.activeTab==="discover") return !!worldData.onlineMode;
@@ -57,6 +67,45 @@ Item {
     signal playbackRequested()
     signal accountClicked(real anchorRight, real anchorBottom)
     signal dlnaClicked(real anchorRight, real anchorBottom)
+    property bool componentReady: false
+    property bool enforcingTasteGate: false
+    onCanEnterVinylChanged: if (componentReady && !canEnterVinyl) Qt.callLater(root.enforceTasteGate)
+    onPageChanged: if (componentReady && !canEnterVinyl && page !== "home") enforceTasteGate()
+    function enforceTasteGate() {
+        if(!root.componentReady)return false;
+        if (root.canEnterVinyl) return true;
+        if(!session.paused)session.paused=true;
+        if(recommendations.homeRadioActive)recommendations.stopHomeRadio();
+        if (root.page === "home" && world.currentTab === "home"
+                && worldData.activeTab === "home" && worldData.tastePickerOpen
+                && (!root.searchOpen || root.artistSearchOpen))
+            return false;
+        if (root.enforcingTasteGate) return false;
+        root.enforcingTasteGate = true;
+        try {
+            root.cancelNamedCollectionOpen();
+            if (session.browsing) session.cancelBrowse();
+            pendingAlbumRoute = null;
+            routeStack = [];
+            searchOpen = false;
+            artistSearchOpen = false;
+            recentSearchMenu.close();
+            if(queuePanel)queuePanel.close();
+            if(playlistPicker)playlistPicker.close();
+            if(creditsPopup)creditsPopup.close();
+            if(audioDialog)audioDialog.close();
+            if(audioFolderDialog)audioFolderDialog.close();
+            world.listKey = "";
+            if (world.currentTab !== "home") world.setTab("home");
+            if (worldData.activeTab !== "home" || recommendations.onboardingState === "unanswered")
+                worldData.selectTab("home");
+            page = "home";
+        } finally {
+            root.enforcingTasteGate = false;
+        }
+        Qt.callLater(root.parkFocus);
+        return false;
+    }
     function captureRoute() {
         var focusItem=Window.window ? Window.window.activeFocusItem : null;
         return {page:page,searchOpen:searchOpen,focus:focusItem,keyboardFocus:!!focusItem && focusItem.accessibleName!==undefined,
@@ -70,13 +119,14 @@ Item {
     function pushRoute() {routeStack=routeStack.concat([captureRoute()]);}
     function enterDiscoverSearch(online,modeToggle) {
         if(page==="home" && world.currentTab==="home" && worldData.tastePickerOpen===true) {
-            artistSearchOpen=true;
+            artistSearchOpen=false;
             worldData.prepareArtistSearch();
-            searchOpen=true;
+            searchOpen=false;
             recentSearchMenu.close();
-            Qt.callLater(function(){if(query.visible)query.forceActiveFocus();else root.parkFocus();});
+            Qt.callLater(function(){if(!world.focusArtistSearch())root.parkFocus();});
             return;
         }
+        if (!root.canEnterVinyl) { root.enforceTasteGate(); return; }
         artistSearchOpen=false;
         var alreadySearching=page==="discover" && world.currentTab==="discover" && !world.listKey;
         if(!alreadySearching) pushRoute();
@@ -99,6 +149,7 @@ Item {
     }
     function submitSearch() {
         if(artistSearchOpen) {worldData.submitArtistSearch();return;}
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         if(typeof worldData.submitSearch==="function") worldData.submitSearch();
         else {
             worldData.rememberSearch();
@@ -108,6 +159,7 @@ Item {
     }
     function setQuery(value) {
         if(artistSearchOpen) {worldData.setArtistSearchQuery(value);return;}
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         if(typeof worldData.setQuery==="function") worldData.setQuery(value);
         else worldData.query=value;
     }
@@ -116,6 +168,7 @@ Item {
     function parkFocus() {root.forceActiveFocus(Qt.OtherFocusReason);}
     function focusLibrary() {Qt.callLater(root.parkFocus);}
     function showHome() {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         var alreadyOnHome=world.currentTab==="home";
         searchOpen=false;artistSearchOpen=false;recentSearchMenu.close();
         session.cancelBrowse();pendingAlbumRoute=null;routeStack=[];world.listKey="";world.setTab("home");
@@ -125,6 +178,7 @@ Item {
     }
     function openHomeDestination(tab,section,id) {
         if(tab==="discover"){root.enterDiscoverSearch(true,false);return;}
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         root.pushRoute();
         searchOpen=false;artistSearchOpen=false;recentSearchMenu.close();
         session.cancelBrowse();pendingAlbumRoute=null;world.listKey="";world.setTab("library");page="library";
@@ -134,12 +188,16 @@ Item {
         world.parkPage(Math.max(0,world.contentTop-world.dockedInset));Qt.callLater(root.parkFocus);
     }
     function showLibrary() {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         searchOpen=false;artistSearchOpen=false;recentSearchMenu.close();
         session.cancelBrowse();pendingAlbumRoute=null;session.refreshLibrary();routeStack=[];world.listKey="";world.setTab("library");
         if(typeof worldData.selectTab==="function") worldData.selectTab("library");
         page="library";world.parkPage(Math.max(0,world.contentTop-world.dockedInset));focusLibrary();
     }
-    function openAlbum(id) {pendingAlbumRoute=captureRoute();session.openAlbum(id);}
+    function openAlbum(id) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        pendingAlbumRoute=captureRoute();session.openAlbum(id);
+    }
     // A separate catalogue read lane keeps collection browsing independent of
     // the player, queue, Library, and the session's ordinary browse request.
     function cancelNamedCollectionOpen() {
@@ -157,6 +215,7 @@ Item {
         namedCollectionOpened(success, message || "")
     }
     function openNamedCollectionReference(reference) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();namedCollectionOpened(false,"Choose at least five artists to open Vinyl.");return;}
         cancelNamedCollectionOpen()
         var p = reference.payload || {}
         if (!session.profileActive || !session.source) {
@@ -186,6 +245,7 @@ Item {
         collectionOpenTimeout.restart()
     }
     function acceptNamedCollectionAlbum(data, failure) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();root.namedCollectionOpened(false,"Choose at least five artists to open Vinyl.");return;}
         var reference = namedCollectionPending
         if (!reference) return
         data = session.plainData(data)
@@ -239,6 +299,7 @@ Item {
         }
     }
     function showSong() {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         if(session.playingIndex<0) return;
         session.cancelBrowse();
         if(page!=="song" || browsingSong) pushRoute();
@@ -247,14 +308,17 @@ Item {
         Qt.callLater(root.parkFocus);
     }
     function showBrowseSong(record,index,editionId) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         session.cancelBrowse();pushRoute();searchOpen=false;artistSearchOpen=false;recentSearchMenu.close();browseSong.album=record;browseSong.editionId=editionId || "";browseSong.trackIndex=index;
         browsingSong=true;page="song";Qt.callLater(root.parkFocus);
     }
     function showArtist(name) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         session.cancelBrowse();pushRoute();searchOpen=false;artistSearchOpen=false;recentSearchMenu.close();artistData.open(name);artist.contentY=0;artist.selectedCategory="";page="artist";
         Qt.callLater(root.parkFocus);
     }
     function showRecordArtist(name,record) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         var at=(record.artists || []).indexOf(name);
         if(at>=0 && (record.artistIds || [])[at]) {showArtist({name:name,id:record.artistIds[at]});return;}
         var tracks=record.tracks || [];
@@ -265,6 +329,17 @@ Item {
         showArtist(name);
     }
     function activateItem(item) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
+        if(item.kind==="mixes") {
+            root.pushRoute();searchOpen=false;artistSearchOpen=false;
+            session.browseError="";homeListeningError="";
+            homeMix.savedPlaylistId="";recommendations.openHomeMix(String(item.mixId || "personal"));
+            page="mix";homeMix.contentY=0;root.parkFocus();return;
+        }
+        if(item.kind==="radio") {
+            homeListeningError="";
+            recommendations.startHomeRadio(item.seedArtist || {});return;
+        }
         if(item.kind==="resume") {
             if(item.unavailable){session.browseError="This song is no longer available.";return;}
             if(item.resumeCurrent){if(session.playingIndex<0)return;session.paused=false;root.showSong();}
@@ -310,7 +385,23 @@ Item {
         if(item.kind==="songs" && record) showBrowseSong(record,item.trackIndex);
         else openAlbum(albumId);
     }
+    function queuedAudioIds() {
+        return session.queue.map(row=>String((row.track || {}).videoId || row.trackId || (row.track || {}).id || "")).filter(id=>!!id);
+    }
+    function restoreHomeRadio() {
+        if(!root.canEnterVinyl || !session.radioContext || session.radioContext.kind!=="artist-radio")return;
+        if(!recommendations.homeRadioActive)recommendations.restoreHomeRadio(session.radioContext,root.queuedAudioIds());
+    }
+    function refillHomeRadio() {
+        if(!root.canEnterVinyl || session.paused || !recommendations.homeRadioActive)return;
+        if(session.queue.length-session.queueIndex<=3 && recommendations.homeRadioState==="ready")
+            recommendations.refillHomeRadio(root.queuedAudioIds());
+    }
     function goBack() {
+        if(!root.canEnterVinyl) {
+            if(artistSearchOpen) {artistSearchOpen=false;searchOpen=false;recentSearchMenu.close();return true;}
+            root.enforceTasteGate();return true;
+        }
         if (namedCollectionReturn && page === namedCollectionReturn.page
                 && routeStack.length === namedCollectionReturn.depth) {
             namedCollectionReturn = null
@@ -370,6 +461,7 @@ Item {
         if(!importStatus) importStatus=albums>0 ? "Updated " + albums + (albums===1 ? " album." : " albums.") : "No tracks were added.";
     }
     function importLocalFiles(paths) {
+        if(!root.canEnterVinyl) {root.enforceTasteGate();return;}
         if (!paths || !paths.length || session.importing) return;
         showLibrary();
         importStatus = "Opening local music…";
@@ -393,14 +485,57 @@ Item {
     VinylLiveSession {
         id:session
         onImportFinished: outcome => root.updateImportStatus(outcome)
-        onAlbumOpened: {if(!root.restoringRoute)root.routeStack=root.routeStack.concat([root.pendingAlbumRoute || root.captureRoute()]);root.pendingAlbumRoute=null;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();root.page="album";Qt.callLater(root.parkFocus);}
+        onAlbumOpened: {
+            if(!root.canEnterVinyl){session.cancelBrowse();root.pendingAlbumRoute=null;root.enforceTasteGate();return;}
+            if(!root.restoringRoute)root.routeStack=root.routeStack.concat([root.pendingAlbumRoute || root.captureRoute()]);
+            root.pendingAlbumRoute=null;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();root.page="album";Qt.callLater(root.parkFocus);
+        }
         onPlaybackRequested: root.playbackRequested()
         onArtistRequested: name => root.showRecordArtist(name,session.shownEdition.sourceAlbum || {})
-        onQueueRequested: queuePanel.open()
-        onProfileGenerationChanged: {root.cancelNamedCollectionOpen();root.namedCollectionReturn=null;root.importStatus="";pendingAlbumRoute=null;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();artistData.open({id:"",name:""});root.routeStack=[];root.page="library";world.resetRouteState("library");if(typeof worldData.selectTab==="function")worldData.selectTab("library");root.focusLibrary();if(root.homeLanding)Qt.callLater(root.showHome);}
+        onQueueRequested: if(root.canEnterVinyl)queuePanel.open()
+        onProfileGenerationChanged: {
+            root.cancelNamedCollectionOpen();root.namedCollectionReturn=null;root.importStatus="";
+            pendingAlbumRoute=null;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();
+            artistData.open({id:"",name:""});root.routeStack=[];root.page="home";world.resetRouteState("home");
+            Qt.callLater(function(){
+                if(!root)return;
+                if(root.canEnterVinyl){if(root.homeLanding)root.showHome();else root.showLibrary();}
+                else root.enforceTasteGate();
+            });
+        }
         onImportingChanged: {if(!session.importing && root.importStatus==="Opening local music…") root.importStatus="Import cancelled. Your library was kept.";}
     }
     VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id)}
+    Connections {
+        target:recommendations
+        function onStateChanged() {
+            if(root.componentReady && !recommendations.canEnterVinyl)root.enforceTasteGate();
+        }
+        function onHomeChanged() {Qt.callLater(root.restoreHomeRadio);}
+        function onHomeRadioBatchReady(songs,append) {
+            if(!root.canEnterVinyl || !recommendations.homeRadioActive)return;
+            var values=session.plainData(songs);
+            var accepted=append ? session.appendHomeSongs(values,true)
+                :session.playHomeSongs(values,0,false,session.plainData(recommendations.homeRadioContext));
+            if(!accepted){
+                root.homeListeningError=session.browseError || "Radio could not start.";
+                recommendations.stopHomeRadio();session.setRadioContext({});return;
+            }
+            if(!append)root.showSong();
+        }
+        function onListeningChanged() {
+            if(recommendations.homeRadioActive && recommendations.homeRadioState==="error")session.browseError="Radio could not load more music. Open the station again to retry.";
+            Qt.callLater(root.refillHomeRadio);
+        }
+        ignoreUnknownSignals:true
+    }
+    Connections {
+        target:session
+        function onManualPlaybackStarted() {root.homeListeningError="";recommendations.stopHomeRadio();}
+        function onRadioContextChanged() {Qt.callLater(root.restoreHomeRadio);}
+        function onQueueIndexChanged() {Qt.callLater(root.refillHomeRadio);}
+        function onPausedChanged() {Qt.callLater(root.refillHomeRadio);}
+    }
     VinylRecommendationService {
         id:recommendations
         source:session.source
@@ -418,6 +553,7 @@ Item {
         }
         suggestions:worldData.project(worldData.libraryAlbums,"artists")
             .concat((personalData.homeCollections && personalData.homeCollections.artists) || [])
+            .concat(recommendations.selectedArtists || [])
         profileScope:session.profileScope
         profileGeneration:session.profileGeneration
         profileActive:session.profileActive && !session.shuttingDown
@@ -431,6 +567,9 @@ Item {
                 recentSearchMenu.close();
             }
         }
+        function onActiveTabChanged() {
+            if(!root.canEnterVinyl && worldData.activeTab!=="home")root.enforceTasteGate();
+        }
     }
     VinylPersonalLibraryData {
         id:personalData;session:session
@@ -438,9 +577,13 @@ Item {
         onAlbumRequested:id=>root.openAlbum(id)
         onArtistRequested:item=>root.activateItem(item)
         onSongRequested:song=>root.showBrowseSong(song.album,song.index,song.editionId)
-        onImportFolderRequested: audioFolderDialog.open()
+        onImportFolderRequested: if(root.canEnterVinyl)audioFolderDialog.open()
     }
-    Connections {target:session;function onPlaylistAddRequested(rows){personalData.openAddPicker(rows);}}
+    Connections {
+        target:session
+        function onPlaylistAddRequested(rows){if(root.canEnterVinyl)personalData.openAddPicker(rows);}
+        function onProfileActiveChanged(){if(!root.canEnterVinyl)Qt.callLater(root.enforceTasteGate);}
+    }
     VinylLiveArtistData {id:artistData;session:session}
     VinylBrowseSongData {id:browseSong;session:session}
     FileDialog {
@@ -467,7 +610,7 @@ Item {
         onMinimizeClicked:root.minimizeClicked();onFullscreenClicked:root.fullscreenClicked();onPowerClicked:root.powerClicked()
     }
     Item {
-        id:libraryHeader;objectName:"vinylLibraryHeader";x:theme.margin;y:top.y+top.height+24;width:parent.width-2*x;height:visible ? 44 : 0;visible:root.worldVisible && root.searchOpen && !(root.page==="library" && personalData.selectedPlaylistId)
+        id:libraryHeader;objectName:"vinylLibraryHeader";x:theme.margin;y:top.y+top.height+24;width:parent.width-2*x;height:visible ? 44 : 0;visible:root.worldVisible && root.searchOpen && (root.canEnterVinyl || root.artistSearchOpen) && !(root.page==="library" && personalData.selectedPlaylistId)
         TextField {
             id:query;objectName:"vinylSearchInput";width:Math.max(140,Math.min(600,parent.width-sortButton.width-12-(recentSearchButton.visible ? recentSearchButton.width+12 : 0)));height:44
             text:root.artistSearchOpen ? worldData.artistSearchText : worldData.query;onTextEdited:root.setQuery(text)
@@ -515,45 +658,61 @@ Item {
             width:worldScroll.width
             height:Math.max(0,worldScroll.height-(dockedTabs.visible ? world.dockedInset : 0))
             clip:true
-            VinylWorld {id:world;y:-worldViewport.y;width:parent.width;worldData:worldData;backdrop:root.chromeBackdrop;pageFlick:worldScroll;dockedInset:70;dockedTabBar:dockedTabs;currentTab:"library";onCurrentTabChanged:if(root.worldVisible){root.page=currentTab;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();}}
+            VinylWorld {
+                id:world;y:-worldViewport.y;width:parent.width;worldData:worldData;backdrop:root.chromeBackdrop;pageFlick:worldScroll;dockedInset:70;dockedTabBar:dockedTabs;currentTab:"library"
+                onCurrentTabChanged: {
+                    if(!root.canEnterVinyl && currentTab!=="home"){root.enforceTasteGate();return;}
+                    if(root.worldVisible){root.page=currentTab;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();}
+                }
+            }
         }
     }
     WorldTabBar {
         id:dockedTabs
         objectName:"vinylDockedTabs";x:theme.margin;y:worldScroll.y;width:worldScroll.width;z:5
-        visible:root.worldVisible && worldScroll.contentY>world.pickerParkY
+        visible:root.canEnterVinyl && root.worldVisible && worldScroll.contentY>world.pickerParkY
         compact:true;backdrop:root.chromeBackdrop;track:worldScroll.contentY;tabPrefix:visible ? "vinylTab" : "vinylHiddenDockedTab"
         tabModel:[{key:"home",label:"Home"},{key:"discover",label:"Discover"},{key:"library",label:"Library"}]
         currentTab:world.currentTab;onTabRequested:tab=>world.setTab(tab)
     }
     BackAction {
         focusOnPointer: false
-        id:albumBack;objectName:"vinylAlbumBack";x:theme.margin;y:top.y+top.height+24;height:44;label:"Back";visible:root.page==="album";onTriggered:root.goBack();Keys.onReturnPressed:root.goBack();Keys.onEnterPressed:root.goBack()}
+        id:albumBack;objectName:"vinylAlbumBack";x:theme.margin;y:top.y+top.height+24;height:44;label:"Back";visible:root.canEnterVinyl && root.page==="album";onTriggered:root.goBack();Keys.onReturnPressed:root.goBack();Keys.onEnterPressed:root.goBack()}
     VinylAlbumPage {
         id:album;x:0;y:albumBack.y+albumBack.height+8;width:parent.width;height:Math.max(0,root.contentBottom-y)
-        visible:root.page==="album";pageData:session;backdrop:root.chromeBackdrop;artistNavigationEnabled:true;shuffleEnabled:true;saveEnabled:true;scrollbarVisible:false;songNavigationEnabled:true;queueActionsEnabled:true
+        visible:root.canEnterVinyl && root.page==="album";pageData:session;backdrop:root.chromeBackdrop;artistNavigationEnabled:true;shuffleEnabled:true;saveEnabled:true;scrollbarVisible:false;songNavigationEnabled:true;queueActionsEnabled:true
         onSongRequested: index => {var record=session.shownEdition.sourceAlbum;var flat=index;for(var d=0;d<session.shownDisc;d++)flat+=session.shownEdition.discs[d].length;if(flat>=0)root.showBrowseSong(record,flat,session.shownEditionId);}
     }
     VinylArtistPage {
         id:artist;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
-        visible:root.page==="artist";artistData:artistData;worldData:worldData;backdrop:root.chromeBackdrop
+        visible:root.canEnterVinyl && root.page==="artist";artistData:artistData;worldData:worldData;backdrop:root.chromeBackdrop
         onBackRequested:root.goBack();onArtistRequested:name=>root.showArtist(name)
         onAlbumRequested:record=>root.openAlbum(record.id)
         onSongRequested:value=>root.showBrowseSong(value.album,value.index)
     }
     VinylSongPage {
         id:song;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
-        visible:root.page==="song";pageData:root.browsingSong ? browseSong : session;browseMode:root.browsingSong;artistNavigationEnabled:true
+        visible:root.canEnterVinyl && root.page==="song";pageData:root.browsingSong ? browseSong : session;browseMode:root.browsingSong;artistNavigationEnabled:true
         backLabel:"Back";onBackRequested:root.goBack();onArtistRequested:name=>root.showRecordArtist(name,root.browsingSong ? browseSong.album : session.playingEdition.sourceAlbum || {})
         onPlayRequested:if(browseSong.playingTrack.available!==false)browseSong.play()
         onCreditsRequested:{creditsPopup.pageData=song.pageData;creditsPopup.open()}
-        onAlbumRequested:{if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
+        onAlbumRequested:{if(!root.canEnterVinyl){root.enforceTasteGate();return;}if(root.browsingSong)root.openAlbum(browseSong.album.id);else {root.pushRoute();session.showPlayingAlbum();root.page="album";root.parkFocus();}}
+    }
+    VinylHomeMixPage {
+        id:homeMix;x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
+        visible:root.canEnterVinyl && root.page==="mix";session:session;backdrop:root.chromeBackdrop
+        mixView:session.plainData(recommendations.homeMixView)
+        onBackRequested:root.goBack()
+        onPlayRequested:(index,shuffle)=>session.playHomeSongs(homeMix.songs,index,shuffle,{})
+        onQueueRequested:session.appendHomeSongs(homeMix.songs,false)
+        onSaveRequested:homeMix.savedPlaylistId=personalData.createPlaylist(homeMix.mixView.title,session.rowsForSongs(homeMix.songs))
+        onRetryRequested:recommendations.openHomeMix(String(homeMix.mixView.id || "personal"))
     }
     Row {
         objectName:"vinylStatusRow";x:root.footerLeft;y:root.contentBottom+8;width:parent.width-x-theme.margin;spacing:12
         Text {
             objectName:"vinylStatus"
-            width:parent.width-(cancelImport.visible ? cancelImport.width+12 : 0)-(retry.visible ? retry.width+12 : 0)-(catalogueRetry.visible ? catalogueRetry.width+12 : 0)
+            width:parent.width-(cancelImport.visible ? cancelImport.width+12 : 0)-(retry.visible ? retry.width+12 : 0)-(catalogueRetry.visible ? catalogueRetry.width+12 : 0)-(radioRetry.visible ? radioRetry.width+12 : 0)
             readonly property string contextualBrowseStatus: {
                 if(root.pendingAlbumRoute && session.browseOperation==="album")
                     return session.browseError || (session.browsing ? "Opening album…" : "");
@@ -565,13 +724,14 @@ Item {
                     return session.browseError || (session.browsing ? "Searching local music…" : "");
                 return "";
             }
-            text:session.persistenceError || session.personalError || personalData.error || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : session.error || (root.page==="artist" ? artistData.catalogueStatus : contextualBrowseStatus || root.importStatus))
+            text:session.persistenceError || session.personalError || personalData.error || artistData.persistenceError || worldData.persistenceError || (root.importing ? root.importProgressText : session.error || root.homeListeningError || root.homeRadioStatus || (root.page==="artist" ? artistData.catalogueStatus : contextualBrowseStatus || root.importStatus))
             color:!root.importing && (session.error || contextualBrowseStatus) ? theme.gold : theme.inkDim
             font.family:theme.ui;font.pixelSize:12;wrapMode:Text.WordWrap
         }
         VinylWorldButton {id:cancelImport;objectName:"vinylCancelImport";label:"Cancel import";symbol:"cancel";backdrop:root.chromeBackdrop;visible:root.importing;onTriggered:{session.cancelImport();root.importStatus="Import cancelled. Your library was kept."}}
         VinylWorldButton {id:catalogueRetry;objectName:"vinylCatalogueRetry";label:"Retry catalogue";symbol:"retry";backdrop:root.chromeBackdrop;visible:root.page==="artist" && artistData.online && !artistData.loading && !!artistData.catalogueStatus;onTriggered:if(artistData.catalogueService)artistData.catalogueService.retryArtist()}
         VinylWorldButton {id:retry;objectName:"vinylRetryTrack";label:"Retry track";symbol:"retry";backdrop:root.chromeBackdrop;visible:session.error!=="";onTriggered:session.retry()}
+        VinylWorldButton {id:radioRetry;objectName:"vinylRadioRetry";label:"Retry radio";symbol:"retry";backdrop:root.chromeBackdrop;visible:root.canEnterVinyl && recommendations.homeRadioActive && recommendations.homeRadioState==="error";onTriggered:{session.browseError="";recommendations.refillHomeRadio(root.queuedAudioIds());}}
     }
     VinylCreditsPopup {id:creditsPopup;pageData:session;backdrop:root.chromeBackdrop;x:Math.max(0,root.width-width-theme.margin);y:Math.max(0,bar.y-height-12)}
     VinylPlaylistPicker {id:playlistPicker;libraryData:personalData;backdrop:root.chromeBackdrop}
@@ -579,8 +739,8 @@ Item {
     VinylQueuePanel {id:queuePanel;pageData:session;backdrop:root.chromeBackdrop;onSongRequested:root.showSong()}
     VinylPlayerBar {
         id:bar;x:root.footerLeft;y:root.height-height-18;width:root.width-x-theme.margin
-        visible:session.playingIndex>=0;pageData:session;backdrop:root.chromeBackdrop;page:root.page==="song" ? "song" : "album";queueEnabled:true;trackNavigationEnabled:true
+        visible:root.canEnterVinyl && session.playingIndex>=0;pageData:session;backdrop:root.chromeBackdrop;page:root.page==="song" ? "song" : "album";queueEnabled:true;trackNavigationEnabled:true
         onSongRequested:root.showSong();onCreditsRequested:{creditsPopup.pageData=session;creditsPopup.open()}
     }
-    Component.onCompleted:{session.refreshLibrary();root.focusLibrary();}
+    Component.onCompleted:{root.componentReady=true;session.refreshLibrary();if(root.canEnterVinyl)root.focusLibrary();else root.enforceTasteGate();}
 }

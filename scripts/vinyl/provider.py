@@ -129,6 +129,19 @@ DISCOVERY_KEYS = {"new-releases": ("New releases", "albums"),
                   "charts": ("Charts", "catalogue-playlists")}
 
 
+def requested_region(request):
+    region = request.get("region", "")
+    if region is None or region == "":
+        return ""
+    if not isinstance(region, str) or not re.fullmatch(r"[A-Z]{2}", region):
+        raise InvalidArgumentError("Market must be a two-letter uppercase code")
+    return region
+
+
+def ytmusic_location_options(region):
+    return {"location": region} if region else {}
+
+
 def source_key(value):
     return isinstance(value, str) and re.fullmatch(r"[A-Za-z0-9_-]{1,160}", value)
 
@@ -164,6 +177,8 @@ def playlist_card(raw):
 
 
 def fetch_discovery(client, key, region, fetched_at=None):
+    if key in {"artists", "charts"} and not region:
+        raise InvalidArgumentError("Market-specific discovery requires an explicit market")
     title, kind = DISCOVERY_KEYS[key]
     raw = _call_provider(client.get_explore) if key in {"new-releases", "trending"} else _call_provider(client.get_charts, region)
     if not isinstance(raw, dict):
@@ -218,7 +233,7 @@ def fetch_discovery(client, key, region, fetched_at=None):
             "fetchedAt": now_iso(fetched_at), "complete": False}
 
 
-def fetch_playlist(client, key, region="IN"):
+def fetch_playlist(client, key, region=""):
     cursor, tracks, seen = {}, [], set()
     while True:
         page = fetch_playlist_page(client, {"cursor": cursor}, key, region)
@@ -325,7 +340,7 @@ def page_cursor(operation, value, kind, region, token, offset, meta=None):
 
 def validate_page_request(request, operation, value, kind, region):
     cursor = request.get("cursor") or {}
-    if not isinstance(cursor, dict) or not isinstance(region, str) or not re.fullmatch(r"[A-Z]{2}", region):
+    if not isinstance(cursor, dict) or not isinstance(region, str) or (region and not re.fullmatch(r"[A-Z]{2}", region)):
         raise InvalidArgumentError("Invalid catalogue page")
     if not cursor:
         return "", 0, {}
@@ -1340,7 +1355,11 @@ def home_raw_artist(client, seed):
     # documented as different from its input artist browse ID. Never alias it.
     for section in ("albums", "singles"):
         shelf = raw.get(section)
-        owner = shelf.get("browseId", "") if isinstance(shelf, dict) else ""
+        owner = shelf.get("browseId") if isinstance(shelf, dict) else None
+        if owner is None:
+            continue
+        if not isinstance(owner, str):
+            raise ProviderUnavailableError("The release shelf owner identity is invalid.")
         if owner.startswith("MPAD"):
             owner = owner[4:]
         if owner.startswith("UC") and owner != seed["providerId"]:
@@ -1607,13 +1626,14 @@ def handle_home(request, client=None, mb_client=None, population_client=None):
             return population_candidates(request, population_client)
         if operation in {"artistCandidates", "recommendationIdentity"}:
             home_seed(request)
+        region = requested_region(request)
         if client is None:
             import functools
             import requests
             from ytmusicapi import YTMusic
             session = requests.Session()
             session.request = functools.partial(session.request, timeout=4)
-            client = YTMusic(requests_session=session, location=request.get("region", "IN"))
+            client = YTMusic(requests_session=session, **ytmusic_location_options(region))
         if operation == "artistCandidates":
             return artist_candidates(request, client)
         if operation == "recommendationIdentity":
@@ -1641,8 +1661,9 @@ def handle(request, client=None, mb_client=None, population_client=None):
     if request.get("operation") in HOME_OPERATIONS:
         return handle_home(request, client, mb_client, population_client)
     operation, value = request["operation"], str(request.get("value", "")).strip()
-    region = request.get("region", "IN")
-    if operation == "discover" and (value not in DISCOVERY_KEYS or not isinstance(region, str) or not re.fullmatch(r"[A-Z]{2}", region)):
+    region = requested_region(request)
+    if operation == "discover" and (value not in DISCOVERY_KEYS
+            or (value in {"artists", "charts"} and not region)):
         raise InvalidArgumentError("Invalid discovery shelf or region")
     if operation == "playlist" and not source_key(value):
         raise InvalidArgumentError("Invalid playlist identity")
@@ -1665,7 +1686,7 @@ def handle(request, client=None, mb_client=None, population_client=None):
         yt_client = client
         if yt_client is None and channel_id and releases is None:
             from ytmusicapi import YTMusic
-            yt_client = YTMusic(location=request.get("region", "IN"))
+            yt_client = YTMusic(**ytmusic_location_options(region))
         return fetch_artist_identity(
             identifier,
             client=yt_client,
@@ -1677,7 +1698,7 @@ def handle(request, client=None, mb_client=None, population_client=None):
         )
     if client is None:
         from ytmusicapi import YTMusic
-        client = YTMusic(location=request.get("region", "IN"))
+        client = YTMusic(**ytmusic_location_options(region))
     if operation == "discover":
         return fetch_discovery(client, value, region, fetched_at)
     if operation == "playlist":
