@@ -144,25 +144,26 @@ TestCase {
         service = null;
     }
 
-    function test_firstHomeOnly() {
-        compare(service.onboardingState, "unanswered");
-        verify(picker() === null || !picker().visible,
-            "Creating or opening Library must not start onboarding.");
+    function test_allRoutesRequireArtistSetup() {
+        tryCompare(service, "onboardingState", "draft");
+        verify(picker() !== null && picker().visible);
+        verify(!world.canEnterVinyl);
+        compare(world.page, "home", "Library cannot bypass artist setup.");
 
         world.worldView.setTab("discover");
         wait(0);
-        compare(service.onboardingState, "unanswered");
-        verify(picker() === null || !picker().visible,
-            "Discover must remain available before the first Home visit.");
+        compare(service.onboardingState, "draft");
+        compare(world.worldView.currentTab, "home");
+        verify(picker().visible, "Discover cannot bypass artist setup.");
 
         world.worldView.setTab("home");
         wait(0);
         compare(service.onboardingState, "draft");
         verify(picker() !== null && picker().visible,
-            "An unanswered profile opens the picker on its first Home visit.");
+            "Artist setup remains visible until five artists are saved.");
     }
 
-    function test_leaveAndReturnKeepsDraft() {
+    function test_blockedNavigationKeepsDraft() {
         world.showHome();
         tryCompare(service, "onboardingState", "draft");
         var selected = artist("UCaaaaaaaaaaaaaaaaaaaaaa", "Native Artist");
@@ -171,7 +172,8 @@ TestCase {
 
         world.worldView.setTab("discover");
         wait(0);
-        verify(picker() === null || !picker().visible);
+        compare(world.worldView.currentTab, "home");
+        verify(picker().visible);
         world.worldView.setTab("home");
         wait(0);
         verify(picker().visible);
@@ -222,11 +224,15 @@ TestCase {
     function test_editCancelDoesNotEraseTaste() {
         world.showHome();
         tryCompare(service, "onboardingState", "draft");
-        var saved = artist("UCaaaaaaaaaaaaaaaaaaaaaa", "Native Artist");
-        service.toggleDraftArtist(saved);
+        var saved = [];
+        for(var i=0;i<5;i++) {
+            var ref=artist("UC"+String.fromCharCode(97+i).repeat(22), "Native Artist "+i);
+            saved.push(ref);
+            service.toggleDraftArtist(ref);
+        }
         verify(service.commitTaste(false));
         compare(service.onboardingState, "answered");
-        compare(artistKeys(service.selectedArtists), [saved.key]);
+        compare(artistKeys(service.selectedArtists), artistKeys(saved));
 
         world.showHome();
         wait(0);
@@ -235,28 +241,32 @@ TestCase {
             "The answered Home should expose Edit tastes.");
         edit.activate(Qt.MouseFocusReason);
         compare(service.onboardingState, "editing");
-        service.toggleDraftArtist(artist("UCbbbbbbbbbbbbbbbbbbbbbb", "Second Artist"));
+        service.toggleDraftArtist(saved[1]);
+        compare(service.draftArtistCount, 4);
+        verify(!service.commitTaste(false), "An edit cannot save fewer than five artists.");
         var cancel = findChild(world, "vinylPickerCancel");
         verify(cancel !== null && cancel.visible);
         cancel.activate(Qt.MouseFocusReason);
 
         compare(service.onboardingState, "answered");
-        compare(artistKeys(service.selectedArtists), [saved.key]);
-        compare(artistKeys(preferences.vinylTasteArtists), [saved.key]);
+        compare(artistKeys(service.selectedArtists), artistKeys(saved));
+        compare(artistKeys(preferences.vinylTasteArtists), artistKeys(saved));
     }
 
-    function test_noNetworkStillAllowsSkip() {
+    function test_emptySuggestionsDoNotAllowSkip() {
         service.suggestions = [];
         world.showHome();
         tryCompare(service, "onboardingState", "draft");
         verify(picker().visible);
 
         var skip = findChild(world, "vinylPickerSkip");
-        verify(skip !== null && skip.visible && skip.enabled);
-        skip.activate(Qt.MouseFocusReason);
-        compare(service.onboardingState, "answered");
+        compare(skip, null);
+        verify(!service.commitTaste(true));
+        compare(service.onboardingState, "draft");
+        verify(!world.canEnterVinyl);
+        verify(!findChild(world, "vinylPickerDone").enabled);
         compare(service.selectedArtists.length, 0);
-        compare(preferences.vinylTasteAnswered, true);
+        compare(preferences.vinylTasteAnswered, false);
         compare(preferences.vinylTasteArtists.length, 0);
     }
 
