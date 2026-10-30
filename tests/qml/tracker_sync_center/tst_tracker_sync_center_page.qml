@@ -338,7 +338,8 @@ TestCase {
         }
 
         function disconnectTracker(providerKey, choice, expectedRevision) {
-            if (expectedRevision !== revision || providerKey !== "trakt")
+            if (expectedRevision !== revision
+                    || (providerKey !== "trakt" && providerKey !== "anilist"))
                 return false
             disconnectCalls++
             lastDisconnectProvider = providerKey
@@ -524,11 +525,13 @@ TestCase {
         function beginConnection(providerKey) {
             beginCalls++
             lastProviderKey = providerKey
-            if (providerKey !== "simkl" && providerKey !== "trakt" && providerKey !== "mal")
+            if (providerKey !== "simkl" && providerKey !== "trakt" && providerKey !== "mal"
+                    && providerKey !== "anilist")
                 return false
             phase = "connected"
             statusMessage = (providerKey === "trakt" ? "Trakt"
-                             : (providerKey === "mal" ? "MyAnimeList" : "SIMKL"))
+                             : (providerKey === "mal" ? "MyAnimeList"
+                                : (providerKey === "anilist" ? "AniList" : "SIMKL")))
                             + " is connected to this Colosseum profile."
             connectionEstablished(providerKey)
             return true
@@ -1110,6 +1113,117 @@ TestCase {
         compare(fixtureConnector.beginCalls, 1)
         compare(fixtureConnector.lastProviderKey, "mal")
         compare(page.connectionPanelOpen, true)
+    }
+
+    function test_configured_anilist_connects_like_mal_and_waits_in_the_system_browser() {
+        modelUnderTest = fixtureModel
+        page.trackerConnector = fixtureConnector
+        var aniList = {
+            found: true, providerKey: "anilist", providerName: "AniList",
+            available: true, connected: false, status: "Not connected",
+            connectEnabled: true, connectUnavailableReason: "", pendingWork: false,
+            reconnectRequired: false
+        }
+        fixtureModel.catalogue = [aniList]
+        fixtureModel.dossiers = ({ anilist: aniList })
+        fixtureModel.revision++
+        fixtureModel.modelChanged()
+        wait(0)
+        compare(findChild(page, "trackerCatalogueStatus_anilist").text, "Connect")
+        verify(page.openDossier("anilist"))
+        wait(0)
+        compare(findChild(page, "trackerDossierStatus").text, "Not connected")
+        var connect = findChild(page, "trackerConnectButton")
+        compare(connect.enabled, true)
+        compare(connect.text, "Connect")
+        // AniList approves in the system browser; only MAL embeds its page.
+        compare(page.embeddedApproval, false)
+        fixtureConnector.phase = "awaiting_approval"
+        fixtureConnector.busy = true
+        fixtureConnector.verificationUrl = "https://anilist.co/api/v2/oauth/authorize?client_id=1"
+        mouseClick(connect)
+        compare(fixtureConnector.beginCalls, 1)
+        compare(fixtureConnector.lastProviderKey, "anilist")
+        compare(page.connectionPanelOpen, true)
+        compare(findChild(page, "trackerSimklOpenApproval").visible, true)
+        compare(findChild(page, "trackerSimklOpenApproval").text, "Open AniList")
+        compare(findChild(page, "trackerSimklCancel").visible, true)
+        fixtureConnector.busy = false
+        fixtureConnector.phase = "idle"
+        fixtureConnector.verificationUrl = ""
+        page.connectionPanelOpen = false
+    }
+
+    function test_anilist_connected_reconnect_and_disconnect_states() {
+        modelUnderTest = fixtureModel
+        page.trackerConnector = fixtureConnector
+        var connected = {
+            found: true, providerKey: "anilist", providerName: "AniList",
+            available: true, status: "Connected", connected: true,
+            reconnectRequired: false, accountLabel: "Connected account",
+            capabilities: ["read_history", "read_progress", "write_progress", "write_completion"],
+            waitingCount: 0, unresolvedCount: 0, knownUnsentCount: 0,
+            pendingCount: 0, unknownOutcomeCount: 0,
+            importedHistoryCount: 0, importedProgressCount: 0,
+            importedDataRemovalPreview: [], removeImportedEnabled: false,
+            connectEnabled: true, pendingWork: false,
+            syncEnabled: false, disconnectEnabled: true, cleanupEnabled: false
+        }
+        fixtureModel.catalogue = []
+        fixtureModel.connectedTrackers = [{
+            providerKey: "anilist", providerName: "AniList",
+            accountLabel: "Connected account", status: "Connected",
+            lastSuccessfulSyncAtMs: 0, pendingCount: 0, waitingCount: 0,
+            unresolvedCount: 0, capabilities: connected.capabilities,
+            available: true, syncEnabled: false, disconnectEnabled: true
+        }]
+        fixtureModel.dossiers = ({ anilist: connected })
+        fixtureModel.revision++
+        fixtureModel.modelChanged()
+        wait(0)
+        verify(page.openDossier("anilist"))
+        wait(0)
+        compare(findChild(page, "trackerDossierStatus").text, "Connected")
+        // Connected: no Connect button, Disconnect is offered.
+        compare(findChild(page, "trackerConnectButton").visible, false)
+        compare(findChild(page, "trackerDisconnectButton").enabled, true)
+
+        // The token stopped working: same account, "Reconnect AniList".
+        var needsReconnect = Object.assign({}, connected, {
+            status: "Attention", reconnectRequired: true
+        })
+        fixtureModel.dossiers = ({ anilist: needsReconnect })
+        fixtureModel.revision++
+        fixtureModel.modelChanged()
+        wait(0)
+        compare(findChild(page, "trackerDossierStatus").text, "Attention")
+        var reconnect = findChild(page, "trackerConnectButton")
+        compare(reconnect.visible, true)
+        compare(reconnect.enabled, true)
+        compare(reconnect.text, "Reconnect AniList")
+        compare(findChild(page, "trackerDisconnectButton").enabled, true)
+        var callsBefore = fixtureConnector.beginCalls
+        mouseClick(reconnect)
+        compare(fixtureConnector.beginCalls, callsBefore + 1)
+        compare(fixtureConnector.lastProviderKey, "anilist")
+        page.connectionPanelOpen = false
+        fixtureConnector.phase = "idle"
+
+        // Disconnect goes through the same review and model action as Trakt.
+        fixtureModel.dossiers = ({ anilist: connected })
+        fixtureModel.revision++
+        fixtureModel.modelChanged()
+        wait(0)
+        fixtureModel.disconnectCalls = 0
+        verify(page.openDisconnectReview())
+        tryCompare(page, "disconnectReviewOpen", true, 1000)
+        mouseClick(findChild(page, "trackerDisconnectKeepPaused"))
+        tryCompare(page, "disconnectReviewOpen", false, 1000)
+        compare(fixtureModel.disconnectCalls, 1)
+        compare(fixtureModel.lastDisconnectProvider, "anilist")
+        compare(fixtureModel.lastDisconnectChoice, "keep_paused")
+        compare(page.selectedDossier.connected, false)
+        page.closeDossier()
     }
 
     function test_configured_trakt_connects_directly_and_keeps_stremio_link_separate() {

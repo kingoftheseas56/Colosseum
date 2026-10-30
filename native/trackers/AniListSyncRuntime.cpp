@@ -1025,11 +1025,81 @@ void AniListSyncRuntime::sendDelivery(
                 return;
             }
 
+            // Never lower remote progress: read the entry first and send
+            // only when the write moves it forward (or completes it).
+            const auto connection = m_connections
+                ? m_connections->connection(TrackerProviderId::AniList)
+                : std::nullopt;
+            if (!connection) {
+                finishDelivery(
+                    operation.operationId,
+                    TrackerDeliveryAttemptResult::RetryableKnownNotApplied,
+                    TrackerDeliveryReason::ProviderRetryable);
+                return;
+            }
+            readEntry(*connection, identity.aniListId,
+                guarded(QPointer<AniListSyncRuntime>(this),
+                    [this, operation, identity, mutation = *mutation](
+                        const EntryStep &entry) {
+                switch (entry.outcome) {
+                case StepOutcome::AuthenticationRequired:
+                    finishDelivery(
+                        operation.operationId,
+                        TrackerDeliveryAttemptResult::NeedsAttention,
+                        TrackerDeliveryReason::AuthenticationRequired);
+                    noteAuthenticationFailure();
+                    return;
+                case StepOutcome::RateLimited:
+                    finishDelivery(
+                        operation.operationId,
+                        TrackerDeliveryAttemptResult::RateLimitedKnownNotApplied,
+                        TrackerDeliveryReason::ProviderRateLimited,
+                        QDateTime::currentMSecsSinceEpoch()
+                            + qMax<qint64>(entry.retryAfterMs,
+                                           kMinimumRateLimitDelayMs));
+                    return;
+                case StepOutcome::Done:
+                    break;
+                default:
+                    // Nothing was sent yet, so this is a plain retry.
+                    finishDelivery(
+                        operation.operationId,
+                        TrackerDeliveryAttemptResult::RetryableKnownNotApplied,
+                        TrackerDeliveryReason::ProviderRetryable);
+                    return;
+                }
+                if (entry.present) {
+                    const bool remoteCompleted =
+                        entry.state.status == QLatin1String("COMPLETED");
+                    const bool completesEntry =
+                        mutation.intendedCompleted && !remoteCompleted;
+                    // Already at or past this point, or it would move a
+                    // COMPLETED entry back to CURRENT: nothing to send.
+                    if (!completesEntry
+                        && (mutation.intendedProgress <= entry.state.progress
+                            || remoteCompleted)) {
+                        finishDelivery(
+                            operation.operationId,
+                            TrackerDeliveryAttemptResult::Succeeded,
+                            TrackerDeliveryReason::None);
+                        return;
+                    }
+                }
+                sendMutation(operation, identity, mutation);
+            }));
+        }));
+}
+
+void AniListSyncRuntime::sendMutation(
+    const TrackerDeliveryOperation &operation,
+    const AniListRemoteIdentity &identity,
+    const AniListMutation &mutation)
+{
             m_api->post(
-                mutation->body,
+                mutation.body,
                 guarded(QPointer<AniListSyncRuntime>(this),
                     [this, operation, identity,
-                     mutation = *mutation](
+                     mutation](
                         const AniListApiResult &result) {
                     if (result.succeeded()) {
                         const auto state =
@@ -1092,7 +1162,6 @@ void AniListSyncRuntime::sendDelivery(
                         break;
                     }
                 }));
-        }));
 }
 
 void AniListSyncRuntime::finishDelivery(

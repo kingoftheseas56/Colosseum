@@ -1,5 +1,6 @@
 #include "TrackerConnectionRouter.h"
 
+#include "AniListConnectionController.h"
 #include "MalConnectionController.h"
 #include "SimklConnectionController.h"
 #include "TraktConnectionController.h"
@@ -17,13 +18,24 @@ TrackerConnectionRouter::TrackerConnectionRouter(
     MalConnectionController *mal,
     TraktConnectionController *trakt,
     QObject *parent)
-    : QObject(parent), m_simkl(simkl), m_mal(mal), m_trakt(trakt)
+    : TrackerConnectionRouter(simkl, mal, trakt, nullptr, parent)
+{
+}
+
+TrackerConnectionRouter::TrackerConnectionRouter(
+    SimklConnectionController *simkl,
+    MalConnectionController *mal,
+    TraktConnectionController *trakt,
+    AniListConnectionController *aniList,
+    QObject *parent)
+    : QObject(parent), m_simkl(simkl), m_mal(mal), m_trakt(trakt),
+      m_aniList(aniList)
 {
     setObjectName(QStringLiteral("trackerConnectionRouter"));
     if (m_simkl) {
         connect(m_simkl, &SimklConnectionController::stateChanged,
                 this, [this] {
-                    if (!malActive() && !traktActive())
+                    if (!malActive() && !traktActive() && !aniListActive())
                         emit stateChanged();
                 });
         connect(m_simkl, &SimklConnectionController::connectionEstablished,
@@ -47,10 +59,21 @@ TrackerConnectionRouter::TrackerConnectionRouter(
         connect(m_trakt, &TraktConnectionController::connectionEstablished,
                 this, &TrackerConnectionRouter::connectionEstablished);
     }
+    if (m_aniList) {
+        connect(m_aniList, &AniListConnectionController::stateChanged,
+                this, [this] {
+                    if (aniListActive())
+                        emit stateChanged();
+                });
+        // connectionEstablished is deliberately not forwarded: the AniList
+        // sync runtime is connected to its controller directly, and this
+        // router's signal feeds the other providers' runtimes.
+    }
 }
 
 bool TrackerConnectionRouter::available() const
 {
+    if (aniListActive()) return m_aniList && m_aniList->available();
     if (traktActive()) return m_trakt && m_trakt->available();
     return malActive()
         ? m_mal && m_mal->available()
@@ -59,6 +82,7 @@ bool TrackerConnectionRouter::available() const
 
 bool TrackerConnectionRouter::busy() const
 {
+    if (aniListActive()) return m_aniList && m_aniList->busy();
     if (traktActive()) return m_trakt && m_trakt->busy();
     return malActive()
         ? m_mal && m_mal->busy()
@@ -67,6 +91,7 @@ bool TrackerConnectionRouter::busy() const
 
 bool TrackerConnectionRouter::moveAvailable() const
 {
+    if (aniListActive()) return false;
     if (traktActive()) return m_trakt && m_trakt->moveAvailable();
     return malActive()
         ? m_mal && m_mal->moveAvailable()
@@ -75,6 +100,7 @@ bool TrackerConnectionRouter::moveAvailable() const
 
 QString TrackerConnectionRouter::phase() const
 {
+    if (aniListActive()) return m_aniList ? m_aniList->phase() : QStringLiteral("idle");
     if (traktActive()) return m_trakt ? m_trakt->phase() : QStringLiteral("idle");
     return malActive()
         ? (m_mal ? m_mal->phase() : QStringLiteral("idle"))
@@ -83,6 +109,7 @@ QString TrackerConnectionRouter::phase() const
 
 QString TrackerConnectionRouter::userCode() const
 {
+    if (aniListActive()) return m_aniList ? m_aniList->userCode() : QString();
     if (traktActive()) return m_trakt ? m_trakt->userCode() : QString();
     return malActive()
         ? (m_mal ? m_mal->userCode() : QString())
@@ -91,6 +118,7 @@ QString TrackerConnectionRouter::userCode() const
 
 QString TrackerConnectionRouter::verificationUrl() const
 {
+    if (aniListActive()) return m_aniList ? m_aniList->verificationUrl() : QString();
     if (traktActive()) return m_trakt ? m_trakt->verificationUrl() : QString();
     return malActive()
         ? (m_mal ? m_mal->verificationUrl() : QString())
@@ -99,6 +127,7 @@ QString TrackerConnectionRouter::verificationUrl() const
 
 QString TrackerConnectionRouter::statusMessage() const
 {
+    if (aniListActive()) return m_aniList ? m_aniList->statusMessage() : QString();
     if (traktActive()) return m_trakt ? m_trakt->statusMessage() : QString();
     return malActive()
         ? (m_mal ? m_mal->statusMessage() : QString())
@@ -111,17 +140,21 @@ bool TrackerConnectionRouter::beginConnection(
     const QString normalized = providerKey.trimmed().toLower();
     if (normalized != QLatin1String("simkl")
         && normalized != QLatin1String("mal")
-        && normalized != QLatin1String("trakt")) {
+        && normalized != QLatin1String("trakt")
+        && normalized != QLatin1String("anilist")) {
         return false;
     }
     if (busy())
         return false;
     if (normalized == QLatin1String("trakt") && !m_trakt)
         return false;
+    if (normalized == QLatin1String("anilist") && !m_aniList)
+        return false;
     if (m_activeProviderKey != normalized) {
         m_activeProviderKey = normalized;
         emit stateChanged();
     }
+    if (aniListActive()) return m_aniList && m_aniList->beginConnection(normalized);
     if (traktActive()) return m_trakt && m_trakt->beginConnection(normalized);
     return malActive()
         ? m_mal && m_mal->beginConnection(normalized)
@@ -130,6 +163,7 @@ bool TrackerConnectionRouter::beginConnection(
 
 bool TrackerConnectionRouter::openApprovalPage()
 {
+    if (aniListActive()) return m_aniList && m_aniList->openApprovalPage();
     if (traktActive()) return m_trakt && m_trakt->openApprovalPage();
     return malActive()
         ? m_mal && m_mal->openApprovalPage()
@@ -138,6 +172,7 @@ bool TrackerConnectionRouter::openApprovalPage()
 
 bool TrackerConnectionRouter::moveConnectionToThisProfile()
 {
+    if (aniListActive()) return false;
     if (traktActive()) return m_trakt && m_trakt->moveConnectionToThisProfile();
     return malActive()
         ? m_mal && m_mal->moveConnectionToThisProfile()
@@ -146,7 +181,9 @@ bool TrackerConnectionRouter::moveConnectionToThisProfile()
 
 void TrackerConnectionRouter::cancel()
 {
-    if (traktActive()) {
+    if (aniListActive()) {
+        if (m_aniList) m_aniList->cancel();
+    } else if (traktActive()) {
         if (m_trakt) m_trakt->cancel();
     } else if (malActive()) {
         if (m_mal) m_mal->cancel();
@@ -157,7 +194,9 @@ void TrackerConnectionRouter::cancel()
 
 void TrackerConnectionRouter::dismiss()
 {
-    if (traktActive()) {
+    if (aniListActive()) {
+        if (m_aniList) m_aniList->dismiss();
+    } else if (traktActive()) {
         if (m_trakt) m_trakt->dismiss();
     } else if (malActive()) {
         if (m_mal) m_mal->dismiss();
@@ -174,5 +213,7 @@ bool TrackerConnectionRouter::prepareForProfileDeactivation()
         || m_simkl->prepareForProfileDeactivation();
     const bool traktReady = !m_trakt
         || m_trakt->prepareForProfileDeactivation();
-    return malReady && simklReady && traktReady;
+    const bool aniListReady = !m_aniList
+        || m_aniList->prepareForProfileDeactivation();
+    return malReady && simklReady && traktReady && aniListReady;
 }

@@ -392,6 +392,11 @@ private slots:
     void unknown_outcome_reads_back_before_retry_absent();
     void rate_limited_defers_without_loss();
     void unauthorized_requires_reconnect_and_keeps_queue();
+    void remote_ahead_progress_is_never_lowered();
+    void remote_behind_progress_is_sent();
+    void completed_remote_is_never_downgraded();
+    void remote_current_at_last_unit_still_completes();
+    void tankoban_fact_is_never_enqueued();
 };
 
 void TrackerAniListSyncTest::mapping_by_idMal_caches_unit_mapping()
@@ -554,15 +559,9 @@ void TrackerAniListSyncTest::tankoban_never_produces_a_request()
                 != QLatin1String("MANGA"));
         QVERIFY(saveMediaId(body) != 555);
     }
-    int tankobanOperations = 0;
-    for (const auto &operation : f.delivery.operations()) {
-        if (operation.fact.historyKind != QLatin1String("tankoban"))
-            continue;
-        ++tankobanOperations;
-        QCOMPARE(operation.state, TrackerDeliveryState::FailedTerminal);
-        QCOMPARE(operation.reason, TrackerDeliveryReason::UnsupportedAction);
-    }
-    QCOMPARE(tankobanOperations, 1);
+    // Not even queued, so it never shows up as a failure either.
+    for (const auto &operation : f.delivery.operations())
+        QVERIFY(operation.fact.historyKind != QLatin1String("tankoban"));
 }
 
 void TrackerAniListSyncTest::manga_and_manga_chapter_send_chapters_only()
@@ -718,7 +717,8 @@ void TrackerAniListSyncTest::unknown_outcome_reads_back_before_retry_applied()
     QTRY_COMPARE(f.firstOperation().state, TrackerDeliveryState::Succeeded);
     QCOMPARE(f.firstOperation().reason, TrackerDeliveryReason::ReadbackPresent);
     QCOMPARE(f.transport.count(QStringLiteral("save")), 1);
-    QCOMPARE(f.transport.count(QStringLiteral("readback")), 1);
+    // One readback before the write (remote progress), one after the lost ack.
+    QCOMPARE(f.transport.count(QStringLiteral("readback")), 2);
 }
 
 void TrackerAniListSyncTest::unknown_outcome_reads_back_before_retry_absent()
@@ -739,7 +739,8 @@ void TrackerAniListSyncTest::unknown_outcome_reads_back_before_retry_absent()
     // The retry waits for the readback: save, readback, then the next save.
     QTRY_COMPARE_WITH_TIMEOUT(f.transport.count(QStringLiteral("save")), 2, 15000);
     const int firstSave = f.transport.log.indexOf(QStringLiteral("save"));
-    const int readback = f.transport.log.indexOf(QStringLiteral("readback"));
+    const int readback = f.transport.log.indexOf(QStringLiteral("readback"),
+                                                 firstSave);
     const int secondSave = f.transport.log.lastIndexOf(QStringLiteral("save"));
     QVERIFY(firstSave >= 0 && readback > firstSave && secondSave > readback);
     QTRY_COMPARE(f.firstOperation().state, TrackerDeliveryState::Succeeded);
@@ -791,6 +792,113 @@ void TrackerAniListSyncTest::unauthorized_requires_reconnect_and_keeps_queue()
     QTest::qWait(100);
     QCOMPARE(f.transport.count(QStringLiteral("save")), 1);
     QCOMPARE(f.delivery.operations().size(), 1);
+}
+
+void TrackerAniListSyncTest::remote_ahead_progress_is_never_lowered()
+{
+    Fixture f;
+    f.addAnime(777, 1535, 24);
+    f.transport.remote.insert(777, qMakePair(QStringLiteral("CURRENT"), 10));
+    const auto fact = f.progressFact(QStringLiteral("anime"),
+                                     QStringLiteral("mal:1535:3"));
+    QVERIFY(f.consent(fact));
+    f.sync.start();
+    // Remote is at 10, this write would say 3: nothing is sent and the
+    // delivery is satisfied, not failed.
+    QTRY_COMPARE(f.firstOperation().state, TrackerDeliveryState::Succeeded);
+    QCOMPARE(f.transport.count(QStringLiteral("save")), 0);
+    QCOMPARE(f.transport.remote.value(777).second, 10);
+    QCOMPARE(f.delivery.operations().size(), 1);
+}
+
+void TrackerAniListSyncTest::remote_behind_progress_is_sent()
+{
+    Fixture f;
+    f.addAnime(777, 1535, 24);
+    f.transport.remote.insert(777, qMakePair(QStringLiteral("CURRENT"), 3));
+    const auto fact = f.progressFact(QStringLiteral("anime"),
+                                     QStringLiteral("mal:1535:5"));
+    QVERIFY(f.consent(fact));
+    f.sync.start();
+    QTRY_COMPARE(f.transport.count(QStringLiteral("save")), 1);
+    QTRY_COMPARE(f.firstOperation().state, TrackerDeliveryState::Succeeded);
+    QCOMPARE(saveProgress(f.transport.saves.first()), 5);
+    QCOMPARE(saveStatus(f.transport.saves.first()), QStringLiteral("CURRENT"));
+}
+
+void TrackerAniListSyncTest::completed_remote_is_never_downgraded()
+{
+    {
+        // COMPLETED at 12/12: an earlier episode is skipped.
+        Fixture f;
+        f.addAnime(777, 1535, 12);
+        f.transport.remote.insert(777, qMakePair(QStringLiteral("COMPLETED"), 12));
+        const auto fact = f.progressFact(QStringLiteral("anime"),
+                                         QStringLiteral("mal:1535:5"));
+        QVERIFY(f.consent(fact));
+        f.sync.start();
+        QTRY_COMPARE(f.firstOperation().state, TrackerDeliveryState::Succeeded);
+        QCOMPARE(f.transport.count(QStringLiteral("save")), 0);
+        QCOMPARE(f.transport.remote.value(777).first, QStringLiteral("COMPLETED"));
+    }
+    {
+        // COMPLETED but behind (the series grew): a CURRENT write would move
+        // the status backwards, so it is skipped too.
+        Fixture f;
+        f.addAnime(777, 24, 24);
+        f.transport.remote.insert(777, qMakePair(QStringLiteral("COMPLETED"), 10));
+        const auto fact = f.progressFact(QStringLiteral("anime"),
+                                         QStringLiteral("mal:24:11"));
+        QVERIFY(f.consent(fact));
+        f.sync.start();
+        QTRY_COMPARE(f.firstOperation().state, TrackerDeliveryState::Succeeded);
+        QCOMPARE(f.transport.count(QStringLiteral("save")), 0);
+        QCOMPARE(f.transport.remote.value(777).first, QStringLiteral("COMPLETED"));
+        QCOMPARE(f.transport.remote.value(777).second, 10);
+    }
+}
+
+void TrackerAniListSyncTest::remote_current_at_last_unit_still_completes()
+{
+    Fixture f;
+    f.addAnime(777, 1535, 12);
+    f.transport.remote.insert(777, qMakePair(QStringLiteral("CURRENT"), 12));
+    const auto fact = f.progressFact(QStringLiteral("anime"),
+                                     QStringLiteral("mal:1535:12"));
+    QVERIFY(f.consent(fact));
+    f.sync.start();
+    QTRY_COMPARE(f.transport.count(QStringLiteral("save")), 1);
+    QCOMPARE(saveStatus(f.transport.saves.first()), QStringLiteral("COMPLETED"));
+    QTRY_COMPARE(f.firstOperation().state, TrackerDeliveryState::Succeeded);
+}
+
+void TrackerAniListSyncTest::tankoban_fact_is_never_enqueued()
+{
+    Fixture f;
+    f.addAnime(777, 1535, 24);
+    f.addManga(555, 2200, 100);
+    const auto anime = f.progressFact(QStringLiteral("anime"),
+                                      QStringLiteral("mal:1535:3"));
+    QVERIFY(f.consent(anime));
+    const auto fact = f.progressFact(QStringLiteral("tankoban"),
+                                     QStringLiteral("mal:2200:chapter:5"));
+    QVERIFY(!fact.historyId.isEmpty());
+    QVERIFY(f.mappings.upsert(
+        {TrackerProviderId::AniList, kViewer,
+         QStringLiteral("anilist:manga:555:chapter:5")},
+        {fact.canonicalMediaId, fact.historyKind, fact.historyId,
+         fact.canonicalMediaId, {}},
+        TrackerMappingProvenance::UserConfirmed));
+    const int before = f.delivery.operations().size();
+    QString id;
+    QString error;
+    QVERIFY(!f.delivery.observeCommittedFact(fact, &f.source, &id, &error));
+    QVERIFY(id.isEmpty());
+    int recovered = 0;
+    f.delivery.recoverSourceGap(&f.source, &recovered, &error);
+    QCOMPARE(f.delivery.operations().size(), before);
+    for (const auto &operation : f.delivery.operations())
+        QVERIFY(operation.fact.historyKind != QLatin1String("tankoban"));
 }
 
 QTEST_GUILESS_MAIN(TrackerAniListSyncTest)

@@ -121,6 +121,9 @@ private:
 
     void dispatchNextDelivery();
     void sendDelivery(const TrackerDeliveryOperation &operation);
+    void sendMutation(const TrackerDeliveryOperation &operation,
+                      const AniListRemoteIdentity &identity,
+                      const AniListMutation &mutation);
     void finishDelivery(const QString &operationId,
                         TrackerDeliveryAttemptResult result,
                         TrackerDeliveryReason reason,

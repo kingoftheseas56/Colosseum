@@ -832,7 +832,7 @@ ProfileStoreRuntime::createProfileStores(
                          stores->traktSync.get(), &TraktSyncRuntime::syncAll);
     }
     // AniList's connection controller reports reconnect-required to its sync
-    // runtime's owner; the Sync Center connect UI is routed separately (S5).
+    // runtime's owner; the Sync Center connect UI goes through the router.
     stores->aniListConnection = std::make_unique<AniListConnectionController>(
         paths, stores->trackerDelivery->connectionStore());
     QObject::connect(stores->aniListConnection.get(),
@@ -900,7 +900,12 @@ ProfileStoreRuntime::createProfileStores(
         stores->trackerSyncCenter.get());
     stores->trackerConnectionRouter = std::make_unique<TrackerConnectionRouter>(
         stores->simklConnection.get(), stores->malConnection.get(),
-        stores->traktConnection.get(), nullptr);
+        stores->traktConnection.get(), stores->aniListConnection.get(), nullptr);
+    stores->trackerSyncCenter->setReconnectRequiredSource(
+        [aniList = stores->aniListConnection.get()](TrackerProviderId providerId) {
+            return providerId == TrackerProviderId::AniList && aniList
+                && aniList->reconnectRequired();
+        });
     // Connection readiness belongs to the concrete native provider action,
     // not the compile-time provider catalogue or a cross-provider OR gate.
     stores->trackerSyncCenter->setConnectionAvailabilitySource(

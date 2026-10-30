@@ -55,6 +55,7 @@ TestCase {
             "exportReviewEnabled", "livePlaybackTrackingEnabled",
             "livePlaybackSettingEnabled", "connectEnabled", "pendingWork", "syncEnabled",
             "disconnectEnabled", "cleanupEnabled", "removeImportedEnabled", "connectUnavailableReason",
+            "reconnectRequired",
             "removeImportedPending", "disconnectInFlight"])
     }
 

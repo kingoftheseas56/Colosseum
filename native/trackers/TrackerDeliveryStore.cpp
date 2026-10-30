@@ -205,6 +205,19 @@ bool providerSupportsDelivery(TrackerProviderId providerId, TrackerMediaDomain d
     return false;
 }
 
+// AniList takes manga by chapter only. Tankoban (volume) reading folds into
+// the Manga domain, so the domain alone cannot keep it out of the queue; the
+// fact's history kind can. Other providers are unaffected.
+bool providerAcceptsFact(TrackerProviderId providerId, const TrackerDeliveryFact &fact)
+{
+    if (providerId != TrackerProviderId::AniList
+        || fact.mediaDomain != TrackerMediaDomain::Manga) {
+        return true;
+    }
+    return fact.historyKind == QLatin1String("manga")
+        || fact.historyKind == QLatin1String("manga_chapter");
+}
+
 bool providerSupportsMappedDelivery(TrackerProviderId providerId,
                                     TrackerMediaDomain domain,
                                     const QString &remoteMediaId)
@@ -227,8 +240,8 @@ bool providerSupportsMappedDelivery(TrackerProviderId providerId,
     if (providerId == TrackerProviderId::AniList) {
         // AniList ids are `anilist:<anime|manga>:<id>:<episode|chapter>:<n>`;
         // aggregate list ids are not deliverable. Which Colosseum history
-        // kinds may reach AniList (never Tankoban) is decided by the sync
-        // runtime, which sees the fact's history kind.
+        // kinds may reach AniList (never Tankoban) is decided where facts are
+        // enqueued, by providerAcceptsFact, which sees the history kind.
         if (parts.size() != 5 || parts.at(0) != QLatin1String("anilist"))
             return false;
         parts.at(2).toULongLong(&numeric);
@@ -937,7 +950,8 @@ std::optional<TrackerExportPreview> TrackerDeliveryStore::createExportPreview(
                 item.remoteStateFingerprint = remoteState->stateFingerprint;
                 item.remoteStateSummary = remoteState->safeSummary;
 
-                if (!providerSupportsMappedDelivery(providerId, fact.mediaDomain,
+                if (!providerAcceptsFact(providerId, fact)
+                    || !providerSupportsMappedDelivery(providerId, fact.mediaDomain,
                                                      item.mapping->remote.remoteMediaId)
                     || !m_connections->connection(providerId)->capabilities.testFlag(
                         requiredCapability(fact.kind))) {
@@ -1055,6 +1069,7 @@ bool TrackerDeliveryStore::confirmExport(const QString &previewId,
         const auto currentMapping = uniqueMapping(m_mappings, preview.providerId,
                                                  preview.remoteAccountId, item.fact, &ambiguous);
         if (ambiguous || !currentMapping || !sameMapping(*currentMapping, *item.mapping)
+            || !providerAcceptsFact(preview.providerId, item.fact)
             || !providerSupportsMappedDelivery(preview.providerId,
                                                 item.fact.mediaDomain,
                                                 currentMapping->remote.remoteMediaId)
@@ -1206,6 +1221,7 @@ bool TrackerDeliveryStore::observeCommittedFact(const TrackerDeliveryFact &fact,
         if (!connection || connection->remoteAccountId != preference.remoteAccountId
             || connection->state != TrackerConnectionState::Connected
             || !providerSupportsDelivery(preference.providerId, fact.mediaDomain)
+            || !providerAcceptsFact(preference.providerId, fact)
             || !connection->capabilities.testFlag(requiredCapability(fact.kind))) {
             continue;
         }
@@ -1631,6 +1647,7 @@ bool TrackerDeliveryStore::enqueueFact(const TrackerDeliveryFact &fact,
                                        QString *out)
 {
     if (fact.origin != TrackerDeliveryOrigin::NativeLocal || !validFact(fact)
+        || !providerAcceptsFact(providerId, fact)
         || !providerSupportsMappedDelivery(providerId, fact.mediaDomain,
                                             mapping.remote.remoteMediaId)
         || !validMapping(mapping) || mapping.remote.providerId != providerId
