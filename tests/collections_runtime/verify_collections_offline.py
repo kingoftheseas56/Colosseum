@@ -7,9 +7,12 @@ from verify_collections_app import fixture_root,require
 def main():
     p=argparse.ArgumentParser(description=__doc__)
     for n in ("root","evidence","cli"):p.add_argument("--"+n,required=True,type=Path)
-    p.add_argument("--pipe",required=True);a=p.parse_args();fixture_root(a.root)
+    p.add_argument("--pipe",required=True)
+    p.add_argument("--launch-receipt",type=Path,help="Exact receipt for the currently running candidate.")
+    a=p.parse_args();fixture_root(a.root)
     a.evidence.mkdir(parents=True,exist_ok=True)
-    receipt=json.loads((a.evidence.parent/"launch-app-final.json").read_text(encoding="utf-8"))
+    receipt_path=a.launch_receipt or a.evidence.parent/"launch-app-final.json"
+    receipt=json.loads(receipt_path.read_text(encoding="utf-8"))
     exe=(a.cli.parent/"colosseum.exe").resolve()
     require(Path(receipt["exe"]).resolve()==exe,"Only the exact candidate executable is authorized")
     require(Candidate(a.cli,a.pipe,a.evidence/"identity").call("ping")["pid"]==receipt["pid"],"Candidate process changed")

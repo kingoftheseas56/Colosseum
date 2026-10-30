@@ -32,6 +32,8 @@ The script records the executable hash, QML manifest, PID, environment isolation
 
 `drive_app.py` sends observed input through the real Lanista bridge. It records every request/reply and captures the actual QQuickWindow. `candidate_window.py` verifies the exact candidate process image before resizing or gracefully closing only its window. Native DPI is retained; the tested monitor reported 144 DPI (150%). Restore a minimized candidate before input. Do not interact with the user's other windows.
 
+The driver allows 30 seconds for transport, extends that allowance for longer explicit server waits, and records command latency. It sends each mutating request once. Use `verify_collections_offline.py --launch-receipt <receipt.json>` to bind the offline check to the current launch's exact executable and PID.
+
 ## Acceptance tools
 
 - `verify_collections_app.py --mode core`: actual taskbar, validation, create, staged Save/Cancel/Escape, atomic create-and-add, note/description/name editing, reorder, removal/Undo, guarded Back and delete. It checks persisted native JSON and protected Library/progress hashes. `--mode routes` enumerates the stored references, verifies exact canonical/source/edition identity on the real owner, and exercises its Add picker and Cancel. `--route` scopes a qualification probe.

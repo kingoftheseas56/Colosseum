@@ -31,8 +31,13 @@ class Candidate:
         path = self.commands / f"{self.serial}-{command}.json"
         path.write_text(json.dumps({"name": "Collections observed command", "steps": [request]},
                                    ensure_ascii=False), encoding="utf-8")
-        deadline = max(15, int((payload or {}).get("timeout_ms", 0)) / 1000 + 10)
-        completed = subprocess.run([str(self.cli), "--pipe", self.pipe, "--verbose", "run", str(path)],
+        # Cold profile activation constructs the real app owners. Give its
+        # transport enough time, and never cut off an explicit server wait.
+        transport_ms = max(30000, int((payload or {}).get("timeout_ms", 0)) + 5000)
+        deadline = transport_ms / 1000 + 5
+        started = time.monotonic()
+        completed = subprocess.run([str(self.cli), "--pipe", self.pipe, "--timeout", str(transport_ms),
+                                   "--verbose", "run", str(path)],
                                    capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=deadline)
         path.with_suffix(".stdout.txt").write_text(completed.stdout, encoding="utf-8")
         path.with_suffix(".stderr.txt").write_text(completed.stderr, encoding="utf-8")
@@ -42,7 +47,9 @@ class Candidate:
             raise RuntimeError(f"Lanista did not return one observed reply: {completed.stdout}\n{completed.stderr}")
         reply = replies[0]
         row = {"time": time.time(), "request": request, "reply": reply,
-               "exitCode": completed.returncode, "stderr": completed.stderr}
+               "exitCode": completed.returncode, "stderr": completed.stderr,
+               "elapsedMs": round((time.monotonic() - started) * 1000),
+               "transportTimeoutMs": transport_ms}
         with (self.evidence / "observed-commands.jsonl").open("a", encoding="utf-8") as output:
             output.write(json.dumps(row, ensure_ascii=False) + "\n")
         if not allow_error and (reply.get("type") != "reply" or completed.returncode):
