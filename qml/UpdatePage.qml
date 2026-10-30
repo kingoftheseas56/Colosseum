@@ -3,7 +3,7 @@ import QtQuick
 import QtQuick.Controls
 import "update" as UpdateUi
 
-Item {
+SettingsScaffold {
     id: root
     objectName: "colosseumUpdatePage"
     property Item backdrop: null
@@ -199,14 +199,14 @@ Item {
                 objectName: "colosseumUpdateStatusText"
                 text: root.statusCopy(updates ? updates.state : 0)
                 color: theme.ink
-                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.Medium
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.Medium
             }
             Text {
                 objectName: "colosseumUpdateStatusMetadata"
                 text: root.taskbarMetadata
                 visible: text.length > 0
                 color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 12
+                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
         }
         // Progress column — shown only during Downloading / Paused.
@@ -224,7 +224,7 @@ Item {
                     objectName: "colosseumUpdateProgressText"
                     text: root.progressText
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
                 Rectangle {
                     objectName: "colosseumUpdateProgressTrack"
@@ -252,7 +252,7 @@ Item {
             activeFocusOnTab: visible && enabled
             anchors.right: parent.right
             anchors.verticalCenter: statusColumn.verticalCenter
-            width: actionRow.implicitWidth + 36; height: 44; radius: 22
+            width: actionRow.implicitWidth + 36; height: (root.layout.touch ? root.layout.touchTargetSize : 44); radius: 22
             color: primaryAction.activeFocus
                 ? Qt.rgba(1, 1, 1, 0.16)
                 : (primaryActionMa.containsMouse ? Qt.rgba(1, 1, 1, 0.14) : Qt.rgba(1, 1, 1, 0.07))
@@ -267,7 +267,7 @@ Item {
                 Text {
                     text: root.primaryLabel
                     color: theme.ink
-                    font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                     anchors.verticalCenter: parent.verticalCenter
                 }
             }
@@ -290,14 +290,14 @@ Item {
         anchors.top: parent.top
         anchors.left: parent.left
         anchors.topMargin: 21
-        anchors.leftMargin: theme.margin - 10
+        anchors.leftMargin:root.layout.touch ? root.settingsInset : theme.margin - 10
         onTriggered: root.backRequested()
     }
     Item {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 24
-        anchors.rightMargin: theme.margin
+        anchors.rightMargin:root.layout.touch ? root.settingsInset : theme.margin
         width: chromeRow.implicitWidth
         height: 30
         Row {
@@ -305,6 +305,10 @@ Item {
             spacing: 22
 
             Text {
+                width:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitWidth) : implicitWidth; horizontalAlignment:Text.AlignHCenter
+
+                height:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitHeight) : implicitHeight; verticalAlignment:Text.AlignVCenter
+
                 id: minimizeAction
                 objectName: "colosseumUpdateMinimize"
                 text: "\u2014"
@@ -328,6 +332,10 @@ Item {
             }
 
             Text {
+                width:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitWidth) : implicitWidth; horizontalAlignment:Text.AlignHCenter
+
+                height:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitHeight) : implicitHeight; verticalAlignment:Text.AlignVCenter
+
                 id: fullscreenAction
                 objectName: "colosseumUpdateFullscreen"
                 text: "\u26F6"
@@ -351,6 +359,10 @@ Item {
             }
 
             Text {
+                width:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitWidth) : implicitWidth; horizontalAlignment:Text.AlignHCenter
+
+                height:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitHeight) : implicitHeight; verticalAlignment:Text.AlignVCenter
+
                 id: closeAction
                 objectName: "colosseumUpdateClose"
                 text: "\u23FB"

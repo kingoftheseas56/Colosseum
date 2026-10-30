@@ -4,7 +4,7 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 
-Item {
+SettingsScaffold {
     id: root
     objectName: "tankoyomiConfigurationPage"
 
@@ -16,8 +16,24 @@ Item {
     property var languageRows: []
     property var providerRows: []
     property bool languageMenuOpen: false
+    readonly property var activeChoiceSheet:languageChoices.activeSheet
+    PhoneChoiceHost {
+        id:languageChoices
+        onPicked:(purpose,key)=>root.setDefaultLanguage(key)
+        onDismissed:root.languageMenuOpen=false
+    }
+    onLanguageMenuOpenChanged: {
+        if(layout.touch) {
+            if(languageMenuOpen)languageChoices.showChoices(qsTr("Default chapter language"),languageRows.map(row=>({key:root._languageCode(row),text:row.label || root._languageCode(row)})),_defaultLanguage(),"language",defaultSelector)
+            else languageChoices.close()
+        }
+    }
     property int extensionRevision: root.extensionsRef ? root.extensionsRef.revision : 0
     property Item focusReturnItem: null
+    readonly property bool androidHost: Qt.platform.os === "android"
+        || !!(root.Window.window && root.Window.window.androidHost)
+    readonly property bool phonePortrait:layout.phoneLayout && layout.portrait
+    readonly property real pageInset:layout.touch ? settingsInset : theme.margin
 
     signal backRequested()
     signal minimizeRequested()
@@ -218,8 +234,8 @@ Item {
         id: page
         objectName: "tankoyomiConfigurationScroll"
         anchors.fill: parent
-        anchors.leftMargin: theme.margin
-        anchors.rightMargin: theme.margin
+        anchors.leftMargin: root.pageInset
+        anchors.rightMargin: root.pageInset
         anchors.topMargin: 60
         anchors.bottomMargin: 20
         contentWidth: width
@@ -257,7 +273,7 @@ Item {
                         spacing: 0
                         Text { id: breadcrumb; objectName: "tankoyomiBreadcrumb"; width: parent.width
                                text: "COLOSSEUM · STORE · CONFIGURATION"; color: theme.inkDimmer
-                               font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold
+                               font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6; font.weight: Font.DemiBold
                                elide: Text.ElideRight; maximumLineCount: 1 }
                         Row {
                             id: brandRow
@@ -292,7 +308,7 @@ Item {
                             Text { id: tankoyomiTitle; objectName: "tankoyomiTitle"
                                    width: Math.max(0, brandRow.width - logoBox.width - brandRow.spacing)
                                    text: "Tankoyomi"; color: theme.ink; anchors.verticalCenter: parent.verticalCenter
-                                   font.family: theme.display; font.pixelSize: configurationHeader.compact ? 32 : 48; font.letterSpacing: -1
+                                   font.family: theme.display; font.pixelSize: theme.fontSize(configurationHeader.compact ? 32 : 48); font.letterSpacing: -1
                                    fontSizeMode: configurationHeader.compact ? Text.HorizontalFit : Text.FixedSize
                                    minimumPixelSize: configurationHeader.compact ? 20 : 0
                                    elide: Text.ElideRight; maximumLineCount: 1 }
@@ -301,7 +317,7 @@ Item {
                         Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
                         Text { width: parent.width; topPadding: 15; wrapMode: Text.WordWrap
                                text: "Configure chapter languages and the source order Tankoyomi uses inside Chapter Mode. Auto-pick follows the provider ladder from top to bottom and never crosses into another language."
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     }
                 }
                 Column {
@@ -318,19 +334,19 @@ Item {
                     Row {
                         spacing: 12
                         anchors.right: parent.right
-                        Text { text: "Tankoyomi"; color: theme.ink; font.family: theme.ui; font.pixelSize: 15
+                        Text { text: "Tankoyomi"; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                                font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                         Item {
                             id: masterSwitch
                             objectName: "tankoyomiMasterSwitch"
-                            width: 44; height: 24
+                            width: root.androidHost ? 48 : 44; height: root.androidHost ? 48 : 24
                             Accessible.role: Accessible.CheckBox
                             Accessible.name: "Enable Tankoyomi"
-                            Rectangle { anchors.fill: parent; radius: 12
+                            Rectangle { id: masterTrack; anchors.centerIn: parent; width: 44; height: 24; radius: 12
                                 color: root.tankoyomiEnabled ? theme.gold : Qt.rgba(1,1,1,0.14)
                                 border.width: 1; border.color: root.tankoyomiEnabled ? theme.gold : theme.edge }
-                            Rectangle { width: 18; height: 18; radius: 9; y: 3
-                                x: root.tankoyomiEnabled ? 23 : 3
+                            Rectangle { width: 18; height: 18; radius: 9; anchors.verticalCenter: parent.verticalCenter
+                                x: masterTrack.x + (root.tankoyomiEnabled ? 23 : 3)
                                 color: root.tankoyomiEnabled ? "#1a1306" : theme.inkDim
                                 Behavior on x { NumberAnimation { duration: 140 } } }
                             MouseArea { anchors.fill: parent; onClicked: root.setMasterEnabled(!root.tankoyomiEnabled) }
@@ -340,7 +356,7 @@ Item {
                         }
                     }
                     Text { text: root.tankoyomiEnabled ? "Language-aware manga chapter router" : "Tankoyomi is off"
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                            horizontalAlignment: Text.AlignRight; width: parent.width }
                 }
             }
@@ -367,9 +383,9 @@ Item {
                         required property var modelData
                         required property int index
                         implicitWidth: tabText.implicitWidth
-                        implicitHeight: 42
+                        implicitHeight: (root.layout.touch ? root.layout.touchTargetSize : 42)
                         Text { id: tabText; text: tab.modelData.label; color: root.activeTab === tab.modelData.key ? theme.ink : theme.inkDimmer
-                               font.family: theme.ui; font.pixelSize: 14; font.weight: root.activeTab === tab.modelData.key ? Font.DemiBold : Font.Normal }
+                               font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: root.activeTab === tab.modelData.key ? Font.DemiBold : Font.Normal }
                         Rectangle { anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                                     height: 2; radius: 1; color: theme.gold; visible: root.activeTab === tab.modelData.key }
                         MouseArea { anchors.fill: parent; onClicked: tabs.selectIndex(tab.index) }
@@ -388,13 +404,13 @@ Item {
                     width: parent.width
                     topPadding: 28
                     spacing: 14
-                    Text { text: "About Tankoyomi"; color: theme.ink; font.family: theme.display; font.pixelSize: 28 }
+                    Text { text: "About Tankoyomi"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(28) }
                     Text { width: parent.width; wrapMode: Text.WordWrap
                            text: "Tankoyomi is the language-aware chapter router used by Colosseum Chapter Mode. Its provider inventory comes from the bundled manifest, while your language, enablement, and priority choices are saved locally."
-                           color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14 }
+                           color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                     Text { width: parent.width; wrapMode: Text.WordWrap
                            text: "Auto-pick tries the highest enabled provider first, then continues down the selected language’s ladder. Unsupported languages never fall through to another language."
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                 }
             }
 
@@ -424,9 +440,9 @@ Item {
                         x: 20; y: 20
                         width: parent.width - 40
                         spacing: 0
-                        Text { text: "Languages"; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+                        Text { text: "Languages"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24) }
                         Text { width: parent.width; wrapMode: Text.WordWrap; text: "Choose which chapter languages Tankoyomi can use."; topPadding: 6
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                         Item { width: 1; height: 12 }
                         Column {
                             id: languageList
@@ -452,11 +468,11 @@ Item {
                                                         width: 38; height: 38
                                                         countryCode: root._countryCode(langRow.modelData) }
                                         Column { width: Math.max(0, parent.width - 38 - 58 - 2 * parent.spacing); anchors.verticalCenter: parent.verticalCenter; spacing: 3
-                                            Text { width: parent.width; elide: Text.ElideRight; text: langRow.modelData.label || langRow.code; color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                                            Text { width: parent.width; elide: Text.ElideRight; text: langRow.modelData.label || langRow.code; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold }
                                             Text { text: langRow.code + " · " + (langRow.modelData.providerCount || 0) + " source" + ((langRow.modelData.providerCount || 0) === 1 ? "" : "s")
-                                                   color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 } }
+                                                   color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11) } }
                                         Text { width: 58; text: langRow.modelData.default ? "DEFAULT" : ((langRow.modelData.enabledProviderCount || 0) + " active")
-                                               color: langRow.modelData.default ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10
+                                               color: langRow.modelData.default ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                                horizontalAlignment: Text.AlignRight; anchors.verticalCenter: parent.verticalCenter }
                                     }
                                     MouseArea { anchors.fill: parent; onClicked: root.selectLanguage(langRow.code) }
@@ -468,17 +484,17 @@ Item {
                         Item { width: 1; height: 14 }
                         Rectangle { width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.08) }
                         Text { text: "Default chapter language"; topPadding: 16; bottomPadding: 8
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                         Item {
                             id: defaultSelector
                             objectName: "tankoyomiDefaultLanguageSelector"
-                            width: parent.width; height: 42
+                            width: parent.width; height: (root.layout.touch ? root.layout.touchTargetSize : 42)
                             Rectangle { anchors.fill: parent; radius: 11; color: Qt.rgba(1,1,1,0.055); border.width: 1
                                         border.color: defaultSelector.activeFocus ? theme.gold : theme.edge }
                             Text { anchors.left: parent.left; anchors.leftMargin: 12; anchors.verticalCenter: parent.verticalCenter
                                    text: { for (var i=0;i<root.languageRows.length;i++) if (root._languageCode(root.languageRows[i]) === root._defaultLanguage()) return root.languageRows[i].label; return root._defaultLanguage() }
-                                   color: theme.ink; font.family: theme.ui; font.pixelSize: 13 }
-                            Text { anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: root.languageMenuOpen ? "▲" : "▼"; color: theme.inkDimmer; font.pixelSize: 11 }
+                                   color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
+                            Text { anchors.right: parent.right; anchors.rightMargin: 12; anchors.verticalCenter: parent.verticalCenter; text: root.languageMenuOpen ? "▲" : "▼"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(11) }
                             MouseArea { anchors.fill: parent; onClicked: root.languageMenuOpen = !root.languageMenuOpen }
                             KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: "Default chapter language"
                                 onTriggered: root.languageMenuOpen = !root.languageMenuOpen }
@@ -486,7 +502,7 @@ Item {
                         Column {
                             id: defaultMenu
                             objectName: "tankoyomiDefaultLanguageMenu"
-                            visible: root.languageMenuOpen
+                            visible: root.languageMenuOpen && !root.layout.touch
                             width: parent.width
                             spacing: 2
                             topPadding: 4
@@ -495,10 +511,10 @@ Item {
                                 delegate: Item {
                                     id: defaultRow
                                     required property var modelData
-                                    width: defaultMenu.width; height: 34
+                                    width: defaultMenu.width; height: (root.layout.touch ? root.layout.touchTargetSize : 34)
                                     property string code: root._languageCode(modelData)
                                     Text { anchors.fill: parent; anchors.leftMargin: 10; verticalAlignment: Text.AlignVCenter
-                                           text: defaultRow.modelData.label || defaultRow.code; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12 }
+                                           text: defaultRow.modelData.label || defaultRow.code; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                                     MouseArea { anchors.fill: parent; onClicked: root.setDefaultLanguage(defaultRow.code) }
                                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true
                                         accessibleName: "Set default language to " + (defaultRow.modelData.label || defaultRow.code)
@@ -528,7 +544,7 @@ Item {
                         x: 20; y: 20
                         width: parent.width - 40
                         spacing: 0
-                        Text { text: "Auto-pick route"; color: theme.gold; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5; font.weight: Font.DemiBold }
+                        Text { text: "Auto-pick route"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1.5; font.weight: Font.DemiBold }
                         Row {
                             id: detailHeader
                             objectName: "tankoyomiDetailHeader"
@@ -547,24 +563,26 @@ Item {
                                 anchors.verticalCenter: parent.verticalCenter
                                 spacing: 3
                                 Text { text: { var row = root._languageRow(root.selectedLanguage); return row ? row.label : root.selectedLanguage }
-                                       color: theme.ink; font.family: theme.display; font.pixelSize: 25
-                                       elide: Text.ElideRight; width: parent.width }
+                                       color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(25)
+                                       elide: root.phonePortrait ? Text.ElideNone : Text.ElideRight
+                                       wrapMode: root.phonePortrait ? Text.WordWrap : Text.NoWrap; width: parent.width }
                                 Text { text: root.providerRows.length + " configured source" + (root.providerRows.length === 1 ? "" : "s") + " · same-language fallback only"
-                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
-                                       elide: Text.ElideRight; width: parent.width }
+                                       color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                                       elide: root.phonePortrait ? Text.ElideNone : Text.ElideRight
+                                       wrapMode: root.phonePortrait ? Text.WordWrap : Text.NoWrap; width: parent.width }
                             }
                         }
-                        Row {
+                        Flow {
                             width: parent.width
                             topPadding: 18; bottomPadding: 12
                             spacing: 10
-                            Text { text: "Highest active provider is tried first. Reorder the ladder to change priority."; width: parent.width - resetButton.width - 10
-                                   color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap }
+                            Text { text: "Highest active provider is tried first. Reorder the ladder to change priority."; width: root.phonePortrait ? parent.width : parent.width - resetButton.width - 10
+                                   color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.WordWrap }
                             Rectangle {
                                 id: resetButton
                                 objectName: "tankoyomiResetOrder"
-                                width: 112; height: 34; radius: 10; color: Qt.rgba(1,1,1,0.05); border.width: 1; border.color: theme.edge
-                                Text { anchors.centerIn: parent; text: "Reset order"; color: resetInput.interactionActive ? theme.ink : theme.inkDim; font.family: theme.ui; font.pixelSize: 12 }
+                                width: 112; height: root.androidHost ? 48 : 34; radius: 10; color: Qt.rgba(1,1,1,0.05); border.width: 1; border.color: theme.edge
+                                Text { anchors.centerIn: parent; text: "Reset order"; color: resetInput.interactionActive ? theme.ink : theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                                 MouseArea { anchors.fill: parent; onClicked: root.resetProviderOrder(root.selectedLanguage) }
                                 KeyboardAction { id: resetInput; anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: "Reset provider order"
                                     onTriggered: root.resetProviderOrder(root.selectedLanguage) }
@@ -588,50 +606,63 @@ Item {
                                     property bool canMoveDown: index < root.providerRows.length - 1
                                     objectName: "tankoyomiProvider_" + providerId
                                     width: providerLadder.width
-                                    height: 86
+                                    height: root.phonePortrait ? providerInfo.implicitHeight + 84 : 86
                                     opacity: providerEnabled ? 1 : 0.48
                                     Rectangle { anchors.fill: parent; radius: 14; color: Qt.rgba(1,1,1,0.035); border.width: 1; border.color: Qt.rgba(1,1,1,0.09) }
-                                    Row {
+                                    Item {
+                                        id: providerContent
                                         anchors.fill: parent; anchors.margins: providerRow.compact ? 8 : 12
-                                        spacing: providerRow.compact ? 8 : 12
-                                         Item { width: providerRow.compact ? 24 : 38; height: width; anchors.verticalCenter: parent.verticalCenter
+                                        property real gap: providerRow.compact ? 8 : 12
+                                         Item { id: providerRank; width: providerRow.compact ? 24 : 38; height: width
+                                             y: root.phonePortrait ? 4 : (parent.height - height) / 2
                                              Rectangle { anchors.fill: parent; radius: width / 2; color: providerRow.index === 0 ? theme.gold : "#151821"; border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.65) }
-                                             Text { anchors.centerIn: parent; text: providerRow.index + 1; color: providerRow.index === 0 ? "#191407" : theme.gold; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.Bold } }
-                                         Text { width: providerRow.compact ? 32 : 42; height: providerRow.compact ? 32 : 42; anchors.verticalCenter: parent.verticalCenter; text: String(providerRow.modelData.name || providerRow.providerId).slice(0,1).toUpperCase()
-                                               color: theme.gold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.family: theme.display; font.pixelSize: 24
+                                             Text { anchors.centerIn: parent; text: providerRow.index + 1; color: providerRow.index === 0 ? "#191407" : theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.Bold } }
+                                         Text { id: providerLogo; x: providerRank.width + providerContent.gap
+                                               y: root.phonePortrait ? 0 : (parent.height - height) / 2
+                                               width: providerRow.compact ? 32 : 42; height: providerRow.compact ? 32 : 42; text: String(providerRow.modelData.name || providerRow.providerId).slice(0,1).toUpperCase()
+                                               color: theme.gold; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter; font.family: theme.display; font.pixelSize: theme.fontSize(24)
                                                Rectangle { anchors.fill: parent; radius: 11; color: Qt.rgba(1,1,1,0.055); border.width: 1; border.color: theme.edge; z: -1 } }
                                         Column { id: providerInfo; objectName: "tankoyomiProviderInfo_" + providerRow.providerId
-                                            width: Math.max(0, parent.width - (providerRow.compact ? 24 : 38) - (providerRow.compact ? 32 : 42) - (providerRow.compact ? 92 : 120) - 3 * parent.spacing); anchors.verticalCenter: parent.verticalCenter; spacing: 5
+                                            x: providerLogo.x + providerLogo.width + providerContent.gap
+                                            y: root.phonePortrait ? 0 : (parent.height - height) / 2
+                                            width: Math.max(0, parent.width - x - (root.phonePortrait ? 0 : providerControls.width + providerContent.gap)); spacing: 5
                                             Row { width: parent.width; spacing: 8
                                                 TextMetrics { id: providerNameMetrics
                                                               text: providerRow.modelData.name || providerRow.providerId
-                                                              font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                                              font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
                                                 Text { id: providerName; objectName: "tankoyomiProviderName_" + providerRow.providerId
                                                        width: detailPanel.width < 600 ? parent.width : Math.min(providerNameMetrics.advanceWidth + 2, parent.width)
                                                        elide: Text.ElideRight
-                                                       text: providerRow.modelData.name || providerRow.providerId; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                                                       wrapMode: root.phonePortrait ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                                                       maximumLineCount: root.phonePortrait ? 2 : 1
+                                                       text: providerRow.modelData.name || providerRow.providerId; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
                                                 Text { visible: detailPanel.width >= 600
-                                                       text: providerRow.providerEnabled ? "ACTIVE" : "DISABLED"; color: providerRow.providerEnabled ? "#72d487" : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.weight: Font.DemiBold } }
+                                                       text: providerRow.providerEnabled ? "ACTIVE" : "DISABLED"; color: providerRow.providerEnabled ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.weight: Font.DemiBold } }
                                              Text { objectName: "tankoyomiProviderHost_" + providerRow.providerId
                                                     width: parent.width; elide: Text.ElideRight
-                                                    text: root._providerHost(providerRow.modelData); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                                                    text: root._providerHost(providerRow.modelData); color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                                     visible: text.length > 0 }
                                              Text { width: parent.width; elide: Text.ElideRight
-                                                    text: "Rank " + (providerRow.index + 1) + " · " + providerRow.providerId; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
+                                                    text: "Rank " + (providerRow.index + 1) + " · " + providerRow.providerId; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
                                         }
-                                        Row { width: providerRow.compact ? 92 : 120; anchors.verticalCenter: parent.verticalCenter; spacing: providerRow.compact ? 2 : 5
-                                             Item { id: providerToggle; objectName: "tankoyomiProviderToggle_" + providerRow.providerId; width: providerRow.compact ? 34 : 40; height: 22
-                                                 Rectangle { anchors.fill: parent; radius: 11; color: providerRow.providerEnabled ? theme.gold : Qt.rgba(1,1,1,0.14); border.width: 1; border.color: providerRow.providerEnabled ? theme.gold : theme.edge }
-                                                 Rectangle { width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; x: providerRow.providerEnabled ? parent.width - width - 3 : 3; color: providerRow.providerEnabled ? "#1a1306" : theme.inkDim }
+                                        Row { id: providerControls
+                                             x: root.phonePortrait ? parent.width - width : providerInfo.x + providerInfo.width + providerContent.gap
+                                             y: root.phonePortrait ? providerInfo.height + 12 : (parent.height - height) / 2
+                                             width: root.layout.touch ? 164 : (providerRow.compact ? 92 : 120)
+                                             height: root.layout.touch ? root.layout.touchTargetSize : 28
+                                             spacing: root.phonePortrait ? 10 : (providerRow.compact ? 2 : 5)
+                                             Item { id: providerToggle; objectName: "tankoyomiProviderToggle_" + providerRow.providerId; width: root.layout.touch ? root.layout.touchTargetSize : (providerRow.compact ? 34 : 40); height: root.layout.touch ? root.layout.touchTargetSize : 22
+                                                 Rectangle { id: providerTrack; anchors.centerIn: parent; width: root.phonePortrait ? 42 : parent.width; height: 22; radius: 11; color: providerRow.providerEnabled ? theme.gold : Qt.rgba(1,1,1,0.14); border.width: 1; border.color: providerRow.providerEnabled ? theme.gold : theme.edge }
+                                                 Rectangle { width: 16; height: 16; radius: 8; anchors.verticalCenter: parent.verticalCenter; x: providerTrack.x + (providerRow.providerEnabled ? providerTrack.width - width - 3 : 3); color: providerRow.providerEnabled ? "#1a1306" : theme.inkDim }
                                                  MouseArea { anchors.fill: parent; onClicked: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) }
                                                  KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: true; accessibleName: (providerRow.providerEnabled ? "Disable " : "Enable ") + (providerRow.modelData.name || providerRow.providerId)
                                                      onTriggered: root.toggleProvider(root.selectedLanguage, providerRow.providerId, !providerRow.providerEnabled) } }
-                                             Item { id: upControl; width: providerRow.compact ? 24 : 28; height: 28
+                                             Item { id: upControl; objectName: "tankoyomiProviderUp_" + providerRow.providerId; width: root.layout.touch ? root.layout.touchTargetSize : (providerRow.compact ? 24 : 28); height: root.layout.touch ? root.layout.touchTargetSize : 28
                                                  Text { anchors.centerIn: parent; text: "↑"; color: providerRow.canMoveUp ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveUp; onClicked: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) }
                                                  KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveUp; enabled: providerRow.canMoveUp; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " up"
                                                      onTriggered: root.moveProviderUp(root.selectedLanguage, providerRow.providerId) } }
-                                             Item { id: downControl; width: providerRow.compact ? 24 : 28; height: 28
+                                             Item { id: downControl; objectName: "tankoyomiProviderDown_" + providerRow.providerId; width: root.layout.touch ? root.layout.touchTargetSize : (providerRow.compact ? 24 : 28); height: root.layout.touch ? root.layout.touchTargetSize : 28
                                                  Text { anchors.centerIn: parent; text: "↓"; color: providerRow.canMoveDown ? theme.inkDim : theme.inkDimmer; font.pixelSize: 16 }
                                                  MouseArea { anchors.fill: parent; enabled: providerRow.canMoveDown; onClicked: root.moveProviderDown(root.selectedLanguage, providerRow.providerId) }
                                                  KeyboardAction { anchors.fill: parent; pointerEnabled: false; focusEnabled: providerRow.canMoveDown; enabled: providerRow.canMoveDown; accessibleName: "Move " + (providerRow.modelData.name || providerRow.providerId) + " down"
@@ -642,7 +673,7 @@ Item {
                             }
                         }
                         Text { visible: root.providerRows.length === 0; text: "No providers are enabled for this language."; topPadding: 22
-                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13 }
+                               color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     }
                 }
             }
@@ -652,40 +683,53 @@ Item {
                 width: parent.width; height: visible ? behaviorColumn.implicitHeight + 44 : 0; radius: 18
                 color: Qt.rgba(0.04,0.05,0.08,0.68); border.width: 1; border.color: theme.edge
                 Column { id: behaviorColumn; x: 22; y: 22; width: parent.width - 44; spacing: 12
-                    Text { text: "Behavior"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
-                    Row { width: parent.width; spacing: 14
+                    Text { text: "Behavior"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22) }
+                    Flow { width: parent.width; spacing: 14
                         Repeater { model: [
                                 { title: "Auto-pick", body: "First available provider in the ranked route" },
                                 { title: "Fallback", body: "Same language only" },
                                 { title: "Manual choice", body: "Sources shows every matching provider and its rank" }
                             ]
-                            delegate: Column { id: behaviorItem; required property var modelData; width: (parent.width - 28) / 3; spacing: 6
+                            delegate: Column { id: behaviorItem; required property var modelData; objectName: "tankoyomiBehavior_" + modelData.title; width: root.phonePortrait ? parent.width : (parent.width - 28) / 3; spacing: 6
                                 Rectangle { width: parent.width; height: 1; color: Qt.rgba(1,1,1,0.08) }
-                                Text { text: behaviorItem.modelData.title.toUpperCase(); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.2 }
-                                Text { width: parent.width; text: behaviorItem.modelData.body; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap } }
+                                Text { width: parent.width; wrapMode: Text.WordWrap; text: behaviorItem.modelData.title.toUpperCase(); color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.2 }
+                                Text { width: parent.width; text: behaviorItem.modelData.body; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.WordWrap } }
                         }
                     }
                     Text { width: parent.width; wrapMode: Text.WordWrap
                            text: "Scan quality is descriptive, not scored. The source ladder is limited to the selected language."
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                 }
             }
         }
     }
 
     Row {
-        anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: 24; anchors.rightMargin: theme.margin
+        anchors.top: parent.top; anchors.right: parent.right; anchors.topMargin: root.androidHost ? 14 : 24; anchors.rightMargin: root.pageInset
         spacing: 22
-        Text { text: "⌕"; color: searchInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
-               KeyboardAction { id: searchInput; anchors.fill: parent; accessibleName: "Search"; focusRadius: 5; onTriggered: root.searchClicked() } }
-        Text { text: "—"; color: minInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+        Item { width: root.androidHost ? 48 : searchGlyph.implicitWidth; height: root.androidHost ? 48 : searchGlyph.implicitHeight
+            Text { id: searchGlyph; anchors.centerIn: parent; text: "⌕"; color: searchInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17 }
+            KeyboardAction { id: searchInput; objectName: "tankoyomiSearchAction"; anchors.fill: parent; accessibleName: "Search"; focusRadius: 5; onTriggered: root.searchClicked() } }
+        Text {
+            width:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitWidth) : implicitWidth; horizontalAlignment:Text.AlignHCenter
+
+            height:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitHeight) : implicitHeight; verticalAlignment:Text.AlignVCenter
+ objectName: "tankoyomiMinimize"; visible: !root.androidHost; text: "—"; color: minInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: minInput; anchors.fill: parent; accessibleName: "Minimize"; focusRadius: 5; onTriggered: root.minimizeRequested() } }
-        Text { text: "⛶"; color: fullInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+        Text {
+            width:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitWidth) : implicitWidth; horizontalAlignment:Text.AlignHCenter
+
+            height:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitHeight) : implicitHeight; verticalAlignment:Text.AlignVCenter
+ objectName: "tankoyomiFullscreen"; visible: !root.androidHost; text: "⛶"; color: fullInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: fullInput; anchors.fill: parent; accessibleName: "Toggle fullscreen"; focusRadius: 5; onTriggered: root.fullscreenRequested() } }
-        Text { text: "⏻"; color: powerInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
+        Text {
+            width:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitWidth) : implicitWidth; horizontalAlignment:Text.AlignHCenter
+
+            height:root.layout.touch ? Math.max(root.layout.touchTargetSize,implicitHeight) : implicitHeight; verticalAlignment:Text.AlignVCenter
+ objectName: "tankoyomiClose"; visible: !root.androidHost; text: "⏻"; color: powerInput.interactionActive ? theme.ink : theme.inkDim; font.pixelSize: 17
                KeyboardAction { id: powerInput; anchors.fill: parent; accessibleName: "Close Colosseum"; focusRadius: 5; onTriggered: root.closeRequested() } }
     }
     BackAction { objectName: "tankoyomiConfigurationBack"; variant: "capsule"; tip: "Back to Extensions"
-        anchors.top: parent.top; anchors.left: parent.left; anchors.topMargin: 21; anchors.leftMargin: theme.margin - 10
+        anchors.top: parent.top; anchors.left: parent.left; anchors.topMargin: 21; anchors.leftMargin: root.pageInset - 10
         onTriggered: root.closeFromPage() }
 }

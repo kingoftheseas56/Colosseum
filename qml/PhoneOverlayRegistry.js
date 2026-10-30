@@ -47,6 +47,7 @@ function release(sheet) {
 function dismiss(window) {
     var sheet = current(window)
     if (!sheet || !sheet.visible) return false
-    sheet.close()
+    if(typeof sheet.requestDismiss==="function")sheet.requestDismiss()
+    else sheet.close()
     return true
 }

@@ -7,7 +7,7 @@ import QtQuick.Controls
 import ".."
 import "../SystemFocusContainment.js" as SystemFocusContainment
 
-Item {
+SettingsScaffold {
     id: root
 
     property var controller: null
@@ -20,6 +20,17 @@ Item {
         && controller.mode === "signedIn"
 
     visible: false
+    readonly property var activePhoneSheet:layout.touch ? phoneSheet : null
+    onVisibleChanged: {
+        if(layout.touch) { if(visible)phoneSheet.open();else phoneSheet.close() }
+    }
+    PhoneModalSheet {
+        id:phoneSheet
+        title:qsTr("Account")
+        hostedItem:col
+        preferredFocusReturn:root.focusReturnItem
+        onClosed:if(root.visible)root.close()
+    }
     anchors.fill: parent
     z: 900   // above AccountCenter by document order; below the onboarding host (900), which is instantiated after this in Main.qml
 
@@ -85,15 +96,18 @@ Item {
     function open() {
         if (!root.visible)
             rememberInvoker()
+        phoneSheet.returnFocusOnClose=true
         root.visible = true
         focusInitial()
     }
     function close(restoreFocus) {
         if (!root.visible)
             return
+        phoneSheet.returnFocusOnClose=restoreFocus!==false
         root.visible = false
-        if (restoreFocus !== false)
+        if (!layout.touch && restoreFocus !== false)
             restoreInvoker()
+        else focusReturnItem=null
     }
     function toggle() { root.visible ? root.close() : root.open() }
     function openAt(right, bottom) {
@@ -191,17 +205,18 @@ Item {
 
     Shortcut {
         sequence: "Tab"
-        enabled: root.visible
+        enabled: root.visible && !root.layout.touch
         onActivated: SystemFocusContainment.move(root.Window.window, root, true)
     }
     Shortcut {
         sequence: "Shift+Tab"
-        enabled: root.visible
+        enabled: root.visible && !root.layout.touch
         onActivated: SystemFocusContainment.move(root.Window.window, root, false)
     }
 
     Rectangle {
         id: card
+        visible:!root.layout.touch
         x: root.anchorRight >= 0
            ? Math.max(root.edgeMargin, Math.min(root.width - width - root.edgeMargin, root.anchorRight - width))
            : parent.width - width - 58
@@ -319,7 +334,7 @@ Item {
                         id: navItem
                         objectName: "accountFlyoutNav_" + modelData.section
                         width: parent ? parent.width : 0
-                        height: 32
+                        height: (root.layout.touch ? root.layout.touchTargetSize : 32)
                         activeFocusOnTab: root.visible && navColumn.visible
                         Accessible.role: Accessible.Button
                         Accessible.name: modelData.label
@@ -373,14 +388,14 @@ Item {
                 }
             }
 
-            Button {
+            TouchButton {
                 id: retrySyncAction
                 objectName: "accountFlyoutSyncRetry"
                 visible: root.accountPresent
                     && root.controller
                     && root.controller.syncRetryAvailable
                 width: parent.width
-                height: 34
+                height: (root.layout.touch ? root.layout.touchTargetSize : 34)
                 focusPolicy: Qt.StrongFocus
                 Keys.onUpPressed: {
                     if (navColumn.visible && navRepeater.count > 0) {
@@ -415,11 +430,11 @@ Item {
                 }
             }
 
-            Button {
+            TouchButton {
                 id: sessionAction
                 objectName: "accountFlyoutSessionAction"
                 width: parent.width
-                height: 38
+                height: (root.layout.touch ? root.layout.touchTargetSize : 38)
                 focusPolicy: Qt.StrongFocus
                 Keys.onUpPressed: {
                     if (retrySyncAction.visible) {

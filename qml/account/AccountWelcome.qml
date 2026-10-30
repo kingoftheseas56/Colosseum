@@ -3,17 +3,14 @@
 import QtQuick
 import ".."
 
-Item {
+SettingsScaffold {
     id: welcome
     objectName: "accountWelcome"
 
     property var controller: null
     property Item backdrop: null
 
-    readonly property bool narrowPhone: {
-        const win = welcome.Window.window
-        return win && win.androidHost && win.width < 840
-    }
+    readonly property bool narrowPhone:layout.phoneLayout
 
     readonly property bool accountEntryAvailable:
         !welcome.controller || welcome.controller.accountFeaturesAvailable !== false
@@ -101,7 +98,7 @@ Item {
                     : "Colosseum runs completely locally on this device."
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 wrapMode: Text.WordWrap
 
                 Theme { id: theme }

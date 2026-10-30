@@ -13,6 +13,7 @@ TestCase {
         width: 1280
         height: 900
         visible: true
+        property bool androidHost: false
     }
 
     Component {
@@ -99,6 +100,9 @@ TestCase {
     }
 
     function init() {
+        testWindow.width = 1280
+        testWindow.height = 900
+        testWindow.androidHost = false
         manga = fakeMangaComponent.createObject(testWindow)
         extensions = fakeExtensionsComponent.createObject(testWindow)
         page = pageComponent.createObject(testWindow.contentItem, {
@@ -127,6 +131,89 @@ TestCase {
         verify(byName(page, "tankoyomiMasterSwitch") !== null)
         verify(byName(page, "tankoyomiLanguageList") !== null)
         verify(byName(page, "tankoyomiProviderLadder") !== null)
+    }
+
+    function test_phone_portrait_layout_data() {
+        return [{tag: "phone320", width: 320}, {tag: "phone354", width: 354}]
+    }
+
+    function test_phone_portrait_layout(data) {
+        testWindow.androidHost = true
+        testWindow.width = data.width
+        testWindow.height = 792
+        page.width = data.width
+        page.height = 792
+        page.selectLanguage("en")
+        wait(30)
+        verify(page.phonePortrait)
+        compare(byName(page, "tankoyomiConfigurationScroll").width, data.width - 36)
+        const row = byName(page, "tankoyomiProvider_en-one")
+        const info = byName(page, "tankoyomiProviderInfo_en-one")
+        const name = byName(page, "tankoyomiProviderName_en-one")
+        verify(info.width >= 120, "Provider details have a readable text column")
+        verify(!name.truncated, "Provider: " + JSON.stringify({text: name.text,
+            width: name.width, height: name.height, implicitHeight: name.implicitHeight,
+            lines: name.lineCount, truncated: name.truncated}))
+        for (const suffix of ["Toggle", "Up", "Down"]) {
+            const action = byName(page, "tankoyomiProvider" + suffix + "_en-one")
+            compare(action.width, 48)
+            compare(action.height, 48)
+            const p = action.mapToItem(row, 0, 0)
+            verify(p.x >= 0 && p.x + action.width <= row.width)
+            verify(p.y >= info.y + info.height && p.y + action.height <= row.height)
+        }
+        compare(byName(page, "tankoyomiResetOrder").height, 48)
+        compare(byName(page, "tankoyomiSearchAction").width, 48)
+        for (const verb of ["Minimize", "Fullscreen", "Close"])
+            verify(!byName(page, "tankoyomi" + verb).visible)
+        const autoPick = byName(page, "tankoyomiBehavior_Auto-pick")
+        const fallback = byName(page, "tankoyomiBehavior_Fallback")
+        const manual = byName(page, "tankoyomiBehavior_Manual choice")
+        compare(autoPick.width, autoPick.parent.width)
+        verify(fallback.y > autoPick.y && manual.y > fallback.y,
+               "Behavior explanations stack instead of squeezing into three columns")
+    }
+
+    function test_phone_provider_control_keeps_its_intent() {
+        testWindow.androidHost = true
+        testWindow.width = 354
+        testWindow.height = 792
+        page.width = 354
+        page.height = 792
+        wait(30)
+        const control = byName(page, "tankoyomiProviderToggle_es-two")
+        const scroll = byName(page, "tankoyomiConfigurationScroll")
+        scroll.contentY = Math.max(0, Math.min(scroll.contentHeight - scroll.height,
+            control.mapToItem(scroll.contentItem, 0, 0).y - 80))
+        wait(30)
+        mouseClick(control, 24, 24)
+        verify(manga.calls.indexOf("enabled:es:es-two:true") >= 0)
+    }
+    function test_tablet_default_language_uses_shared_sheet_and_native_intent() {
+        testWindow.androidHost=true;testWindow.width=800;testWindow.height=1280
+        page.width=800;page.height=1280
+        page.languageMenuOpen=true
+        tryVerify(function(){return page.activeChoiceSheet!==null && page.activeChoiceSheet.opened})
+        wait(40)
+        const sheet=page.activeChoiceSheet
+        compare(sheet.background.color.a,1)
+        const english=byName(sheet.contentItem,"en")
+        verify(english!==null && english.height>=48)
+        mouseClick(english,english.width/2,english.height/2)
+        verify(manga.calls.indexOf("default:en")>=0)
+        compare(page.languageMenuOpen,false)
+    }
+
+    function test_phone_gate_uses_window_orientation() {
+        testWindow.androidHost = true
+        testWindow.width = 792
+        testWindow.height = 354
+        page.width = 792
+        page.height = 2000
+        wait(0)
+        verify(!page.phonePortrait)
+        verify(byName(page, "tankoyomiBehavior_Auto-pick").width
+               < byName(page, "tankoyomiBehavior_Auto-pick").parent.width)
     }
 
     function test_panel_contents_respect_insets_data() {

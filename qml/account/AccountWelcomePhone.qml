@@ -2,7 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 
-Item {
+SettingsScaffold {
     id: root
     objectName: "accountWelcomePhone"
 
@@ -101,7 +101,7 @@ Item {
                 text: "COLOSSEUM · WELCOME"
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.weight: Font.DemiBold
                 font.letterSpacing: 2.2
                 wrapMode: Text.WordWrap
@@ -114,7 +114,7 @@ Item {
                 text: "Welcome to Colosseum."
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: root.width < 380 ? 31 : 34
+                font.pixelSize: theme.fontSize(root.width < 380 ? 31 : 34)
                 font.weight: Font.Medium
                 font.letterSpacing: -0.8
                 lineHeight: 1.05
@@ -137,7 +137,7 @@ Item {
                 text: "Use Colosseum completely locally, or sign in to carry your Collection, progress, reader setup, preferences, and other personal choices between devices."
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 lineHeight: 1.55
                 wrapMode: Text.WordWrap
             }
@@ -205,7 +205,7 @@ Item {
                         text: "Accounts are optional. Sign in later whenever you want sync."
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                     }
                 }

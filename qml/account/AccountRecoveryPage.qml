@@ -6,7 +6,7 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 
-Item {
+SettingsScaffold {
     id: root
     objectName: "accountRecoveryPage"
 
@@ -202,7 +202,7 @@ Item {
                 text: qsTr("Recovery")
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 26
+                font.pixelSize: theme.fontSize(26)
                 font.weight: Font.DemiBold
             }
 
@@ -271,7 +271,7 @@ Item {
                             text: qsTr("Your way back in.")
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: 27
+                            font.pixelSize: theme.fontSize(27)
                             font.weight: Font.DemiBold
                             font.letterSpacing: -0.9
                             wrapMode: Text.WordWrap
@@ -284,7 +284,7 @@ Item {
                             text: qsTr("Your recovery key can reset your password if you lose access. Colosseum showed the current key once when it was created and does not keep it available for reveal here.")
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 12
+                            font.pixelSize: theme.fontSize(12)
                             lineHeightMode: Text.ProportionalHeight
                             lineHeight: 1.65
                             wrapMode: Text.WordWrap
@@ -307,7 +307,7 @@ Item {
                                 text: qsTr("Only the newest recovery key works.")
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                             }
                         }
                     }
@@ -369,7 +369,7 @@ Item {
                                 text: qsTr("Replace recovery key")
                                 color: theme.ink
                                 font.family: theme.ui
-                                font.pixelSize: 14
+                                font.pixelSize: theme.fontSize(14)
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.WordWrap
                             }
@@ -379,7 +379,7 @@ Item {
                                 text: qsTr("Generate a new recovery key if the old one is lost, exposed, or no longer somewhere you trust.")
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 11
+                                font.pixelSize: theme.fontSize(11)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.55
                                 wrapMode: Text.WordWrap
@@ -391,7 +391,7 @@ Item {
                         id: replaceButton
                         objectName: "recoveryReplaceButton"
                         width: 112
-                        height: 34
+                        height: (root.layout.touch ? root.layout.touchTargetSize : 34)
                         x: root.compact ? 53 : parent.width - width
                         y: root.compact ? replaceMain.height + 14 : 2
                         text: qsTr("Replace key")
@@ -450,7 +450,7 @@ Item {
                                 text: qsTr("The old key will stop working.")
                                 color: theme.inkDim
                                 font.family: theme.ui
-                                font.pixelSize: 12
+                                font.pixelSize: theme.fontSize(12)
                                 font.weight: Font.DemiBold
                                 wrapMode: Text.WordWrap
                             }
@@ -460,7 +460,7 @@ Item {
                                 text: qsTr("After replacement, save the new key before leaving the one-time screen.")
                                 color: theme.inkDimmer
                                 font.family: theme.ui
-                                font.pixelSize: 10
+                                font.pixelSize: theme.fontSize(10)
                                 lineHeightMode: Text.ProportionalHeight
                                 lineHeight: 1.5
                                 wrapMode: Text.WordWrap
@@ -491,7 +491,7 @@ Item {
                             : root.nativeErrorMessage
                         color: "#f0a3a3"
                         font.family: theme.ui
-                        font.pixelSize: 11
+                        font.pixelSize: theme.fontSize(11)
                         wrapMode: Text.WordWrap
                     }
 
@@ -503,7 +503,7 @@ Item {
                         AccountButton {
                             objectName: "recoveryReplaceCancel"
                             width: 92
-                            height: 34
+                            height: (root.layout.touch ? root.layout.touchTargetSize : 34)
                             text: qsTr("Cancel")
                             enabled: !root.requestPending
                             onClicked: root.cancelReplacement()
@@ -512,7 +512,7 @@ Item {
                         AccountButton {
                             objectName: "recoveryGenerateButton"
                             width: 160
-                            height: 34
+                            height: (root.layout.touch ? root.layout.touchTargetSize : 34)
                             text: root.requestPending
                                 ? qsTr("Generating…")
                                 : qsTr("Generate new key")
@@ -571,7 +571,7 @@ Item {
                             text: qsTr("If you lose your password")
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                             font.weight: Font.DemiBold
                             wrapMode: Text.WordWrap
                         }
@@ -581,7 +581,7 @@ Item {
                             text: qsTr("Sign out and choose account recovery. Your username, recovery key, and a new password are enough to recover the account.")
                             color: theme.inkDimmer
                             font.family: theme.ui
-                            font.pixelSize: 11
+                            font.pixelSize: theme.fontSize(11)
                             lineHeightMode: Text.ProportionalHeight
                             lineHeight: 1.55
                             wrapMode: Text.WordWrap

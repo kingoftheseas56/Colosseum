@@ -12,6 +12,8 @@ Item {
     readonly property var activeSheet:loader.status===Loader.Ready ? loader.item : null
     signal picked(string purpose,string key)
     signal dismissed(string purpose)
+    function close() { if(activeSheet)activeSheet.close() }
+    onVisibleChanged:if(!visible)close()
     function showChoices(title,choices,key,purpose,invoker) {
         generation++
         host.title=title; host.choices=choices; selectedKey=key; host.purpose=purpose; host.invoker=invoker || null

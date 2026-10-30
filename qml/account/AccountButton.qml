@@ -4,13 +4,14 @@ import QtQuick
 import QtQuick.Controls
 import ".."
 
-Button {
+TouchButton {
     id: control
 
     property string variant: "secondary"
     property color primaryInk: "#141207"
 
-    implicitHeight: 46
+    AdaptiveLayout { id:metrics; page:control }
+    implicitHeight: metrics.touch ? metrics.touchTargetSize : 46
     implicitWidth: Math.max(160, contentItem.implicitWidth + 34)
     padding: 0
     hoverEnabled: true
@@ -24,7 +25,7 @@ Button {
             : (control.enabled ? theme.ink : theme.inkDimmer)
         opacity: control.enabled ? 1.0 : 0.58
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         font.weight: Font.DemiBold
         horizontalAlignment: Text.AlignHCenter
         verticalAlignment: Text.AlignVCenter

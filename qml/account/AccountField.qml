@@ -22,10 +22,11 @@ Item {
     implicitHeight: labelText.implicitHeight
         + (root.hint.length > 0 ? hintText.implicitHeight + 4 : 0)
         + 10
-        + 46
+        + field.height
     implicitWidth: 400
 
     Theme { id: theme }
+    AdaptiveLayout { id:metrics; page:root }
 
     Text {
         id: labelText
@@ -34,7 +35,7 @@ Item {
         text: root.label
         color: theme.inkDim
         font.family: theme.ui
-        font.pixelSize: 12
+        font.pixelSize: theme.fontSize(12)
         font.weight: Font.DemiBold
     }
 
@@ -48,25 +49,25 @@ Item {
         text: root.hint
         color: theme.inkDimmer
         font.family: theme.ui
-        font.pixelSize: 11
+        font.pixelSize: theme.fontSize(11)
         wrapMode: Text.WordWrap
     }
 
-    TextField {
+    TouchTextField {
         id: field
         objectName: root.controlObjectName
         anchors.left: parent.left
         anchors.right: parent.right
         anchors.top: root.hint.length > 0 ? hintText.bottom : labelText.bottom
         anchors.topMargin: 10
-        height: 46
+        height:metrics.touch ? metrics.touchTargetSize : 46
         leftPadding: 14
-        rightPadding: root.password ? 48 : 14
+        rightPadding: root.password ? (metrics.touch ? 60 : 48) : 14
         color: theme.ink
         placeholderTextColor: theme.inkDimmer
         placeholderText: root.placeholderText
         font.family: theme.ui
-        font.pixelSize: 13
+        font.pixelSize: theme.fontSize(13)
         echoMode: root.password && !root.reveal
             ? TextInput.Password
             : TextInput.Normal
@@ -82,17 +83,17 @@ Item {
         onAccepted: root.accepted()
     }
 
-    Button {
+    TouchButton {
         id: revealButton
         objectName: root.controlObjectName.length > 0
             ? root.controlObjectName + "Reveal"
             : ""
         visible: root.password
         anchors.right: field.right
-        anchors.rightMargin: 8
+        anchors.rightMargin:metrics.touch ? 0 : 8
         anchors.verticalCenter: field.verticalCenter
-        width: 32
-        height: 32
+        width:metrics.touch ? metrics.touchTargetSize : 32
+        height:width
         flat: true
         focusPolicy: Qt.StrongFocus
         Accessible.name: root.reveal ? "Hide password" : "Show password"
@@ -101,7 +102,7 @@ Item {
             text: root.reveal ? "○" : "◉"
             color: revealButton.hovered ? theme.ink : theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 15
+            font.pixelSize: theme.fontSize(15)
             horizontalAlignment: Text.AlignHCenter
             verticalAlignment: Text.AlignVCenter
         }
