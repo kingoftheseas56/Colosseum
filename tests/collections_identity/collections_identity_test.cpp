@@ -85,6 +85,14 @@ int main(int argc, char **argv) {
     ColosseumTitleIdentityRegistry reopenedRegistry(fixture.fileName());
     reopenedRegistry.setAliasUnionsPath(directory.filePath("alias-unions.json"));
     require(reopenedRegistry.knownTheatreAnchor("kitsu:13783") == "tt1234567", "trusted pivots survive restart without learning sender data");
+    QFile seededFile(directory.filePath("seeded-registry.json"));
+    require(seededFile.open(QIODevice::WriteOnly), "seeded pivot fixture could not be written");
+    seededFile.write(R"({"version":1,"titles":[{"world":"theatre","kind":"series","media_id":"ct1:49000000-0000-4000-8000-000000000001","aliases":[{"namespace":"theatre-source-id","value":"kitsu:13783"},{"namespace":"theatre-source-id","value":"tt7654321"}]}]})");
+    seededFile.close();
+    ColosseumTitleIdentityRegistry seededRegistry(seededFile.fileName());
+    require(seededRegistry.ready() && seededRegistry.knownTheatreAnchor("kitsu:13783") == "tt7654321", "authoritative seeded pivots are available without learning");
+    seededRegistry.setAliasUnionsPath(directory.filePath("alias-unions.json"));
+    require(seededRegistry.knownTheatreAnchor("kitsu:13783").isEmpty(), "conflicting recipient seed and learned pivots must fail closed");
 
     auto manga = candidate("tankoban","manga","mal","mal:13","manga-detail");
     const auto mono = admit(registry,manga);

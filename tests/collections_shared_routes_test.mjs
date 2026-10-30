@@ -42,3 +42,5 @@ vm.createContext(adapterContext);vm.runInContext(adapterSource.slice(begin,end),
 assert.equal(adapterContext.reference('same'),kept,'kept gift reference cannot be substituted by another list');
 
 assert.equal(route(ref("tankoban","manga","weebcentral","01J0EXACTSOURCE")).route,"manga-weebcentral-detail");
+
+assert.equal(route(ref("tankoban","comic","gcd","gcd:123","",{posts:["999"]})).payload.posts,undefined,"sender GCD/post claims cannot bypass recipient catalogue");

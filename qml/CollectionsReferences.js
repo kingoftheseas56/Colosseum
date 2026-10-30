@@ -184,7 +184,8 @@ function sharedReopenReference(saved, vaultOwner, identityOwner) {
             ref.payload.locgMeta = {name:ref.title};
         } else if (ref.source === "gcd" && /^gcd:[1-9][0-9]*$/.test(id)) {
             ref.route = "comic-gcd-detail";
-            if (p.posts && p.posts.length) ref.payload.posts = p.posts.slice();
+            // Sender post associations are not recipient catalogue authority.
+            // Main resolves this exact GCD id through the local catalogue.
         } else if (ref.source === "getcomics" && /^gc:posts:[1-9][0-9]*$/.test(id)
                 && p.posts && p.posts.length && String(p.posts[0]) === id.substring(9)) {
             ref.route = "comic-posts-detail";
