@@ -1,5 +1,6 @@
 #include "streamserver.h"
 #include "StreamRuntimeIntegrity.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 #include <QCoreApplication>
 #include <QDebug>
@@ -401,6 +402,7 @@ void StreamServer::launchChild()
     m_proc->setProgram(QDir(dir).filePath(runtimeExecutableName()));
     m_proc->setArguments({QDir::toNativeSeparators(runtimeScript)});
     m_proc->setProcessChannelMode(QProcess::MergedChannels);
+    Colosseum::Bootstrap::adoptChildProcessOnStart(m_proc);
 
     connect(m_proc, &QProcess::readyReadStandardOutput, this, &StreamServer::onStdout);
     QProcess *process = m_proc;

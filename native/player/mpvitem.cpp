@@ -1,5 +1,6 @@
 // MpvItem implementation — lifted 1:1 from KDE mpvqt's video-player example.
 #include "mpvitem.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 #include <MpvController>
 #include <QCoreApplication>
@@ -952,6 +953,7 @@ void MpvItem::stopGifRecording(const QString &title, const QString &subtitle)
     auto *ff = new QProcess(this);
     m_gifEncodeProc = ff;
     m_gifEncodeOutPath = outPath;
+    Colosseum::Bootstrap::adoptChildProcessOnStart(ff);
     connect(ff, &QProcess::finished, this,
             [this, ff, outPath](int code, QProcess::ExitStatus st) {
         m_gifEncodeProc = nullptr;

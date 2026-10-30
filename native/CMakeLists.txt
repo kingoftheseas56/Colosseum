@@ -307,6 +307,8 @@ qt_add_executable(colosseum
     main.cpp
     bootstrap/InstanceLock.cpp
     bootstrap/InstanceLock.h
+    bootstrap/ChildProcessJob.cpp
+    bootstrap/ChildProcessJob.h
     # Bundle 8C account + cloud-sync runtime (adopted 2026-08-16)
     account/AccountAttachmentCoordinator.cpp
     account/AccountAttachmentReceipt.cpp
@@ -1574,7 +1576,7 @@ add_executable(reader2_autoattach_harness
     engine/AudiobookDownloader.cpp
     engine/AudiobookDownloader.h
     AudioPairingStore.h
-    player/streamserver.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h player/streamserver.cpp
     player/streamserver.h
     reader/BookStores.cpp
     reader/BookStores.h
@@ -1637,7 +1639,7 @@ add_executable(reader2_harness
     AudioPairingStore.h
     engine/AudiobookDownloader.cpp
     engine/AudiobookDownloader.h
-    player/streamserver.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h player/streamserver.cpp
     player/streamserver.h
     player/mpvitem.cpp
     player/mpvitem.h
@@ -1700,6 +1702,16 @@ add_executable(instance_lock_harness
 )
 target_include_directories(instance_lock_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
 target_link_libraries(instance_lock_harness PRIVATE Qt6::Core)
+
+# Proves managed children die with a terminated parent only when adopted (Windows job object).
+add_executable(child_process_job_harness
+    ../tests/child_process_job_harness.cpp
+    bootstrap/ChildProcessJob.cpp
+    bootstrap/ChildProcessJob.h
+)
+target_include_directories(child_process_job_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
+target_link_libraries(child_process_job_harness PRIVATE Qt6::Core)
+add_test(NAME colosseum.child_process_job_harness COMMAND child_process_job_harness)
 
 add_executable(app_data_migration_harness
     ../tests/app_data_migration_harness.cpp
@@ -1845,7 +1857,7 @@ target_link_libraries(comic_request_ledger_harness PRIVATE Qt6::Core)
 # is required since this harness never calls into that selection logic.
 add_executable(comic_edition_assembler_harness
     ../tests/comic_edition_assembler_harness.cpp
-    engine/ComicEditionAssembler.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/ComicEditionAssembler.cpp
     engine/ComicEditionAssembler.h
 )
 target_include_directories(comic_edition_assembler_harness PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})
@@ -1902,7 +1914,7 @@ target_link_libraries(comic_torrent_pack_seed_harness PRIVATE Qt6::Core colosseu
 # ComicTorrents.cpp -> TorrentEngine.cpp/colosseum_libtorrent to link).
 add_executable(comic_downloader_archive_ingest_harness
     ../tests/comic_downloader_archive_ingest_harness.cpp
-    engine/ComicDownloader.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
@@ -1962,7 +1974,7 @@ target_link_libraries(comic_downloader_archive_ingest_harness PRIVATE Qt6::Core 
 # ComicTorrents.cpp -> TorrentEngine.cpp/colosseum_libtorrent to link).
 add_executable(comic_downloader_legacy_migration_harness
     ../tests/comic_downloader_legacy_migration_harness.cpp
-    engine/ComicDownloader.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
@@ -2018,7 +2030,7 @@ target_link_libraries(comic_downloader_legacy_migration_harness PRIVATE Qt6::Cor
 
 add_executable(comic_downloader_ingest_harness
     ../tests/comic_downloader_ingest_harness.cpp
-    engine/ComicDownloader.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
@@ -2081,7 +2093,7 @@ target_link_libraries(comic_downloader_ingest_harness PRIVATE Qt6::Core Qt6::Net
 # stack; the harness compiles ComicPackLabels.h inline (pure-function header).
 add_executable(comic_downloader_pack_demux_harness
     ../tests/comic_downloader_pack_demux_harness.cpp
-    engine/ComicDownloader.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId()
     engine/ComicCoverId.h
@@ -2137,7 +2149,7 @@ target_link_libraries(comic_downloader_pack_demux_harness PRIVATE Qt6::Core Qt6:
 
 add_executable(comic_torrents_search_harness
     ../tests/comic_torrents_search_harness.cpp
-    engine/ComicDownloader.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
@@ -2203,7 +2215,7 @@ target_link_libraries(comic_torrents_search_harness PRIVATE Qt6::Core Qt6::Netwo
 # always constructed over the fake engine, never the real adapter.
 add_executable(comic_torrent_pack_transport_harness
     ../tests/comic_torrent_pack_transport_harness.cpp
-    engine/ComicDownloader.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/ComicDownloader.cpp
     engine/ComicDownloader.h
     engine/ComicCoverId.cpp        # downloadedIssues() calls buildComicCoverId() -- Core-only, Task 3
     engine/ComicCoverId.h
@@ -2389,7 +2401,7 @@ add_executable(manga_nyaa_worker_harness
     engine/MangaTankobanLogic.cpp
     engine/MangaSynopsisEnricher.cpp
     engine/MangaVolumeIndex.cpp
-    engine/MangaVolumeArchiveIngestor.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/MangaVolumeArchiveIngestor.cpp
     engine/MangaVolumePacker.cpp
     engine/MangaScraper.h
     torrent/MangaNyaaSource.cpp
@@ -2449,7 +2461,7 @@ add_executable(manga_volume_index_harness
     ../tests/manga_volume_index_harness.cpp
     engine/CbzArchive.cpp
     engine/MangaVolumeIndex.cpp
-    engine/MangaVolumeArchiveIngestor.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/MangaVolumeArchiveIngestor.cpp
     engine/MangaTankobanLogic.cpp
     third_party/miniz/miniz.c
 )
@@ -2496,7 +2508,7 @@ add_executable(manga_volume_packer_harness
     engine/MangaVolumePacker.cpp
     engine/MangaScraper.h
     engine/MangaVolumeIndex.cpp
-    engine/MangaVolumeArchiveIngestor.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/MangaVolumeArchiveIngestor.cpp
     engine/MangaTankobanLogic.cpp
     third_party/miniz/miniz.c
 )
@@ -2533,7 +2545,7 @@ add_executable(manga_tankoban_service_harness
     engine/MangaTankobanLogic.cpp
     engine/MangaSynopsisEnricher.cpp
     engine/MangaVolumeIndex.cpp
-    engine/MangaVolumeArchiveIngestor.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h engine/MangaVolumeArchiveIngestor.cpp
     engine/MangaVolumePacker.cpp
     engine/MangaScraper.h
     torrent/MangaNyaaSource.cpp
@@ -2627,7 +2639,7 @@ add_executable(lanista_harness
     devtools/LanistaServer.h
     devtools/LanistaEventLog.cpp
     devtools/LanistaEventLog.h
-    player/mpvitem.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h player/mpvitem.cpp
     player/mpvitem.h
     player/mpvproperties.h
     player/http_header_fields.h
@@ -2857,7 +2869,7 @@ add_executable(audiobook_engine_probe
     engine/AudiobookDownloader.cpp
     engine/AudiobookDownloader.h
     AudioPairingStore.h
-    player/streamserver.cpp
+    bootstrap/ChildProcessJob.cpp bootstrap/ChildProcessJob.h player/streamserver.cpp
     player/streamserver.h
 )
 target_include_directories(audiobook_engine_probe PRIVATE ${CMAKE_CURRENT_SOURCE_DIR})

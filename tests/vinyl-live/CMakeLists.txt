@@ -6,7 +6,7 @@ find_package(Qt6 REQUIRED COMPONENTS Core Gui Qml Quick Network QuickTest Test)
 find_package(MpvQt REQUIRED)
 add_library(vinyl_torrent_support STATIC
     ../../native/vinyl/VinylTorrentProvider.cpp
-    ../../native/player/streamserver.cpp
+    ../../native/bootstrap/ChildProcessJob.cpp ../../native/bootstrap/ChildProcessJob.h ../../native/player/streamserver.cpp
     ../../native/torrent/MusicTorrentMatcher.cpp
     ../../native/torrent/MusicTorrentQueryPlanner.cpp
     ../../native/torrent/TankorentSearchService.cpp
@@ -20,7 +20,7 @@ add_library(vinyl_torrent_support STATIC
 target_include_directories(vinyl_torrent_support PUBLIC ../../native)
 target_link_libraries(vinyl_torrent_support PUBLIC Qt6::Core Qt6::Network)
 add_executable(vinyl_live_harness main.cpp
-    ../../native/vinyl/VinylProvider.h
+    ../../native/bootstrap/ChildProcessJob.cpp ../../native/bootstrap/ChildProcessJob.h ../../native/vinyl/VinylProvider.h
     ../../native/ProgressStore.h ../../native/CollectionStore.h
     ../../native/player/mpvitem.h ../../native/player/mpvitem.cpp)
 target_include_directories(vinyl_live_harness PRIVATE ../../native)

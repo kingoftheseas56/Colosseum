@@ -10,7 +10,7 @@ add_executable(vinyl_native_facade
     test_facade.cpp
     "${ROOT}/native/vinyl/VinylBackendSession.cpp"
     "${ROOT}/native/vinyl/VinylBackendSession.h"
-    "${ROOT}/native/player/mpvitem.cpp"
+    "${ROOT}/native/bootstrap/ChildProcessJob.cpp" "${ROOT}/native/bootstrap/ChildProcessJob.h" "${ROOT}/native/player/mpvitem.cpp"
     "${ROOT}/native/player/mpvitem.h"
     "${ROOT}/native/player/mpvproperties.h")
 target_include_directories(vinyl_native_facade PRIVATE "${ROOT}/native")
@@ -23,7 +23,7 @@ enable_testing()
 add_test(NAME vinyl_native_facade COMMAND vinyl_native_facade)
 add_executable(vinyl_mpv_native_events
     "${ROOT}/tests/auto/player/tst_mpvitem_native_events.cpp"
-    "${ROOT}/native/player/mpvitem.cpp" "${ROOT}/native/player/mpvitem.h"
+    "${ROOT}/native/bootstrap/ChildProcessJob.cpp" "${ROOT}/native/bootstrap/ChildProcessJob.h" "${ROOT}/native/player/mpvitem.cpp" "${ROOT}/native/player/mpvitem.h"
     "${ROOT}/native/player/mpvproperties.h")
 target_include_directories(vinyl_mpv_native_events PRIVATE "${ROOT}/native")
 target_compile_definitions(vinyl_mpv_native_events PRIVATE VAULT_FIXTURES_DIR="${ROOT}/tests/fixtures/vault")

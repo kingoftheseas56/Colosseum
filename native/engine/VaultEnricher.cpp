@@ -1,4 +1,5 @@
 #include "VaultEnricher.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 #include "CbzArchive.h"
 #include "VaultCacheKey.h" // shared (normalizedPath,size,mtimeMs) -> key, also used by VaultThumbnailer
@@ -505,6 +506,7 @@ double VaultEnricher::probeDurationSec(const QString& path)
 {
     QProcess proc;
     proc.setProcessChannelMode(QProcess::MergedChannels);
+    Colosseum::Bootstrap::adoptChildProcessOnStart(&proc);
     proc.start(findFfprobe(), {QStringLiteral("-v"), QStringLiteral("quiet"),
                                QStringLiteral("-show_entries"), QStringLiteral("format=duration"),
                                QStringLiteral("-of"),

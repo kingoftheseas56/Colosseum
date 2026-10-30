@@ -1,4 +1,5 @@
 #include "engine/MangaVolumeArchiveIngestor.h"
+#include "../bootstrap/ChildProcessJob.h"
 #include "engine/CbzArchive.h"
 
 #include <QCollator>
@@ -291,6 +292,7 @@ void MangaVolumeArchiveIngestor::runExtractor(int which)
     m_proc = new QProcess(this);
     m_proc->setProgram(exe);
     m_proc->setArguments(args);
+    Colosseum::Bootstrap::adoptChildProcessOnStart(m_proc);
     connect(m_proc, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
             [this, which](int code, QProcess::ExitStatus) { onExtractDone(code, which); });
     m_proc->start();

@@ -1131,7 +1131,7 @@ set_tests_properties(colosseum.qttest.vault_browse_detail PROPERTIES
 # The cover providers are exercised without a GUI window.
 add_executable(tst_vault_enricher
     auto/vault/tst_vault_enricher.cpp
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultEnricher.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/engine/VaultEnricher.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultEnricher.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIndex.h"
@@ -1183,7 +1183,7 @@ set_tests_properties(colosseum.qttest.vault_enricher PROPERTIES
 # the gate.
 add_executable(tst_vault_artwork
     auto/vault/tst_vault_artwork.cpp
-    "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultThumbnailer.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultCacheKey.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultPosterFetcher.cpp"
@@ -1422,7 +1422,7 @@ set_tests_properties(colosseum.manga_volume_archive_adopt_responsiveness_contrac
 # lookup nothing in this suite calls — but the SYMBOL still has to resolve at link time.
 add_executable(tst_vault_forensics
     auto/vault/tst_vault_forensics.cpp
-    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
@@ -1496,7 +1496,7 @@ set_tests_properties(colosseum.qttest.vault_forensics PROPERTIES
 # network — safe under the `unit` gate. AUTOMOC (set ON above) processes MpvItem's Q_OBJECT.
 add_executable(http_header_channel_harness
     http_header_channel_harness.cpp
-    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
@@ -1523,7 +1523,7 @@ set_tests_properties(colosseum.http_header_channel_harness PROPERTIES
 # AUTOMOC (set ON above) processes MpvItem's Q_OBJECT; real Qt Test idiom (per-case reporting).
 add_executable(tst_journey_play_video
     auto/player/tst_journey_play_video.cpp
-    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h")
@@ -1579,7 +1579,7 @@ add_executable(tst_window_set_state
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.h"
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.h"
-    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
@@ -1667,7 +1667,7 @@ add_executable(tst_player1_selftest_bridge
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaServer.h"
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.cpp"
     "${COLOSSEUM_NATIVE_DIR}/devtools/LanistaEventLog.h"
-    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h"
     "${COLOSSEUM_NATIVE_DIR}/player/http_header_fields.h"
@@ -4449,7 +4449,7 @@ set_tests_properties(colosseum.qttest.watchparty_lifecycle PROPERTIES
 # so start/stop/error paths are deterministic and never require mpv or network.
 add_executable(tst_livestore
     auto/player/tst_livestore.cpp
-    "${COLOSSEUM_NATIVE_DIR}/player/livestore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/livestore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/livestore.h")
 target_include_directories(tst_livestore PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_livestore PRIVATE Qt6::Core Qt6::Gui Qt6::Test)
@@ -4510,7 +4510,7 @@ set_target_properties(fake_stremio_runtime PROPERTIES
 
 add_executable(tst_stream_server_failfast
     auto/player/tst_stream_server_failfast.cpp
-    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h")
 target_include_directories(tst_stream_server_failfast PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_stream_server_failfast PRIVATE Qt6::Core Qt6::Network Qt6::Test)
@@ -5094,7 +5094,7 @@ add_test(NAME colosseum.music_torrent_matcher COMMAND music_torrent_matcher_harn
 set_tests_properties(colosseum.music_torrent_matcher PROPERTIES LABELS "unit;vinyl" TIMEOUT 60)
 
 add_executable(vinyl_stream_contracts vinyl-live/stream_contracts.cpp
-    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h")
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h")
 target_include_directories(vinyl_stream_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(vinyl_stream_contracts PRIVATE Qt6::Core Qt6::Network Qt6::Test)
 add_test(NAME colosseum.vinyl_stream_contracts COMMAND vinyl_stream_contracts)
@@ -5102,7 +5102,7 @@ set_tests_properties(colosseum.vinyl_stream_contracts PROPERTIES LABELS "unit;vi
 
 add_executable(vinyl_torrent_provider_contracts vinyl-live/torrent_provider_contracts.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylTorrentProvider.cpp" "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylTorrentProvider.h"
-    "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.cpp" "${COLOSSEUM_NATIVE_DIR}/player/streamserver.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentMatcher.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/MusicTorrentQueryPlanner.cpp"
     "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TankorentSearchService.h"
     "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.cpp" "${COLOSSEUM_NATIVE_DIR}/torrent/TorrentIndexer.h"
@@ -5135,7 +5135,7 @@ add_executable(vinyl_catalogue_source_test
     vinyl-catalogue/tst_catalogue_source.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylCatalogueSource.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylCatalogueSource.h"
-    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
@@ -5178,7 +5178,7 @@ add_executable(vinyl_native_session_bridge
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylMusicMetadata.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLocalSource.h"
-    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
     "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.h")
@@ -5335,7 +5335,7 @@ if(TARGET colosseum_vinyl_app)
             set(vinyl_check_source "${CMAKE_CURRENT_SOURCE_DIR}/auto/player/tst_mpvitem_native_events.cpp")
         endif()
         add_executable(tst_vinyl_native_${vinyl_check} "${vinyl_check_source}"
-            "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
+            "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp"
             "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h"
             "${COLOSSEUM_NATIVE_DIR}/player/mpvproperties.h")
         target_include_directories(tst_vinyl_native_${vinyl_check} PRIVATE "${COLOSSEUM_NATIVE_DIR}")
@@ -5357,7 +5357,7 @@ endif()
 
 add_executable(vinyl_personal_library_contracts vinyl_personal_library_harness.cpp
     "${COLOSSEUM_NATIVE_DIR}/CollectionStore.h"
-    "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h")
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp" "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.cpp" "${COLOSSEUM_NATIVE_DIR}/player/mpvitem.h")
 set_target_properties(vinyl_personal_library_contracts PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_personal_library_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(vinyl_personal_library_contracts PRIVATE colosseum_vinyl_app vinyl_test_activity_owners Qt6::Test Qt6::Quick MpvQt::MpvQt)
@@ -5396,6 +5396,8 @@ add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_te
 target_sources(vinyl_recommendation_service_test PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.h"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/bootstrap/ChildProcessJob.h"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHome.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
 set_target_properties(vinyl_recommendation_service_test PROPERTIES AUTOMOC ON)

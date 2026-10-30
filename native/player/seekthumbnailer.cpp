@@ -1,4 +1,5 @@
 #include "seekthumbnailer.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 #include "mpvitem.h"
 
@@ -94,6 +95,7 @@ void SeekThumbnailer::startJob(qint64 bucket)
     m_jobBucket = bucket;
     m_proc = new QProcess(this);
     m_proc->setProcessChannelMode(QProcess::SeparateChannels);
+    Colosseum::Bootstrap::adoptChildProcessOnStart(m_proc);
     connect(m_proc, QOverload<int, QProcess::ExitStatus>::of(&QProcess::finished),
             this, &SeekThumbnailer::onJobFinished);
 

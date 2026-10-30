@@ -1,4 +1,5 @@
 #include "engine/ComicEditionAssembler.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 #include <QCollator>
 #include <QDir>
@@ -78,6 +79,7 @@ bool runExtractorSync(const QString& exe, const QStringList& args)
     QProcess proc;
     proc.setProgram(exe);
     proc.setArguments(args);
+    Colosseum::Bootstrap::adoptChildProcessOnStart(&proc);
     proc.start();
     if (!proc.waitForStarted(10000)) return false;
     if (!proc.waitForFinished(180000)) {

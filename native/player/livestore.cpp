@@ -1,4 +1,5 @@
 #include "livestore.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 #include <QDateTime>
 #include <QCoreApplication>
@@ -132,6 +133,7 @@ QString LiveStore::startRecording(const QVariantMap &request) {
     });
     process->setProcessChannelMode(QProcess::ForwardedErrorChannel);
     process->setProcessEnvironment(QProcessEnvironment::systemEnvironment());
+    Colosseum::Bootstrap::adoptChildProcessOnStart(process);
     connect(process, &QProcess::started, this, [this, id] {
         handleRecorderStarted(id);
     });

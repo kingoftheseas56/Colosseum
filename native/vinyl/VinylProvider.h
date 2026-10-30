@@ -21,6 +21,7 @@
 #include <memory>
 #include "VinylRecommendationIdentity.h"
 #include "RecommendationEntityRef.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 // Public metadata uses the existing app cache. Resolved audio never enters it.
 class VinylProvider : public QObject {
@@ -143,7 +144,7 @@ public:
         auto cacheInput=input;cacheInput.remove("refresh");if(home)cacheInput["cacheSchema"]=2;
         const auto key=QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(cacheInput).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex());
         const auto path=m_cacheRoot+"/"+key+".json";
-        auto *process=new QProcess(this);m_active.insert(lane,process);auto output=std::make_shared<QByteArray>();
+        auto *process=new QProcess(this);Colosseum::Bootstrap::adoptChildProcessOnStart(process);m_active.insert(lane,process);auto output=std::make_shared<QByteArray>();
         auto finish=[this,process,lane,id,home,cacheable,path,key,operation,value,payload](QVariant data,QString error){
             if(m_active.value(lane)!=process)return;
             const bool ran=m_running.contains(process);

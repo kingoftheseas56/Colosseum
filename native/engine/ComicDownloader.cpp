@@ -1,4 +1,5 @@
 #include "ComicDownloader.h"
+#include "../bootstrap/ChildProcessJob.h"
 #include "DownloadFileOps.h"
 
 #include "ComicDlsParse.h"
@@ -1867,6 +1868,7 @@ void ComicDownloader::runExtractor(InFlight& f, int which)
     m_proc = new QProcess(this);
     m_proc->setProgram(exe);
     m_proc->setArguments(args);
+    Colosseum::Bootstrap::adoptChildProcessOnStart(m_proc);
     QProcess* process = m_proc;
     connect(process, qOverload<int, QProcess::ExitStatus>(&QProcess::finished), this,
             [this, process, which](int code, QProcess::ExitStatus) {

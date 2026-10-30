@@ -1,4 +1,5 @@
 #include "VaultThumbnailer.h"
+#include "../bootstrap/ChildProcessJob.h"
 
 #include "VaultCacheKey.h"
 
@@ -130,6 +131,7 @@ void VaultThumbnailer::startJob(const QString& key, const QString& sourcePath, d
 
     auto* proc = new QProcess(this);
     proc->setProcessChannelMode(QProcess::SeparateChannels);
+    Colosseum::Bootstrap::adoptChildProcessOnStart(proc);
 
     auto* stallTimer = new QTimer(this);
     stallTimer->setSingleShot(true);
