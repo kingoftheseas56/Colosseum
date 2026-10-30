@@ -69,7 +69,8 @@ QtObject {
     function media(key) {
         const ref = adapter.reference(key) || {}
         const reopen = ref.route ? ref : CollectionsReferences.sharedReopenReference(ref,
-            typeof VaultLibrary !== "undefined" && Qt.platform.os !== "android" ? VaultLibrary : null)
+            typeof VaultLibrary !== "undefined" && Qt.platform.os !== "android" ? VaultLibrary : null,
+            typeof CollectionsIdentity !== "undefined" ? CollectionsIdentity : null)
         const kind = adapter.mediaKind(ref)
         const group = adapter.groups.find(function(row) { return row.key === kind })
         const worlds = { theatre: "Theatre", tankoban: "Tankoban", biblio: "Biblio", vinyl: "Vinyl", vault: "Vault" }

@@ -1007,7 +1007,7 @@ Window {
         var candidate = saved
         if (!candidate.route) {
             candidate = CollectionsReferences.sharedReopenReference(saved,
-                typeof VaultLibrary !== "undefined" && !win.androidHost ? VaultLibrary : null)
+                typeof VaultLibrary !== "undefined" && !win.androidHost ? VaultLibrary : null, CollectionsIdentity)
             if (!candidate.route) {
                 collectionsPanel.showMessage("This exact provider or edition is unavailable here. The saved item has been kept; you can try it again later.")
                 return

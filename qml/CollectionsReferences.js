@@ -133,7 +133,7 @@ function vaultDetail(owner, reference, windowsPaths) {
 
 // Reconstruct only existing recipient-owned routes from the public identity
 // allowlist. Never persist these local details back into the received edition.
-function sharedReopenReference(saved, vaultOwner) {
+function sharedReopenReference(saved, vaultOwner, identityOwner) {
     if (!saved || saved.route) return saved || {};
     var ref = Object.assign({}, saved), p = saved.payload || {};
     ref.payload = {};
@@ -147,9 +147,18 @@ function sharedReopenReference(saved, vaultOwner) {
     if (ref.world === "theatre" && ref.source === "theatre"
             && (ref.kind === "movie" || ref.kind === "series") && !edition) {
         var canonical = String(p.canonicalSourceId || "");
-        if (/^tt[0-9]+$/.test(id) || /^tt[0-9]+$/.test(canonical)) {
+        // A sender's alias assertion is untrusted. Never let opening a gift
+        // teach or overwrite the recipient's persistent provider→IMDb mapping.
+        // Only an already known recipient anchor can authorize a provider pivot.
+        if (/^tt[0-9]+$/.test(id)) {
+            if (canonical && canonical !== id) return ref;
             ref.route = "theatre-detail";
             if (canonical) ref.payload.canonicalSourceId = canonical;
+        } else if (/^tt[0-9]+$/.test(canonical) && identityOwner
+                && typeof identityOwner.knownTheatreAnchor === "function"
+                && identityOwner.knownTheatreAnchor(id) === canonical) {
+            ref.route = "theatre-detail";
+            ref.payload.canonicalSourceId = canonical;
         }
     } else if (ref.world === "tankoban" && ref.kind === "manga" && ref.source === "mal") {
         var match = /^mal:([1-9][0-9]*)(:color)?$/.exec(id);

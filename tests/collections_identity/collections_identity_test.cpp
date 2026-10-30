@@ -49,6 +49,9 @@ int main(int argc, char **argv) {
     ColosseumTitleIdentityRegistry registry(fixture.fileName());
     require(registry.ready(), "empty valid registry must allow deterministic catalogue identities");
     registry.setAliasUnionsPath(directory.filePath("alias-unions.json"));
+    require(registry.knownTheatreAnchor("kitsu:13783").isEmpty(), "unknown imported pivots must not become trusted");
+    require(!QFile::exists(directory.filePath("alias-unions.json")), "read-only pivot lookup must not create an alias file");
+    require(registry.knownTheatreAnchor("tt1234567") == "tt1234567", "direct IMDb identity needs no learned pivot");
 
     auto movie = candidate("theatre","movie","theatre","tt2543164","theatre-detail");
     auto film = admit(registry,movie);
@@ -70,6 +73,18 @@ int main(int argc, char **argv) {
     const auto pivoted = registry.resolve("theatre","series",{},QVariantList{QVariantMap{{"namespace","theatre-source-id"},{"value","kitsu:13783"}}});
     require(pivoted.value("mediaId") == anime.value("mediaId"), "resolved provider pivot must share the existing registry union");
     require(registry.collectionReference(anime).value("ok").toBool(), "persisted post-pivot reference must remain reopenable");
+    QFile unionFile(directory.filePath("alias-unions.json"));
+    require(unionFile.open(QIODevice::ReadOnly), "trusted pivot file must exist");
+    const QByteArray unionBefore = unionFile.readAll();
+    unionFile.close();
+    require(registry.knownTheatreAnchor("kitsu:13783") == "tt1234567", "recipient-owned pivot must be exposed exactly");
+    require(registry.knownTheatreAnchor("kitsu:13783") != "tt9999999", "sender's different anchor must fail the imported guard");
+    require(registry.knownTheatreAnchor("kitsu:9999999").isEmpty(), "sender's unknown pivot must stay unavailable");
+    require(unionFile.open(QIODevice::ReadOnly) && unionFile.readAll() == unionBefore, "import eligibility checks must not modify persistent alias unions");
+    unionFile.close();
+    ColosseumTitleIdentityRegistry reopenedRegistry(fixture.fileName());
+    reopenedRegistry.setAliasUnionsPath(directory.filePath("alias-unions.json"));
+    require(reopenedRegistry.knownTheatreAnchor("kitsu:13783") == "tt1234567", "trusted pivots survive restart without learning sender data");
 
     auto manga = candidate("tankoban","manga","mal","mal:13","manga-detail");
     const auto mono = admit(registry,manga);

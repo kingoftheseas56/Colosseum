@@ -19,6 +19,9 @@ public:
     // Named collections use this authority at explicit add/open boundaries. Disk
     // reload deliberately does not call it: unavailable sources remain saved.
     Q_INVOKABLE QVariantMap collectionReference(const QVariantMap &candidate) const;
+    // Untrusted shared references may consult recipient-owned pivots, never
+    // teach aliases by passing sender assertions into resolve().
+    Q_INVOKABLE QString knownTheatreAnchor(const QString &sourceId) const;
     static QString defaultResourcePath();
     static bool isCanonicalMediaId(const QString &mediaId);
     static bool isJoinedFixtureIdentity(const QString &world, const QString &kind, const QString &mediaId);
