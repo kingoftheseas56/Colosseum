@@ -12,7 +12,7 @@ Item {
     readonly property bool televisionMode: {
         const w = car.Window.window
         return !!(w && w["televisionMode"] === true)
-    }                        // [{ title, blurb, ghost, c1, c2, art?, artKind? }]
+    }                        // [{ title, blurb, ghost, c1, c2, art?, artKind?, primaryIcon? }]
     property string kicker: "Featured"
     property string primaryLabel: "Read"
     property string secondaryLabel: "Details"
@@ -115,6 +115,7 @@ Item {
                 slideIndex: index
                 kicker: car.kicker
                 primaryLabel: modelData.cta !== undefined ? modelData.cta : car.primaryLabel
+                primaryIcon: modelData.primaryIcon !== undefined ? String(modelData.primaryIcon) : ""
                 secondaryLabel: modelData.secondaryLabel !== undefined ? modelData.secondaryLabel : car.secondaryLabel
                 onPrimaryClicked: car.primaryClicked(index)
                 onSecondaryClicked: car.secondaryClicked(index)

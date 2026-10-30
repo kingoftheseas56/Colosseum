@@ -166,12 +166,20 @@ Window {
     function applyVinylResume() {
         if (!vinylWorld || !pendingVinylResume) return
         var pending = pendingVinylResume
+        if (!vinylProfileActive || pending.generation !== vinylShellGeneration) {pendingVinylResume=null;return}
+        if (!vinylWorld.canEnterVinyl) {vinylWorld.enforceTasteGate();return}
         pendingVinylResume = null
-        if (!vinylProfileActive || pending.generation !== vinylShellGeneration) return
         vinylWorld.session.snapshot()
         vinylWorld.session.restore(pending.entry)
         vinylWorld.page = pending.play ? "song" : "album"
         if (pending.play) vinylWorld.session.paused = false
+    }
+    Connections {
+        target: win.vinylWorld
+        ignoreUnknownSignals: true
+        function onCanEnterVinylChanged() {
+            if(win.vinylWorld && win.vinylWorld.canEnterVinyl)Qt.callLater(win.applyVinylResume)
+        }
     }
     property var feriaReturnSnapshot: null
     // Feria is desktop-only (its deck rides QtWebEngine, which Android does not ship).

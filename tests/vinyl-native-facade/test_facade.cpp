@@ -76,6 +76,100 @@ private slots:
         VinylBackendSession foreign;foreign.setProfileScope("profile-b");
         QVERIFY(!foreign.restoreCheckpoint(checkpoint));QVERIFY(foreign.rows().isEmpty());
     }
+    void radioContextAndPlaybackTimestampRoundTripInV3Checkpoint() {
+        DeferredSource source;
+        VinylBackendSession session;session.setProfileScope("profile-a");session.setSource(&source);
+        QVERIFY(session.replaceRows({row("vault:a"),row("vault:b")},0,false));
+        const QVariantMap context{{"kind","artist-radio"},{"seed",QVariantMap{
+            {"provider","youtube-music"},{"providerId","UCedvOgsKFzcK3hA5taf3KoQ"},
+            {"kind","artist"},{"name","  Test artist  "}}}};
+        const QVariantMap normalized{{"kind","artist-radio"},{"seed",QVariantMap{
+            {"provider","youtube-music"},{"providerId","UCedvOgsKFzcK3hA5taf3KoQ"},
+            {"kind","artist"},{"name","Test artist"}}}};
+        QSignalSpy stateChanges(&session,&VinylBackendSession::stateChanged);
+        QVERIFY(session.setProperty("radioContext",QVariant::fromValue(context)));
+        QCOMPARE(session.radioContext(),normalized);
+        QCOMPARE(stateChanges.count(),1);
+        auto invalid=context;
+        auto invalidSeed=invalid.value("seed").toMap();invalidSeed["providerId"]="UC-short";invalid["seed"]=invalidSeed;
+        QVERIFY(session.setProperty("radioContext",QVariant::fromValue(invalid)));
+        QCOMPARE(session.radioContext(),normalized);
+        QCOMPARE(stateChanges.count(),1);
+        QVERIFY(session.setProperty("radioContext",QVariant::fromValue(QVariantMap{})));
+        QVERIFY(session.radioContext().isEmpty());
+        QCOMPARE(stateChanges.count(),2);
+        QVERIFY(session.setProperty("radioContext",QVariant::fromValue(normalized)));
+        QCOMPARE(session.radioContext(),normalized);
+        QCOMPARE(stateChanges.count(),3);
+        const int timestampProperty=session.metaObject()->indexOfProperty("lastPlaybackAtMs");
+        QVERIFY(timestampProperty>=0);
+        QVERIFY(!session.metaObject()->property(timestampProperty).isWritable());
+        QCOMPARE(session.lastPlaybackAtMs(),qint64(0));
+        session.beginListeningFacts();
+        QVERIFY(!session.qualifyListeningSample(false));
+        QVERIFY(!session.qualifyListeningSample(true));
+        QCOMPARE(session.lastPlaybackAtMs(),qint64(0));
+
+        session.next(1);
+        QCOMPARE(session.listeningOrigin(),QString("manual"));
+        QCOMPARE(session.radioContext(),normalized);
+        auto checkpoint=session.checkpoint();
+        QCOMPARE(checkpoint.value("version").toInt(),3);
+        QCOMPARE(checkpoint.value("lastPlaybackAtMs").toLongLong(),qint64(0));
+        QCOMPARE(checkpoint.value("radioContext").toMap(),normalized);
+        const qint64 lastPlayback=1700000000123LL;
+        checkpoint["lastPlaybackAtMs"]=lastPlayback;
+        const auto summary=session.checkpointSummary(checkpoint);
+        QVERIFY(summary.value("valid").toBool());
+        QCOMPARE(summary.value("lastPlaybackAtMs").toLongLong(),lastPlayback);
+        QCOMPARE(summary.value("radioContext").toMap(),normalized);
+
+        VinylBackendSession restored;restored.setProfileScope("profile-a");
+        QVERIFY(restored.restoreCheckpoint(checkpoint));
+        QCOMPARE(restored.lastPlaybackAtMs(),lastPlayback);
+        QCOMPARE(restored.radioContext(),normalized);
+        DeferredSource restoredSource;restored.setSource(&restoredSource);
+        QVERIFY(restored.appendRows({row("vault:c")},false));
+        restored.moveQueue(0,1);
+        restored.next(1);
+        QCOMPARE(restored.lastPlaybackAtMs(),lastPlayback);
+        QCOMPARE(restored.radioContext(),normalized);
+        QCOMPARE(restored.listeningOrigin(),QString("manual"));
+
+        auto olderV3=checkpoint;
+        olderV3.remove("lastPlaybackAtMs");olderV3.remove("radioContext");
+        VinylBackendSession older;older.setProfileScope("profile-a");
+        QVERIFY(older.restoreCheckpoint(olderV3));
+        QCOMPARE(older.lastPlaybackAtMs(),qint64(0));
+        QVERIFY(older.radioContext().isEmpty());
+    }
+    void radioContextAndPlaybackTimestampClearOnQueueAndProfileReplacement() {
+        DeferredSource source;VinylBackendSession seed;seed.setProfileScope("profile-a");seed.setSource(&source);
+        QVERIFY(seed.replaceRows({row("vault:a")},0,false));
+        const QVariantMap context{{"kind","artist-radio"},{"seed",QVariantMap{
+            {"provider","youtube-music"},{"providerId","UCedvOgsKFzcK3hA5taf3KoQ"},
+            {"kind","artist"},{"name","Test artist"}}}};
+        seed.setRadioContext(context);
+        auto checkpoint=seed.checkpoint();checkpoint["lastPlaybackAtMs"]=1700000000123LL;
+
+        VinylBackendSession replaced;replaced.setProfileScope("profile-a");
+        QVERIFY(replaced.restoreCheckpoint(checkpoint));
+        QVERIFY(replaced.replaceRows({row("vault:b")},-1,false));
+        QCOMPARE(replaced.lastPlaybackAtMs(),qint64(0));
+        QVERIFY(replaced.radioContext().isEmpty());
+
+        VinylBackendSession cleared;cleared.setProfileScope("profile-a");
+        QVERIFY(cleared.restoreCheckpoint(checkpoint));
+        cleared.clearQueue();
+        QCOMPARE(cleared.lastPlaybackAtMs(),qint64(0));
+        QVERIFY(cleared.radioContext().isEmpty());
+
+        VinylBackendSession profileChanged;profileChanged.setProfileScope("profile-a");
+        QVERIFY(profileChanged.restoreCheckpoint(checkpoint));
+        profileChanged.setProfileScope("profile-b");
+        QCOMPARE(profileChanged.lastPlaybackAtMs(),qint64(0));
+        QVERIFY(profileChanged.radioContext().isEmpty());
+    }
     void cancellationAndShutdownFenceOldResolution() {
         DeferredSource source;
         VinylBackendSession session;session.setProfileScope("profile-a");session.setSource(&source);

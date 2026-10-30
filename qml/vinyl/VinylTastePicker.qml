@@ -12,10 +12,14 @@ Item {
     readonly property var selected: worldData.pickerDraft
     readonly property var offered: worldData.artistOptions(query)
     readonly property bool editing: worldData.onboardingState === "editing"
+    readonly property int minimumArtists: worldData.recommendationService
+        ? Number(worldData.recommendationService.minimumArtists) || 5 : 5
+    readonly property int selectedArtistCount: worldData.usesRecommendationService
+        ? Number(worldData.recommendationService.draftArtistCount) || 0 : selected.length
     implicitHeight: pageFlick ? pageFlick.height : header.height + 30 + grid.implicitHeight
     Theme { id: theme }
     property int currentIndex: 0
-    Keys.onPressed: event => nav.handle(event)
+    Keys.onPressed: event => { if (!artistSearch.activeFocus) nav.handle(event) }
 
     KeyboardCollectionController {
         id: nav
@@ -37,6 +41,22 @@ Item {
     }
 
     function toggleArtist(artist) { worldData.togglePickerArtist(artist); }
+    function setArtistSearchQuery(value) {
+        if (typeof worldData.setArtistSearchQuery === "function")
+            return worldData.setArtistSearchQuery(value);
+        if (typeof worldData.setPickerQuery === "function")
+            return worldData.setPickerQuery(value);
+    }
+    function submitArtistSearch() {
+        if (typeof worldData.submitArtistSearch === "function")
+            return worldData.submitArtistSearch();
+    }
+    function focusArtistSearch() {
+        if (!artistSearch.visible || !artistSearch.enabled)
+            return false;
+        artistSearch.forceActiveFocus(Qt.MouseFocusReason);
+        return true;
+    }
 
     Item {
         id: header
@@ -55,10 +75,51 @@ Item {
             font.pixelSize: 40
         }
 
+        TextField {
+            id: artistSearch
+            objectName: "vinylPickerArtistSearch"
+            x: 0
+            y: 54
+            width: Math.max(0, parent.width - actions.width - 12)
+            height: 44
+            text: root.query
+            color: theme.ink
+            placeholderTextColor: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 14
+            padding: 14
+            leftPadding: 42
+            selectByMouse: true
+            placeholderText: qsTr("Search artists")
+            Accessible.name: qsTr("Search artists")
+            onTextEdited: root.setArtistSearchQuery(text)
+            onAccepted: root.submitArtistSearch()
+            background: Glass {
+                objectName: "vinylPickerArtistSearchGlass"
+                backdrop: root.backdrop
+                radius: 12
+                tint: 0.06
+                scrim: 0.18
+            }
+            VinylControlIcon {
+                x: 14
+                anchors.verticalCenter: parent.verticalCenter
+                symbol: "search"
+                color: theme.inkDimmer
+                Accessible.ignored: true
+            }
+            FocusRing {
+                anchors.fill: parent
+                shown: artistSearch.activeFocus && [Qt.TabFocusReason, Qt.BacktabFocusReason,
+                    Qt.ShortcutFocusReason].indexOf(artistSearch.focusReason) >= 0
+                radius: 12
+            }
+        }
+
         Row {
             id: actions
             anchors.right: parent.right
-            y: 62
+            anchors.verticalCenter: artistSearch.verticalCenter
             spacing: 8
 
             VinylWorldButton {
@@ -72,18 +133,9 @@ Item {
                 onTriggered: root.worldData.cancelTasteEdit()
             }
             VinylWorldButton {
-                objectName: "vinylPickerSkip"
-                visible: !root.editing
-                enabled: visible
-                label: "Skip artist onboarding"
-                accessibleName: label
-                symbol: "playNext"
-                backdrop: root.backdrop
-                onTriggered: root.worldData.skipPicker()
-            }
-            VinylWorldButton {
                 objectName: "vinylPickerDone"
-                label: "Done with artist selection"
+                enabled: root.selectedArtistCount >= root.minimumArtists
+                label: qsTr("Save artist choices")
                 accessibleName: label
                 symbol: "check"
                 selected: true
@@ -102,8 +154,10 @@ Item {
             : root.worldData.artistSearchLoading
                 ? "Searching artists…"
                 : root.offered.length === 0
-                    ? (root.query ? "No artists found." : "No artist suggestions yet.")
-                    : root.selected.length + (root.selected.length === 1 ? " artist selected." : " artists selected.")
+                    ? (root.query ? qsTr("No artists found.") : qsTr("Search for artists or choose from your library."))
+                    : root.selectedArtistCount >= root.minimumArtists
+                        ? qsTr("%1 artists selected.").arg(root.selectedArtistCount)
+                        : qsTr("%1 of %2 artists selected.").arg(root.selectedArtistCount).arg(root.minimumArtists)
         color: root.worldData.artistSearchError ? theme.ink : theme.inkDim
         font.family: theme.ui
         font.pixelSize: 12

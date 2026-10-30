@@ -15,6 +15,8 @@
 #include <QFileInfo>
 #include <QDateTime>
 #include <QMetaMethod>
+#include <QMetaType>
+#include <QScopedValueRollback>
 #include <QLoggingCategory>
 #include <QRandomGenerator>
 #include <QRegularExpression>
@@ -33,6 +35,26 @@ QString musicIdentity(QString text) {
     text=text.normalized(QString::NormalizationForm_C).toCaseFolded();
     text.replace(QRegularExpression("[._]+")," ");
     return text.simplified();
+}
+bool normalizeRadioContext(const QVariantMap &input,QVariantMap *normalized) {
+    if(input.isEmpty()) {
+        if(normalized)*normalized={};
+        return true;
+    }
+    const auto seed=input.value("seed").toMap();
+    const auto providerId=seed.value("providerId").toString().trimmed();
+    const auto name=seed.value("name").toString().trimmed();
+    static const QRegularExpression channelId(QStringLiteral("^UC[A-Za-z0-9_-]{22}$"));
+    if(input.value("kind").toString()!=QStringLiteral("artist-radio")
+        ||seed.value("provider").toString()!=QStringLiteral("youtube-music")
+        ||seed.value("kind").toString()!=QStringLiteral("artist")
+        ||!channelId.match(providerId).hasMatch()||name.isEmpty()||name.size()>256)return false;
+    if(normalized) {
+        const QVariantMap normalizedSeed{{"provider","youtube-music"},{"providerId",providerId},
+            {"kind","artist"},{"name",name}};
+        *normalized={{"kind","artist-radio"},{"seed",normalizedSeed}};
+    }
+    return true;
 }
 }
 
@@ -120,6 +142,12 @@ void VinylBackendSession::setProfileScope(const QString &profile) {
     m_profileActive=ProfileScopeId::parse(profile).ok();
     emit profileScopeChanged();publishState();
 }
+void VinylBackendSession::setRadioContext(const QVariantMap &context) {
+    QVariantMap normalized;
+    if(!normalizeRadioContext(context,&normalized)||m_radioContext==normalized)return;
+    m_radioContext=std::move(normalized);
+    publishState();
+}
 QVariantList VinylBackendSession::rows() const {
     QVariantList out;
     for(const auto &item:m_backend->queue.items())out.append(m_rows.value(item.occurrenceId().value()));
@@ -165,7 +193,8 @@ bool VinylBackendSession::replaceRows(const QVariantList &input,int index,bool s
         auto item=occurrence(row);if(!item||!queue.append(*item).ok)return false;
         metadata.insert(item->occurrenceId().value(),row);
     }
-    endPlayback("stop");m_listeningOrigin="manual";cancelResolution();m_backend->coordinator.clear();
+    endPlayback("stop");m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();
+    cancelResolution();m_backend->coordinator.clear();
     m_backend->queue=std::move(queue);m_rows=std::move(metadata);m_duration=0;m_resume=0;m_state="idle";
     if(shuffle)m_backend->queue.shuffle(QRandomGenerator::global()->generate64());
     m_shuffleEnabled=shuffle;
@@ -197,7 +226,9 @@ void VinylBackendSession::playQueue(int index) {
     if(m_shutdown||!m_profileActive||index<0||index>=m_backend->queue.size())return;
     endPlayback(m_loaded && !m_paused && m_state=="playing" && !seekPending()
         && index!=activeIndex() && !m_naturalAdvancing && !m_navigationBack?"skip":"stop");
-    m_listeningOrigin=m_naturalAdvancing?"album-continuation":"manual";cancelResolution();
+    m_listeningOrigin=m_naturalAdvancing
+        ?(m_radioContext.isEmpty()?"album-continuation":"radio"):"manual";
+    cancelResolution();
     if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}
     m_backend->queue.activate(m_backend->queue.items()[index].occurrenceId());emit queueChanged();beginActive();
 }
@@ -221,8 +252,15 @@ void VinylBackendSession::moveQueue(int from,int to) {
 void VinylBackendSession::clearQueue() {
     if(m_shutdown||!m_profileActive)return;
     endPlayback("stop");cancelResolution();m_backend->coordinator.clear();m_rows.clear();
+    m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();
     m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
     m_resume=0;m_duration=0;m_paused=true;m_shuffleEnabled=false;m_state="idle";m_error.clear();emit queueChanged();publishState();
+}
+bool VinylBackendSession::continueRadio() {
+    if(m_shutdown||!m_profileActive||m_radioContext.isEmpty()||m_state!="ended"
+        ||activeIndex()<0||activeIndex()+1>=m_backend->queue.size())return false;
+    QScopedValueRollback<bool> automatic(m_naturalAdvancing,true);
+    next(1);setPaused(false);return true;
 }
 void VinylBackendSession::setShuffle(bool enabled) {
     if(m_shutdown||!m_profileActive||enabled==shuffled()||(enabled&&m_backend->queue.empty()))return;
@@ -521,7 +559,8 @@ void VinylBackendSession::suspend() {
 void VinylBackendSession::clearProfile() {
     suspend();m_backend->coordinator.clear();m_rows.clear();m_profileActive=false;
     m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
-    m_resume=0;m_duration=0;m_repeat="off";m_shuffleEnabled=false;m_state="idle";m_error.clear();emit queueChanged();publishState();
+    m_resume=0;m_duration=0;m_repeat="off";m_shuffleEnabled=false;m_state="idle";m_error.clear();
+    m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();emit queueChanged();publishState();
 }
 void VinylBackendSession::shutdown() { if(m_shutdown)return;suspend();m_shutdown=true;m_deadline.stop(); }
 
@@ -545,7 +584,8 @@ QVariantMap VinylBackendSession::checkpoint() const {
     }
     return {{"version",3},{"backendState",QString::fromUtf8(*captured.value)},
         {"rows",compact},{"editionTable",editions},{"repeatMode",m_repeat},{"shuffleEnabled",m_shuffleEnabled},
-        {"position",position()},{"duration",m_duration}};
+        {"position",position()},{"duration",m_duration},
+        {"lastPlaybackAtMs",m_lastPlaybackAtMs},{"radioContext",m_radioContext}};
 }
 bool VinylBackendSession::inspectCheckpoint(const QVariantMap &checkpoint,QVariantList *decodedRows,QString *activeId) const {
     if(m_shutdown||!m_profileActive||checkpoint.value("version").toInt()!=3)return false;
@@ -572,6 +612,16 @@ bool VinylBackendSession::inspectCheckpoint(const QVariantMap &checkpoint,QVaria
     const auto repeat=checkpoint.value("repeatMode").toString();
     if(!std::isfinite(position)||position<0||!std::isfinite(duration)||duration<0
         ||!QStringList{"off","all","one"}.contains(repeat))return false;
+    if(checkpoint.contains("lastPlaybackAtMs")) {
+        bool timestampOk=false;
+        const auto timestamp=checkpoint.value("lastPlaybackAtMs").toLongLong(&timestampOk);
+        if(!timestampOk||timestamp<0)return false;
+    }
+    if(checkpoint.contains("radioContext")) {
+        const auto storedContext=checkpoint.value("radioContext");
+        if(storedContext.metaType().id()!=QMetaType::QVariantMap
+            ||!normalizeRadioContext(storedContext.toMap(),nullptr))return false;
+    }
     if(decodedRows)*decodedRows=rows;
     if(activeId){const auto *active=restored.value->queue.activeOccurrence();*activeId=active ? active->occurrenceId().value() : QString();}
     return true;
@@ -579,9 +629,16 @@ bool VinylBackendSession::inspectCheckpoint(const QVariantMap &checkpoint,QVaria
 QVariantMap VinylBackendSession::checkpointSummary(const QVariantMap &checkpoint) const {
     QVariantList decoded;QString active;
     if(!inspectCheckpoint(checkpoint,&decoded,&active))return {};
-    if(active.isEmpty())return {{"valid",true},{"empty",decoded.isEmpty()}};
+    QVariantMap summaryContext;
+    if(!normalizeRadioContext(checkpoint.value("radioContext").toMap(),&summaryContext))return {};
+    QVariantMap summary{{"valid",true},{"empty",decoded.isEmpty()},
+        {"lastPlaybackAtMs",checkpoint.value("lastPlaybackAtMs",0).toLongLong()},
+        {"radioContext",summaryContext}};
+    if(active.isEmpty())return summary;
     for(const auto &value:decoded)if(value.toMap().value("queueId").toString()==active)
-        return {{"valid",true},{"empty",false},{"row",value},{"position",checkpoint.value("position")},{"duration",checkpoint.value("duration")}};
+        return {{"valid",true},{"empty",false},{"row",value},{"position",checkpoint.value("position")},
+            {"duration",checkpoint.value("duration")},{"lastPlaybackAtMs",summary.value("lastPlaybackAtMs")},
+            {"radioContext",summary.value("radioContext")}};
     return {};
 }
 bool VinylBackendSession::restoreCheckpoint(const QVariantMap &checkpoint) {
@@ -593,8 +650,12 @@ bool VinylBackendSession::restoreCheckpoint(const QVariantMap &checkpoint) {
     for(const auto &value:rows){const auto row=value.toMap();metadata.insert(row.value("queueId").toString(),row);}
     const double position=checkpoint.value("position").toDouble(),duration=checkpoint.value("duration").toDouble();
     const auto repeat=checkpoint.value("repeatMode").toString();
+    const auto lastPlaybackAtMs=checkpoint.value("lastPlaybackAtMs",0).toLongLong();
+    QVariantMap radioContext;
+    if(!normalizeRadioContext(checkpoint.value("radioContext").toMap(),&radioContext))return false;
     suspend();m_backend->coordinator.clear();m_backend->queue=std::move(restored.value->queue);m_rows=std::move(metadata);
     m_repeat=repeat;m_resume=position;m_duration=duration;m_paused=true;m_error.clear();
+    m_lastPlaybackAtMs=lastPlaybackAtMs;m_radioContext=std::move(radioContext);
     m_shuffleEnabled=checkpoint.value("shuffleEnabled",m_backend->queue.isShuffled()).toBool();
     m_state=activeIndex()>=0?"paused":"idle";emit queueChanged();publishState();return true;
 }
@@ -610,11 +671,13 @@ bool VinylBackendSession::restoreLegacy(const QVariantList &input,int index,bool
     if(shuffle){QVector<QueueOccurrenceId> ids;for(const auto &id:originalOrder){auto parsed=QueueOccurrenceId::parse(id);if(!parsed.ok())return false;ids.append(*parsed.value);}
         if(!queue.restoreShuffleOriginalOrder(ids).ok)return false;}
     suspend();m_backend->coordinator.clear();m_backend->queue=std::move(queue);m_rows=std::move(metadata);m_repeat=repeat;
-    m_resume=position;m_duration=duration;m_shuffleEnabled=shuffle;m_state=index>=0?"paused":"idle";emit queueChanged();publishState();return true;
+    m_resume=position;m_duration=duration;m_shuffleEnabled=shuffle;m_state=index>=0?"paused":"idle";
+    m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();emit queueChanged();publishState();return true;
 }
 
 void VinylBackendSession::endPlayback(const QString &reason) {
     m_endingReason=reason;emit playbackEnding(reason=="natural-eof");
+    endListeningFacts(reason=="natural-eof");
 }
 QVariantMap VinylBackendSession::listeningIdentity() const {
     const auto row=activeRow(),edition=row.value("edition").toMap(),album=edition.value("sourceAlbum").toMap();
@@ -669,6 +732,9 @@ void VinylBackendSession::beginListeningFacts() {
     if(m_paused)m_backend->listenRecorder->pause(*m_backend->session.activeWorkToken(),wall,now,qRound64(position()*1000),1000);
 }
 bool VinylBackendSession::qualifyListeningSample(bool consuming) {
+    if(m_shutdown||!m_profileActive||!m_loaded)return false;
+    // Resume progress remains usable when durable listening history is off.
+    if(!m_backend->listenRecorder&&consuming&&!m_paused&&!seekPending()&&m_state=="playing")beginListeningFacts();
     if(!m_backend->listenRecorder||!m_backend->listens||!m_backend->session.activeWorkToken()){
         qCDebug(vinylActivityLog)<<"sample without context";return false;
     }
@@ -683,7 +749,12 @@ bool VinylBackendSession::qualifyListeningSample(bool consuming) {
         :m_backend->listenRecorder->sample(token,wall,now,pos,1000);
     m_backend->projectedListeningMs=m_backend->listens->totalListeningMs();
     qCDebug(vinylActivityLog)<<"sample"<<pos<<consuming<<m_paused<<status.ok<<before<<m_backend->projectedListeningMs;
-    return consuming&&m_backend->projectedListeningMs>before;
+    const bool advanced=m_backend->projectedListeningMs>before;
+    if(advanced) {
+        m_lastPlaybackAtMs=wall;
+        publishState();
+    }
+    return consuming&&advanced;
 }
 void VinylBackendSession::listeningPauseTransition(bool paused) {
     if(!m_backend->listenRecorder||!m_backend->session.activeWorkToken())return;
