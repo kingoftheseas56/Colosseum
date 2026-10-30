@@ -133,6 +133,8 @@ Item {
         property string loudnessMode: "off"
     }
 
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { playerSettings.sync() } }
     // --- skip segments (Feature 4): chapter- and AniSkip-derived intro/recap/credits ranges ---
     property var skipSegments: []
     property string skipDiagnostics: ""
@@ -3561,6 +3563,21 @@ Item {
         root.syncPowerInhibit()
         if (root.supportsPlayerCapability("loudnessNormalization"))
             mpv.setAudioNormalization(root.loudnessMode)
+    }
+    // Quit: bank the position the 5 s tick has not reached yet, while QML is alive (aboutToQuit fires
+    // on every quit path). Same silent write the tick makes, so it can only move the resume point.
+    // Skipped past 90%: that is ProgressStore's "finished" threshold and a quit must not decide it.
+    // Not while loading, errored or after EOF (EOF already recorded), and recordProgress() itself
+    // ignores an unloaded title (no mediaId / duration / position).
+    Connections {
+        target: Qt.application
+        function onAboutToQuit() {
+            if (root.starting || root.errored || root.playbackEnded || !(mpv.duration > 0))
+                return
+            if (mpv.position / mpv.duration >= 0.9)
+                return
+            root.recordProgress(true)
+        }
     }
     Component.onDestruction: {
         root.sendTraktPlayback(false)

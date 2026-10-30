@@ -970,6 +970,12 @@ FocusScope {
     // Minimize: flush the position, then let the embedder park the session (the resume seam
     // brings the book back to this exact page when the taskbar tile reopens it).
     function goMinimize() { shell.flushProgressSave(); shell.minimized() }
+    // Quit: flush the pending page-turn save while QML is alive (aboutToQuit fires on every quit
+    // path). flushProgressSave clears the pending record, so the onDestruction flush is a no-op.
+    Connections {
+        target: Qt.application
+        function onAboutToQuit() { shell.flushProgressSave() }
+    }
     Component.onDestruction: shell.flushProgressSave()
 
     ReaderPaper {

@@ -235,6 +235,9 @@ Item {
         property string enginesJson: "{}"
         property string appsJson: "{}"
     }
+
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { preferences.sync() } }
     Component.onCompleted: {
         try { enginePreferences = JSON.parse(preferences.enginesJson) } catch (e) { enginePreferences = ({}) }
         try { appPreferences = JSON.parse(preferences.appsJson) } catch (e) { appPreferences = ({}) }

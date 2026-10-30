@@ -57,6 +57,8 @@ Item {
         // or override embedded ASS before the appearance bar is ever opened).
         property bool customized: false
     }
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { prefs.sync() } }
 
     function clamp(v, lo, hi) {
         return Math.max(lo, Math.min(hi, v));

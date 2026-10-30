@@ -28,6 +28,9 @@ QtObject {
         property string hiddenJson: "[]"
     }
 
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    // (QtObject root has no default property, so the Connections rides in a property.)
+    property Connections quitFlush: Connections { target: Qt.application; function onAboutToQuit() { store.sync() } }
     // defensive parse — a corrupt or absent value yields an empty array, never throws.
     function _parse(raw) {
         if (!raw) return [];

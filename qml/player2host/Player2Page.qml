@@ -160,6 +160,21 @@ Item {
         }
     }
 
+    // Quit: bank the position the 5 s cadence has not reached yet, while QML is alive (aboutToQuit
+    // fires on every quit path). Only while Playing/Paused, and not past 90% (ProgressStore's
+    // "finished" threshold: a quit must not decide that). reportProgress() ignores an unloaded title.
+    Connections {
+        target: Qt.application
+        function onAboutToQuit() {
+            var s = backend.session
+            if (!s || (s.state !== 3 && s.state !== 4) || !(s.duration > 0))
+                return
+            if (s.position / s.duration >= 0.9)
+                return
+            shell.reportProgress(true)
+        }
+    }
+
     // --- the engine surface + chrome ----------------------------------------------------------
     Rectangle {
         anchors.fill: parent

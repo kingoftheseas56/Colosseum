@@ -98,6 +98,8 @@ Item {
         property bool customized: false
     }
 
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { subtitleStylePrefs.sync() } }
     function setStyleOption(key, value) {
         subtitleStylePrefs.customized = true
         if (menu.player && menu.player.setSubOption)

@@ -564,6 +564,8 @@ Window {
         property string theatrePick: ""
     }
 
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { viewSettings.sync(); wallpaperSettings.sync(); comicMapStore.sync() } }
     // The ONE global preference store the whole shell reads (Task 2). Production leaves
     // settingsLocation unset, so it uses the application QSettings store. Threading
     // showExplicit into Theatre/Tankoban/Biblio is Task 9 — here it is only set + surfaced.

@@ -25,6 +25,9 @@ QtObject {
         property string anime: ""
     }
 
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    // (QtObject root has no default property, so the Connections rides in a property.)
+    property Connections quitFlush: Connections { target: Qt.application; function onAboutToQuit() { store.sync() } }
     function _raw(pageKey) {
         return pageKey === "shows" ? store.shows : pageKey === "anime" ? store.anime : store.movies;
     }

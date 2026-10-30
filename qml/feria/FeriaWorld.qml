@@ -241,6 +241,9 @@ Item {
         property string savedJson: ""
         property string catalogueRegion: "United States"
     }
+
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { settings.sync() } }
     Timer { id: toastTimer; interval: 2200; onTriggered: shell.toast = "" }
     Timer { id: clockTimer; interval: 1000; repeat: true; running: true; onTriggered: shell.clockRevision++ }
     property int clockRevision: 0

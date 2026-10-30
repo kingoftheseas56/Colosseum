@@ -1284,9 +1284,10 @@ Item {
         minimizeRequested()
     }
 
-    // flush a final record + close the backend entry. This is DESTRUCTION semantics only — the hide
-    // path flushes without closing (see onVisibleChanged). Guarded so a null core never errors.
-    function shutdown() {
+    // The flush half of shutdown(): every save, no backend close. Safe to run any number of times
+    // (re-records the same spot, re-writes the same blobs), so aboutToQuit can call it while QML is
+    // alive and the destruction-time shutdown() below still runs it again, harmlessly.
+    function _flushForQuit() {
         recordProgress()
         // Flush the book's record NOW — closeEntry() wipes the backend state the blob is read from,
         // and a pending debounce would be writing an already-cleared entry (or never fire at all).
@@ -1300,7 +1301,24 @@ Item {
         renderThrottle.stop()     // ...and close the window flush() just re-opened
         renderSave.stop()
         _saveRenderProfile()
+    }
+
+    // flush a final record + close the backend entry. This is DESTRUCTION semantics only — the hide
+    // path flushes without closing (see onVisibleChanged). Guarded so a null core never errors.
+    function shutdown() {
+        _flushForQuit()
         if (core) core.closeEntry()
+    }
+
+    // Quit: flush (and sync the three Settings stores) while QML is alive (aboutToQuit fires on every
+    // quit path). core.closeEntry() stays
+    // with Component.onDestruction — it wipes the backend entry the live reader is still showing.
+    Connections {
+        target: Qt.application
+        function onAboutToQuit() {
+            reader._flushForQuit()
+            prefs.sync(); seriesStore.sync(); entryStore.sync()
+        }
     }
 
     // ================= reactions =================

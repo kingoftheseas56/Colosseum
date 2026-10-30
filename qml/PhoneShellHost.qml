@@ -61,6 +61,8 @@ Item {
         property string lastWorld: ""
     }
 
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { androidShellSettings.sync() } }
     // Slice S3: the Profile tab is a plain list of doors to pages the app already has.
     readonly property var profileRows: [
         // The same doors the desktop has, under the names the app already uses for them

@@ -79,6 +79,8 @@ Item {
         property string sortPerLevel: "{}"
     }
 
+    // Quit: flush to disk while QML is alive (aboutToQuit fires on every quit path).
+    Connections { target: Qt.application; function onAboutToQuit() { browseSettings.sync() } }
     property var crumbStack: []              // [{key, displayTitle}, ...] selected root -> current level
     property string currentBrowsePath: ""    // the current level's key (folder path / show sentinel)
     property bool hiddenViewActive: false    // the reversible Hidden shelf, not a folder level

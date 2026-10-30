@@ -386,6 +386,16 @@ Item {
             session.activitySample()   // Activity (Lane E): independent cadence is fine (§9)
         }
     }
+    // Quit: save the final spot and end the Activity session while QML is still alive (aboutToQuit
+    // fires on every quit path). activityEndSession() clears activityActiveKey, so the
+    // onDestruction call below is a no-op for the session; re-recording the same spot is harmless.
+    Connections {
+        target: Qt.application
+        function onAboutToQuit() {
+            session.recordProgress()
+            session.activityEndSession()
+        }
+    }
     Component.onDestruction: {
         session.recordProgress()
         session.activityEndSession()   // Activity (Lane E): the app itself is closing — end cleanly
