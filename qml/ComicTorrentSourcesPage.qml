@@ -16,6 +16,10 @@ import QtQuick.Controls
 
 Item {
     id: sheet
+    objectName: "comicTorrentSourcesPage"
+    AdaptiveLayout { id: layout; page: sheet }
+    readonly property bool phonePortrait: layout.phoneLayout
+    readonly property real pageInset: sheet.phonePortrait ? layout.pageMargin : theme.margin
     anchors.fill: parent
     focus: true
     activeFocusOnTab: true
@@ -124,6 +128,12 @@ Item {
     }
 
     function cancelWeakSelection() { confirmingWeak = false; pendingRow = null }
+
+    function cancelInspection() {
+        if (!acquiring || selectionState !== "inspecting") return
+        acquiring = false; selectionState = "results"; pendingRow = null
+        if (comicsApi) comicsApi.cancelDownload(context.issueId)
+    }
 
     // Tap a coverage/identity-matched result -> auto isolate + download the
     // edition (the shared-infohash pack transport), NO manual file pick. The
@@ -243,7 +253,8 @@ Item {
     Item {
         id: bannerStrip
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 300
+        height: layout.touch && layout.shortLandscape ? 72
+            : sheet.phonePortrait ? Math.max(220, heroBlock.implicitHeight + 96) : 300
         Image {
             anchors.fill: parent
             source: sheet.context.cover ? sheet.context.cover : ""
@@ -269,37 +280,43 @@ Item {
     }
 
     BackAction {
-        x: theme.margin; y: 30; z: 20
+        x: sheet.pageInset; y: sheet.phonePortrait ? 16 : 30; z: 20
         onTriggered: sheet.hide()
     }
 
     // ── title block + edition identity rail, pinned to the bottom of the banner ──
     Column {
+        id: heroBlock
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+        anchors.leftMargin: sheet.pageInset + (layout.touch && layout.shortLandscape ? 100 : 0); anchors.rightMargin: sheet.pageInset
         anchors.top: parent.top; anchors.topMargin: bannerStrip.height - height - 26
-        spacing: 12
+        spacing: sheet.phonePortrait ? 8 : 12
         Text {
             width: parent.width
             text: "ALTERNATE SOURCES · COLLECTED EDITION"
-            color: theme.gold; font.family: theme.ui; font.pixelSize: 12
-            font.letterSpacing: 4; elide: Text.ElideRight
+            visible: !(layout.touch && layout.shortLandscape)
+            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+            font.letterSpacing: sheet.phonePortrait ? 1 : 4; elide: Text.ElideRight
         }
         Text {
+            objectName: "comicTorrentSourcesTitle"
             width: parent.width
             text: sheet.context.editionTitle ? String(sheet.context.editionTitle)
                   : (sheet.context.seriesTitle ? String(sheet.context.seriesTitle) : "Alternate sources")
             color: theme.ink; font.family: theme.display
-            font.pixelSize: 56; font.weight: Font.DemiBold
-            maximumLineCount: 1; elide: Text.ElideRight
+            font.pixelSize: theme.fontSize(layout.touch && layout.shortLandscape ? 22 : sheet.phonePortrait ? 28 : 56); font.weight: Font.DemiBold
+            wrapMode: sheet.phonePortrait ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+            maximumLineCount: layout.touch && layout.shortLandscape ? 1 : sheet.phonePortrait ? 3 : 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
         Text {
             width: parent.width
-            visible: sheet.identityLine.length > 0
+            visible: sheet.identityLine.length > 0 && !(layout.touch && layout.shortLandscape)
             text: sheet.identityLine
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
-            font.letterSpacing: 1; elide: Text.ElideRight
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(sheet.phonePortrait ? 12 : 14)
+            wrapMode: sheet.phonePortrait ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+            maximumLineCount: sheet.phonePortrait ? 3 : 1
+            font.letterSpacing: sheet.phonePortrait ? 0 : 1; elide: Text.ElideRight
         }
     }
 
@@ -307,16 +324,18 @@ Item {
     Item {
         id: queryBar
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: bannerStrip.bottom; anchors.topMargin: 20
-        height: 56
+        objectName: "comicTorrentSourcesQuery"
+        anchors.leftMargin: sheet.pageInset; anchors.rightMargin: sheet.pageInset
+        anchors.top: bannerStrip.bottom; anchors.topMargin: layout.touch && layout.shortLandscape ? 8 : 20
+        height: (sheet.phonePortrait && !layout.shortLandscape) ? 108 : 56
         visible: sheet.selectionState === "results"
 
         Rectangle {
             id: queryField
             anchors.left: parent.left
-            anchors.right: searchBtn.left; anchors.rightMargin: 14
-            height: parent.height; radius: 14
+            anchors.right: (sheet.phonePortrait && !layout.shortLandscape) ? parent.right : searchBtn.left
+            anchors.rightMargin: (sheet.phonePortrait && !layout.shortLandscape) ? 0 : 14
+            height: (sheet.phonePortrait && !layout.shortLandscape) ? 48 : parent.height; radius: 14
             color: Qt.rgba(1, 1, 1, 0.06)
             border.width: 1
             border.color: queryInput.activeFocus ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
@@ -324,10 +343,11 @@ Item {
             TextInput {
                 id: queryInput
                 anchors.fill: parent
-                anchors.leftMargin: 22; anchors.rightMargin: 22
+                objectName: "comicTorrentSourcesQueryInput"
+                anchors.leftMargin: (sheet.phonePortrait && !layout.shortLandscape) ? 12 : 22; anchors.rightMargin: (sheet.phonePortrait && !layout.shortLandscape) ? 12 : 22
                 verticalAlignment: TextInput.AlignVCenter
                 clip: true
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 16
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
                 selectByMouse: true
                 selectionColor: Qt.rgba(0.94, 0.77, 0.29, 0.35)
                 text: sheet.queryText
@@ -336,21 +356,25 @@ Item {
                 Text {
                     anchors.verticalCenter: parent.verticalCenter
                     visible: queryInput.text.length === 0
+                    width: parent.width
+                    elide: Text.ElideRight
                     text: "Search another title or ISBN"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 16
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
                 }
             }
         }
         Rectangle {
             id: searchBtn
+            objectName: "comicTorrentSourcesSearch"
             anchors.right: parent.right
-            anchors.verticalCenter: parent.verticalCenter
-            width: 120; height: 44; radius: 14
+            anchors.verticalCenter: (sheet.phonePortrait && !layout.shortLandscape) ? undefined : parent.verticalCenter
+            y: (sheet.phonePortrait && !layout.shortLandscape) ? 60 : 0
+            width: 120; height: layout.touch ? layout.touchTargetSize : 44; radius: 14
             color: sbMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
             Behavior on color { ColorAnimation { duration: 140 } }
             Text {
                 anchors.centerIn: parent; text: "Search"; color: "#1a1306"
-                font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
             }
             MouseArea {
                 id: sbMa; anchors.fill: parent; hoverEnabled: true
@@ -371,9 +395,10 @@ Item {
         id: table
         backdrop: sheet.backdrop
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: queryBar.bottom; anchors.topMargin: 16
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 26
+        objectName: "comicTorrentSourcesTable"
+        anchors.leftMargin: sheet.pageInset; anchors.rightMargin: sheet.pageInset
+        anchors.top: queryBar.bottom; anchors.topMargin: layout.touch && layout.shortLandscape ? 8 : 16
+        anchors.bottom: parent.bottom; anchors.bottomMargin: layout.touch && layout.shortLandscape ? 8 : 26
         radius: 18
         track: 0
 
@@ -385,20 +410,29 @@ Item {
             Item {
                 id: tableHead
                 anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-                height: 52
+                height: layout.touch && layout.shortLandscape ? 48 : sheet.phonePortrait ? resultCount.implicitHeight + sourceNames.implicitHeight + 28 : 52
                 visible: sheet.visibleRows.length > 0
                 Text {
-                    anchors.left: parent.left; anchors.leftMargin: 26
-                    anchors.verticalCenter: parent.verticalCenter
+                    id: resultCount
+                    anchors.left: parent.left; anchors.leftMargin: sheet.phonePortrait ? 12 : 26
+                    anchors.verticalCenter: sheet.phonePortrait ? undefined : parent.verticalCenter
+                    y: sheet.phonePortrait ? 10 : 0
+                    width: sheet.phonePortrait ? parent.width - 24 : implicitWidth
+                    wrapMode: sheet.phonePortrait ? Text.WordWrap : Text.NoWrap
                     text: sheet.visibleRows.length + (sheet.visibleRows.length === 1 ? " result" : " results")
                           + (sheet.loading ? "   ·   still searching…" : "")
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
                 }
                 Text {
-                    anchors.right: parent.right; anchors.rightMargin: 26
-                    anchors.verticalCenter: parent.verticalCenter
+                    id: sourceNames
+                    visible: !(layout.touch && layout.shortLandscape)
+                    anchors.right: parent.right; anchors.rightMargin: sheet.phonePortrait ? 12 : 26
+                    anchors.verticalCenter: sheet.phonePortrait ? undefined : parent.verticalCenter
+                    y: sheet.phonePortrait ? resultCount.y + resultCount.height + 4 : 0
+                    width: sheet.phonePortrait ? parent.width - 24 : implicitWidth
+                    wrapMode: sheet.phonePortrait ? Text.WordWrap : Text.NoWrap
                     text: "Pirate Bay · ExtraTorrents · Torrents-CSV"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 1
                 }
                 Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
             }
@@ -414,11 +448,12 @@ Item {
                          ? "Some sources did not answer. Showing the results that arrived."
                          : "No torrents matched this query. Try another title or ISBN.")
                 color: sheet.errors.length > 0 ? "#e6a3a3" : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 16
+                font.family: theme.ui; font.pixelSize: theme.fontSize(16)
             }
 
-            ListView {
+            SourcePickerList {
                 id: list
+                objectName: "comicTorrentSourcesResults"
                 anchors.left: parent.left; anchors.right: parent.right
                 anchors.top: tableHead.bottom; anchors.bottom: parent.bottom
                 anchors.topMargin: 4; anchors.bottomMargin: 8
@@ -431,9 +466,14 @@ Item {
                 delegate: Item {
                     id: row
                     required property var modelData
+                    required property int index
+                    objectName: "comicTorrentSourceRow_" + index
                     width: ListView.view.width
-                    height: 150
+                    height: sheet.phonePortrait ? phoneCard.implicitHeight : 150
 
+                    Item {
+                        anchors.fill:parent
+                        visible:!sheet.phonePortrait
                     Rectangle {
                         anchors.fill: parent
                         color: rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
@@ -441,9 +481,10 @@ Item {
 
                     Rectangle {
                         id: srcBadge
-                        anchors.left: parent.left; anchors.leftMargin: 26
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 54; height: 54; radius: 12
+                        anchors.left: parent.left; anchors.leftMargin: sheet.phonePortrait ? 12 : 26
+                        anchors.verticalCenter: sheet.phonePortrait ? undefined : parent.verticalCenter
+                        y: sheet.phonePortrait ? 14 : 0
+                        width: sheet.phonePortrait ? 32 : 54; height: width; radius: 12
                         color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
                         Text {
                             anchors.centerIn: parent
@@ -453,85 +494,102 @@ Item {
                     }
 
                     Column {
-                        anchors.left: srcBadge.right; anchors.leftMargin: 24
-                        anchors.right: pickBtn.left; anchors.rightMargin: 20
-                        anchors.verticalCenter: parent.verticalCenter
+                        id: resultContent
+                        objectName: sheet.phonePortrait ? "" : "comicTorrentSourceCopy_" + row.index
+                        anchors.left: srcBadge.right; anchors.leftMargin: sheet.phonePortrait ? 12 : 24
+                        anchors.right: sheet.phonePortrait ? parent.right : pickBtn.left
+                        anchors.rightMargin: sheet.phonePortrait ? 12 : 20
+                        anchors.verticalCenter: sheet.phonePortrait ? undefined : parent.verticalCenter
+                        y: sheet.phonePortrait ? 14 : 0
                         spacing: 7
 
-                        Row {
+                        Flow {
+                            width: parent.width
                             spacing: 12
                             Text {
+                                width: sheet.phonePortrait ? Math.min(implicitWidth, parent.width) : implicitWidth
+                                wrapMode: sheet.phonePortrait ? Text.WordWrap : Text.NoWrap
                                 text: row.modelData.sourceName || "Torrent"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
-                                anchors.verticalCenter: parent.verticalCenter
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                             }
                             Text {
+                                width: sheet.phonePortrait ? Math.min(implicitWidth, parent.width) : implicitWidth
+                                wrapMode: sheet.phonePortrait ? Text.WordWrap : Text.NoWrap
                                 text: sheet.confidenceLabel(row.modelData.confidence)
                                 color: sheet.confidenceColor(row.modelData.confidence)
-                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
-                                anchors.verticalCenter: parent.verticalCenter
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; font.letterSpacing: 0.5
                             }
                         }
                         Text {
+                            objectName: "comicTorrentSourceTitle_" + row.index
                             width: parent.width
                             text: row.modelData.title || ""
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
+                            wrapMode: sheet.phonePortrait ? Text.WrapAtWordBoundaryOrAnywhere : Text.NoWrap
+                            maximumLineCount: sheet.phonePortrait ? 3 : 1
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); elide: Text.ElideRight
                         }
                         // Restrained evidence: a FORMAT RANGE / coverage badge, an ISSUES
                         // badge, and an uploader-trust marker — the SAME gold evidence
                         // styling as the confidence label above, no new color/emoji.
-                        Row {
+                        Flow {
+                            width: parent.width
                             spacing: 7
                             Rectangle {
                                 visible: !!row.modelData.coverage
-                                width: covText.implicitWidth + 16; height: 20; radius: 6
+                                width: sheet.phonePortrait ? Math.min(parent.width, covText.implicitWidth + 16) : covText.implicitWidth + 16; height: 20; radius: 6
                                 color: Qt.rgba(0.94, 0.77, 0.29, 0.12); border.width: 1
                                 border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
                                 Text {
                                     id: covText; anchors.centerIn: parent; text: "FORMAT RANGE"
-                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 10
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                     font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                 }
                             }
                             Rectangle {
                                 visible: (row.modelData.evidence || []).indexOf("ISSUES") >= 0
-                                width: issText.implicitWidth + 16; height: 20; radius: 6
+                                width: sheet.phonePortrait ? Math.min(parent.width, issText.implicitWidth + 16) : issText.implicitWidth + 16; height: 20; radius: 6
                                 color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
                                 Text {
                                     id: issText; anchors.centerIn: parent; text: "ISSUES"
-                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
+                                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                     font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                 }
                             }
                             Rectangle {
                                 visible: !!row.modelData.uploader && Number(row.modelData.trustTier) <= 2
-                                width: upText.implicitWidth + 16; height: 20; radius: 6
+                                width: sheet.phonePortrait ? Math.min(parent.width, upText.implicitWidth + 16) : upText.implicitWidth + 16; height: 20; radius: 6
                                 color: Qt.rgba(0.94, 0.77, 0.29, 0.12); border.width: 1
                                 border.color: Qt.rgba(0.94, 0.77, 0.29, 0.4)
                                 Text {
                                     id: upText; anchors.centerIn: parent
+                                    width: sheet.phonePortrait ? parent.width - 16 : implicitWidth
+                                    elide: Text.ElideRight
                                     text: "TRUSTED · " + String(row.modelData.uploader || "")
-                                    color: theme.gold; font.family: theme.ui; font.pixelSize: 10
+                                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                     font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                 }
                             }
                         }
                         Text {
+                            width: parent.width
+                            wrapMode: sheet.phonePortrait ? Text.WordWrap : Text.NoWrap
                             text: {
                                 var p = []
                                 if (row.modelData.sizeText) p.push(String(row.modelData.sizeText))
                                 if (row.modelData.seeders !== undefined) p.push("\u{1F464} " + row.modelData.seeders)
                                 return p.join("   ·   ")
                             }
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         }
                     }
 
                     Rectangle {
                         id: pickBtn
-                        anchors.right: parent.right; anchors.rightMargin: 30
-                        anchors.verticalCenter: parent.verticalCenter
-                        width: 56; height: 56; radius: 28; color: theme.gold
+                        objectName: sheet.phonePortrait ? "" : "comicTorrentSourceChoose_" + row.index
+                        anchors.right: parent.right; anchors.rightMargin: sheet.phonePortrait ? 12 : 30
+                        anchors.verticalCenter: sheet.phonePortrait ? undefined : parent.verticalCenter
+                        y: sheet.phonePortrait ? resultContent.y + resultContent.height + 12 : 0
+                        width: sheet.phonePortrait ? 48 : 56; height: width; radius: width / 2; color: theme.gold
                         scale: rowMa.containsMouse ? 1.05 : 1.0
                         Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
                         Text {
@@ -551,6 +609,22 @@ Item {
                         accessibleName: "Choose " + String(row.modelData.title || row.modelData.sourceName || "source")
                         onTriggered: sheet.selectRow(row.modelData)
                     }
+                                    }
+                    SourceCard {
+                        id:phoneCard
+                        objectName:"comicTorrentSourceCard_"+row.index
+                        width:parent.width
+                        visible:sheet.phonePortrait
+                        contentObjectName:"comicTorrentSourceCopy_"+row.index
+                        provider:String(row.modelData.sourceName || "")
+                        quality:String(row.modelData.confidence || "")
+                        title:String(row.modelData.title || row.modelData.releaseTitle || "")
+                        details:[row.modelData.sizeText, row.modelData.seeders!==undefined ? row.modelData.seeders+" seeders" : "",row.modelData.uploader].filter(value=>!!value).join(" · ")
+                        badges:row.modelData.evidence || []
+                        actionText:qsTr("Choose")
+                        actionObjectName:"comicTorrentSourceChoose_"+row.index
+                        onTriggered:sheet.selectRow(row.modelData)
+                    }
                 }
             }
             ScrollGlide { id: torrentSourcesGlide; flick: list }
@@ -567,13 +641,30 @@ Item {
                 Text {
                     width: parent.width; horizontalAlignment: Text.AlignHCenter
                     text: "Inspecting pack…"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 20; font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20); font.weight: Font.DemiBold
                 }
                 Text {
                     width: parent.width; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap
                     visible: !!(sheet.pendingRow && sheet.pendingRow.title)
                     text: sheet.pendingRow ? String(sheet.pendingRow.title || "") : ""
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                }
+                Rectangle {
+                    objectName: "comicTorrentCancelInspection"
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    width: Math.min(180, parent.width); height: 48; radius: 12
+                    color: cancelInspectionAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        anchors.centerIn: parent; text: "Cancel"
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
+                    }
+                    KeyboardAction {
+                        id: cancelInspectionAction
+                        anchors.fill: parent
+                        accessibleName: "Cancel comic download"
+                        onTriggered: sheet.cancelInspection()
+                    }
                 }
             }
         }
@@ -598,12 +689,12 @@ Item {
                 Text {
                     width: parent.width
                     text: "This pack is missing issues this edition needs."
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); wrapMode: Text.WordWrap
                 }
                 Text {
                     width: parent.width
                     text: (sheet.missingIssues || []).join("   ·   ")
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 14; wrapMode: Text.WordWrap
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(14); wrapMode: Text.WordWrap
                 }
                 Row {
                     spacing: 14
@@ -612,7 +703,7 @@ Item {
                         color: anotherMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Try another source"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 14 }
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                         MouseArea { id: anotherMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(false) }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Try another source"
@@ -623,7 +714,7 @@ Item {
                         color: manualMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Search manually"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 14 }
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                         MouseArea { id: manualMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectIncomplete(true) }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search manually"
@@ -645,7 +736,7 @@ Item {
                 Text {
                     width: parent.width
                     text: "Only a combined archive covers this edition — it likely includes other editions too."
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); wrapMode: Text.WordWrap
                 }
                 Row {
                     spacing: 14
@@ -654,7 +745,7 @@ Item {
                         color: combBackMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Go back"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 15 }
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(15) }
                         MouseArea { id: combBackMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.rejectCombined() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Go back"
@@ -665,7 +756,7 @@ Item {
                         color: combGoMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
                         Behavior on color { ColorAnimation { duration: 140 } }
                         Text { anchors.centerIn: parent; text: "Download whole archive anyway"; color: "#1a1306"
-                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold }
                         MouseArea { id: combGoMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.confirmCombined() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Download whole archive anyway"
@@ -698,13 +789,13 @@ Item {
                 Text {
                     width: parent.width
                     text: "This release does not closely match the collected edition."
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 17; wrapMode: Text.WordWrap
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(17); wrapMode: Text.WordWrap
                 }
                 Text {
                     width: parent.width
                     visible: !!(sheet.pendingRow && sheet.pendingRow.title)
                     text: sheet.pendingRow ? String(sheet.pendingRow.title || "") : ""
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.WordWrap
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); wrapMode: Text.WordWrap
                 }
                 Row {
                     anchors.right: parent.right
@@ -714,7 +805,7 @@ Item {
                         color: backMa.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
                         border.width: 1; border.color: theme.edge
                         Text { anchors.centerIn: parent; text: "Go back"; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 15 }
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(15) }
                         MouseArea { id: backMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.cancelWeakSelection() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Go back"
@@ -724,7 +815,7 @@ Item {
                         width: 150; height: 44; radius: 12; color: caMa.containsMouse ? theme.gold : Qt.rgba(0.94, 0.77, 0.29, 0.85)
                         Behavior on color { ColorAnimation { duration: 140 } }
                         Text { anchors.centerIn: parent; text: "Choose anyway"; color: "#1a1306"
-                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
                         MouseArea { id: caMa; anchors.fill: parent; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor; onClicked: sheet.confirmWeakSelection() }
                         KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Choose source anyway"

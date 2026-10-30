@@ -33,6 +33,9 @@ import QtQuick.Controls
 
 Item {
     id: sheet
+    AdaptiveLayout { id: layout; page: sheet }
+    readonly property bool phoneLayout: layout.phoneLayout
+    readonly property real pageInset: phoneLayout ? layout.pageMargin : theme.margin
     // Automation surface (2026-08-12). This page had NO objectName anywhere, so the entire
     // acquisition step — the release list, each release, the download button, the
     // build-from-chapters fallback — was unreachable by the Lanista bridge: an agent could
@@ -532,7 +535,7 @@ Item {
             anchors.centerIn: parent
             visible: sheet.livePhase === "live" && sheet.liveFraction >= 0
             text: Math.round(sheet.liveFraction * 100) + "%"
-            color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             font.weight: Font.DemiBold
         }
         Text {
@@ -564,7 +567,7 @@ Item {
             id: toastText
             anchors.centerIn: parent
             color: sheet.toastError ? "#e6a3a3" : theme.ink
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
         }
     }
 
@@ -572,7 +575,7 @@ Item {
     Item {
         id: bannerStrip
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 300
+        height: sheet.phoneLayout ? Math.min(220, Math.max(108, sheet.height * 0.28)) : 300
         Image {
             anchors.fill: parent
             source: sheet.context.cover ? sheet.context.cover : ""
@@ -603,27 +606,27 @@ Item {
         // 2026-08-20): the Lanista smoke scenario needs to dismiss the picker
         // without knowing pixel coordinates. Mirrors tankobanReadingRoomBack.
         objectName: "tankobanSourcesBack"
-        x: theme.margin; y: 30; z: 20
+        x: sheet.pageInset; y: 30; z: 20
         onTriggered: sheet.hide(true)
     }
 
     // ── title block + volume identity rail, pinned to the bottom of the banner ──
     Column {
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+        anchors.leftMargin: sheet.pageInset; anchors.rightMargin: sheet.pageInset
         anchors.top: parent.top; anchors.topMargin: bannerStrip.height - height - 26
         spacing: 12
         Text {
             width: parent.width
             text: "SOURCES · TANKOBAN VOLUME"
-            color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             font.letterSpacing: 4; elide: Text.ElideRight
         }
         Text {
             width: parent.width
             text: sheet.titleText()
             color: theme.ink; font.family: theme.display
-            font.pixelSize: 56; font.weight: Font.DemiBold
+            font.pixelSize: theme.fontSize(sheet.phoneLayout ? 32 : 56); font.weight: Font.DemiBold
             maximumLineCount: 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
@@ -631,7 +634,7 @@ Item {
             width: parent.width
             visible: sheet.identityLine.length > 0
             text: sheet.identityLine
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             font.letterSpacing: 1; elide: Text.ElideRight
         }
         // Slice D (mock .hsyn): this volume's own synopsis when the enricher accepted one,
@@ -645,7 +648,7 @@ Item {
             text: heroSynopsis.hasSynopsis
                 ? String(sheet.context.synopsis)
                 : "No synopsis for this volume yet."
-            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
+            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             font.italic: !heroSynopsis.hasSynopsis
             wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight
         }
@@ -656,7 +659,7 @@ Item {
         id: table
         backdrop: sheet.backdrop
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+        anchors.leftMargin: sheet.pageInset; anchors.rightMargin: sheet.pageInset
         anchors.top: bannerStrip.bottom; anchors.topMargin: 20
         anchors.bottom: parent.bottom; anchors.bottomMargin: 26
         radius: 18
@@ -672,13 +675,13 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 text: sheet.rows.length + (sheet.rows.length === 1 ? " source" : " sources")
                       + (sheet.loading ? "   ·   still searching…" : "")
-                color: theme.ink; font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
             }
             Text {
                 anchors.right: parent.right; anchors.rightMargin: 26
                 anchors.verticalCenter: parent.verticalCenter
                 text: "Nyaa"
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 1
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 1
             }
             Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: theme.edge }
         }
@@ -700,7 +703,7 @@ Item {
                         ? ("Some sources didn’t answer — " + sheet.failureText)
                         : "No releases matched this volume yet."))
             color: sheet.failureText.length > 0 ? "#e6a3a3" : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 16
+            font.family: theme.ui; font.pixelSize: theme.fontSize(16)
         }
         // The route to Extensions (R1): the ONLY way nyaa ever turns on — no
         // auto-enable, no nag anywhere else on this page. A plain, truthful link,
@@ -710,14 +713,14 @@ Item {
             visible: sheet.rows.length === 0 && !sheet.sourcesEnabled
             anchors.top: emptyText.bottom; anchors.topMargin: 18
             anchors.horizontalCenter: parent.horizontalCenter
-            width: enableLabel.implicitWidth + 32; height: 40; radius: 20
+            width: enableLabel.implicitWidth + 32; height: layout.touch ? layout.touchTargetSize : 40; radius: 20
             color: enableMa.containsMouse ? theme.glassHi : "transparent"
             border.width: 1; border.color: theme.gold
             Text {
                 id: enableLabel
                 anchors.centerIn: parent
                 text: "Open Extensions"
-                color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             }
             MouseArea {
                 id: enableMa; anchors.fill: parent; hoverEnabled: true
@@ -731,7 +734,7 @@ Item {
             }
         }
 
-        ListView {
+        SourcePickerList {
             id: list
             // `count` behind qml-get answers "did the search return anything" without pixels.
             objectName: "tankobanSourcesList"
@@ -770,10 +773,13 @@ Item {
                     && String(row.modelData.infoHash || "") === sheet.pickedHash
                 readonly property bool carriesDisc: row.isPickRow && sheet.livePhase.length > 0
                 readonly property bool dimmed: sheet.livePhase.length > 0 && !row.carriesDisc
-                height: 150
+                height: sheet.phoneLayout ? phoneCard.implicitHeight : 150
                 opacity: row.dimmed ? 0.45 : 1
                 Behavior on opacity { NumberAnimation { duration: 180 } }
 
+                Item {
+                    anchors.fill:parent
+                    visible: !sheet.phoneLayout
                 Rectangle {
                     anchors.fill: parent
                     color: list.activeFocus && list.currentIndex === row.index
@@ -808,20 +814,20 @@ Item {
                             spacing: 12
                             Text {
                                 text: (row.modelData && row.modelData.uploader) ? row.modelData.uploader : "Nyaa"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                             Text {
                                 text: sheet.confidenceLabel(row.modelData || null)
                                 color: sheet.confidenceColor(row.modelData || null)
-                                font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold; font.letterSpacing: 0.5
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold; font.letterSpacing: 0.5
                                 anchors.verticalCenter: parent.verticalCenter
                             }
                         }
                         Text {
                             width: parent.width
                             text: (row.modelData && row.modelData.releaseTitle) ? row.modelData.releaseTitle : ""
-                            color: theme.ink; font.family: theme.ui; font.pixelSize: 14; elide: Text.ElideRight
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); elide: Text.ElideRight
                         }
                         Row {
                             spacing: 7
@@ -833,7 +839,7 @@ Item {
                                     color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: theme.edge
                                     Text {
                                         id: ev; anchors.centerIn: parent; text: parent.modelData
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                                         font.weight: Font.DemiBold; font.letterSpacing: 0.6
                                     }
                                 }
@@ -849,7 +855,7 @@ Item {
                                 return p.join("   ·   ")
                             }
                             color: row.carriesDisc ? theme.gold : theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
                         }
                     }
 
@@ -858,7 +864,7 @@ Item {
                         // THE download button for a Nyaa release. Note the whole row is the
                         // click target (the MouseArea fills it); this name exists so a driver
                         // can assert the button is actually drawn and hit it precisely.
-                        objectName: "tankobanSourceDownload_" + row.index
+                        objectName: sheet.phoneLayout ? "" : "tankobanSourceDownload_" + row.index
                         anchors.right: parent.right; anchors.rightMargin: 30
                         anchors.verticalCenter: parent.verticalCenter
                         width: 56; height: 56; radius: 28; color: theme.gold
@@ -889,6 +895,28 @@ Item {
                         list.currentIndex = row.index
                         list.forceActiveFocus(Qt.MouseFocusReason)
                         if (sheet.liveIds.length > 0) return   // a pick is running — wait or back out
+                        sheet.pickNyaa(row.modelData)
+                    }
+                }
+                            }
+                SourceCard {
+                    id:phoneCard
+                    objectName:"tankobanSourceCard_"+row.index
+                    width:parent.width
+                    visible:sheet.phoneLayout
+                    provider: String(row.modelData.uploader || "Nyaa")
+                    quality: sheet.confidenceLabel(row.modelData)
+                    title: String(row.modelData.releaseTitle || "")
+                    details: [sheet.fmtSize(row.modelData.sizeBytes), String(row.modelData.seeders || 0)+" seeders"].filter(value=>value.length>0).join(" · ")
+                    badges: sheet.evidenceChips(row.modelData)
+                    status: row.carriesDisc ? sheet.statusText() : ""
+                    progress: row.carriesDisc ? sheet.liveFraction : -1
+                    actionText: row.carriesDisc ? qsTr("Downloading…") : qsTr("Download")
+                    actionEnabled: row.rowEnabled && sheet.liveIds.length===0
+                    actionObjectName:"tankobanSourceDownload_"+row.index
+                    onTriggered: {
+                        list.currentIndex=row.index
+                        list.forceActiveFocus(Qt.MouseFocusReason)
                         sheet.pickNyaa(row.modelData)
                     }
                 }
