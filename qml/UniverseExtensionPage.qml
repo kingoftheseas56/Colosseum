@@ -14,7 +14,7 @@ import QtQuick
 import QtQuick.Controls
 import "UniverseExtApi.js" as UniverseApi
 
-Item {
+UniverseScaffold {
     id: root
     Connections { target: typeof Content !== "undefined" ? Content : null; function onGenerationChanged() { root.reload() } }
     anchors.fill: parent
@@ -99,15 +99,12 @@ Item {
 
     Rectangle { anchors.fill: parent; color: "#0c0e11" }
 
-    Flickable {
+    UniverseFeed {
         id: page
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: col.implicitHeight
-        boundsBehavior: Flickable.StopAtBounds
-        clip: true
-        ScrollBar.vertical: HouseScrollBar { flick: page }
-        ScrollGlide { flick: page }
+        anchors.bottomMargin:root.contentBottomInset
+        bodyItem:col
+        tailPadding:root.layout.touch ? root.layout.safeInsets.bottom : 0
 
         Column {
             id: col
@@ -117,7 +114,7 @@ Item {
             // ---- header band: 360, banner at low opacity behind a left-heavy wash ----
             Item {
                 width: parent.width
-                height: 360
+                height:root.bandHeight(bandCopy.implicitHeight,360)
                 clip: true
                 Image {
                     anchors.fill: parent
@@ -138,25 +135,32 @@ Item {
                     }
                 }
                 Column {
-                    x: theme.margin
+                    id:bandCopy
+                    width:parent.width-root.universeInset*2
+                    x:root.universeInset
                     anchors.bottom: parent.bottom
-                    anchors.bottomMargin: 46
+                    anchors.bottomMargin:root.layout.touch ? 24 : 46
                     spacing: 9
                     Text {
                         text: "UNIVERSE"
                         color: theme.gold
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         font.letterSpacing: 4; font.bold: true
                     }
                     Text {
+                        objectName:"universePayloadTitle"
+                        Binding on width { when:root.layout.touch; value:bandCopy.width; restoreMode:Binding.RestoreBindingOrValue }
+                        wrapMode:root.layout.touch ? Text.Wrap : Text.NoWrap
                         text: (root.payload && root.payload.title) || root.universeName
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 62
+                        font.family: theme.display; font.pixelSize: theme.fontSize(root.layout.touch ? (root.layout.phone ? 34 : 48) : 62)
                     }
                     Text {
+                        Binding on width { when:root.layout.touch; value:bandCopy.width; restoreMode:Binding.RestoreBindingOrValue }
+                        wrapMode:root.layout.touch ? Text.Wrap : Text.NoWrap
                         text: root.metaline
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                 }
             }
@@ -175,10 +179,10 @@ Item {
             // once a payload does arrive.
             Text {
                 visible: root.payload === null && root.extensionId !== ""
-                x: theme.margin
+                x:root.universeInset
                 text: "This universe isn't installed yet."
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             }
 
             // ---- the served sections ----
@@ -187,8 +191,9 @@ Item {
                 delegate: Column {
                     id: section
                     required property var modelData
-                    x: theme.margin
-                    width: page.width - theme.margin * 2
+                    required property int index
+                    x:root.universeInset
+                    width: page.width-root.universeInset*2
                     spacing: 0
 
                     // ---- the two bounds on how many tiles this page can hold at once ----
@@ -225,14 +230,14 @@ Item {
                     Text {
                         text: section.modelData.title
                         color: theme.ink
-                        font.family: theme.display; font.pixelSize: 25
+                        font.family: theme.display; font.pixelSize: theme.fontSize(25)
                         bottomPadding: 12
                     }
                     Text {
                         text: section.modelData.entries.length
                               + (section.modelData.entries.length === 1 ? " work" : " works")
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         bottomPadding: 16
                     }
                     Rectangle {
@@ -246,8 +251,12 @@ Item {
                     }
                     Item { width: 1; height: 18 }
 
-                    ListView {
+                    UniversePosterRail {
                         id: sectionRail
+                        objectName:"universeSectionRail_"+section.index
+                        posterWidth:root.standardPosterWidth
+                        posterHeight:root.standardPosterHeight
+                        captionHeight:root.captionHeight
                         width: section.width
                         focusPolicy: count > 0 ? Qt.TabFocus : Qt.NoFocus
                         currentIndex: count > 0 ? 0 : -1
@@ -255,13 +264,7 @@ Item {
                         // the tile's own 236 art + 56 caption, plus the mock's 10px gutter
                         // under the row (`.row { padding-bottom: 10 }`). The mock's 246 is a
                         // min-height FLOOR, not the tile height — the tile is 292.
-                        height: 236 + 56 + 10
-                        orientation: ListView.Horizontal
-                        spacing: 22
-                        clip: true
                         model: section.railModel
-                        boundsBehavior: Flickable.StopAtBounds
-                        reuseItems: true
                         // NO wheel hijack. The mock's row is `overflow-x: auto`, where the
                         // vertical wheel scrolls the PAGE — and the house rail
                         // (SagaUniversePage's AdaptationRow) does the same. Rows fill
@@ -277,6 +280,9 @@ Item {
                             required property var modelData
                             required property int index
                             entry: modelData
+                            posterWidth:sectionRail.posterWidth
+                            posterHeight:sectionRail.posterHeight
+                            captionMinimumHeight:sectionRail.captionHeight
                             kind: section.modelData.kind
                             order: index
                             focusManagedByCollection: true
@@ -313,12 +319,13 @@ Item {
     // light glyphs over a bright banner need the top scrim to stay legible.
     ChromeScrim { z: 16 }
     BackAction {
-        x: theme.margin; y: 28; z: 20
+        x:root.universeInset;y:root.layout.touch ? Math.max(20,root.layout.safeInsets.top) : 28;z:20
         onTriggered: root.backRequested()
     }
     Row {
         z: 30
-        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
+        visible:root.showWindowActions
+        anchors.right:parent.right;anchors.rightMargin:root.universeInset;y:root.layout.touch ? Math.max(20,root.layout.safeInsets.top) : 34
         spacing: 20
         UniverseChromeAction {
             accessibleName: "Minimize"

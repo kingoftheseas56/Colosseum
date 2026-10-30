@@ -17,7 +17,7 @@ import "SagaApi.js" as Saga
 import "Universes.js" as UDB
 import "UniverseApi.js" as CoverApi
 
-Item {
+UniverseScaffold {
     id: root
     onUniverseContentGenerationChanged: reload()
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
@@ -68,8 +68,14 @@ Item {
     readonly property color paper: theme.ink
     readonly property color hair: Qt.rgba(1, 1, 1, 0.09)
     readonly property color goldEdge: Qt.rgba(0.94, 0.77, 0.29, 0.7)
-    readonly property real gutter: width < 700 ? 24 : 64
-    readonly property bool compact: width < 800
+    desktopPageInset:width<700 ? 24 : 64
+    readonly property real gutter:universeInset
+    readonly property bool compact:compactUniverse
+    readonly property var owningWindow: root.Window.window
+    readonly property real owningWindowWidth: root.owningWindow ? root.owningWindow.width : root.width
+    readonly property real owningWindowHeight: root.owningWindow ? root.owningWindow.height : root.height
+    readonly property bool posterDensity:portraitPosters
+    readonly property int tabTouchHeight:layout.touch ? layout.touchTargetSize : 36
     property int loadGeneration: 0
 
     property var uni: ({ name: "", category: "", blurb: "", blurbSource: "", banner: "", wallpaper: "",
@@ -210,7 +216,7 @@ Item {
 
     // ---- scrolling: the artwork steps back once the hero is gone, and content passing
     //      under Back and the docked tabs dissolves instead of colliding with them ----
-    readonly property real heroHeight: root.compact ? 420 : 400
+    readonly property real heroHeight:bandHeight(heroCopy.implicitHeight,root.compact ? 420 : 400)
     readonly property real dimK: Math.max(0, Math.min(1, (page.contentY - 120) / 240))
     function revealSection(section) {
         const air = section.topPadding !== undefined ? section.topPadding : 44
@@ -291,6 +297,15 @@ Item {
         }
         return active
     }
+    function revealActiveTab() {
+        const tab = tabRepeater.itemAt(root.activeTab)
+        if (!tab || tabScroller.width <= 0) return
+        if (tab.x < tabScroller.contentX)
+            tabScroller.contentX = tab.x
+        else if (tab.x + tab.width > tabScroller.contentX + tabScroller.width)
+            tabScroller.contentX = Math.max(0, tab.x + tab.width - tabScroller.width)
+    }
+    onActiveTabChanged: Qt.callLater(root.revealActiveTab)
 
     KeyboardScrollController {
         id: pageKeyboardScroll
@@ -363,16 +378,13 @@ Item {
         //  wallpaper stays live behind the whole page — the ruled-in mock's behaviour)
     }
 
-    Flickable {
+    UniverseFeed {
         id: page
         objectName: "shelvesScroll"
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: col.implicitHeight
-        clip: true
-        boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: page }
-        ScrollGlide { flick: page }
+        anchors.bottomMargin:root.contentBottomInset
+        bodyItem:col
+        tailPadding:root.layout.touch ? root.layout.safeInsets.bottom : 0
 
         Column {
             id: col
@@ -386,19 +398,20 @@ Item {
                 width: parent.width
                 height: root.heroHeight
                 Column {
-                    x: root.gutter; y: 120
+                    id:heroCopy
+                    x:root.gutter; y:root.bandCopyTop
                     width: parent.width - root.gutter * 2
                     spacing: 18
                     Text {
                         text: root.kicker
                         color: theme.inkDim; font.family: root.uiFace
-                        font.pixelSize: 11; font.letterSpacing: 3
+                        font.pixelSize: theme.fontSize(11); font.letterSpacing: 3
                     }
                     Text {
                         width: parent.width
                         text: root.uni.name || root.universeName
                         color: root.paper; font.family: root.displayFace
-                        font.pixelSize: root.compact ? 40 : 72
+                        font.pixelSize: theme.fontSize(root.compact ? 40 : 72)
                         lineHeight: 1.05; wrapMode: Text.WordWrap
                     }
                     Flow {
@@ -413,7 +426,7 @@ Item {
                                 color: theme.glassTint; border.width: 1; border.color: theme.edge
                                 Text { id: factText; anchors.centerIn: parent; text: fact.modelData
                                        color: theme.inkDim; font.family: root.uiFace
-                                       font.pixelSize: 12; font.weight: Font.Medium }
+                                       font.pixelSize: theme.fontSize(12); font.weight: Font.Medium }
                             }
                         }
                     }
@@ -423,7 +436,7 @@ Item {
                         width: parent.width
                         text: root.uni.catalogueNotice || ""
                         color: theme.inkDimmer
-                        font.family: root.uiFace; font.pixelSize: 13
+                        font.family: root.uiFace; font.pixelSize: theme.fontSize(13)
                         wrapMode: Text.WordWrap
                     }
                     Flow {
@@ -567,10 +580,10 @@ Item {
                         spacing: 8
                         Text { visible: text.length > 0; width: Math.min(860, parent.width)
                                text: root.uni.blurb || ""
-                               color: root.paper; font.family: root.uiFace; font.pixelSize: 15
+                               color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(15)
                                lineHeight: 1.6; wrapMode: Text.WordWrap }
                         Text { visible: text.length > 0; text: root.uni.blurbSource || ""
-                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
+                               color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11) }
                         Rectangle { visible: root.uni.blurb.length > 0; width: parent.width; height: 1; color: root.hair }
                         Grid {
                             topPadding: 22
@@ -586,9 +599,9 @@ Item {
                                     spacing: 5
                                     Text { text: infoCell.modelData[0]
                                            color: theme.inkDimmer; font.family: root.uiFace
-                                           font.pixelSize: 10; font.letterSpacing: 2 }
+                                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 2 }
                                     Text { width: parent.width; text: infoCell.modelData[1]
-                                           color: root.paper; font.family: root.uiFace; font.pixelSize: 15
+                                           color: root.paper; font.family: root.uiFace; font.pixelSize: theme.fontSize(15)
                                            elide: Text.ElideRight }
                                 }
                             }
@@ -633,9 +646,9 @@ Item {
                                 anchors.bottom: parent.bottom; anchors.margins: 14
                                 spacing: 3
                                 Text { text: root.kicker; color: theme.inkDim; font.family: root.uiFace
-                                       font.pixelSize: 9; font.letterSpacing: 2 }
+                                       font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
                                 Text { width: parent.width; text: sibling.modelData.name
-                                       color: root.paper; font.family: root.displayFace; font.pixelSize: 19
+                                       color: root.paper; font.family: root.displayFace; font.pixelSize: theme.fontSize(19)
                                        elide: Text.ElideRight }
                             }
                             KeyboardAction {
@@ -708,49 +721,81 @@ Item {
         objectName: "shelvesTabs"
         z: 18
         backdrop: wall
-        radius: 23
+        radius: root.phoneLayout ? 28 : 23
         // riding the page it sits under the hero; from 120px down to 70px (just clear of
         // Back's band) it slides right, so it is beside Back before it could pass under it
         readonly property real ride: root.heroHeight - page.contentY
         readonly property bool docked: ride <= 22
-        x: root.gutter + 118 * Math.max(0, Math.min(1, (120 - ride) / 50))
-        y: Math.max(22, ride)
-        width: tabRow.width + 8; height: 46
-        Row {
-            id: tabRow
-            x: 4; y: 5
-            spacing: 2
-            Repeater {
-                model: root.tabs
-                delegate: Rectangle {
-                    id: tab
-                    required property var modelData
-                    required property int index
-                    readonly property bool active: root.activeTab === tab.index
-                    width: tabText.implicitWidth + 36; height: 36; radius: 18
-                    color: tab.active ? root.paper : (tabKey.hovered ? theme.glassTint : "transparent")
-                    Row {
-                        anchors.centerIn: parent
-                        spacing: 8
-                        Text {
-                            id: tabText
-                            text: tab.modelData.title
-                            color: tab.active ? "#090c13" : (tabKey.hovered ? root.paper : theme.inkDim)
-                            font.family: root.uiFace; font.pixelSize: 13
-                            font.weight: tab.active ? Font.DemiBold : Font.Medium
+        x: root.shortPhone ? shelvesBack.x + shelvesBack.width + 12
+                           : root.gutter + 118 * Math.max(0, Math.min(1, (120 - ride) / 50))
+        y: root.shortPhone ? 22 : Math.max(22, ride)
+        width: root.phoneLayout
+               ? Math.min(tabRow.implicitWidth + 8, Math.max(0, root.width-x-(root.shortPhone ? root.chromeReservedWidth+12 : root.universeInset)))
+               : tabRow.width + 8
+        height: root.layout.touch ? 56 : 46
+        UniverseShelfViewport {
+            id: tabScroller
+            objectName: "shelvesTabScroller"
+            x: 4
+            y: (tabBar.height - height) / 2
+            width: Math.max(0, tabBar.width - 8)
+            height: root.tabTouchHeight
+            contentWidth: tabRow.implicitWidth
+            contentHeight: height
+            clip: true
+            interactive: root.phoneLayout && contentWidth > width
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            onWidthChanged: Qt.callLater(root.revealActiveTab)
+            Row {
+                id: tabRow
+                width: implicitWidth
+                height: root.tabTouchHeight
+                spacing: 2
+                Repeater {
+                    id: tabRepeater
+                    model: root.tabs
+                    onModelChanged: Qt.callLater(root.revealActiveTab)
+                    onCountChanged: Qt.callLater(root.revealActiveTab)
+                    delegate: Rectangle {
+                        id: tab
+                        objectName: "shelvesTab_" + index
+                        required property var modelData
+                        required property int index
+                        readonly property bool active: root.activeTab === tab.index
+                        width: root.phoneLayout
+                               ? Math.max(48, tabLabelRow.implicitWidth + 36)
+                               : tabText.implicitWidth + 36
+                        height: root.tabTouchHeight
+                        radius: height / 2
+                        color: tab.active ? root.paper : (tabKey.hovered ? theme.glassTint : "transparent")
+                        Row {
+                            id: tabLabelRow
+                            anchors.centerIn: parent
+                            spacing: 8
+                            Text {
+                                id: tabText
+                                text: tab.modelData.title
+                                color: tab.active ? "#090c13" : (tabKey.hovered ? root.paper : theme.inkDim)
+                                font.family: root.uiFace; font.pixelSize: theme.fontSize(13)
+                                font.weight: tab.active ? Font.DemiBold : Font.Medium
+                            }
+                            Text {
+                                objectName: "shelvesTabCount_" + tab.index
+                                visible: tab.modelData.count > 0
+                                text: tab.modelData.count
+                                color: tab.active ? Qt.rgba(9 / 255, 12 / 255, 19 / 255, 0.55) : theme.inkDimmer
+                                font.family: root.uiFace; font.pixelSize: theme.fontSize(11)
+                            }
                         }
-                        Text {
-                            visible: tab.modelData.count > 0
-                            text: tab.modelData.count
-                            color: tab.active ? Qt.rgba(9 / 255, 12 / 255, 19 / 255, 0.55) : theme.inkDimmer
-                            font.family: root.uiFace; font.pixelSize: 11
+                        KeyboardAction {
+                            id: tabKey
+                            objectName: "shelvesTabAction_" + tab.index
+                            anchors.fill: parent
+                            focusRadius: tab.radius
+                            accessibleName: tab.modelData.title
+                            onTriggered: if (tab.modelData.target) root.revealSection(tab.modelData.target)
                         }
-                    }
-                    KeyboardAction {
-                        id: tabKey; anchors.fill: parent
-                        focusRadius: 18
-                        accessibleName: tab.modelData.title
-                        onTriggered: if (tab.modelData.target) root.revealSection(tab.modelData.target)
                     }
                 }
             }
@@ -758,12 +803,14 @@ Item {
     }
 
     BackAction {
-        x: theme.margin; y: 28; z: 20
+        id: shelvesBack
+        x:root.layout.touch ? root.universeInset : theme.margin; y:root.layout.touch ? Math.max(20,root.layout.safeInsets.top) : 28; z:20
         onTriggered: root.backRequested()
     }
     Row {
         z: 30
-        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
+        visible: !root.androidHost
+        anchors.right:parent.right;anchors.rightMargin:root.layout.touch ? root.universeInset : theme.margin;y:root.layout.touch ? Math.max(20,root.layout.safeInsets.top) : 34
         spacing: 20
         UniverseChromeAction {
             accessibleName: "Minimize"
@@ -794,7 +841,7 @@ Item {
         spacing: 14
         Text {
             text: section.title; color: root.paper
-            font.family: root.displayFace; font.pixelSize: 22
+            font.family: root.displayFace; font.pixelSize: theme.fontSize(22)
         }
     }
 
@@ -818,14 +865,14 @@ Item {
                 id: actionLabel
                 text: actionButton.text
                 color: actionButton.primary && !actionKey.pressed ? "#090c13" : root.paper
-                font.family: root.uiFace; font.pixelSize: 13; font.weight: Font.DemiBold
+                font.family: root.uiFace; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             }
             Text {
                 visible: actionButton.sub.length > 0
                 anchors.baseline: actionLabel.baseline
                 text: actionButton.sub
                 color: actionButton.primary && !actionKey.pressed ? Qt.rgba(0.035, 0.047, 0.075, 0.62) : theme.inkDim
-                font.family: root.uiFace; font.pixelSize: 12; font.weight: Font.Medium
+                font.family: root.uiFace; font.pixelSize: theme.fontSize(12); font.weight: Font.Medium
             }
         }
         KeyboardAction {
@@ -909,10 +956,10 @@ Item {
                     id: headingLeft
                     spacing: 12
                     Text { text: medium.title; color: root.paper
-                           font.family: root.displayFace; font.pixelSize: 22
+                           font.family: root.displayFace; font.pixelSize: theme.fontSize(22)
                            anchors.baseline: countText.baseline }
                     Text { id: countText; text: medium.total
-                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
+                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(12) }
                 }
             }
 
@@ -924,7 +971,7 @@ Item {
                     width: parent.width - 24
                     height: runsRow.height + 6
 
-                Flickable {
+                UniverseShelfViewport {
                     id: shelfFlick
                     objectName: "shelvesRow_" + medium.key
                     y: 3
@@ -975,7 +1022,7 @@ Item {
                                             id: runLabel
                                             text: String(run.modelData.label).toUpperCase()
                                             color: theme.inkDimmer; font.family: root.uiFace
-                                            font.pixelSize: 10; font.letterSpacing: 2
+                                            font.pixelSize: theme.fontSize(10); font.letterSpacing: 2
                                             anchors.verticalCenter: parent.verticalCenter
                                         }
                                         Rectangle {
@@ -1025,16 +1072,19 @@ Item {
                                                 onHoveredIn: root.selectedKey = root.keyOf(work.modelData)
                                             }
                                             // the LIVE ACTION plate already says it; the caption drops the repeat
-                                            Text { topPadding: 10; width: parent.width
+                                            Text { objectName: "shelvesCaption_" + root.keyOf(work.modelData)
+                                                   topPadding: 10; width: parent.width
                                                    text: work.modelData.live === true
                                                          ? String(work.modelData.title).replace(/\s+[—-]\s+Live Action$/i, "")
                                                          : work.modelData.title
-                                                   color: root.paper; font.family: root.uiFace; font.pixelSize: 12
+                                                   color: root.paper; font.family: root.uiFace
+                                                   font.pixelSize: theme.fontSize(root.posterDensity ? 13 : 12)
                                                    lineHeight: 1.35; wrapMode: Text.WordWrap
                                                    maximumLineCount: 2; elide: Text.ElideRight }
-                                            Text { visible: text.length > 0; topPadding: 3; width: parent.width
+                                            Text { objectName: "shelvesMetadata_" + root.keyOf(work.modelData)
+                                                   visible: text.length > 0; topPadding: 3; width: parent.width
                                                    text: work.modelData.year ? String(work.modelData.year) : ""
-                                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
+                                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11) }
                                         }
                                     }
                                 }
@@ -1163,10 +1213,10 @@ Item {
                 Row {
                     spacing: 12
                     Text { text: table.title; color: root.paper
-                           font.family: root.displayFace; font.pixelSize: 22
+                           font.family: root.displayFace; font.pixelSize: theme.fontSize(22)
                            anchors.baseline: tableCount.baseline }
                     Text { id: tableCount; text: table.total
-                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 12 }
+                           color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(12) }
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
@@ -1174,7 +1224,7 @@ Item {
                     text: (String(table.shelf.order || "")
                            + (table.shelf.asOf ? "  ·  as of " + table.shelf.asOf : "")).toUpperCase()
                     color: theme.inkDimmer; font.family: root.uiFace
-                    font.pixelSize: 11; font.letterSpacing: 2
+                    font.pixelSize: theme.fontSize(11); font.letterSpacing: 2
                 }
             }
 
@@ -1227,7 +1277,7 @@ Item {
                             horizontalAlignment: Text.AlignRight
                             text: line.index + 1
                             color: line.index < 3 ? root.paper : theme.inkDimmer
-                            font.family: root.displayFace; font.pixelSize: 24
+                            font.family: root.displayFace; font.pixelSize: theme.fontSize(24)
                         }
                         Rectangle {
                             x: 50; anchors.verticalCenter: parent.verticalCenter
@@ -1251,11 +1301,11 @@ Item {
                             spacing: 3
                             Text { width: parent.width; text: line.modelData.title
                                    color: root.paper; font.family: root.uiFace
-                                   font.pixelSize: 14; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                                   font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold; elide: Text.ElideRight }
                             Text { width: parent.width; visible: text.length > 0
                                    text: line.modelData.by || ""
                                    color: theme.inkDimmer; font.family: root.uiFace
-                                   font.pixelSize: 12; elide: Text.ElideRight }
+                                   font.pixelSize: theme.fontSize(12); elide: Text.ElideRight }
                             Rectangle {      // where you are in it (gold marks progress only)
                                 visible: line.done > 0 && line.done < 1
                                 width: Math.min(parent.width, 220); height: 3; radius: 2
@@ -1269,10 +1319,10 @@ Item {
                             anchors.verticalCenter: parent.verticalCenter
                             spacing: 3
                             Text { anchors.right: parent.right; text: table.years(line.modelData)
-                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: 12 }
+                                   color: theme.inkDim; font.family: root.uiFace; font.pixelSize: theme.fontSize(12) }
                             Text { anchors.right: parent.right; visible: line.modelData.volumes > 0
                                    text: line.modelData.volumes + " volumes"
-                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: 11 }
+                                   color: theme.inkDimmer; font.family: root.uiFace; font.pixelSize: theme.fontSize(11) }
                         }
                         MouseArea {
                             id: lineMouse
@@ -1335,7 +1385,7 @@ Item {
             anchors.centerIn: parent
             text: chevron.atRight ? "›" : "‹"
             color: edgeAction.hovered ? theme.gold : theme.ink
-            font.family: root.displayFace; font.pixelSize: 42
+            font.family: root.displayFace; font.pixelSize: theme.fontSize(42)
         }
         KeyboardAction {
             id: edgeAction; anchors.fill: parent
@@ -1390,10 +1440,10 @@ Item {
             anchors.fill: parent; anchors.margins: 1
             clip: true
             Text {
-                anchors.centerIn: parent; width: parent.width - 24
+                anchors.centerIn: parent; width: parent.width - (root.posterDensity ? 12 : 24)
                 text: tile.item ? tile.item.title : ""
                 color: theme.inkDim; font.family: root.displayFace
-                font.pixelSize: 16; wrapMode: Text.WordWrap
+                font.pixelSize: theme.fontSize(root.posterDensity ? 13 : 16); wrapMode: Text.WordWrap
                 horizontalAlignment: Text.AlignHCenter
                 visible: art.status !== Image.Ready
             }
@@ -1421,7 +1471,7 @@ Item {
                        text: tile.item && tile.item.live === true ? "LIVE ACTION"
                              : "UPCOMING"
                        color: root.paper
-                       font.family: root.uiFace; font.pixelSize: 9; font.letterSpacing: 2 }
+                       font.family: root.uiFace; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
             }
             Rectangle {   // read / watched
                 visible: tile.done >= 1
@@ -1448,9 +1498,13 @@ Item {
         FocusRing { anchors.fill: parent; radius: tile.radius; shown: tile.keyboardSelected }
     }
 
-    // tile geometry: the mock's fixed 164px poster, 2:3 (plain rows do not resize)
-    readonly property real tileW: 164
-    readonly property real tileH: 246
-    readonly property real tileGap: 16
+    // Shelf runs stay intact; portrait Android posters use the panel's real row viewport.
+    readonly property real tileW: {
+        if (!root.posterDensity) return 164
+        const usable = Math.max(0, root.contentWidth - root.rowInset)
+        return root.posterWidth(usable,3,64,98,12)
+    }
+    readonly property real tileH: root.posterDensity ? Math.round(root.tileW * 1.5) : 246
+    readonly property real tileGap: root.posterDensity ? 12 : 16
     readonly property real rowInset: 24      // the row's inset inside its panel, both ends
 }
