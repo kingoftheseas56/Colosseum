@@ -43,11 +43,23 @@ Item {
     property bool installUrlPreviewing: false
     property bool installUrlInstalling: false
     property bool installUrlComplete: false
+    readonly property bool installUrlPreviewReady: root.installUrlManifest !== null
+        && installPreviewLogo.artworkResolved
+    property bool managingInstalled: false
+    property var pendingInstallOperation: null
+    property var replacingInstance: null
+    property int profileGeneration: 0
+    property int setupGeneration: 0
+    property int urlInstallerGeneration: 0
+    readonly property var installedEntries: {
+        root.revision
+        return typeof Extensions !== "undefined" ? Extensions.installed() : []
+    }
     readonly property var searchPool: root.catalogue.filter(function(a) { return StoreApi.visible(a, root.showExplicit) })
 
     readonly property var essentials: StoreApi.essentials(root.catalogue)
     readonly property var rows: StoreApi.rows(root.catalogue, root.showExplicit)
-    readonly property Item setup: setupLoader.item
+    readonly property var setup: setupLoader.item
 
     Theme { id: theme }
 
@@ -55,19 +67,137 @@ Item {
         if (!a || typeof Extensions === "undefined") return false
         return Extensions.isInstalled(a.id) || Extensions.isInstalled(a.manifestUrl)
     }
+    function safeInstallMessage(message) {
+        var urlPattern = new RegExp("(?:https?|stremio)://[^\\s\"'<>]+", "gi")
+        return String(message).replace(urlPattern, qsTr("[add-on address]"))
+    }
+    function showInstallError(message) {
+        root.installError = root.safeInstallMessage(message)
+        installErrorTimer.restart()
+    }
     function setBusy(slug, on) {
         var next = {}
         for (var k in root.busy) if (k !== slug) next[k] = root.busy[k]
         if (on) next[slug] = true
         root.busy = next
     }
+    function beginInstall(url, details) {
+        if (root.pendingInstallOperation) {
+            root.showInstallError(qsTr("An add-on install is already finishing. Try again shortly."))
+            return false
+        }
+        var operation = Object.assign({}, details || {})
+        operation.url = Extensions.normalizeUrl(url)
+        operation.profileGeneration = root.profileGeneration
+        operation.startedAt = Date.now()
+        root.pendingInstallOperation = operation
+        return true
+    }
+    function openSetup(addon, replacement) {
+        if (root.pendingInstallOperation) {
+            root.showInstallError(qsTr("An add-on install is already finishing. Try again shortly."))
+            return false
+        }
+        root.setupGeneration++
+        root.replacingInstance = replacement || null
+        setup.addon = addon
+        return true
+    }
+    function closeSetup() {
+        if (root.pendingInstallOperation && root.pendingInstallOperation.kind === "setup")
+            return false
+        root.setupGeneration++
+        root.replacingInstance = null
+        if (setup) setup.addon = null
+        Qt.callLater(root.takeKeyboardFocus)
+        return true
+    }
+    function failInstallOperation(operation, message) {
+        var safeMessage = root.safeInstallMessage(message)
+        root.setBusy(operation.slug || "", false)
+        if (operation.profileGeneration !== root.profileGeneration) return
+        if (operation.kind === "url" && root.urlInstallerGeneration === operation.uiGeneration
+                && root.installUrlOpen) {
+            root.installUrlInstalling = false
+            root.installUrlError = safeMessage
+            return
+        }
+        if (operation.kind === "setup" && root.setupGeneration === operation.setupGeneration
+                && setup.open) {
+            setup.status = safeMessage
+            return
+        }
+        root.showInstallError(safeMessage)
+    }
+    function finishInstallOperation(id) {
+        var operation = root.pendingInstallOperation
+        if (!operation) return
+        if (operation.profileGeneration !== root.profileGeneration) {
+            root.pendingInstallOperation = null
+            root.setBusy(operation.slug || "", false)
+            return // profile switching invalidates this UI transaction
+        }
+        var rows = Extensions.installed()
+        var installed = rows.find(function(entry) { return entry.transportUrl === operation.url })
+        if (!installed) return // another surface's completion; this operation is still pending
+        if (installed.id !== id) return // installFinished is shared; ignore unrelated add-ons
+        if (operation.expectedId && installed.id !== operation.expectedId) {
+            root.pendingInstallOperation = null
+            root.failInstallOperation(operation, qsTr("The address returned a different add-on. The previous installation was kept."))
+            return
+        }
+
+        var desiredEnabled = operation.replacingUrl ? operation.replacingEnabled : true
+        if (installed.enabled !== desiredEnabled) {
+            Extensions.setEnabledInstance(operation.url, desiredEnabled)
+            installed = Extensions.installed().find(function(entry) { return entry.transportUrl === operation.url })
+            if (!installed || installed.enabled !== desiredEnabled) {
+                root.pendingInstallOperation = null
+                var message = operation.replacingUrl
+                        ? qsTr("The new configuration was added, but its switch couldn't be saved. The previous installation was kept.")
+                        : qsTr("The add-on was added, but it couldn't be enabled. Try again.")
+                root.failInstallOperation(operation, message)
+                return
+            }
+        }
+
+        if (operation.replacingUrl && operation.replacingUrl !== operation.url) {
+            Extensions.removeInstance(operation.replacingUrl)
+            if (Extensions.installed().some(function(entry) { return entry.transportUrl === operation.replacingUrl })) {
+                root.pendingInstallOperation = null
+                root.failInstallOperation(operation, qsTr("The new configuration was added, but the previous one couldn't be removed. Both remain installed."))
+                return
+            }
+        }
+
+        root.pendingInstallOperation = null
+        root.setBusy(operation.slug || "", false)
+        if (operation.kind === "url" && root.urlInstallerGeneration === operation.uiGeneration
+                && root.installUrlOpen) {
+            root.installUrlInstalling = false
+            root.installUrlComplete = true
+        } else if (operation.kind === "setup" && root.setupGeneration === operation.setupGeneration
+                   && setup.open) {
+            root.replacingInstance = null
+            setup.addon = null
+            Qt.callLater(root.takeKeyboardFocus)
+        }
+    }
     function activate(a) {
         if (!a || root.busy[a.slug]) return
+        if (root.pendingInstallOperation) {
+            root.showInstallError(qsTr("An add-on install is already finishing. Try again shortly."))
+            return
+        }
         // An add-on with a setup page opens it in-app, installed or not: a bare install of
         // Comet/MediaFusion finds nothing, and an installed one is set up again from its card.
-        if (a.configurable) { setup.addon = a; return }
+        if (a.configurable) { root.openSetup(a, null); return }
         if (root.isInstalled(a)) return
         root.setBusy(a.slug, true)
+        if (!root.beginInstall(a.manifestUrl, {kind: "store", slug: a.slug, expectedId: a.id})) {
+            root.setBusy(a.slug, false)
+            return
+        }
         Extensions.install(a.manifestUrl)
     }
     function load() {
@@ -80,8 +210,65 @@ Item {
         })
     }
 
-    function openConfiguration(extensionId) { root.configuringExtensionId = extensionId }
-    function closeConfiguration() { root.configuringExtensionId = "" }
+    function openConfiguration(extensionId) {
+        root.replacingInstance = null
+        root.configuringExtensionId = extensionId
+    }
+    function closeConfiguration() { root.replacingInstance = null; root.configuringExtensionId = "" }
+
+    function instanceLabel(index) {
+        var entry = root.installedEntries[index]
+        if (!entry) return ""
+        var name = String(entry.manifest && entry.manifest.name || "")
+        var total = 0, ordinal = 0
+        for (var i = 0; i < root.installedEntries.length; ++i) {
+            var candidate = root.installedEntries[i]
+            var candidateName = String(candidate.manifest && candidate.manifest.name || "")
+            if (candidate.id === entry.id || (name.length && candidateName === name)) {
+                total++
+                if (i <= index) ordinal++
+            }
+        }
+        return total > 1 ? qsTr("Instance %1").arg(ordinal) : ""
+    }
+    function canConfigure(entry) {
+        if (entry.id === "colosseum.well.tankoyomi") return true
+        var hints = entry.manifest ? entry.manifest.behaviorHints : null
+        return !entry.core && /^https?:\/\//i.test(String(entry.transportUrl))
+                && !!(hints && (hints.configurable || hints.configurationRequired))
+    }
+    function configureInstalled(entry) {
+        if (!root.canConfigure(entry)) return
+        if (entry.id === "colosseum.well.tankoyomi") {
+            root.replacingInstance = null
+            root.openConfiguration(entry.id)
+            return
+        }
+        var replacement = { url: entry.transportUrl, id: entry.id, enabled: entry.enabled }
+        root.openSetup({
+            id: entry.id,
+            name: String(entry.manifest.name || qsTr("Extension")),
+            manifestUrl: entry.transportUrl,
+            configureUrl: String(entry.transportUrl).replace(/\/manifest\.json(?=[?#]|$)/i, "/configure"),
+            configurable: true,
+            setupRequired: !!entry.manifest.behaviorHints.configurationRequired
+        }, replacement)
+    }
+    function toggleInstalled(entry) {
+        if (entry.core) return
+        management.actionError = ""
+        Extensions.setEnabledInstance(entry.transportUrl, !entry.enabled)
+        var updated = Extensions.installed().find(function(e) { return e.transportUrl === entry.transportUrl })
+        if (!updated || updated.enabled === entry.enabled)
+            management.actionError = qsTr("Couldn't save the change. Try again.")
+    }
+    function removeInstalled(entry) {
+        if (entry.core) return
+        management.actionError = ""
+        Extensions.removeInstance(entry.transportUrl)
+        if (Extensions.installed().some(function(e) { return e.transportUrl === entry.transportUrl }))
+            management.actionError = qsTr("Couldn't remove the add-on. Try again.")
+    }
 
     function openUrlInstaller() {
         root.installUrlNormalized = ""
@@ -91,11 +278,13 @@ Item {
         root.installUrlInstalling = false
         root.installUrlComplete = false
         urlInput.text = ""
+        root.urlInstallerGeneration++
         root.installUrlOpen = true
         Qt.callLater(function() { urlInput.forceActiveFocus() })
     }
     function closeUrlInstaller() {
         if (root.installUrlPreviewing || root.installUrlInstalling) return
+        root.urlInstallerGeneration++
         root.installUrlOpen = false
         Qt.callLater(root.takeKeyboardFocus)
     }
@@ -113,26 +302,35 @@ Item {
         Extensions.preview(pasted)
     }
     function installPreviewedUrl() {
-        if (!root.installUrlManifest || root.installUrlInstalling || root.installUrlComplete) return
+        if (!root.installUrlPreviewReady || root.installUrlInstalling || root.installUrlComplete) return
         if (Extensions.isInstalled(root.installUrlNormalized)) {
             root.installUrlError = "This add-on address is already installed."
             return
         }
         root.installUrlError = ""
         root.installUrlInstalling = true
+        if (!root.beginInstall(root.installUrlNormalized, {
+            kind: "url", expectedId: String(root.installUrlManifest.id || ""),
+            uiGeneration: root.urlInstallerGeneration
+        })) {
+            root.installUrlInstalling = false
+            return
+        }
         Extensions.install(root.installUrlNormalized)
     }
     function configurePreviewedUrl() {
-        if (!root.installUrlManifest || !root.installUrlNormalized.length) return
+        if (!root.installUrlPreviewReady || !root.installUrlNormalized.length) return
         var url = root.installUrlNormalized
         root.installUrlOpen = false
-        setup.addon = {
+        root.urlInstallerGeneration++
+        root.openSetup({
+            id: String(root.installUrlManifest.id || ""),
             name: String(root.installUrlManifest.name || "Extension"),
             manifestUrl: url,
             configureUrl: url.replace(/\/manifest\.json(?=[?#]|$)/i, "/configure"),
             configurable: true,
             setupRequired: true
-        }
+        }, null)
     }
     function needsSetup(manifest) {
         return !!(manifest && manifest.behaviorHints && manifest.behaviorHints.configurationRequired)
@@ -140,23 +338,40 @@ Item {
     function manifestResources(manifest) {
         var resources = manifest && manifest.resources ? manifest.resources : []
         var names = []
+        var labels = {
+            catalog: qsTr("Catalogs"),
+            meta: qsTr("Details"),
+            stream: qsTr("Streams"),
+            subtitles: qsTr("Subtitles"),
+            universe: qsTr("Universes"),
+            universes: qsTr("Universes")
+        }
         for (var i = 0; i < resources.length; i++) {
             var name = typeof resources[i] === "string" ? resources[i] : resources[i].name
-            if (name && names.indexOf(name) < 0) names.push(name)
+            if (!name) continue
+            var key = String(name).toLowerCase()
+            var label = labels[key] || String(name)
+                    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+                    .replace(/[_-]+/g, " ").replace(/^\s+|\s+$/g, "")
+                    .replace(/\b\w/g, function(letter) { return letter.toUpperCase() })
+            if (names.indexOf(label) < 0) names.push(label)
         }
         return names.length ? names.join(" · ") : "No resources declared"
     }
 
     function takeKeyboardFocus() {
         if (tankoyomiConfiguration.visible) tankoyomiConfiguration.takeKeyboardFocus()
+        else if (management.visible) management.takeKeyboardFocus()
         else if (seeAll.visible) seeAll.takeKeyboardFocus()
         else storeWorld.forceActiveFocus()
     }
     // Main asks first: setup closes, then a settings page, then search / See all, then the world.
     function requestEscape() {
+        if (urlTextMenu.opened) { urlTextMenu.close(); return true }
         if (root.installUrlOpen) { root.closeUrlInstaller(); return true }
-        if (setup && setup.open) { setup.addon = null; return true }
-        if (root.configuringExtensionId.length) { root.closeConfiguration(); return true }
+        if (setup && setup.open) { root.closeSetup(); return true }
+        if (root.configuringExtensionId.length) { root.replacingInstance = null; root.closeConfiguration(); return true }
+        if (root.managingInstalled) return management.requestEscape()
         if (root.seeAllRow || root.searching) { root.seeAllRow = null; root.searching = false; return true }
         return false
     }
@@ -165,37 +380,35 @@ Item {
     onConfiguringExtensionIdChanged: Qt.callLater(root.takeKeyboardFocus)
 
     Connections {
+        target: typeof NamedCollectionsProfileScope !== "undefined" ? NamedCollectionsProfileScope : null
+        function onStoresAboutToChange() {
+            root.profileGeneration++
+            root.setupGeneration++
+            root.urlInstallerGeneration++
+            root.installUrlOpen = false
+            root.installUrlManifest = null
+            root.installUrlNormalized = ""
+            urlInput.text = ""
+            root.installUrlPreviewing = false
+            root.installUrlInstalling = false
+            // ExtensionsStore invalidates pending manifest callbacks by profile generation.
+            root.pendingInstallOperation = null
+            root.replacingInstance = null
+            root.busy = ({})
+            if (root.setup) root.setup.addon = null
+            management.actionError = ""
+        }
+    }
+
+    Connections {
         target: (typeof Extensions !== "undefined") ? Extensions : null
         function onChanged() { root.revision++ }
-        function onInstallFinished(id, name) {
-            root.busy = ({})
-            if (root.installUrlOpen && root.installUrlInstalling) {
-                root.installUrlInstalling = false
-                root.installUrlComplete = true
-            }
-            // Installing means switching on. A built-in Theatre add-on that ships switched off
-            // (Torrentio, NoTorrent) is "updated in place" by an install at its own address and
-            // kept its off switch: the Store went on saying Set up and no stream ever appeared
-            // (seen on the Nokia, 2026-10-10). Core rows refuse this call, which is right.
-            Extensions.setEnabled(id, true)
-            if (setup.open) {
-                // A set-up link is a new row beside the old bare one; the bare row only
-                // errors (Comet answers 403), so it goes once the configured one is in.
-                var bare = Extensions.normalizeUrl(setup.addon.manifestUrl)
-                if (setup.pendingUrl.length && setup.pendingUrl !== bare && Extensions.isInstalled(bare))
-                    Extensions.removeInstance(bare)
-                setup.addon = null
-            }
-        }
+        function onInstallFinished(id, name) { root.finishInstallOperation(id) }
         function onInstallFailed(url, reason) {
-            root.busy = ({})
-            if (root.installUrlOpen && root.installUrlInstalling) {
-                root.installUrlInstalling = false
-                root.installUrlError = "Couldn't install it: " + reason
-                return
-            }
-            if (setup.open) setup.status = "Couldn't add it: " + reason
-            else { root.installError = "Couldn't add it: " + reason; installErrorTimer.restart() }
+            var operation = root.pendingInstallOperation
+            if (!operation || Extensions.normalizeUrl(url) !== operation.url) return
+            root.pendingInstallOperation = null
+            root.failInstallOperation(operation, qsTr("Couldn't install it: %1").arg(reason))
         }
         function onPreviewReady(url, manifest) {
             if (!root.installUrlOpen || !root.installUrlPreviewing
@@ -204,9 +417,10 @@ Item {
             root.installUrlManifest = manifest
         }
         function onPreviewFailed(url, reason) {
-            if (!root.installUrlOpen || !root.installUrlPreviewing) return
+            if (!root.installUrlOpen || !root.installUrlPreviewing
+                    || Extensions.normalizeUrl(url) !== root.installUrlNormalized) return
             root.installUrlPreviewing = false
-            root.installUrlError = "Couldn't preview it: " + reason
+            root.installUrlError = qsTr("Couldn't preview it: %1").arg(root.safeInstallMessage(reason))
         }
     }
     // A direct install that fails says so (it used to clear the busy badge and nothing else).
@@ -240,7 +454,7 @@ Item {
         objectName: "extensionsStoreWorld"
         androidHost: root.phoneLayout
         anchors.fill: parent
-        visible: !seeAll.visible && !tankoyomiConfiguration.visible
+        visible: !seeAll.visible && !tankoyomiConfiguration.visible && !management.visible
         medium: "Extensions"
         topBarBackOnly: true
         topBarTitle: "Extensions"
@@ -254,6 +468,16 @@ Item {
             onSearchRequested: root.searching = true
             onInstallUrlRequested: root.openUrlInstaller()
             onConfigureRequested: (id) => root.openConfiguration(id)
+        }
+
+        ExtensionsInstalledSection {
+            entries: root.installedEntries
+            capabilitiesFor: root.manifestResources
+            instanceLabelFor: root.instanceLabel
+            onManageRequested: (index) => {
+                management.initialIndex = index
+                root.managingInstalled = true
+            }
         }
 
         Text {
@@ -321,6 +545,25 @@ Item {
                           else Qt.callLater(root.takeKeyboardFocus)
     }
 
+    ExtensionsInstalledPage {
+        id: management
+        objectName: "extensionsInstalledPage"
+        anchors.fill: parent
+        z: 10
+        visible: root.managingInstalled && !tankoyomiConfiguration.visible
+        entries: root.installedEntries
+        capabilitiesFor: root.manifestResources
+        instanceLabelFor: root.instanceLabel
+        configurableFor: root.canConfigure
+        onBackRequested: {
+            root.managingInstalled = false
+            Qt.callLater(root.takeKeyboardFocus)
+        }
+        onToggleRequested: (entry) => root.toggleInstalled(entry)
+        onConfigureRequested: (entry) => root.configureInstalled(entry)
+        onRemoveRequested: (entry) => root.removeInstalled(entry)
+    }
+
     Rectangle {
         visible: root.installError.length > 0
         z: 15
@@ -350,9 +593,27 @@ Item {
     }
     Connections {
         target: setupLoader.item
-        function onCloseRequested() { setup.addon = null }
+        function onCloseRequested() { root.closeSetup() }
         function onInstallRequested(url) {
-            setup.pendingUrl = Extensions.normalizeUrl(url)
+            if (!root.setup || !root.setup.open) return
+            root.setup.pendingUrl = Extensions.normalizeUrl(url)
+            if (!root.setup.pendingUrl.length) {
+                root.setup.status = qsTr("That isn't a valid add-on address.")
+                return
+            }
+            if (root.replacingInstance && root.setup.pendingUrl !== root.replacingInstance.url
+                    && Extensions.isInstalled(root.setup.pendingUrl)) {
+                root.setup.status = qsTr("That configuration is already installed. Choose a different configuration.")
+                return
+            }
+            var operation = {
+                kind: "setup",
+                expectedId: String(root.setup.addon.id || (root.replacingInstance ? root.replacingInstance.id : "")),
+                setupGeneration: root.setupGeneration,
+                replacingUrl: root.replacingInstance ? root.replacingInstance.url : "",
+                replacingEnabled: root.replacingInstance ? root.replacingInstance.enabled : true
+            }
+            if (!root.beginInstall(root.setup.pendingUrl, operation)) return
             Extensions.install(url)
         }
     }
@@ -388,7 +649,8 @@ Item {
             objectName: "extensionsInstallUrlDialog"
             anchors.centerIn: parent
             width: Math.min(parent.width - 32, 540)
-            height: Math.min(parent.height - 24, root.installUrlManifest ? 488 : 358)
+            height: Math.min(parent.height - 24,
+                             root.installUrlPreviewReady ? 488 : 358)
             radius: 24
             color: "#141820"
             border.width: 1
@@ -451,6 +713,11 @@ Item {
                         font.family: theme.ui; font.pixelSize: 13
                         background: null
                         selectByMouse: true
+                        // Qt 6.9+ intercepts mouse, touch and keyboard context requests.
+                        ContextMenu.menu: ExtensionsTextMenu {
+                            id: urlTextMenu
+                            editor: urlInput
+                        }
                         enabled: !root.installUrlPreviewing && !root.installUrlInstalling
                         onAccepted: root.previewInstallUrl()
                         onTextChanged: {
@@ -468,7 +735,7 @@ Item {
                     font.family: theme.ui; font.pixelSize: 12
                 }
                 Rectangle {
-                    visible: root.installUrlManifest !== null
+                    visible: root.installUrlPreviewReady
                     width: parent.width; height: 132; radius: 16
                     color: Qt.rgba(1, 1, 1, 0.045)
                     border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
@@ -476,15 +743,15 @@ Item {
                         anchors.left: parent.left; anchors.right: parent.right
                         anchors.top: parent.top; anchors.margins: 14
                         spacing: 13
-                        Rectangle {
-                            width: 52; height: 52; radius: 13
-                            color: Qt.rgba(1, 1, 1, 0.10)
-                            Text {
-                                anchors.centerIn: parent
-                                text: root.installUrlManifest
-                                      ? String(root.installUrlManifest.name || "?").slice(0, 1).toUpperCase() : "?"
-                                color: theme.gold; font.family: theme.display; font.pixelSize: 25
-                            }
+                        AddonLogo {
+                            id: installPreviewLogo
+                            objectName: "extensionsInstallPreviewLogo"
+                            size: 52
+                            addonId: root.installUrlManifest ? String(root.installUrlManifest.id || "") : ""
+                            addonName: root.installUrlManifest ? String(root.installUrlManifest.name || "") : ""
+                            manifestLogo: root.installUrlManifest ? String(root.installUrlManifest.logo || "") : ""
+                            preferManifestLogo: true
+                            waitForArtworkResolution: true
                         }
                         Column {
                             width: parent.width - 65; spacing: 5
@@ -553,7 +820,8 @@ Item {
                     Text {
                         anchors.centerIn: parent
                         text: root.installUrlComplete ? "Done"
-                              : root.installUrlPreviewing ? "Checking…"
+                              : (root.installUrlPreviewing
+                                 || (root.installUrlManifest !== null && !root.installUrlPreviewReady)) ? "Checking…"
                               : root.installUrlInstalling ? "Installing…"
                               : root.installUrlManifest
                                 ? (Extensions.isInstalled(root.installUrlNormalized)
@@ -569,11 +837,13 @@ Item {
                         anchors.fill: parent; focusRadius: 21; focusPrimary: true
                         enabled: !root.installUrlPreviewing && !root.installUrlInstalling
                                  && (root.installUrlComplete
-                                     || (root.installUrlManifest !== null
+                                     || (root.installUrlPreviewReady
                                          && !Extensions.isInstalled(root.installUrlNormalized))
                                      || (root.installUrlManifest === null
                                          && urlInput.text.trim().length > 0))
                         accessibleName: root.installUrlComplete ? "Done"
+                                         : root.installUrlManifest !== null && !root.installUrlPreviewReady
+                                           ? "Checking add-on artwork"
                                          : root.installUrlManifest ? "Install add-on" : "Preview add-on"
                         onTriggered: {
                             if (root.installUrlComplete) root.closeUrlInstaller()

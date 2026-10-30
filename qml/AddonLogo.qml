@@ -17,6 +17,9 @@ Item {
     property string addonId: ""
     property string addonName: ""
     property string manifestLogo: ""       // remote URL (e.g. installed rows' manifest.logo)
+    property bool preferManifestLogo: false
+    property bool waitForArtworkResolution: false
+    property int artworkResolutionTimeoutMs: 3000
     property int size: 44
     property int radius: Math.max(4, Math.round(size * 0.24))
     // fallback letter-square gradient — keeps the store's original monogram look
@@ -31,13 +34,52 @@ Item {
     Theme { id: theme }
 
     readonly property string _bundled: AddonLogos.logoFor(addonId, addonName)
-    readonly property string _src: _bundled !== "" ? _bundled
-                                                    : (manifestLogo ? manifestLogo : "")
+    readonly property bool _usingManifestLogo: manifestLogo !== ""
+                                               && (preferManifestLogo || _bundled === "")
+    readonly property string _src: _usingManifestLogo ? manifestLogo : _bundled
     // bundled logos are local (load synchronously → no flash); a manifest logo is
     // a remote URL on an un-pinned host, so load it async and keep the letter up
     // until it's actually Ready — never a blank square during a network stall.
-    readonly property bool _isRemote: _bundled === "" && manifestLogo !== ""
+    readonly property bool _isRemote: _usingManifestLogo && /^https?:\/\//i.test(_src)
+    property string _resolvedArtworkSource: ""
+    property bool _artworkTimedOut: false
+    readonly property bool artworkResolved: !root.waitForArtworkResolution
+        || String(logo.source) === ""
+        || root._resolvedArtworkSource === String(logo.source)
+        || root._artworkTimedOut
     readonly property bool _showImage: _src !== "" && logo.status === Image.Ready
+        && !(root.waitForArtworkResolution && root._artworkTimedOut)
+
+    function waitForArtwork(source) {
+        root._resolvedArtworkSource = ""
+        root._artworkTimedOut = false
+        artworkResolutionTimer.stop()
+        var requested = String(source || "")
+        if (!root.waitForArtworkResolution || !requested.length) return
+        artworkResolutionTimer.start()
+        Qt.callLater(function() { root.resolveArtwork(requested) })
+    }
+    function resolveArtwork(source) {
+        var requested = String(source || "")
+        if (!root.waitForArtworkResolution || !requested.length
+                || requested !== String(logo.source) || root._artworkTimedOut) return
+        if (logo.status === Image.Ready || logo.status === Image.Error) {
+            root._resolvedArtworkSource = requested
+            artworkResolutionTimer.stop()
+        }
+    }
+    function finishArtworkTimeout() {
+        if (!root.waitForArtworkResolution || String(logo.source) === ""
+                || root._resolvedArtworkSource === String(logo.source)) return
+        root._artworkTimedOut = true
+    }
+
+    onWaitForArtworkResolutionChanged: {
+        if (root.waitForArtworkResolution)
+            root.waitForArtwork(String(logo.source))
+        else
+            artworkResolutionTimer.stop()
+    }
 
     // ---- the rounded plate: a soft glass tile under a real logo, or the tone
     //      gradient + letter when we have no logo ----
@@ -76,5 +118,14 @@ Item {
         cache: true
         sourceSize.width: Math.round(root.size * 2)
         sourceSize.height: Math.round(root.size * 2)
+        onSourceChanged: root.waitForArtwork(String(source))
+        onStatusChanged: root.resolveArtwork(String(source))
+    }
+
+    Timer {
+        id: artworkResolutionTimer
+        interval: Math.max(1, root.artworkResolutionTimeoutMs)
+        repeat: false
+        onTriggered: root.finishArtworkTimeout()
     }
 }
