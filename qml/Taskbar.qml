@@ -4,6 +4,7 @@
 import QtQuick
 import QtQuick.Layouts
 import QtQuick.Controls
+import "collections" as CollectionsUi
 
 Item {
     id: bar
@@ -22,9 +23,8 @@ Item {
     readonly property int leftEdge: Math.max(18, Math.min(80, parent.width * 0.045))
     readonly property int bottomGap: 16
     readonly property int closedSize: 64
-    // Permanent buttons: Colosseum and Vault.
-    // 8 left + 48 home + 14 + 46 Vault + 14 right = 130.
-    readonly property int closedWidth: 130
+    // Permanent buttons: Colosseum, Vault, and Your Collections.
+    readonly property int closedWidth: 190
     Keys.onPressed: (event) => spatialNav.handle(event)
 
     signal switchRequested(string id)
@@ -40,6 +40,8 @@ Item {
     signal openRecentRequested()          // Open Recent disclosure — the remembered files (Slice 9)
     signal vaultClicked()                 // Vault folder door — opens the "On this machine" page (Slice 10)
     property bool vaultActive: false      // the Vault page is the front surface
+    signal collectionsClicked()
+    property bool collectionsActive: false
     signal downloadsClicked()
     property int downloadsBadge: 0        // live download jobs (gold count chip)
     property bool downloadsActive: false  // the Downloads page is the front surface
@@ -70,6 +72,12 @@ Item {
         Qt.callLater(function() {
             if (historyStatsInput.visible && historyStatsInput.enabled)
                 historyStatsInput.forceActiveFocus(Qt.TabFocusReason)
+        })
+    }
+    function focusCollectionsAction() {
+        Qt.callLater(function() {
+            if (collectionsInput.visible && collectionsInput.enabled)
+                collectionsInput.forceActiveFocus(Qt.TabFocusReason)
         })
     }
     Timer {
@@ -196,6 +204,39 @@ Item {
                 arrivalTick: (typeof VaultLibrary !== "undefined")
                              ? (VaultLibrary.liveArrival, VaultLibrary.arrivalTick) : 0
                 onClicked: bar.vaultClicked()
+            }
+
+            Item {
+                objectName: "taskbarCollections"
+                Layout.preferredWidth: 46
+                Layout.preferredHeight: 46
+                Layout.alignment: Qt.AlignVCenter
+                Rectangle {
+                    anchors.fill: parent
+                    radius: 13
+                    color: collectionsInput.interactionActive ? Qt.rgba(1, 1, 1, 0.15)
+                        : bar.collectionsActive ? Qt.rgba(0.94, 0.76, 0.35, 0.12) : Qt.rgba(1, 1, 1, 0.055)
+                    border.width: bar.collectionsActive ? 1 : 0
+                    border.color: Qt.rgba(0.94, 0.76, 0.35, 0.45)
+                }
+                CollectionsUi.CollectionIcon {
+                    anchors.centerIn: parent
+                    width: 22; height: 22
+                    name: "collections"
+                    strokeColor: bar.collectionsActive ? theme.gold : theme.ink
+                }
+                ToolTip.visible: collectionsInput.hovered
+                ToolTip.text: "Your Collections"
+                ToolTip.delay: 350
+                KeyboardAction {
+                    id: collectionsInput
+                    objectName: "taskbarCollectionsAction"
+                    anchors.fill: parent
+                    accessibleName: "Your Collections"
+                    accessibleDescription: "Open your named collections"
+                    focusRadius: 13
+                    onTriggered: bar.collectionsClicked()
+                }
             }
 
             // ---- Open Media: hand the app a local file (Open Media…, Vault Slice 8) ----

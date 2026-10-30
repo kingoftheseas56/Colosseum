@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Effects
 import ".."
+import "../collections" as CollectionsUi
+import "../CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: root
@@ -50,6 +52,10 @@ Item {
     Flow {
         id: songActionsRow
         objectName: "vinylSongBrowseActions"
+        CollectionsUi.AddToCollectionsButton {
+            objectName: "vinylSongAddToCollections"
+            reference: CollectionsReferences.song(root.pageData)
+        }
         x: root.width < 760 ? theme.margin : backAction.x + backAction.width + 12
         y: root.width < 760 ? backAction.y + backAction.height + 8 : 4
         width: Math.max(0, root.width - x - theme.margin)

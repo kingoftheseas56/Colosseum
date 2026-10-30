@@ -11,6 +11,8 @@ import QtQuick.Controls
 import QtCore
 import QtQuick.Dialogs
 import "account"
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 import "Catalog.js" as Catalog
 import "TheatreApi.js" as TheatreApi
 import "ContinueVideoPresentation.js" as VideoPresentation
@@ -59,6 +61,8 @@ Window {
         console.warn("[quit] Waiting for Feria: " + reason)
     }
     function requestApplicationQuit() {
+        if (win.guardNamedCollectionsNavigation(function() { win.requestApplicationQuit() })) return
+
         if (applicationQuitPending) return
         applicationQuitPending = true
         applicationQuitError = ""
@@ -885,6 +889,288 @@ Window {
         onTriggered: { var c = _cb; _cb = null; if (c) c() }
     }
 
+    // Named collections own their profile store and drafts. Navigation asks the
+    // panel to resolve a draft before the shell changes the surface beneath it.
+    property var namedCollectionsNavigation: null
+    property bool namedCollectionsRouteBypass: false
+    property var namedCollectionsReturn: null
+    property var namedCollectionsOpening: null
+    property var namedCollectionsVaultPending: null
+    property int namedCollectionsProfileGeneration: 0
+    function guardNamedCollectionsNavigation(continuation) {
+        if (namedCollectionsRouteBypass) return false
+        namedCollectionsReturn = null
+        if (win.vinylWorld) win.vinylWorld.namedCollectionReturn = null
+        if (!collectionsPanel.showing && !collectionsPanel.pickerActive && !collectionsPanel.deleteActive)
+            return false
+        namedCollectionsNavigation = continuation
+        collectionsPanel.requestClose()
+        return true
+    }
+    function openNamedCollectionsPicker(reference, opener) {
+        if (typeof CollectionsIdentity === "undefined") return false
+        var resolved = CollectionsIdentity.collectionReference(reference)
+        if (!resolved.ok) { collectionsPanel.showMessage(resolved.error); return false }
+        return collectionsPanel.openPicker(resolved.reference, opener)
+    }
+    function openNamedCollectionsPage() {
+        if (collectionsPanel.showing) { collectionsPanel.showOverview(); return }
+        namedCollectionsReturn = null
+        win.parkFeria(true)
+        downloadsLayer.active = false
+        vaultLayer.active = false
+        extensionsLayer.active = false
+        updateLayer.active = false
+        historyStatsLayer.active = false
+        syncCenterLayer.active = false
+        yourFeriaLayer.open = false
+        taskbar.open = false
+        collectionsPanel.showOverview()
+    }
+    function closeNamedCollectionsPage() { collectionsPanel.requestClose() }
+    function restoreNamedCollectionsReturn() {
+        if (!namedCollectionsReturn) return false
+        var target = namedCollectionsReturn
+        namedCollectionsReturn = null
+        collectionsPanel.collectionId = target.collectionId
+        collectionsPanel.showing = true
+        collectionsPanel.forceActiveFocus(Qt.BacktabFocusReason)
+        return true
+    }
+    function cancelNamedCollectionsOpen() {
+        namedCollectionsOpening = null
+        namedCollectionsVaultPending = null
+        if (win.vinylWorld) win.vinylWorld.cancelNamedCollectionOpen()
+    }
+    function finishNamedCollectionVaultOpen() {
+        var pending = namedCollectionsVaultPending
+        if (!pending || !vaultLayer.item) return
+        var detail = CollectionsReferences.vaultDetail(VaultLibrary,
+            {sourceId:pending.sourceId, payload:{vaultKey:pending.key}}, Qt.platform.os === "windows")
+        namedCollectionsVaultPending = null
+        if (!detail) {
+            vaultLayer.active = false
+            win.restoreNamedCollectionsReturn()
+            collectionsPanel.showMessage("This exact Vault film is unavailable. Reconnect its source and try again.")
+            return
+        }
+        vaultLayer.item.openDetailSheet({key:detail.key, state:detail.identityState, kind:"video", nodeType:"film"})
+    }
+    function clearNamedCollectionsUnderlyingPages() {
+        // Clear detail covers only. This does not close, resume, or create a
+        // playback/reader session and never writes Library or Progress.
+        seriesLayer.active = false
+        westernLayer.active = false
+        comicSeriesLayer.active = false
+        theatreSeriesLayer.active = false
+        bookLayer.active = false
+        bookReturnSnapshot = null
+        searchLayer.active = false
+        worldSearchLayer.active = false
+        universeLayer.active = false
+        onePieceArcLayer.active = false
+        locgPublisherLayer.active = false
+        comicIndexLayer.active = false
+        comicBoardLayer.active = false
+        continueSeeAllLayer.active = false
+        genreLayer.active = false
+        genreIndexLayer.active = false
+        biblioGenreLayer.active = false
+        biblioGenreIndexLayer.active = false
+        theatreGenreLayer.active = false
+        theatreGenreIndexLayer.active = false
+        phoneShell.closeProfilePage()
+    }
+    function acceptNamedCollectionsRoute(continuation) {
+        var target = {collectionId:collectionsPanel.collectionId}
+        namedCollectionsOpening = null
+        namedCollectionsNavigation = function() {
+            namedCollectionsRouteBypass = true
+            try {
+                clearNamedCollectionsUnderlyingPages()
+                namedCollectionsReturn = target
+                continuation()
+            } finally { namedCollectionsRouteBypass = false }
+        }
+        collectionsPanel.requestClose()
+    }
+    function openNamedCollectionReference(saved) {
+        if (collectionsPanel.pendingChanges) {
+            collectionsPanel.showMessage("Save or cancel your collection changes before opening a title.")
+            return
+        }
+        cancelNamedCollectionsOpen()
+        if (typeof CollectionsIdentity === "undefined") {
+            collectionsPanel.showMessage("Title identity is unavailable. The saved item has been kept.")
+            return
+        }
+        var resolution = CollectionsIdentity.collectionReference(saved)
+        if (!resolution.ok) { collectionsPanel.showMessage(resolution.error); return }
+        var ref = resolution.reference
+        var p = ref.payload || {}
+        collectionsPanel.showMessage("")
+        if (ref.route.indexOf("vinyl-") === 0) {
+            if (!win.vinylEnabled || !win.vinylProfileActive) {
+                collectionsPanel.showMessage("Vinyl is unavailable for this profile. The saved item has been kept.")
+                return
+            }
+            cancelNamedCollectionsOpen()
+            namedCollectionsOpening = ref
+            if (win.vinylWorld) win.vinylWorld.openNamedCollectionReference(ref)
+            else {
+                var found = false
+                for (var i = 0; i < openModes.count; ++i)
+                    if (openModes.get(i).mode === "Vinyl") found = true
+                if (!found) openModes.append({mode:"Vinyl"})
+            }
+            return
+        }
+        if (ref.route === "vault-film-detail") {
+            if (win.androidHost || typeof VaultLibrary === "undefined") {
+                collectionsPanel.showMessage("Vault is unavailable on this device. The saved item has been kept.")
+                return
+            }
+            var detail = CollectionsReferences.vaultDetail(VaultLibrary, ref, Qt.platform.os === "windows")
+            if (!detail) {
+                collectionsPanel.showMessage("This exact Vault film is unavailable. Reconnect its source and try again.")
+                return
+            }
+            acceptNamedCollectionsRoute(function() {
+                win.openVaultPage()
+                namedCollectionsVaultPending = {key:detail.key, sourceId:ref.sourceId}
+                win.finishNamedCollectionVaultOpen()
+            })
+            return
+        }
+        if (ref.route === "comic-pack-detail") {
+            var pack = typeof Comics !== "undefined" ? Comics.packVolumes(ref.sourceId) : null
+            if (!pack || (!(pack.mains || []).length && !(pack.extras || []).length)) {
+                collectionsPanel.showMessage("This exact comic pack is unavailable. The saved item has been kept.")
+                return
+            }
+        }
+        if (ref.route === "comic-gcd-detail" && !(p.posts || []).length) {
+            var gcd = Number(ref.sourceId.substring(4))
+            var series = typeof ComicsCatalog !== "undefined" && CatalogDelivery.available(ComicsCatalog)
+                ? ComicsCatalog.series(gcd) : null
+            if (!series || Number(series.gcdId) !== gcd) {
+                collectionsPanel.showMessage("This exact comic catalogue reference is unavailable. The saved item can be retried later.")
+                return
+            }
+        }
+        var theatreOpenItem = null
+        if (ref.route === "theatre-detail") {
+            var theatreSourceId = String(ref.sourceId || "")
+            var canonicalSourceId = String(p.canonicalSourceId || "")
+            var directImdb = /^tt[0-9]+$/.test(theatreSourceId)
+            if (!theatreSourceId) {
+                collectionsPanel.showMessage("This saved Theatre item has no source identity. The saved item has been kept.")
+                return
+            }
+            if (directImdb && canonicalSourceId && canonicalSourceId !== theatreSourceId) {
+                collectionsPanel.showMessage("This saved Theatre item has conflicting canonical identities. The saved item has been kept.")
+                return
+            }
+            if (!canonicalSourceId) {
+                if (!directImdb) {
+                    collectionsPanel.showMessage("This saved Theatre item has no canonical identity. The saved item has been kept.")
+                    return
+                }
+                canonicalSourceId = theatreSourceId
+            }
+            theatreOpenItem = {id:canonicalSourceId, canonicalSourceId:canonicalSourceId,
+                sourceId:theatreSourceId, type:ref.kind, title:ref.title, cover:ref.cover, art:p.art || ""}
+        }
+        acceptNamedCollectionsRoute(function() {
+            if (ref.route === "theatre-detail") {
+                win.openWorld("Theatre")
+                win.openTheatreSeries(theatreOpenItem)
+            } else if (ref.route === "book-detail") {
+                win.openWorld("Biblio")
+                win.openBook(p.book)
+            } else {
+                win.openWorld("Tankoban")
+                if (ref.route === "manga-detail") {
+                    win.openSeries(ref.title, p.malId, {malId:p.malId, seriesId:ref.sourceId,
+                        sourceSearchTitle:p.sourceSearchTitle || "", sourceSearchAliases:p.sourceSearchAliases || [],
+                        sourceRequiredMarkers:p.sourceRequiredMarkers || []}, "")
+                } else if (ref.route === "manga-weebcentral-detail") {
+                    clearSeriesEditionProfile()
+                    seriesLayer.legacyWeebCentral = true
+                    seriesLayer.exactCollectionReference = ref
+                    seriesLayer.resumeSeriesId = ""
+                    seriesLayer.resumeChapterId = ""
+                    seriesLayer.resumeVolumeId = ""
+                    seriesLayer.requestedVolumeNumber = ""
+                    seriesLayer.title = ref.title
+                    seriesLayer.active = true
+                } else if (ref.route === "comic-locg-detail") {
+                    win._openComicSeriesReady({id:ref.sourceId, title:ref.title, cover:ref.cover, locgMeta:p.locgMeta || {}})
+                } else if (ref.route === "comic-gcd-detail") {
+                    var data = {gcdId:Number(ref.sourceId.substring(4)), title:ref.title, cover:ref.cover, year:ref.year, posts:p.posts || []}
+                    if (data.posts.length) win._openPinnedGcdSeries(data)
+                    else win._openGcdSeriesReady(data, true)
+                } else if (ref.route === "comic-posts-detail") {
+                    win.openUniverseComic({title:ref.title, cover:ref.cover, posts:p.posts})
+                } else if (ref.route === "comic-pack-detail") {
+                    win.openPackSeries({seriesId:ref.sourceId, seriesTitle:ref.title})
+                } else if (ref.route === "comic-tag-detail") {
+                    westernLayer.baked = null
+                    westernLayer.title = ref.title
+                    westernLayer.tagId = Number(p.tagId || 0)
+                    westernLayer.tagSlug = p.tag
+                    westernLayer.resumeChapterId = ""
+                    westernLayer.active = true
+                }
+            }
+        })
+    }
+    CollectionsUi.CollectionsPanel {
+        id: collectionsPanel
+        anchors.fill: parent
+        z: 58.6
+        nativeStore: typeof NamedCollections !== "undefined" ? NamedCollections : null
+        bottomInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
+        onOpenReferenceRequested: reference => win.openNamedCollectionReference(reference)
+        onCollectionIdChanged: win.cancelNamedCollectionsOpen()
+        onPickerActiveChanged: if (pickerActive) win.cancelNamedCollectionsOpen()
+        onDeleteActiveChanged: if (deleteActive) win.cancelNamedCollectionsOpen()
+        onNavigationCanceled: win.namedCollectionsNavigation = null
+        onClosed: {
+            win.cancelNamedCollectionsOpen()
+            var continuation = win.namedCollectionsNavigation
+            win.namedCollectionsNavigation = null
+            var profileGeneration = win.namedCollectionsProfileGeneration
+            if (continuation) Qt.callLater(function() {
+                if (profileGeneration === win.namedCollectionsProfileGeneration) continuation()
+            })
+            else taskbar.focusCollectionsAction()
+        }
+    }
+    Connections {
+        target: typeof NamedCollectionsProfileScope !== "undefined" ? NamedCollectionsProfileScope : null
+        function onStoresAboutToChange() {
+            win.namedCollectionsProfileGeneration++
+            win.cancelNamedCollectionsOpen()
+            win.namedCollectionsNavigation = null
+            win.namedCollectionsReturn = null
+            collectionsPanel.profileChanged()
+        }
+    }
+    Connections {
+        target: win.vinylWorld
+        function onNamedCollectionOpened(success, message) {
+            if (!win.namedCollectionsOpening) return
+            if (!success) {
+                win.namedCollectionsOpening = null
+                collectionsPanel.showMessage(message || "This music item is unavailable. The saved item has been kept.")
+                return
+            }
+            win.acceptNamedCollectionsRoute(function() { win.openWorld("Vinyl") })
+        }
+        function onNamedCollectionBackRequested() { win.restoreNamedCollectionsReturn() }
+    }
+
     // Escape has one shell entry point. ShellBackPolicy owns precedence; each selected
     // surface still owns the meaning of Back/Escape so session, progress and overlay
     // semantics cannot be bypassed by a parallel root-level close path.
@@ -902,6 +1188,8 @@ Window {
             accountCenterVisible: accountCenter.visible,
             openRecentOpen: openRecentPanel.open,
             taskbarOpen: taskbar.open,
+            collectionsModalOpen: collectionsPanel.pickerActive || collectionsPanel.deleteActive,
+            collectionsActive: collectionsPanel.showing,
             stremioSyncOpen: stremioPanel.shown,
             activeSessionKind: rec && rec.contentKind ? String(rec.contentKind) : "",
             playerOpen: win.playerOpen,
@@ -1019,6 +1307,7 @@ Window {
         case "accountFlyout": accountFlyout.close(); return
         case "accountCenter": accountCenter.close(); return
         case "openRecent": openRecentPanel.open = false; return
+        case "collections": collectionsPanel.requestEscape(); return
         case "taskbar": taskbar.open = false; return
         case "stremioSync": win.closeStremioSyncPanel(); return
         case "player": win.requestPlayerEscape(); return
@@ -1100,6 +1389,8 @@ Window {
 
     // Home is the bottom of the Back ladder: scroll Home to its top and focus its first control.
     function goHomeTop() {
+        if (win.guardNamedCollectionsNavigation(function() { win.goHomeTop() })) return
+
         homeGlide.toTop()
         win.focusHomePrimary()
     }
@@ -1272,7 +1563,9 @@ Window {
         feriaReturnSnapshot = null
         return true
     }
-    function openWorld(medium) { win.cancelCatalogueRoute();
+    function openWorld(medium) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openWorld(medium) })) return
+ win.cancelCatalogueRoute();
         // These worlds are not available in this release, including through indirect callers.
         var requestedWorld = String(medium || "").trim().toLowerCase()
         if ((requestedWorld === "feria" && win.feriaComingSoon !== false) || (requestedWorld === "vinyl" && !win.vinylEnabled)) return
@@ -1311,6 +1604,8 @@ Window {
         }
     }
     function closeWorld() {
+        if (win.guardNamedCollectionsNavigation(function() { win.closeWorld() })) return
+
         if (win.androidHost) return
         win.cancelCatalogueRoute();
         win.parkFeria(true)
@@ -1451,7 +1746,9 @@ Window {
             sourceRequiredMarkers: ["colored", "full color", "full colour"]
         }, "13")
     }
-    function openSeries(title, malId, profile, requestedVolumeNumber) { if (win.cancelCatalogueRoute) win.cancelCatalogueRoute();
+    function openSeries(title, malId, profile, requestedVolumeNumber) {
+        seriesLayer.exactCollectionReference = null
+ if (win.cancelCatalogueRoute) win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = ""
         seriesLayer.resumeChapterId = ""
@@ -1469,6 +1766,8 @@ Window {
     }
     // Direct provider compatibility for the returning WeebCentral colored edition.
     function openWeebCentralSeries(title, requestedVolumeNumber) {
+        seriesLayer.exactCollectionReference = null
+
         if (seriesLayer.active) seriesLayer.active = false
         clearSeriesEditionProfile()
         seriesLayer.legacyWeebCentral = true
@@ -1481,7 +1780,9 @@ Window {
     }
 
     // open a manga series AND jump straight into the reader at a saved chapter (Continue resume).
-    function openSeriesAt(title, seriesId, chapterId) { win.cancelCatalogueRoute();
+    function openSeriesAt(title, seriesId, chapterId) {
+        seriesLayer.exactCollectionReference = null
+ win.cancelCatalogueRoute();
         if (seriesLayer.legacyWeebCentral) { seriesLayer.active = false; seriesLayer.legacyWeebCentral = false }
         seriesLayer.resumeSeriesId = seriesId || ""
         seriesLayer.resumeChapterId = chapterId || ""
@@ -1496,7 +1797,7 @@ Window {
             seriesLayer.item.openChapterId = chapterId || ""
         } else seriesLayer.active = true
     }
-    function closeSeries() { seriesLayer.active = false }
+    function closeSeries() { seriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
     // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
@@ -1577,7 +1878,7 @@ Window {
             westernLayer.item.openChapterId = chapterId || ""
         } else westernLayer.active = true
     }
-    function closeWestern() { win.cancelCatalogueRoute(); westernLayer.active = false }
+    function closeWestern() { win.cancelCatalogueRoute(); westernLayer.active = false; win.restoreNamedCollectionsReturn() }
 
     // ---- catalogue run page: the western shelf in baked mode (spec 2026-07-17).
     //      d: { gcdId, title?, cover?, resumeChapterId? } ----
@@ -1623,9 +1924,14 @@ Window {
             win._openGcdSeriesReady(d);
         });
     }
-    function _openGcdSeriesReady(d) {
+    function _openGcdSeriesReady(d, strictNamedCollection) {
         if (typeof ComicsCatalog === "undefined" || !CatalogDelivery.available(ComicsCatalog)) {
             if (_openPinnedGcdSeries(d)) return
+            if (strictNamedCollection) {
+                win.restoreNamedCollectionsReturn()
+                collectionsPanel.showMessage("This exact comic catalogue reference is unavailable. The saved item has been kept.")
+                return
+            }
             if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
@@ -1633,6 +1939,11 @@ Window {
         var s = ComicsCatalog.series(gcdId)
         if (!s || s.gcdId === undefined) {
             if (_openPinnedGcdSeries(d)) return
+            if (strictNamedCollection) {
+                win.restoreNamedCollectionsReturn()
+                collectionsPanel.showMessage("This exact comic catalogue reference is unavailable. The saved item has been kept.")
+                return
+            }
             if (d && d.title) win._openWesternReady({ title: d.title }, true)
             return
         }
@@ -1833,7 +2144,7 @@ Window {
             comicSeriesLayer.item.locgId = comicSeriesLayer.locgSid   // set LAST — triggers attach()
         } else comicSeriesLayer.active = true
     }
-    function closeComicSeries() { win.cancelCatalogueRoute(); comicSeriesLayer.active = false }
+    function closeComicSeries() { win.cancelCatalogueRoute(); comicSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
     // ---- LOCG publisher grid: one publisher shelf (Marvel/DC/Image...) as a paginated
     //      series grid; tile → LOCG series list via openComicSeries. ----
@@ -1872,7 +2183,7 @@ Window {
         if (theatreSeriesLayer.active && theatreSeriesLayer.item) theatreSeriesLayer.item.itemData = item
         else theatreSeriesLayer.active = true
     }
-    function closeTheatreSeries() { theatreSeriesLayer.active = false }
+    function closeTheatreSeries() { theatreSeriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
     // ---- video player: a fullscreen layer over everything; kept alive once opened so mpv
     //      isn't torn down/recreated each play (avoids the use-after-free teardown trap). ----
@@ -1991,7 +2302,8 @@ Window {
     // Full-window pages opened from browsing own the canvas while they are active. Downloads is
     // deliberately excluded because it is the Profile destination and keeps shell navigation.
     readonly property bool fullWindowPageOpen:
-        theatreSeriesLayer.active
+        collectionsPanel.showing
+        || theatreSeriesLayer.active
         || bookLayer.active
         || seriesLayer.active
         || westernLayer.active
@@ -2008,7 +2320,6 @@ Window {
         || searchLayer.active
         || worldSearchLayer.active
         || universeLayer.active
-        || universeHallLayer.active
         || onePieceArcLayer.active
         || vaultLayer.active
         || continueSeeAllLayer.active
@@ -2156,6 +2467,8 @@ Window {
 
     // ---- Feria: streaming world, entered from the shared selector ----
     function openFeriaPage() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openFeriaPage() })) return
+
         if (!win.ensureFeriaRuntime()) return
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2178,6 +2491,8 @@ Window {
 
     // ---- Tracker Sync Center: tracker connections, separate from Stremio Main Sync ----
     function openSyncCenterPage() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openSyncCenterPage() })) return
+
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2214,6 +2529,8 @@ Window {
 
     // ---- Arc 35: local-first History, Highlights, and Stats ----
     function openHistoryStatsPage() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openHistoryStatsPage() })) return
+
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2227,6 +2544,8 @@ Window {
             Qt.callLater(historyStatsLayer.item.takeKeyboardFocus)
     }
     function openYourFeriaPage(section) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openYourFeriaPage(section) })) return
+
         if (!win.ensureFeriaRuntime()) return
         if (!feriaLayer.open) win.openFeriaPage()
         if (!feriaLayer.item) return
@@ -2249,6 +2568,8 @@ Window {
     // Downloads and Extensions are taskbar full-pages; opening either one
     // closes the other two so only one taskbar surface is ever the front page (Task 2).
     function openDownloadsPage() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openDownloadsPage() })) return
+
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Downloads")
@@ -2269,6 +2590,8 @@ Window {
     // full-pages (Slice 10). It overlays the current surface (z:56); closing just deactivates the
     // Loader and reveals whatever the user stood on. ----
     function openVaultPage() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openVaultPage() })) return
+
         if (win.androidHost) return
         win.parkFeria(true)
         win.bookRouteGeneration += 1
@@ -2280,7 +2603,7 @@ Window {
         vaultLayer.active = true
         taskbar.open = false
     }
-    function closeVaultPage() { vaultLayer.active = false }
+    function closeVaultPage() { vaultLayer.active = false; win.restoreNamedCollectionsReturn() }
 
     // Esc inside the Vault, mirroring VaultPage's own top-left Back law: sheet, then folder
     // detail, then one browse level up (or out of the Hidden shelf), and only leave once
@@ -2431,6 +2754,8 @@ Window {
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
     function openExtensionsPage(world) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openExtensionsPage(world) })) return
+
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2449,6 +2774,8 @@ Window {
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
     function openUpdatePage() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openUpdatePage() })) return
+
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2906,6 +3233,7 @@ Window {
         var generation = ++win.bookRouteGeneration
         win.pendingBookReturn = null
         bookLayer.active = false
+        if (win.restoreNamedCollectionsReturn()) { win.bookReturnSnapshot = null; return }
         var snapshot = win.bookReturnSnapshot
         win.bookReturnSnapshot = null
         if (snapshot)
@@ -2936,7 +3264,9 @@ Window {
 
     // ---- search: a layer over the world. Biblio has its own rich surface; Tankoban + Theatre use the
     //      generic SearchSurface fed by their own source (AniList / Cinemeta). ----
-    function openSearch() { win.cancelCatalogueRoute();
+    function openSearch() {
+        if (win.guardNamedCollectionsNavigation(function() { win.openSearch() })) return
+ win.cancelCatalogueRoute();
         win.bookRouteGeneration += 1
         setGuiStallContext("open", "Search")
         var w = worldStack.current
@@ -4303,6 +4633,8 @@ Window {
                         item.homeLanding = true
                         item.showHome()
                         win.applyVinylResume()
+                        if (win.namedCollectionsOpening)
+                            item.openNamedCollectionReference(win.namedCollectionsOpening)
                         return
                     }
                     item.seriesRequested.connect(win.openSeries)
@@ -4566,15 +4898,18 @@ Window {
         property string resumeVolumeId: ""    // Tankoban resume: open this VOLUME (Mode ON) instead
         property string requestedVolumeNumber: "" // temporary arc-volume landing; chapter catalogue follows
         property bool legacyWeebCentral: false
+        property var exactCollectionReference: null
         source: legacyWeebCentral ? "MangaSeriesThumbnailMock.qml"
               : (viewSettings.rebuiltTitlePages ? "TankobanSeriesView.qml" : "MangaSeries.qml")
         onLoaded: {
             item.backdrop = wall
             item.malId = seriesLayer.malId
-            item.seriesIdOverride = seriesLayer.seriesIdOverride
-            item.sourceSearchTitle = seriesLayer.sourceSearchTitle
-            item.sourceSearchAliases = seriesLayer.sourceSearchAliases
-            item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
+            if (item.exactCollectionReference !== undefined)
+                item.exactCollectionReference = seriesLayer.exactCollectionReference
+            if (item.seriesIdOverride !== undefined) item.seriesIdOverride = seriesLayer.seriesIdOverride
+            if (item.sourceSearchTitle !== undefined) item.sourceSearchTitle = seriesLayer.sourceSearchTitle
+            if (item.sourceSearchAliases !== undefined) item.sourceSearchAliases = seriesLayer.sourceSearchAliases
+            if (item.sourceRequiredMarkers !== undefined) item.sourceRequiredMarkers = seriesLayer.sourceRequiredMarkers
             if (item.requestedVolumeNumber !== undefined)
                 item.requestedVolumeNumber = seriesLayer.requestedVolumeNumber
             item.seriesTitle = seriesLayer.title
@@ -4585,7 +4920,8 @@ Window {
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
-            item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
+            if (item.openExtensionsRequested)
+                item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
@@ -5138,6 +5474,7 @@ Window {
         onLoaded: {
             item.backdrop = wall
             item.backRequested.connect(win.closeVaultPage)
+            win.finishNamedCollectionVaultOpen()
             item.addFolderRequested.connect(function() { vaultFolderDialog.open() })
             if (item.openMediaRequested)                      // Slice 14: folder-view row / preview door → the shared LocalLaunch open path
                 item.openMediaRequested.connect(function(path) { win.openLocalMedia([path]) })
@@ -5609,12 +5946,20 @@ Window {
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
         onVisibleChanged: if (!visible) open = false
-        onSwitchRequested: (id) => Sessions.switchTo(id)
+        onSwitchRequested: (id) => {
+            if (!win.guardNamedCollectionsNavigation(function() { Sessions.switchTo(id) })) Sessions.switchTo(id)
+        }
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
-        onOpenMediaClicked: openMediaDialog.open()
-        onOpenRecentRequested: openRecentPanel.toggle()
-        onWatchPartyJoinClicked: watchPartyJoinSheet.openSheet()
+        onOpenMediaClicked: {
+            if (!win.guardNamedCollectionsNavigation(function() { openMediaDialog.open() })) openMediaDialog.open()
+        }
+        onOpenRecentRequested: {
+            if (!win.guardNamedCollectionsNavigation(function() { openRecentPanel.toggle() })) openRecentPanel.toggle()
+        }
+        onWatchPartyJoinClicked: {
+            if (!win.guardNamedCollectionsNavigation(function() { watchPartyJoinSheet.openSheet() })) watchPartyJoinSheet.openSheet()
+        }
         watchPartyJoinOpen: watchPartyJoinSheet.opened
         watchPartyJoinPhase: typeof WatchPartyUi !== "undefined" ? WatchPartyUi.phase : "unavailable"
         watchPartyJoinErrorCategory: typeof WatchPartyUi !== "undefined"
@@ -5622,6 +5967,8 @@ Window {
         downloadsBadge: win.totalActiveDownloads
         downloadsActive: downloadsLayer.active
         onDownloadsClicked: !downloadsLayer.active ? win.openDownloadsPage() : win.closeDownloadsPage()
+        collectionsActive: collectionsPanel.showing
+        onCollectionsClicked: collectionsPanel.showing ? win.closeNamedCollectionsPage() : win.openNamedCollectionsPage()
         vaultActive: vaultLayer.active
         onVaultClicked: !vaultLayer.active ? win.openVaultPage() : win.closeVaultPage()
         extensionsActive: extensionsLayer.active

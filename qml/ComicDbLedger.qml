@@ -12,6 +12,8 @@
 import QtQuick
 import QtQuick.Controls
 import "ComicResolve.js" as Resolve
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: ledger
@@ -158,6 +160,10 @@ Item {
                     world: "tankoban"
                     visible: !!ledger.libraryEntry
                     entry: ledger.libraryEntry
+                }
+                CollectionsUi.AddToCollectionsButton {
+                    objectName: "comicAddToCollections"
+                    reference: CollectionsReferences.locg(ledger.libraryEntry)
                 }
             }
         }

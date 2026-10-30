@@ -1,0 +1,100 @@
+{
+  "collections": [
+    {
+      "name": "Catalogue route references",
+      "references": [
+        {
+          "world": "tankoban",
+          "kind": "comic",
+          "source": "locg",
+          "sourceId": "locg:150065",
+          "editionId": "",
+          "title": "Beta Ray Bill",
+          "cover": "https://s3.amazonaws.com/comicgeeks/series/150065.jpg?1751216207",
+          "creator": "",
+          "year": "",
+          "route": "comic-locg-detail",
+          "payload": {
+            "locgMeta": {
+              "name": "Beta Ray Bill",
+              "publisher": "Marvel Comics",
+              "startYear": 2021
+            }
+          }
+        },
+        {
+          "world": "tankoban",
+          "kind": "comic",
+          "source": "locg",
+          "sourceId": "locg:100101",
+          "editionId": "",
+          "title": "100 Bullets",
+          "cover": "https://s3.amazonaws.com/comicgeeks/comics/covers/medium-6081343.jpg",
+          "creator": "",
+          "year": "",
+          "route": "comic-locg-detail",
+          "payload": {
+            "locgMeta": {
+              "name": "100 Bullets",
+              "publisher": "DC Comics",
+              "startYear": 1999
+            }
+          }
+        },
+        {
+          "world": "tankoban",
+          "kind": "comic",
+          "source": "gcd",
+          "sourceId": "gcd:4374",
+          "editionId": "",
+          "title": "The Batman Adventures (1992)",
+          "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/08/Batman-Adventures-Collection.jpg?fit=480%2C757&ssl=1",
+          "creator": "",
+          "year": "",
+          "route": "comic-gcd-detail",
+          "payload": {
+            "posts": [
+              "11366"
+            ]
+          }
+        },
+        {
+          "world": "tankoban",
+          "kind": "comic",
+          "source": "gcd",
+          "sourceId": "gcd:13050",
+          "editionId": "",
+          "title": "Gotham Girls (2002)",
+          "cover": "https://i0.wp.com/getcomics.org/share/uploads/2015/07/Gotham-Girls-1-5-2002-2003.jpg?fit=400%2C615&ssl=1",
+          "creator": "",
+          "year": "",
+          "route": "comic-gcd-detail",
+          "payload": {
+            "posts": [
+              "10470"
+            ]
+          }
+        },
+        {
+          "world": "tankoban",
+          "kind": "comic",
+          "source": "getcomics",
+          "sourceId": "gc:posts:214639",
+          "editionId": "",
+          "title": "The High Republic · Phase I (2021–2022)",
+          "cover": "",
+          "creator": "",
+          "year": "",
+          "route": "comic-posts-detail",
+          "payload": {
+            "posts": [
+              "214639",
+              "267513",
+              "282584"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

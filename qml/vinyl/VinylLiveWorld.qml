@@ -31,6 +31,11 @@ Item {
     property bool browsingSong: false
     property bool restoringRoute: false
     property var pendingAlbumRoute: null
+    property var namedCollectionPending: null
+    property var namedCollectionReturn: null
+    property int namedCollectionRequestId: -1
+    signal namedCollectionOpened(bool success, string message)
+    signal namedCollectionBackRequested()
     property real shellDockRight: 0
     property real shellDockBottomExtent: 0
     property bool searchOpen: false
@@ -134,6 +139,104 @@ Item {
         page="library";world.parkPage(Math.max(0,world.contentTop-world.dockedInset));focusLibrary();
     }
     function openAlbum(id) {pendingAlbumRoute=captureRoute();session.openAlbum(id);}
+    // A separate catalogue read lane keeps collection browsing independent of
+    // the player, queue, Library, and the session's ordinary browse request.
+    function cancelNamedCollectionOpen() {
+        collectionOpenTimeout.stop()
+        if (session.source && typeof session.source.cancel === "function")
+            session.source.cancel("named-collections")
+        namedCollectionPending = null
+        namedCollectionRequestId = -1
+    }
+    function finishNamedCollectionOpen(success, message) {
+        collectionOpenTimeout.stop()
+        namedCollectionPending = null
+        namedCollectionRequestId = -1
+        if (success) namedCollectionReturn = {page:page, depth:routeStack.length}
+        namedCollectionOpened(success, message || "")
+    }
+    function openNamedCollectionReference(reference) {
+        cancelNamedCollectionOpen()
+        var p = reference.payload || {}
+        if (!session.profileActive || !session.source) {
+            namedCollectionOpened(false, "Music is unavailable for this profile.")
+            return
+        }
+        if (reference.route === "vinyl-artist-detail") {
+            if (reference.source === "vinyl-local") {
+                var found = (artistData.localAlbums || []).some(function(record) {
+                    if ((record.artistIds || []).indexOf(reference.sourceId) >= 0) return true
+                    return (record.tracks || []).some(function(track) {
+                        return (track.artistIds || []).indexOf(reference.sourceId) >= 0
+                    })
+                })
+                if (!found) { namedCollectionOpened(false, "This local artist is unavailable. Reconnect or import its source, then try again."); return }
+            }
+            showArtist({id:reference.sourceId, name:reference.title})
+            finishNamedCollectionOpen(true, "")
+            return
+        }
+        namedCollectionPending = reference
+        namedCollectionRequestId = session.source.request("named-collections", "album", p.browseId)
+        if (namedCollectionRequestId < 0) {
+            finishNamedCollectionOpen(false, "This music source could not be opened. The saved item has been kept.")
+            return
+        }
+        collectionOpenTimeout.restart()
+    }
+    function acceptNamedCollectionAlbum(data, failure) {
+        var reference = namedCollectionPending
+        if (!reference) return
+        data = session.plainData(data)
+        var p = reference.payload || {}
+        if (failure || !session.validAlbum(data) || String(data.id) !== p.albumId) {
+            finishNamedCollectionOpen(false, failure || "This exact album is unavailable. The saved item has been kept.")
+            return
+        }
+        var editions = session.normalizeEditions(data)
+        var selected = editions.find(function(edition) { return edition.id === reference.editionId })
+        if (!selected) {
+            finishNamedCollectionOpen(false, "The saved music edition is unavailable. Other editions have not been substituted.")
+            return
+        }
+        if (reference.route === "vinyl-song-detail") {
+            var raw = (data.editions || []).find(function(edition) { return edition.id === reference.editionId })
+            if (!raw && String(data.id) === reference.editionId) raw = data
+            var tracks = raw ? raw.tracks || [] : []
+            var index = tracks.findIndex(function(track) { return String(track.id) === reference.sourceId })
+            if (index < 0) {
+                finishNamedCollectionOpen(false, "This exact song is unavailable in the saved edition. The saved item has been kept.")
+                return
+            }
+            showBrowseSong(data, index, reference.editionId)
+        } else {
+            session.cancelBrowse()
+            pushRoute()
+            session.shownEdition = selected
+            session.shownDisc = 0
+            searchOpen = false
+            artistSearchOpen = false
+            recentSearchMenu.close()
+            page = "album"
+            Qt.callLater(root.parkFocus)
+        }
+        finishNamedCollectionOpen(true, "")
+    }
+    Timer {
+        id: collectionOpenTimeout
+        interval: 30000
+        onTriggered: {
+            root.cancelNamedCollectionOpen()
+            root.namedCollectionOpened(false, "This music source did not answer. The saved item is still available to retry.")
+        }
+    }
+    Connections {
+        target: session.source
+        function onCompleted(lane, requestId, data, failure) {
+            if (lane === "named-collections" && requestId === root.namedCollectionRequestId)
+                root.acceptNamedCollectionAlbum(data, failure)
+        }
+    }
     function showSong() {
         if(session.playingIndex<0) return;
         session.cancelBrowse();
@@ -207,6 +310,13 @@ Item {
         else openAlbum(albumId);
     }
     function goBack() {
+        if (namedCollectionReturn && page === namedCollectionReturn.page
+                && routeStack.length === namedCollectionReturn.depth) {
+            namedCollectionReturn = null
+            root.goBack()
+            namedCollectionBackRequested()
+            return true
+        }
         // A pending detail request has not pushed its route yet, so Back first
         // cancels only that request. Other browse work must not mask a saved
         // route return (for example, a catalogue search during a detour).
@@ -286,7 +396,7 @@ Item {
         onPlaybackRequested: root.playbackRequested()
         onArtistRequested: name => root.showRecordArtist(name,session.shownEdition.sourceAlbum || {})
         onQueueRequested: queuePanel.open()
-        onProfileGenerationChanged: {root.importStatus="";pendingAlbumRoute=null;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();artistData.open({id:"",name:""});root.routeStack=[];root.page="library";world.resetRouteState("library");if(typeof worldData.selectTab==="function")worldData.selectTab("library");root.focusLibrary();if(root.homeLanding)Qt.callLater(root.showHome);}
+        onProfileGenerationChanged: {root.cancelNamedCollectionOpen();root.namedCollectionReturn=null;root.importStatus="";pendingAlbumRoute=null;root.searchOpen=false;root.artistSearchOpen=false;recentSearchMenu.close();artistData.open({id:"",name:""});root.routeStack=[];root.page="library";world.resetRouteState("library");if(typeof worldData.selectTab==="function")worldData.selectTab("library");root.focusLibrary();if(root.homeLanding)Qt.callLater(root.showHome);}
         onImportingChanged: {if(!session.importing && root.importStatus==="Opening local music…") root.importStatus="Import cancelled. Your library was kept.";}
     }
     VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id)}

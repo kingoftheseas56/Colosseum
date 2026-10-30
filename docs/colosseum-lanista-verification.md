@@ -65,6 +65,14 @@ Gates are enforced centrally in dispatch, checked before any grab is taken.
 | `vault-forensics` | Read | one bounded, typed read projection of the live Vault (F1-Core `VaultForensics`, composing `VaultLibrary` only) — F1-Bridge, 2026-08-13 | `scope` required (`summary`/`root`/`node`/`identity`); see "Vault forensics" below |
 | `reader2-hot-switch` | Drive | Function 0007-only A -> B pending-save race reproducer through root `openBookSession(path, book)` | requires non-empty `COLOSSEUM_APPDATA_TAG`; copies only a real tagged-session EPUB to disposable run paths; no generic QML invocation |
 
+### Collections synthetic profile checks (2026-10-29)
+
+`collections-test-profile` is compiled only with `COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES=ON` (default OFF). It uses the existing Drive gate and additionally requires `COLOSSEUM_COLLECTIONS_TEST_FIXTURES=1`, a `collections-fixture-*` AppData tag, the exact tagged application directory, no symlink ancestors, and a task-created `.collections-synthetic-fixture` marker containing `collections-synthetic-fixture-v1\n`. A requested fixture launch with invalid containment fails before personal stores are constructed.
+
+Its only payload is `{ "action": "status" | "activate-local" | "activate-a" | "activate-b" }`. A and B are fixed synthetic UUIDs. Activation calls the real `ProfileStoreRuntime`; A to B crosses the existing local departure boundary. Status reports the observed synthetic alias, named collection count/revision/health, and Library/progress health. Unknown current profiles are refused. There is no arbitrary account ID, QML invocation, store write, media operation, credential, or remote request capability. Normal builds do not register the command.
+
+The controller contract check lives in `tests/collections_runtime`. Assembled-app evidence is recorded separately in the Collections integration report; a controller test alone is not application verification.
+
 ### Reader 2 Function 0007 hot-switch prerequisite (2026-08-30)
 
 `reader2-hot-switch` is the one narrow bridge prerequisite for Arc 28's exact pending-save race. It is Drive-gated and refuses `ISOLATION_REQUIRED` unless `COLOSSEUM_APPDATA_TAG` is non-empty, so an agent cannot aim the reproducer at the daily Continue store. Its payload is `sourceRelPath` plus A/B metadata maps (`id`, `title`, optional `author`) and a bounded `timeoutMs`. The source path must be a real `.epub` under the tagged AppData root; the command reads those bytes once and writes identical A/B copies under its own Lanista run directory.

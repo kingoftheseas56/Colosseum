@@ -17,6 +17,8 @@ import QtQuick.Controls
 import "TheatreApi.js" as TheatreApi
 import "AnimeEpisodePresentation.js" as AnimeEpisodePresentation
 import "TheatreFacts.js" as TheatreFacts
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
@@ -123,12 +125,14 @@ Item {
 
     function currentId() {
         if (resolvedId.length) return resolvedId;
+        if (itemData && itemData.canonicalSourceId) return itemData.canonicalSourceId;
         return (itemData && itemData.id) ? itemData.id : "";
     }
-    // The Collection snapshot. itemData.id preserved over resolvedId: anime ids
-    // (mal:/kitsu:) pivot to tt… after the kitsu→imdb hop — save the door we entered by.
+    // Keep the provider door in the Collection snapshot while a pinned reopen resolves
+    // its separate canonicalSourceId as the active title identity.
     function collectionEntry() {
-        return { "id": String((itemData && itemData.id) ? itemData.id : resolvedId),
+        var sourceId = (itemData && (itemData.sourceId || itemData.id)) || resolvedId
+        return { "id": String(sourceId),
                  "type": mediaType, "title": title, "cover": cover,
                  "payload": { "art": banner } }
     }
@@ -841,16 +845,26 @@ Item {
         activeSeason = 0;
         resolvedId = "";
         tmdbId = 0;
-        // Capture the originally requested id before resolvedId pivots to IMDb, so
-        // the resolver still gets the provider source id (mal:/kitsu:/anidb:...).
-        requestedSourceId = currentId();
+        // Keep provider context for the episode-order/cast helpers, but resolve the
+        // active title using the pinned canonical id when this page came from a collection.
+        requestedSourceId = String((itemData && itemData.sourceId) || currentId());
         var id = currentId();
         if (!id) { loading = false; errorMsg = "No id for this title."; return; }
         revealGuard.restart();
-        page.animeDoor = String((itemData && itemData.id) || "")
+        // Provider-backed page extras follow the canonical title too; keep the original
+        // door only as saved/local ordering context, never as a second metadata lookup.
+        page.animeDoor = String((itemData && itemData.canonicalSourceId)
+            ? id : ((itemData && (itemData.sourceId || itemData.id)) || ""))
+        var expectedCanonicalId = String((itemData && itemData.canonicalSourceId) || "")
         TheatreApi.loadMeta(mediaType, id, function(meta) {
             if (!meta) {
                 errorMsg = "Couldn't load details.";
+                loading = false;
+                revealGuard.stop();
+                return;
+            }
+            if (expectedCanonicalId && (!meta.id || String(meta.id) !== expectedCanonicalId)) {
+                errorMsg = "This saved title no longer matches its canonical identity.";
                 loading = false;
                 revealGuard.stop();
                 return;
@@ -1279,6 +1293,10 @@ Item {
                             world: "theatre"
                             entry: page.collectionEntry()
                             onRemoveRequested: (entry) => page.libraryRemovalRequested(entry)
+                        }
+                        CollectionsUi.AddToCollectionsButton {
+                            objectName: "theatreAddToCollections"
+                            reference: CollectionsReferences.theatre(page)
                         }
                         // Notify-about-new-episodes toggle — only for SAVED series (spec §4.5).
                         Rectangle {

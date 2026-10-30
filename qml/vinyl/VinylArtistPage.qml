@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../collections" as CollectionsUi
+import "../CollectionsReferences.js" as CollectionsReferences
 
 Flickable {
     id: root
@@ -44,7 +46,7 @@ Flickable {
         releasePicker.closePopup(false);
         artistData.activeTab = tabKey;
         Qt.callLater(function() {
-            root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, hero.height - artistTitleBar.height));
+            root.contentY = Math.max(0, Math.min(root.contentHeight - root.height, tabBarSlot.y - artistTitleBar.height));
         });
         if (focusTabButton) artistTabs.forceActiveFocus(Qt.TabFocusReason);
     }
@@ -262,6 +264,17 @@ Flickable {
             artistData: root.artistData
             onCreatePlaylistRequested: { playlistName.text = ""; createDialog.open(); }
             onItemFocused: item => root.reveal(item)
+        }
+
+        Item {
+            width: root.width
+            height: 58
+            CollectionsUi.AddToCollectionsButton {
+                objectName: "vinylArtistAddToCollections"
+                x: root.gutter
+                anchors.verticalCenter: parent.verticalCenter
+                reference: CollectionsReferences.artist(root.artistData)
+            }
         }
 
         // Flow spacer for the 58px sticky tab bar
@@ -747,7 +760,7 @@ Flickable {
         objectName: "vinylArtistTabBar"
         visible: root.selectedCategory === ""
         x: 0
-        y: Math.max(hero.height, root.contentY + artistTitleBar.height)
+        y: Math.max(tabBarSlot.y, root.contentY + artistTitleBar.height)
         width: root.width
         height: 58
         z: 30

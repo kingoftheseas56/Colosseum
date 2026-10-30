@@ -94,6 +94,10 @@ QString ProfilePaths::collectionIniPath() const {
     return childPath(QStringLiteral("collection.ini"));
 }
 
+QString ProfilePaths::namedCollectionsPath() const {
+    return childPath(QStringLiteral("named-collections-v2.json"));
+}
+
 QString ProfilePaths::searchHistoryIniPath() const {
     return childPath(QStringLiteral("search-history.ini"));
 }

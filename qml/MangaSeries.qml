@@ -793,7 +793,9 @@ Item {
         // read. seriesId is empty until the search resolves; LibraryButton already no-ops
         // on an empty entry.id, so that naturally gates saving until identity is ready.
         return { "id": page.seriesId, "type": "manga",
-                 "title": page.seriesTitle, "cover": page.cover, "payload": ({}) }
+                 "title": page.seriesTitle, "cover": page.cover,
+                 "payload": ({sourceSearchTitle:page.sourceSearchTitle, sourceSearchAliases:page.sourceSearchAliases,
+                              sourceRequiredMarkers:page.sourceRequiredMarkers}) }
     }
 
     Theme { id: theme }

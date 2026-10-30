@@ -204,7 +204,8 @@ bool ActivityStore::ensureSchema() {
         m_openError = versionQuery.lastError().text();
         return false;
     }
-    if (versionQuery.value(0).toInt() > kActivitySchemaVersion) {
+    const int existingSchemaVersion = versionQuery.value(0).toInt();
+    if (existingSchemaVersion > kActivitySchemaVersion) {
         versionQuery.finish();
         m_openError = QStringLiteral("activity database schema is newer than this build supports");
         return false; // never downgrade a DB stamped by a newer schema owner
@@ -316,10 +317,14 @@ bool ActivityStore::ensureSchema() {
         return false;
     }
 
-    QSqlQuery stamp(m_db);
-    if (!stamp.exec(QStringLiteral("PRAGMA user_version = %1").arg(kActivitySchemaVersion))) {
-        m_openError = stamp.lastError().text();
-        return false;
+    // Rewriting even the same user_version changes SQLite's file digest.
+    // An unchanged source must keep its identity when an attachment resumes.
+    if (existingSchemaVersion != kActivitySchemaVersion) {
+        QSqlQuery stamp(m_db);
+        if (!stamp.exec(QStringLiteral("PRAGMA user_version = %1").arg(kActivitySchemaVersion))) {
+            m_openError = stamp.lastError().text();
+            return false;
+        }
     }
     if (!loadSyncMetadata())
         return false;

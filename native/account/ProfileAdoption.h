@@ -28,6 +28,7 @@ public:
         QString legacyBackupRoot;
         QString stagingRoot;
         QString finalRoot;
+        QString namedCollectionsSourceDigest;
 
         // Activity-ledger digests (CPP-PORT-CONTRACT §17), parallel to the
         // three digests above but tracked separately: the activity.sqlite
@@ -62,7 +63,8 @@ public:
     static std::optional<ProfileAdoption> begin(const ProfilePaths &paths,
                                                 const QString &sourceSemanticDigest,
                                                 ProfilePaths::Kind sourceKind,
-                                                QString *error = nullptr);
+                                                QString *error = nullptr,
+                                                const QString &namedCollectionsSourceDigest = QString());
     static std::optional<ProfileAdoption> open(const ProfilePaths &paths,
                                                QString *error = nullptr);
 
@@ -122,7 +124,8 @@ private:
         const QString &sourceSemanticDigest,
         ProfilePaths::Kind sourceKind,
         bool recordSourceKind,
-        QString *error);
+        QString *error,
+        const QString &namedCollectionsSourceDigest = QString());
 
     static std::optional<Snapshot> readSnapshot(const ProfilePaths &paths,
                                                 QString *error);
@@ -131,7 +134,8 @@ private:
     bool ensureManagedPath(const QString &path, QString *error) const;
     static bool removeManagedTree(const ProfilePaths &paths,
                                   const QString &path,
-                                  QString *error);
+                                  QString *error,
+                                  const QString &namedCollectionsSourceDigest = QString());
     static bool setError(QString *error, const QString &message);
 
     ProfilePaths m_paths;

@@ -1853,6 +1853,8 @@ add_executable(tst_privacy_policy
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/AudioPairingStore.h"
@@ -2061,6 +2063,8 @@ add_executable(account_first_light
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/StremioLinkSyncAdapter.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     # Slice D4: ProfileStoreRuntime/FirstAccountProfileCoordinator now own an
@@ -2211,6 +2215,8 @@ add_executable(tst_account_attachment_runtime
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
@@ -2854,6 +2860,8 @@ add_executable(tst_no_account_runtime
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioState.h"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.cpp"
     "${COLOSSEUM_NATIVE_DIR}/stremio/StremioSync.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProgressSyncAdapter.cpp"
@@ -2966,6 +2974,8 @@ add_executable(tst_account_adoption
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
@@ -3109,6 +3119,8 @@ add_executable(tst_account_shared_pc
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
@@ -3208,6 +3220,8 @@ add_executable(tst_profile_activity_isolation
     "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
@@ -3335,6 +3349,8 @@ add_executable(tst_ratings_reviews_journey
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsDeliveryTypes.h"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsProviderMappingStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/NamedCollectionsStore.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.cpp"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfileStoreRuntime.h"
     "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
@@ -5350,3 +5366,9 @@ endif()
 target_link_libraries(tst_account_secure_storage PRIVATE colosseum_account_credentials Qt6::Test)
 add_test(NAME colosseum.qttest.account_secure_storage COMMAND tst_account_secure_storage)
 set_tests_properties(colosseum.qttest.account_secure_storage PROPERTIES LABELS "unit;account;security")
+# Profile-owned local named collections: atomic persistence and draft contracts.
+add_subdirectory(named_collections)
+
+add_subdirectory(collections_identity)
+add_subdirectory(collections_qml)
+add_subdirectory(collections_runtime)

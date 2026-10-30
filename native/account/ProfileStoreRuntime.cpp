@@ -28,6 +28,7 @@
 
 #include "AudioPairingStore.h"
 #include "CollectionStore.h"
+#include "NamedCollectionsStore.h"
 #include "ProgressStore.h"
 #include "SearchHistoryStore.h"
 
@@ -42,6 +43,7 @@
 struct ProfileStoreRuntime::StoreSet {
     std::unique_ptr<ProgressStore> progress;
     std::unique_ptr<CollectionStore> collection;
+    std::unique_ptr<NamedCollectionsStore> namedCollections;
     std::unique_ptr<SearchHistoryStore> searchHistory;
     std::unique_ptr<AudioPairingStore> audioPairing;
     std::unique_ptr<ProfilePreferencesStore> preferences;
@@ -127,6 +129,11 @@ ProfileStoreRuntime::collectionStore() const {
     return m_stores
         ? m_stores->collection.get()
         : nullptr;
+}
+
+NamedCollectionsStore *
+ProfileStoreRuntime::namedCollectionsStore() const {
+    return m_stores ? m_stores->namedCollections.get() : nullptr;
 }
 
 SearchHistoryStore *
@@ -506,6 +513,8 @@ ProfileStoreRuntime::createSealedStores(
         std::make_unique<CollectionStore>(
             QDir(root).filePath(
                 QStringLiteral("collection.ini")));
+    stores->namedCollections = std::make_unique<NamedCollectionsStore>(
+        QDir(root).filePath(QStringLiteral("named-collections-v2.json")));
     stores->searchHistory =
         std::make_unique<SearchHistoryStore>(
             QDir(root).filePath(
@@ -556,6 +565,8 @@ ProfileStoreRuntime::createLegacyStores(QString *error) const {
         ? std::make_unique<CollectionStore>(
               m_legacyStorage.collectionIniPath())
         : std::make_unique<CollectionStore>();
+    stores->namedCollections = std::make_unique<NamedCollectionsStore>(
+        m_legacyStorage.namedCollectionsPath());
 
     stores->searchHistory =
         m_legacyStorage.searchHistoryUsesExplicitIni()
@@ -636,6 +647,8 @@ ProfileStoreRuntime::createProfileStores(
     stores->collection =
         std::make_unique<CollectionStore>(
             paths.collectionIniPath());
+    stores->namedCollections = std::make_unique<NamedCollectionsStore>(
+        paths.namedCollectionsPath());
     stores->searchHistory =
         std::make_unique<SearchHistoryStore>(
             paths.searchHistoryIniPath());
@@ -914,6 +927,9 @@ void ProfileStoreRuntime::bindContextProperties() {
         QStringLiteral("Collection"),
         m_stores->collection.get());
     m_qmlContext->setContextProperty(
+        QStringLiteral("NamedCollections"),
+        m_stores->namedCollections.get());
+    m_qmlContext->setContextProperty(
         QStringLiteral("SearchHistory"),
         m_stores->searchHistory.get());
     m_qmlContext->setContextProperty(
@@ -951,6 +967,9 @@ void ProfileStoreRuntime::clearContextProperties() {
         static_cast<QObject *>(nullptr));
     m_qmlContext->setContextProperty(
         QStringLiteral("Collection"),
+        static_cast<QObject *>(nullptr));
+    m_qmlContext->setContextProperty(
+        QStringLiteral("NamedCollections"),
         static_cast<QObject *>(nullptr));
     m_qmlContext->setContextProperty(
         QStringLiteral("SearchHistory"),

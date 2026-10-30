@@ -21,6 +21,7 @@ function actionFor(state) {
     if (on(s.wallpaperActive)) return "wallpaper"
     if (on(s.accountFlyoutVisible)) return "accountFlyout"
     if (on(s.accountCenterVisible)) return "accountCenter"
+    if (on(s.collectionsModalOpen)) return "collections"
     if (on(s.openRecentOpen)) return "openRecent"
     if (on(s.taskbarOpen)) return "taskbar"
 
@@ -34,6 +35,7 @@ function actionFor(state) {
 
     // Taskbar full pages occupy the upper shell layers. Later document siblings win if a
     // broken caller ever leaves two active at once, so recovery remains deterministic.
+    if (on(s.collectionsActive)) return "collections"
     if (on(s.updateActive)) return "update"
     if (on(s.yourFeriaActive)) return "yourFeria"
     if (on(s.historyStatsActive)) return "historyStats"
@@ -72,5 +74,4 @@ function actionFor(state) {
     // Quitting is Ctrl+Q or the Quit control, never a Back press.
     return "homeTop"
 }
-
 

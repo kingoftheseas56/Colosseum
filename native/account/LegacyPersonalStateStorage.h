@@ -3,6 +3,7 @@
 // PRE-FLIGHT DRAFT STATUS: uncompiled / untested / unexecuted / unadopted / unverified.
 
 #include <QJsonArray>
+#include <QByteArray>
 #include <QJsonObject>
 #include <QSettings>
 #include <QString>
@@ -30,10 +31,15 @@ struct PersonalStateSnapshot {
     // adoption backup/staging path; ordinary Neon adapters never see them.
     QJsonObject stremioState;
     QJsonArray theatreExtensions;
+    // Opaque device-private bytes: adoption must preserve even an empty or
+    // newer-format file. These never enter the portable sync projection.
+    bool hasNamedCollections = false;
+    QByteArray namedCollectionsBytes;
 
     bool isEmpty() const;
     QJsonObject toJson() const;
     QString semanticDigest() const;
+    QString namedCollectionsDigest() const;
     QString legacySemanticDigestV4() const;
     QString legacySemanticDigestV3() const;
     QString legacySemanticDigestV2() const;
@@ -83,6 +89,7 @@ public:
     QString preferencesIniPath() const;
     QString historyIniPath() const;
     QString ratingsReviewsPath() const;
+    QString namedCollectionsPath() const;
     QString profileId() const;
     QString devicePrivateProfileRoot() const;
     QString devicePrivateStremioStatePath() const;

@@ -169,6 +169,10 @@
 #include "vinyl/VinylBackendSession.h"
 #include "vinyl/VinylRecommendationService.h"
 #include "vinyl/VinylAvailability.h"
+#if defined(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+#include "devtools/CollectionsTestProfileController.h"
+#include "NamedCollectionsStore.h"
+#endif
 #if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
 #include "devtools/VinylTestProfileController.h"
 #include "account/ActivityStore.h"
@@ -359,6 +363,13 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
         && !VinylTestProfileController(instanceAppData, {}, {}).enabled()) {
         qCritical("Vinyl synthetic fixture launch containment check failed.");
+        return 2;
+    }
+#endif
+#if defined(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+    if (qEnvironmentVariable("COLOSSEUM_COLLECTIONS_TEST_FIXTURES") == QLatin1String("1")
+        && !CollectionsTestProfileController(instanceAppData, {}, {}).enabled()) {
+        qCritical("Collections synthetic fixture launch containment check failed.");
         return 2;
     }
 #endif
@@ -1832,6 +1843,10 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(
         QStringLiteral("RatingsReviewsIdentity"), ratingsReviewsIdentity);
     engine.rootContext()->setContextProperty(
+        QStringLiteral("CollectionsIdentity"), ratingsReviewsIdentity);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("NamedCollectionsProfileScope"), accountRuntime->profileStores());
+    engine.rootContext()->setContextProperty(
         QStringLiteral("RatingsReviewsController"), ratingsReviewsController);
     engine.rootContext()->setContextProperty(
         QStringLiteral("ratingsReviewsDeliveryState"),
@@ -2275,6 +2290,51 @@ int main(int argc, char *argv[]) {
     });
 #endif
 #endif // !Q_OS_ANDROID: Vault diagnostics and synthetic Vinyl profile seam
+
+#if defined(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+    const QPointer<ProfileStoreRuntime> collectionsFixtureStores(accountRuntime->profileStores());
+    const QString collectionsFixtureA = QStringLiteral("11111111-1111-4111-8111-111111111181");
+    const QString collectionsFixtureB = QStringLiteral("11111111-1111-4111-8111-111111111182");
+    auto collectionsFixture = std::make_shared<CollectionsTestProfileController>(instanceAppData,
+        [collectionsFixtureStores, collectionsFixtureA, collectionsFixtureB, instanceAppData](const QString &alias) {
+            if (!collectionsFixtureStores) return false;
+            QString error;
+            if (alias == QLatin1String("local"))
+                return collectionsFixtureStores->activateLocalOnlyProfile(&error);
+            const QString target = alias == QLatin1String("A") ? collectionsFixtureA : collectionsFixtureB;
+            const auto paths = ProfilePaths::account(target, instanceAppData);
+            if (!paths || !QDir().mkpath(paths->profileRoot())) return false;
+            const auto &current = collectionsFixtureStores->activeProfile();
+            if (current.kind() == ProfilePaths::Kind::Account && current.profileId() != target
+                && !collectionsFixtureStores->activateLocalOnlyProfile(&error)) return false;
+            return collectionsFixtureStores->activateAccountProfile(target, &error);
+        },
+        [collectionsFixtureStores, collectionsFixtureA, collectionsFixtureB] {
+            QJsonObject state;
+            if (!collectionsFixtureStores) return state;
+            const auto &profile = collectionsFixtureStores->activeProfile();
+            QString alias;
+            if (profile.kind() == ProfilePaths::Kind::LocalOnly || profile.kind() == ProfilePaths::Kind::LegacyLocal)
+                alias = QStringLiteral("local");
+            else if (profile.kind() == ProfilePaths::Kind::Account) {
+                if (profile.profileId() == collectionsFixtureA) alias = QStringLiteral("A");
+                if (profile.profileId() == collectionsFixtureB) alias = QStringLiteral("B");
+            }
+            auto *store = collectionsFixtureStores->namedCollectionsStore();
+            state.insert("profileAlias", alias);
+            state.insert("collectionsHealthy", store && store->healthy());
+            state.insert("collectionsCount", store ? int(store->collections().size()) : -1);
+            state.insert("collectionsRevision", store ? store->revision() : -1);
+            state.insert("libraryHealthy", collectionsFixtureStores->collectionStore()
+                && collectionsFixtureStores->collectionStore()->healthy());
+            state.insert("progressHealthy", collectionsFixtureStores->progressStore()
+                && collectionsFixtureStores->progressStore()->healthy());
+            return state;
+        });
+    lanistaServer->setCollectionsTestProfileHandler([collectionsFixture](const QJsonObject &request) {
+        return collectionsFixture->execute(request);
+    });
+#endif
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {

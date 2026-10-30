@@ -15,6 +15,8 @@
 // no app.
 import QtQuick
 import QtQuick.Controls
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: sheet
@@ -206,6 +208,11 @@ Item {
                         primary: true; enabled: !!sheet.playPath
                         previousFocus: closeAction.keyboardAction
                         onTriggered: sheet.playRequested(sheet.playPath)
+                    }
+                    CollectionsUi.AddToCollectionsButton {
+                        objectName: "vaultAddToCollections"
+                        visible: (sheet.mediaKind === "film" || sheet.mediaKind === "video") && !sheet.isFileDetail
+                        reference: CollectionsReferences.vault(sheet.detail, sheet.mediaKind)
                     }
                     VaultAction {
                         id: revealKey

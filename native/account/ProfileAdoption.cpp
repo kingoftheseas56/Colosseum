@@ -3,6 +3,7 @@
 #include "ProfileAdoption.h"
 
 #include <QDir>
+#include <QCryptographicHash>
 #include <QFile>
 #include <QFileInfo>
 #include <QJsonDocument>
@@ -14,6 +15,15 @@ constexpr int kManifestVersion = 1;
 
 QString normalizedDigest(const QString &digest) {
     return digest.trimmed().toLower();
+}
+
+bool validOptionalDigest(const QString &digest) {
+    if (digest.isEmpty()) return true;
+    if (digest.size() != 64) return false;
+    for (const QChar ch : digest)
+        if (!(ch >= QLatin1Char('0') && ch <= QLatin1Char('9'))
+            && !(ch >= QLatin1Char('a') && ch <= QLatin1Char('f'))) return false;
+    return true;
 }
 
 std::optional<ProfileAdoption::State> stateFromName(const QString &name) {
@@ -69,13 +79,15 @@ std::optional<ProfileAdoption> ProfileAdoption::begin(
     const ProfilePaths &paths,
     const QString &sourceSemanticDigest,
     ProfilePaths::Kind sourceKind,
-    QString *error) {
+    QString *error,
+    const QString &namedCollectionsSourceDigest) {
     return beginInternal(
         paths,
         sourceSemanticDigest,
         sourceKind,
         true,
-        error);
+        error,
+        namedCollectionsSourceDigest);
 }
 
 std::optional<ProfileAdoption> ProfileAdoption::beginInternal(
@@ -83,7 +95,8 @@ std::optional<ProfileAdoption> ProfileAdoption::beginInternal(
     const QString &sourceSemanticDigest,
     ProfilePaths::Kind sourceKind,
     bool recordSourceKind,
-    QString *error) {
+    QString *error,
+    const QString &namedCollectionsSourceDigest) {
     if (paths.kind() != ProfilePaths::Kind::Account) {
         setError(error, QStringLiteral("Profile adoption requires an account profile."));
         return std::nullopt;
@@ -96,6 +109,10 @@ std::optional<ProfileAdoption> ProfileAdoption::beginInternal(
     }
 
     const QString sourceDigest = normalizedDigest(sourceSemanticDigest);
+    if (!validOptionalDigest(normalizedDigest(namedCollectionsSourceDigest))) {
+        setError(error, QStringLiteral("The local Collections adoption digest is invalid."));
+        return std::nullopt;
+    }
     if (sourceDigest.isEmpty()) {
         setError(error, QStringLiteral("Profile adoption requires a source semantic digest."));
         return std::nullopt;
@@ -143,6 +160,7 @@ std::optional<ProfileAdoption> ProfileAdoption::beginInternal(
     snapshot.accountId = paths.profileId();
     snapshot.state = State::Preparing;
     snapshot.sourceSemanticDigest = sourceDigest;
+    snapshot.namedCollectionsSourceDigest = normalizedDigest(namedCollectionsSourceDigest);
     snapshot.stagingRoot = stagingRoot;
     snapshot.finalRoot = finalRoot;
     snapshot.legacyBackupRoot = paths.adoptionBackupRoot();
@@ -395,12 +413,12 @@ bool ProfileAdoption::rollbackBeforeLegacyQuarantine(QString *error) {
     }
 
     if (QFileInfo::exists(m_snapshot.stagingRoot)
-        && !removeManagedTree(m_paths, m_snapshot.stagingRoot, error)) {
+        && !removeManagedTree(m_paths, m_snapshot.stagingRoot, error, m_snapshot.namedCollectionsSourceDigest)) {
         return false;
     }
 
     if (QFileInfo::exists(m_snapshot.finalRoot)
-        && !removeManagedTree(m_paths, m_snapshot.finalRoot, error)) {
+        && !removeManagedTree(m_paths, m_snapshot.finalRoot, error, m_snapshot.namedCollectionsSourceDigest)) {
         return false;
     }
 
@@ -444,7 +462,8 @@ bool ProfileAdoption::rollbackAfterLegacyRestore(
         && !removeManagedTree(
             m_paths,
             m_snapshot.stagingRoot,
-            error)) {
+            error,
+            m_snapshot.namedCollectionsSourceDigest)) {
         return false;
     }
 
@@ -452,7 +471,8 @@ bool ProfileAdoption::rollbackAfterLegacyRestore(
         && !removeManagedTree(
             m_paths,
             m_snapshot.finalRoot,
-            error)) {
+            error,
+            m_snapshot.namedCollectionsSourceDigest)) {
         return false;
     }
 
@@ -522,6 +542,13 @@ std::optional<ProfileAdoption::Snapshot> ProfileAdoption::readSnapshot(const Pro
     snapshot.accountId = object.value(QStringLiteral("account_id")).toString();
     snapshot.state = *parsedState;
     snapshot.sourceSemanticDigest = object.value(QStringLiteral("source_semantic_digest")).toString();
+    const QJsonValue namedDigest = object.value(QStringLiteral("named_collections_source_digest"));
+    if (!namedDigest.isUndefined() && (!namedDigest.isString()
+        || !validOptionalDigest(normalizedDigest(namedDigest.toString())))) {
+        setError(error, QStringLiteral("The local Collections adoption digest is invalid."));
+        return std::nullopt;
+    }
+    snapshot.namedCollectionsSourceDigest = normalizedDigest(namedDigest.toString());
     snapshot.targetSemanticDigest = object.value(QStringLiteral("target_semantic_digest")).toString();
     snapshot.legacyBackupSemanticDigest = object.value(QStringLiteral("legacy_backup_semantic_digest")).toString();
     snapshot.legacyBackupRoot = object.value(QStringLiteral("legacy_backup_root")).toString();
@@ -572,6 +599,8 @@ bool ProfileAdoption::writeSnapshot(QString *error) const {
     object.insert(QStringLiteral("account_id"), m_snapshot.accountId);
     object.insert(QStringLiteral("state"), stateName(m_snapshot.state));
     object.insert(QStringLiteral("source_semantic_digest"), m_snapshot.sourceSemanticDigest);
+    if (!m_snapshot.namedCollectionsSourceDigest.isEmpty())
+        object.insert(QStringLiteral("named_collections_source_digest"), m_snapshot.namedCollectionsSourceDigest);
     object.insert(QStringLiteral("target_semantic_digest"), m_snapshot.targetSemanticDigest);
     object.insert(QStringLiteral("legacy_backup_semantic_digest"), m_snapshot.legacyBackupSemanticDigest);
     object.insert(QStringLiteral("legacy_backup_root"), m_snapshot.legacyBackupRoot);
@@ -638,7 +667,8 @@ bool ProfileAdoption::ensureManagedPath(const QString &path, QString *error) con
 
 bool ProfileAdoption::removeManagedTree(const ProfilePaths &paths,
                                         const QString &path,
-                                        QString *error) {
+                                        QString *error,
+                                        const QString &namedCollectionsSourceDigest) {
     if (!paths.isManagedProfilePath(path))
         return setError(error, QStringLiteral("Refusing to remove a path outside the managed profile root."));
 
@@ -649,6 +679,29 @@ bool ProfileAdoption::removeManagedTree(const ProfilePaths &paths,
     QDir dir(path);
     if (!dir.exists())
         return true;
+
+    // Only an exact copy authenticated by this adoption's source digest may
+    // be retired during rollback. Unrecognized or subsequently edited files
+    // remain protected, including malformed/newer data and empty files.
+    const QString namedPath = dir.filePath(
+        QFileInfo(paths.namedCollectionsPath()).fileName());
+    const QFileInfo namedFile(namedPath);
+    if (namedFile.exists() || namedFile.isSymLink()) {
+        QFile file(namedPath);
+        bool copiedSource = !namedCollectionsSourceDigest.isEmpty() && !namedFile.isSymLink()
+            && namedFile.isFile() && file.open(QIODevice::ReadOnly) && file.size() <= 8 * 1024 * 1024;
+        if (copiedSource) {
+            const QByteArray bytes = file.read(8 * 1024 * 1024 + 1);
+            copiedSource = bytes.size() <= 8 * 1024 * 1024 && file.error() == QFileDevice::NoError
+                && QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha256).toHex())
+                    == namedCollectionsSourceDigest;
+        }
+        file.close();
+        if (!copiedSource) return setError(error, QStringLiteral(
+            "Profile rollback stopped to preserve local Collections at %1. "
+            "The collections file and this profile have not been removed.")
+                .arg(namedPath));
+    }
     if (!dir.removeRecursively())
         return setError(error, QStringLiteral("Could not remove the managed profile tree."));
     return true;

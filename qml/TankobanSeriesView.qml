@@ -14,6 +14,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
@@ -814,7 +816,9 @@ Item {
         // read. seriesId is empty until the search resolves; LibraryButton already no-ops
         // on an empty entry.id, so that naturally gates saving until identity is ready.
         return { "id": page.seriesId, "type": "manga",
-                 "title": page.seriesTitle, "cover": page.cover, "payload": ({}) }
+                 "title": page.seriesTitle, "cover": page.cover,
+                 "payload": ({sourceSearchTitle:page.sourceSearchTitle, sourceSearchAliases:page.sourceSearchAliases,
+                              sourceRequiredMarkers:page.sourceRequiredMarkers}) }
     }
 
     Theme { id: theme }
@@ -1138,6 +1142,10 @@ Item {
                         onTriggered: page.toggleLibrary()
                     }
                 }
+            }
+            CollectionsUi.AddToCollectionsButton {
+                objectName: "mangaAddToCollections"
+                reference: CollectionsReferences.manga(page.collectionEntry(), page.author, page.year)
             }
             Flow {
                 width: parent.width

@@ -347,6 +347,16 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
                  reply.reply(m_vinylTestProfileHandler(p));
              });
 #endif
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    addDrive(QStringLiteral("collections-test-profile"),
+             [this](const QJsonObject& p, Replier reply) {
+                 if (!m_collectionsTestProfileHandler) {
+                     reply.fail("FIXTURE_UNAVAILABLE", QStringLiteral("Synthetic Collections profile fixture is unavailable"));
+                     return;
+                 }
+                 reply.reply(m_collectionsTestProfileHandler(p));
+             });
+#endif
     addDrive(QStringLiteral("ui-click"),
              [this](const QJsonObject& p, Replier reply) { cmdUiClick(p, std::move(reply)); });
     addDrive(QStringLiteral("ui-keypress"),

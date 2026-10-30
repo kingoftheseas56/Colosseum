@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: root
@@ -226,6 +228,10 @@ Item {
                 Text { visible: root.year > 0; text: "· " + root.year; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
                 Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
             }
+            CollectionsUi.AddToCollectionsButton {
+                objectName: "mangaAddToCollections"
+                reference: CollectionsReferences.manga(root.collectionEntry, root.author, root.year)
+            }
         }
 
         Flow {
@@ -246,8 +252,8 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: theme.margin
             anchors.right: parent.right
             anchors.rightMargin: root.phoneNarrow ? theme.margin : 300
-            anchors.top: root.phoneNarrow ? phoneFacts.bottom : parent.top
-            anchors.topMargin: root.phoneNarrow ? 14 : 111
+            anchors.top: root.phoneNarrow ? phoneFacts.bottom : titleBlock.bottom
+            anchors.topMargin: root.phoneNarrow ? 14 : 10
             text: root.synopsis
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.45
             wrapMode: Text.WordWrap

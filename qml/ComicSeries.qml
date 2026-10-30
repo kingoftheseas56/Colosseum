@@ -13,6 +13,8 @@ import QtQuick
 import QtQuick.Controls
 import "ComicsApi.js" as Api
 import "ComicResolve.js" as Resolve
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
@@ -618,6 +620,10 @@ Item {
                         LibraryButton {
                             world: "tankoban"
                             entry: page.collectionEntry()
+                        }
+                        CollectionsUi.AddToCollectionsButton {
+                            objectName: "comicAddToCollections"
+                            reference: CollectionsReferences.comic(page)
                         }
                         // No Ratings & Reviews action here: comics are outside the
                         // admitted route (Arc 49 Slice 1 identity exclusion).

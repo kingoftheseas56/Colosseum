@@ -42,6 +42,9 @@ option(COLOSSEUM_ENABLE_VINYL_QUALIFICATION
 option(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
     "Enable isolated synthetic Vinyl lifecycle fixtures; never production default" OFF)
 
+option(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    "Enable isolated synthetic Collections profile checks; never production default" OFF)
+
 option(COLOSSEUM_RATINGS_REVIEWS_TESTING
     "Enable the isolated Arc 49 Ratings & Reviews joined fixture"
     OFF)
@@ -351,6 +354,8 @@ qt_add_executable(colosseum
     account/RatingsReviewsConversionSyncAdapter.cpp
     account/ProfilePreferencesSyncAdapter.cpp
     account/StremioLinkSyncAdapter.cpp
+    NamedCollectionsStore.cpp
+    NamedCollectionsStore.h
     account/ProfileStoreRuntime.cpp
     account/ConsumptionHistoryBridge.cpp
     account/ProgressSyncAdapter.cpp
@@ -1002,6 +1007,9 @@ if(COLOSSEUM_CONTENT_API_URL)
     endif()
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_CONTENT_API_URL="${COLOSSEUM_CONTENT_API_URL}")
 endif()
+if(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES AND NOT ANDROID)
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES=1)
+endif()
 if(COLOSSEUM_RATINGS_REVIEWS_TESTING)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_RATINGS_REVIEWS_TESTING=1)
     target_sources(colosseum PRIVATE
@@ -1505,6 +1513,8 @@ add_executable(reader2_profile_runtime_harness
     account/ProfilePreferencesStore.h
     account/RatingsReviewsConversionMap.cpp
     account/RatingsReviewsConversionMap.h
+    NamedCollectionsStore.cpp
+    NamedCollectionsStore.h
     account/ProfileStoreRuntime.cpp
     account/ProfileStoreRuntime.h
     ProgressStore.h

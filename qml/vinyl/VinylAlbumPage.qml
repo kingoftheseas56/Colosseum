@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+import "../collections" as CollectionsUi
+import "../CollectionsReferences.js" as CollectionsReferences
 
 Flickable {
     id: root
@@ -177,6 +179,10 @@ Flickable {
                 width: parent.width
                 height: implicitHeight
                 spacing: 10
+                CollectionsUi.AddToCollectionsButton {
+                    objectName: "vinylAlbumAddToCollections"
+                    reference: CollectionsReferences.album(root.pageData)
+                }
                 Repeater {
                     id: albumActions
                     model: root.albumActionModel

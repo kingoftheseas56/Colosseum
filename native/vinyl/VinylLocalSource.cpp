@@ -515,7 +515,8 @@ void VinylLocalSource::setAlbums(const QVariantList &entries) {
     if (m_albums != previousAlbums) ++m_revision;
 }
 int VinylLocalSource::request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &page) {
-    if ((lane != "browse" && lane != "play" && lane != "queue") || (!QStringList{"search","album","resolve","artists","artist"}.contains(operation))) return -1;
+    if ((lane != "browse" && lane != "play" && lane != "queue" && lane != "named-collections") || (!QStringList{"search","album","resolve","artists","artist"}.contains(operation))) return -1;
+    if (lane == "named-collections" && operation != "album") return -1;
     const int id = ++m_serial; m_pending.insert(lane,id);
     // Queued even when local, so callers assign ID before completion arrives.
     QTimer::singleShot(operation=="resolve" ? m_resolutionDelayMs : 0,this,[this,lane,operation,value,id,page] {

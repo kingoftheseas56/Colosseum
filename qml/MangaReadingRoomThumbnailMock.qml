@@ -3,6 +3,7 @@
 // The series context is compressed into a story masthead. The collection owns
 // the rest of the screen so the reader-derived volume flow can lead.
 import QtQuick
+import "collections" as CollectionsUi
 import "MangaVolumes.js" as Vol
 
 Item {
@@ -23,6 +24,7 @@ Item {
     property real score: 0
     property var chapters: []
     property var collectionEntry: null
+    property var namedCollectionReference: null
     property var service: null
     property var progress: null
     property var downloader: null
@@ -79,6 +81,7 @@ Item {
         height: 58
 
         BackAction {
+            objectName: "weebcentralSeriesBack"
             x: theme.margin; anchors.verticalCenter: parent.verticalCenter
             activeFocusOnTab: true
             Accessible.role: Accessible.Button
@@ -129,7 +132,7 @@ Item {
         id: storyMasthead
         anchors.top: chrome.bottom; anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        readonly property int baseHeight: root.height < 760 ? 118 : 104
+        readonly property int baseHeight: Math.max(root.height < 760 ? 118 : 104, actionRow.y + actionRow.implicitHeight + 30)
         // Grows only for the synopsis line (mock: clamped to one line, expands on tap).
         // Everything else in the strip keeps its original fixed geometry.
         height: root.synopsis.length > 0 ? baseHeight + synopsisBlock.height + 8 : baseHeight
@@ -225,8 +228,9 @@ Item {
                 height: 2; color: Qt.rgba(1, 1, 1, 0.13)
                 Rectangle { width: root.library.volumeRows.length > 0 ? root.library.ownedCount / root.library.volumeRows.length * parent.width : 0; height: parent.height; color: theme.gold }
             }
-            Row {
+            Flow {
                 id: actionRow
+                width: parent.width
                 anchors.left: parent.left; anchors.top: deviceProgress.bottom; anchors.topMargin: 10; spacing: 8
                 Rectangle {
                     width: openLabel.implicitWidth + 30; height: 34; radius: 8; color: theme.gold
@@ -241,6 +245,10 @@ Item {
                 Loader {
                     active: root.collectionEntry !== null && typeof Collection !== "undefined"
                     sourceComponent: LibraryButton { world: "tankoban"; entry: root.collectionEntry }
+                }
+                CollectionsUi.AddToCollectionsButton {
+                    objectName: "weebcentralAddToCollections"
+                    reference: root.namedCollectionReference
                 }
             }
         }

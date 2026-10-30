@@ -20,6 +20,7 @@
 #include "trackers/TrackerScrobbleStore.h"
 
 #include "ProgressStore.h"
+#include "NamedCollectionsStore.h"
 
 #include <QCryptographicHash>
 #include <QDir>
@@ -465,6 +466,9 @@ class tst_account_adoption : public QObject {
     Q_OBJECT
 
 private slots:
+    void namedCollectionsFollowFirstAccountAndRestart();
+    void namedCollectionsSnapshotPreservesOpaqueBytes();
+    void namedCollectionsMergeIntoExistingAccountWithoutRetryDuplication();
     void vinylTasteSnapshotPreservesFactsAndLegacyDigest();
     void populatedFirstAccountCommitsBeforeActivation();
     void cleanRestartKeepsCommittedAdoption();
@@ -505,6 +509,127 @@ private slots:
     void stremioCredentialTransferRetriesBeforeSourceRetirement();
     void migrationSuspensionStopsWhenTrackerCloseCannotBePersisted();
 };
+
+void tst_account_adoption::namedCollectionsFollowFirstAccountAndRestart() {
+    AdoptionFixture fixture;
+    QString id;
+    QString error;
+    {
+        ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+        QVERIFY2(coordinator.prepareLocalOnly(&error), qPrintable(error));
+        id = runtime.namedCollectionsStore()->createCollection(
+            QStringLiteral("Before account"), {}, QStringLiteral("My private saved shelf"));
+        QVERIFY2(!id.isEmpty(), qPrintable(runtime.namedCollectionsStore()->error()));
+        QVERIFY2(coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountA), &error), qPrintable(error));
+        QCOMPARE(runtime.namedCollectionsStore()->collections().size(), 1);
+        QCOMPARE(runtime.namedCollectionsStore()->collection(id).value(QStringLiteral("description")).toString(),
+                 QStringLiteral("My private saved shelf"));
+        QVERIFY(!runtime.namedCollectionsStore()->createCollection(QStringLiteral("After account")).isEmpty());
+        QVERIFY2(coordinator.prepareLocalOnly(&error), qPrintable(error));
+        QCOMPARE(runtime.namedCollectionsStore()->collections().size(), 0);
+        QVERIFY2(coordinator.prepareCreatedAccount(QString::fromLatin1(kAccountB), &error), qPrintable(error));
+        QCOMPARE(runtime.namedCollectionsStore()->collections().size(), 0);
+    }
+    {
+        ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+        QVERIFY2(coordinator.prepareRememberedAccount(QString::fromLatin1(kAccountA), &error), qPrintable(error));
+        QCOMPARE(runtime.namedCollectionsStore()->collections().size(), 2);
+        QCOMPARE(runtime.namedCollectionsStore()->collection(id).value(QStringLiteral("name")).toString(),
+                 QStringLiteral("Before account"));
+    }
+}
+
+void tst_account_adoption::namedCollectionsSnapshotPreservesOpaqueBytes() {
+    AdoptionFixture fixture;
+    QString error;
+    const PersonalStateSnapshot original = populatedSnapshot();
+    const QString previousDigest = original.semanticDigest();
+    QVERIFY(fixture.legacy.restorePersonalState(original, &error));
+    const QByteArray bytes("future\0\xff", 8);
+    QFile sourceFile(fixture.legacy.namedCollectionsPath());
+    QVERIFY(sourceFile.open(QIODevice::WriteOnly));
+    QCOMPARE(sourceFile.write(bytes), qint64(bytes.size()));
+    sourceFile.close();
+    const auto captured = fixture.legacy.capture(&error);
+    QVERIFY2(captured.has_value(), qPrintable(error));
+    QVERIFY(captured->hasNamedCollections);
+    QCOMPARE(captured->namedCollectionsBytes, bytes);
+    QCOMPARE(captured->toJson().value(QStringLiteral("version")).toInt(), 7);
+    QVERIFY(!captured->matchesSemanticDigest(previousDigest));
+    const auto parsed = PersonalStateSnapshot::fromJson(captured->toJson(), &error);
+    QVERIFY2(parsed.has_value(), qPrintable(error));
+    QCOMPARE(parsed->namedCollectionsBytes, bytes);
+    QCOMPARE(parsed->semanticDigest(), captured->semanticDigest());
+    const auto old = PersonalStateSnapshot::fromJson(original.toJson(), &error);
+    QVERIFY(old.has_value());
+    QVERIFY(!old->hasNamedCollections);
+    QVERIFY(old->matchesSemanticDigest(previousDigest));
+    const auto target = LegacyPersonalStateStorage::forProfile(fixture.accountPaths(), &error);
+    QVERIFY(target.has_value());
+    QVERIFY2(target->restorePersonalState(*parsed, &error), qPrintable(error));
+    QFile targetFile(target->namedCollectionsPath());
+    QVERIFY(targetFile.open(QIODevice::ReadOnly));
+    QCOMPARE(targetFile.readAll(), bytes);
+    targetFile.close();
+    QJsonObject invalid = captured->toJson();
+    invalid.insert(QStringLiteral("named_collections_local"), QStringLiteral("@@@"));
+    QVERIFY(!PersonalStateSnapshot::fromJson(invalid, &error).has_value());
+    invalid.insert(QStringLiteral("named_collections_local"), 42);
+    QVERIFY(!PersonalStateSnapshot::fromJson(invalid, &error).has_value());
+    QVERIFY(target->clearPersonalState(&error));
+    QVERIFY(!QFileInfo::exists(target->namedCollectionsPath()));
+    auto emptyFile = *parsed;
+    emptyFile.namedCollectionsBytes.clear();
+    QVERIFY(target->restorePersonalState(emptyFile, &error));
+    const auto emptyCaptured = target->capture(&error);
+    QVERIFY(emptyCaptured.has_value());
+    QVERIFY(emptyCaptured->hasNamedCollections);
+    QVERIFY(emptyCaptured->namedCollectionsBytes.isEmpty());
+}
+
+void tst_account_adoption::namedCollectionsMergeIntoExistingAccountWithoutRetryDuplication() {
+    AdoptionFixture fixture;
+    QString error;
+    NamedCollectionsStore account(fixture.accountPaths().namedCollectionsPath());
+    const QString accountId = account.createCollection(QStringLiteral("Shared shelf"), {}, QStringLiteral("Account notes"));
+    QVERIFY(!accountId.isEmpty());
+    NamedCollectionsStore local(fixture.legacy.namedCollectionsPath());
+    QVERIFY(!local.createCollection(QStringLiteral("Shared shelf"), {}, QStringLiteral("Local notes")).isEmpty());
+    {
+        ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+        QVERIFY2(coordinator.prepareLocalOnly(&error), qPrintable(error));
+        QVERIFY2(coordinator.prepareAccountSession(QString::fromLatin1(kAccountA), &error), qPrintable(error));
+        const auto lists = runtime.namedCollectionsStore()->collections();
+        QCOMPARE(lists.size(), 2);
+        QCOMPARE(runtime.namedCollectionsStore()->collection(accountId).value(QStringLiteral("description")).toString(),
+                 QStringLiteral("Account notes"));
+        QSet<QString> names;
+        QSet<QString> descriptions;
+        for (const auto &list : lists) {
+            names.insert(list.toMap().value(QStringLiteral("name")).toString());
+            descriptions.insert(list.toMap().value(QStringLiteral("description")).toString());
+        }
+        QCOMPARE(names.size(), 2);
+        QVERIFY(descriptions.contains(QStringLiteral("Account notes")));
+        QVERIFY(descriptions.contains(QStringLiteral("Local notes")));
+    }
+    const auto receipt = AccountAttachmentReceipt::read(fixture.accountPaths());
+    QCOMPARE(receipt.status, AccountAttachmentReceipt::ReadStatus::Ok);
+    const auto retrySource = fixture.legacy.capture(&error);
+    QVERIFY2(retrySource.has_value(), qPrintable(error));
+    QCOMPARE(retrySource->semanticDigest(), receipt.data.sourceSemanticDigest);
+    QCOMPARE(ActivityStore::fileDigestSha256(fixture.legacy.activityDbPath()),
+             receipt.data.sourceActivityDigest);
+    {
+        ProfileStoreRuntime runtime(fixture.legacy, fixture.appDataRoot);
+        FirstAccountProfileCoordinator coordinator(&runtime, fixture.appDataRoot);
+        QVERIFY2(coordinator.prepareRememberedAccount(QString::fromLatin1(kAccountA), &error), qPrintable(error));
+        QCOMPARE(runtime.namedCollectionsStore()->collections().size(), 2);
+    }
+}
 
 void tst_account_adoption::vinylTasteSnapshotPreservesFactsAndLegacyDigest() {
     PersonalStateSnapshot source = populatedSnapshot();

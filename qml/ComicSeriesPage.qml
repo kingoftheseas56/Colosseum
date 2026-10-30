@@ -20,6 +20,8 @@ import "ComicResolve.js" as Resolve
 import "LocgApi.js" as Locg
 import "ComicsApi.js" as GcApi
 import "ComicsDb.js" as ComicsDb
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
@@ -386,6 +388,10 @@ Item {
                     LibraryButton {
                         world: "tankoban"
                         entry: page.collectionEntry()
+                    }
+                    CollectionsUi.AddToCollectionsButton {
+                        objectName: "comicAddToCollections"
+                        reference: CollectionsReferences.locg(page.collectionEntry())
                     }
                 }
             }
