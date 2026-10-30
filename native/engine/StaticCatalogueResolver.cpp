@@ -597,7 +597,9 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
             ds == "mal" ? QStringList{"", "genre", "demographic"}
                         : QStringList{"", "genre", "publisher", "format", "availability"};
         const QStringList catalogs =
-            ds == "mal" ? QStringList{"popular", "trending", "top-rated", "new-releases"}
+            ds == "mal" ? QStringList{"popular", "trending", "top-rated", "new-releases",
+                "completed", "publishing", "short-completed", "one-shots",
+                "started-1990s", "started-2000s", "started-2010s"}
                         : QStringList{"popular",       "new-releases",         "most-stocked",
                                       "all",           "recently-available",   "complete-runs",
                                       "near-complete", "community-collections"};
@@ -702,6 +704,10 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
             return emptyPage(items, shape == "comics" ? offset + items.size() >= length
                                                       : items.size() < limit);
         }
+        if (ds == "mal" && listMethod == "discoverPageFiltered"
+            && QStringList{"completed", "publishing", "short-completed", "one-shots",
+                           "started-1990s", "started-2000s", "started-2010s"}.contains(catalog))
+            return std::nullopt; // Older publications lack these lists; allow semantic fallback.
         if ((ds == "mal" || ds == "comics") && listMethod == "discoverPageFiltered")
             return emptyPage({}, true);
         if (ds == "mal" && method == "genreEntries")

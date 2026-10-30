@@ -732,7 +732,10 @@ QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVa
     // Allowlist the catalogue id and the filter axis — never interpolate caller text.
     static const QSet<QString> catalogs = {
         QStringLiteral("popular"), QStringLiteral("top-rated"),
-        QStringLiteral("new-releases"), QStringLiteral("trending")};
+        QStringLiteral("new-releases"), QStringLiteral("trending"),
+        QStringLiteral("completed"), QStringLiteral("publishing"), QStringLiteral("short-completed"),
+        QStringLiteral("one-shots"), QStringLiteral("started-1990s"),
+        QStringLiteral("started-2000s"), QStringLiteral("started-2010s")};
     if (!catalogs.contains(catalogId))
         return pack({});
     // Allowlisted axes only; an empty key is "no filter" for that entry.
@@ -774,12 +777,37 @@ QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVa
     if (!includeExplicit)
         where << QStringLiteral("m.explicit = 0");
 
+    // These manga shelves intentionally exclude prose novels, while retaining the
+    // manga-family formats already represented in Tankoban. Legacy catalogue scopes
+    // are unchanged. All predicates are fixed SQL, never caller-supplied fragments.
+    const bool mangaShelf = catalogId == QStringLiteral("completed")
+        || catalogId == QStringLiteral("publishing") || catalogId == QStringLiteral("short-completed")
+        || catalogId == QStringLiteral("one-shots") || catalogId.startsWith(QStringLiteral("started-"));
+    if (mangaShelf) {
+        where << QStringLiteral("m.type IN ('Manga','One-shot','Manhwa','Manhua','Doujinshi')");
+        if (catalogId == QStringLiteral("completed") || catalogId == QStringLiteral("short-completed"))
+            where << QStringLiteral("m.status = 'Finished'");
+        if (catalogId == QStringLiteral("publishing"))
+            where << QStringLiteral("m.status = 'Publishing'");
+        if (catalogId == QStringLiteral("short-completed"))
+            where << QStringLiteral("typeof(m.volumes) = 'integer' AND m.volumes BETWEEN 1 AND 5");
+        if (catalogId == QStringLiteral("one-shots"))
+            where << QStringLiteral("m.type = 'One-shot'");
+        if (catalogId.startsWith(QStringLiteral("started-"))) {
+            const int decade = catalogId.mid(8, 4).toInt();
+            // The baked year is the known publication START year, independent of
+            // partial start_date precision. Do not invent a month/day to query it.
+            where << QStringLiteral("typeof(m.year) = 'integer' AND m.year BETWEEN ? AND ?");
+            binds << decade << decade + 9;
+        }
+    }
+
     // Catalogue -> a fixed ORDER BY fragment. Missing values stay neutral: undated /
     // unscored rows are excluded from date / rating catalogues, not floored to zero.
     QString orderSql;
     QVariantList orderBinds;
     const bool trending = catalogId == QStringLiteral("trending");
-    if (catalogId == QStringLiteral("popular") || trending) {
+    if (catalogId == QStringLiteral("popular") || trending || mangaShelf) {
         // Trending has no comparable snapshot yet -> Popular order + fallbackCatalog:popular.
         orderSql = QStringLiteral("m.members DESC, COALESCE(m.score, 0) DESC, m.mal_id ASC");
     } else if (catalogId == QStringLiteral("new-releases")) {

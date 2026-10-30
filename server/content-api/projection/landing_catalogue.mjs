@@ -10,11 +10,13 @@ export function theatreLandingOwners(qmlRoot) {
  vm.runInContext(clean(readFileSync(join(qmlRoot,'TheatreCatalogRules.js'),'utf8')),rules);
  const api={Rules:rules};vm.createContext(api);
  vm.runInContext(clean(readFileSync(join(qmlRoot,'TheatreApi.js'),'utf8')),api);
- return {rules,api};
+ const manga={};vm.createContext(manga);
+ vm.runInContext(clean(readFileSync(join(qmlRoot,'MangaBrowseRules.js'),'utf8')),manga);
+ return {rules,api,manga};
 }
 
 // Keep original request identities (including pagination), not list selection aliases.
-export function landingRequests(dataset,tab,{rules,api,date}) {
+export function landingRequests(dataset,tab,{rules,api,manga,date}) {
  const requests=new Map();
  const add=(method,args)=>requests.set(selectionKey(dataset,method,args),{method,args});
  if(dataset==='comics'&&tab==='comics') {
@@ -28,6 +30,9 @@ export function landingRequests(dataset,tab,{rules,api,date}) {
   for(const def of defs)for(const q of rules.indexQueriesFor(def.recipe))add('titleCatalog',[q,0,api.PREVIEW_ROW_CAP]);
  } else if(dataset==='mal'&&tab==='anime') {
   for(const def of rules.defaultRows(tab))for(const q of api.animeQueriesFor(def.recipe))add('animeCatalog',[q,0,api.PREVIEW_ROW_CAP]);
+ } else if(dataset==='mal'&&tab==='manga') {
+  for(const def of manga.defaultRows())for(const explicit of [false,true])
+   add('discoverPageFiltered',[def.catalogId,def.filters||[],explicit,0,manga.PREVIEW_ROW_CAP]);
  } else throw Error('Unsupported landing '+dataset+'/'+tab);
  return [...requests.values()];
 }
@@ -35,7 +40,7 @@ export function landingRequests(dataset,tab,{rules,api,date}) {
 export async function publishLandingCatalogues({date,qmlRoot,queryFn,fixed,owners=theatreLandingOwners(qmlRoot)}) {
  if(!/^\d{4}-\d{2}-\d{2}$/.test(date)||new Date(date+'T00:00:00Z').toISOString().slice(0,10)!==date)throw Error('Invalid landing date');
  const published=[];
- for(const [dataset,tab] of [['comics','comics'],['imdb','movies'],['imdb','shows'],['mal','anime']]) {
+ for(const [dataset,tab] of [['comics','comics'],['imdb','movies'],['imdb','shows'],['mal','anime'],['mal','manga']]) {
   const queries=[];
   for(const {method,args} of landingRequests(dataset,tab,{...owners,date})) {
    const result=await queryFn(dataset,method,args);

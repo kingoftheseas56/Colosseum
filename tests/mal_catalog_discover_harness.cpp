@@ -482,6 +482,7 @@ int main(int argc, char** argv)
         require(cat.discoverFilters("", true).isEmpty(), "empty filter axis yields no facets");
     }
 
+    cat.closeForSwap(); // Release the singleton SQL connection before the missing-db owner.
     // ── not-ready seam: a missing db never crashes, returns empties ───────────
     {
         MalCatalog missing(QDir::temp().filePath(QStringLiteral("mal_catalog_discover_nope.db")));
@@ -491,6 +492,78 @@ int main(int argc, char** argv)
         require(missing.discoverFilters("genre", true).isEmpty(),
                 "not-ready discoverFilters returns empty");
     }
+
+    // New editorial shelves reuse the same paging/facet contract, never infer
+    // completion or length from missing metadata, and leave legacy scopes intact.
+    {
+        auto w = QSqlDatabase::addDatabase("QSQLITE", "shelf_fixture_writer");
+        w.setDatabaseName(dbPath);
+        require(w.open(), "shelf writer opens");
+        QSqlQuery q(w);
+        const auto add = [&](int id, const QString &type, const QString &status,
+                             const QVariant &volumes, const QVariant &year, bool explicitContent = false) {
+            q.prepare("INSERT INTO manga (mal_id,title,type,status,volumes,year,members,score,explicit) "
+                      "VALUES (?, 'Shelf fixture', ?, ?, ?, ?, 100, 8.0, ?)");
+            q.addBindValue(id); q.addBindValue(type); q.addBindValue(status);
+            q.addBindValue(volumes); q.addBindValue(year); q.addBindValue(explicitContent ? 1 : 0);
+            require(q.exec(), "insert shelf fixture");
+            q.prepare("INSERT INTO classification (medium,axis,value,mal_id) VALUES ('manga','genre','ShelfFixture',?)");
+            q.addBindValue(id); require(q.exec(), "insert shelf facet");
+        };
+        add(90001, "Manga", "Finished", 1, 1990);
+        add(90002, "Manga", "Finished", 5, 1999);
+        add(90003, "Manga", "Finished", 6, 2000);
+        add(90004, "Manga", "Finished", QVariant(), 2009);
+        add(90005, "Manga", "Finished", 0, 2010);
+        add(90006, "Manga", "Finished", -1, 2019);
+        add(90007, "Manga", "Finished", 1.5, 2020);
+        add(90008, "Manga", "Finished", "unknown", QVariant());
+        add(90009, "Manga", "Publishing", 2, 1989);
+        add(90010, "Manga", "On Hiatus", 2, 1995);
+        add(90011, "Manga", "Discontinued", 2, 1995);
+        add(90012, "Manga", "", 2, 1995);
+        add(90013, "One-shot", "Finished", 1, 2005);
+        add(90014, "Novel", "Finished", 1, 1995);
+        add(90015, "Manhwa", "Finished", 3, 1995);
+        add(90016, "Manhua", "Publishing", 3, 1995);
+        add(90017, "Doujinshi", "Finished", 1, 1995, true);
+        require(q.exec("INSERT INTO classification VALUES ('manga','demographic','Seinen',90002)"),
+                "second shelf facet");
+    }
+    QSqlDatabase::removeDatabase("shelf_fixture_writer");
+    require(cat.reopen(dbPath), "reopen shelf fixture");
+    require(!cat.retryLanding("manga"), "local catalogue never starts remote landing retry");
+    const QVariantList shelfFacet{QVariantMap{{"axis", "genre"}, {"key", "ShelfFixture"}}};
+    const auto shelf = [&](const QString &id, bool explicitContent = false, int offset = 0, int limit = 100) {
+        return cat.discoverPageFiltered(id, shelfFacet, explicitContent, offset, limit);
+    };
+    require(idsOf(shelf("completed").value("items").toList()) == QList<int>({90001,90002,90003,90004,90005,90006,90007,90008,90013,90015}),
+            "completed uses exact Finished status, irrespective of missing length");
+    require(idsOf(shelf("short-completed").value("items").toList()) == QList<int>({90001,90002,90013,90015}),
+            "short completed requires finished and known integral volumes 1..5, excludes novels/adult");
+    require(idsOf(shelf("publishing").value("items").toList()) == QList<int>({90009,90016}),
+            "publishing excludes hiatus/discontinued/unknown");
+    require(idsOf(shelf("one-shots").value("items").toList()) == QList<int>({90013}),
+            "one-shot is format, not a guessed one-volume title");
+    require(idsOf(shelf("started-2000s").value("items").toList()) == QList<int>({90003,90004,90013}),
+            "2000s publication year includes both boundaries and partial dates");
+    require(idsOf(shelf("started-2010s").value("items").toList()) == QList<int>({90005,90006}),
+            "2010s boundaries exclude 2020");
+    require(idsOf(shelf("started-1990s").value("items").toList()) == QList<int>({90001,90002,90010,90011,90012,90015,90016}),
+            "1990s is publication start, independent of status, excludes 1989/2000 and novels");
+    require(containsId(shelf("popular").value("items").toList(), 90014), "legacy popular still includes novels");
+    require(!containsId(shelf("completed", true).value("items").toList(), 90014), "completed excludes novels");
+    require(containsId(shelf("completed", true).value("items").toList(), 90017), "adult opt-in honored");
+    auto both = shelfFacet;
+    both.append(QVariantMap{{"axis", "demographic"}, {"key", "Seinen"}});
+    require(idsOf(cat.discoverPageFiltered("completed", both, false, 0, 100).value("items").toList()) == QList<int>({90002}),
+            "new shelves AND facets");
+    const auto firstShelfPage = shelf("short-completed", false, 0, 2);
+    const auto secondShelfPage = shelf("short-completed", false, firstShelfPage.value("nextOffset").toInt(), 2);
+    require(idsOf(firstShelfPage.value("items").toList()) == QList<int>({90001,90002}) &&
+            idsOf(secondShelfPage.value("items").toList()) == QList<int>({90013,90015}),
+            "stable tied ordering and no overlap across shelf pages");
+    require(shelf("short-completed", false, 4, 2).value("exhausted").toBool(), "shelf ends cleanly");
 
     QFile::remove(dbPath);
     std::cout << "MAL_CATALOG_DISCOVER_OK\n";

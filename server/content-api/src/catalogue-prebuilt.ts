@@ -79,7 +79,7 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
   const axes=dataset==='mal'?['','genre','demographic']:['','genre','publisher','format','availability'];
   const empty=()=>({result:{items:[],nextOffset:offset,exhausted:true,freshness:'bundled',...(dataset==='mal'?{fallbackCatalog:catalog==='trending'?'popular':''}:{})}});
   if(raw.some(f=>!axes.includes(f.axis)))return empty();
-  const catalogs=dataset==='mal'?['popular','trending','top-rated','new-releases']:['popular','new-releases','most-stocked','all','recently-available','complete-runs','near-complete','community-collections'];
+  const catalogs=dataset==='mal'?['popular','trending','top-rated','new-releases','completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s']:['popular','new-releases','most-stocked','all','recently-available','complete-runs','near-complete','community-collections'];
   if(!catalogs.includes(catalog))return empty();
   const normalized=raw.filter(f=>f.axis&&f.key);
   if(normalized.length<=1){selection=[catalog,normalized.map(f=>({...f,key:fold(f.key)})),!!explicit];listMethod='discoverPageFiltered';}
@@ -112,6 +112,8 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
    if(list.shape==='comics'){const format=(selection[1] as any[]).find(f=>f.axis==='format');if(format){const originals=method==='discoverPage'?[{axis:text(args[1]),key:text(args[2])}]:(Array.isArray(args[1])?args[1]:[]);const key=text(originals.find(f=>f?.axis==='format')?.key);for(let i=0;i<items.length;i++)items[i]={...items[i],format:key};}}
    return{result:{items,nextOffset:offset+items.length,exhausted:list.shape==='comics'?offset+items.length>=list.length:items.length<limit,freshness:'bundled',...(list.shape==='mal'?{fallbackCatalog:catalog==='trending'?'popular':''}:{})}};
   }
+  // An older publication lacks new shelf selections; let the semantic owner answer.
+  if(dataset==='mal'&&['completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s'].includes(catalog))return null;
   if(['mal','comics'].includes(dataset)&&listMethod==='discoverPageFiltered')return{result:{items:[],nextOffset:offset,exhausted:true,freshness:'bundled',...(dataset==='mal'?{fallbackCatalog:catalog==='trending'?'popular':''}:{})}};
   if(dataset==='mal'&&method==='genreEntries')return{result:[]};
  }

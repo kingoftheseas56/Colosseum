@@ -117,13 +117,23 @@ export async function malMethod(db: CatalogueDb, method: string, args: any[]): P
   if(method==='discoverPage'){catalog=args[0];filters=args[1]||args[2]?[{axis:args[1],key:args[2]}]:[];explicit=args[3];offset=args[4];limit=args[5];}
   catalog=text(catalog);const off=Math.max(0,integer(offset)),lim=clamp(limit);
   const pack=(items:Row[])=>({items,nextOffset:off+items.length,exhausted:items.length<lim,freshness:'bundled',fallbackCatalog:catalog==='trending'?'popular':''});
-  if(!['popular','trending','top-rated','new-releases'].includes(catalog))return pack([]);
+  if(!['popular','trending','top-rated','new-releases','completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s'].includes(catalog))return pack([]);
   const facets:{axis:string,key:string}[]=[];
   for(const f of Array.isArray(filters)?filters:[]){const axis=text(f?.axis),key=text(f?.key);if(!['','genre','demographic'].includes(axis))return pack([]);if(axis&&key)facets.push({axis,key});}
   let from='den_mal_manga m';const where:string[]=[],binds:any[]=[];
   if(facets.length){from+=',json_each(m.__membership) c';where.push("json_extract(c.value,'$[0]')=? AND LOWER(json_extract(c.value,'$[1]'))=LOWER(?)");binds.push(facets[0].axis,facets[0].key);}
   for(const f of facets.slice(1)){where.push("EXISTS(SELECT 1 FROM json_each(m.__membership) c2 WHERE json_extract(c2.value,'$[0]')=? AND LOWER(json_extract(c2.value,'$[1]'))=LOWER(?))");binds.push(f.axis,f.key);}
   if(!explicit)where.push('m.explicit=0');let order='m.members DESC,COALESCE(m.score,0) DESC,m.mal_id ASC';
+  // Metadata shelves exclude prose formats; existing catalogue semantics stay unchanged.
+  if(['completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s'].includes(catalog)) {
+   where.push("m.type IN ('Manga','One-shot','Manhwa','Manhua','Doujinshi')");
+   if(catalog==='completed'||catalog==='short-completed')where.push("m.status='Finished'");
+   if(catalog==='publishing')where.push("m.status='Publishing'");
+   if(catalog==='short-completed')where.push("typeof(m.volumes)='integer' AND m.volumes BETWEEN 1 AND 5");
+   if(catalog==='one-shots')where.push("m.type='One-shot'");
+   const decade: number|undefined=({'started-1990s':1990,'started-2000s':2000,'started-2010s':2010} as Record<string,number>)[catalog];
+   if(decade){where.push("typeof(m.year)='integer' AND m.year BETWEEN ? AND ?");binds.push(decade,decade+9);}
+  }
   if(catalog==='new-releases'){where.push('date(m.start_date) IS NOT NULL AND date(m.start_date)<=date(?)');binds.push(new Date().toISOString().slice(0,10));order='m.start_date DESC,m.mal_id DESC';}
   if(catalog==='top-rated')where.push('m.score IS NOT NULL');
   const scoped='SELECT m.* FROM '+from+(where.length?' WHERE '+where.join(' AND '):'');

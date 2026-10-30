@@ -153,6 +153,16 @@ int main(int argc, char **argv) {
         QJsonObject fixed{{"[\"imdb\",\"titleCatalog\",[{},0,24]]", leaf}};
         if (landingFault != "absent")
             fixed["[\"imdb\",\"landing\",[\"movies\"]]"] = landingPath;
+        const auto mangaLandingRaw = json({{"version", 1}, {"dataset", "mal"}, {"tab", "manga"},
+            {"validFrom", today.addDays(-2).toString(Qt::ISODate)},
+            {"validUntil", today.addDays(1).toString(Qt::ISODate)},
+            {"queries", QJsonArray{QJsonObject{{"method", "discoverPageFiltered"},
+                {"args", QJsonArray{"completed", QJsonArray(), false, 0, 24}},
+                {"result", QJsonObject{{"items", QJsonArray{QJsonObject{{"mal_id", 13}}}},
+                                      {"nextOffset", 1}, {"exhausted", true}}}}}}});
+        const auto mangaLandingPath = prefix + "shared/" + hash(mangaLandingRaw) + ".json";
+        files[mangaLandingPath] = mangaLandingRaw;
+        fixed["[\"mal\",\"landing\",[\"manga\"]]"] = mangaLandingPath;
         const QString tankKey = "[\"tankoban\",\"series\",[13]]";
         QJsonArray volumes;
         for (int n = 1; n <= 113; ++n)
@@ -569,6 +579,22 @@ int main(int argc, char **argv) {
                 "invalid or absent landing fails without calling old Worker APIs");
         require(rejected.queryState("titleCatalog", landingChildArgs, QVariantList()).value("status") == "missing",
                 "invalid date, duplicate child, bad result shape or absent bundle cannot prime children");
+    }
+    publish("manga-landing");
+    {
+        CatalogRemote mangaLanding("mal");
+        mangaLanding.configure(&nam, origin, temp.filePath("manga-landing/remote.json"));
+        const QVariantList args{QString("completed"), QVariant::fromValue(QVariantList()), false, 0, 24};
+        const int beforePosts = posts;
+        mangaLanding.read("landing", {"manga"}, QVariantMap());
+        until([&] { return !mangaLanding.pending(); });
+        require(mangaLanding.queryState("landing", {"manga"}, QVariantMap()).value("status") == "success",
+                "native accepts typed manga landing pages");
+        const int beforeGets = gets;
+        const auto page = mangaLanding.read("discoverPageFiltered", args, QVariantMap()).toMap();
+        require(!page.value("items").toList().isEmpty() && page.value("items").toList().first().toMap().value("mal_id").toInt() == 13 &&
+                    !mangaLanding.pending() && gets == beforeGets && posts == beforePosts,
+                "manga landing primes exact paged child without Worker or another fetch");
     }
     publish("publication-one");
     auto resolve = [&](StaticCatalogueResolver *owner, const QString &method = "titleCatalog",
@@ -1139,6 +1165,15 @@ int main(int argc, char **argv) {
                 mangaWarm.result == mangaCold.result &&
                 mangaWarm.metrics.value("networkFiles").toInt() == 0 && gets == mangaGets,
             "warm manga by-id serves identical JSON without network I/O");
+
+    for (const QString &catalog : {QString("completed"), QString("publishing"), QString("short-completed"),
+                                  QString("one-shots"), QString("started-1990s"),
+                                  QString("started-2000s"), QString("started-2010s")}) {
+        const auto missingShelf = resolve(mangaResolver, "discoverPageFiltered",
+            {catalog, QVariant::fromValue(QVariantList()), false, 0, 24}, "mal");
+        require(missingShelf.status == StaticCatalogueResolver::Status::NotPrepared,
+                "old publication lacking new manga shelf falls through, never a false successful empty page");
+    }
 
     publish("publication-one");
     auto first = resolve(r);
