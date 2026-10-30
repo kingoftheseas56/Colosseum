@@ -6,6 +6,12 @@
 import QtQuick
 
 QtObject {
+    // Custom UI fonts use logical pixels, so explicitly apply Android's text preference.
+    // Native configuration changes notify this binding without changing desktop sizing.
+    readonly property real fontScale: typeof PlatformRuntime !== "undefined" && PlatformRuntime
+        && PlatformRuntime.android === true && typeof PlatformRuntime.fontScale === "number"
+        ? PlatformRuntime.fontScale : 1
+    function fontSize(base) { return base * fontScale }
     // accent — used sparingly: active pill, focus ring, progress, primary CTA
     readonly property color gold: "#f0c44a"
 
