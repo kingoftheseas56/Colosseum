@@ -201,6 +201,20 @@ void Runtime::dispatchSystemBack() {
         emit backRequested();
 }
 
+void Runtime::setPlayerLandscape(bool enabled) {
+#if defined(Q_OS_ANDROID)
+    if (m_kind != Kind::Android) return;
+    QNativeInterface::QAndroidApplication::runOnAndroidMainThread([enabled]() -> QVariant {
+        if (!QNativeInterface::QAndroidApplication::isActivityContext()) return false;
+        const QJniObject activity = QNativeInterface::QAndroidApplication::context();
+        if (activity.isValid()) activity.callMethod<void>("setPlayerLandscape", "(Z)V", jboolean(enabled));
+        return {};
+    });
+#else
+    Q_UNUSED(enabled);
+#endif
+}
+
 void Runtime::backgroundApplication() {
 #if defined(Q_OS_ANDROID)
     if (m_kind != Kind::Android)

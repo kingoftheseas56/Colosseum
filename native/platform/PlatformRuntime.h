@@ -48,6 +48,7 @@ public:
     bool desktopWindowChromeAvailable() const;
 
     Q_INVOKABLE void attachWindow(QWindow *window);
+    Q_INVOKABLE void setPlayerLandscape(bool enabled);
     Q_INVOKABLE void dismissKeyboard();
     Q_INVOKABLE void dispatchSystemBack();
     Q_INVOKABLE void backgroundApplication();
