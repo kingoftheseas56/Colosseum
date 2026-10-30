@@ -4812,11 +4812,18 @@ add_executable(tst_tracker_anilist
     "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.cpp"
     "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.h"
     "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.cpp"
-    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.h")
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h")
 target_include_directories(tst_tracker_anilist PRIVATE
     "${COLOSSEUM_NATIVE_DIR}")
 target_link_libraries(tst_tracker_anilist PRIVATE
     Qt6::Core
+    Qt6::Gui
     Qt6::Network
     Qt6::Test)
 set_target_properties(tst_tracker_anilist PROPERTIES
@@ -4826,6 +4833,7 @@ if(WIN32)
     add_custom_command(TARGET tst_tracker_anilist POST_BUILD
         COMMAND ${CMAKE_COMMAND} -E copy_if_different
                 "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Gui>"
                 "$<TARGET_FILE:Qt6::Test>"
                 "$<TARGET_FILE:Qt6::Network>"
                 "$<TARGET_FILE_DIR:tst_tracker_anilist>"

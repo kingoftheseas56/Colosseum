@@ -14,6 +14,7 @@
 #include "trackers/SimklApiClient.h"
 #include "trackers/SimklSyncRuntime.h"
 #include "trackers/MalApiClient.h"
+#include "trackers/AniListConnectionController.h"
 #include "trackers/MalConnectionController.h"
 #include "trackers/MalListStateStore.h"
 #include "trackers/MalSyncRuntime.h"
@@ -74,6 +75,7 @@ struct ProfileStoreRuntime::StoreSet {
     std::unique_ptr<SimklConnectionController> simklConnection;
     std::unique_ptr<MalSyncRuntime> malSync;
     std::unique_ptr<MalConnectionController> malConnection;
+    std::unique_ptr<AniListConnectionController> aniListConnection;
     std::unique_ptr<TraktSyncRuntime> traktSync;
     std::unique_ptr<TraktConnectionController> traktConnection;
     std::unique_ptr<TrackerConnectionRouter> trackerConnectionRouter;
@@ -854,6 +856,13 @@ ProfileStoreRuntime::createProfileStores(
     stores->malConnection = std::make_unique<MalConnectionController>(
         paths, stores->trackerDelivery->connectionStore(),
         stores->trackerSyncCenter.get());
+    // Constructed so S4/S5 can enable AniList, but deliberately not offered:
+    // the availability source below still reports it unavailable.
+    stores->aniListConnection = std::make_unique<AniListConnectionController>(
+        paths, stores->trackerDelivery->connectionStore());
+    QObject::connect(stores->aniListConnection.get(),
+                     &AniListConnectionController::stateChanged,
+                     stores->trackerSyncCenter.get(), &TrackerSyncCenterModel::refresh);
     stores->traktConnection = std::make_unique<TraktConnectionController>(
         paths, stores->trackerDelivery->connectionStore(),
         stores->trackerSyncCenter.get());

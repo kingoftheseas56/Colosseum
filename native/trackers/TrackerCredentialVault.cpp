@@ -68,6 +68,9 @@ bool validScopes(TrackerProviderId providerId, const QStringList &scopes)
     // MAL issues no granular scopes; "mal:api" is Colosseum's own sentinel.
     if (providerId == TrackerProviderId::Mal)
         return scopes == QStringList{QStringLiteral("mal:api")};
+    // AniList issues no granular scopes; "anilist:api" is Colosseum's sentinel.
+    if (providerId == TrackerProviderId::AniList)
+        return scopes == QStringList{QStringLiteral("anilist:api")};
     if (providerId != TrackerProviderId::Simkl)
         return false;
     for (const QString &scope : scopes) {
@@ -81,6 +84,17 @@ bool validScopes(TrackerProviderId providerId, const QStringList &scopes)
 
 bool validCredential(const TrackerCredential &credential)
 {
+    if (credential.slot.providerId == TrackerProviderId::AniList) {
+        // Implicit grant: one long-lived access token, no refresh token.
+        return validProfileId(credential.slot.profileId)
+            && validRemoteAccountId(credential.slot.providerId, credential.slot.remoteAccountId)
+            && !credential.accessToken.isEmpty()
+            && credential.accessToken.size() <= kMaximumTokenBytes
+            && credential.refreshToken.isEmpty()
+            && credential.accessTokenExpiresAtMs > 0
+            && credential.refreshTokenExpiresAtMs == 0
+            && validScopes(credential.slot.providerId, credential.grantedScopes);
+    }
     return (credential.slot.providerId == TrackerProviderId::Simkl
             || credential.slot.providerId == TrackerProviderId::Mal
             || credential.slot.providerId == TrackerProviderId::Trakt)

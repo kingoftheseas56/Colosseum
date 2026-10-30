@@ -399,6 +399,8 @@ qt_add_executable(colosseum
     trackers/AniListProtocol.cpp
     trackers/AniListHttpTransport.cpp
     trackers/AniListApiClient.cpp
+    trackers/AniListLoopbackServer.cpp
+    trackers/AniListConnectionController.cpp
     trackers/TraktAuth.cpp
     trackers/TraktCodec.cpp
     trackers/TraktHttpTransport.cpp
@@ -509,6 +511,8 @@ qt_add_executable(colosseum
     trackers/AniListProtocol.h
     trackers/AniListHttpTransport.h
     trackers/AniListApiClient.h
+    trackers/AniListLoopbackServer.h
+    trackers/AniListConnectionController.h
     trackers/TraktAuth.h
     trackers/TraktCodec.h
     trackers/TraktHttpTransport.h

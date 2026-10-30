@@ -2,6 +2,9 @@
 
 #include "account/ProfilePaths.h"
 #include "trackers/AniListApiClient.h"
+#include "trackers/AniListConnectionController.h"
+#include "trackers/AniListLoopbackServer.h"
+#include "trackers/TrackerConnectionStore.h"
 #include "trackers/AniListHttpTransport.h"
 #include "trackers/AniListProtocol.h"
 #include "trackers/TrackerCredentialVault.h"
@@ -9,7 +12,12 @@
 #include <QDateTime>
 #include <QJsonArray>
 #include <QJsonObject>
+#include <QHostAddress>
+#include <QSignalSpy>
+#include <QTcpServer>
+#include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QUrlQuery>
 
 #include <optional>
 
@@ -167,6 +175,159 @@ QJsonDocument errorDocument(int status, const QString &message)
         {QStringLiteral("data"), QJsonValue::Null}});
 }
 
+
+// ---- S2: loopback server and connection controller helpers ----
+
+const QByteArray kState = QByteArrayLiteral("state-0123456789abcdef");
+const QByteArray kToken = QByteArrayLiteral("eyJ0eXAi.secret-token_value.sig");
+
+quint16 freePort()
+{
+    QTcpServer probe;
+    if (!probe.listen(QHostAddress::LocalHost, 0))
+        return 0;
+    const quint16 port = probe.serverPort();
+    probe.close();
+    return port;
+}
+
+QUrl redirectFor(quint16 port)
+{
+    return QUrl(QStringLiteral("http://127.0.0.1:%1/anilist/callback")
+                    .arg(port));
+}
+
+struct HttpReply {
+    bool connected = false;
+    int status = 0;
+    QByteArray raw;
+    QByteArray body;
+};
+
+HttpReply exchange(quint16 port, const QByteArray &request)
+{
+    HttpReply reply;
+    QTcpSocket socket;
+    QObject::connect(&socket, &QTcpSocket::readyRead,
+                     [&] { reply.raw += socket.readAll(); });
+    socket.connectToHost(QHostAddress::LocalHost, port);
+    (void)QTest::qWaitFor([&] {
+        return socket.state() == QAbstractSocket::ConnectedState
+            || socket.state() == QAbstractSocket::UnconnectedState;
+    }, 3000);
+    if (socket.state() != QAbstractSocket::ConnectedState)
+        return reply;
+    reply.connected = true;
+    socket.write(request);
+    (void)QTest::qWaitFor([&] {
+        return socket.state() == QAbstractSocket::UnconnectedState;
+    }, 5000);
+    reply.raw += socket.readAll();
+    const QList<QByteArray> parts = reply.raw.split(' ');
+    if (parts.size() > 1)
+        reply.status = parts.at(1).toInt();
+    const qsizetype split = reply.raw.indexOf("\r\n\r\n");
+    if (split >= 0)
+        reply.body = reply.raw.mid(split + 4);
+    return reply;
+}
+
+QByteArray getRequest(quint16 port, const QByteArray &path)
+{
+    return "GET " + path + " HTTP/1.1\r\nHost: 127.0.0.1:"
+        + QByteArray::number(port) + "\r\nConnection: close\r\n\r\n";
+}
+
+QByteArray postRequest(quint16 port,
+                       const QByteArray &path,
+                       const QByteArray &body,
+                       const QByteArray &origin = {},
+                       const QByteArray &method = "POST",
+                       const QByteArray &contentType =
+                           "application/x-www-form-urlencoded",
+                       const QByteArray &host = {})
+{
+    const QByteArray portText = QByteArray::number(port);
+    QByteArray request = method + " " + path + " HTTP/1.1\r\nHost: "
+        + (host.isEmpty() ? "127.0.0.1:" + portText : host) + "\r\n";
+    request += "Origin: "
+        + (origin.isEmpty() ? "http://127.0.0.1:" + portText : origin)
+        + "\r\n";
+    request += "Content-Type: " + contentType + "\r\n";
+    request += "Content-Length: " + QByteArray::number(body.size())
+        + "\r\nConnection: close\r\n\r\n" + body;
+    return request;
+}
+
+QByteArray fragmentFor(const QByteArray &state,
+                       const QByteArray &token = kToken,
+                       const QByteArray &type = "Bearer",
+                       const QByteArray &expires = "31536000")
+{
+    QByteArray body = "access_token=" + token + "&token_type=" + type
+        + "&expires_in=" + expires;
+    if (!state.isEmpty())
+        body += "&state=" + state;
+    return body;
+}
+
+QJsonDocument viewerDocument(int id = 5821)
+{
+    return QJsonDocument(QJsonObject{
+        {QStringLiteral("data"), QJsonObject{
+            {QStringLiteral("Viewer"), QJsonObject{
+                {QStringLiteral("id"), id},
+                {QStringLiteral("name"), QStringLiteral("Test User")}}}}}});
+}
+
+const QByteArray kEntropy = QByteArray(32, '\x07');
+
+struct ControllerFixture {
+    QTemporaryDir root;
+    ProfilePaths profile = ProfilePaths::localOnly(root.path());
+    FakeVault vault;
+    FakeTransport transport;
+    AniListLoopbackServer loopback;
+    TrackerConnectionStore connections{profile};
+    quint16 port = freePort();
+    QList<QUrl> opened;
+    AniListConnectionController controller;
+
+    static AniListAuthConfiguration config(quint16 port)
+    {
+        auto value = configuration();
+        value.redirectUri = redirectFor(port);
+        return value;
+    }
+
+    ControllerFixture()
+        : controller(
+              profile, &connections, config(port), &vault, &transport,
+              &loopback,
+              [this](const QUrl &url) { opened.append(url); return true; },
+              [](qsizetype bytes) { return kEntropy.left(bytes); })
+    {
+        transport.result = AniListApiResult{
+            AniListTransportError::None, 200, viewerDocument(), 0, false,
+            false};
+    }
+
+    QByteArray state() const
+    {
+        return kEntropy.toBase64(QByteArray::Base64UrlEncoding
+                                 | QByteArray::OmitTrailingEquals);
+    }
+
+    // Plays the browser: delivers the fragment through the loopback.
+    HttpReply deliverToken(const QByteArray &token = kToken,
+                           const QByteArray &expires = "31536000")
+    {
+        return exchange(port, postRequest(
+            port, "/anilist/callback/token",
+            fragmentFor(state(), token, "Bearer", expires)));
+    }
+};
+
 } // namespace
 
 class TrackerAniListTest final : public QObject
@@ -196,6 +357,18 @@ private slots:
     void client_unauthorized_requires_reauthorization_no_retry();
     void client_missing_or_expired_credential_makes_no_request();
     void unconfigured_build_fails_closed();
+    void loopback_serves_static_callback_page();
+    void loopback_binds_loopback_only();
+    void loopback_accepts_one_valid_token();
+    void loopback_rejects_invalid_requests();
+    void loopback_rejects_second_token_after_success();
+    void loopback_reports_provider_error_and_timeout();
+    void controller_success_stores_credential();
+    void controller_viewer_failure_stores_nothing();
+    void controller_cancel_and_timeout();
+    void controller_disconnect_removes_credential();
+    void controller_unauthorized_requires_reconnect_and_keeps_record();
+    void controller_unconfigured_is_unavailable();
 };
 
 void TrackerAniListTest::configuration_validity()
@@ -962,6 +1135,409 @@ void TrackerAniListTest::unconfigured_build_fails_closed()
 #else
     QVERIFY(!aniListProductionConfiguration().has_value());
 #endif
+}
+
+void TrackerAniListTest::loopback_serves_static_callback_page()
+{
+    AniListLoopbackServer server;
+    const quint16 port = freePort();
+    QVERIFY(port != 0);
+    QVERIFY(server.start(redirectFor(port), kState));
+
+    const HttpReply reply = exchange(port, getRequest(port, "/anilist/callback"));
+    QCOMPARE(reply.status, 200);
+    const QByteArray head = reply.raw.left(reply.raw.indexOf("\r\n\r\n")).toLower();
+    QVERIFY(head.contains("content-security-policy: default-src 'none'"));
+    QVERIFY(head.contains("script-src 'unsafe-inline'"));
+    QVERIFY(head.contains("connect-src 'self'"));
+    QVERIFY(head.contains("cache-control: no-store"));
+    QVERIFY(head.contains("text/html"));
+    QVERIFY(reply.body.contains("location.hash"));
+    QVERIFY(reply.body.contains("history.replaceState"));
+    QVERIFY(reply.body.contains("You can close this tab and return to Colosseum"));
+    // No external resources: no absolute URLs, no src/href/link/img/iframe.
+    QVERIFY(!reply.body.contains("http"));
+    QVERIFY(!reply.body.contains("src="));
+    QVERIFY(!reply.body.contains("href"));
+    QVERIFY(!reply.body.contains("<link"));
+    QVERIFY(!reply.body.contains("<img"));
+    QVERIFY(!reply.body.contains("<iframe"));
+    // The page itself never carries the state or any token.
+    QVERIFY(!reply.body.contains(kState));
+}
+
+void TrackerAniListTest::loopback_binds_loopback_only()
+{
+    AniListLoopbackServer server;
+    const quint16 port = freePort();
+    QVERIFY(server.start(redirectFor(port), kState));
+    QCOMPARE(server.listenAddress(), QHostAddress(QHostAddress::LocalHost));
+    QCOMPARE(server.listenPort(), port);
+    server.stop();
+    QVERIFY(!server.active());
+
+    const QStringList bad{
+        QStringLiteral("http://localhost:%1/anilist/callback"),
+        QStringLiteral("http://0.0.0.0:%1/anilist/callback"),
+        QStringLiteral("https://127.0.0.1:%1/anilist/callback"),
+        QStringLiteral("http://127.0.0.1:%1/anilist/callback?x=1"),
+        QStringLiteral("http://127.0.0.1:%1/")};
+    for (const QString &pattern : bad) {
+        QString error;
+        QVERIFY2(!server.start(QUrl(pattern.arg(port)), kState, &error),
+                 qPrintable(pattern));
+        QVERIFY(!error.isEmpty());
+        QVERIFY(!server.active());
+    }
+    QString error;
+    QVERIFY(!server.start(redirectFor(port), QByteArray("short"), &error));
+}
+
+void TrackerAniListTest::loopback_accepts_one_valid_token()
+{
+    AniListLoopbackServer server;
+    const quint16 port = freePort();
+    QVERIFY(server.start(redirectFor(port), kState));
+    QSignalSpy tokens(&server, &AniListLoopbackServer::tokenReceived);
+    QSignalSpy failures(&server, &AniListLoopbackServer::signInFailed);
+
+    const HttpReply reply = exchange(port, postRequest(
+        port, "/anilist/callback/token", fragmentFor(kState)));
+    QCOMPARE(reply.status, 200);
+    QTRY_COMPARE(tokens.count(), 1);
+    QCOMPARE(tokens.first().at(0).toByteArray(), kToken);
+    QCOMPARE(tokens.first().at(1).toLongLong(), 31536000LL);
+    QCOMPARE(failures.count(), 0);
+    QVERIFY(!server.active());
+    // The token is never echoed back.
+    QVERIFY(!reply.raw.contains(kToken));
+}
+
+void TrackerAniListTest::loopback_rejects_invalid_requests()
+{
+    AniListLoopbackServer server;
+    const quint16 port = freePort();
+    QVERIFY(server.start(redirectFor(port), kState));
+    QSignalSpy tokens(&server, &AniListLoopbackServer::tokenReceived);
+    QSignalSpy failures(&server, &AniListLoopbackServer::signInFailed);
+    const QByteArray tokenPath = "/anilist/callback/token";
+    const QByteArray portText = QByteArray::number(port);
+
+    auto status = [&](const QByteArray &request) {
+        const HttpReply reply = exchange(port, request);
+        return reply.connected ? reply.status : -1;
+    };
+
+    // Bad, missing, and near-miss state.
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor("state-WRONG-0123456789"))), 400);
+    QCOMPARE(status(postRequest(port, tokenPath, fragmentFor({}))), 400);
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor(kState.left(kState.size() - 1)))),
+             400);
+    // Wrong token_type, bad expiry, bad token characters, empty token.
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor(kState, kToken, "mac"))), 400);
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor(kState, kToken, "Bearer", "0"))),
+             400);
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor(kState, kToken, "Bearer", "abc"))),
+             400);
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor(kState, "bad%20token%3C%3E"))),
+             400);
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor(kState, QByteArray()))), 400);
+    // Oversized body (declared) and oversized declared length with no body.
+    QCOMPARE(status(postRequest(port, tokenPath,
+                                fragmentFor(kState,
+                                            QByteArray(9000, 'a')))), 413);
+    QCOMPARE(status("POST " + tokenPath + " HTTP/1.1\r\nHost: 127.0.0.1:"
+                    + portText + "\r\nContent-Length: 20000\r\n\r\n"), 413);
+    // Wrong path, wrong method.
+    QCOMPARE(status(postRequest(port, "/anilist/other", fragmentFor(kState))),
+             404);
+    QCOMPARE(status(getRequest(port, "/")), 404);
+    QCOMPARE(status(postRequest(port, "/anilist/callback",
+                                fragmentFor(kState))), 405);
+    QCOMPARE(status(postRequest(port, tokenPath, fragmentFor(kState), {},
+                                "PUT")), 405);
+    QCOMPARE(status(getRequest(port, tokenPath)), 405);
+    // Foreign Origin, missing Origin, foreign Host, wrong content type.
+    QCOMPARE(status(postRequest(port, tokenPath, fragmentFor(kState),
+                                "http://evil.example")), 403);
+    QCOMPARE(status(postRequest(port, tokenPath, fragmentFor(kState),
+                                "http://127.0.0.1:1")), 403);
+    QCOMPARE(status("POST " + tokenPath + " HTTP/1.1\r\nHost: 127.0.0.1:"
+                    + portText
+                    + "\r\nContent-Type: application/x-www-form-urlencoded"
+                      "\r\nContent-Length: 0\r\n\r\n"), 403);
+    QCOMPARE(status(postRequest(port, tokenPath, fragmentFor(kState), {},
+                                "POST", "application/x-www-form-urlencoded",
+                                "evil.example")), 403);
+    QCOMPARE(status(postRequest(port, tokenPath, fragmentFor(kState), {},
+                                "POST", "application/json")), 415);
+
+    QCOMPARE(tokens.count(), 0);
+    QCOMPARE(failures.count(), 0);
+    QVERIFY(server.active());
+
+    // After all of that, the legitimate token still goes through.
+    QCOMPARE(status(postRequest(port, tokenPath, fragmentFor(kState))), 200);
+    QTRY_COMPARE(tokens.count(), 1);
+}
+
+void TrackerAniListTest::loopback_rejects_second_token_after_success()
+{
+    AniListLoopbackServer server;
+    const quint16 port = freePort();
+    QVERIFY(server.start(redirectFor(port), kState));
+    QSignalSpy tokens(&server, &AniListLoopbackServer::tokenReceived);
+    QCOMPARE(exchange(port, postRequest(port, "/anilist/callback/token",
+                                        fragmentFor(kState))).status, 200);
+    const HttpReply second = exchange(port, postRequest(
+        port, "/anilist/callback/token",
+        fragmentFor(kState, "second.token.value")));
+    // Closed listener: refused. A racing in-flight request would get 409.
+    QVERIFY(!second.connected || second.status == 409);
+    QTRY_COMPARE(tokens.count(), 1);
+    const HttpReply page = exchange(port, getRequest(port, "/anilist/callback"));
+    QVERIFY(!page.connected || page.status == 409);
+}
+
+void TrackerAniListTest::loopback_reports_provider_error_and_timeout()
+{
+    {
+        AniListLoopbackServer server;
+        const quint16 port = freePort();
+        QVERIFY(server.start(redirectFor(port), kState));
+        QSignalSpy tokens(&server, &AniListLoopbackServer::tokenReceived);
+        QSignalSpy failures(&server, &AniListLoopbackServer::signInFailed);
+        QCOMPARE(exchange(port, postRequest(
+            port, "/anilist/callback/token",
+            "error=access_denied&state=" + kState)).status, 200);
+        QTRY_COMPARE(failures.count(), 1);
+        QCOMPARE(failures.first().at(0).toString(),
+                 QStringLiteral("access_denied"));
+        QCOMPARE(tokens.count(), 0);
+        QVERIFY(!server.active());
+    }
+    {
+        // An error without the right state must not end the sign-in.
+        AniListLoopbackServer server;
+        const quint16 port = freePort();
+        QVERIFY(server.start(redirectFor(port), kState));
+        QSignalSpy failures(&server, &AniListLoopbackServer::signInFailed);
+        QCOMPARE(exchange(port, postRequest(
+            port, "/anilist/callback/token",
+            "error=access_denied")).status, 400);
+        QCOMPARE(failures.count(), 0);
+        QVERIFY(server.active());
+    }
+    {
+        AniListLoopbackServer server;
+        server.setLifetimeMs(50);
+        const quint16 port = freePort();
+        QVERIFY(server.start(redirectFor(port), kState));
+        QSignalSpy failures(&server, &AniListLoopbackServer::signInFailed);
+        QTRY_COMPARE(failures.count(), 1);
+        QCOMPARE(failures.first().at(0).toString(), QStringLiteral("timeout"));
+        QVERIFY(!server.active());
+    }
+}
+
+void TrackerAniListTest::controller_success_stores_credential()
+{
+    ControllerFixture f;
+    QSignalSpy established(&f.controller,
+                           &AniListConnectionController::connectionEstablished);
+    QVERIFY(f.controller.available());
+    QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+    QCOMPARE(f.controller.phase(), QStringLiteral("awaiting_approval"));
+    QVERIFY(f.controller.busy());
+
+    const QUrl url(f.controller.verificationUrl());
+    QCOMPARE(url.host(), QStringLiteral("anilist.co"));
+    QCOMPARE(url.path(), QStringLiteral("/api/v2/oauth/authorize"));
+    const QUrlQuery query(url);
+    QCOMPARE(query.queryItemValue(QStringLiteral("client_id")),
+             QStringLiteral("55437"));
+    QCOMPARE(query.queryItemValue(QStringLiteral("response_type")),
+             QStringLiteral("token"));
+    QCOMPARE(query.queryItemValue(QStringLiteral("state")),
+             QString::fromLatin1(f.state()));
+    QVERIFY(f.controller.openApprovalPage());
+    QCOMPARE(f.opened.size(), 1);
+
+    const qint64 before = QDateTime::currentMSecsSinceEpoch();
+    QCOMPARE(f.deliverToken().status, 200);
+    QTRY_COMPARE(f.controller.phase(), QStringLiteral("connected"));
+    QCOMPARE(established.count(), 1);
+    QCOMPARE(f.transport.postCalls, 1);
+    QCOMPARE(f.transport.lastAccessToken, kToken);
+    QVERIFY(f.transport.lastBody.value(QStringLiteral("query"))
+                .toString().contains(QLatin1String("Viewer")));
+
+    QVERIFY(f.vault.saved);
+    QCOMPARE(f.vault.saved->slot.profileId, f.profile.profileId());
+    QCOMPARE(f.vault.saved->slot.providerId, TrackerProviderId::AniList);
+    QCOMPARE(f.vault.saved->slot.remoteAccountId, QStringLiteral("5821"));
+    QCOMPARE(f.vault.saved->accessToken, kToken);
+    QVERIFY(f.vault.saved->refreshToken.isEmpty());
+    const qint64 expiry = f.vault.saved->accessTokenExpiresAtMs;
+    QVERIFY(expiry >= before + 31536000LL * 1000);
+    QVERIFY(expiry <= QDateTime::currentMSecsSinceEpoch() + 31536000LL * 1000);
+
+    const auto connection = f.connections.connection(TrackerProviderId::AniList);
+    QVERIFY(connection);
+    QCOMPARE(connection->state, TrackerConnectionState::Connected);
+    QCOMPARE(connection->remoteAccountId, QStringLiteral("5821"));
+    QCOMPARE(connection->connectionGeneration, quint64(1));
+    QVERIFY(!f.loopback.active());
+    QVERIFY(!f.controller.reconnectRequired());
+    // The token never reaches anything the UI can read.
+    QVERIFY(!f.controller.statusMessage().contains(QString::fromLatin1(kToken)));
+    QVERIFY(!f.controller.verificationUrl().contains(QString::fromLatin1(kToken)));
+}
+
+void TrackerAniListTest::controller_viewer_failure_stores_nothing()
+{
+    {
+        ControllerFixture f;
+        f.transport.result = AniListApiResult{
+            AniListTransportError::AuthenticationRequired, 401, {}, 0, false,
+            false};
+        QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+        QCOMPARE(f.deliverToken().status, 200);
+        QTRY_COMPARE(f.controller.phase(), QStringLiteral("attention"));
+        QVERIFY(!f.vault.saved);
+        QVERIFY(!f.connections.connection(TrackerProviderId::AniList));
+        QVERIFY(!f.controller.busy());
+    }
+    {
+        ControllerFixture f;
+        f.transport.result = AniListApiResult{
+            AniListTransportError::NetworkFailure, 0, {}, 0, true, false};
+        QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+        f.deliverToken();
+        QTRY_COMPARE(f.controller.phase(), QStringLiteral("attention"));
+        QVERIFY(!f.vault.saved);
+        QVERIFY(!f.connections.connection(TrackerProviderId::AniList));
+    }
+    {
+        // 200 with an unusable body is also fail-closed.
+        ControllerFixture f;
+        f.transport.result.document = QJsonDocument(QJsonObject{});
+        QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+        f.deliverToken();
+        QTRY_COMPARE(f.controller.phase(), QStringLiteral("attention"));
+        QVERIFY(!f.vault.saved);
+    }
+}
+
+void TrackerAniListTest::controller_cancel_and_timeout()
+{
+    {
+        ControllerFixture f;
+        QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+        QVERIFY(f.loopback.active());
+        f.controller.cancel();
+        QCOMPARE(f.controller.phase(), QStringLiteral("cancelled"));
+        QVERIFY(!f.loopback.active());
+        QVERIFY(!f.vault.saved);
+        // A late token after cancel has nowhere to go.
+        const HttpReply late = f.deliverToken();
+        QVERIFY(!late.connected);
+        QCOMPARE(f.transport.postCalls, 0);
+    }
+    {
+        ControllerFixture f;
+        f.loopback.setLifetimeMs(50);
+        QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+        QTRY_COMPARE(f.controller.phase(), QStringLiteral("attention"));
+        QVERIFY(f.controller.statusMessage().contains(QLatin1String("timed out")));
+        QVERIFY(!f.loopback.active());
+        QVERIFY(!f.vault.saved);
+        QVERIFY(!f.connections.connection(TrackerProviderId::AniList));
+    }
+}
+
+void TrackerAniListTest::controller_disconnect_removes_credential()
+{
+    ControllerFixture f;
+    QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+    f.deliverToken();
+    QTRY_COMPARE(f.controller.phase(), QStringLiteral("connected"));
+    QVERIFY(f.vault.saved);
+
+    QVERIFY(f.controller.disconnect());
+    QVERIFY(!f.vault.saved);
+    const auto connection = f.connections.connection(TrackerProviderId::AniList);
+    QVERIFY(connection);
+    QCOMPARE(connection->state, TrackerConnectionState::Disconnected);
+    QCOMPARE(f.controller.phase(), QStringLiteral("idle"));
+}
+
+void TrackerAniListTest::controller_unauthorized_requires_reconnect_and_keeps_record()
+{
+    ControllerFixture f;
+    QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+    f.deliverToken();
+    QTRY_COMPARE(f.controller.phase(), QStringLiteral("connected"));
+    const quint64 generation =
+        f.connections.connection(TrackerProviderId::AniList)->connectionGeneration;
+
+    // A 401 from the API client: reconnect state, nothing deleted.
+    f.controller.noteAuthenticationFailure();
+    QCOMPARE(f.controller.phase(), QStringLiteral("reconnect_required"));
+    QVERIFY(f.controller.reconnectRequired());
+    QVERIFY(f.vault.saved);
+    QCOMPARE(f.connections.connection(TrackerProviderId::AniList)->state,
+             TrackerConnectionState::Connected);
+
+    // Reconnect with the same account: new credential, same generation.
+    f.vault.saved->accessToken = QByteArrayLiteral("revoked-token");
+    QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+    QCOMPARE(f.controller.phase(), QStringLiteral("awaiting_approval"));
+    f.deliverToken(QByteArrayLiteral("fresh.token.value"));
+    QTRY_COMPARE(f.controller.phase(), QStringLiteral("connected"));
+    QCOMPARE(f.vault.saved->accessToken, QByteArrayLiteral("fresh.token.value"));
+    QVERIFY(!f.controller.reconnectRequired());
+    QCOMPARE(f.connections.connection(TrackerProviderId::AniList)->connectionGeneration,
+             generation);
+
+    // An expired stored credential is a reconnect too, with no 401 needed.
+    f.vault.saved->accessTokenExpiresAtMs = 1;
+    QVERIFY(f.controller.reconnectRequired());
+    // A different account on a still-connected profile is refused.
+    f.transport.result.document = viewerDocument(777);
+    QVERIFY(f.controller.beginConnection(QStringLiteral("anilist")));
+    f.deliverToken(QByteArrayLiteral("other.account.token"));
+    QTRY_COMPARE(f.controller.phase(), QStringLiteral("attention"));
+    QCOMPARE(f.connections.connection(TrackerProviderId::AniList)->remoteAccountId,
+             QStringLiteral("5821"));
+}
+
+void TrackerAniListTest::controller_unconfigured_is_unavailable()
+{
+    QTemporaryDir root;
+    const ProfilePaths profile = ProfilePaths::localOnly(root.path());
+    FakeVault vault;
+    FakeTransport transport;
+    AniListLoopbackServer loopback;
+    TrackerConnectionStore connections(profile);
+    AniListConnectionController controller(
+        profile, &connections, std::nullopt, &vault, &transport, &loopback,
+        [](const QUrl &) { return true; }, {});
+    QVERIFY(!controller.available());
+    QVERIFY(!controller.beginConnection(QStringLiteral("anilist")));
+    QVERIFY(!loopback.active());
+    QCOMPARE(controller.phase(), QStringLiteral("attention"));
+    // Wrong provider key is refused too.
+    ControllerFixture f;
+    QVERIFY(!f.controller.beginConnection(QStringLiteral("mal")));
+    QVERIFY(!f.loopback.active());
 }
 
 QTEST_GUILESS_MAIN(TrackerAniListTest)
