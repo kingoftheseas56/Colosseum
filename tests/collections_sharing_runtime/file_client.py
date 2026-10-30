@@ -26,6 +26,9 @@ class Client:
         target=str((payload or {}).get('target',(payload or {}).get('object',''))).lower()
         if 'password' in target or 'passphrase' in target:
             record['request']['payload']['text']='[redacted]'
+            if 'text' in record['reply']: record['reply']['text']='[redacted]'
+            if 'value' in record['reply']: record['reply']['value']='[redacted]'
+            if 'typed' in record['reply']: record['reply']['typed']='[redacted]'
             if 'props' in record['reply']: record['reply']['props']['text']='[redacted]'
         with (self.evidence/'native-observed.jsonl').open('a') as f:f.write(json.dumps(record)+'\n')
         if not allow_error and reply.get('type')!='reply': raise RuntimeError(json.dumps(record))
