@@ -778,6 +778,7 @@ set_tests_properties(colosseum.qttest.vault_android_index_adapter PROPERTIES
 
 add_executable(tst_vault_downloads_root
     auto/vault/tst_vault_downloads_root.cpp
+    "${COLOSSEUM_NATIVE_DIR}/engine/VaultKit.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.cpp"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultDownloadsRoot.h"
     "${COLOSSEUM_NATIVE_DIR}/engine/VaultIdentity.cpp"

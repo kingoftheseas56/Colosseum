@@ -44,6 +44,8 @@ public:
     void setVolumePages(const QString& id, const QVariantList& pages) { m_volumePages[id] = pages; }
     void setBookPath(const QString& id, const QString& path) { m_bookPaths[id] = path; }
 
+signals:
+    void libraryChanged();
 public slots:
     QVariantList downloadedVideos() const { return m_videos; }
     QVariantList downloadedBooks() const { return m_books; }
@@ -121,9 +123,11 @@ class tst_vault_downloads_root : public QObject
     Q_OBJECT
 
 private slots:
+    void settled_owner_changes_notify_once();
+    void movie_labels_do_not_create_episode_groups();
     void derives_container_rows_from_all_backbones();
     void loose_downloaded_movies_each_have_own_group();
-    void normalizes_epoch_seconds_to_milliseconds();
+    void uses_file_timestamp_for_identity();
     void skips_loose_page_chapters_and_missing_files();
     void null_backbones_are_a_noop();
     void double_count_guard_same_file_two_roots_shelves_once();
@@ -254,8 +258,9 @@ void tst_vault_downloads_root::loose_downloaded_movies_each_have_own_group()
     for (const VaultIndex::FileRow& row : rows) {
         if (row.groupTitle == QStringLiteral("Foundation")) {
             ++seriesRows;
-            QCOMPARE(row.groupKey, QStringLiteral("Foundation"));
-            QCOMPARE(row.subtreePath, QStringLiteral("Foundation"));
+            const QString key = normalizedPath(QFileInfo(row.path).absolutePath()) + QStringLiteral("::show::foundation");
+            QCOMPARE(row.groupKey, key);
+            QCOMPARE(row.subtreePath, key);
             continue;
         }
         looseGroups.insert(row.groupKey);
@@ -269,7 +274,7 @@ void tst_vault_downloads_root::loose_downloaded_movies_each_have_own_group()
     QCOMPARE(seriesRows, 2);
 }
 
-void tst_vault_downloads_root::normalizes_epoch_seconds_to_milliseconds()
+void tst_vault_downloads_root::uses_file_timestamp_for_identity()
 {
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
@@ -305,7 +310,7 @@ void tst_vault_downloads_root::normalizes_epoch_seconds_to_milliseconds()
 
     QCOMPARE(rows.size(), 3);
     for (const VaultIndex::FileRow& row : rows) {
-        QCOMPARE(row.mtimeMs, epochSeconds * 1000);
+        QCOMPARE(row.mtimeMs, QFileInfo(row.path).lastModified().toMSecsSinceEpoch());
         QVERIFY(row.mtimeMs > 1000000000000LL);
     }
 }
@@ -399,6 +404,30 @@ void tst_vault_downloads_root::hasContainerDownloads_gate()
         VaultDownloadsRoot root(nullptr, nullptr, &one, nullptr);
         QVERIFY(root.hasContainerDownloads());
     }
+}
+
+void tst_vault_downloads_root::settled_owner_changes_notify_once()
+{
+    FakeBackbone owner;
+    VaultDownloadsRoot root(&owner, nullptr, nullptr, nullptr);
+    QSignalSpy changed(&root, SIGNAL(changed()));
+    QVERIFY(changed.isValid());
+    emit owner.libraryChanged();
+    emit owner.libraryChanged();
+    QTRY_COMPARE(changed.count(), 1);
+}
+
+void tst_vault_downloads_root::movie_labels_do_not_create_episode_groups()
+{
+    QTemporaryDir temp;
+    const QString file = seedFile(temp, "Film.mp4", QByteArrayLiteral("video"));
+    FakeBackbone owner;
+    owner.setVideos({QVariantMap{{"kind", "movie"}, {"seriesTitle", "Film"},
+                                {"title", "Film"}, {"path", file}}});
+    VaultDownloadsRoot root(&owner, nullptr, nullptr, nullptr);
+    const auto rows = root.rowsForDownloads("logical-downloads");
+    QCOMPARE(rows.size(), 1);
+    QVERIFY(!rows.first().groupKey.contains(QLatin1String("::show::")));
 }
 
 QTEST_GUILESS_MAIN(tst_vault_downloads_root)

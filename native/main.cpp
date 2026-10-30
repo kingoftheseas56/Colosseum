@@ -985,7 +985,7 @@ int main(int argc, char *argv[]) {
     bool vaultVideoEnrichInFlight = false;
     bool vaultVideoEnrichRerun = false;
     std::shared_ptr<VaultKit::CancellationToken> vaultVideoEnrichCancel;
-    auto runVaultVideoEnrichment = [vaultIndex, vaultEnricher, vaultLibrary,
+    auto runVaultVideoEnrichment = [vaultIndex, vaultConfig, vaultEnricher, vaultLibrary,
                                     &vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
                                     &vaultVideoEnrichCancel]() {
         if (vaultVideoEnrichInFlight) {
@@ -1000,7 +1000,7 @@ int main(int argc, char *argv[]) {
         QList<VaultIndex::FileRow> todo;
 #if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && (r.durationSec <= 0.0 || r.coverRef.isEmpty()))
                 todo.append(r);
@@ -1054,7 +1054,18 @@ int main(int argc, char *argv[]) {
     // this one (runVaultVideoEnrichment above) — never ffprobe on the GUI thread. An
     // index-revision guard drops stale enrichment after ANY superseding index mutation, so
     // scanner and watcher changes cannot be resurrected.
-    auto runVaultCoverEnrichment = [vaultIndex, runVaultVideoEnrichment]() {
+    auto *vaultCoverRetry = new QTimer(vaultLibrary);
+    vaultCoverRetry->setSingleShot(true);
+    vaultCoverRetry->setInterval(250);
+    bool vaultCoverInFlight = false;
+    bool vaultCoverRerun = false;
+    auto runVaultCoverEnrichment = [vaultIndex, vaultConfig, runVaultVideoEnrichment,
+                                    vaultCoverRetry, &vaultCoverInFlight, &vaultCoverRerun]() {
+        if (vaultCoverInFlight) {
+            vaultCoverRerun = true;
+            return;
+        }
+        vaultCoverRerun = false;
         // Capture the exact index snapshot this async work is derived from. Any successful
         // scanner publish, watcher reconciliation, away-state change, or other mutation advances
         // the revision and makes this worker's eventual write-back ineligible.
@@ -1063,20 +1074,20 @@ int main(int argc, char *argv[]) {
         // enriched library does no redundant CBZ reads (this returns nothing after the first pass).
         QList<VaultIndex::FileRow> todo;
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("comic"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
         }
 #if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
 #endif
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
                 && r.errorState.isEmpty() && r.metadataSource.isEmpty())
                 todo.append(r);
@@ -1087,18 +1098,23 @@ int main(int argc, char *argv[]) {
             runVaultVideoEnrichment();
             return;
         }
+        vaultCoverInFlight = true;
         auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>(vaultIndex);
         QObject::connect(
             watcher, &QFutureWatcher<QList<VaultIndex::FileRow>>::finished, vaultIndex,
-            [vaultIndex, watcher, baseRevision, runVaultVideoEnrichment]() {
+            [vaultIndex, watcher, baseRevision, runVaultVideoEnrichment, vaultCoverRetry,
+             &vaultCoverInFlight, &vaultCoverRerun]() {
                 const QList<VaultIndex::FileRow> enriched = watcher->result();
                 watcher->deleteLater();
                 // Conditional write-back is the resurrection barrier: stale workers cannot
                 // reinsert rows after a scanner publish OR a live watcher deletion/replacement.
-                vaultIndex->upsertManyIfRevision(enriched, baseRevision);
+                const bool committed = vaultIndex->upsertManyIfRevision(enriched, baseRevision);
+                vaultCoverInFlight = false;
+                if (!committed || vaultCoverRerun)
+                    vaultCoverRetry->start();
                 // S5: video durations + local artwork run only after this census commit
                 // landed, so admission verdicts are durable before the enricher re-reads.
-                runVaultVideoEnrichment();
+                if (committed) runVaultVideoEnrichment();
             });
         watcher->setFuture(QtConcurrent::run([todo]() {
             QList<VaultIndex::FileRow> out;
@@ -1168,6 +1184,9 @@ int main(int argc, char *argv[]) {
     };
     QObject::connect(vaultScanner, &VaultScanner::indexPublished, vaultLibrary,
                      [runVaultCoverEnrichment]() { runVaultCoverEnrichment(); });
+    QObject::connect(vaultCoverRetry, &QTimer::timeout, vaultLibrary, runVaultCoverEnrichment);
+    QObject::connect(vaultLibrary, &VaultLibrary::liveArrival, vaultCoverRetry,
+                     [vaultCoverRetry]() { vaultCoverRetry->start(); });
     // Enrich an already-indexed library once at boot too, so covers appear on a relaunch
     // without re-adding the folder (a fresh index published this run enriches via the signal).
     runVaultCoverEnrichment();

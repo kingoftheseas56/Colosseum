@@ -46,6 +46,9 @@ public:
     // gate that decides whether to addSyntheticRoot on first Vault open.
     bool hasContainerDownloads() const;
 
+signals:
+    void changed();
+
 private:
     // Each backbone contributes rows via a uniform derive step. The lambda-style
     // helpers are kept here as private methods so the test can exercise the same
