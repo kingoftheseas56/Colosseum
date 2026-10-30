@@ -63,6 +63,14 @@ TestCase {
         compare(host.page, "album");
         compare(host.pageData.playingIndex, index + 1);
     }
+    function test_coverKeepsScaleInShortViewport() {
+        var page=item("vinylAlbumPage");
+        page.height=390;
+        wait(0);
+        verify(page.coverSize>=320, "Album artwork must retain its large desktop scale.");
+        verify(page.contentHeight>=page.coverSize+page.albumMetadataHeight+48,
+            "Scrolling must keep artwork and metadata reachable in a short viewport.");
+    }
     function test_barStates() {
         var bar = item("vinylPlayerBar");
         verify(item("vinylBarQueue").visible);
