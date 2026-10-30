@@ -13,8 +13,10 @@ import "ExplicitContentPolicy.js" as ExplicitPolicy
 
 pragma ComponentBehavior: Bound
 
-Column {
+BrowseColumnScaffold {
     id: page
+    desktopPageMargin:theme.margin
+    sidebarRailExtent:rowIndex.openWidth+28
 
     property string pageKey: "movies"
     // injected wiring: the one global content preference, the bundled MAL catalogue, the per-tab
@@ -97,13 +99,15 @@ Column {
     signal genreIndexRequested(string kind)
     signal seeAllRequested(var pin)
 
-    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property bool phonePortrait: page.layout.portraitBrowse
+    readonly property int portraitPosterWidth: Math.max(64, Math.min(104, Math.floor((page.width - 24) / 3)))
+    readonly property real contentLeft: page.layout.compactBrowse ? 0 : rowIndex.contentLeft
     readonly property real _availableWidth: parent ? parent.width : 900
     x: page.contentLeft
     width: Math.max(0, page._availableWidth - page.contentLeft)
     // gallery uses the approved 46px shelf-to-shelf rhythm; the lazy host reserves no extra gap so
     // the effective distance is exactly the page spacing, never host-gap + page-gap.
-    spacing: page.visualProfile === "gallery" ? 46 : 26
+    spacing: page.phonePortrait ? 24 : page.visualProfile === "gallery" ? 46 : 26
 
     // ── live PosterRail count, for deterministic harness inspection of lazy residency ──
     property int _liveRev: 0
@@ -131,6 +135,7 @@ Column {
     readonly property var _prefsStore: page.rowPreferences ? page.rowPreferences : internalPrefs
 
     RowIndexSidebar {
+        hostLayout:page.layout
         id: rowIndex
         parent: page.parent ? page.parent.parent : null
         z: 2
@@ -138,10 +143,20 @@ Column {
         pageFlick: page.pageFlick
         flowHost: page
         backdrop: page.backdrop
+        visible: page.visible && (!page.phonePortrait || !collapsed)
+        compactTouchTargets: page.phonePortrait
         worldName: "Theatre"
         automationPrefix: "theatreRowIndex"
         rows: page.rowIndexRows
         onRowRequested: (target) => { if (page.parkRowHandler) page.parkRowHandler(target) }
+        Rectangle {
+            anchors.fill: parent
+            z: -1
+            visible: page.phonePortrait
+            radius: 14
+            color: Qt.rgba(0.035, 0.04, 0.06, 0.97)
+            MouseArea { anchors.fill: parent }
+        }
     }
 
     readonly property string mediaKind: pageKey === "movies" ? "movie"
@@ -406,13 +421,33 @@ Column {
     // ── quiet Customize control (never consumes a content row) ──
     Item {
         width: parent.width
-        height: 24
+        height: page.phonePortrait ? 48 : 24
+        Rectangle {
+            visible: page.phonePortrait
+            objectName: "theatreRowsButton_" + page.pageKey
+            width: 80; height: 48; radius: 12
+            color: theme.glassTint
+            border.width: 1; border.color: theme.edge
+            Text {
+                anchors.centerIn: parent
+                text: "Rows"
+                color: theme.ink
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+            }
+            KeyboardAction {
+                anchors.fill: parent
+                objectName: "theatreRowsAction_" + page.pageKey
+                accessibleName: rowIndex.collapsed ? "Choose catalogue row" : "Close catalogue rows"
+                focusRadius: 12
+                onTriggered: rowIndex.collapsed = !rowIndex.collapsed
+            }
+        }
         Text {
             anchors.right: parent.right
             anchors.verticalCenter: parent.verticalCenter
             text: page.editMode ? "Done" : "Customize rows"
             color: custMa.containsMouse ? theme.ink : theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             MouseArea {
                 id: custMa; anchors.fill: parent; anchors.margins: -8
                 hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -432,15 +467,18 @@ Column {
     Item {
         id: loadingSkeleton
         visible: page.loading && page.mainRows.length === 0
-        width: parent.width; height: page.visualProfile === "gallery" ? 267 : 236
+        width: parent.width
+        height: page.phonePortrait ? Math.floor(page.portraitPosterWidth * 1.5) + (page.visualProfile === "gallery" ? 45 : 26)
+                                  : page.visualProfile === "gallery" ? 267 : 236
+        clip: page.phonePortrait
         Row {
             anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            spacing: page.visualProfile === "gallery" ? 20 : 18
+            spacing: page.phonePortrait ? 12 : page.visualProfile === "gallery" ? 20 : 18
             Repeater {
                 model: 7
                 Rectangle {
-                    width: page.visualProfile === "gallery" ? 148 : 132
-                    height: page.visualProfile === "gallery" ? 222 : 196
+                    width: page.phonePortrait ? page.portraitPosterWidth : page.visualProfile === "gallery" ? 148 : 132
+                    height: page.phonePortrait ? Math.floor(width * 1.5) : page.visualProfile === "gallery" ? 222 : 196
                     radius: 12
                     color: Qt.rgba(1, 1, 1, 0.08); border.width: 1
                     border.color: Qt.rgba(1, 1, 1, 0.10); opacity: 0.65
@@ -452,7 +490,7 @@ Column {
     Text {
         visible: !page.loading && page.mainRows.length === 0 && page.extensionRows.length === 0
         text: page.errorText.length ? page.errorText : "Nothing loaded here yet."
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
     }
 
     // ── the main shelves (Top 10 first, service rows in their contextual slots) ──
@@ -489,6 +527,9 @@ Column {
                 id: rowShelf
                 width: page.width
                 row: rowBlock.rowData
+                posterWidthOverride: page.phonePortrait ? page.portraitPosterWidth : 0
+                cardGapOverride: page.phonePortrait ? 12 : 0
+                compactLayout: page.phonePortrait
                 visualProfile: page.visualProfile
                 // rowBlock.y is page-local; the shelf's own y is rowBlock-local, so pass the viewport
                 // in rowBlock-local coordinates. (No per-frame mapToItem — a single subtraction.)
@@ -504,7 +545,7 @@ Column {
                 // Pending live rows occupy the same shelf footprint; no poster
                 // is shown until facts validate the candidate's eligibility.
                 height: rowBlock.rowData.pendingFacts === true && !rowShelf._hasItems
-                        ? (30 + rowShelf._m.headerGap + rowShelf._railListHeight) : 0
+                        ? (rowShelf.headerHeight + rowShelf._m.headerGap + rowShelf._railListHeight) : 0
                 width: 1
                 visible: height > 0
             }
@@ -516,7 +557,7 @@ Column {
         id: extHeading
         visible: page.hasExtensionSection
         text: "From Your Extensions"
-        color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+        color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
     }
     Repeater {
         id: extShelfRepeater
@@ -525,6 +566,9 @@ Column {
             required property var modelData
             width: page.width
             row: modelData
+            posterWidthOverride: page.phonePortrait ? page.portraitPosterWidth : 0
+            cardGapOverride: page.phonePortrait ? 12 : 0
+            compactLayout: page.phonePortrait
             visualProfile: page.visualProfile
             // the extension shelf is a direct child of this Column, so its y is already page-local.
             viewportTop: page.viewportTop

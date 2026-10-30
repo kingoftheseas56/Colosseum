@@ -11,6 +11,9 @@ import QtQml.Models
 
 Item {
     id: picker
+    AdaptiveLayout { id:pickerLayout; page:picker }
+    property bool _phoneSheetActive:false
+    readonly property var activePhoneSheet:phoneSheetLoader.status===Loader.Ready ? phoneSheetLoader.item : null
     property string label: ""                 // dim placeholder ("Genre") — shown when no real value
     property var options: []                  // [{key,text,sub} | {header:"…"}]
     property string currentKey: ""
@@ -34,7 +37,7 @@ Item {
     readonly property bool hasValue: !!current && current.key !== ""
 
     implicitWidth: Math.max(150, pillRow.implicitWidth + 38)
-    implicitHeight: 40
+    implicitHeight: pickerLayout.touch ? pickerLayout.touchTargetSize : 40
 
     function selectable(index) {
         return index >= 0 && index < picker.options.length
@@ -54,6 +57,11 @@ Item {
         return picker.nextSelectable(0, 1)
     }
     onOpenChanged: {
+        if (open && pickerLayout.touch) {
+            _phoneSheetActive=true
+            if (phoneSheetLoader.status===Loader.Ready) phoneSheetLoader.item.open()
+            return
+        }
         if (open) {
             pop.positionAtPill()
             pop.open()
@@ -67,6 +75,7 @@ Item {
             })
         } else {
             pop.close()
+            if (phoneSheetLoader.status===Loader.Ready) phoneSheetLoader.item.close()
         }
     }
     onVisibleChanged: if (!visible) closePopup(false)
@@ -145,20 +154,20 @@ Item {
             Text {
                 visible: picker.label.length > 0 && !picker.hasValue
                 text: picker.label
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 14
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 visible: picker.hasValue
                 text: picker.hasValue ? picker.current.text : ""
                 color: theme.gold; font.family: theme.ui
-                font.pixelSize: 14; font.weight: Font.DemiBold
+                font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 visible: picker.hasValue && !!picker.current.sub
                 text: picker.hasValue && picker.current.sub ? picker.current.sub : ""
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 anchors.verticalCenter: parent.verticalCenter
             }
         }
@@ -166,7 +175,7 @@ Item {
         Text {
             text: pill.showClear ? "✕" : "▾"
             color: pill.showClear ? theme.ink : theme.inkDim
-            font.pixelSize: pill.showClear ? 12 : 11
+            font.pixelSize: theme.fontSize(pill.showClear ? 12 : 11)
             anchors.right: parent.right; anchors.rightMargin: 13
             anchors.verticalCenter: parent.verticalCenter
         }
@@ -197,7 +206,7 @@ Item {
             id: clearMa
             visible: pill.showClear
             anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
-            width: 36
+            width: pickerLayout.touch ? pickerLayout.touchTargetSize : 36
             hoverEnabled: true; cursorShape: Qt.PointingHandCursor
             onClicked: picker.clearSelection()
         }
@@ -205,7 +214,7 @@ Item {
             id: clearAction
             visible: pill.showClear
             anchors.right: parent.right; anchors.top: parent.top; anchors.bottom: parent.bottom
-            width: 36
+            width: pickerLayout.touch ? pickerLayout.touchTargetSize : 36
             pointerEnabled: false
             accessibleName: "Clear " + picker.label
             focusRadius: pill.radius
@@ -214,6 +223,28 @@ Item {
     }
 
     // The shared popup lives in the window overlay, outside any clipped page Flickable.
+    Loader {
+        id:phoneSheetLoader
+        active:picker._phoneSheetActive
+        onLoaded:item.open()
+        sourceComponent:PhoneFilterSheet {
+            objectName:"phoneDiscoverPickerSheet"
+            title:picker.label
+            choices:picker.options
+            selectedKey:picker.currentKey
+            preferredFocusReturn:picker.focusReturn
+            automationPrefix:picker.automationName+"Option_"
+            onPicked:function(key) {
+                for (let i=0;i<picker.options.length;++i)
+                    if (picker.options[i].header===undefined && String(picker.options[i].key)===key) { picker.choose(i); break }
+            }
+            onClosed: {
+                if (picker.open) picker.closePopup(false)
+                Qt.callLater(function() { if (!picker.open) picker._phoneSheetActive=false })
+            }
+        }
+    }
+
     Popup {
         id: pop
         objectName: picker.automationName.length ? picker.automationName + "Popup" : ""
@@ -302,7 +333,7 @@ Item {
                     visible: opt.isHeader
                     text: opt.isHeader ? opt.modelData.header : ""
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 10
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 1.6; font.capitalization: Font.AllUppercase
                     anchors.left: parent.left; anchors.leftMargin: 12
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 6
@@ -322,7 +353,7 @@ Item {
                         id: catText
                         text: opt.isHeader ? "" : opt.modelData.text
                         color: opt.modelData.key === picker.currentKey ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         font.weight: opt.modelData.key === picker.currentKey ? Font.DemiBold : Font.Normal
                         anchors.left: parent.left; anchors.leftMargin: 12
                         anchors.verticalCenter: parent.verticalCenter
@@ -330,7 +361,7 @@ Item {
                     Text {
                         visible: !!opt.modelData.sub
                         text: opt.modelData.sub || ""
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                         anchors.right: parent.right; anchors.rightMargin: 12
                         anchors.left: catText.right; anchors.leftMargin: 8
                         horizontalAlignment: Text.AlignRight

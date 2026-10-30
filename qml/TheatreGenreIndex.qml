@@ -6,9 +6,13 @@ import QtQuick
 import QtQuick.Controls
 import "TheatreGenreApi.js" as Api
 
-Item {
+BrowseScaffold {
     id: root
+    desktopPageMargin:theme.margin
     anchors.fill: parent
+    readonly property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneNarrow: root.layout.compactBrowse
+    readonly property real contentMargin: phoneNarrow ? 20 : root.browseMargin
 
     // shell contract (mirrors GenrePage / the world-page layers)
     property Item backdrop: null
@@ -84,8 +88,8 @@ Item {
 
         Column {
             id: col
-            x: theme.margin
-            width: root.width - theme.margin * 2
+            x: root.contentMargin
+            width: root.width - root.contentMargin * 2
             topPadding: 14
             spacing: 0
 
@@ -93,13 +97,27 @@ Item {
             Text { text: root.mediaKind === "anime" ? "THEATRE · ANIME"
                         : root.mediaKind === "movie" ? "THEATRE · MOVIES" : "THEATRE · SHOWS"
                    color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
-            Text { text: "Explore Genres"; color: theme.ink; topPadding: 8
-                   font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6; font.weight: Font.DemiBold }
             Text {
+                width: parent.width
+                text: "Explore Genres"
+                color: theme.ink
+                topPadding: 8
+                font.family: theme.display
+                font.pixelSize: theme.fontSize(root.phoneNarrow ? 40 : 56)
+                font.letterSpacing: -1
+                wrapMode: Text.WordWrap
+                maximumLineCount: 2
+                elide: Text.ElideRight
+            }
+            Text {
+                width: parent.width
                 topPadding: 14; textFormat: Text.StyledText
-                font.family: theme.display; font.italic: true; font.pixelSize: 18
+                font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(18)
                 color: theme.inkDim
+                wrapMode: Text.WordWrap
+                maximumLineCount: 3
+                elide: Text.ElideRight
                 text: root.loading ? "Loading the directory…"
                       : "<b><font color='#f7f7f5'>" + root.totalGenres + "</font></b> genres"
                         + (root.mediaKind === "anime"
@@ -121,20 +139,48 @@ Item {
 
                     // group header: name + count badge + subtitle
                     Row {
+                        visible: !root.phoneNarrow
                         spacing: 12
                         Text { text: section.modelData.group; color: theme.ink
-                               font.family: theme.display; font.pixelSize: 25; font.letterSpacing: -0.2
+                               font.family: theme.display; font.pixelSize: theme.fontSize(25); font.letterSpacing: -0.2
                                anchors.verticalCenter: parent.verticalCenter }
                         Rectangle {
                             anchors.verticalCenter: parent.verticalCenter
-                            height: 20; radius: 10; width: gcl.implicitWidth + 18
+                            height: 20; radius: 10; width: gclDesktop.implicitWidth + 18
                             color: Qt.rgba(0.94,0.77,0.29,0.14); border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.4)
-                            Text { id: gcl; anchors.centerIn: parent; text: section.modelData.genres.length
-                                   color: theme.gold; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.Bold }
+                            Text { id: gclDesktop; anchors.centerIn: parent; text: section.modelData.genres.length
+                                   color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.Bold }
                         }
                         Text { text: Api.groupSub(section.modelData.group); color: theme.inkDimmer
-                               font.family: theme.ui; font.pixelSize: 13; font.italic: true
+                               font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.italic: true
                                anchors.verticalCenter: parent.verticalCenter }
+                    }
+                    Column {
+                        visible: root.phoneNarrow
+                        width: section.width
+                        spacing: 6
+                        Row {
+                            spacing: 12
+                            Text { text: section.modelData.group; color: theme.ink
+                                   font.family: theme.display; font.pixelSize: theme.fontSize(25); font.letterSpacing: -0.2 }
+                            Rectangle {
+                                height: 20; radius: 10; width: gclPhone.implicitWidth + 18
+                                color: Qt.rgba(0.94,0.77,0.29,0.14); border.width: 1; border.color: Qt.rgba(0.94,0.77,0.29,0.4)
+                                Text { id: gclPhone; anchors.centerIn: parent; text: section.modelData.genres.length
+                                       color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.Bold }
+                            }
+                        }
+                        Text {
+                            width: parent.width
+                            text: Api.groupSub(section.modelData.group)
+                            color: theme.inkDimmer
+                            font.family: theme.ui
+                            font.pixelSize: theme.fontSize(13)
+                            font.italic: true
+                            wrapMode: Text.WordWrap
+                            maximumLineCount: 2
+                            elide: Text.ElideRight
+                        }
                     }
 
                     // the cover mosaic for this group
@@ -205,7 +251,7 @@ Item {
                                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                                     anchors.leftMargin: 13; anchors.rightMargin: 13; anchors.bottomMargin: 11
                                     text: tile.modelData.name; color: "#ffffff"
-                                    font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                                    font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
                                     wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
                                     style: Text.Raised; styleColor: Qt.rgba(0,0,0,0.6)
                                 }
@@ -213,7 +259,7 @@ Item {
                                     anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 9
                                     text: tile.modelData.count > 0 ? root.fmtCount(tile.modelData.count) : ""
                                     color: Qt.rgba(1,1,1,0.86)
-                                    font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
                                     style: Text.Raised; styleColor: Qt.rgba(0,0,0,0.7)
                                 }
                                 HoverHandler { id: tHov }
@@ -251,15 +297,15 @@ Item {
             Image { source: "../assets/icons/search.svg"; width: 17; height: 17; opacity: 0.7
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.searchClicked() }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Search"; focusRadius: 4; onTriggered: root.searchClicked() } }
-            Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4; onTriggered: root.minimizeRequested() } }
-            Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4; onTriggered: root.fullscreenRequested() } }
-            Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
-                    KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Close"; focusRadius: 4; onTriggered: root.closeRequested() } }
+            Image { source: "../assets/icons/minimize.svg"; width: 17; height: 17; opacity: 0.7; visible: !root.androidHost
+                    MouseArea { anchors.fill: parent; visible: !root.androidHost; cursorShape: Qt.PointingHandCursor; onClicked: root.minimizeRequested() }
+                    KeyboardAction { anchors.fill: parent; visible: !root.androidHost; pointerEnabled: false; accessibleName: "Minimize"; focusRadius: 4; onTriggered: root.minimizeRequested() } }
+            Image { source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed) ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"; width: 17; height: 17; opacity: 0.7; visible: !root.androidHost
+                    MouseArea { anchors.fill: parent; visible: !root.androidHost; cursorShape: Qt.PointingHandCursor; onClicked: root.fullscreenRequested() }
+                    KeyboardAction { anchors.fill: parent; visible: !root.androidHost; pointerEnabled: false; accessibleName: "Toggle fullscreen"; focusRadius: 4; onTriggered: root.fullscreenRequested() } }
+            Image { source: "../assets/icons/power.svg"; width: 17; height: 17; opacity: 0.7; visible: !root.androidHost
+                    MouseArea { anchors.fill: parent; visible: !root.androidHost; cursorShape: Qt.PointingHandCursor; onClicked: root.closeRequested() }
+                    KeyboardAction { anchors.fill: parent; visible: !root.androidHost; pointerEnabled: false; accessibleName: "Close"; focusRadius: 4; onTriggered: root.closeRequested() } }
         }
     }
 }

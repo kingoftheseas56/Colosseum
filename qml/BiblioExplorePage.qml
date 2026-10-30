@@ -29,8 +29,10 @@ import "ExplicitContentPolicy.js" as Policy
 
 pragma ComponentBehavior: Bound
 
-Item {
+BrowseScaffold {
     id: page
+    desktopPageMargin:theme.margin
+    sidebarRailExtent:rowIndex.openWidth+28
 
     // ── injected world seams (production defaults; a harness overrides all three) ──
     property var catalogSource: (typeof BiblioCatalog !== "undefined") ? BiblioCatalog : null
@@ -55,7 +57,9 @@ Item {
     // tab switch within the same running session (Task 8's BiblioWorld reads/writes this) — a
     // plain property, NOT QSettings; it does not survive an app restart, by design.
     property real contentY: 0
-    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property bool phonePortrait: page.layout.portraitBrowse
+    readonly property int portraitPosterWidth: Math.max(64, Math.min(104, Math.floor((page.width - 24) / 3)))
+    readonly property real contentLeft: page.layout.compactBrowse ? 0 : rowIndex.contentLeft
 
     signal itemRequested(var work)
     signal discoverPinRequested(var pin)
@@ -534,27 +538,50 @@ Item {
             Item {
                 objectName: "biblioExploreHeaderStrip"
                 width: content.width
-                height: 30
+                height: page.phonePortrait ? 48 : 30
+                Rectangle {
+                    visible: page.phonePortrait
+                    width: 80; height: 48; radius: 12
+                    color: theme.glassTint
+                    border.width: 1; border.color: theme.edge
+                    Text {
+                        anchors.centerIn: parent
+                        text: qsTr("Rows"); color: theme.ink
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        objectName: "biblioExploreRowsAction"
+                        accessibleName: rowIndex.collapsed ? qsTr("Choose catalogue row") : qsTr("Close catalogue rows")
+                        focusRadius: 12
+                        onTriggered: rowIndex.collapsed = !rowIndex.collapsed
+                    }
+                }
                 Text {
+                    visible: !page.layout.compactBrowse
                     anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
                     text: "Explore"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 26; font.weight: Font.DemiBold
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(26); font.weight: Font.DemiBold
                 }
                 Text {
                     anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
                     text: page.editMode ? "Done" : "Customize shelves"
                     color: custMa.containsMouse || customizeAction.activeFocus ? theme.ink : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                     MouseArea {
                         id: custMa
-                        anchors.fill: parent; anchors.margins: -8
+                        anchors.fill: parent; anchors.margins: page.phonePortrait ? 0 : -8
+                        anchors.topMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
+                        anchors.bottomMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
                         hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                         onClicked: page.editMode = !page.editMode
                     }
                     KeyboardAction {
                         id: customizeAction
                         objectName: "biblioExploreCustomizeAction"
-                        anchors.fill: parent; anchors.margins: -8
+                        anchors.fill: parent; anchors.margins: page.phonePortrait ? 0 : -8
+                        anchors.topMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
+                        anchors.bottomMargin: page.phonePortrait ? (parent.height - 48) / 2 : -8
                         pointerEnabled: false
                         accessibleName: page.editMode ? "Finish shelf customization" : "Customize shelves"
                         focusRadius: 6
@@ -586,12 +613,12 @@ Item {
                         id: editControls
                         visible: page.editMode
                         spacing: 10
-                        height: 28
+                        height: page.layout.touch ? page.layout.touchTargetSize : 28
 
                         Rectangle {
                             id: dragHandle
                             objectName: "biblioExploreDrag_" + rowBlock.rowKey
-                            width: 28; height: 28; radius: 6
+                            width: page.layout.touch ? page.layout.touchTargetSize : 28; height: width; radius: 6
                             color: (dragHandleMa.containsMouse || dragHandle.activeFocus || page.draggingKey === rowBlock.rowKey)
                                    ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             border.width: dragHandle.activeFocus ? 2 : 1
@@ -629,7 +656,7 @@ Item {
                             }
                         }
                         Rectangle {
-                            width: 28; height: 28; radius: 6
+                            width: page.layout.touch ? page.layout.touchTargetSize : 28; height: width; radius: 6
                             border.width: 1; border.color: theme.edge
                             color: upMa.containsMouse || moveUpAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveUp(rowBlock.rowKey) ? 1 : 0.35
@@ -649,7 +676,7 @@ Item {
                             }
                         }
                         Rectangle {
-                            width: 28; height: 28; radius: 6
+                            width: page.layout.touch ? page.layout.touchTargetSize : 28; height: width; radius: 6
                             border.width: 1; border.color: theme.edge
                             color: downMa.containsMouse || moveDownAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             opacity: page.canMoveDown(rowBlock.rowKey) ? 1 : 0.35
@@ -669,13 +696,13 @@ Item {
                             }
                         }
                         Rectangle {
-                            width: 64; height: 28; radius: 6
+                            width: 64; height: page.layout.touch ? page.layout.touchTargetSize : 28; radius: 6
                             border.width: 1; border.color: theme.edge
                             color: hideMa.containsMouse || hideAction.activeFocus ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
                             Text {
                                 anchors.centerIn: parent
                                 text: rowBlock.modelData.hidden ? "Show" : "Hide"
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 11
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                             }
                             MouseArea {
                                 id: hideMa; anchors.fill: parent; hoverEnabled: true
@@ -693,6 +720,8 @@ Item {
                     }
 
                     BiblioBookRail {
+                        compactLayout: page.phonePortrait
+                        posterWidthOverride: page.phonePortrait ? page.portraitPosterWidth : 0
                         width: content.width
                         title: rowBlock.modelData.title
                         items: rowBlock.modelData.items
@@ -764,7 +793,7 @@ Item {
                         Text {
                             anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 14
                             text: tile.modelData.title
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 18; font.weight: Font.DemiBold
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
                         }
                         MouseArea {
                             anchors.fill: parent
@@ -783,8 +812,11 @@ Item {
     }
 
     RowIndexSidebar {
+        hostLayout:page.layout
         id: rowIndex
         z: 2
+        visible: page.visible && (!page.phonePortrait || !collapsed)
+        compactTouchTargets: page.phonePortrait
         pageFlick: mainFlick
         backdrop: page.backdrop
         worldName: "Biblio"
@@ -793,6 +825,14 @@ Item {
         fixedTopInset: 76
         currentOffset: 14
         onRowRequested: (target) => page.parkRow(target)
+        Rectangle {
+            anchors.fill: parent
+            z: -1
+            visible: page.phonePortrait
+            radius: 14
+            color: Qt.rgba(0.035, 0.04, 0.06, 0.97)
+            MouseArea { anchors.fill: parent }
+        }
     }
 
     ScrollGlide { id: pageGlide; flick: mainFlick }

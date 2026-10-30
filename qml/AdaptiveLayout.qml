@@ -13,7 +13,7 @@ QtObject {
             if (ancestor.clip) return ancestor
             ancestor=ancestor.parent
         }
-        return item
+        return item && item.Window.window ? item.Window.window.contentItem : item
     }
     readonly property Item viewportItem: viewportFor(page)
     property real viewportWidth: page && viewportItem ? Math.min(page.width, viewportItem.width) : 0
@@ -43,6 +43,9 @@ QtObject {
     readonly property bool wideWithRail: largeTablet && !shortLandscape
     readonly property bool phoneLayout: touch && (compactChrome || shortLandscape)
     readonly property real touchTargetSize: touch ? TouchMetrics.minimumTargetSize : 0
+    function canFitRail(railWidth) {
+        return usableWidth - Math.max(0, railWidth) >= 840 && !shortLandscape
+    }
 
     readonly property string layoutClass: shortLandscape ? "short-landscape"
                                                 : compactPhone ? "compact-phone"

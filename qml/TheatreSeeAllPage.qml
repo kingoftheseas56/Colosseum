@@ -6,8 +6,9 @@
 import QtQuick
 import "TheatreApi.js" as TheatreApi
 
-Item {
+BrowseScaffold {
     id: seeAll
+    desktopPageMargin:theme.margin
 
     property var pin: null
     property var malCatalog: null
@@ -140,7 +141,7 @@ Item {
                 id: backLbl
                 text: "Back"
                 color: backMa.containsMouse ? theme.ink : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                 anchors.left: chev.right; anchors.leftMargin: 8; anchors.verticalCenter: parent.verticalCenter
             }
             MouseArea {
@@ -163,13 +164,13 @@ Item {
             Text {
                 text: seeAll.titleText
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: 22; font.weight: Font.DemiBold
+                font.family: theme.display; font.pixelSize: theme.fontSize(22); font.weight: Font.DemiBold
             }
             Text {
                 visible: seeAll.isExtension && seeAll.sourceLabel.length > 0
                 text: "via " + seeAll.sourceLabel
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 12
+                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
         }
     }
@@ -207,7 +208,7 @@ Item {
         spacing: 12
         Text {
             text: seeAll.errorText
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             anchors.horizontalCenter: parent.horizontalCenter
         }
         Rectangle {
@@ -217,7 +218,7 @@ Item {
             border.width: 1; border.color: theme.edge
             Text {
                 anchors.centerIn: parent; text: "Retry"
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
             }
             MouseArea { id: retryMa; anchors.fill: parent; hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor; onClicked: seeAll.retry() }
@@ -238,6 +239,6 @@ Item {
         wrapMode: Text.WordWrap
         text: (seeAll.providerName.length > 0 ? seeAll.providerName : "This catalogue")
               + " is no longer available. It may have been removed or disabled in Extensions."
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
     }
 }

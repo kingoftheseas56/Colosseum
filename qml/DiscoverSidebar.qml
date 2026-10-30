@@ -22,6 +22,7 @@ import QtQuick.Controls
 
 Item {
     id: rail
+    AdaptiveLayout { id:touchLayout; page:rail }
 
     required property DiscoverBrowser host
     property Item backdrop: null
@@ -113,12 +114,12 @@ Item {
             Text {
                 text: "WORLD"
                 color: theme.gold
-                font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.8
+                font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 2.8
             }
             Text {
                 text: rail.worldName
                 color: theme.ink
-                font.family: theme.display; font.pixelSize: 27; font.letterSpacing: -0.54
+                font.family: theme.display; font.pixelSize: theme.fontSize(27); font.letterSpacing: -0.54
             }
         }
     }
@@ -147,7 +148,7 @@ Item {
                 leftPadding: 12
                 text: rail.host.textNoCatalogue
                 wrapMode: Text.WordWrap
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; lineHeight: 1.45
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); lineHeight: 1.45
             }
 
             Repeater {
@@ -158,8 +159,8 @@ Item {
                     readonly property bool current: src.modelData.name === rail.host.currentSource
                     objectName: rail.host.automationPrefix.length
                                 ? rail.host.automationPrefix + "DiscoverSource_" + rail._sanitise(src.modelData.name) : ""
-                    width: rail.collapsed ? 44 : col.width
-                    height: 46
+                    width: rail.collapsed ? (touchLayout.touch ? touchLayout.touchTargetSize : 44) : col.width
+                    height: touchLayout.touch ? touchLayout.touchTargetSize : 46
 
                     // plate: hover .07, current .09 with the gold bar and its glow
                     Rectangle {
@@ -202,7 +203,7 @@ Item {
                             elide: Text.ElideRight
                             color: (src.current || srcAction.interactionActive) ? theme.ink : theme.inkDim
                             Behavior on color { ColorAnimation { duration: 160 } }
-                            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                         }
                     }
                     KeyboardAction {
@@ -222,14 +223,14 @@ Item {
     Item {
         id: toggle
         objectName: rail.host.automationPrefix.length ? rail.host.automationPrefix + "DiscoverSidebarCollapse" : ""
-        x: rail.width - 14
-        y: 18
-        width: 28; height: 28
+        x: rail.width - width / 2
+        y: rail.host.compactPhonePortrait ? 8 : 18
+        width: touchLayout.touch ? touchLayout.touchTargetSize : 28; height: width
         opacity: toggleAction.interactionActive ? 1 : 0.74
         Glass {
             anchors.fill: parent
             backdrop: rail.backdrop
-            radius: 14
+            radius: toggle.width / 2
             tint: toggleAction.interactionActive ? 0.10 : 0.0
             scrim: toggleAction.interactionActive ? 0.0 : 0.46
             blurMax: 16
@@ -251,7 +252,7 @@ Item {
             id: toggleAction
             anchors.fill: parent
             accessibleName: rail.collapsed ? "Expand sidebar" : "Retract sidebar"
-            focusRadius: 14
+            focusRadius: toggle.width / 2
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed
         }

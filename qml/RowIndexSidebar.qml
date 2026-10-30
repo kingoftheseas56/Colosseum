@@ -3,10 +3,13 @@
 // real row items, so activation can use the page's existing parking/scrolling path.
 pragma ComponentBehavior: Bound
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 
 Item {
     id: rail
+    property var hostLayout:null
+    AdaptiveLayout { id:touchLayout; page:rail.parent }
 
     required property Flickable pageFlick
     property Item flowHost: null
@@ -36,10 +39,28 @@ Item {
 
     Theme { id: theme }
 
+    readonly property var activeChoiceSheet:phoneChoices.activeSheet
+    PhoneChoiceHost {
+        id:phoneChoices
+        onPicked:function(purpose,key) {
+            for (let i=0;i<rail.visibleRows.length;++i) {
+                const row=rail.visibleRows[i]
+                if (String(row.key || i)===key) { rail.rowRequested(row.target); break }
+            }
+        }
+    }
+    onCollapsedChanged: {
+        if (!collapsed && rail.hostLayout && rail.hostLayout.compactBrowse) {
+            collapsed=true
+            phoneChoices.showChoices(qsTr("On this page"),rail.visibleRows.map((row,index)=>({key:String(row.key || index),text:row.title || ""})),"","row",rail.Window.window ? rail.Window.window.activeFocusItem : null)
+        }
+    }
     property bool collapsed: true
+    property bool compactTouchTargets: false
     readonly property int openWidth: 240
     readonly property int closedWidth: 52
-    readonly property real contentLeft: width + 28
+    readonly property bool phoneLayout:rail.hostLayout ? rail.hostLayout.compactBrowse : touchLayout.phoneLayout
+    readonly property real contentLeft: phoneLayout ? closedWidth + 12 : width + 28
     readonly property int _shellPadRight: collapsed ? 4 : 16
     readonly property int _listPadRight: collapsed ? 0 : 16
     readonly property bool _labelsShown: width > openWidth - 24
@@ -179,14 +200,14 @@ Item {
                 text: rail.contextLabel
                 color: theme.gold
                 font.family: theme.ui
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
                 font.letterSpacing: 2.8
             }
             Text {
                 text: rail.worldName
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: 27
+                font.pixelSize: theme.fontSize(27)
                 font.letterSpacing: -0.54
             }
         }
@@ -221,8 +242,9 @@ Item {
                     readonly property bool current: rowItem.index === rail.currentIndex
                     readonly property alias action: rowAction
                     objectName: rail.automationPrefix + "Row_" + rail._sanitise(rowItem.modelData.key)
-                    width: rail.collapsed ? 44 : rowColumn.width
-                    height: rail.collapsed ? 46 : Math.max(46, rowLabel.implicitHeight + 20)
+                    width: rail.collapsed ? (touchLayout.touch ? touchLayout.touchTargetSize : 44) : rowColumn.width
+                    height: Math.max(touchLayout.touch ? touchLayout.touchTargetSize : 46,
+                                     rail.collapsed ? 0 : rowLabel.implicitHeight + 20)
 
                     Rectangle {
                         anchors.fill: parent
@@ -288,7 +310,7 @@ Item {
                         color: (rowItem.current || rowAction.interactionActive) ? theme.ink : theme.inkDim
                         Behavior on color { ColorAnimation { duration: 160 } }
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         font.weight: Font.DemiBold
                     }
                     KeyboardAction {
@@ -317,16 +339,16 @@ Item {
     Item {
         id: toggle
         objectName: rail.automationPrefix + "Collapse"
-        x: rail.width - 14
-        y: 18
-        width: 28
-        height: 28
+        x: rail.width - width / 2
+        y: rail.compactTouchTargets ? 8 : 18
+        width: touchLayout.touch ? touchLayout.touchTargetSize : 28
+        height: width
         opacity: toggleAction.interactionActive ? 1 : 0.74
 
         Glass {
             anchors.fill: parent
             backdrop: rail.backdrop
-            radius: 14
+            radius: toggle.width / 2
             tint: toggleAction.interactionActive ? 0.10 : 0.0
             scrim: toggleAction.interactionActive ? 0.0 : 0.46
             blurMax: 16
@@ -363,7 +385,7 @@ Item {
             objectName: rail.automationPrefix + "CollapseAction"
             anchors.fill: parent
             accessibleName: rail.collapsed ? "Expand row index" : "Retract row index"
-            focusRadius: 14
+            focusRadius: toggle.width / 2
             focusOnPointer: false
             onTriggered: rail.collapsed = !rail.collapsed
         }

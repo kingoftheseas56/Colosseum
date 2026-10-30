@@ -8,8 +8,9 @@ import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
 
-Item {
+BrowseScaffold {
     id: search
+    desktopPageMargin:theme.margin
     objectName: "biblioSearchSurface"
     property Item backdrop
     property var results: []
@@ -51,7 +52,7 @@ Item {
     signal closeRequested()
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+    readonly property bool phoneNarrow: search.layout.compactBrowse
 
     Theme { id: theme }
 
@@ -84,9 +85,9 @@ Item {
                 id: phoneDetails
                 width: Math.max(0, parent.width - 80); spacing: 7
                 Text { width: parent.width; text: phoneRow.entry.title || ""
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 16; wrapMode: Text.Wrap }
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(16); wrapMode: Text.Wrap }
                 Text { width: parent.width; text: phoneRow.entry.author || ""
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13; wrapMode: Text.Wrap }
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(13); wrapMode: Text.Wrap }
             }
         }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -204,7 +205,7 @@ Item {
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
         id: searchBack
-        x: search.phoneNarrow ? 16 : theme.margin
+        x: search.phoneNarrow ? 16 : search.browseMargin
         y: search.phoneNarrow ? 14 : undefined
         anchors.verticalCenter: search.phoneNarrow ? undefined : field.verticalCenter
         hoverColor: "#ffffff"   // Biblio world rule: white hover, not gold
@@ -219,7 +220,7 @@ Item {
         x: search.phoneNarrow ? 16 : searchBack.x + searchBack.width + 20
         y: search.phoneNarrow ? 72 : 44
         width: search.phoneNarrow ? Math.max(0, search.width - 32)
-                                  : search.width - x - theme.margin - winChrome.width - 24
+                                  : search.width - x - search.browseMargin - winChrome.width - 24
         height: search.phoneNarrow ? 56 : 72; radius: 16
         color: Qt.rgba(0, 0, 0, 0.30); border.width: 1; border.color: theme.edge
 
@@ -239,7 +240,7 @@ Item {
             anchors.left: glass.right; anchors.leftMargin: search.phoneNarrow ? 10 : 15
             anchors.right: rightCluster.left; anchors.rightMargin: search.phoneNarrow ? 4 : 14
             anchors.verticalCenter: parent.verticalCenter
-            color: theme.ink; font.family: theme.display; font.pixelSize: search.phoneNarrow ? 18 : 22
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(search.phoneNarrow ? 18 : 22)
             clip: true; focus: true; selectByMouse: true
             onTextChanged: { search.cancelAllRequests(); debounce.restart() }
             // the field holds keyboard focus, so close on Esc here rather than relying on the
@@ -252,7 +253,7 @@ Item {
             width: queryInput.width; clip: true
             anchors.verticalCenter: parent.verticalCenter
             text: "Search books…"; color: theme.inkDimmer; font.family: theme.display
-            font.pixelSize: search.phoneNarrow ? 18 : 22
+            font.pixelSize: theme.fontSize(search.phoneNarrow ? 18 : 22)
         }
         Row {
             id: rightCluster
@@ -264,7 +265,7 @@ Item {
                 width: search.phoneNarrow ? 44 : 26; height: width; radius: height / 2
                 anchors.verticalCenter: parent.verticalCenter
                 color: clearMa.containsMouse ? Qt.rgba(1,1,1,0.14) : Qt.rgba(1,1,1,0.06)
-                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 12 }
+                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(12) }
                 MouseArea { id: clearMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                     onClicked: { queryInput.text = ""; queryInput.forceActiveFocus() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Clear search"; focusRadius: 13
@@ -276,7 +277,7 @@ Item {
                 anchors.verticalCenter: parent.verticalCenter
                 color: "transparent"; border.width: 1; border.color: theme.edge
                 Text { id: escTxt; anchors.centerIn: parent; text: "Esc"; color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.5 }
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.5 }
                 MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: { search.cancelAllRequests(); search.backRequested() } }
                 KeyboardAction { anchors.fill: parent; pointerEnabled: false; accessibleName: "Exit search"; focusRadius: 6
                     onTriggered: { search.cancelAllRequests(); search.backRequested() } }
@@ -288,8 +289,8 @@ Item {
     Flickable {
         id: scroll
         anchors.top: field.bottom; anchors.topMargin: search.phoneNarrow ? 20 : 30
-        anchors.left: parent.left; anchors.leftMargin: search.phoneNarrow ? 16 : theme.margin
-        anchors.right: parent.right; anchors.rightMargin: search.phoneNarrow ? 16 : theme.margin
+        anchors.left: parent.left; anchors.leftMargin: search.phoneNarrow ? 16 : search.browseMargin
+        anchors.right: parent.right; anchors.rightMargin: search.phoneNarrow ? 16 : search.browseMargin
         anchors.bottom: parent.bottom; anchors.bottomMargin: 8
         clip: true
         contentWidth: width
@@ -310,7 +311,7 @@ Item {
                 // Recent (only if there's history this session)
                 Text {
                     visible: search.recent.length > 0
-                    text: "RECENT"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    text: "RECENT"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8
                 }
                 Item { visible: search.recent.length > 0; width: 1; height: 16 }
@@ -342,7 +343,7 @@ Item {
                             Text { id: rcLabel; anchors.left: parent.left; anchors.leftMargin: 17
                                 anchors.right: removeRecentButton.left; anchors.rightMargin: 5
                                 anchors.verticalCenter: parent.verticalCenter; text: modelData; color: theme.ink
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 wrapMode: search.phoneNarrow ? Text.Wrap : Text.NoWrap
                                 elide: search.phoneNarrow ? Text.ElideNone : Text.ElideRight }
                             MouseArea { id: rcMa; anchors.left: parent.left; anchors.right: removeRecentButton.left
@@ -352,7 +353,7 @@ Item {
                             Rectangle { id: removeRecentButton; width: search.phoneNarrow ? 44 : 28; height: parent.height; radius: height / 2
                                 anchors.right: parent.right; anchors.rightMargin: 3; anchors.verticalCenter: parent.verticalCenter
                                 color: removeRecentMa.containsMouse ? Qt.rgba(1,1,1,0.14) : "transparent"
-                                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: 11 }
+                                Text { anchors.centerIn: parent; text: Qt.platform.os === "android" ? "×" : "✕"; color: theme.inkDimmer; font.pixelSize: theme.fontSize(11) }
                                 MouseArea { id: removeRecentMa; anchors.fill: parent; hoverEnabled: true
                                     objectName: "biblioRecentRemove"; cursorShape: Qt.PointingHandCursor
                                     onClicked: search.removeRecent(modelData) } }
@@ -361,7 +362,7 @@ Item {
                 }
                 Item { visible: search.recent.length > 0; width: 1; height: 34 }
 
-                Text { text: "JUMP TO"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                Text { text: "JUMP TO"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
                 Item { width: 1; height: 16 }
                 Flow {
@@ -389,7 +390,7 @@ Item {
                             color: jMa.containsMouse || keyboardSelected ? Qt.rgba(1,1,1,0.12) : theme.glassTint
                             border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: jLbl; anchors.centerIn: parent; text: modelData.t; color: theme.ink
-                                font.family: theme.display; font.pixelSize: 15 }
+                                font.family: theme.display; font.pixelSize: theme.fontSize(15) }
                             MouseArea { id: jMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: { if (modelData.a === "home") search.homeRequested(); else search.backRequested() } }
                         }
@@ -397,7 +398,7 @@ Item {
                 }
                 Item { width: 1; height: 34 }
 
-                Text { text: "BROWSE A GENRE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                Text { text: "BROWSE A GENRE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8 }
                 Item { width: 1; height: 16 }
                 Flow {
@@ -428,7 +429,7 @@ Item {
                             border.width: keyboardSelected ? 2 : 1; border.color: keyboardSelected ? theme.gold : theme.edge
                             Text { id: gLbl; anchors.centerIn: parent; text: modelData.t
                                 color: gMa.containsMouse ? theme.ink : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13 }
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                             MouseArea { id: gMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
                                 onClicked: search.fillAndSearch(modelData.q) }
                         }
@@ -444,7 +445,7 @@ Item {
                 // Top Match — a mini dust-jacket
                 Text {
                     visible: search.results.length > 0
-                    text: "TOP MATCH"; color: theme.gold; font.family: theme.ui; font.pixelSize: 12
+                    text: "TOP MATCH"; color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.8
                 }
                 Item { visible: search.results.length > 0; width: 1; height: 14 }
@@ -480,15 +481,15 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         spacing: 10
                         Text { width: parent.width; text: topCard.m && topCard.m.title ? topCard.m.title : ""
-                            color: theme.ink; font.family: theme.display; font.pixelSize: 32
+                            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(32)
                             elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { visible: text.length > 0; width: parent.width
                             text: topCard.m && topCard.m.tagline ? "“" + topCard.m.tagline + "”" : ""
                             color: theme.ink; opacity: 0.9; font.family: theme.display; font.italic: true
-                            font.pixelSize: 18; elide: Text.ElideRight; maximumLineCount: 1 }
+                            font.pixelSize: theme.fontSize(18); elide: Text.ElideRight; maximumLineCount: 1 }
                         Text { width: parent.width
                             text: (topCard.m && topCard.m.genreLine ? topCard.m.genreLine : "").toUpperCase()
-                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                             font.letterSpacing: 1.0; elide: Text.ElideRight; maximumLineCount: 1 }
                     }
                     Rectangle {
@@ -497,7 +498,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 116; height: 48; radius: 12; color: theme.gold
                         Row { anchors.centerIn: parent; spacing: 7
-                            Text { text: "Open"; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            Text { text: "Open"; color: "#241a05"; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold }
                             Text { text: "›"; color: "#241a05"; font.pixelSize: 16 } }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: if (topCard.m) search.openBook(topCard.m) }
@@ -529,15 +530,15 @@ Item {
                                 id: phoneTopDetails
                                 width: Math.max(0, parent.width - 98); spacing: 8
                                 Text { width: parent.width; text: topCard.m.title || ""
-                                    color: theme.ink; font.family: theme.display; font.pixelSize: 23
+                                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(23)
                                     wrapMode: Text.Wrap }
                                 Text { visible: text.length > 0; width: parent.width
                                     text: topCard.m.tagline ? "“" + topCard.m.tagline + "”" : ""
                                     color: theme.ink; font.family: theme.display; font.italic: true
-                                    font.pixelSize: 16; wrapMode: Text.Wrap }
+                                    font.pixelSize: theme.fontSize(16); wrapMode: Text.Wrap }
                                 Text { width: parent.width
                                     text: (topCard.m.genreLine || "").toUpperCase()
-                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                     wrapMode: Text.Wrap }
                             }
                             }
@@ -546,7 +547,7 @@ Item {
                         Rectangle {
                             width: parent.width; height: 48; radius: 12; color: theme.gold
                             Text { anchors.centerIn: parent; text: "Open  ›"
-                                color: "#241a05"; font.family: theme.ui; font.pixelSize: 15
+                                color: "#241a05"; font.family: theme.ui; font.pixelSize: theme.fontSize(15)
                                 font.weight: Font.DemiBold }
                             MouseArea { anchors.fill: parent; onClicked: search.openTop() }
                         }
@@ -558,7 +559,7 @@ Item {
                 Text {
                     visible: search.searched
                     text: "BOOKS  ·  " + search.results.length + " FOUND"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 1.6
                 }
                 Item { visible: search.searched; width: 1; height: 16 }
@@ -600,7 +601,7 @@ Item {
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
                                     Text { visible: !modelData.cover; anchors.centerIn: parent; width: parent.width - 18
                                         text: "Cover art not available"; color: theme.inkDimmer; font.family: theme.display
-                                        font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                        font.pixelSize: theme.fontSize(12); horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
                                     scale: cardMa.containsMouse ? 1.03 : 1.0
                                     Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                     MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -608,10 +609,10 @@ Item {
                                 }
                             }
                             Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.title || ""
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                             Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.author || ""
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                         }
                     }
@@ -633,7 +634,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter; opacity: 0.7 }
                     Text {
                         text: "AUDIOBOOKS  ·  " + search.audioResults.length + " FOUND"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold; font.letterSpacing: 1.6
                         anchors.verticalCenter: parent.verticalCenter
                     }
@@ -678,7 +679,7 @@ Item {
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
                                     Text { visible: !modelData.cover; anchors.centerIn: parent; width: parent.width - 18
                                         text: "Cover art not available"; color: theme.inkDimmer; font.family: theme.display
-                                        font.pixelSize: 12; horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
+                                        font.pixelSize: theme.fontSize(12); horizontalAlignment: Text.AlignHCenter; wrapMode: Text.WordWrap }
                                     // medium badge — headphones/music glyph marks the audiobook lane
                                     Rectangle {
                                         anchors.top: parent.top; anchors.right: parent.right; anchors.margins: 6
@@ -693,10 +694,10 @@ Item {
                                 }
                             }
                             Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.title || ""
-                                color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                             Text { visible: !search.phoneNarrow; width: parent.width; text: modelData.author || ""
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                 elide: Text.ElideRight; maximumLineCount: 1 }
                         }
                     }
@@ -713,7 +714,7 @@ Item {
                     text: search.searchError
                     width: parent.width; wrapMode: Text.Wrap
                     color: theme.inkDimmer; font.family: theme.display
-                    font.pixelSize: 18; topPadding: 30
+                    font.pixelSize: theme.fontSize(18); topPadding: 30
                 }
                 // no-results — only once BOTH lanes have returned empty (else it flashes
                 // "No books found" while the slower audiobook lane is still loading), and
@@ -722,7 +723,7 @@ Item {
                     visible: search.searched && search.results.length === 0 && search.audioResults.length === 0
                              && !search.searching && !search.audioSearching && search.searchError.length === 0
                     text: "No books found"; color: theme.inkDimmer; font.family: theme.display
-                    font.pixelSize: 20; topPadding: 30
+                    font.pixelSize: theme.fontSize(20); topPadding: 30
                 }
             }
         }
@@ -740,7 +741,7 @@ Item {
         visible: !search.phoneNarrow
         z: 30
         anchors.right: parent.right
-        anchors.rightMargin: theme.margin
+        anchors.rightMargin: search.browseMargin
         y: 34
         spacing: 20
         Item {

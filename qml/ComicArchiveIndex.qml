@@ -12,8 +12,9 @@ import QtQuick
 import QtQuick.Controls
 import "ComicsApi.js" as Api
 
-Item {
+BrowseScaffold {
     id: page
+    desktopPageMargin:theme.margin
     focus: true
     activeFocusOnTab: true
     property Item backdrop
@@ -75,14 +76,14 @@ Item {
 
     // ---- ‹ Back ----
     BackAction {
-        x: theme.margin; y: 28; z: 20
+        x: page.browseMargin; y: 28; z: 20
         onTriggered: page.backRequested()
     }
 
     // ---- window controls (minimize / power) ----
     Row {
         z: 30
-        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
+        anchors.right: parent.right; anchors.rightMargin: page.browseMargin; y: 34
         spacing: 20
         Item {
             width: 22; height: 22
@@ -143,32 +144,32 @@ Item {
 
             // header — INLINE metadata (bright count, dim medium) + the raw-feed door
             Column {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.browseMargin
+                width: parent.width - 2 * page.browseMargin
                 spacing: 10
                 Text {
                     text: "Western Comics · Tankoban"
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                 }
                 Text {
                     text: page.boxTitle
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 48
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(48)
                     font.weight: Font.DemiBold
                 }
                 Row {
                     spacing: 11
                     Text { text: page.series.length
-                        color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter }
                     Text { text: "series archives in the latest releases"; color: theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 14; anchors.verticalCenter: parent.verticalCenter }
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14); anchors.verticalCenter: parent.verticalCenter }
                     Text { text: "·"; color: theme.inkDimmer; anchors.verticalCenter: parent.verticalCenter }
                     // the raw feed stays reachable — one honest level down
                     Text {
                         text: "All " + (page.boxCount > 0 ? page.boxCount + " " : "") + "releases ›"
                         color: allMa.containsMouse ? theme.gold : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                         anchors.verticalCenter: parent.verticalCenter
                         MouseArea { id: allMa; anchors.fill: parent; anchors.margins: -6; hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
@@ -192,8 +193,8 @@ Item {
             // the series-archive grid
             Grid {
                 id: grid
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.browseMargin
+                width: parent.width - 2 * page.browseMargin
                 columns: 6
                 columnSpacing: 18; rowSpacing: 24
                 readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
@@ -219,7 +220,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     text: tile.modelData.title
                                     wrapMode: Text.WordWrap
-                                    color: theme.inkDim; font.family: theme.display; font.pixelSize: 15
+                                    color: theme.inkDim; font.family: theme.display; font.pixelSize: theme.fontSize(15)
                                 }
                             }
                             Image {
@@ -254,14 +255,14 @@ Item {
                                 width: parent.width
                                 text: tile.modelData.title
                                 color: tileMa.containsMouse ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                 elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
                             }
                             Text {
                                 width: parent.width
                                 text: tile.modelData.count + " releases"
                                 color: theme.inkDimmer
-                                font.family: theme.ui; font.pixelSize: 11
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                                 horizontalAlignment: Text.AlignHCenter
                             }
                         }
@@ -271,9 +272,9 @@ Item {
 
             Text {
                 visible: !page.loading && page.series.length === 0
-                x: theme.margin
+                x: page.browseMargin
                 text: "No series archives surfaced under this box."
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 topPadding: 12
             }
 
@@ -296,12 +297,12 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: page.boxTitle
-            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(34)
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "Reading the archives…"
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
 }

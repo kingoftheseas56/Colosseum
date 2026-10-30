@@ -4,26 +4,34 @@
 import QtQuick
 import "Catalog.js" as Catalog
 
-Column {
+BrowseScaffold {
     id: mangaTab
+    desktopPageMargin:theme.margin
+    sidebarRailExtent:rowIndex.openWidth+28
+    Theme { id: theme }
     property Flickable pageFlick: null
     property Item backdrop: null
     property var parkRowHandler: null
-    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property bool phonePortrait: mangaTab.layout.portraitBrowse
+    readonly property int portraitPosterWidth: Math.max(64, Math.min(104, Math.floor((mangaTab.width - 24) / 3)))
+    readonly property real contentLeft: mangaTab.layout.compactBrowse ? 0 : rowIndex.contentLeft
     readonly property real _availableWidth: parent ? parent.width : 0
     readonly property var rowIndexRows: [
         { key: "collection", title: "Your Collection", target: collectionRow },
         { key: "top-manga", title: "Top in Tankoban — Manga", target: topMangaRow },
         { key: "genres", title: "Explore by Genre — Manga", target: genreRow }
     ]
-    x: mangaTab.contentLeft
-    width: Math.max(0, mangaTab._availableWidth - mangaTab.contentLeft)
-    spacing: 36
+    width: mangaTab._availableWidth
+    implicitHeight: contentColumn.implicitHeight
+    function forceLayout() { contentColumn.forceLayout() }
 
     RowIndexSidebar {
+        hostLayout:mangaTab.layout
         id: rowIndex
-        parent: mangaTab.parent
+        parent: mangaTab
         z: 2
+        visible: mangaTab.visible && (!mangaTab.phonePortrait || !collapsed)
+        compactTouchTargets: mangaTab.phonePortrait
         x: 0
         pageFlick: mangaTab.pageFlick
         flowHost: mangaTab
@@ -32,6 +40,14 @@ Column {
         automationPrefix: "tankobanRowIndex"
         rows: mangaTab.rowIndexRows
         onRowRequested: (target) => { if (mangaTab.parkRowHandler) mangaTab.parkRowHandler(target) }
+        Rectangle {
+            anchors.fill: parent
+            z: -1
+            visible: mangaTab.phonePortrait
+            radius: 14
+            color: Qt.rgba(0.035, 0.04, 0.06, 0.97)
+            MouseArea { anchors.fill: parent }
+        }
     }
 
     signal seriesRequested(string title)
@@ -45,6 +61,30 @@ Column {
     signal contentLeftUpdated(real value)
     onContentLeftChanged: mangaTab.contentLeftUpdated(mangaTab.contentLeft)
 
+    Column {
+        id: contentColumn
+        objectName: "mangaTabContent"
+        x: mangaTab.contentLeft
+        width: Math.max(0, mangaTab.width - x)
+        spacing: mangaTab.phonePortrait ? 24 : 36
+        Rectangle {
+            visible: mangaTab.layout.compactBrowse
+            width: 80; height: 48; radius: 12
+            color: theme.glassTint
+            border.width: 1; border.color: theme.edge
+            Text {
+                anchors.centerIn: parent
+                text: qsTr("Rows"); color: theme.ink
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+            }
+            KeyboardAction {
+                anchors.fill: parent
+                objectName: "tankobanMangaRowsAction"
+                accessibleName: rowIndex.collapsed ? qsTr("Choose catalogue row") : qsTr("Close catalogue rows")
+                focusRadius: 12
+                onTriggered: rowIndex.collapsed = !rowIndex.collapsed
+            }
+        }
     ContinueRow {
         id: collectionRow
         title: "Your Collection"
@@ -59,6 +99,8 @@ Column {
     // pinned to the Popular manga catalogue. A tile tap still routes to the series page
     // (the existing direct door is unchanged).
     TrendingTop10 {
+        compactLayout: mangaTab.phonePortrait
+        posterWidthOverride: mangaTab.phonePortrait ? mangaTab.portraitPosterWidth : 0
         id: topMangaRow
         title: "Top in Tankoban — Manga"
         items: Catalog.topManga
@@ -82,5 +124,6 @@ Column {
         // click here would double-navigate (GenrePage + Discover switch).
         onGenreClicked: (i) => mangaTab.genreRequested(Catalog.genresManga[i].name)
         onExploreClicked: mangaTab.genreIndexRequested()
+    }
     }
 }

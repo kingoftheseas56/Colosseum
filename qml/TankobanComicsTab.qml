@@ -5,12 +5,17 @@
 // in reactively. Emits the comics signals the world forwards to the host. No manga knowledge.
 import QtQuick
 
-Column {
+BrowseScaffold {
     id: comicsTab
+    desktopPageMargin:theme.margin
+    sidebarRailExtent:rowIndex.openWidth+28
+    Theme { id: theme }
     property Flickable pageFlick: null
     property Item backdrop: null
     property var parkRowHandler: null
-    readonly property real contentLeft: rowIndex.contentLeft
+    readonly property bool phonePortrait: comicsTab.layout.portraitBrowse
+    readonly property int portraitPosterWidth: Math.max(64, Math.min(104, Math.floor((comicsTab.width - 24) / 3)))
+    readonly property real contentLeft: comicsTab.layout.compactBrowse ? 0 : rowIndex.contentLeft
     readonly property real _availableWidth: parent ? parent.width : 0
     readonly property var rowIndexRows: {
         shelfRepeater.count
@@ -26,14 +31,17 @@ Column {
         out.push({ key: "explore", title: "Explore Comics", target: genreRow })
         return out
     }
-    x: comicsTab.contentLeft
-    width: Math.max(0, comicsTab._availableWidth - comicsTab.contentLeft)
-    spacing: 36
+    width: comicsTab._availableWidth
+    implicitHeight: contentColumn.implicitHeight
+    function forceLayout() { contentColumn.forceLayout() }
 
     RowIndexSidebar {
+        hostLayout:comicsTab.layout
         id: rowIndex
-        parent: comicsTab.parent
+        parent: comicsTab
         z: 2
+        visible: comicsTab.visible && (!comicsTab.phonePortrait || !collapsed)
+        compactTouchTargets: comicsTab.phonePortrait
         x: 0
         pageFlick: comicsTab.pageFlick
         flowHost: comicsTab
@@ -42,6 +50,14 @@ Column {
         automationPrefix: "tankobanRowIndex"
         rows: comicsTab.rowIndexRows
         onRowRequested: (target) => { if (comicsTab.parkRowHandler) comicsTab.parkRowHandler(target) }
+        Rectangle {
+            anchors.fill: parent
+            z: -1
+            visible: comicsTab.phonePortrait
+            radius: 14
+            color: Qt.rgba(0.035, 0.04, 0.06, 0.97)
+            MouseArea { anchors.fill: parent }
+        }
     }
 
     property var comicRows: []       // top-comics list (RCO-ranked, from the world)
@@ -80,6 +96,30 @@ Column {
     signal contentLeftUpdated(real value)
     onContentLeftChanged: comicsTab.contentLeftUpdated(comicsTab.contentLeft)
 
+    Column {
+        id: contentColumn
+        objectName: "comicsTabContent"
+        x: comicsTab.contentLeft
+        width: Math.max(0, comicsTab.width - x)
+        spacing: comicsTab.phonePortrait ? 24 : 36
+        Rectangle {
+            visible: comicsTab.layout.compactBrowse
+            width: 80; height: 48; radius: 12
+            color: theme.glassTint
+            border.width: 1; border.color: theme.edge
+            Text {
+                anchors.centerIn: parent
+                text: qsTr("Rows"); color: theme.ink
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
+            }
+            KeyboardAction {
+                anchors.fill: parent
+                objectName: "tankobanComicsRowsAction"
+                accessibleName: rowIndex.collapsed ? qsTr("Choose catalogue row") : qsTr("Close catalogue rows")
+                focusRadius: 12
+                onTriggered: rowIndex.collapsed = !rowIndex.collapsed
+            }
+        }
     ContinueRow {
         id: collectionRow
         title: "Your Collection"
@@ -94,6 +134,8 @@ Column {
     // for the OLD fetch-all model; Task 8 re-arms it as a Discover pin into the Popular
     // comics catalogue. A tile tap still routes to the LOCG/GCD series door (unchanged).
     TrendingTop10 {
+        compactLayout: comicsTab.phonePortrait
+        posterWidthOverride: comicsTab.phonePortrait ? comicsTab.portraitPosterWidth : 0
         id: topComicsRow
         title: "Top in Tankoban — Comics"
         items: comicsTab.comicRows.slice(0, 10)
@@ -122,12 +164,16 @@ Column {
         model: comicsTab.comicShelves.length
         delegate: Item {
             id: shelfSlot
+            objectName: "tankobanComicsShelf_" + index
             required property int index
             readonly property var modelData: comicsTab.comicShelves[index]
             readonly property string label: modelData ? modelData.label : ""
-            width: comicsTab.width
+            width: contentColumn.width
             visible: shelfSlot.modelData.rows.length > 0
-            height: 30 + 14 + 212        // WidgetHeader + TrendingTop10 spacing + strip
+            height: shelfLoader.status === Loader.Ready && shelfLoader.item
+                ? shelfLoader.item.effectiveRailHeight
+                : (rowIndex.phoneLayout ? 48 : 30) + 14
+                  + topComicsRow.effectiveStripHeight
             property bool built: false
             readonly property bool near: comicsTab.viewportHeight <= 0
                 || (shelfSlot.y < comicsTab.viewportTop + 2 * comicsTab.viewportHeight
@@ -137,10 +183,14 @@ Column {
             Component.onCompleted: shelfBuildTimer.restart()
 
             Loader {
+                id: shelfLoader
+                objectName: "tankobanComicsShelfLoader_" + shelfSlot.index
                 width: parent.width
                 active: shelfSlot.built && shelfSlot.visible
                 asynchronous: true
                 sourceComponent: TrendingTop10 {
+                    compactLayout: comicsTab.phonePortrait
+                    posterWidthOverride: comicsTab.phonePortrait ? comicsTab.portraitPosterWidth : 0
                     readonly property var modelData: shelfSlot.modelData
                     title: modelData.label
                     // Most Stocked and the three publishers are pinnable; everything else is not.
@@ -181,5 +231,6 @@ Column {
             if (box) comicsTab.discoverPinRequested({ type: "comics", catalogId: "popular",
                 filterGroup: "genre", filterKey: String(box.name || "").toLowerCase() })
         }
+    }
     }
 }

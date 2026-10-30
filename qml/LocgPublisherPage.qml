@@ -10,8 +10,9 @@ import QtQuick
 import QtQuick.Controls
 import "LocgApi.js" as Locg
 
-Item {
+BrowseScaffold {
     id: page
+    desktopPageMargin:theme.margin
     property Item backdrop
     property var box: ({})               // {id, label} from a publisher-shelf request
     signal seriesRequested(var data)     // {id, title, cover}
@@ -94,7 +95,7 @@ Item {
         z: 40
         anchors.top: parent.top; anchors.topMargin: 84
         anchors.horizontalCenter: parent.horizontalCenter
-        width: Math.min(parent.width - theme.margin * 2, 460)
+        width: Math.min(parent.width - page.browseMargin * 2, 460)
         retryInMs: page.cooldownMs
         sourceName: "Catalogue"
         onRetry: page.fetchMore()
@@ -118,13 +119,13 @@ Item {
     ChromeScrim { z: 16 }
 
     BackAction {
-        x: theme.margin; y: 28; z: 20
+        x: page.browseMargin; y: 28; z: 20
         onTriggered: page.backRequested()
     }
 
     Row {
         z: 30
-        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
+        anchors.right: parent.right; anchors.rightMargin: page.browseMargin; y: 34
         spacing: 20
         UniverseChromeAction {
             accessibleName: "Minimize"
@@ -166,22 +167,22 @@ Item {
             Item { width: 1; height: 96 }
 
             Column {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.browseMargin
+                width: parent.width - 2 * page.browseMargin
                 spacing: 10
                 Text {
                     text: "LOCG · Tankoban"
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                 }
                 Text {
                     text: page.box.label || ""
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 48
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(48)
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: page.items.length + " series" + (page.hasMore ? " so far" : "")
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
                 // sort control (Newest / A–Z) — view-only reorder
                 Row {
@@ -201,7 +202,7 @@ Item {
                             border.color: (on || sortKey.activeFocus) ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : theme.edge
                             Text { id: pillT; anchors.centerIn: parent; text: modelData.l
                                 color: parent.on ? theme.gold : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13 }
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                             KeyboardAction {
                                 id: sortKey
                                 anchors.fill: parent
@@ -226,8 +227,8 @@ Item {
                 property int currentIndex: page.shownItems.length > 0 ? 0 : -1
                 focusPolicy: page.shownItems.length > 0 ? Qt.TabFocus : Qt.NoFocus
                 Keys.onPressed: (event) => gridNav.handle(event)
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.browseMargin
+                width: parent.width - 2 * page.browseMargin
                 columns: 6
                 columnSpacing: 18; rowSpacing: 24
                 readonly property real cellW: (width - (columns - 1) * columnSpacing) / columns
@@ -255,7 +256,7 @@ Item {
                                     horizontalAlignment: Text.AlignHCenter
                                     text: tile.modelData.title
                                     wrapMode: Text.WordWrap
-                                    color: theme.inkDim; font.family: theme.display; font.pixelSize: 15
+                                    color: theme.inkDim; font.family: theme.display; font.pixelSize: theme.fontSize(15)
                                 }
                             }
                             Image {
@@ -283,7 +284,7 @@ Item {
                             width: parent.width
                             text: tile.modelData.title
                             color: (tileMa.containsMouse || (grid.activeFocus && grid.currentIndex === tile.index)) ? theme.gold : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 13
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             elide: Text.ElideRight; horizontalAlignment: Text.AlignHCenter
                         }
                     }
@@ -322,6 +323,6 @@ Item {
         anchors.centerIn: parent
         visible: page.loading
         text: "Loading…"
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
     }
 }

@@ -8,8 +8,9 @@ import QtQuick
 import QtQuick.Controls
 import "ComicsApi.js" as ComicsApi
 
-Item {
+BrowseScaffold {
     id: page
+    desktopPageMargin:theme.margin
     focus: true
     activeFocusOnTab: true
     property Item backdrop
@@ -51,13 +52,13 @@ Item {
     ChromeScrim { z: 16 }
 
     BackAction {
-        x: theme.margin; y: 28; z: 20
+        x: page.browseMargin; y: 28; z: 20
         onTriggered: page.backRequested()
     }
 
     Row {
         z: 30
-        anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
+        anchors.right: parent.right; anchors.rightMargin: page.browseMargin; y: 34
         spacing: 20
         Item {
             width: 22; height: 22
@@ -121,30 +122,30 @@ Item {
             Item { width: 1; height: 96 }
 
             Column {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.browseMargin
+                width: parent.width - 2 * page.browseMargin
                 spacing: 10
                 Text {
                     text: "GetComics · Tankoban"
-                    color: theme.gold; font.family: theme.ui; font.pixelSize: 11
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     font.letterSpacing: 3; font.capitalization: Font.AllUppercase
                 }
                 Text {
                     text: "GetComics Archives"
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 48
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(48)
                     font.weight: Font.DemiBold
                 }
                 Text {
                     text: "Publishers & franchises — whole-archive releases (TPBs, omnibuses, runs)"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
             }
 
             Item { width: 1; height: 26 }
 
             GenreMosaic {
-                x: theme.margin
-                width: parent.width - 2 * theme.margin
+                x: page.browseMargin
+                width: parent.width - 2 * page.browseMargin
                 title: ""
                 genres: page.boxes
                 navigable: false
@@ -166,6 +167,6 @@ Item {
         anchors.centerIn: parent
         visible: page.loading
         text: "Loading…"
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
     }
 }
