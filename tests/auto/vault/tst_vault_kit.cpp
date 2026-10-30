@@ -56,6 +56,7 @@ private:
     }
 
 private slots:
+    void flat_downloads_form_shows_with_one_episode();
     void kind_for_file_data();
     void kind_for_file();
     void classify_mixed_leaf_flags_and_leftovers();
@@ -418,12 +419,17 @@ void tst_vault_kit::browse_leaf_episode_grammar_boundaries()
     const QString path = dir.filePath(fileName);
     { QFile file(path); QVERIFY(file.open(QIODevice::WriteOnly)); }
 
-    const QList<BrowseNode> nodes = planBrowseLevel(dir.path());
+    QList<BrowseNode> nodes = planBrowseLevel(dir.path());
+    if (nodes.size() == 1 && nodes.first().nodeType == BrowseNodeType::Show) {
+        const auto seasons = planBrowseLevel(nodes.first().key);
+        QCOMPARE(seasons.size(), 1);
+        nodes = planBrowseLevel(seasons.first().key);
+    }
     QCOMPARE(nodes.size(), 1);
     const BrowseNode& node = nodes.first();
     QCOMPARE(browseNodeTypeName(node.nodeType), nodeType);
-    QCOMPARE(node.path, path);
-    QCOMPARE(node.key, path);
+    QCOMPARE(node.path.toCaseFolded(), path.toCaseFolded());
+    QCOMPARE(node.key.toCaseFolded(), path.toCaseFolded());
     QCOMPARE(node.episodeNumber, episodeNumber);
 }
 
@@ -620,7 +626,7 @@ void tst_vault_kit::browse_collapse_embedded_season_token_is_not_swallowed()
 {
     // The existing anchored season-climb guard, proven again at the planner layer: a folder
     // whose name merely EMBEDS a season token ("Community Season 1 [1080p]") is not a bare
-    // season directory — it must classify on its own content (here, one film), never get
+    // season directory — it must classify on its own content (here, one episode), never get
     // silently absorbed as if it were some other show's season.
     QTemporaryDir tmp;
     QVERIFY(tmp.isValid());
@@ -631,7 +637,35 @@ void tst_vault_kit::browse_collapse_embedded_season_token_is_not_swallowed()
 
     const QList<BrowseNode> nodes = planBrowseLevel(tmp.path());
     QCOMPARE(nodes.size(), 1);
-    QCOMPARE(nodes.first().nodeType, BrowseNodeType::Film);
+    QCOMPARE(nodes.first().nodeType, BrowseNodeType::Show);
+    QCOMPARE(nodes.first().displayTitle, QStringLiteral("Community"));
+}
+
+void tst_vault_kit::flat_downloads_form_shows_with_one_episode()
+{
+    QTemporaryDir temp;
+    const QString file = temp.path() + "/Slow Horses - S6E1 - Circle of Life - 20261030_200040.mp4";
+    { QFile f(file); QVERIFY(f.open(QIODevice::WriteOnly)); f.write("video"); }
+    auto shows = planBrowseLevel(temp.path());
+    QCOMPARE(shows.size(), 1);
+    QCOMPARE(shows.first().nodeType, BrowseNodeType::Show);
+    QCOMPARE(shows.first().displayTitle, QStringLiteral("Slow Horses"));
+    auto seasons = planBrowseLevel(shows.first().key);
+    QCOMPARE(seasons.size(), 1);
+    QCOMPARE(seasons.first().nodeType, BrowseNodeType::Season);
+    QCOMPARE(seasons.first().seasonNumber, 6);
+    auto episodes = planBrowseLevel(seasons.first().key);
+    QCOMPARE(episodes.size(), 1);
+    QCOMPARE(episodes.first().nodeType, BrowseNodeType::Episode);
+    QCOMPARE(episodes.first().episodeNumber, 1);
+    QCOMPARE(episodes.first().path.toCaseFolded(), file.toCaseFolded());
+    const QString anime = temp.path() + "/[SubsPlease] One Piece - 1179 (1080p) [A02F35FE].mkv";
+    { QFile f(anime); QVERIFY(f.open(QIODevice::WriteOnly)); f.write("video"); }
+    shows = planBrowseLevel(temp.path());
+    QCOMPARE(shows.size(), 2);
+    const auto parsed = parseEpisodeNumber(QFileInfo(anime).fileName());
+    QVERIFY(parsed.matched);
+    QCOMPARE(parsed.episode, 1179);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_kit)

@@ -29,6 +29,37 @@ QVariantMap artistSeed(int index)
             {QStringLiteral("name"), QStringLiteral("Fixture Artist %1").arg(index)}};
 }
 
+QVariantMap localTasteArtist(int index)
+{
+    const QString id = QStringLiteral("fixture-gate-artist-%1").arg(index);
+    return {{QStringLiteral("kind"), QStringLiteral("artist")},
+            {QStringLiteral("provider"), QStringLiteral("local")},
+            {QStringLiteral("providerId"), id},
+            {QStringLiteral("name"), id}};
+}
+
+QVariantList withFiveDistinctTasteArtists(QVariantList seeds)
+{
+    QSet<QString> identities;
+    for (const QVariant &value : seeds) {
+        const QVariantMap row = value.toMap();
+        const QString canonical = row.value(QStringLiteral("mappingStatus")) == QStringLiteral("verified")
+            ? row.value(QStringLiteral("canonicalMbid")).toString().toLower() : QString();
+        const QString identity = canonical.isEmpty()
+            ? row.value(QStringLiteral("provider")).toString() + QLatin1Char(':')
+                + row.value(QStringLiteral("providerId")).toString()
+            : QStringLiteral("musicbrainz:") + canonical;
+        if (!identity.endsWith(QLatin1Char(':')))
+            identities.insert(identity);
+    }
+    for (int index = 0; identities.size() < 5; ++index) {
+        const QVariantMap row = localTasteArtist(index);
+        seeds.append(row);
+        identities.insert(QStringLiteral("local:") + row.value(QStringLiteral("providerId")).toString());
+    }
+    return seeds;
+}
+
 QVariantMap albumCandidate(const QVariantMap &seed, const QString &providerId,
                            const QString &title, const QVariantMap &extra = {})
 {
@@ -52,17 +83,25 @@ class FakePreferences final : public QObject {
     Q_PROPERTY(bool vinylTasteAnswered MEMBER m_answered NOTIFY vinylTasteChanged)
     Q_PROPERTY(QString vinylFeedbackSnapshot MEMBER feedback NOTIFY vinylFeedbackChanged)
     Q_PROPERTY(QString vinylRecommendationExposureSnapshot MEMBER exposure NOTIFY vinylRecommendationExposureChanged)
+    Q_PROPERTY(QString vinylHomeSelectionSnapshot MEMBER selection)
 public:
     int tasteWrites = 0;
-    QString feedback,exposure;
+    QString feedback,exposure,selection;
     Q_INVOKABLE bool setVinylFeedbackSnapshot(const QString &value) {feedback=value;emit vinylFeedbackChanged();return true;}
     Q_INVOKABLE bool setVinylRecommendationExposureSnapshot(const QString &value) {exposure=value;emit vinylRecommendationExposureChanged();return true;}
+    Q_INVOKABLE bool setVinylHomeSelectionSnapshot(const QString &value) {selection=value;return true;}
 
     void setTaste(const QVariantList &artists, bool answered = true)
     {
         m_artists = artists;
         m_answered = answered;
         emit vinylTasteChanged();
+    }
+
+    void replaceTasteForProfileSwitch(const QVariantList &artists, bool answered = true)
+    {
+        m_artists = artists;
+        m_answered = answered;
     }
 
     Q_INVOKABLE bool setVinylTasteSelections(bool answered, QVariantList artists)
@@ -105,6 +144,11 @@ public:
     Q_INVOKABLE int request(const QString &lane, const QString &operation,
                             const QString &value, const QVariantMap &options)
     {
+        // Recommendation service tests exercise Home ranking, not the separate
+        // listening provider lanes. Keep those requests from affecting the
+        // bounded Home concurrency fixtures.
+        if (lane.startsWith(QStringLiteral("home-listening-")))
+            return -1;
         Request call{lane, operation, value, options, ++m_nextId};
         requests.append(call);
         m_pending.insert(call.id);
@@ -232,7 +276,9 @@ struct HomeFixture {
     {
         service.setSource(&source);
         service.setPreferences(&preferences);
-        preferences.setTaste(seeds, answered);
+        const QVariantList taste = beginVisit && answered
+            ? withFiveDistinctTasteArtists(seeds) : seeds;
+        preferences.setTaste(taste, answered);
         if (beginVisit)
             service.beginHomeVisit();
     }
@@ -277,6 +323,15 @@ QVariantMap savedArtistRecord(const QVariantMap &seed)
     return row;
 }
 
+int selectedYoutubeMusicArtists(const VinylRecommendationService &service)
+{
+    int count = 0;
+    for (const QVariant &value : service.selectedArtists())
+        if (value.toMap().value(QStringLiteral("provider")) == QStringLiteral("youtube-music"))
+            ++count;
+    return count;
+}
+
 void verifyUiCard(const QVariantMap &card)
 {
     QVERIFY(card.contains(QStringLiteral("typedKey")) || card.contains(QStringLiteral("typedkey")));
@@ -301,6 +356,39 @@ void pumpSuccessfulReplies(FakeSource &source, int maxPasses = 32)
             source.complete(call, source.defaultReply(call));
     }
     QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+}
+
+void pumpAllHomeReplies(FakeSource &source, int maxPasses = 64)
+{
+    for (int pass = 0; pass < maxPasses; ++pass) {
+        QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+        const QList<FakeSource::Request> pending = source.pendingRequests();
+        if (pending.isEmpty()) {
+            QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+            if (source.pendingRequests().isEmpty())
+                break;
+            continue;
+        }
+        for (const FakeSource::Request &call : pending) {
+            if (call.operation == QStringLiteral("artistCandidates"))
+                source.complete(call, source.defaultReply(call));
+            else
+                source.complete(call, {}, QStringLiteral("Optional fixture unavailable"));
+        }
+    }
+    QCoreApplication::processEvents(QEventLoop::AllEvents, 20);
+}
+
+QStringList carouselKeys(const VinylRecommendationService &service)
+{
+    QStringList keys;
+    for (const QVariant &value : service.homeCarouselItems()) {
+        const QVariantMap card = value.toMap();
+        const QString key = card.value(QStringLiteral("key"), card.value(QStringLiteral("id"))).toString();
+        if (!key.isEmpty())
+            keys.append(key);
+    }
+    return keys;
 }
 
 QStringList stableSectionSnapshot(const VinylRecommendationService &service)
@@ -357,7 +445,7 @@ private slots:
         for(int i=0;i<16;++i)candidates.append(albumCandidate(call.options.value("seed").toMap(),
             QString("MPRE_%1").arg(i,8,10,QLatin1Char('0')),QString("Release %1").arg(i)));
         payload["items"]=candidates;fixture.source.complete(call,payload);QCoreApplication::processEvents();
-        const auto before=sectionItems(fixture.service,"from-your-artists");QCOMPARE(before.size(),12);
+        const auto before=sectionItems(fixture.service,"from-your-artists");QCOMPARE(before.size(),3);
         const auto token=fixture.service.homeSnapshot().value("exposureSnapshotId").toString();
         const auto ref=before.first().toMap().value("ref").toMap();
         QVERIFY(fixture.service.recordVisibleItems("from-your-artists",token,{ref},0));
@@ -632,7 +720,7 @@ private slots:
     {
         qint64 now=kFixedNowMs;FakeSource source;FakePreferences prefs;
         VinylRecommendationService service(nullptr,[&now]{return now;});service.setSource(&source);service.setPreferences(&prefs);
-        prefs.setTaste({artistSeed(70)});service.beginHomeVisit();
+        prefs.setTaste(withFiveDistinctTasteArtists({artistSeed(70)}));service.beginHomeVisit();
         const auto call=source.pendingRequests("artistCandidates").first();auto data=source.defaultReply(call);
         const auto seed=call.options.value("seed").toMap();const auto date=QDateTime::fromMSecsSinceEpoch(now,Qt::UTC).date().addDays(-89);
         data["items"]=QVariantList{albumCandidate(seed,"MPRE_DATED","Dated",{{"releaseDate",date.toString(Qt::ISODate)}})};
@@ -654,7 +742,8 @@ private slots:
         replacement.complete(call,data);QTRY_VERIFY(sectionHasProviderId(fixture.service,"from-your-artists","MPRE_NEW_SOURCE"));
         auto late=fixture.source.defaultReply(old);late["items"]=QVariantList{albumCandidate(old.options.value("seed").toMap(),"MPRE_OLD_SOURCE","Old")};
         fixture.source.completeLate(old,late);QCoreApplication::processEvents();
-        QVERIFY(!sectionHasProviderId(fixture.service,"from-your-artists","MPRE_OLD_SOURCE"));QCOMPARE(fixture.service.selectedArtists().size(),1);
+        QVERIFY(!sectionHasProviderId(fixture.service,"from-your-artists","MPRE_OLD_SOURCE"));
+        QCOMPARE(selectedYoutubeMusicArtists(fixture.service),1);
     }
     void verifiedSeedAliasesAwardOneAffinity()
     {
@@ -672,25 +761,148 @@ private slots:
         QCoreApplication::processEvents();const auto items=sectionItems(fixture.service,"from-your-artists");QCOMPARE(items.size(),1);
         const auto card=items.first().toMap();QCOMPARE(card.value("score").toLongLong(),qint64(320));
         int affinities=0;for(const auto &reason:card.value("reasons").toList())if(reason.toMap().value("kind")=="seed_affinity")++affinities;
-        QCOMPARE(affinities,1);QCOMPARE(fixture.service.selectedArtists().size(),2);
+        QCOMPARE(affinities,1);QCOMPARE(selectedYoutubeMusicArtists(fixture.service),2);
         QCOMPARE(card.value("destination").toMap().value("id").toString(),QString("ytm:album:MPRE_SHARED"));
     }
     void pickerCommitAutomaticallyDispatchesCandidates()
     {
         HomeFixture fixture({}, kFixedNowMs, false, false);
-        const QVariantMap picked = artistSeed(41);
         fixture.service.beginHomeVisit();
         QCOMPARE(fixture.service.onboardingState(), QStringLiteral("draft"));
-        fixture.service.toggleDraftArtist(picked);
+        QVERIFY(!fixture.service.canEnterVinyl());
+        QCOMPARE(fixture.service.minimumArtists(), 5);
+        for (int i = 41; i < 46; ++i)
+            fixture.service.toggleDraftArtist(artistSeed(i));
+        QCOMPARE(fixture.service.draftArtistCount(), 5);
         QVERIFY(fixture.service.commitTaste(false));
         QCOMPARE(fixture.preferences.tasteWrites, 1);
+        QVERIFY(fixture.service.canEnterVinyl());
 
         QTRY_VERIFY(!fixture.source.callsFor(QStringLiteral("artistCandidates")).isEmpty());
+        pumpSuccessfulReplies(fixture.source);
         const QList<FakeSource::Request> calls = fixture.source.callsFor(QStringLiteral("artistCandidates"));
-        QCOMPARE(calls.size(), 1);
-        QCOMPARE(calls.first().options.value(QStringLiteral("seed")).toMap()
-                     .value(QStringLiteral("providerId")).toString(),
-                 picked.value(QStringLiteral("providerId")).toString());
+        QCOMPARE(calls.size(), 5);
+        QSet<QString> dispatchedSeeds;
+        for (const FakeSource::Request &call : calls)
+            dispatchedSeeds.insert(call.options.value(QStringLiteral("seed")).toMap()
+                                       .value(QStringLiteral("providerId")).toString());
+        QCOMPARE(dispatchedSeeds.size(), 5);
+    }
+
+    void tasteEligibilityRequiresFiveDistinctSavedArtists()
+    {
+        HomeFixture empty({}, kFixedNowMs, false, true);
+        QVERIFY(!empty.service.canEnterVinyl());
+        QCOMPARE(empty.service.onboardingState(), QStringLiteral("draft"));
+
+        QVariantList four;
+        for (int i = 50; i < 54; ++i)
+            four.append(artistSeed(i));
+        four.append(artistSeed(50));
+        HomeFixture underMinimum(four, kFixedNowMs, false, true);
+        QVERIFY(!underMinimum.service.canEnterVinyl());
+        QCOMPARE(underMinimum.service.selectedArtists().size(), 4);
+        QCOMPARE(underMinimum.service.onboardingState(), QStringLiteral("draft"));
+
+        four.append(artistSeed(54));
+        HomeFixture eligible(four, kFixedNowMs, false, true);
+        QVERIFY(eligible.service.canEnterVinyl());
+        QCOMPARE(eligible.service.selectedArtists().size(), 5);
+        QCOMPARE(eligible.service.onboardingState(), QStringLiteral("answered"));
+    }
+
+    void tasteEligibilityCountsVerifiedAliasesOnce()
+    {
+        const QString canonicalMbid = QStringLiteral("11111111-1111-4111-8111-111111111111");
+        QVariantMap aliasA = artistSeed(60);
+        aliasA.insert(QStringLiteral("mappingStatus"), QStringLiteral("verified"));
+        aliasA.insert(QStringLiteral("canonicalMbid"), canonicalMbid);
+        QVariantMap aliasB = artistSeed(61);
+        aliasB.insert(QStringLiteral("mappingStatus"), QStringLiteral("verified"));
+        aliasB.insert(QStringLiteral("canonicalMbid"), canonicalMbid.toUpper());
+        QVariantList saved{aliasA, aliasB, artistSeed(62), artistSeed(63), artistSeed(64)};
+        HomeFixture fixture(saved, kFixedNowMs, false, true);
+
+        QCOMPARE(fixture.service.selectedArtists().size(), 5);
+        QCOMPARE(fixture.service.draftArtistCount(), 4);
+        QVERIFY(!fixture.service.canEnterVinyl());
+        QCOMPARE(fixture.service.onboardingState(), QStringLiteral("draft"));
+    }
+
+    void tasteSkipAndFourArtistDraftCannotCommit()
+    {
+        HomeFixture fixture({}, kFixedNowMs, false, false);
+        fixture.service.beginHomeVisit();
+        QVERIFY(!fixture.service.commitTaste(true));
+        QCOMPARE(fixture.preferences.tasteWrites, 0);
+        QVERIFY(!fixture.service.canEnterVinyl());
+
+        for (int i = 70; i < 74; ++i)
+            fixture.service.toggleDraftArtist(artistSeed(i));
+        QVERIFY(!fixture.service.commitTaste(true));
+        QVERIFY(!fixture.service.commitTaste(false));
+        QCOMPARE(fixture.preferences.tasteWrites, 0);
+        QVERIFY(!fixture.service.canEnterVinyl());
+        QVERIFY(fixture.service.error().contains(QStringLiteral("5 distinct artists")));
+        fixture.service.toggleDraftArtist(artistSeed(74));
+        QVERIFY(!fixture.service.commitTaste(true));
+        QCOMPARE(fixture.preferences.tasteWrites, 0);
+    }
+
+    void legacyUnderMinimumSelectionsReturnToPickerAndRemainEditable()
+    {
+        QVariantList legacy{artistSeed(80), artistSeed(81), artistSeed(82), artistSeed(83)};
+        HomeFixture fixture(legacy, kFixedNowMs, false, true);
+
+        QCOMPARE(fixture.service.onboardingState(), QStringLiteral("draft"));
+        QVERIFY(!fixture.service.canEnterVinyl());
+        QCOMPARE(fixture.service.selectedArtists().size(), 4);
+        QCOMPARE(fixture.service.draftArtists().size(), 4);
+        fixture.service.beginTasteEdit();
+        QCOMPARE(fixture.service.onboardingState(), QStringLiteral("editing"));
+        fixture.service.toggleDraftArtist(artistSeed(80));
+        QCOMPARE(fixture.service.draftArtistCount(), 3);
+        fixture.service.cancelTasteEdit();
+        QCOMPARE(fixture.service.onboardingState(), QStringLiteral("draft"));
+        QCOMPARE(fixture.service.selectedArtists().size(), 4);
+        QCOMPARE(fixture.service.draftArtistCount(), 4);
+        QVERIFY(!fixture.service.canEnterVinyl());
+    }
+
+    void eligibleTasteEditCancelPreservesSavedArtists()
+    {
+        QVariantList five;
+        for (int i = 90; i < 95; ++i)
+            five.append(artistSeed(i));
+        HomeFixture fixture(five, kFixedNowMs, false, true);
+
+        QVERIFY(fixture.service.canEnterVinyl());
+        fixture.service.beginTasteEdit();
+        QCOMPARE(fixture.service.onboardingState(), QStringLiteral("editing"));
+        fixture.service.toggleDraftArtist(artistSeed(90));
+        fixture.service.toggleDraftArtist(artistSeed(95));
+        QCOMPARE(fixture.service.draftArtistCount(), 5);
+        fixture.service.cancelTasteEdit();
+        QCOMPARE(fixture.service.onboardingState(), QStringLiteral("answered"));
+        QCOMPARE(fixture.service.selectedArtists().size(), 5);
+        QVERIFY(fixture.service.canEnterVinyl());
+        QCOMPARE(fixture.service.draftArtistCount(), 5);
+    }
+
+    void blankTastePickerUsesSavedSuggestionsWithoutMarketCharts()
+    {
+        HomeFixture fixture({}, kFixedNowMs, false, false);
+        fixture.service.setSuggestions({artistSeed(100)});
+        fixture.service.beginHomeVisit();
+
+        QCOMPARE(fixture.service.artistResults().value(QStringLiteral("status")).toString(), QStringLiteral("ready"));
+        QCOMPARE(fixture.service.artistResults().value(QStringLiteral("items")).toList().size(), 1);
+        QCOMPARE(fixture.source.requests.size(), 0);
+
+        fixture.service.searchArtists(QStringLiteral("Nina Simone"));
+        QTRY_COMPARE(fixture.source.callsFor(QStringLiteral("cataloguePage")).size(), 1);
+        const auto request = fixture.source.callsFor(QStringLiteral("cataloguePage")).first();
+        QVERIFY(!request.options.contains(QStringLiteral("region")));
     }
 
     void freshCachedCandidatesAppearBeforeVisitWithoutRequests()
@@ -717,9 +929,88 @@ private slots:
         }
     }
 
+    void dailyCarouselSelectionPersistsAcrossRefreshAndRestart()
+    {
+        qint64 now = kFixedNowMs;
+        FakeSource source;
+        FakePreferences preferences;
+        QVariantList seeds;
+        for (int i = 120; i < 126; ++i)
+            seeds.append(artistSeed(i));
+
+        VinylRecommendationService service(nullptr, [&now] { return now; });
+        service.setSource(&source);
+        service.setPreferences(&preferences);
+        preferences.setTaste(seeds, true);
+        service.beginHomeVisit();
+        pumpAllHomeReplies(source);
+
+        QVERIFY(sectionItems(service, QStringLiteral("from-your-artists")).size() > 5);
+        QStringList initial = carouselKeys(service);
+        QCOMPARE(initial.size(), 5);
+        QSet<QString> uniqueInitial;
+        for (const QString &key : initial)
+            uniqueInitial.insert(key);
+        QCOMPARE(uniqueInitial.size(), 5);
+        auto snapshot = QJsonDocument::fromJson(preferences.selection.toUtf8()).object();
+        const QJsonArray initialSavedKeys = snapshot.value(QStringLiteral("keys")).toArray();
+        QCOMPARE(initialSavedKeys.size(), 5);
+        QSet<QString> uniqueInitialSaved;
+        for (const QJsonValue &value : initialSavedKeys)
+            uniqueInitialSaved.insert(value.toString());
+        QCOMPARE(uniqueInitialSaved.size(), 5);
+        QCOMPARE(snapshot.value(QStringLiteral("refreshSerial")).toInt(), 0);
+
+        service.beginHomeVisit();
+        pumpAllHomeReplies(source);
+        QCOMPARE(carouselKeys(service), initial);
+
+        service.refreshHomeSelection();
+        const QStringList refreshed = carouselKeys(service);
+        QCOMPARE(refreshed.size(), 5);
+        QVERIFY(refreshed != initial);
+        snapshot = QJsonDocument::fromJson(preferences.selection.toUtf8()).object();
+        QCOMPARE(snapshot.value(QStringLiteral("refreshSerial")).toInt(), 1);
+        const QJsonArray refreshedSavedKeys = snapshot.value(QStringLiteral("keys")).toArray();
+        QCOMPARE(refreshedSavedKeys.size(), 5);
+        QSet<QString> uniqueRefreshedSaved;
+        for (const QJsonValue &value : refreshedSavedKeys)
+            uniqueRefreshedSaved.insert(value.toString());
+        QCOMPARE(uniqueRefreshedSaved.size(), 5);
+        pumpAllHomeReplies(source);
+        QCOMPARE(carouselKeys(service), refreshed);
+
+        VinylRecommendationService restored(nullptr, [&now] { return now; });
+        restored.setSource(&source);
+        restored.setPreferences(&preferences);
+        restored.beginHomeVisit();
+        pumpAllHomeReplies(source);
+        QCOMPARE(carouselKeys(restored), refreshed);
+
+        now += 24LL * 60 * 60 * 1000;
+        restored.setHomeCollections({{QStringLiteral("songs"), QVariantList()}});
+        const QStringList nextDay = carouselKeys(restored);
+        QCOMPARE(nextDay.size(), 5);
+        QVERIFY(nextDay != refreshed);
+        bool includesUnseen = false;
+        for (const QString &key : nextDay)
+            if (!refreshed.contains(key))
+                includesUnseen = true;
+        QVERIFY(includesUnseen);
+        snapshot = QJsonDocument::fromJson(preferences.selection.toUtf8()).object();
+        QCOMPARE(snapshot.value(QStringLiteral("day")).toString(),
+                 QDateTime::fromMSecsSinceEpoch(now).date().toString(Qt::ISODate));
+        const QJsonArray nextDaySavedKeys = snapshot.value(QStringLiteral("keys")).toArray();
+        QCOMPARE(nextDaySavedKeys.size(), 5);
+        QSet<QString> uniqueNextDaySaved;
+        for (const QJsonValue &value : nextDaySavedKeys)
+            uniqueNextDaySaved.insert(value.toString());
+        QCOMPARE(uniqueNextDaySaved.size(), 5);
+    }
+
     void profileGenerationClearsHomeAndOldCollectionProjection()
     {
-        HomeFixture fixture({}, kFixedNowMs, false);
+        HomeFixture fixture(withFiveDistinctTasteArtists({}), kFixedNowMs, false);
         const QVariantMap saved = artistSeed(50);
         fixture.source.cacheArtistSeed(saved);
         fixture.service.setHomeCollections({{QStringLiteral("artists"),
@@ -729,6 +1020,7 @@ private slots:
                                      QStringLiteral("MPRE_00000050")));
         QVERIFY(!fixture.service.homeSnapshot().isEmpty());
 
+        fixture.preferences.replaceTasteForProfileSwitch({}, true);
         fixture.service.setProfileGeneration(fixture.service.profileGeneration() + 1);
 
         QVERIFY(fixture.service.homeSections().isEmpty());
@@ -740,10 +1032,10 @@ private slots:
         QVERIFY(fixture.source.requests.isEmpty());
     }
 
-    void savedCollectionArtistRemainsSeedAfterTasteRemoval()
+    void savedCollectionArtistRemainsAvailableAfterTasteReset()
     {
         const QVariantMap seed = artistSeed(51);
-        HomeFixture fixture({seed}, kFixedNowMs, false);
+        HomeFixture fixture(withFiveDistinctTasteArtists({}), kFixedNowMs, false);
         fixture.source.cacheArtistSeed(seed);
         fixture.service.setHomeCollections({{QStringLiteral("artists"),
                                              QVariantList{savedArtistRecord(seed)}}});
@@ -752,10 +1044,13 @@ private slots:
                                      QStringLiteral("MPRE_00000051")));
 
         fixture.preferences.setTaste({}, true);
+        QVERIFY(!fixture.service.canEnterVinyl());
+        QVERIFY(fixture.service.homeSections().isEmpty());
 
+        fixture.preferences.setTaste(withFiveDistinctTasteArtists({}), true);
         QTRY_VERIFY(sectionHasProviderId(fixture.service, QStringLiteral("from-your-artists"),
                                          QStringLiteral("MPRE_00000051")));
-        QVERIFY(fixture.service.selectedArtists().isEmpty());
+        QCOMPARE(fixture.service.selectedArtists().size(), 5);
         QCOMPARE(fixture.source.requests.size(), 0);
     }
 
@@ -875,7 +1170,7 @@ private slots:
         QTRY_VERIFY(!fixture.source.pendingRequests(QStringLiteral("artistCandidates")).isEmpty());
         const FakeSource::Request oldRequest = fixture.source.pendingRequests(QStringLiteral("artistCandidates")).first();
 
-        fixture.preferences.setTaste({artistSeed(9)}, true);
+        fixture.preferences.setTaste(withFiveDistinctTasteArtists({artistSeed(9)}), true);
         fixture.service.beginHomeVisit();
         QTRY_VERIFY(std::any_of(fixture.source.requests.cbegin(), fixture.source.requests.cend(), [](const auto &call) {
             return call.operation == QStringLiteral("artistCandidates")

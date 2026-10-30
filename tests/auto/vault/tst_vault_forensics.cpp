@@ -362,6 +362,7 @@ private slots:
     void browse_projection_carries_stored_kind();
     void browse_projection_carries_vault_id();
     void downloads_root_chip_remove_hides_and_republishes();
+    void deleted_downloads_leave_no_away_placeholders();
     void rescan_root_republishes_the_union();
     void forget_root_removes_only_that_root_and_republishes();
     void scan_ignore_needle_excludes_seeded_folder();
@@ -879,6 +880,36 @@ void tst_vault_forensics::downloads_root_chip_remove_hides_and_republishes()
 // scan_ignore_needle_excludes_seeded_folder (the INDEX keeps 3 rows — the durable exclusion
 // never happened) with the rescan/forget cases untouched. Restoring both returns the suite to
 // green.
+void tst_vault_forensics::deleted_downloads_leave_no_away_placeholders()
+{
+    auto fx = buildFlatFixture(1);
+    QVERIFY(fx->library);
+    const QString downloadsPath = normalizedRootPath(
+        QDir(fx->tmp.path()).filePath(QStringLiteral("logical-downloads")));
+    fx->config->addSyntheticRoot(downloadsPath);
+    fx->library->setDownloadsRoot(nullptr, downloadsPath);
+
+    auto rows = fx->index->rowsForRoot(fx->rootPath);
+    QCOMPARE(rows.size(), 1);
+    auto stale = rows.first();
+    stale.id = QStringLiteral("deleted-download");
+    stale.rootPath = downloadsPath;
+    stale.groupKey = downloadsPath + QStringLiteral("/old-show");
+    stale.subtreePath = stale.groupKey;
+    stale.path = stale.groupKey + QStringLiteral("/old.mp4");
+    stale.away = true;
+    rows.append(stale);
+    QVERIFY(fx->index->publish(rows));
+
+    QSignalSpy published(fx->scanner.get(), &VaultScanner::indexPublished);
+    fx->library->rescanRoot(downloadsPath);
+    QVERIFY(published.wait(10000));
+    QVERIFY(fx->index->rowsForRoot(downloadsPath).isEmpty());
+    QCOMPARE(fx->index->rowsForRoot(fx->rootPath).size(), 1);
+    QCOMPARE(fx->index->itemCount(), 1);
+    QVERIFY(QFile::exists(rows.first().path));
+}
+
 void tst_vault_forensics::rescan_root_republishes_the_union()
 {
     auto fx = buildMultiRootFixture(2);

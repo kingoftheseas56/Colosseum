@@ -21,6 +21,9 @@ Main {
     function check(ok,message){if(!ok){console.error("VINYL_DISCOVER_FAIL",stage,message);Qt.exit(14);}return !!ok;}
     function next(value){stage=value;ticks=0;console.log("VINYL_DISCOVER_STAGE",value);}
     function activate(name) {
+        var hud=control("vinylPlayerBar");
+        if(name==="vinylSongPlay" && hud && hud.playViewedWithoutSession)name="vinylBarPlay";
+        if(/^vinylSong(Save|Playlist|Next|Queue|Play)$/.test(name))control("vinylBarSongActions").openActionMenu();
         var c=name==="vinylListBack" ? item(control("vinylListPage"),name) : control(name);
         if(!check(c && c.visible && c.enabled,"Missing action: "+name))return false;
         if(name.indexOf("vinylCard_")===0 || name.indexOf("vinylShelfSeeAll_")===0) {

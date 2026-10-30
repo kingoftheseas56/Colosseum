@@ -61,6 +61,25 @@ QVariantList VinylRecommendationService::uniqueArtists(const QVariantList &value
         if(row.isEmpty()||seen.contains(key))continue;seen.insert(key);out.append(row);if(out.size()==512)break;}
     return out;
 }
+int VinylRecommendationService::uniqueTasteArtistCount(const QVariantList &values) {
+    QSet<QString> identities;
+    for(const auto &value:values){
+        const auto row=artist(value.toMap());
+        if(row.isEmpty())continue;
+        const auto canonical=row.value("mappingStatus")=="verified"
+            ? row.value("canonicalMbid").toString().toLower() : QString();
+        identities.insert(canonical.isEmpty() ? "provider:"+row.value("key").toString()
+                                               : "musicbrainz:"+canonical);
+    }
+    return identities.size();
+}
+bool VinylRecommendationService::canEnterVinyl() const {
+    return m_active && m_preferences && m_preferences->property("vinylTasteAnswered").toBool()
+        && uniqueTasteArtistCount(m_saved)>=minimumArtists();
+}
+int VinylRecommendationService::draftArtistCount() const {
+    return uniqueTasteArtistCount(m_draft);
+}
 void VinylRecommendationService::cancelSearch() {
     m_debounce.stop();m_request=-1;
     if(m_source){
@@ -93,23 +112,33 @@ void VinylRecommendationService::setProfileActive(bool value){if(m_active==value
 void VinylRecommendationService::loadPreferences() {
     if(!m_active||m_committing)return;
     m_saved=m_preferences?uniqueArtists(plain(m_preferences->property("vinylTasteArtists")).toList()):QVariantList();
-    m_state=m_preferences&&m_preferences->property("vinylTasteAnswered").toBool()?"answered":"unanswered";
+    const bool answered=m_preferences&&m_preferences->property("vinylTasteAnswered").toBool();
+    m_state=answered?(canEnterVinyl()?"answered":"draft"):"unanswered";
     m_draft=m_saved;homeSeedsChanged();emit stateChanged();
 }
 void VinylRecommendationService::setSuggestions(const QVariantList &values){m_suggestions=uniqueArtists(values);if(m_query.isEmpty()&&m_results.value("status")!="loading"){m_results["items"]=m_suggestions;emit resultsChanged();}}
-void VinylRecommendationService::beginHomeVisit(){if(!m_active||m_scope.isEmpty())return;visitHome();if(m_state=="unanswered"){m_state="draft";m_draft=m_saved;emit stateChanged();searchArtists("");}}
+void VinylRecommendationService::beginHomeVisit(){
+    if(!m_active||m_scope.isEmpty())return;
+    visitHome();
+    if(m_state=="unanswered"){m_state="draft";m_draft=m_saved;emit stateChanged();}
+    if(m_state=="draft"&&m_results.value("status")!="loading")searchArtists("");
+}
 void VinylRecommendationService::beginTasteEdit(){if(!m_active)return;cancelSearch();m_draft=m_saved;m_state="editing";m_error.clear();emit stateChanged();searchArtists("");}
-void VinylRecommendationService::cancelTasteEdit(){if(m_state!="editing")return;cancelSearch();m_draft=m_saved;m_state="answered";m_error.clear();emit stateChanged();}
+void VinylRecommendationService::cancelTasteEdit(){if(m_state!="editing")return;cancelSearch();m_draft=m_saved;m_state=canEnterVinyl()?"answered":"draft";m_error.clear();emit stateChanged();}
 void VinylRecommendationService::toggleDraftArtist(const QVariantMap &value) {
     if(!m_active||(m_state!="draft"&&m_state!="editing"))return;
     const auto row=artist(value);if(row.isEmpty())return;const auto key=row.value("key");
-    for(int i=0;i<m_draft.size();++i)if(m_draft[i].toMap().value("key")==key){m_draft.removeAt(i);emit stateChanged();return;}
+    for(int i=0;i<m_draft.size();++i)if(m_draft[i].toMap().value("key")==key){m_draft.removeAt(i);m_error.clear();emit stateChanged();return;}
     if(m_draft.size()>=512){m_error="The artist selection limit has been reached.";emit stateChanged();return;}
     m_draft.append(row);m_error.clear();emit stateChanged();
 }
 bool VinylRecommendationService::commitTaste(bool skip) {
     if(!m_active||!m_preferences||(m_state!="draft"&&m_state!="editing"))return false;
-    auto rows=skip?QVariantList():m_draft;
+    auto rows=skip?QVariantList():uniqueArtists(m_draft);
+    if(skip||uniqueTasteArtistCount(rows)<minimumArtists()){
+        m_error=QStringLiteral("Choose at least %1 distinct artists before opening Vinyl.").arg(minimumArtists());
+        emit stateChanged();return false;
+    }
     for(auto &value:rows){auto row=value.toMap();row.remove("id");row.remove("title");row.remove("cover");value=row;}
     bool saved=false;m_committing=true;
     if(m_preferences->metaObject()->indexOfMethod("setVinylTasteSelections(bool,QVariantList)")>=0)
@@ -129,21 +158,31 @@ void VinylRecommendationService::searchArtists(const QString &value,const QVaria
     cancelSearch();m_query=query;m_cursor=cursor;
     if(cursor.isEmpty())m_results["items"]=query.isEmpty()?m_suggestions:QVariantList();
     m_results["query"]=query;m_results["error"]="";m_results["nextCursor"]=QVariantMap();m_results["status"]="loading";
+    if(query.isEmpty()){
+        m_results["items"]=m_suggestions;m_results["status"]=m_suggestions.isEmpty()?"empty":"ready";
+        emit resultsChanged();return;
+    }
     emit resultsChanged();m_debounce.start();
 }
 void VinylRecommendationService::dispatch() {
     if(!m_active||!m_source||(m_state!="draft"&&m_state!="editing")){
-        m_results["status"]="error";m_results["error"]="Artist search is unavailable. You can still finish or skip.";emit resultsChanged();return;
+        m_results["status"]="error";m_results["error"]="Artist search is unavailable. Choose artists from your library instead.";emit resultsChanged();return;
     }
-    const QString operation=m_query.isEmpty()?"discover":"cataloguePage",value=m_query.isEmpty()?"artists":m_query;
-    const QVariantMap options=m_query.isEmpty()?QVariantMap{{"region","IN"}}:QVariantMap{{"kind","artists"},{"cursor",m_cursor}};
+    if(m_query.isEmpty()){
+        m_results["items"]=m_suggestions;
+        m_results["status"]=m_suggestions.isEmpty()?"empty":"ready";
+        m_results["error"]="";
+        emit resultsChanged();return;
+    }
+    const QString operation="cataloguePage",value=m_query;
+    const QVariantMap options{{"kind","artists"},{"cursor",m_cursor}};
     int id=-1;
     if(m_source->metaObject()->indexOfMethod("request(QString,QString,QString,QVariantMap)")>=0)
         QMetaObject::invokeMethod(m_source,"request",Qt::DirectConnection,Q_RETURN_ARG(int,id),Q_ARG(QString,QString("taste-artists")),Q_ARG(QString,operation),Q_ARG(QString,value),Q_ARG(QVariantMap,options));
     else {
         QVariant result;QMetaObject::invokeMethod(m_source,"request",Qt::DirectConnection,Q_RETURN_ARG(QVariant,result),Q_ARG(QVariant,QVariant("taste-artists")),Q_ARG(QVariant,QVariant(operation)),Q_ARG(QVariant,QVariant(value)),Q_ARG(QVariant,QVariant(options)));id=result.isValid()?result.toInt():-1;
     }
-    m_request=id;if(id<0){m_results["status"]="error";m_results["error"]="Artist search is unavailable. You can still finish or skip.";emit resultsChanged();}
+    m_request=id;if(id<0){m_results["status"]="error";m_results["error"]="Artist search is unavailable. Choose artists from your library instead.";emit resultsChanged();}
 }
 void VinylRecommendationService::accept(const QString &lane,int id,const QVariant &value,const QString &error) {
     if(acceptHome(lane,id,value,error))return;

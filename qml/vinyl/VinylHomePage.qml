@@ -9,12 +9,16 @@ Item {
     required property Flickable pageFlick
 
     readonly property var homeRows: worldData.homeRows || []
-    readonly property var rowKeys: homeRows.map(function(row) { return row.key; })
+    readonly property var eligibleHomeRows: homeRows.filter(function(row) {
+        return row && !root.isExcludedHomeRow(row);
+    })
+    readonly property var rowKeys: visibleHomeRows.map(function(row) { return row.key; })
     readonly property var coldShelfKeys: (worldData.coldShelves || []).map(function(row) { return row.key; })
     readonly property bool showTastePicker: worldData.tastePickerOpen === true
     readonly property bool showTasteEdit: worldData.pickerAnswered === true && !showTastePicker
         && typeof worldData.beginTasteEdit === "function"
-    readonly property bool hasHomeItems: homeRows.some(function(row) {
+    readonly property bool showHomeRefresh: !showTastePicker && typeof worldData.refreshHomeSelection === "function"
+    readonly property bool hasHomeItems: eligibleHomeRows.some(function(row) {
         return row && row.items && row.items.length > 0;
     })
     readonly property bool hasRowLoadingState: visibleHomeRows.some(function(row) {
@@ -30,7 +34,7 @@ Item {
     readonly property bool showRecommendationRetry: showRecommendationStatus
         && worldData.homeStatus !== "loading"
         && typeof worldData.retryHomeRecommendations === "function"
-    readonly property var visibleHomeRows: homeRows.filter(function(row) {
+    readonly property var visibleHomeRows: eligibleHomeRows.filter(function(row) {
         if(!row) return false;
         if(row.items && row.items.length > 0) return true;
         return hasHomeItems && (row.recommendation === true || row.personal === false)
@@ -40,7 +44,7 @@ Item {
     readonly property bool showEmptyRetry: !showTastePicker && !hasHomeItems
         && (worldData.homeStatus === "partial" || worldData.homeStatus === "error"
             || String(worldData.homeError || "").length > 0
-            || homeRows.some(function(row) {
+            || eligibleHomeRows.some(function(row) {
                 return row && (row.status === "stale" || row.status === "error");
             }))
         && (typeof worldData.retryHomeRow === "function"
@@ -48,20 +52,32 @@ Item {
     readonly property int cardColumns: Math.max(1, Math.min(6, Math.ceil(width / 204)))
     readonly property real cardSize: Math.max(120,
         Math.floor((width - (cardColumns - 1) * 24) / cardColumns))
-    readonly property real contentStartY: showTasteEdit ? 56 : 0
+    readonly property real contentStartY: showTasteEdit || showHomeRefresh ? 56 : 0
     readonly property real recommendationStatusExtent: showRecommendationStatus ? 50 : 0
     readonly property string emptyHomeMessage: {
         var status=String(worldData.homeStatus || "");
-        if(status === "loading" || homeRows.some(function(row) { return row && row.status === "loading"; }))
+        if(status === "loading" || eligibleHomeRows.some(function(row) { return row && row.status === "loading"; }))
             return "Loading music…";
         if(status === "error" || status === "partial" || status === "stale"
-            || homeRows.some(function(row) { return row && (row.status === "stale" || row.status === "error"); })
+            || eligibleHomeRows.some(function(row) { return row && (row.status === "stale" || row.status === "error"); })
             || String(worldData.homeError || "").length > 0) return "Catalogue unavailable.";
         return "No music yet.";
     }
 
+    function isExcludedHomeRow(row) {
+        var identity=(String(row.key || "")+" "+String(row.title || ""))
+            .toLowerCase().replace(/[_-]+/g," ").replace(/\s+/g," ").trim();
+        return /(^| )(regional|trending|charts?|popular)( |$)/.test(identity)
+            || /(^| )(saved|owned) playlists?( |$)/.test(identity)
+            || /(^| )(playlist|collection) management( |$)/.test(identity);
+    }
+    function focusArtistSearch() {
+        if(!root.showTastePicker)return false;
+        picker.focusArtistSearch();return true;
+    }
+
     function retryEmptyHome() {
-        var row=homeRows.find(function(candidate) {
+        var row=eligibleHomeRows.find(function(candidate) {
             return candidate && candidate.canRetry === true
                 && (candidate.status === "error" || candidate.status === "stale");
         });
@@ -82,19 +98,39 @@ Item {
 
     Theme { id: theme }
 
-    VinylWorldButton {
-        objectName: "vinylTasteEdit"
+    Row {
+        id: homeActions
+        objectName: "vinylHomeActions"
         x: Math.max(0, parent.width - width)
         y: 0
-        visible: root.showTasteEdit
-        enabled: visible
-        label: "Edit tastes"
-        accessibleName: label
-        symbol: "edit"
-        backdrop: root.backdrop
-        onTriggered: {
-            if (typeof root.worldData.beginTasteEdit === "function")
-                root.worldData.beginTasteEdit()
+        spacing: root.showHomeRefresh && root.showTasteEdit ? 8 : 0
+        visible: root.showTasteEdit || root.showHomeRefresh
+
+        VinylWorldButton {
+            objectName: "vinylHomeRefresh"
+            width: visible ? 38 : 0
+            height: 38
+            visible: root.showHomeRefresh
+            enabled: visible
+            label: qsTr("Refresh Home")
+            symbol: "retry"
+            backdrop: root.backdrop
+            onTriggered: root.worldData.refreshHomeSelection()
+        }
+
+        VinylWorldButton {
+            objectName: "vinylTasteEdit"
+            width: visible ? 38 : 0
+            height: 38
+            visible: root.showTasteEdit
+            enabled: visible
+            label: qsTr("Edit tastes")
+            symbol: "edit"
+            backdrop: root.backdrop
+            onTriggered: {
+                if (typeof root.worldData.beginTasteEdit === "function")
+                    root.worldData.beginTasteEdit()
+            }
         }
     }
 

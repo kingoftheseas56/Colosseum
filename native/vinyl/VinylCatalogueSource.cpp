@@ -94,7 +94,11 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
     // Recommendation destinations use the same provider namespace as search.
     // A summary need not have been opened (and registered) before navigation.
     if(operation=="album"&&!local&&remoteValue.startsWith("ytm:album:"))remoteValue=remoteValue.mid(10);
-    if((operation=="resolve"||operation=="resolveFallback")&&!local){remoteValue=m_videos.value(value);}
+    if((operation=="resolve"||operation=="resolveFallback"||operation=="relatedVideo")&&!local){remoteValue=m_videos.value(value);}
+    if(operation=="resolveVideo") {
+        local=false;remoteValue=options.value("videoId").toString();
+        if(!QRegularExpression("^[A-Za-z0-9_-]{11}$").match(remoteValue).hasMatch())return -1;
+    }
     if(operation=="resolve"&&lane=="play"&&!local&&m_torrent&&m_remoteTracks.contains(value)){
         auto intent=m_remoteTracks.value(value);
         const auto browseId=options.value("browseId").toString();
@@ -161,7 +165,7 @@ void VinylCatalogueSource::accept(const QString &lane,int id,const QVariant &dat
                 album["complete"]=page.value("complete");album["nextCursor"]=page.value("nextCursor");
                 album["totalTracks"]=page.value("totalTracks");album["omittedTracks"]=page.value("omittedTracks");remember(album);
             }
-        }else if((pending.operation=="resolve"||pending.operation=="resolveFallback")&&!local){
+        }else if((pending.operation=="resolve"||pending.operation=="resolveFallback"||pending.operation=="resolveVideo"||pending.operation=="relatedVideo")&&!local){
             auto map=data.toMap();map["trackId"]=pending.value;map["provider"]="youtube";
             map["fallbackReason"]=pending.fallbackReason;result=map;
         }

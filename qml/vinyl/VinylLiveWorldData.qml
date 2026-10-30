@@ -23,13 +23,14 @@ Item {
     property string artistSearchText: ""
     readonly property bool usesRecommendationService: !!recommendationService && !!preferencesStore
         && typeof preferencesStore.setVinylTasteSelections === "function"
+    readonly property bool canEnterVinyl: usesRecommendationService
+        ? recommendationService.canEnterVinyl === true
+        : fallbackPickerAnswered && fallbackPicks.length >= 5
+    readonly property int minimumArtistCount: usesRecommendationService
+        ? Number(recommendationService.minimumArtistCount) || 5 : 5
     readonly property int homeRevision: usesRecommendationService
         ? Number(recommendationService.homeRevision) || 0 : 0
-    readonly property bool homePublicDiscovery: usesRecommendationService && pickerAnswered
-        && (session.plainData(recommendationService.selectedArtists) || []).length===0
-        && visibleLibraryAlbums.length===0 && (!personalLibrary || !personalLibrary.homeCollections
-            || ["songs","albums","artists","playlists"].every(key=>(personalLibrary.homeCollections[key] || []).length===0))
-        && session.profileActive && !session.shuttingDown
+    readonly property bool homePublicDiscovery: false
     readonly property string homeStatus: homePublicDiscovery
         ? discoveryLoading ? "loading" : discoveryError ? publicHomeRows.some(row=>row.items.length) ? "stale" : "error"
             : publicHomeRows.some(row=>row.items.length) ? "ready" : "empty"
@@ -49,7 +50,7 @@ Item {
     onHomeHistoryFenceChanged: {
         // Stable See-all copies contain private ranking explanations too.
         // Public catalogue snapshots remain independent of listening privacy.
-        if(homeListSnapshot && homeListSnapshot.recommendation===true)homeListSnapshot=null;
+        if(homeListSnapshot)homeListSnapshot=null;
     }
     readonly property var recommendationHomeSections: {
         var revision = homeRevision;
@@ -83,9 +84,11 @@ Item {
     function loadTaste() {
         if(usesRecommendationService) return;
         personalError = "";
-        fallbackPickerAnswered = preferencesStore ? !!preferencesStore.vinylTasteAnswered : false;
         fallbackPicks = preferencesStore ? JSON.parse(JSON.stringify(preferencesStore.vinylTasteArtistIds || [])) : [];
+        fallbackPickerAnswered = !!preferencesStore && !!preferencesStore.vinylTasteAnswered
+            && fallbackPicks.length>=minimumArtistCount;
         fallbackPickerDraft = fallbackPicks.slice(); fallbackPickerQuery = "";
+        fallbackTastePickerOpen = activeTab==="home" && !fallbackPickerAnswered;
     }
     onPreferencesStoreChanged: loadTaste()
     Component.onCompleted: loadTaste()
@@ -101,7 +104,29 @@ Item {
     property string pendingCatalogueQuery: ""
     property var recentContinue: []
     property real homeResumePosition: 0
+    property real homeNowMs: Date.now()
+    property string homeSelectionDay: ""
+    Timer {
+        interval:60000;repeat:true;running:root.activeTab==="home" && root.canEnterVinyl
+        onTriggered:root.refreshHome()
+    }
+    readonly property var homeListeningCards: usesRecommendationService
+        ? session.plainData(recommendationService.homeListeningCards || []) : []
+    readonly property var homeQuickPicks: usesRecommendationService
+        ? session.plainData(recommendationService.homeQuickPicks || []) : []
+    function refreshHomeSelection() {
+        homeNowMs=Date.now();
+        if(usesRecommendationService && typeof recommendationService.refreshHomeSelection==="function")
+            recommendationService.refreshHomeSelection();
+        homeSelectionRefreshed();
+    }
+    signal homeSelectionRefreshed()
     function refreshHome() {
+        homeNowMs=Date.now();
+        var today=Qt.formatDateTime(new Date(homeNowMs),"yyyy-MM-dd");
+        if(homeSelectionDay && homeSelectionDay!==today && usesRecommendationService
+            && typeof recommendationService.refreshHome==="function")recommendationService.refreshHome(false);
+        homeSelectionDay=today;
         homeResumePosition=session.position || 0;
         if(!session.profileActive || session.shuttingDown || !session.progressStore
             || typeof session.checkpointSummary!=="function") {recentContinue=[];return;}
@@ -116,6 +141,7 @@ Item {
             if(!row || (summary.duration>0 && summary.position>=summary.duration-0.5))return null;
             return {id:"resume:"+row.editionId,kind:"resume",title:row.title,subtitle:row.artist,
                 cover:row.cover || "",editionId:row.editionId,trackId:row.trackId,
+                lastPlaybackAtMs:Number(summary.lastPlaybackAtMs)||0,
                 unavailable:!session.personalRowAvailable(row),resumeEntry:entry};
         }).filter(item=>!!item).slice(0,6);
     }
@@ -244,10 +270,10 @@ Item {
     readonly property bool searchLoading: cataloguePagingSupported && session.catalogueQuery===query.trim() && !!session.catalogueRequests[lens.kind]
     readonly property string searchError: searchPage.error || ""
     function loadMoreSearch() {if(cataloguePagingSupported)session.requestCataloguePage(lens.kind,searchHasMore);}
-    readonly property bool discoveryLanding: activeTab==="discover" && onlineMode && !query.trim() && !!session.source && session.source.discoveryVersion===1
+    readonly property bool discoveryLanding: false
     readonly property bool discoveryLoading: session.discoveryLoading===true
     readonly property var discoverySections: session.discoverySections || ({})
-    readonly property var discoveryOrder: ["new-releases","trending","artists","charts"]
+    readonly property var discoveryOrder: []
     readonly property string discoveryError: discoveryOrder.map(key=>discoverySections[key] || {}).map(row=>row.error || "").filter((value,index,all)=>value && all.indexOf(value)===index).join(" ")
     readonly property bool discoveryCached: discoveryOrder.some(key=>(discoverySections[key] || {}).cached===true)
     readonly property string discoveryFetchedAt: discoveryOrder.map(key=>(discoverySections[key] || {}).fetchedAt || "").filter(value=>!!value).sort()[0] || ""
@@ -295,6 +321,8 @@ Item {
     }
     function selectTab(tab) {
         if(["home","discover","library"].indexOf(tab)<0) return;
+        if(tab==="home" && !usesRecommendationService && !fallbackPickerAnswered)
+            fallbackTastePickerOpen=true;
         if(tab==="home" && usesRecommendationService && typeof recommendationService.beginHomeVisit==="function")
             recommendationService.beginHomeVisit();
         if(tab===activeTab) return;
@@ -400,20 +428,19 @@ Item {
             return [{key:"search-"+kind,title:kind.charAt(0).toUpperCase()+kind.slice(1),kind:kind==="playlists"?"catalogue-playlists":kind,
                 items:page.items || [],hasMore:Object.keys(page.nextCursor || {}).length>0,loading:!!session.catalogueRequests[kind],error:page.error || ""}];
         }
-        if(state.onlineMode && !state.query.trim() && session.source && session.source.discoveryVersion===1)return discoveryOrder.map(function(key){
-            var icons={"new-releases":"new",trending:"trending",artists:"popular",charts:"global"};
-            var row=discoverySections[key];return row ? Object.assign({},row,{key:"discover-"+key,icon:icons[key]}) : null;
-        }).filter(row=>!!row && row.items && row.items.length);
+        if(state.onlineMode && !state.query.trim())return [];
         return [{key:"local-"+state.lens.kind,title:(state.onlineMode ? "Catalogue " : "Local ")+state.lens.kind,icon:"threads",kind:state.lens.kind,items:project(discoverAlbums,state.lens.kind,state.onlineMode)}];
     }
     readonly property var homeRows: {
-        if(session.profileActive===false || session.shuttingDown)return [];
+        if(session.profileActive===false || session.shuttingDown || !canEnterVinyl)return [];
         var nativeSections=recommendationHomeSections;
         var snapshot=recommendationHomeSnapshot;
         var generation=recommendationProfileGeneration();
         var result=[],historyRows=[];
+        if(homeQuickPicks.length)result.push({key:"quick-picks",title:"Quick picks",kind:"songs",items:homeQuickPicks});
+        if(homeListeningCards.length)result.push({key:"mixes-radio",title:"Mixes & radio",kind:"mixes",items:homeListeningCards});
         var continuing=[],active=session.activeQueueRow;
-        if(active)continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
+        if(active && session.sourceState!=="ended" && (!(session.duration>0) || session.position<session.duration-0.5))continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
             editionId:active.editionId,title:active.title,subtitle:active.artist,cover:active.cover || "",
             unavailable:typeof session.personalRowAvailable==="function" && !session.personalRowAvailable(active)});
         continuing=continuing.concat(recentContinue.filter(item=>!active || item.editionId!==active.editionId));
@@ -439,36 +466,43 @@ Item {
         }).filter(function(item) { return !!item.artistId && !!item.title; });
         if(tasteItems.length)result.push({key:"taste-artists",title:"Your artists",kind:"artists",
             profileGeneration:generation,items:tasteItems});
-        var collections=personalLibrary ? personalLibrary.homeCollections : null;
-        if(collections) {
-            var songs=collections.songs.map(item=>Object.assign({},item,{kind:"saved-song",subtitle:item.artist}));
-            var albums=collections.albums.map(item=>Object.assign({},item,{kind:"albums",subtitle:item.artist}));
-            var artists=collections.artists.map(function(item) {
-                return Object.assign({},item,{kind:"artists",round:true,subtitle:"",
-                    ref:recommendationArtistRef(item)});
-            });
-            var playlists=collections.playlists.map(item=>Object.assign({},item,{kind:"playlists",subtitle:item.count+ (item.count===1 ? " song" : " songs")}));
-            if(songs.length)result.push({key:"saved-songs",title:"Saved songs",kind:"saved-song",items:songs.slice(0,24)});
-            if(albums.length)result.push({key:"saved-albums",title:"Saved albums",kind:"albums",items:albums.slice(0,24)});
-            if(artists.length)result.push({key:"saved-artists",title:"Saved artists",kind:"artists",
-                profileGeneration:generation,items:artists.slice(0,24)});
-            if(playlists.length)result.push({key:"playlists",title:"Your playlists",kind:"playlists",items:playlists.slice(0,24)});
-        } else if(visibleLibraryAlbums.length)result.push({key:"local-albums",title:"Your library",kind:"albums",items:project(visibleLibraryAlbums,"albums")});
         historyRows.sort((a,b)=>(a.sectionId==="rediscover-library"?0:1)-(b.sectionId==="rediscover-library"?0:1));
-        return result.concat(historyRows,publicHomeRows);
+        return result.concat(historyRows);
     }
     readonly property var coldShelves: []
     readonly property var shelfKeys: shelves.map(function(r){return r.key})
     readonly property var carouselSlides: {
+        if(!canEnterVinyl || tastePickerOpen)return [];
         var result=[];
-        if(session.playingIndex>=0) result.push({key:"resume",title:session.playingTrack.title,blurb:session.playingEdition.artist,art:session.playingEdition.cover || "",artKind:"poster",cta:session.paused ? "Continue listening" : "Now playing",kicker:"Your music session"});
-        if(localAlbums.length) {var a=localAlbums[0];result.push({key:"library",title:a.title,blurb:a.artists.join(" · "),art:a.cover || "",artKind:"poster",cta:"Browse library",kicker:"On this device"});}
-        return result;
+        var now=Math.max(homeNowMs,Date.now());
+        var last=Number(session.lastPlaybackAtMs)||0;
+        var unfinished=session.playingIndex>=0 && session.sourceState!=="ended"
+            && (!(session.duration>0) || session.position<session.duration-0.5);
+        if(unfinished && last>0 && now>=last && now-last<=72*3600000)
+            result.push({key:"resume",id:"resume:"+session.playingEditionId,title:session.playingTrack.title,
+                blurb:session.playingEdition.artist,art:session.playingEdition.cover || "",artKind:"square",
+                cta:session.paused ? "Continue listening" : "Now playing",kicker:"Continue listening"});
+        else {
+            var recent=recentContinue.find(item=>item.lastPlaybackAtMs>0 && now>=item.lastPlaybackAtMs
+                && now-item.lastPlaybackAtMs<=72*3600000 && !item.unavailable);
+            if(recent)result.push({key:recent.id,id:recent.id,title:recent.title,blurb:recent.subtitle,
+                art:recent.cover,artKind:"square",cta:"Continue listening",kicker:"Continue listening",item:recent});
+        }
+        var cards=usesRecommendationService ? session.plainData(recommendationService.homeCarouselItems || []) : [];
+        cards.forEach(function(item){
+            if(result.length>=5)return;
+            var kind=String(item.spotlightKind || "");
+            result.push({id:String(item.key || item.id),key:String(item.key || item.id),title:item.title,
+                blurb:item.subtitle || "",art:item.cover || "",artKind:"square",cta:"Open",
+                kicker:kind==="new-from-your-artists" ? "New from your artists" : kind==="related-discoveries" ? "An artist you might like" : "Picked for you",item:item});
+        });
+        return result.slice(0,5);
     }
     signal itemRequested(var item)
     signal listRequested(string key, bool home)
     signal resumeRequested()
     signal homeDestinationRequested(string tab,string section,string id)
+    signal artistSearchFocusRequested()
     function openHomeDestination(tab,section,id) {homeDestinationRequested(tab,section || "albums",id || "");}
     function artwork(url) { return url || ""; }
     function findAlbum(id) {
@@ -569,6 +603,9 @@ Item {
         }).filter(function(item){return !!item.id && !!item.title;});
     }
     function answerPicker(values) {
+        if(pickerDraft.length<minimumArtistCount) {
+            personalError="Choose at least "+minimumArtistCount+" artists.";return false;
+        }
         if(usesRecommendationService) {
             var committed=recommendationService.commitTaste(false);
             if(!committed) personalError=recommendationService.error || "Taste choices could not be saved.";
@@ -578,21 +615,22 @@ Item {
         var valid=artistOptions("").map(function(a){return a.id});
         values=values || fallbackPickerDraft;
         var selected=values.filter(function(v,i){return valid.indexOf(v)>=0 && values.indexOf(v)===i});
+        if(selected.length<minimumArtistCount) {
+            personalError="Choose at least "+minimumArtistCount+" artists.";return false;
+        }
         if(!preferencesStore || !preferencesStore.setVinylTaste(true,selected)) {personalError="Taste choices could not be saved.";return false;}
         fallbackPicks=selected;fallbackPickerAnswered=true;fallbackEditing=false;fallbackPickerDraft=selected.slice();fallbackTastePickerOpen=false; return true;
     }
     function skipPicker() {
-        if(usesRecommendationService) {
-            var committed=recommendationService.commitTaste(true);
-            if(!committed) personalError=recommendationService.error || "Taste choices could not be saved.";
-            else personalError="";
-            return committed;
-        }
-        return answerPicker([]);
+        personalError="Choose at least "+minimumArtistCount+" artists.";return false;
     }
     function beginTasteEdit() {
-        if(usesRecommendationService) return recommendationService.beginTasteEdit();
-        fallbackPickerDraft=fallbackPicks.slice();fallbackEditing=true;fallbackTastePickerOpen=true;return true;
+        if(usesRecommendationService) {
+            artistSearchText="";
+            return recommendationService.beginTasteEdit();
+        }
+        fallbackPickerDraft=fallbackPicks.slice();fallbackPickerQuery="";
+        fallbackEditing=true;fallbackTastePickerOpen=true;return true;
     }
     function cancelTasteEdit() {
         if(usesRecommendationService) return recommendationService.cancelTasteEdit();
@@ -605,9 +643,16 @@ Item {
     function openList(key,home) {
         var sections={"saved-songs":"songs","saved-albums":"albums","saved-artists":"artists","playlists":"playlists"};
         homeListSnapshot=null;
+        if(home && key==="taste-artists") {
+            if(activeTab!=="home" || !pickerAnswered || tastePickerOpen
+                || typeof beginTasteEdit!=="function") return false;
+            beginTasteEdit();
+            artistSearchFocusRequested();
+            return true;
+        }
         if(home) {
             var selected=homeRows.find(function(r){return r.key===key;});
-            if(selected && (selected.recommendation===true || selected.personal===false))
+            if(selected)
                 homeListSnapshot=JSON.parse(JSON.stringify(selected));
         }
         if(home && personalLibrary && sections[key]){openHomeDestination("library",sections[key]);return;}
@@ -618,7 +663,7 @@ Item {
         target:root.session
         ignoreUnknownSignals:true
         function onLibraryChanged(){root.refreshSearch();}
-        function onProfileGenerationChanged(){root.recentContinue=[];root.homeListSnapshot=null;root.loadTaste();root.resetBrowseState();}
+        function onProfileGenerationChanged(){root.recentContinue=[];root.homeSelectionDay="";root.homeListSnapshot=null;root.loadTaste();root.resetBrowseState();}
         function onPlayingTrackChanged(){if(root.activeTab==="home")root.refreshHome();}
         function onPausedChanged(){if(root.activeTab==="home")root.refreshHome();}
         function onQueueChanged(){if(root.activeTab==="home")Qt.callLater(root.refreshHome);}

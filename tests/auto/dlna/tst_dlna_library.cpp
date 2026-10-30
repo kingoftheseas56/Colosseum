@@ -131,6 +131,8 @@ private:
     }
 
 private slots:
+    void logical_download_root_shares_real_files();
+    void lone_fansub_and_flat_download_use_show_titles();
     void initTestCase();
     void cleanupTestCase();
 
@@ -149,6 +151,45 @@ private slots:
     void owner_change_during_build_triggers_one_more_build();
     void stop_discards_a_build_in_flight();
 };
+
+void tst_dlna_library::logical_download_root_shares_real_files()
+{
+    QTemporaryDir temp;
+    const QString logicalRoot = temp.path() + "/logical-downloads";
+    const QString file = writeFile(temp.path() + "/media/Slow Horses - S6E1.mp4", 40);
+    VaultConfig config(temp.path() + "/config");
+    config.addSyntheticRoot(logicalRoot);
+    VaultIndex index(temp.path() + "/index.sqlite");
+    QVERIFY(index.publish({row("download", "video", logicalRoot, "Slow Horses", "Slow Horses", file)}));
+    QVERIFY(!QDir(logicalRoot).exists());
+    DlnaLibrary library(&index, &config);
+    REBUILD(library);
+    QCOMPARE(library.snapshot()->items.size(), 1);
+    QVERIFY(!childContainerByTitle(*library.snapshot(), "0", "Shows").isEmpty());
+}
+
+void tst_dlna_library::lone_fansub_and_flat_download_use_show_titles()
+{
+    QTemporaryDir temp;
+    const QString root = temp.path() + "/generic-download-folder";
+    const QString file = writeFile(root + "/[SubsPlease] One Piece - 1179 (1080p) [A02F35FE].mkv", 40);
+    const QString slowHorses = writeFile(root + "/Slow Horses - S6E1 - Circle of Life - 20261030_200040.mp4", 41);
+    VaultConfig config(temp.path() + "/config");
+    config.addRoot(root);
+    config.confirmRoot(root);
+    VaultIndex index(temp.path() + "/index.sqlite");
+    QVERIFY(index.publish({row("anime", "video", root, root, "generic-download-folder", file),
+                           row("episode", "video", root, root, "generic-download-folder", slowHorses)}));
+    DlnaLibrary library(&index, &config);
+    REBUILD(library);
+    const auto snapshot = library.snapshot();
+    QVERIFY(childContainerByTitle(*snapshot, "0", "Movies").isEmpty());
+    const QString shows = childContainerByTitle(*snapshot, "0", "Shows");
+    QVERIFY(!childContainerByTitle(*snapshot, shows, "One Piece").isEmpty());
+    QVERIFY(!childContainerByTitle(*snapshot, shows, "Slow Horses").isEmpty());
+    QCOMPARE(snapshot->items.value(itemId("anime")).episode, 1179);
+    QCOMPARE(snapshot->items.value(itemId("episode")).season, 6);
+}
 
 void tst_dlna_library::initTestCase()
 {

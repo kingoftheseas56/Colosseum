@@ -317,6 +317,7 @@ private:
     // Slice 18 — add the synthetic downloads root to config (idempotent) when
     // downloads exist and it isn't already present.
     void ensureDownloadsRoot();
+    void refreshDownloads();
     // A returned root stays away until a successful aggregate publish has replaced its rows with
     // a fresh census. This prevents stale paths becoming clickable during an active/failed scan.
     void maybePublishPendingRevives();

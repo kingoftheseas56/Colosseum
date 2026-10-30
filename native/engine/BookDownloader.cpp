@@ -346,6 +346,15 @@ void BookDownloader::cancelDownload(const QString& md5In)
     }
 }
 
+QVariantMap BookDownloader::removeIncompleteDownloads()
+{
+    if (m_active || !m_queue.isEmpty() || !m_resolving.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Book downloads are still stopping.")});
+    if (!m_index.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Some downloaded books could not be deleted.")});
+    return DownloadFileOps::toMap(DownloadFileOps::removeTree(baseDir()));
+}
+
 QVariantMap BookDownloader::deleteBook(const QString& md5In)
 {
     const QString md5 = md5In.trimmed().toLower();

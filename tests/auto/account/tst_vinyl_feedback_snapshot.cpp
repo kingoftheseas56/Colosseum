@@ -52,6 +52,26 @@ bool invokeRecommendationExposureSnapshotSetter(
 QString recommendationExposureSnapshotValue(const QObject *store) {
     return store->property("vinylRecommendationExposureSnapshot").toString();
 }
+
+bool invokeHomeSelectionSnapshotSetter(
+    QObject *store,
+    const QString &snapshot,
+    bool *committed) {
+    bool result = false;
+    const bool invoked = QMetaObject::invokeMethod(
+        store,
+        "setVinylHomeSelectionSnapshot",
+        Qt::DirectConnection,
+        Q_RETURN_ARG(bool, result),
+        Q_ARG(QString, snapshot));
+    if (committed)
+        *committed = result;
+    return invoked;
+}
+
+QString homeSelectionSnapshotValue(const QObject *store) {
+    return store->property("vinylHomeSelectionSnapshot").toString();
+}
 }
 
 class tst_vinyl_feedback_snapshot : public QObject {
@@ -63,6 +83,11 @@ private slots:
     void recommendationExposureSnapshotUsesUtf8ByteLimitAndRejectsNul();
     void malformedStoredRecommendationExposureSnapshotIsNotPublished();
     void failedSyncRetainsPreviousRecommendationExposureSnapshot();
+    void homeSelectionSnapshotApiIsExposed();
+    void homeSelectionSnapshotPersistsAndClears();
+    void homeSelectionSnapshotRejectsMalformedValues();
+    void malformedStoredHomeSelectionSnapshotIsNotPublished();
+    void failedSyncRetainsPreviousHomeSelectionSnapshot();
     void snapshotIsExposedAndPersists();
     void snapshotUsesUtf8ByteLimitAndRejectsNul();
     void malformedStoredSnapshotIsNotPublished();
@@ -250,6 +275,198 @@ void tst_vinyl_feedback_snapshot::
     ProfilePreferencesStore reloaded(path);
     QCOMPARE(recommendationExposureSnapshotValue(&reloaded),
              QStringLiteral("retained snapshot"));
+}
+
+void tst_vinyl_feedback_snapshot::homeSelectionSnapshotApiIsExposed() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    ProfilePreferencesStore store(
+        temporary.filePath(QStringLiteral("preferences.ini")));
+
+    const int propertyIndex = store.metaObject()->indexOfProperty(
+        "vinylHomeSelectionSnapshot");
+    QVERIFY2(propertyIndex >= 0,
+             "home selection snapshot must be a Qt property");
+    const QMetaProperty snapshotProperty =
+        store.metaObject()->property(propertyIndex);
+    QVERIFY(snapshotProperty.isReadable());
+    QVERIFY(!snapshotProperty.isWritable());
+    QVERIFY(snapshotProperty.hasNotifySignal());
+    QVERIFY(store.metaObject()->indexOfMethod(
+                "setVinylHomeSelectionSnapshot(QString)") >= 0);
+}
+
+void tst_vinyl_feedback_snapshot::homeSelectionSnapshotPersistsAndClears() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("preferences.ini"));
+    const QString value = QStringLiteral(
+        "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+        "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[\"a\",\"b\"],"
+        "\"previousKeys\":[\"c\"]}");
+
+    ProfilePreferencesStore store(path);
+    QSignalSpy changed(&store, SIGNAL(vinylHomeSelectionChanged()));
+    QVERIFY(changed.isValid());
+    bool committed = false;
+    QVERIFY(invokeHomeSelectionSnapshotSetter(&store, value, &committed));
+    QVERIFY(committed);
+    QCOMPARE(homeSelectionSnapshotValue(&store), value);
+    QCOMPARE(changed.count(), 1);
+
+    {
+        QSettings settings(path, QSettings::IniFormat);
+        QCOMPARE(settings.value(QStringLiteral("vinyl/homeSelectionSnapshot"))
+                     .toString(),
+                 value);
+    }
+    {
+        ProfilePreferencesStore reloaded(path);
+        QCOMPARE(homeSelectionSnapshotValue(&reloaded), value);
+        QVERIFY(persistenceError(&reloaded).isEmpty());
+        QVERIFY(invokeHomeSelectionSnapshotSetter(
+            &reloaded, QString(), &committed));
+        QVERIFY(committed);
+    }
+    {
+        ProfilePreferencesStore cleared(path);
+        QVERIFY(homeSelectionSnapshotValue(&cleared).isEmpty());
+    }
+}
+
+void tst_vinyl_feedback_snapshot::
+    homeSelectionSnapshotRejectsMalformedValues() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    ProfilePreferencesStore store(
+        temporary.filePath(QStringLiteral("preferences.ini")));
+    const QString valid = QStringLiteral(
+        "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+        "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[\"a\"]}");
+    const QStringList malformed{
+        QStringLiteral("{}"),
+        QStringLiteral(
+            "{\"version\":2,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+            "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[]}"),
+        QStringLiteral(
+            "{\"version\":1,\"profileId\":4,\"day\":\"2026-10-30\","
+            "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[]}"),
+        QStringLiteral(
+            "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-02-30\","
+            "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[]}"),
+        QStringLiteral(
+            "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+            "\"seedHash\":\"seed-a\",\"refreshSerial\":-1,\"keys\":[]}"),
+        QStringLiteral(
+            "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+            "\"seedHash\":\"seed-a\",\"refreshSerial\":1.5,\"keys\":[]}"),
+        QStringLiteral(
+            "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+            "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[\"a\",\"a\"]}"),
+        QStringLiteral(
+            "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+            "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[\"a\",\"b\",\"c\",\"d\",\"e\",\"f\"]}")};
+
+    bool committed = false;
+    QVERIFY(invokeHomeSelectionSnapshotSetter(&store, valid, &committed));
+    QVERIFY(committed);
+    for (const QString &snapshot : malformed) {
+        QVERIFY(invokeHomeSelectionSnapshotSetter(
+            &store, snapshot, &committed));
+        QVERIFY(!committed);
+        QCOMPARE(homeSelectionSnapshotValue(&store), valid);
+        QVERIFY(!persistenceError(&store).isEmpty());
+    }
+
+    QString oversized = valid;
+    oversized.append(QString(16 * 1024, QLatin1Char('x')));
+    QVERIFY(invokeHomeSelectionSnapshotSetter(&store, oversized, &committed));
+    QVERIFY(!committed);
+    QCOMPARE(homeSelectionSnapshotValue(&store), valid);
+
+    const QString longKeyPayload = QStringLiteral(
+        "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+        "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[\"")
+        + QString(1025, QLatin1Char('x')) + QStringLiteral("\"]}");
+    QVERIFY(invokeHomeSelectionSnapshotSetter(
+        &store, longKeyPayload, &committed));
+    QVERIFY(!committed);
+    QCOMPARE(homeSelectionSnapshotValue(&store), valid);
+
+    const QString tooManyPreviousKeys = QStringLiteral(
+        "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+        "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[],"
+        "\"previousKeys\":[\"a\",\"b\",\"c\",\"d\",\"e\",\"f\",\"g\",\"h\",\"i\",\"j\",\"k\"]}");
+    QVERIFY(invokeHomeSelectionSnapshotSetter(
+        &store, tooManyPreviousKeys, &committed));
+    QVERIFY(!committed);
+    QCOMPARE(homeSelectionSnapshotValue(&store), valid);
+
+    QString withNul = valid;
+    withNul.insert(4, QChar::Null);
+    QVERIFY(invokeHomeSelectionSnapshotSetter(&store, withNul, &committed));
+    QVERIFY(!committed);
+    QCOMPARE(homeSelectionSnapshotValue(&store), valid);
+}
+
+void tst_vinyl_feedback_snapshot::
+    malformedStoredHomeSelectionSnapshotIsNotPublished() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("preferences.ini"));
+    {
+        QSettings settings(path, QSettings::IniFormat);
+        settings.setValue(QStringLiteral("vinyl/homeSelectionSnapshot"),
+                          QStringLiteral("{\"version\":1}"));
+        settings.sync();
+        QCOMPARE(settings.status(), QSettings::NoError);
+    }
+    {
+        ProfilePreferencesStore store(path);
+        QVERIFY(homeSelectionSnapshotValue(&store).isEmpty());
+        QVERIFY(!persistenceError(&store).isEmpty());
+    }
+}
+
+void tst_vinyl_feedback_snapshot::
+    failedSyncRetainsPreviousHomeSelectionSnapshot() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString directory = temporary.filePath(QStringLiteral("live"));
+    const QString backup = directory + QStringLiteral("-backup");
+    QVERIFY(QDir().mkdir(directory));
+    const QString path = directory + QStringLiteral("/preferences.ini");
+    const QString retained = QStringLiteral(
+        "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+        "\"seedHash\":\"seed-a\",\"refreshSerial\":3,\"keys\":[\"a\"]}");
+    const QString replacement = QStringLiteral(
+        "{\"version\":1,\"profileId\":\"account-a\",\"day\":\"2026-10-30\","
+        "\"seedHash\":\"seed-b\",\"refreshSerial\":4,\"keys\":[\"b\"]}");
+
+    {
+        ProfilePreferencesStore store(path);
+        bool committed = false;
+        QVERIFY(invokeHomeSelectionSnapshotSetter(
+            &store, retained, &committed));
+        QVERIFY(committed);
+        QVERIFY(QDir().rename(directory, backup));
+
+        {
+            QFile blocker(directory);
+            QVERIFY(blocker.open(QIODevice::WriteOnly));
+            QVERIFY(invokeHomeSelectionSnapshotSetter(
+                &store, replacement, &committed));
+            QVERIFY(!committed);
+            QCOMPARE(homeSelectionSnapshotValue(&store), retained);
+            QVERIFY(!persistenceError(&store).isEmpty());
+        }
+
+        QVERIFY(QFile::remove(directory));
+        QVERIFY(QDir().rename(backup, directory));
+    }
+
+    ProfilePreferencesStore reloaded(path);
+    QCOMPARE(homeSelectionSnapshotValue(&reloaded), retained);
 }
 
 void tst_vinyl_feedback_snapshot::snapshotIsExposedAndPersists() {

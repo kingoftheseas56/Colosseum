@@ -791,6 +791,19 @@ void LocalDownloads::cancel(const QString &world, const QString &id) {
     }
 }
 
+QVariantMap LocalDownloads::removeIncompleteDownloads() {
+    QStringList errors;
+    const auto collect = [&errors](const QVariantMap &result) {
+        if (!result.value(QStringLiteral("success")).toBool())
+            errors.append(result.value(QStringLiteral("message")).toString());
+    };
+    if (m_manga) collect(m_manga->removeIncompleteDownloads());
+    if (m_books) collect(m_books->removeIncompleteDownloads());
+    if (m_comics) collect(m_comics->removeIncompleteDownloads());
+    return {{QStringLiteral("success"), errors.isEmpty()},
+            {QStringLiteral("message"), errors.join(QLatin1Char('\n'))}};
+}
+
 QVariantMap LocalDownloads::remove(const QString &world, const QString &id) {
     if (world == QStringLiteral("tankoban")) {
         if (m_volumes && id.startsWith(QStringLiteral("tankoban:"))) {
