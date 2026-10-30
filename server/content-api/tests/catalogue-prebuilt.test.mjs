@@ -97,3 +97,14 @@ test('malformed tankoban range declarations fail closed before any payload read'
   assert.deepEqual(f.fetched,[prefix+'manifest.json'],'no payload read for '+name);
  }
 });
+
+test('new manga shelf selections page prepared data and fall through on old publications',async()=>{
+ for(const catalog of ['completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s']){
+  const f=fixture();
+  assert.equal(await prebuiltCatalogue(f.assets,revision,'mal','discoverPageFiltered',[catalog,[],false,0,24]),null);
+  const g=fixture();
+  g.manifest.lists[selectionKey('mal','discoverPageFiltered',[catalog,[],false])]=g.manifest.lists[selectionKey('mal','discoverPageFiltered',['popular',[],false])];
+  assert.deepEqual((await prebuiltCatalogue(g.assets,revision,'mal','discoverPageFiltered',[catalog,[],false,1020,24])).result.items,g.rows.slice(1020,1044));
+  assert.equal(await prebuiltCatalogue(g.assets,revision,'mal','discoverPageFiltered',[catalog,[],true,0,24]),null,'adult variants must not share results');
+ }
+});

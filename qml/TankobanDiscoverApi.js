@@ -28,7 +28,14 @@ var MANGA_CATALOGS = [
     { key: "trending",     title: "Trending",      sourceKind: "builtin" },
     { key: "popular",      title: "Popular",       sourceKind: "builtin" },
     { key: "top-rated",    title: "Top Rated",     sourceKind: "builtin" },
-    { key: "new-releases", title: "New Releases",  sourceKind: "builtin" }
+    { key: "new-releases", title: "New Releases",  sourceKind: "builtin" },
+    { key: "completed", title: "Completed Series", sourceKind: "builtin" },
+    { key: "publishing", title: "Currently Publishing", sourceKind: "builtin" },
+    { key: "short-completed", title: "Completed in Five Volumes or Fewer", sourceKind: "builtin" },
+    { key: "one-shots", title: "One-shots", sourceKind: "builtin" },
+    { key: "started-1990s", title: "Began in the 1990s", sourceKind: "builtin" },
+    { key: "started-2000s", title: "Began in the 2000s", sourceKind: "builtin" },
+    { key: "started-2010s", title: "Began in the 2010s", sourceKind: "builtin" }
 ];
 var COMICS_CATALOGS = [
     { key: "popular",               title: "Popular",               sourceKind: "builtin" },
@@ -529,7 +536,8 @@ function fetchMangaPage(deps, state, cursor, generation, done) {
     // A live response merges by stable MAL id on the NEXT reload; it never replaces a
     // bundled row by title similarity and never reorders the wall mid-interaction
     // (the shell owns that fence; the enrich overlay preserves order regardless).
-    if (deps.xhrFactory && !axis && offset === 0) {
+    if (deps.xhrFactory && !axis && offset === 0
+            && ["popular", "top-rated", "trending", "new-releases"].indexOf(state.catalogKey) >= 0) {
         var fresh = liveCache[cacheKey]
                     && (Date.now() - liveCache[cacheKey].fetchedAt) < CACHE_MS;
         if (!fresh && !liveInFlight[cacheKey]) {

@@ -1,0 +1,48 @@
+{
+  "observedAt": "2026-10-30T20:27:44.026470+00:00",
+  "publication": {
+    "schemaVersion": 1,
+    "revision": "574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567",
+    "sourceRevision": "4ee62650692b3ca915a27478c1da718726ae543c8f31768596c29509d6535b2e",
+    "index": {
+      "path": "/catalogue/574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567/index-425b39c2f2c317a8b93ef7f812dbfb04d89ec8976eef2d02ebe79b192b78a3da.json",
+      "sha256": "425b39c2f2c317a8b93ef7f812dbfb04d89ec8976eef2d02ebe79b192b78a3da",
+      "bytes": 206852
+    }
+  },
+  "sampling": "First six distinct record shards referenced by first alphabetical manga name index shard. Convenience sample, NOT representative or full database. Explicit policy cannot be tested: normal published records omit explicit. Normal counts coerce source null to zero, so cannot distinguish those.",
+  "recordShards": [
+    "/catalogue/574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567/shared/69a4379b946c82789e1ee9571f7ad27cb7576b963b2dd1e626432efc53e39bc7.json",
+    "/catalogue/574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567/shared/9c245c85cd26e7fd33005be79664e1c7f095aa7d314b157e3f5e2f1d358475ac.json",
+    "/catalogue/574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567/shared/6b8398f9d6e6be7adf0bd0a681fa24463b5ee1e91e563675c93c41be16e580d2.json",
+    "/catalogue/574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567/shared/87596cfcfc854ed2bfe5adfe5bc95938620680ed943f972f751eaa97f87826ab.json",
+    "/catalogue/574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567/shared/5204ad75df27e0eab391f1f30e16fbca1541bf9bf91ee633b841ed945fed9637.json",
+    "/catalogue/574767b8c786a23e562536e261b89b5b45ebcf5257cec89a588634cdbefdf567/shared/2c531aa6efc700f8614b9133dcbfd68f3b24d8ce9162329f2797f217f574d796.json"
+  ],
+  "uniqueRecords": 253,
+  "formats": {
+    "Manga": 214,
+    "Manhwa": 9,
+    "Doujinshi": 5,
+    "One-shot": 18,
+    "Novel": 2,
+    "Light Novel": 5
+  },
+  "status": {
+    "Finished": 220,
+    "Publishing": 25,
+    "Discontinued": 1
+  },
+  "eligibleFormatRecords": 246,
+  "knownPositiveVolumeCount": 199,
+  "knownYear": 241,
+  "shelfMatchesIgnoringAdultPolicy": {
+    "completed": 220,
+    "publishing": 25,
+    "short-completed": 163,
+    "one-shots": 18,
+    "started-1990s": 8,
+    "started-2000s": 85,
+    "started-2010s": 119
+  }
+}

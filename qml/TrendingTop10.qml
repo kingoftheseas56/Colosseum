@@ -19,6 +19,8 @@ Column {
     // a caller that wants Lanista reach opts in with its own world-prefixed stem, e.g.
     // "tankobanTopMangaTile_" (catalogue-independence Slice 3, 2026-08-20).
     property string namePrefix: ""
+    // A refreshed/filtered catalogue can shrink while keyboard focus stays on this rail.
+    onItemsChanged: if (strip) strip.currentIndex = Math.max(0, Math.min(strip.currentIndex, items.length - 1))
     signal itemClicked(int index)
     signal exploreClicked()
 
@@ -87,6 +89,7 @@ Column {
 
     Item {
         id: strip
+        objectName: top10.namePrefix ? top10.namePrefix + "keyboardStrip" : ""
         width: parent.width
         height: 212
         property int currentIndex: 0
@@ -137,7 +140,7 @@ Column {
                     flick.contentX = right - flick.width
                 strip.refreshArrows()
             }
-            onActivated: top10.itemClicked(index)
+            onActivated: function(index) { top10.itemClicked(index) }
         }
 
         // scroll-affordance state. Set IMPERATIVELY from the Flickable's signal handlers (below),

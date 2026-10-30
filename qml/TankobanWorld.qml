@@ -362,6 +362,9 @@ WorldPage {
                 item.westernRequested.connect(tanko.westernRequested)
                 item.westernExploreRequested.connect(tanko.westernExploreRequested)
             } else {
+                item.malCatalog = (typeof MalCatalog !== "undefined") ? MalCatalog : null
+                item.showExplicitContent = Qt.binding(function() { return tanko.showExplicitContent })
+                item.seriesByIdRequested.connect(tanko.mangaOpenById)
                 item.seriesRequested.connect(tanko.seriesRequested)
                 item.genreRequested.connect(tanko.genreRequested)
                 item.genreIndexRequested.connect(tanko.genreIndexRequested)
