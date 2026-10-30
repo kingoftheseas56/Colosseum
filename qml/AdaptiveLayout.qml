@@ -1,6 +1,7 @@
 // AdaptiveLayout - shared width policy for the Android phone/tablet presentation.
 // Geometry only: content/models/navigation stay in the existing shared QML pages.
 import QtQuick
+import "TouchMetrics.js" as TouchMetrics
 
 QtObject {
     id: metrics
@@ -31,6 +32,7 @@ QtObject {
         && usableWidth > availableHeight
     readonly property bool wideWithRail: largeTablet && !shortLandscape
     readonly property bool phoneLayout: touch && (compactChrome || shortLandscape)
+    readonly property real touchTargetSize: touch ? TouchMetrics.minimumTargetSize : 0
 
     readonly property string layoutClass: shortLandscape ? "short-landscape"
                                                 : compactPhone ? "compact-phone"

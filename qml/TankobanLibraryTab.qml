@@ -11,17 +11,30 @@
 // standalone chrome), retained across tab switches like TankobanDiscoverPage and Theatre's
 // LibraryPage — same fixed-viewport-height + self-scrolling GridView pattern both ship.
 import QtQuick
+import QtQuick.Window
 import QtQuick.Controls
 import "TankobanLibraryApi.js" as Api
 
 Item {
     id: root
+    AdaptiveLayout { id: layout; page: root; viewportHeight: root.pageFlick ? root.pageFlick.height : root.height }
+    readonly property bool phoneLayout: layout.phoneLayout
+    readonly property bool portraitPhoneLayout: layout.touch && layout.phone && layout.portrait
 
     // The retained Library tab keeps its filter state, but hidden worlds must not scan all three
     // Progress lanes or probe Downloads while the tab is not visible.
     property bool active: true
     property Flickable pageFlick: null
     readonly property bool pageFlow: pageFlick !== null
+    readonly property rect menuViewport: {
+        if (!root.phoneLayout || !root.pageFlick)
+            return Qt.rect(0, 0, root.width, root.height)
+        // The page can be taller than its clipped WorldPage scroll viewport.
+        const origin = (root.pageFlick.contentY, root.y, root.pageFlick.mapToItem(root, 0, 0))
+        const top = Math.max(0, origin.y)
+        const bottom = Math.min(root.height, origin.y + root.pageFlick.height)
+        return Qt.rect(0, top, root.width, Math.max(0, bottom - top))
+    }
     readonly property real flowHeight: wallHost.y + wallHost.flowContentHeight + 18
     NumberAnimation {
         id: pageParkAnim
@@ -84,7 +97,12 @@ Item {
     // entry from the Collection. The page never calls Collection.remove itself — same
     // separation as detailRequested/resumeRequested, and same as Theatre's LibraryPage.
     signal removeRequested(var entry)
+    readonly property alias librarySelection: wall.selection
+    property var removeSelectionEntry: null
+    readonly property var selectionState: wall.selection
+
     function handleCardTap(row) {
+        if (selectionState.active) { selectionState.toggle(row); return }
         if (!row) return
         if (row.state === "inProgress" && row.resumeTarget)
             root.resumeRequested(row.resumeTarget)
@@ -130,7 +148,9 @@ Item {
     property Item menuFocusReturn: null
     readonly property string menuRowId: menuRow ? String(menuRow.entry && menuRow.entry.id || "") : ""
     function openMenu(row, x, y, invoker) {
+        if (selectionState.active) { selectionState.toggle(row); return }
         menuRow = row; menuX = x; menuY = y; menuFocusReturn = invoker || wall
+        menuPanel.currentIndex = 0
         Qt.callLater(function() { menuPanel.forceActiveFocus(Qt.PopupFocusReason) })
     }
     function closeMenu(restoreFocus) {
@@ -139,9 +159,29 @@ Item {
         if (restoreFocus !== false && target)
             Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
+    // A stationary touch hold may only open the card menu while its press point still sits
+    // inside the wall viewport (and, in page-flow, the clipped page Flickable) — a flick's
+    // momentum can carry the card out from under a stationary finger mid-hold.
+    function holdPointVisible(area, x, y) {
+        if (!area || !area.visible || !root.visible)
+            return false
+        const wallPoint = area.mapToItem(wall, x, y)
+        if (wallPoint.x < 0 || wallPoint.y < 0
+                || wallPoint.x > wall.width || wallPoint.y > wall.height)
+            return false
+        if (root.pageFlick) {
+            const flowPoint = area.mapToItem(root.pageFlick, x, y)
+            if (flowPoint.x < 0 || flowPoint.y < 0
+                    || flowPoint.x > root.pageFlick.width || flowPoint.y > root.pageFlick.height)
+                return false
+        }
+        return true
+    }
     function triggerMenuIndex(index) {
-        if (index !== 0 || !menuRow) return
-        removeRequested(menuRow.entry); closeMenu(true)
+        if (!menuRow) return
+        if (index === 0) removeRequested(menuRow.entry)
+        else if (index === 1 && layout.touch) selectionState.begin(menuRow)
+        closeMenu(true)
     }
     function toggleFilter(key) { filter = (key === "" || filter === key) ? "" : key }
 
@@ -149,18 +189,20 @@ Item {
     Item {
         id: toolbar
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 44
-        anchors.leftMargin: Math.max(48, theme.margin); anchors.rightMargin: Math.max(38, theme.margin - 10)
+        height: root.phoneLayout ? 116 : 44
+        anchors.leftMargin: root.phoneLayout ? 0 : Math.max(48, theme.margin); anchors.rightMargin: root.phoneLayout ? 0 : Math.max(38, theme.margin - 10)
         anchors.topMargin: 8
 
         // search field (mirrors LibraryPage.qml's searchField shape)
         TextField {
             id: searchField
-            anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
-            width: 220; height: 38; leftPadding: 16; rightPadding: 16
+            objectName: "tankobanLibrarySearch"
+            anchors.left: parent.left; anchors.top: root.phoneLayout ? parent.top : undefined
+            anchors.verticalCenter: root.phoneLayout ? undefined : parent.verticalCenter
+            width: root.phoneLayout ? parent.width : 220; height: layout.touch ? layout.touchTargetSize : 38; leftPadding: 16; rightPadding: 16
             placeholderText: "Search your library"; placeholderTextColor: theme.inkDimmer
             color: theme.ink; selectionColor: theme.gold; selectedTextColor: "#111111"
-            font.family: theme.ui; font.pixelSize: 14
+            font.family: theme.ui; font.pixelSize: theme.fontSize(14)
             background: Rectangle {
                 radius: 19; color: Qt.rgba(0.03, 0.04, 0.06, 0.62)
                 border.width: 1; border.color: searchField.activeFocus ? theme.gold : theme.edge
@@ -169,40 +211,55 @@ Item {
             Keys.onEscapePressed: { text = ""; root.query = "" }
         }
 
-        // 3 filter pills: All / In Progress / Downloaded
-        Row {
-            id: filterRow
-            anchors.horizontalCenter: parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
-            Repeater {
-                model: [
-                    { label: "All", key: "" },
-                    { label: "In Progress", key: "inProgress" },
-                    { label: "Downloaded", key: "downloaded" }
-                ]
-                FilterPill {
-                    label: modelData.label
-                    active: root.filter === modelData.key
-                    onPicked: root.toggleFilter(modelData.key)
+        Flickable {
+            objectName: "tankobanLibraryFilterViewport"
+            y: root.phoneLayout ? 60 : 0
+            width: parent.width
+            height: layout.touch ? layout.touchTargetSize : parent.height
+            contentWidth: root.phoneLayout ? filterRow.implicitWidth + sortRow.implicitWidth + 16 : width
+            contentHeight: height
+            clip: root.phoneLayout
+            interactive: root.phoneLayout && contentWidth > width
+            boundsBehavior: Flickable.StopAtBounds
+            flickableDirection: Flickable.HorizontalFlick
+            // 3 filter pills: All / In Progress / Downloaded
+            Row {
+                id: filterRow
+                anchors.left: root.phoneLayout ? parent.left : undefined
+                anchors.horizontalCenter: root.phoneLayout ? undefined : parent.horizontalCenter; anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                Repeater {
+                    model: [
+                        { label: "All", key: "" },
+                        { label: "In Progress", key: "inProgress" },
+                        { label: "Downloaded", key: "downloaded" }
+                    ]
+                    FilterPill {
+                        label: modelData.label
+                        active: root.filter === modelData.key
+                        onPicked: root.toggleFilter(modelData.key)
+                    }
                 }
             }
-        }
 
-        // 3 sort pills: Last Read / Recently Added / A-Z
-        Row {
-            id: sortRow
-            anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-            spacing: 8
-            Repeater {
-                model: [
-                    { label: "Last Read", key: "lastRead" },
-                    { label: "Recently Added", key: "added" },
-                    { label: "A-Z", key: "az" }
-                ]
-                FilterPill {
-                    label: modelData.label
-                    active: root.sortMode === modelData.key
-                    onPicked: root.sortMode = modelData.key
+            // 3 sort pills: Last Read / Recently Added / A-Z
+            Row {
+                id: sortRow
+                anchors.left: root.phoneLayout ? filterRow.right : undefined
+                anchors.leftMargin: root.phoneLayout ? 16 : 0
+                anchors.right: root.phoneLayout ? undefined : parent.right; anchors.verticalCenter: parent.verticalCenter
+                spacing: 8
+                Repeater {
+                    model: [
+                        { label: "Last Read", key: "lastRead" },
+                        { label: "Recently Added", key: "added" },
+                        { label: "A-Z", key: "az" }
+                    ]
+                    FilterPill {
+                        label: modelData.label
+                        active: root.sortMode === modelData.key
+                        onPicked: root.sortMode = modelData.key
+                    }
                 }
             }
         }
@@ -227,22 +284,23 @@ Item {
             ? Math.min(flowContentHeight, root.pageFlick.height) : height
         readonly property real windowTop: root.pageFlow
             ? Math.max(0, Math.min(visibleTop, flowContentHeight - windowHeight)) : 0
-    GridView {
+    CollectionGrid {
         id: wall
+        pageOwner: root
+        pageActive: root.active
+        pageFlow: root.pageFlow
+        removeEntry: root.removeSelectionEntry
+        onRemoveRequested: (entry) => root.removeRequested(entry)
+        objectName: "tankobanLibraryGrid"
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: root.pageFlow ? undefined : parent.top
         anchors.bottom: root.pageFlow ? undefined : parent.bottom
         y: root.pageFlow ? wallHost.windowTop : 0
         height: root.pageFlow ? wallHost.windowHeight : parent.height
-        anchors.leftMargin: Math.max(48, theme.margin); anchors.rightMargin: Math.max(38, theme.margin - 10)
-        clip: true; boundsBehavior: Flickable.StopAtBounds
-        interactive: !root.pageFlow
-        highlightFollowsCurrentItem: !root.pageFlow
+        anchors.leftMargin: root.phoneLayout ? 0 : Math.max(48, theme.margin); anchors.rightMargin: root.phoneLayout ? 0 : Math.max(38, theme.margin - 10)
         model: root.visibleRows
-        readonly property int columnCount: Math.max(2, Math.floor(width / 178))
-        cellWidth: Math.floor(width / columnCount)
-        cellHeight: Math.floor((cellWidth - 16) * 1.5) + 56
-        cacheBuffer: cellHeight * 2
+        labelHeight: theme.fontSize(root.portraitPhoneLayout ? 54 : 32)
+        stretchPosters: true
         ScrollBar.vertical: HouseScrollBar { flick: wall; visible: !root.pageFlow }
         Binding {
             target: wall; property: "contentY"
@@ -272,32 +330,69 @@ Item {
             id: host
             required property var modelData
             required property int index
-            width: wall.cellWidth - 16; height: wall.cellHeight - 18
+            width: wall.posterW; height: wall.cellHeight - 18
+            Accessible.role: Accessible.CheckBox
+            Accessible.ignored: !selectionState.active
+            Accessible.name: String(host.modelData.entry.title || "Untitled")
+            Accessible.checkable: true
+            Accessible.checked: selectionState.contains(host.modelData)
+            Accessible.onPressAction: root.handleCardTap(host.modelData)
+            Accessible.onToggleAction: root.handleCardTap(host.modelData)
             CataloguePosterCard {
                 id: card
                 anchors.fill: parent
                 item: ({ "title": host.modelData.entry.title || "", "cover": host.modelData.entry.cover || "" })
+                visualProfile: root.portraitPhoneLayout ? "gallery" : "classic"
                 keyboardFocused: wall.activeFocus && wall.currentIndex === host.index
+                Accessible.ignored: selectionState.active
                 onActivated: root.handleCardTap(host.modelData)
+            }
+            LibrarySelectionMark {
+                objectName: "tankobanLibrarySelection_" + String(host.modelData.entry.id)
+                visible: selectionState.active; selected: selectionState.contains(host.modelData)
+                x: 4; y: 4; z: 50
+            }
+            // Stationary touch long press opens the row's ⋮ menu through the same openMenu
+            // contract as the dots button below. The overlay owns the primary tap as well and
+            // routes it to the exact handleCardTap branch the card's own activation used, so
+            // tap/resume behavior is unchanged; real-mouse holds stay gated off for desktop
+            // parity, and any drag hands the grab to the owning Flickable, cancelling the hold.
+            MouseArea {
+                id: cardHold
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                pressAndHoldInterval: root.phoneLayout ? 500 : 2147483647
+                property bool holdMenuFired: false
+                onPressed: cardHold.holdMenuFired = false
+                onPressAndHold: (mouse) => {
+                    if (mouse.source === Qt.MouseEventNotSynthesized) return
+                    if (!root.holdPointVisible(cardHold, mouse.x, mouse.y)) return
+                    cardHold.holdMenuFired = true
+                    wall.currentIndex = host.index
+                    wall.forceActiveFocus(Qt.MouseFocusReason)
+                    const anchor = cardHold.mapToItem(root, mouse.x, mouse.y)
+                    root.openMenu(host.modelData, anchor.x, anchor.y, wall)
+                }
+                onCanceled: cardHold.holdMenuFired = false
+                onClicked: {
+                    if (cardHold.holdMenuFired) { cardHold.holdMenuFired = false; return }
+                    root.handleCardTap(host.modelData)
+                }
             }
             // ⋮ hover button — top-right of the card. Mirrors LibraryPage.qml's dots
             // button; the menu panel lives at root level (wall.clip would clip it here).
-            Rectangle {
+            CollectionCardMenu {
                 id: dots
+                objectName: "tankobanLibraryCardMenu_" + (modelData.entry.id || "")
+                z: root.phoneLayout ? 1 : 0
                 anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 8
-                width: 26; height: 26; radius: 8; color: Qt.rgba(0.04, 0.04, 0.075, 0.82)
-                border.width: 1
-                border.color: root.menuRowId === String(modelData.entry.id || "") ? theme.gold : theme.edge
-                visible: card.effectiveHovered || root.menuRowId === String(modelData.entry.id || "")
-                Text { anchors.centerIn: parent; text: "⋮"; color: theme.ink; font.pixelSize: 15 }
-                MouseArea {
-                    anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                    onClicked: {
-                        wall.currentIndex = host.index
-                        wall.forceActiveFocus(Qt.MouseFocusReason)
-                        var pt = dots.mapToItem(root, dots.width, dots.height)
-                        root.openMenu(host.modelData, pt.x, pt.y, wall)
-                    }
+                touch: layout.touch
+                highlighted: root.menuRowId === String(host.modelData.entry.id || "")
+                visible: root.phoneLayout || card.effectiveHovered || root.menuRowId === String(modelData.entry.id || "")
+                onTriggered: {
+                    wall.currentIndex = host.index
+                    wall.forceActiveFocus(Qt.MouseFocusReason)
+                    const pt = dots.mapToItem(root, dots.width, dots.height)
+                    root.openMenu(host.modelData, pt.x, pt.y, wall)
                 }
             }
         }
@@ -314,14 +409,14 @@ Item {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.allRows.length === 0 ? "Your library is empty" : "No matches"
-            color: theme.ink; font.family: theme.display; font.pixelSize: 30
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(30)
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: root.allRows.length === 0
                 ? "Save a manga or comic series — it lands here."
                 : "Try a different filter or search."
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         }
     }
     }
@@ -338,31 +433,30 @@ Item {
             anchors.fill: parent
             onClicked: root.closeMenu(true)      // outside click swallows + closes
         }
-        Rectangle {
-            id: menuPanel
-            width: 200
-            x: Math.max(8, Math.min(root.menuX - width, root.width - width - 8))
-            y: Math.max(8, Math.min(root.menuY, root.height - height - 8))
-            radius: 12
-            color: Qt.rgba(0.06, 0.07, 0.10, 0.97)
-            border.width: 1; border.color: theme.edge
-            visible: root.menuRow !== null
-            focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
-            Keys.onPressed: (event) => {
-                if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter || event.key === Qt.Key_Space) {
-                    root.triggerMenuIndex(0); event.accepted = true; return
-                }
-                if (event.key === Qt.Key_Escape) { root.closeMenu(true); event.accepted = true; return }
-                if (event.key === Qt.Key_Tab) { event.accepted = true }
-            }
-            Column {
-                anchors.fill: parent; anchors.margins: 6; spacing: 2
-                MenuRow {
-                    label: "Remove from Library"; warn: true
-                    onClicked: root.triggerMenuIndex(0)
-                }
-            }
+    CollectionMenu {
+        id: menuPanel
+        objectName: "tankobanLibraryMenuPanel"
+        z: 56
+        visible: root.menuRow !== null
+        touch: layout.touch
+        viewport: root.menuViewport
+        anchorX: root.menuX
+        anchorY: root.menuY
+        itemPrefix: "tankobanLibraryMenuItem_"
+        scrollObjectName: "tankobanLibraryMenuScroll"
+        centeredLabels: true
+        rowSpacing: 2
+        radius: 12
+        panelColor: Qt.rgba(0.06,0.07,0.10,0.97)
+        warningColor: "#d9534f"
+        items: {
+            const out = [{id:"remove",label:"Remove from Library",warn:true}]
+            if (layout.touch) out.push({id:"select",label:"Select"})
+            return out
         }
+        onPicked: (action) => root.triggerMenuIndex(action === "remove" ? 0 : 1)
+        onCloseRequested: (restoreFocus) => root.closeMenu(restoreFocus)
+    }
     }
 
     // ── inline components (house style: copy-pasted per page, no shared file) ──
@@ -371,14 +465,14 @@ Item {
         property string label: ""
         property bool active: false
         signal picked()
-        implicitWidth: pillText.implicitWidth + 30; height: 34; radius: 14
+        implicitWidth: pillText.implicitWidth + 30; height: layout.touch ? layout.touchTargetSize : 34; radius: 14
         color: active ? theme.gold : (pillHover.hovered ? Qt.rgba(1, 1, 1, 0.10) : "transparent")
         border.width: active ? 0 : 1; border.color: Qt.rgba(1, 1, 1, 0.14)
         Behavior on color { ColorAnimation { duration: 130 } }
         Text {
             id: pillText; anchors.centerIn: parent; text: parent.label
             color: parent.active ? "#17120a" : theme.ink
-            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
         }
         HoverHandler { id: pillHover }
         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.picked() }
@@ -386,22 +480,4 @@ Item {
             onTriggered: parent.picked() }
     }
 
-    // MenuRow mirrors LibraryPage.qml's MenuItem inline component shape.
-    component MenuRow: Item {
-        property string label: ""
-        property bool warn: false
-        signal clicked()
-        width: menuPanel.width - 12; height: 38
-        Rectangle {
-            anchors.fill: parent; radius: 8
-            color: rowHover.hovered ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
-            Text {
-                anchors.centerIn: parent; text: label
-                color: warn ? "#d9534f" : theme.ink
-                font.family: theme.ui; font.pixelSize: 14
-            }
-            HoverHandler { id: rowHover }
-        }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: parent.clicked() }
-    }
 }
