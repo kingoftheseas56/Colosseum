@@ -2,6 +2,7 @@ import QtQuick
 import QtQuick.Controls
 import QtTest
 import "../../qml" as App
+import "../../qml/PhoneOverlayRegistry.js" as Overlays
 
 TestCase {
     id: tests
@@ -74,6 +75,21 @@ TestCase {
         spy.destroy()
     }
     Component { id: signalSpy; SignalSpy { signalName:"triggered" } }
+    Component { id:observerComponent; QtObject { property int revision:0 } }
+    function test_shell_observer_tracks_modal_ownership() {
+        const observer=createTemporaryObject(observerComponent,tests)
+        const sheet=createTemporaryObject(sheetComponent,host.contentItem)
+        Overlays.subscribe(host,observer)
+        const before=observer.revision
+        sheet.open()
+        tryVerify(function() { return observer.revision>before })
+        compare(Overlays.current(host),sheet)
+        const opened=observer.revision
+        sheet.close()
+        tryVerify(function() { return observer.revision>opened })
+        compare(Overlays.current(host),null)
+        Overlays.unsubscribe(observer)
+    }
     Component {
         id: clippedPageComponent
         Item {
@@ -84,6 +100,7 @@ TestCase {
         }
     }
     function test_clipped_page_uses_visible_viewport() {
+        host.width=800; host.height=1280
         const fixture=createTemporaryObject(clippedPageComponent,host.contentItem)
         compare(fixture.metrics.usableWidth,800)
         compare(fixture.metrics.viewportHeight,1280)
@@ -126,5 +143,13 @@ TestCase {
         compare(first.visible, false)
         second.close()
         tryCompare(previousFocus, "activeFocus", true)
+    }
+    function test_sheet_back_survives_underlay_focus_change() {
+        const sheet=createTemporaryObject(sheetComponent,host.contentItem)
+        sheet.open()
+        tryCompare(sheet,"opened",true)
+        previousFocus.forceActiveFocus()
+        keyClick(Qt.Key_Back)
+        tryCompare(sheet,"visible",false)
     }
 }

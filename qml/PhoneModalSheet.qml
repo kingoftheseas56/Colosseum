@@ -8,6 +8,7 @@ Popup {
     property string title: ""
     property real maximumWidth: 720
     property var focusReturnItem: null
+    property Item preferredFocusReturn: null
     readonly property var hostWindow: parent ? parent.Window.window : null
     property var safeInsets: parent ? parent.SafeArea.margins : ({left:0, top:0, right:0, bottom:0})
     property real keyboardInset: Qt.inputMethod.visible && parent
@@ -32,20 +33,26 @@ Popup {
     enter: Transition {}
     exit: Transition {}
 
-    onAboutToShow: focusReturnItem = Overlays.claim(sheet, hostWindow)
+    onAboutToShow: {
+        const replacing=Overlays.current(hostWindow) !== null
+        const previous=Overlays.claim(sheet, hostWindow)
+        focusReturnItem=replacing ? previous : preferredFocusReturn || previous
+    }
     onOpened: contentItem.forceActiveFocus(Qt.PopupFocusReason)
     onClosed: {
         Overlays.release(sheet)
         const target = focusReturnItem
+        const window = hostWindow
         focusReturnItem = null
         Qt.callLater(function() {
-            if (!Overlays.current(sheet.hostWindow) && target && target.visible && target.enabled)
+            if (!Overlays.current(window) && target && target.visible && target.enabled)
                 target.forceActiveFocus(Qt.PopupFocusReason)
         })
     }
     Component.onDestruction: Overlays.release(sheet)
 
     Theme { id: theme }
+    Shortcut { sequence:"Back"; enabled:sheet.visible; onActivated:sheet.close() }
     Overlay.modal: Rectangle { color: "#99000000" }
     background: Rectangle {
         objectName: "phoneModalSheetBackground"

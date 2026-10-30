@@ -4,12 +4,19 @@
 import QtQuick
 import QtQuick.Window
 import QtCore
+import "PhoneOverlayRegistry.js" as PhoneOverlays
 
 Item {
     id: host
     objectName: "phoneShellHost"
     anchors.fill: parent
     z: 55
+    QtObject {
+        id:overlayChanges
+        property int revision:0
+        Component.onCompleted:PhoneOverlays.subscribe(host.window,overlayChanges)
+        Component.onDestruction:PhoneOverlays.unsubscribe(overlayChanges)
+    }
 
     required property Window window
     required property Item worldStack
@@ -147,7 +154,10 @@ Item {
     // Android's Back key and gesture arrive as Qt.Key_Back. They are Back here too.
     Shortcut {
         sequence: "Back"
-        enabled: host.androidHost
+        enabled: {
+            overlayChanges.revision
+            return host.androidHost && PhoneOverlays.current(host.window)===null
+        }
         onActivated: host.escapeCommand.invoke("androidBack")
     }
 
