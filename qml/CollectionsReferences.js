@@ -130,3 +130,81 @@ function vaultDetail(owner, reference, windowsPaths) {
     return detail && detail.found && !detail.isFileDetail && detail.identitySource === "IMDB"
             && detail.identitySourceId === reference.sourceId ? detail : null
 }
+
+// Reconstruct only existing recipient-owned routes from the public identity
+// allowlist. Never persist these local details back into the received edition.
+function sharedReopenReference(saved, vaultOwner) {
+    if (!saved || saved.route) return saved || {};
+    var ref = Object.assign({}, saved), p = saved.payload || {};
+    ref.payload = {};
+    ref.route = "";
+    // A source-only imported key is not a canonical registry key. The registry
+    // derives it at this open boundary; an existing canonical ID remains checked.
+    if (!ref.mediaId) ref.key = "";
+    var id = String(ref.sourceId || ""), edition = String(ref.editionId || "");
+    var token = /^[A-Za-z0-9][A-Za-z0-9._:+-]{0,255}$/;
+    if (!token.test(id) || (edition && !token.test(edition))) return ref;
+    if (ref.world === "theatre" && ref.source === "theatre"
+            && (ref.kind === "movie" || ref.kind === "series") && !edition) {
+        var canonical = String(p.canonicalSourceId || "");
+        if (/^tt[0-9]+$/.test(id) || /^tt[0-9]+$/.test(canonical)) {
+            ref.route = "theatre-detail";
+            if (canonical) ref.payload.canonicalSourceId = canonical;
+        }
+    } else if (ref.world === "tankoban" && ref.kind === "manga" && ref.source === "mal") {
+        var match = /^mal:([1-9][0-9]*)(:color)?$/.exec(id);
+        if (match && edition === (match[2] ? "color" : "") && (!match[2] || id === "mal:13:color")) {
+            ref.route = "manga-detail";
+            ref.payload.malId = match[1];
+            if (edition === "color") {
+                ref.payload.sourceSearchTitle = "One Piece Colored";
+                ref.payload.sourceSearchAliases = ["One Piece Digital Colored Comics"];
+                ref.payload.sourceRequiredMarkers = ["colored", "full color", "full colour"];
+            }
+        }
+    } else if (ref.world === "tankoban" && ref.kind === "manga" && ref.source === "weebcentral" && !edition) {
+        ref.route = "manga-weebcentral-detail";
+    } else if (ref.world === "biblio" && ref.kind === "book" && ref.source === "apple-books"
+            && /^[1-9][0-9]*$/.test(id) && (edition === "ebook" || edition === "audiobook")) {
+        ref.route = "book-detail";
+        ref.payload.book = {id:id, title:ref.title, author:ref.creator, year:ref.year,
+            cover:"", isAudiobook:edition === "audiobook"};
+    } else if (ref.world === "tankoban" && ref.kind === "comic" && !edition) {
+        if (ref.source === "locg" && /^locg:[1-9][0-9]*$/.test(id)) {
+            ref.route = "comic-locg-detail";
+            ref.payload.locgMeta = {name:ref.title};
+        } else if (ref.source === "gcd" && /^gcd:[1-9][0-9]*$/.test(id)) {
+            ref.route = "comic-gcd-detail";
+            if (p.posts && p.posts.length) ref.payload.posts = p.posts.slice();
+        } else if (ref.source === "getcomics" && /^gc:posts:[1-9][0-9]*$/.test(id)
+                && p.posts && p.posts.length && String(p.posts[0]) === id.substring(9)) {
+            ref.route = "comic-posts-detail";
+            ref.payload.posts = p.posts.slice();
+        } else if (ref.source === "getcomics" && /^gc:[A-Za-z0-9][A-Za-z0-9_-]*$/.test(id)) {
+            ref.route = "comic-tag-detail";
+            ref.payload.tag = id.substring(3);
+        } else if (ref.source === "comic-packs") ref.route = "comic-pack-detail";
+    } else if (ref.world === "vinyl" && (ref.source === "youtube-music" || ref.source === "vinyl-local")) {
+        if (ref.kind === "artist" && !edition) ref.route = "vinyl-artist-detail";
+        else if ((ref.kind === "album" || ref.kind === "song") && edition
+                && token.test(String(p.albumId || "")) && token.test(String(p.browseId || ""))
+                && (ref.kind !== "album" || p.albumId === id)) {
+            ref.route = ref.kind === "album" ? "vinyl-album-detail" : "vinyl-song-detail";
+            ref.payload = {albumId:p.albumId, browseId:p.browseId};
+            if (ref.kind === "song") ref.payload.trackId = id;
+        }
+    } else if (ref.world === "vault" && ref.kind === "film" && ref.source === "imdb"
+            && /^imdb:tt[0-9]+$/.test(id) && !edition && vaultOwner) {
+        var groups = vaultOwner.series("video") || [], matches = [];
+        for (var i = 0; i < groups.length; i++) {
+            var detail = vaultOwner.browseDetail(groups[i].key);
+            if (detail && detail.found && !detail.isFileDetail && detail.identitySource === "IMDB"
+                    && detail.identitySourceId === id) matches.push(String(groups[i].key));
+        }
+        if (matches.length === 1) {
+            ref.route = "vault-film-detail";
+            ref.payload.vaultKey = matches[0];
+        }
+    }
+    return ref;
+}

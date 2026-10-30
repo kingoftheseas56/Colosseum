@@ -86,6 +86,23 @@ const (
 func schemaContract() []schemaTableContract {
 	return []schemaTableContract{
 		{
+			name:             "collection_publications",
+			columns:          schemaColumns("share_id", "text", true, "account_id", "uuid", true, "kind", "text", true, "revision", "bigint", true, "snapshot", "jsonb", true, "passphrase_hash", "text", true, "revoked", "boolean", true, "created_at", "timestamp with time zone", true, "updated_at", "timestamp with time zone", true),
+			primaryKey:       []string{"share_id"},
+			indexes:          []string{"collection_publications_owner_idx"},
+			indexDefinitions: map[string]schemaIndexContract{"collection_publications_owner_idx": {method: "btree", columns: []string{"account_id", "created_at", "share_id"}}},
+			foreignKeys:      []schemaForeignKeyContract{{columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"}, onDelete: "c"}},
+		},
+		{
+			name:       "collection_publication_operations",
+			columns:    schemaColumns("account_id", "uuid", true, "operation_id", "uuid", true, "request_hash", "bytea", true, "share_id", "text", true),
+			primaryKey: []string{"account_id", "operation_id"},
+			foreignKeys: []schemaForeignKeyContract{
+				{columns: []string{"account_id"}, referenced: "accounts", refColumns: []string{"id"}, onDelete: "c"},
+				{columns: []string{"share_id"}, referenced: "collection_publications", refColumns: []string{"share_id"}, onDelete: "c"},
+			},
+		},
+		{
 			name: "service_metadata",
 			columns: schemaColumns(
 				"key", "text", true,

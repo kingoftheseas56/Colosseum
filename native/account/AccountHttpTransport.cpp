@@ -98,7 +98,8 @@ void AccountHttpTransport::send(
     } else if (method == QByteArrayLiteral("PUT")) {
         reply = m_network.put(networkRequest, payload);
     } else if (method == QByteArrayLiteral("DELETE")) {
-        reply = m_network.deleteResource(networkRequest);
+        reply = request.body.isEmpty() ? m_network.deleteResource(networkRequest)
+            : m_network.sendCustomRequest(networkRequest, "DELETE", payload);
     } else if (method == QByteArrayLiteral("PATCH")) {
         reply = m_network.sendCustomRequest(
             networkRequest,
@@ -110,6 +111,15 @@ void AccountHttpTransport::send(
     }
 
     const QPointer<QNetworkReply> guardedReply(reply);
+    if (request.maxReplyBytes > 0) {
+        reply->setReadBufferSize(request.maxReplyBytes + 1);
+        connect(reply, &QNetworkReply::readyRead, reply, [guardedReply, limit = request.maxReplyBytes]() {
+            if (guardedReply && guardedReply->bytesAvailable() > limit) {
+                guardedReply->setProperty("accountReplyTooLarge", true);
+                guardedReply->abort();
+            }
+        });
+    }
     auto *hardDeadline = new QTimer(reply);
     hardDeadline->setSingleShot(true);
     connect(
@@ -133,10 +143,14 @@ void AccountHttpTransport::send(
                 return;
             hardDeadline->stop();
 
-            const QByteArray payload = guardedReply->readAll();
-            const AccountTransportReply decoded = decodeReply(
-                guardedReply,
-                payload);
+            const bool tooLarge = guardedReply->property("accountReplyTooLarge").toBool();
+            const QByteArray payload = tooLarge ? QByteArray() : guardedReply->readAll();
+            AccountTransportReply decoded;
+            if (tooLarge) {
+                decoded.networkError = true;
+                decoded.errorCode = QStringLiteral("response_too_large");
+                decoded.errorMessage = QStringLiteral("The service response exceeded the permitted size.");
+            } else decoded = decodeReply(guardedReply, payload);
             guardedReply->deleteLater();
             emit finished(requestId, decoded);
         });

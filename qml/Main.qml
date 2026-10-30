@@ -1004,7 +1004,16 @@ Window {
             collectionsPanel.showMessage("Title identity is unavailable. The saved item has been kept.")
             return
         }
-        var resolution = CollectionsIdentity.collectionReference(saved)
+        var candidate = saved
+        if (!candidate.route) {
+            candidate = CollectionsReferences.sharedReopenReference(saved,
+                typeof VaultLibrary !== "undefined" && !win.androidHost ? VaultLibrary : null)
+            if (!candidate.route) {
+                collectionsPanel.showMessage("This exact provider or edition is unavailable here. The saved item has been kept; you can try it again later.")
+                return
+            }
+        }
+        var resolution = CollectionsIdentity.collectionReference(candidate)
         if (!resolution.ok) { collectionsPanel.showMessage(resolution.error); return }
         var ref = resolution.reference
         var p = ref.payload || {}
@@ -1130,6 +1139,7 @@ Window {
         anchors.fill: parent
         z: 58.6
         nativeStore: typeof NamedCollections !== "undefined" ? NamedCollections : null
+        publicationController: typeof CollectionPublications !== "undefined" ? CollectionPublications : null
         bottomInset: taskbar.visible ? taskbar.closedSize + taskbar.bottomGap + 16 : 24
         onOpenReferenceRequested: reference => win.openNamedCollectionReference(reference)
         onCollectionIdChanged: win.cancelNamedCollectionsOpen()

@@ -312,6 +312,8 @@ qt_add_executable(colosseum
     account/AccountAttachmentReceipt.cpp
     account/AccountBootstrapStore.cpp
     account/AccountClient.cpp
+    account/CollectionPublicationController.cpp
+    account/CollectionPublicationController.h
     account/AccountController.cpp
     account/AccountLifecycleCoordinator.cpp
     account/AccountDeviceIdentity.cpp

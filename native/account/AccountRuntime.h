@@ -4,6 +4,7 @@
 #include "AccountAttachmentCoordinator.h"
 #include "AccountLifecycleCoordinator.h"
 #include "AccountClient.h"
+#include "CollectionPublicationController.h"
 #include "AccountController.h"
 #include "ProgressSyncAdapter.h"
 #include "ActivitySyncAdapter.h"
@@ -142,6 +143,7 @@ private:
 
     AccountHttpTransport m_transport;
     AccountClient m_client;
+    CollectionPublicationController m_collectionPublications;
     std::unique_ptr<AccountCredentialStore> m_credentialStore;
     StremioCredentialAdoptionCallbacks m_stremioCredentials;
     AccountDeviceIdentity m_deviceIdentity;

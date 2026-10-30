@@ -43,7 +43,8 @@ enum class AccountOperation {
     SyncSnapshot,
     AccountExport,
     AccountDelete,
-    AccountDeletionRetry
+    AccountDeletionRetry,
+    CollectionPublish, CollectionUpdate, CollectionList, CollectionRevoke, CollectionOpen
 };
 
 Q_DECLARE_METATYPE(AccountOperation)
@@ -158,6 +159,14 @@ public:
     quint64 retryAccountDeletion(
         const QString &requestId,
         const QByteArray &retryCapability);
+
+    // Explicit publication boundary. Authenticated operations use the same
+    // private session as the existing account client; anonymous opens send none.
+    quint64 publishCollection(const QJsonObject &body);
+    quint64 updateCollectionPublication(const QString &shareId, const QJsonObject &body);
+    quint64 listCollectionPublications();
+    quint64 revokeCollectionPublication(const QString &shareId, const QJsonObject &body);
+    quint64 openSharedCollection(const QString &shareId, const QString &passphrase);
 
 signals:
     void completed(

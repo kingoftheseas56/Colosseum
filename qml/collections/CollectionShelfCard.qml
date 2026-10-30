@@ -71,6 +71,26 @@ Button {
                     }
                 }
             }
+            Image {
+                anchors.fill: parent
+                anchors.margins: 8
+                visible: !!card.collection.keptGift && !!(card.collection.presentation || {}).cover_data
+                source: visible ? card.collection.presentation.cover_data : ""
+                fillMode: Image.PreserveAspectFit
+                sourceSize.width: 640
+                sourceSize.height: 440
+            }
+            Rectangle {
+                anchors.left: parent.left
+                anchors.top: parent.top
+                anchors.margins: 12
+                visible: !!card.collection.keptGift
+                width: giftBadge.implicitWidth + 20
+                height: 28
+                radius: 14
+                color: "#e011151f"
+                Text { id: giftBadge; anchors.centerIn: parent; text: qsTr("Kept gift"); font.family: theme.ui; font.pixelSize: 12; color: theme.gold }
+            }
             CollectionIcon {
                 visible: card.covers.length === 0
                 anchors.centerIn: parent

@@ -213,7 +213,11 @@ LanistaServer::Replier::Replier(QLocalSocket* sock, int seq)
 
 bool LanistaServer::Replier::canReply() const
 {
-    return m_state && !m_state->sent && !m_state->sock.isNull()
+    if (!m_state || m_state->sent) return false;
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    if (m_state->fixtureReply) return true;
+#endif
+    return !m_state->sock.isNull()
            && m_state->sock->state() == QLocalSocket::ConnectedState;
 }
 
@@ -257,6 +261,13 @@ void LanistaServer::Replier::send(QJsonObject line)
     if (!canReply())
         return;
     m_state->sent = true;
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    if (m_state->fixtureReply) {
+        auto observed = std::move(m_state->fixtureReply);
+        observed(std::move(line));
+        return;
+    }
+#endif
     QLocalSocket* sock = m_state->sock.data();
     sock->write(QJsonDocument(line).toJson(QJsonDocument::Compact) + "\n");
     sock->flush();
@@ -843,12 +854,24 @@ void LanistaServer::onReadyRead(QLocalSocket* sock)
 
 void LanistaServer::dispatch(QLocalSocket* sock, const QJsonObject& req)
 {
-    ++m_dispatchCount;
+    dispatchRequest(req, Replier(sock, req.value(QStringLiteral("seq")).toInt()));
+}
 
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+void LanistaServer::dispatchCollectionsFixture(const QJsonObject &req,
+    std::function<void(QJsonObject)> observedReply)
+{
+    Replier reply(nullptr, req.value(QStringLiteral("seq")).toInt());
+    reply.m_state->fixtureReply = std::move(observedReply);
+    dispatchRequest(req, std::move(reply));
+}
+#endif
+
+void LanistaServer::dispatchRequest(const QJsonObject& req, Replier reply)
+{
+    ++m_dispatchCount;
     const QString cmd = req.value(QStringLiteral("cmd")).toString();
-    const int seq = req.value(QStringLiteral("seq")).toInt();
     const QJsonObject payload = req.value(QStringLiteral("payload")).toObject();
-    Replier reply(sock, seq);
 
     const auto it = m_commands.constFind(cmd);
     if (it == m_commands.constEnd()) {

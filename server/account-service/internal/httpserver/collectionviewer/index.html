@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="referrer" content="no-referrer">
+  <title>A collection · Colosseum</title>
+  <link rel="stylesheet" href="/collections/assets/viewer.css">
+  <script defer src="/collections/assets/viewer.js"></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to collection</a>
+  <header class="masthead"><span class="brand">COLOSSEUM</span><span class="masthead-caption">A collection, shared with you</span></header>
+  <main id="main" tabindex="-1">
+    <section id="loading" class="state-panel" aria-live="polite"><span class="eyebrow">COLLECTIONS</span><h1>Opening your link…</h1><p>No account or installation needed.</p></section>
+    <section id="locked" class="state-panel" hidden aria-labelledby="locked-title">
+      <span class="eyebrow">A LITTLE PRIVACY</span><h1 id="locked-title">This collection has a passphrase.</h1><p>Ask the person who shared it for the passphrase.</p>
+      <form id="unlock-form" novalidate>
+        <label for="passphrase">Passphrase</label>
+        <div class="secret-field"><input id="passphrase" type="password" maxlength="128" autocomplete="off" aria-describedby="unlock-error"><button id="show-passphrase" type="button" class="quiet" aria-pressed="false">Show</button></div>
+        <p id="unlock-error" class="error" role="alert"></p>
+        <button id="unlock" type="submit" class="primary">Open collection</button>
+      </form>
+    </section>
+    <section id="failure" class="state-panel" hidden aria-labelledby="failure-title"><span class="eyebrow">COLLECTIONS</span><h1 id="failure-title">This link couldn’t open.</h1><p id="failure-message"></p><button id="retry" class="primary" type="button">Try again</button></section>
+    <section id="opening" class="opening" hidden aria-labelledby="opening-title">
+      <div class="gift-jacket" aria-hidden="true"><span class="jacket-line"></span><span class="jacket-word">FOR YOU</span><span class="jacket-seal">C</span></div>
+      <div class="opening-copy"><span class="eyebrow">A GIFT OF GOOD STORIES</span><h1 id="opening-title"></h1><p id="dedication" class="personal-text"></p><p id="signature" class="signature"></p><button id="explore" class="primary" type="button">Open your collection <span aria-hidden="true">↗︎</span></button><p class="small-note">Take your time. Everything is here to explore.</p></div>
+    </section>
+    <section id="collection" hidden aria-labelledby="collection-title">
+      <div class="collection-heading"><div><span id="edition-label" class="eyebrow"></span><h1 id="collection-title" tabindex="-1"></h1><p id="description" class="personal-text"></p><p id="collection-signature" class="signature"></p></div><img id="custom-cover" class="custom-cover" alt="Creator’s collection cover" hidden></div>
+      <div class="collection-bar"><p id="member-count"></p><button id="read-dedication" class="quiet" type="button" hidden>Read dedication</button></div>
+      <ol id="members" class="members"></ol>
+      <p id="empty" class="empty" hidden>No titles in this edition yet.</p>
+      <aside id="keep-panel" class="keep-panel" hidden aria-labelledby="keep-title"><div><span class="eyebrow">YOURS TO KEEP</span><h2 id="keep-title">Keep this edition in Colosseum.</h2><p>Save the edition file, then open Collections in the app, choose <strong>Receive a gift / shared links</strong>, and select <strong>Open edition file</strong>. Keep Gift preserves the personal messages and presentation for offline viewing.</p><p>Make My Own Version gives you an editable copy of the selections and order, with your own messages and presentation. Neither action adds titles to your Library or downloads media.</p></div><button id="save-edition" class="primary" type="button">Save edition file <span aria-hidden="true">↓</span></button></aside>
+      <p id="download-status" class="small-note" role="status"></p>
+      <p class="edition-note">Availability depends on your providers. Titles and editions are preserved as selected; no media files are included.</p>
+    </section>
+  </main>
+  <footer><span class="brand">COLOSSEUM</span><p>Selections, in their own order.</p></footer>
+</body>
+</html>

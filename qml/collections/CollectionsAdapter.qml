@@ -1,8 +1,10 @@
 import QtQuick
+import "../CollectionsReferences.js" as CollectionsReferences
 
 QtObject {
     id: adapter
     required property var nativeStore
+    property string activeCollectionId: ""
     property var transientReference: ({})
     readonly property int revision: nativeStore ? nativeStore.revision : 0
     readonly property bool healthy: !!nativeStore && nativeStore.healthy
@@ -51,6 +53,11 @@ QtObject {
         return adapter.collections.find(function(row) { return row.id === id }) || null
     }
     function reference(key) {
+        const active = adapter.activeCollectionId ? adapter.getCollection(adapter.activeCollectionId) : null
+        if (active) {
+            const member = (active.members || []).find(function(row) { return row.key === key })
+            if (member) return member
+        }
         return adapter.references[key]
             || (adapter.transientReference.key === key ? adapter.transientReference : null)
     }
@@ -61,13 +68,15 @@ QtObject {
     }
     function media(key) {
         const ref = adapter.reference(key) || {}
+        const reopen = ref.route ? ref : CollectionsReferences.sharedReopenReference(ref,
+            typeof VaultLibrary !== "undefined" && Qt.platform.os !== "android" ? VaultLibrary : null)
         const kind = adapter.mediaKind(ref)
         const group = adapter.groups.find(function(row) { return row.key === kind })
         const worlds = { theatre: "Theatre", tankoban: "Tankoban", biblio: "Biblio", vinyl: "Vinyl", vault: "Vault" }
         return { id: key, title: ref.title || qsTr("Untitled"), creator: ref.creator || "",
             year: ref.year || "", kind: kind, kindLabel: group.singular,
             world: worlds[ref.world] || qsTr("Original source"), cover: ref.cover || "",
-            available: !!ref.route, route: ref.route || "", reference: ref }
+            available: !!reopen.route, route: reopen.route || "", reference: ref }
     }
     function filterOptions(ids) {
         const present = Object.create(null)

@@ -73,6 +73,10 @@
 #include "third_party/miniz/miniz.h"  // gunzip for the Jikan Accept-Encoding workaround
 #include "engine/MangaDownloader.h"
 #include "devtools/LanistaServer.h"
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+#include "../tests/collections_sharing_runtime/InProcessLanistaFixture.h"
+#include "../tests/support/account/MemoryAccountCredentialStore.h"
+#endif
 #include "engine/BookDownloader.h"
 #include "engine/AudiobookDownloader.h"
 #include "engine/ComicDownloader.h"
@@ -1824,7 +1828,20 @@ int main(int argc, char *argv[]) {
                      vinylProvider, &VinylProvider::shuttingDown);
     auto *vinylCatalogueSource = new VinylCatalogueSource(vinylLocalSource, vinylProvider, nullptr, &backendServices);
 #endif
-    auto *accountRuntime = new AccountRuntime(&backendServices);
+    AccountRuntime *accountRuntime = nullptr;
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    // Synthetic acceptance only: real account HTTP/controller, volatile secret
+    // storage. Does not qualify Linux libsecret persistence or production login.
+    if (!qEnvironmentVariable("COLOSSEUM_COLLECTIONS_RUNTIME_RUN").isEmpty()
+        && CollectionsTestProfileController(instanceAppData, {}, {}).enabled()) {
+        static MemoryAccountCredentialStore fixtureAccountCredentials;
+        AccountRuntimeCredentialOptions options;
+        options.accountStore = &fixtureAccountCredentials;
+        accountRuntime = new AccountRuntime(StremioSyncOptions{}, options, &backendServices);
+        qInfo("COLLECTIONS_RUNTIME synthetic memory credential seam; OS vault NOT QUALIFIED");
+    }
+#endif
+    if (!accountRuntime) accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
     std::unique_ptr<ProfilePreferencesStore> ratingsReviewsFixturePreferences;
     std::unique_ptr<RatingsReviewsTaggedFixtureAdapter> ratingsReviewsFixtureA;
@@ -2412,6 +2429,10 @@ int main(int argc, char *argv[]) {
         // is keyed by the WC id and is proved by opening a real series page.
         manga->volumes(QString(), QStringLiteral("One Piece"));
     }
+
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    startCollectionsSharingFixture(lanistaServer, instanceAppData);
+#endif
 
     return app.exec();
 }

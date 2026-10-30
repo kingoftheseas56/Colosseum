@@ -8,4 +8,4 @@ add_executable(collections_seed
     ../../native/engine/ColosseumTitleIdentityRegistry.h)
 set_target_properties(collections_seed PROPERTIES AUTOMOC ON)
 target_compile_features(collections_seed PRIVATE cxx_std_17)
-target_link_libraries(collections_seed PRIVATE Qt6::Core)
+target_link_libraries(collections_seed PRIVATE Qt6::Core Qt6::Gui)

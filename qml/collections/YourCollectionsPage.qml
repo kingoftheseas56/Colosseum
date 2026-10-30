@@ -9,6 +9,8 @@ Item {
     id: root
     objectName: "overviewPage"
     required property var store
+    property bool sharingAvailable: false
+    signal sharingRequested()
     signal collectionRequested(string collectionId)
     signal createRequested(var opener)
     property alias searchText: searchField.text
@@ -35,7 +37,7 @@ Item {
         boundsBehavior: Flickable.StopAtBounds
         flickableDirection: Flickable.VerticalFlick
         clip: true
-        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
+        ScrollBar.vertical: ScrollBar { policy: ScrollBar.AlwaysOff }
         Column {
             id: content
             x: root.pageMargin
@@ -93,6 +95,14 @@ Item {
                         onActiveFocusChanged: if (activeFocus) root.reveal(newCollection)
                     }
                 }
+            }
+            CollectionActionButton {
+                objectName: "openCollectionsSharing"
+                visible: root.sharingAvailable
+                text: qsTr("Receive a gift / shared links")
+                emphasis: "ghost"
+                onClicked: root.sharingRequested()
+                onActiveFocusChanged: if (activeFocus) root.reveal(this)
             }
             Rectangle {
                 width: parent.width
