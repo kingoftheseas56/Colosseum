@@ -11,9 +11,12 @@ const main = readFileSync(new URL('qml/Main.qml', root), 'utf8').replace(/\r\n/g
 const policy = readFileSync(new URL('qml/ShellBackPolicy.js', root), 'utf8')
     .replace(/^\.pragma library\s*$/m, '');
 const actionFor = new Function(policy + '\nreturn actionFor;')();
+const overlaysSource = readFileSync(new URL('qml/PhoneOverlayRegistry.js', root), 'utf8')
+    .replace(/^\.pragma library\s*$/m, '');
+const PhoneOverlays = new Function(overlaysSource + '\nreturn {claim, release, dismiss};')();
 const body = /function handleEscape\(\) \{([\s\S]*?)\n    \}\n/.exec(main)?.[1];
 assert.ok(body, `${fileURLToPath(root)}qml/Main.qml: handleEscape not found`);
-const dispatch = new Function('win', 'ShellBackPolicy', 'PlatformRuntime', 'Qt', 'theatreSeriesLayer', 'worldStack', body);
+const dispatch = new Function('win', 'ShellBackPolicy', 'PlatformRuntime', 'Qt', 'theatreSeriesLayer', 'worldStack', 'PhoneOverlays', body);
 
 function invoke(state) {
     const effects = [];
@@ -40,14 +43,23 @@ function invoke(state) {
         dismissKeyboard: () => effects.push('dismissKeyboard'),
         backgroundApplication: () => effects.push('backgroundApplication'),
     };
-    const qt = { inputMethod: { hide: () => effects.push('dismissKeyboard') } };
-    dispatch(win, { actionFor }, runtime, qt, theatreSeriesLayer, { current: 'Theatre' });
+    const sheet = { visible: !!state.sheetOpen, close() { effects.push('closeSheet'); this.visible = false; } };
+    if (state.sheetOpen) PhoneOverlays.claim(sheet, win);
+    const qt = { inputMethod: { visible: !!state.keyboardVisible, hide: () => effects.push('dismissKeyboard') } };
+    dispatch(win, { actionFor }, runtime, qt, theatreSeriesLayer, { current: 'Theatre' }, PhoneOverlays);
+    PhoneOverlays.release(sheet);
     return effects;
 }
 
 test('Android world root asks the OS to background without closing the world', () => {
     assert.deepEqual(invoke({ androidHost: true, worldOpen: true }),
         ['cancelCatalogueRoute', 'backgroundApplication']);
+});
+
+test('a modal sheet consumes native Back before the player or world', () => {
+    assert.deepEqual(invoke({androidHost:true, playerOpen:true, sheetOpen:true}), ['closeSheet']);
+    assert.deepEqual(invoke({androidHost:true, worldOpen:true, sheetOpen:true}), ['closeSheet']);
+    assert.deepEqual(invoke({androidHost:true, worldOpen:true, sheetOpen:true, keyboardVisible:true}), ['dismissKeyboard']);
 });
 
 test('Android empty root also backgrounds without navigating to desktop Home', () => {

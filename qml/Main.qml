@@ -31,6 +31,7 @@ import "BiblioApi.js" as BiblioApi
 import "CollectionBackfill.js" as CollectionBackfill
 import "WarmingQueue.js" as Warming
 import "ShellBackPolicy.js" as ShellBackPolicy
+import "PhoneOverlayRegistry.js" as PhoneOverlays
 import "WallpaperApi.js" as Wallpapers
 
 Window {
@@ -1015,6 +1016,7 @@ Window {
         identityCeremonyDialog.close()
     }
     function handleEscape() {
+        if (!(win.androidHost && Qt.inputMethod.visible) && PhoneOverlays.dismiss(win)) return
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         if (action === "dismissKeyboard") {
             if (typeof PlatformRuntime !== "undefined" && PlatformRuntime)

@@ -1,22 +1,43 @@
 // AdaptiveLayout - shared width policy for the Android phone/tablet presentation.
 // Geometry only: content/models/navigation stay in the existing shared QML pages.
-import QtQml
+import QtQuick
 
 QtObject {
     id: metrics
 
-    property real viewportWidth: 0
+    property Item page: null
+    property real viewportWidth: page ? page.width : 0
+    property real viewportHeight: page ? page.height : 0
+    property bool touch: Qt.platform.os === "android"
+        || !!(page && page.Window.window && page.Window.window.androidHost)
+    property var safeInsets: page ? page.SafeArea.margins : ({left:0, top:0, right:0, bottom:0})
+    property real railInset: 0
+    property real keyboardInset: 0
+    readonly property real usableWidth: Math.max(0, viewportWidth - railInset
+        - Math.max(0, safeInsets.left) - Math.max(0, safeInsets.right))
+    readonly property real availableHeight: Math.max(0, viewportHeight
+        - Math.max(0, safeInsets.top) - Math.max(0, safeInsets.bottom))
+    readonly property real usableHeight: Math.max(0, availableHeight - keyboardInset)
 
-    readonly property bool compactPhone: viewportWidth >= 0 && viewportWidth <= 430
-    readonly property bool phone: viewportWidth < 600
-    readonly property bool tablet: viewportWidth >= 600 && viewportWidth < 840
-    readonly property bool largeTablet: viewportWidth >= 840
-    readonly property bool compactChrome: viewportWidth < 840
+    readonly property bool compactPhone: usableWidth <= 430
+    readonly property bool phone: usableWidth < 600
+    readonly property bool tablet: usableWidth >= 600 && usableWidth < 840
+    readonly property bool largeTablet: usableWidth >= 840
+    readonly property bool compactChrome: usableWidth < 840
+    readonly property bool portrait: viewportHeight > 0 && usableWidth <= availableHeight
+    readonly property bool portraitCompact: compactChrome && portrait
+    readonly property bool tabletPortrait: tablet && portrait
+    readonly property bool shortLandscape: viewportHeight > 0 && availableHeight < 500
+        && usableWidth > availableHeight
+    readonly property bool wideWithRail: largeTablet && !shortLandscape
+    readonly property bool phoneLayout: touch && (compactChrome || shortLandscape)
 
-    readonly property string layoutClass: compactPhone ? "compact-phone"
+    readonly property string layoutClass: shortLandscape ? "short-landscape"
+                                                : compactPhone ? "compact-phone"
                                                 : phone ? "phone"
+                                                : tabletPortrait ? "tablet-portrait"
                                                 : tablet ? "tablet"
-                                                         : "large-tablet"
+                                                         : "wide-with-rail"
 
     readonly property real pageMargin: compactPhone ? 18
                                            : phone ? 24
