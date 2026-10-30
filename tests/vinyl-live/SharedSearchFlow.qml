@@ -123,12 +123,12 @@ Main {
                 if(w.worldData.artistSearchLoading)return;
                 var choice=w.worldData.artistOptions(w.worldData.pickerQuery).find(item=>item.title==="Ilaiyaraaja");
                 if(!root.check(!!choice,"Real artist search missing Ilaiyaraaja: "+w.worldData.artistSearchError))return;
-                if(!choice.selected)w.worldData.togglePickerArtist(choice);
+                if(w.worldData.pickerDraft.indexOf(choice.key)<0)w.worldData.togglePickerArtist(choice);
                 root.next("artist-selected");return;
             }
             if(root.stage==="artist-selected") {
                 if(!root.check(!w.searchOpen && w.worldData.artistOptions(w.worldData.pickerQuery)
-                    .some(i=>i.title==="Ilaiyaraaja" && i.selected),"Artist selection did not remain in the dedicated picker"))return;
+                    .some(i=>i.title==="Ilaiyaraaja" && w.worldData.pickerDraft.indexOf(i.key)>=0),"Artist selection did not remain in the dedicated picker"))return;
                 root.capture("dedicated-artist-search-selection","artist-cancel");return;
             }
             if(root.stage==="artist-cancel") {
