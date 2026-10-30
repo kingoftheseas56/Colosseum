@@ -57,8 +57,12 @@ Item {
     property bool androidHost: Qt.platform.os === "android" || phoneShellArg.length > 0
     AdaptiveLayout {
         id: adaptive
-        viewportWidth: Math.max(0, (host.window ? host.window.width : 0) - host.wideWorldNavigationLeftInset)
+        page:host
+        touch:host.androidHost
+        viewportWidth:host.width
+        viewportHeight:host.height
     }
+    readonly property bool worldRailFits:adaptive.canFitRail(wideWorldRail.width)
 
     // Android shell (decision 19 / Slice S2): there is no Home on Android. The app opens in the
     // world it was last in, Theatre the first time.
@@ -83,10 +87,10 @@ Item {
     readonly property bool profileActive: profileLayer.active
     readonly property bool phoneImeVisible: host.androidHost && Qt.inputMethod.visible
     readonly property bool phoneWorldNavigationVisible:
-        host.androidHost && host.window && host.window.width < 840
+        host.androidHost && host.window && !host.worldRailFits
         && !host.window.immersiveSurfaceOpen && !host.phoneImeVisible && !host.fullWindowPageOpen
     readonly property bool wideWorldNavigationVisible:
-        host.androidHost && host.window && host.window.width >= 840
+        host.androidHost && host.window && host.worldRailFits
         && !host.window.immersiveSurfaceOpen && !host.phoneImeVisible && !host.fullWindowPageOpen
     readonly property real wideWorldNavigationLeftInset:
         host.wideWorldNavigationVisible ? wideWorldRail.width : 0
