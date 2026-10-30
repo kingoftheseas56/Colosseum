@@ -5,12 +5,13 @@
 <h1 align="center">Colosseum</h1>
 
 <p align="center">
-  <strong>Manga, comics, books, audiobooks, movies, shows, anime, and local media in one desktop app.</strong>
+  <strong>Manga, comics, books, audiobooks, movies, shows, anime, and local media in one app.</strong>
 </p>
 
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases"><img src="https://img.shields.io/badge/Windows-10%2F11-111111?style=flat-square" alt="Windows 10/11" /></a>
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10"><img src="https://img.shields.io/badge/Linux-Ubuntu%2024.04%20amd64-111111?style=flat-square" alt="Linux Ubuntu 24.04 amd64" /></a>
+  <a href="https://getcolosseum.world/download/v1.1.10-alpha/android"><img src="https://img.shields.io/badge/Android-9%2B%20ARM64%20alpha-111111?style=flat-square" alt="Android 9+ ARM64 alpha" /></a>
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/latest"><img src="https://img.shields.io/github/v/release/kingoftheseas56/Colosseum?display_name=tag&sort=semver&style=flat-square&label=release" alt="Latest release" /></a>
   <a href="LICENSE"><img src="https://img.shields.io/badge/license-MIT-777777?style=flat-square" alt="MIT License" /></a>
 </p>
@@ -28,6 +29,7 @@
   <a href="https://getcolosseum.world/"><strong>Official website</strong></a> &nbsp;|&nbsp;
   <a href="https://getcolosseum.world/#next"><strong>Explore 1.1.9 &amp; Tributes</strong></a> &nbsp;|&nbsp;
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10"><strong>Download 1.1.10</strong></a> &nbsp;|&nbsp;
+  <a href="https://getcolosseum.world/download/v1.1.10-alpha/android"><strong>Android alpha APK</strong></a> &nbsp;|&nbsp;
   <a href="docs/README.md">Docs</a> &nbsp;|&nbsp;
   Source builds: <a href="docs/build/windows.md">Windows</a> &middot;
   <a href="docs/build/macos.md">macOS</a> &middot;
@@ -40,12 +42,12 @@
 
 ## What Colosseum is
 
-Colosseum is a native Qt desktop app that brings different kinds of media together. Tankoban handles manga and western comics, Biblio handles ebooks and audiobooks, and Theatre handles movies, shows, and anime. Universes connects stories across media through franchise-specific experiences, while Vault indexes files you already have on your machine.
+Colosseum is a Qt/QML media app for Windows and Linux, now with an Android alpha for early testers. Tankoban handles manga and western comics, Biblio handles ebooks and audiobooks, and Theatre handles movies, shows, and anime. Universes connects stories across media through franchise-specific experiences, while Vault indexes files you already have on your machine.
 
 These five worlds share Home, Continue, Collection, Downloads, settings, and open sessions, but each medium keeps its own reader or player. Comics use the comic reader, books use Reader2 with audiobook support, and Theatre uses the mpv-based player. Downloaded media stays local, and Vault does not move the files it indexes.
 
 > [!IMPORTANT]
-> **Colosseum 1.1.10 is the current published release**, with installers for Windows 10/11 and Linux amd64. [Download 1.1.10](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10).
+> **Colosseum 1.1.10 is the current desktop release**, with installers for Windows 10/11 and Linux amd64. **Android 1.1.10-alpha** is also available for early testers on Android 9+ ARM64. [Desktop download](https://github.com/kingoftheseas56/Colosseum/releases/tag/v1.1.10) · [Android alpha APK](https://getcolosseum.world/download/v1.1.10-alpha/android).
 >
 > **Updates:** On Windows, Colosseum 1.1.9 has an in-app updater and the live first-party signed feed currently offers 1.1.10. The 1.1.9 → 1.1.10 installer upgrade passed Windows smoke testing, but the complete in-app check, download, and restart journey has not been separately verified. Manual installation remains a fallback. **Linux updates are manual.**
 
@@ -212,6 +214,12 @@ sudo apt install ./Colosseum-1.1.10-linux-amd64-notices.deb
 ```
 
 This is one directly installable Debian package with third-party notices included. Linux updates are manual. Ubuntu 24.04 amd64 is the qualified environment; other distributions and hardware have not been universally qualified. Use `LINUX-SHA256SUMS` to verify the download.
+
+### Android alpha (early testing)
+
+Colosseum **1.1.10-alpha** is available as an APK for ARM64 phones and tablets running **Android 9 or newer**. [Download the Android alpha](https://getcolosseum.world/download/v1.1.10-alpha/android) · [Alpha release notes and checksums](https://github.com/kingoftheseas56/Colosseum/releases/tag/android-v1.1.10-alpha).
+
+This is an **early testing release**, not a promise of desktop feature parity. Touch interactions and phone/tablet layouts are still being adapted for portrait and landscape use. If you run into an issue, [report it](https://github.com/kingoftheseas56/Colosseum/issues/new/choose) with your device model, Android version, and steps to reproduce.
 
 ### Build from source
 
