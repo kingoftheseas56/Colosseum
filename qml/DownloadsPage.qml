@@ -34,6 +34,7 @@ Item {
     // ---- read-model bindings (revision-driven refresh) ----
     property var downloadsApi: (typeof LocalDownloads !== "undefined") ? LocalDownloads : null
     property var audiobooksApi: (typeof Audiobooks !== "undefined") ? Audiobooks : null
+    property var vaultApi: (typeof VaultLibrary !== "undefined") ? VaultLibrary : null
     property var jobs: []
     property var jobGroups: []
     property int liveJobCount: 0
@@ -46,6 +47,122 @@ Item {
     property string openLedgerKey: ""
     property var ledgerItems: []
     property string mutationMessage: ""
+    property bool deletingAllDownloads: false
+    property bool waitingForDownloadCancellation: false
+    property double downloadCancellationDeadline: 0
+    property var downloadDeletionQueue: []
+    property var downloadDeletionErrors: []
+
+    function requestDeleteAllDownloads() {
+        if (deletingAllDownloads || !downloadsApi) return;
+        confirmAction(qsTr("Delete all downloads?"),
+                      qsTr("This cancels all download jobs and permanently deletes all downloaded files on this device, including audiobooks and partial files. Their Vault entries will also be removed. Manually added Vault files are kept. This cannot be undone."),
+                      qsTr("Delete all"), root.deleteAllDownloads);
+    }
+    function deleteAllDownloads() {
+        if (deletingAllDownloads) return;
+        deletingAllDownloads = true;
+        mutationMessage = "";
+        downloadDeletionErrors = [];
+        downloadDeletionQueue = [];
+        // Resolve current jobs at confirmation time; delegates and cached rows can change.
+        var currentJobs = downloadsApi.activeJobs();
+        for (var i = currentJobs.length - 1; i >= 0; i--) {
+            var job = currentJobs[i];
+            if (job.canDismiss === true)
+                downloadsApi.dismissFailure(job.world, job.id);
+            else if (job.state !== "done")
+                downloadsApi.cancel(job.world, job.id);
+        }
+        var audioJobs = audiobooksApi ? audiobooksApi.activeDownloads() : [];
+        for (var a = audioJobs.length - 1; a >= 0; a--) {
+            if (audioJobs[a].state === "failed")
+                audiobooksApi.dismissFailure(audioJobs[a].id);
+            else
+                audiobooksApi.cancelDownload(audioJobs[a].id);
+        }
+        waitingForDownloadCancellation = true;
+        downloadCancellationDeadline = Date.now() + 30000;
+        deleteAllTimer.start();
+    }
+    function finishDeletingAllDownloads() {
+        deleteAllTimer.stop();
+        if (vaultApi)
+            vaultApi.rescanRoot(vaultApi.downloadsRootPath());
+        deletingAllDownloads = false;
+        refresh();
+        mutationMessage = downloadDeletionErrors.length
+                ? qsTr("Some downloads could not be deleted. %1").arg(downloadDeletionErrors.slice(0, 3).join("\n"))
+                : "";
+    }
+    function advanceDownloadDeletion() {
+        if (waitingForDownloadCancellation) {
+            var remaining = downloadsApi.activeJobs().concat(audiobooksApi ? audiobooksApi.activeDownloads() : []);
+            for (var j = 0; j < remaining.length; j++) {
+                if (!isLiveState(remaining[j].state)) continue;
+                if (Date.now() < downloadCancellationDeadline) return;
+                downloadDeletionErrors.push(qsTr("Some download jobs are still stopping. Try again shortly."));
+                finishDeletingAllDownloads();
+                return;
+            }
+            // Keep new cancellation failures visible rather than dismissing them as old failures.
+            for (var f = 0; f < remaining.length; f++)
+                if (remaining[f].state === "failed")
+                    downloadDeletionErrors.push(remaining[f].error || qsTr("A download could not be cancelled."));
+            // Enumerate after cancellation drains, so a just-completed download is included too.
+            var queue = [], seen = {};
+            for (var w = 0; w < worlds.length; w++) {
+                var world = worlds[w].key;
+                var shelves = downloadsApi.series(world);
+                for (var s = 0; s < shelves.length; s++) {
+                    var entries = downloadsApi.items(world, shelves[s].key);
+                    for (var e = 0; e < entries.length; e++) {
+                        var key = world + "/" + entries[e].id;
+                        if (seen[key]) continue;
+                        seen[key] = true;
+                        queue.push({ world: world, id: entries[e].id });
+                    }
+                }
+            }
+            var audioFiles = audiobooksApi ? audiobooksApi.downloadedAudiobooks() : [];
+            for (var a = 0; a < audioFiles.length; a++)
+                queue.push({ world: "audiobook", id: audioFiles[a].id });
+            downloadDeletionQueue = queue;
+            waitingForDownloadCancellation = false;
+        }
+        if (!downloadDeletionQueue.length) {
+            var cleanupApis = [downloadsApi, audiobooksApi];
+            for (var c = 0; c < cleanupApis.length; c++) {
+                if (!cleanupApis[c]) continue;
+                try {
+                    var cleanup = cleanupApis[c].removeIncompleteDownloads();
+                    if (!cleanup || cleanup.success !== true)
+                        downloadDeletionErrors.push((cleanup && cleanup.message) || qsTr("Partial downloads could not be deleted."));
+                } catch (error) {
+                    downloadDeletionErrors.push(String(error));
+                }
+            }
+            finishDeletingAllDownloads();
+            return;
+        }
+        // Yield between entries to keep the page responsive during a large deletion.
+        var entry = downloadDeletionQueue.shift();
+        try {
+            var result = entry.world === "audiobook"
+                    ? audiobooksApi.deleteAudiobook(entry.id)
+                    : downloadsApi.remove(entry.world, entry.id);
+            if (!result || result.success !== true)
+                downloadDeletionErrors.push((result && result.message) || qsTr("A downloaded file could not be deleted."));
+        } catch (error) {
+            downloadDeletionErrors.push(String(error));
+        }
+    }
+    Timer {
+        id: deleteAllTimer
+        interval: 16
+        repeat: true
+        onTriggered: root.advanceDownloadDeletion()
+    }
 
     property bool confirmationOpen: false
     property string confirmationTitle: ""
@@ -442,6 +559,7 @@ Item {
 
     Flickable {
         id: page
+        enabled: !root.deletingAllDownloads
         objectName: "downloadsPageScroll"   // test-only seam: Lanista ui-scroll target for the ledger Read action
         anchors.fill: parent
         anchors.bottomMargin: root.contentBottomInset
@@ -467,8 +585,45 @@ Item {
             // ---- header ----
             Text { text: "COLOSSEUM · LOCAL"; color: theme.inkDimmer
                    font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
-            Text { text: "Downloads"; color: theme.ink; topPadding: 8
-                   font.family: theme.display; font.pixelSize: root.phoneNarrow ? 40 : 56; font.letterSpacing: -1 }
+            Item {
+                width: parent.width
+                height: downloadsTitle.implicitHeight + (root.width < 640 ? deleteAllButton.height + 12 : 0)
+                Text {
+                    id: downloadsTitle
+                    text: "Downloads"; color: theme.ink; topPadding: 8
+                    font.family: theme.display; font.pixelSize: root.phoneNarrow ? 40 : 56; font.letterSpacing: -1
+                }
+                Rectangle {
+                    id: deleteAllButton
+                    anchors.right: parent.right
+                    anchors.bottom: parent.bottom
+                    anchors.bottomMargin: root.width < 640 ? 0 : 8
+                    width: deleteAllLabel.implicitWidth + 28
+                    height: 36
+                    radius: 18
+                    enabled: !!root.downloadsApi && !root.deletingAllDownloads
+                             && ((root.totalsMap.items || 0) > 0 || root.jobs.length > 0 || Object.keys(root.abActive).length > 0)
+                    color: deleteAllInput.interactionActive ? "#543238" : "#302027"
+                    border.color: "#805058"
+                    opacity: enabled || root.deletingAllDownloads ? 1 : 0.45
+                    Text {
+                        id: deleteAllLabel
+                        anchors.centerIn: parent
+                        text: root.deletingAllDownloads ? qsTr("Deleting…") : qsTr("Delete all downloads")
+                        color: "#efb2b2"
+                        font.family: theme.ui
+                        font.pixelSize: 13
+                    }
+                    KeyboardAction {
+                        id: deleteAllInput
+                        objectName: "deleteAllDownloadsAction"
+                        anchors.fill: parent
+                        accessibleName: deleteAllLabel.text
+                        focusRadius: 18
+                        onTriggered: root.requestDeleteAllDownloads()
+                    }
+                }
+            }
             Item { width: 1; height: 20 }
             Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
 

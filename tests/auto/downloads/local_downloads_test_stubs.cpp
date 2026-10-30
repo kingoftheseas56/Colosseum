@@ -24,6 +24,7 @@ QVariantMap MangaDownloader::statusOf(const QString&) const { return {}; }
 void MangaDownloader::cancelDownload(const QString&) {}
 bool MangaDownloader::isDownloaded(const QString&) const { return false; }
 QVariantMap MangaDownloader::deleteChapter(const QString&) { return {}; }
+QVariantMap MangaDownloader::removeIncompleteDownloads() { return {{QStringLiteral("success"), true}}; }
 void MangaDownloader::fetchThumb(const QString&, const QString&) {}
 void MangaDownloader::indexSelfTest() {}
 
@@ -35,6 +36,7 @@ QVariantList BookDownloader::downloadedBooks() const { return {}; }
 QVariantList BookDownloader::activeBookJobs() const { return {}; }
 void BookDownloader::cancelDownload(const QString&) {}
 QVariantMap BookDownloader::deleteBook(const QString&) { return {}; }
+QVariantMap BookDownloader::removeIncompleteDownloads() { return {{QStringLiteral("success"), true}}; }
 
 void ComicDownloader::downloadIssue(const QString&, const QString&, const QString&,
                                     const QString&, const QString&, double) {}
@@ -62,6 +64,7 @@ QVariantList ComicDownloader::downloadedIssues() const { return {}; }
 QVariantList ComicDownloader::activeIssueJobs() const { return {}; }
 void ComicDownloader::cancelDownload(const QString&) {}
 QVariantMap ComicDownloader::deleteIssue(const QString&) { return {}; }
+QVariantMap ComicDownloader::removeIncompleteDownloads() { return {{QStringLiteral("success"), true}}; }
 QVariantMap ComicDownloader::packVolumes(const QString&) const { return {}; }
 void ComicDownloader::selfTest(const QString&) {}
 void ComicDownloader::runPackSelfTest(const QString&) {}

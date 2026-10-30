@@ -83,6 +83,7 @@ public:
 
     // Delete a downloaded book (file + index entry). Emits removed().
     Q_INVOKABLE QVariantMap deleteBook(const QString& md5);
+    Q_INVOKABLE QVariantMap removeIncompleteDownloads();
 
     // Dev smoke (env COLOSSEUM_BOOK_DLTEST=<md5>): resolve + download a book,
     // logging the resolved URL(s) + final path. Proves the whole pipeline
