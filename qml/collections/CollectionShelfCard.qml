@@ -50,7 +50,7 @@ Button {
                     id: jacket
                     required property string modelData
                     required property int index
-                    readonly property var titleData: card.store.media(jacket.modelData)
+                    readonly property var titleData: card.store.media(jacket.modelData, card.collection.id)
                     width: Math.min(125, artwork.width * 0.34)
                     height: 174
                     x: artwork.width / 2 - width / 2 + (index === 1 ? -width * 0.64 : index === 2 ? width * 0.64 : 0)

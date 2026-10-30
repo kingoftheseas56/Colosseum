@@ -34,13 +34,15 @@ console.log('Shared references resolve exact recipient routes without changing s
 // Equal canonical keys can retain different provider routes in different lists.
 // The active kept edition's reference must win, not a global first-seen row.
 const adapterSource=fs.readFileSync(new URL('../qml/collections/CollectionsAdapter.qml',import.meta.url),'utf8');
-const begin=adapterSource.indexOf('function reference(key)'),end=adapterSource.indexOf('function mediaKind(',begin);
+const begin=adapterSource.indexOf('function reference(key, collectionId)'),end=adapterSource.indexOf('function mediaKind(',begin);
 const original={key:'same',source:'theatre',route:'theatre-detail'};
 const kept={key:'same',source:'imdb',route:'',sourceId:'imdb:tt1234'};
-const adapterContext={adapter:{activeCollectionId:'gift',getCollection:()=>({members:[kept]}),references:{same:original},transientReference:{}}};
+const adapterContext={adapter:{activeCollectionId:'gift',getCollection:id=>({members:[id === "local" ? original : kept]}),references:{same:original},transientReference:{}}};
 vm.createContext(adapterContext);vm.runInContext(adapterSource.slice(begin,end),adapterContext);
 assert.equal(adapterContext.reference('same'),kept,'kept gift reference cannot be substituted by another list');
 
 assert.equal(route(ref("tankoban","manga","weebcentral","01J0EXACTSOURCE")).route,"manga-weebcentral-detail");
 
 assert.equal(route(ref("tankoban","comic","gcd","gcd:123","",{posts:["999"]})).payload.posts,undefined,"sender GCD/post claims cannot bypass recipient catalogue");
+
+assert.equal(adapterContext.reference("same","local"),original,"overview cards use their own collection reference");
