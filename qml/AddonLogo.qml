@@ -1,9 +1,9 @@
 // AddonLogo — draws an add-on's real icon the way Harbor's extension page does.
-// Priority: (1) a bundled official logo if we ship one (assets/addon-logos,
-// matched by id/name in AddonLogos.js — instant, offline, no network stall),
-// (2) the add-on's own manifest logo URL when given, (3) the honest coloured
-// letter square as the last resort. Mirrors Harbor src/components/addon-logo.tsx,
-// with bundled-first ordering because arbitrary logo hosts aren't IPv4-pinned here.
+// Default priority: (1) a bundled official logo (assets/addon-logos, matched by
+// id/name in AddonLogos.js), (2) the manifest logo URL, (3) the honest coloured
+// letter square. `preferManifestLogo` opts a caller into manifest-first art; the
+// URL preview also waits for Ready/Error with a bounded fallback deadline.
+// Other callers retain bundled-first behavior. Mirrors Harbor's addon-logo.tsx.
 //
 // The logo floats on a rounded plate (PreserveAspectFit) rather than an effect-
 // masked full-bleed crop: no per-icon MultiEffect FBO (the Discover page shows

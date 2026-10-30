@@ -1,10 +1,11 @@
 // ExtensionsStorePage — Extensions as a world (agents/colosseum-extensions-world-mock.html):
-// a top bar with only Back and the page name (as Your Colosseum), the House hero, the Essentials row, then the Store rows filled
-// live from stremio-addons.net (ExtensionsStoreApi.js). Search and the manifest-preview URL installer
-// live in the House corner. An add-on needing setup uses ExtensionsSetupSheet, not the outside
-// browser — except on Android, which has no QtWebEngine and hands setup to the phone's browser
-// (ExtensionsSetupSheetAndroid). Tankoyomi's own settings open from its House tile
-// (TankoyomiConfigurationPage).
+// a top bar with only Back and the page name (as Your Colosseum), the House hero, Your Add-ons,
+// Essentials, then Store rows from stremio-addons.net (ExtensionsStoreApi.js). Your Add-ons
+// manages every profile-installed transport URL instance. The House corner holds Search and the
+// manifest-preview installer, which waits for artwork or a bounded fallback before confirmation.
+// An add-on needing setup uses ExtensionsSetupSheet, not the outside browser — except on Android,
+// which has no QtWebEngine and hands setup to the phone's browser (ExtensionsSetupSheetAndroid).
+// Tankoyomi's own settings open from its House tile (TankoyomiConfigurationPage).
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Window
