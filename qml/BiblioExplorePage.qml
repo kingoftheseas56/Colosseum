@@ -57,6 +57,9 @@ BrowseScaffold {
     // tab switch within the same running session (Task 8's BiblioWorld reads/writes this) — a
     // plain property, NOT QSettings; it does not survive an app restart, by design.
     property real contentY: 0
+    property Flickable pageFlick:null
+    readonly property bool flowPage:layout.phoneLayout && pageFlick!==null
+    implicitHeight:flowPage ? content.height : 0
     readonly property bool phonePortrait: page.layout.portraitBrowse
     readonly property int portraitPosterWidth: Math.max(64, Math.min(104, Math.floor((page.width - 24) / 3)))
     readonly property real contentLeft: page.layout.compactBrowse ? 0 : rowIndex.contentLeft
@@ -511,7 +514,8 @@ BrowseScaffold {
     function parkRow(target) {
         if (!target)
             return
-        var top = target.mapToItem(mainFlick.contentItem, 0, 0).y
+        var owner=page.flowPage ? page.pageFlick : mainFlick
+        var top = target.mapToItem(owner.contentItem, 0, 0).y
         pageGlide.glideTo(top - 14)
     }
 
@@ -521,14 +525,15 @@ BrowseScaffold {
         objectName: "biblioExploreFlick"
         x: page.contentLeft
         width: Math.max(0, page.width - x)
-        height: page.height
+        height: page.flowPage ? content.height : page.height
         contentWidth: width
         contentHeight: content.height
         clip: true
         boundsBehavior: Flickable.StopAtBounds
-        ScrollBar.vertical: HouseScrollBar { flick: mainFlick }
-        Component.onCompleted: mainFlick.contentY = page.contentY
-        onContentYChanged: page.contentY = mainFlick.contentY
+        interactive:!page.flowPage
+        ScrollBar.vertical: HouseScrollBar { flick: mainFlick; visible:!page.flowPage }
+        Component.onCompleted: mainFlick.contentY = page.flowPage ? 0 : page.contentY
+        onContentYChanged: if(!page.flowPage) page.contentY = mainFlick.contentY
 
         Column {
             id: content
@@ -817,7 +822,7 @@ BrowseScaffold {
         z: 2
         visible: page.visible && (!page.phonePortrait || !collapsed)
         compactTouchTargets: page.phonePortrait
-        pageFlick: mainFlick
+        pageFlick: page.flowPage ? page.pageFlick : mainFlick
         backdrop: page.backdrop
         worldName: "Biblio"
         automationPrefix: "biblioRowIndex"
@@ -835,10 +840,11 @@ BrowseScaffold {
         }
     }
 
-    ScrollGlide { id: pageGlide; flick: mainFlick }
+    onFlowPageChanged:mainFlick.contentY=flowPage ? 0 : contentY
+    ScrollGlide { id: pageGlide; flick: page.flowPage ? page.pageFlick : mainFlick }
     KeyboardScrollController {
         id: exploreScrollKeys
-        flick: mainFlick
+        flick: page.flowPage ? page.pageFlick : mainFlick
         glide: pageGlide
         arrowScrolling: false
     }

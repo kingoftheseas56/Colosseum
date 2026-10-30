@@ -16,7 +16,8 @@ Glass {
 
     property string heading: "Biblio"
     property var chart: []             // ranked chart books from BiblioApi ("top" would shadow Item.top)
-    readonly property bool compactLayout: width < 600
+    AdaptiveLayout { id:metrics; page:desk }
+    readonly property bool compactLayout: metrics.phone
 
     signal clicked()                   // title / books → open the Biblio world (v1, like Bookshelf)
     signal genrePicked(string name)    // a chip → that genre inside Biblio
@@ -53,7 +54,7 @@ Glass {
         anchors.top: parent.top; anchors.topMargin: desk.compactLayout ? 20 : 28
         anchors.horizontalCenter: parent.horizontalCenter
         text: desk.heading; color: theme.ink
-        font.family: theme.display; font.pixelSize: desk.compactLayout ? 30 : 33
+        font.family: theme.display; font.pixelSize: theme.fontSize(desk.compactLayout ? 30 : 33)
         MouseArea {
             anchors.fill: parent; anchors.margins: -12
             cursorShape: Qt.PointingHandCursor; onClicked: desk.clicked()
@@ -66,7 +67,7 @@ Glass {
         anchors.top: parent.top; anchors.topMargin: 36
         visible: !desk.compactLayout
         text: "Top charts"; color: theme.inkDim
-        font.family: theme.display; font.italic: true; font.pixelSize: 22
+        font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(22)
     }
 
     // ---- the desk: pile · chart stat + chips · runner-up face-out ----
@@ -135,7 +136,7 @@ Glass {
                     anchors.horizontalCenter: parent.horizontalCenter
                     anchors.top: parent.bottom; anchors.topMargin: 12
                     text: "No. 1 today"; color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.6
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.6
                     font.capitalization: Font.AllUppercase
                 }
             }
@@ -152,12 +153,12 @@ Glass {
 
             Text {
                 text: "Top 10"; color: theme.ink
-                font.family: theme.display; font.pixelSize: 50
+                font.family: theme.display; font.pixelSize: theme.fontSize(50)
             }
             Text {
                 width: 250
                 text: "today on the Apple Books chart — fresh every day"
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 wrapMode: Text.WordWrap; lineHeight: 1.35
             }
             Item { width: 1; height: 8 }
@@ -188,7 +189,7 @@ Glass {
                             anchors.centerIn: parent
                             text: parent.modelData.name
                             color: chipMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 11
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                         }
                         MouseArea {
                             id: chipMa; anchors.fill: parent; hoverEnabled: true
@@ -248,7 +249,7 @@ Glass {
             Text {
                 anchors.horizontalCenter: parent.horizontalCenter
                 text: "No. 2"; color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.6
+                font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.6
                 font.capitalization: Font.AllUppercase
             }
         }
@@ -299,13 +300,13 @@ Glass {
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "TOP 10 ? APPLE BOOKS"; color: theme.gold
-            font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 1.8; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.8; font.weight: Font.DemiBold
         }
         Text {
             width: parent.width
             horizontalAlignment: Text.AlignHCenter
             text: "Fresh chart picks, with the same Biblio catalogue one tap away."
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             wrapMode: Text.WordWrap; lineHeight: 1.3
         }
         Item { width: 1; height: 4 }
@@ -323,7 +324,7 @@ Glass {
                         id: compactChipText; anchors.centerIn: parent
                         text: parent.modelData.name
                         color: compactChipHit.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 11
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     }
                     MouseArea {
                         id: compactChipHit; anchors.fill: parent; hoverEnabled: true

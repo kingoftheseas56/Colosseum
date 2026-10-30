@@ -14,14 +14,20 @@ Item {
     property string secondaryLabel: "Details"
     signal primaryClicked()
     signal secondaryClicked()
+    readonly property var hostWindow: slideRoot.Window.window
 
     readonly property bool isPoster: slide.artKind !== undefined && slide.artKind === "poster"
-    readonly property bool narrowLayout: slideRoot.width < 600
+    AdaptiveLayout { id:metrics; page:slideRoot }
+    readonly property bool narrowLayout: metrics.phone || (slideRoot.phoneLayout && theme.fontScale > 1)
+    readonly property bool phoneLayout: metrics.phoneLayout
+    readonly property bool shortPhoneLandscape: metrics.touch && metrics.shortLandscape
     readonly property bool televisionMode: {
-        const w = slideRoot.Window.window
+        const w = slideRoot.hostWindow
         return !!(w && w["televisionMode"] === true)
     }
-    readonly property bool compactCopy: slideRoot.height < 360 || slideRoot.narrowLayout
+    implicitHeight: copy.implicitHeight + (slideRoot.shortPhoneLandscape ? 20 : 44)
+    readonly property bool compactCopy: slideRoot.shortPhoneLandscape
+            || slideRoot.height < 360 || slideRoot.narrowLayout
     Theme { id: theme }
 
     Rectangle {
@@ -72,6 +78,7 @@ Item {
         }
         // …with the crisp poster stood on the right
         Image {
+            id: posterArtwork
             visible: slideRoot.isPoster && !slideRoot.narrowLayout
             property string readySource: ""
             onStatusChanged: if (status === Image.Ready) readySource = String(source)
@@ -102,42 +109,62 @@ Item {
             visible: !slideRoot.narrowLayout
             text: slideRoot.slide.ghost !== undefined ? slideRoot.slide.ghost : ""
             color: Qt.rgba(1, 1, 1, 0.06)
-            font.family: theme.display; font.bold: true; font.pixelSize: 150
+            font.family: theme.display; font.bold: true; font.pixelSize: theme.fontSize(150)
             anchors.right: parent.right; anchors.rightMargin: 40
             anchors.top: parent.top; anchors.topMargin: -30
         }
         // copy
         Column {
+            id: copy
             anchors.left: parent.left
             anchors.bottom: parent.bottom
-            anchors.leftMargin: slideRoot.televisionMode ? 52 : (slideRoot.narrowLayout ? 20 : 42)
-            anchors.bottomMargin: slideRoot.televisionMode ? 48 : (slideRoot.narrowLayout ? 22 : 42)
+            anchors.leftMargin: slideRoot.televisionMode ? 52
+                                : (slideRoot.shortPhoneLandscape || slideRoot.narrowLayout ? 20 : 42)
+            anchors.bottomMargin: slideRoot.televisionMode ? 48
+                                  : (slideRoot.shortPhoneLandscape ? 10
+                                     : (slideRoot.narrowLayout ? 22 : 42))
             width: Math.min(slideRoot.televisionMode ? 680 : 560,
-                            parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
-            spacing: slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10)
+                            slideRoot.phoneLayout && slideRoot.isPoster && !slideRoot.narrowLayout
+                                ? parent.width - posterArtwork.width - 56 - 42 - 24
+                                : parent.width - (slideRoot.televisionMode ? 104 : (slideRoot.narrowLayout ? 40 : 84)))
+            spacing: slideRoot.shortPhoneLandscape ? 4
+                     : (slideRoot.compactCopy ? 8 : (slideRoot.televisionMode ? 12 : 10))
             Text { text: slideRoot.kicker.toUpperCase(); color: theme.gold
                 visible: text.length > 0
-                font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 13 : 11; font.letterSpacing: 3 }
+                font.family: theme.ui
+                font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 13 : (slideRoot.shortPhoneLandscape ? 10 : 11))
+                font.letterSpacing: slideRoot.shortPhoneLandscape ? 1.5 : 3 }
             Text { text: slideRoot.slide.title !== undefined ? slideRoot.slide.title : ""
                 color: theme.ink; font.family: theme.display
-                font.pixelSize: slideRoot.televisionMode ? 58 : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50))
+                font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 58
+                                  : (slideRoot.shortPhoneLandscape ? 30
+                                     : (slideRoot.narrowLayout ? 34 : (slideRoot.compactCopy ? 42 : 50))))
                 lineHeight: 0.96; maximumLineCount: 2; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap }
             Text { text: slideRoot.slide.blurb !== undefined ? slideRoot.slide.blurb : ""
                 visible: text.length > 0
                 color: theme.inkDim; font.family: theme.ui
-                font.pixelSize: slideRoot.compactCopy ? 13 : (slideRoot.televisionMode ? 16 : 14)
+                font.pixelSize: theme.fontSize(slideRoot.shortPhoneLandscape ? 12
+                                  : (slideRoot.compactCopy ? 13 : (slideRoot.televisionMode ? 16 : 14)))
                 maximumLineCount: slideRoot.compactCopy ? 2 : 3; elide: Text.ElideRight
                 width: parent.width; wrapMode: Text.WordWrap; lineHeight: 1.25 }
             Row {
-                spacing: 10; topPadding: 6
+                spacing: slideRoot.shortPhoneLandscape ? 8 : 10
+                topPadding: slideRoot.shortPhoneLandscape ? 2 : 6
                 Rectangle {
                     radius: slideRoot.televisionMode ? 13 : 11
-                    height: slideRoot.televisionMode ? 50 : 42
-                    width: pl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36)); color: theme.gold
+                    height: slideRoot.televisionMode ? 50 : (metrics.touch ? metrics.touchTargetSize : 42)
+                    width: Math.max(metrics.touchTargetSize,
+                                    pl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36)))
+                    color: slideRoot.phoneLayout && primaryPointer.pressed
+                           ? Qt.lighter(theme.gold, 1.35) : theme.gold
                     Text { id: pl; anchors.centerIn: parent; text: slideRoot.primaryLabel; color: "#1a1408"
-                        font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.DemiBold }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 16 : 14); font.weight: Font.DemiBold }
+                    MouseArea {
+                        id: primaryPointer
+                        objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryPointer_" + slideRoot.slideIndex : ""
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.primaryClicked() }
                     KeyboardAction {
                         id: primaryKeyboard
@@ -153,12 +180,21 @@ Item {
                 Rectangle {
                     visible: slideRoot.secondaryLabel.length > 0
                     radius: slideRoot.televisionMode ? 13 : 11
-                    height: slideRoot.televisionMode ? 50 : 42
-                    width: sl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36))
-                    color: Qt.rgba(1, 1, 1, 0.10); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.18)
+                    height: slideRoot.televisionMode ? 50 : (metrics.touch ? metrics.touchTargetSize : 42)
+                    width: Math.max(metrics.touchTargetSize,
+                                    sl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36)))
+                    color: slideRoot.phoneLayout && secondaryPointer.pressed
+                           ? Qt.rgba(1, 1, 1, 0.20) : Qt.rgba(1, 1, 1, 0.10)
+                    border.width: 1
+                    border.color: slideRoot.phoneLayout && secondaryPointer.pressed
+                                  ? Qt.rgba(1, 1, 1, 0.5) : Qt.rgba(1, 1, 1, 0.18)
                     Text { id: sl; anchors.centerIn: parent; text: slideRoot.secondaryLabel; color: theme.ink
-                        font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.Medium }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(slideRoot.televisionMode ? 16 : 14); font.weight: Font.Medium }
+                    MouseArea {
+                        id: secondaryPointer
+                        objectName: slideRoot.slideIndex >= 0 ? "featuredSecondaryPointer_" + slideRoot.slideIndex : ""
+                        anchors.fill: parent
+                        cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.secondaryClicked() }
                     KeyboardAction {
                         id: secondaryKeyboard

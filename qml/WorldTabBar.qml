@@ -19,6 +19,10 @@ Item {
     property real contentTrack: 0
     // The docked copy WorldPage pins under the TopBar is the mock's smaller bar.
     property bool compact: false
+    property bool shortWindow: false
+    property bool theatreStyle: false
+    AdaptiveLayout { id:metrics; page:tabs }
+    property bool phoneLayout: metrics.phoneLayout
     property var tabModel: []            // [{ key, label }, …]
     property string currentTab: ""
     property bool focusOnPointer: true
@@ -37,8 +41,22 @@ Item {
         return !!(w && w["televisionMode"] === true)
     }
     focusPolicy: Qt.TabFocus
-    readonly property bool compactLayout: width < 600
-    readonly property int pillSpacing: compactLayout ? 3 : 6
+    readonly property bool compactLayout: metrics.phone
+    readonly property bool scrollingTabs: tabs.phoneLayout || tabs.compactLayout
+    readonly property int pillSpacing: tabs.scrollingTabs ? 4 : 6
+
+    function revealCurrentTab() {
+        const pill = tabRepeater.itemAt(tabs.keyboardIndex)
+        if (!pill) return
+        const end = pill.x + pill.width
+        const limit = Math.max(0, tabViewport.contentWidth - tabViewport.width)
+        if (pill.x < tabViewport.contentX)
+            tabViewport.contentX = Math.max(0, pill.x)
+        else if (end > tabViewport.contentX + tabViewport.width)
+            tabViewport.contentX = Math.min(limit, end - tabViewport.width)
+        else
+            tabViewport.contentX = Math.min(limit, tabViewport.contentX)
+    }
 
     function syncKeyboardIndex() {
         for (var i = 0; i < tabs.tabModel.length; ++i) {
@@ -57,8 +75,10 @@ Item {
         tabs.tabRequested(tabs.tabModel[tabs.keyboardIndex].key)
     }
 
-    onCurrentTabChanged: tabs.syncKeyboardIndex()
-    Component.onCompleted: tabs.syncKeyboardIndex()
+    onCurrentTabChanged: { tabs.syncKeyboardIndex(); Qt.callLater(tabs.revealCurrentTab) }
+    onTabModelChanged: { tabs.syncKeyboardIndex(); Qt.callLater(tabs.revealCurrentTab) }
+    onWidthChanged: Qt.callLater(tabs.revealCurrentTab)
+    Component.onCompleted: { tabs.syncKeyboardIndex(); Qt.callLater(tabs.revealCurrentTab) }
 
     Keys.onPressed: (event) => {
         var next = tabs.keyboardIndex
@@ -81,7 +101,7 @@ Item {
     }
 
     width: parent ? parent.width : 900
-    height: tabs.compact ? 50 : 58
+    height: tabs.phoneLayout ? (tabs.shortWindow ? 48 : 56) : (tabs.theatreStyle && tabs.televisionMode ? 68 : (tabs.compact ? 50 : 58))
 
     Theme { id: theme }
 
@@ -99,8 +119,8 @@ Item {
         id: bar
         anchors.horizontalCenter: parent.horizontalCenter
         anchors.verticalCenter: parent.verticalCenter
-        width: Math.min(parent.width, (tabs.compact ? 130 : 160) * Math.max(1, tabs.tabModel.length))
-        height: tabs.compact ? 46 : 54
+        width: Math.min(parent.width, tabs.theatreStyle ? (tabs.televisionMode ? 880 : 760) : (tabs.compact ? 130 : 160) * Math.max(1, tabs.tabModel.length))
+        height: tabs.phoneLayout ? (tabs.shortWindow ? 48 : 54) : (tabs.theatreStyle && tabs.televisionMode ? 64 : (tabs.compact ? 46 : 54))
         backdrop: tabs.backdrop
         track: tabs.track
         radius: tabs.compact ? 15 : 18
@@ -111,12 +131,26 @@ Item {
         contentBackdrop: tabs.contentBackdrop
         contentTrack: tabs.contentTrack
 
-        Row {
+        Flickable {
+            id: tabViewport
+            objectName: tabs.tabPrefix + "Viewport"
             anchors.fill: parent
-            anchors.margins: tabs.compactLayout ? 4 : 6
-            spacing: tabs.pillSpacing
+            anchors.margins: tabs.phoneLayout ? (tabs.shortWindow ? 0 : 3) : (tabs.compactLayout ? 4 : 6)
+            contentWidth: pillRow.width
+            contentHeight: height
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            interactive: contentWidth > width
+            clip: true
+
+            Row {
+                id: pillRow
+                width: tabs.scrollingTabs ? implicitWidth : tabViewport.width
+                height: tabViewport.height
+                spacing: tabs.pillSpacing
 
             Repeater {
+                id: tabRepeater
                 model: tabs.tabModel
                 delegate: Rectangle {
                     id: pill
@@ -131,11 +165,15 @@ Item {
                     objectName: tabs.tabPrefix + "_" + pill.modelData.key
                     readonly property bool activeState: pill.modelData.key === tabs.currentTab
 
-                    width: parent ? (parent.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length) : 0
-                    height: parent ? parent.height : 0
+                    width: tabs.scrollingTabs ? Math.max(76, pillLabel.implicitWidth + 24)
+                           : Math.max(0, (pillRow.width - tabs.pillSpacing * (tabs.tabModel.length - 1)) / Math.max(1, tabs.tabModel.length))
+                    height: pillRow.height
+                    Accessible.role: Accessible.Button
+                    Accessible.name: pill.modelData.label
+                    Accessible.onPressAction: tabs.requestIndex(pill.index, Qt.OtherFocusReason)
                     radius: tabs.compact ? 11 : 14
                     color: pill.modelData.key === tabs.currentTab ? theme.gold
-                         : (ma.containsMouse || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12)
+                         : (ma.containsMouse || ma.pressed || pill.keyboardFocused) ? Qt.rgba(1, 1, 1, 0.12)
                          : tabs.compact ? Qt.rgba(1, 1, 1, 0.06) : "transparent"
                     border.width: pill.modelData.key === tabs.currentTab ? 0 : 1
                     border.color: Qt.rgba(1, 1, 1, 0.10)
@@ -143,11 +181,13 @@ Item {
                     FocusRing { anchors.fill: parent; radius: pill.radius; shown: pill.keyboardFocused }
 
                     Text {
+                        id: pillLabel
+                        objectName: tabs.tabPrefix + "Label_" + pill.modelData.key
                         anchors.centerIn: parent
                         text: pill.modelData.label
                         color: pill.modelData.key === tabs.currentTab ? "#17120a" : theme.ink
                         font.family: theme.ui
-                        font.pixelSize: tabs.compact ? 13 : 14
+                        font.pixelSize: theme.fontSize(tabs.theatreStyle && tabs.televisionMode ? 16 : (tabs.compact ? 13 : 14))
                         font.weight: Font.DemiBold
                     }
 
@@ -162,6 +202,7 @@ Item {
                     Behavior on color { ColorAnimation { duration: 140 } }
                 }
             }
+        }
         }
     }
 }

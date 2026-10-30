@@ -10,6 +10,7 @@
 //   • falls back to mounted when no viewport is known (offscreen harnesses), so pages never blank.
 // It owns NO vertical scroller of its own — WorldPage remains the only vertical scroll owner.
 import QtQuick
+import QtQuick.Window
 import "CatalogueVisualMetrics.js" as Metrics
 
 Item {
@@ -32,15 +33,21 @@ Item {
     signal seeAllRequested(var pin)
 
     readonly property var _m: Metrics.profile(shelf.visualProfile)
+    property int posterWidthOverride: 0
+    property int cardGapOverride: 0
+    property bool compactLayout: false
     readonly property bool _gallery: shelf.visualProfile === "gallery"
     readonly property bool _hasItems: shelf.row && shelf.row.items && shelf.row.items.length > 0
     // rail geometry, computed from the frozen tokens so the reserve matches the real PosterRail
     // exactly (WidgetHeader 30 + Column headerGap + poster height + title reserve) — no jump on mount.
-    readonly property int _posterH: Math.floor(shelf._m.posterWidth * shelf._m.posterRatio)
+    readonly property int _posterH: Math.floor((shelf.posterWidthOverride > 0
+        ? shelf.posterWidthOverride : shelf._m.posterWidth) * shelf._m.posterRatio)
     readonly property int _titleReserve: (shelf._gallery ? 10 : 8) + shelf._m.titleMinHeight
     readonly property int _railListHeight: shelf._posterH + shelf._titleReserve
+    AdaptiveLayout { id:metrics; page:shelf }
+    readonly property int headerHeight: metrics.touch ? metrics.touchTargetSize : 30
     readonly property real reservedHeight: shelf._hasItems
-        ? (30 + shelf._m.headerGap + shelf._railListHeight) : 0
+        ? (shelf.headerHeight + shelf._m.headerGap + shelf._railListHeight) : 0
 
     property bool railLoaded: false
     // the horizontal position preserved across unload; handed to the remounted rail as initialContentX.
@@ -120,6 +127,9 @@ Item {
             sourceLabel: shelf.row && shelf.row.sourceLabel !== undefined ? shelf.row.sourceLabel : ""
             seeAllPin: shelf.row && shelf.row.seeAllPin !== undefined ? shelf.row.seeAllPin : null
             visualProfile: shelf.visualProfile
+            posterWidthOverride: shelf.posterWidthOverride
+            cardGapOverride: shelf.cardGapOverride
+            compactLayout: shelf.compactLayout
             initialContentX: shelf.savedContentX
             onItemRequested: (item) => shelf.itemRequested(item)
             onSeeAllRequested: (pin) => shelf.seeAllRequested(pin)

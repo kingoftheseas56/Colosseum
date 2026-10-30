@@ -7,6 +7,15 @@ QtObject {
     id: metrics
 
     property Item page: null
+    function layoutFor(item) {
+        let ancestor=item ? item.parent : null
+        while(ancestor) {
+            if(ancestor["layout"] && ancestor.layout.viewportHeight!==undefined) return ancestor.layout
+            ancestor=ancestor.parent
+        }
+        return null
+    }
+    readonly property var inheritedLayout:layoutFor(page)
     function viewportFor(item) {
         let ancestor=item ? item.parent : null
         while (ancestor) {
@@ -17,7 +26,7 @@ QtObject {
     }
     readonly property Item viewportItem: viewportFor(page)
     property real viewportWidth: page && viewportItem ? Math.min(page.width, viewportItem.width) : 0
-    property real viewportHeight: viewportItem ? viewportItem.height : 0
+    property real viewportHeight: inheritedLayout ? inheritedLayout.viewportHeight : viewportItem ? viewportItem.height : 0
     property bool touch: Qt.platform.os === "android"
         || !!(page && page["androidHost"] === true)
         || !!(page && page.Window.window && page.Window.window.androidHost)

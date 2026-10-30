@@ -9,10 +9,12 @@ import QtQuick.Window
 Item {
     id: car
     property var slides: []
+    readonly property var hostWindow: car.Window.window
     readonly property bool televisionMode: {
-        const w = car.Window.window
+        const w = car.hostWindow
         return !!(w && w["televisionMode"] === true)
-    }                        // [{ title, blurb, ghost, c1, c2, art?, artKind? }]
+    }
+    readonly property bool shortPhoneLandscape: adaptive.touch && adaptive.shortLandscape
     property string kicker: "Featured"
     property string primaryLabel: "Read"
     property string secondaryLabel: "Details"
@@ -30,8 +32,20 @@ Item {
 
     property alias index: view.currentIndex
     width: parent ? parent.width : 800
-    AdaptiveLayout { id: adaptive; viewportWidth: car.width }
-    implicitHeight: car.televisionMode ? 380 : adaptive.heroHeight
+    AdaptiveLayout { id: adaptive; page:car }
+    readonly property alias layout:adaptive
+    readonly property bool enlargedPhoneText: theme.fontScale > 1 && adaptive.phoneLayout
+    readonly property real copyHeightFloor: {
+        if (!enlargedPhoneText) return 0
+        let maximum = 0
+        for (let index = 0; index < view.count; ++index) {
+            const slide = view.itemAt(index)
+            if (slide) maximum = Math.max(maximum, slide.implicitHeight)
+        }
+        return maximum
+    }
+    implicitHeight: Math.max(car.copyHeightFloor, car.televisionMode ? 380
+                    : car.shortPhoneLandscape ? 186 : adaptive.heroHeight)
     activeFocusOnTab: car.televisionMode && car.slides.length > 0
     Accessible.role: Accessible.List
     Accessible.name: car.kicker
@@ -136,23 +150,23 @@ Item {
         visible: car.slides.length > 1
         anchors.right: parent.right; anchors.bottom: parent.bottom
         anchors.margins: adaptive.phone ? 16 : 26
-        radius: 999; height: 22; width: dotsRow.implicitWidth + 22
+        radius: 999; height: adaptive.touch ? adaptive.touchTargetSize : 22; width: dotsRow.implicitWidth + 22
         color: Qt.rgba(0, 0, 0, 0.42)
         Row {
             id: dotsRow
-            anchors.centerIn: parent; spacing: 7
+            anchors.centerIn: parent; spacing: adaptive.touch ? 0 : 7
             Repeater {
                 model: car.slides.length
-                delegate: Rectangle {
+                delegate: TouchTarget {
                     required property int index
-                    width: index === view.currentIndex ? 22 : 7
-                    height: 7; radius: 4
-                    color: index === view.currentIndex ? theme.gold : Qt.rgba(1, 1, 1, 0.5)
-                    Behavior on width { NumberAnimation { duration: 150 } }
-                    MouseArea {
-                        anchors.fill: parent; anchors.margins: -4
-                        cursorShape: Qt.PointingHandCursor
-                        onClicked: view.currentIndex = index
+                    touch:adaptive.touch
+                    visualWidth:index===view.currentIndex ? 22 : 7
+                    visualHeight:7
+                    accessibleName:qsTr("Featured story %1").arg(index+1)
+                    onTriggered:view.currentIndex=index
+                    Rectangle {
+                        anchors.fill:parent; radius:4
+                        color:index===view.currentIndex ? theme.gold : Qt.rgba(1,1,1,0.5)
                     }
                 }
             }

@@ -2,6 +2,7 @@
 // + optional hint + optional "more ›" affordance. Sits directly on the wallpaper (no panel).
 
 import QtQuick
+import QtQuick.Window
 
 Item {
     id: head
@@ -11,9 +12,11 @@ Item {
     property string moreLabel: ""        // optional verb before the chevron (e.g. "Explore")
     property bool navigable: true        // show the right-aligned nav-in chevron
     property string automationId: ""
+    AdaptiveLayout { id:metrics; page:head }
+    readonly property bool phoneLayout: metrics.phoneLayout
     signal moreClicked()
 
-    implicitHeight: 30
+    implicitHeight: metrics.touch ? metrics.touchTargetSize : 30
     width: parent ? parent.width : row.implicitWidth
 
     Theme { id: theme }
@@ -21,16 +24,22 @@ Item {
     Row {
         id: row
         anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+        Binding on width { value:Math.max(0,head.width-(more.visible ? more.width+12 : 0)); when:head.phoneLayout; restoreMode:Binding.RestoreBindingOrValue }
         spacing: 10
         Text {
+            Binding on width { value:Math.max(0,row.width-(subText.visible ? subText.width+row.spacing : 0)); when:head.phoneLayout; restoreMode:Binding.RestoreBindingOrValue }
             text: head.title; color: theme.ink
-            font.family: theme.display; font.pixelSize: 22
+            font.family: theme.display; font.pixelSize: theme.fontSize(head.phoneLayout ? 18 : 22)
+            elide: head.phoneLayout ? Text.ElideRight : Text.ElideNone
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
+            id: subText
+            Binding on width { value:Math.min(subText.implicitWidth,row.width*0.35); when:head.phoneLayout; restoreMode:Binding.RestoreBindingOrValue }
             visible: head.sub !== ""
             text: head.sub; color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 12
+            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+            elide: head.phoneLayout ? Text.ElideRight : Text.ElideNone
             anchors.verticalCenter: parent.verticalCenter
         }
     }
@@ -42,16 +51,17 @@ Item {
         id: more
         visible: head.navigable
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        implicitWidth: moreRow.implicitWidth; implicitHeight: 30
+        implicitWidth: metrics.touch ? Math.max(metrics.touchTargetSize, moreRow.implicitWidth) : moreRow.implicitWidth
+        implicitHeight: metrics.touch ? metrics.touchTargetSize : 30
         Row {
             id: moreRow
             anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
             spacing: 6
             Text {
-                visible: head.moreLabel !== ""
+                visible: head.moreLabel !== "" && !head.phoneLayout
                 text: head.moreLabel
                 color: input.interactionActive ? theme.gold : theme.ink
-                font.family: theme.display; font.pixelSize: 17
+                font.family: theme.display; font.pixelSize: theme.fontSize(17)
                 anchors.verticalCenter: parent.verticalCenter
                 Behavior on color { ColorAnimation { duration: 120 } }
             }
@@ -67,7 +77,7 @@ Item {
             id: input
             objectName: head.automationId.length > 0 ? head.automationId : ""
             anchors.fill: parent
-            anchors.margins: -8
+            anchors.margins: head.phoneLayout ? 0 : -8
             accessibleName: head.moreLabel !== "" ? head.moreLabel + " " + head.title : "Open " + head.title
             focusRadius: 7
             // A row's header link is reached by Up from its own row, never by Down (the mock's rule;

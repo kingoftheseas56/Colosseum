@@ -195,7 +195,8 @@ WorldPage {
         objectName: "biblioExplorePage"
         visible: biblio.activeTab === "explore"
         width: parent.width
-        height: visible ? Math.max(620, biblio.height - 200) : 0
+        pageFlick:biblio.pageFlickable
+        height: visible ? (flowPage ? implicitHeight : Math.max(620, biblio.height - 200)) : 0
         active: biblio.lifecycleActive && visible
         showExplicit: biblio.showExplicit
         backdrop: biblio.backdrop
@@ -216,6 +217,9 @@ WorldPage {
     //                         Theatre/Tankoban's inline remove; never Progress, never files). ──
     BiblioLibraryPage {
         id: libraryPage
+        removeSelectionEntry: function(entry) {
+            return typeof Collection !== "undefined" ? Collection.remove("biblio", String(entry.id)) : false
+        }
         objectName: "biblioLibraryPage"
         visible: biblio.activeTab === "library"
         active: biblio.lifecycleActive && visible

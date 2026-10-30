@@ -151,7 +151,20 @@ Item {
     }
     // Host/layout seam shared by Tankoban, Biblio and Theatre. Writable for desktop viewport tests.
     property bool androidHost: Qt.platform.os === "android"
-    AdaptiveLayout { id: adaptive; viewportWidth: world.width }
+    property var safeInsets: SafeArea.margins
+    readonly property bool phoneLayout: adaptive.phoneLayout
+    readonly property bool shortHeaderActive: world.phoneLayout && adaptive.shortLandscape
+        && world.width >= 430 && world.tabBarSource !== null && !world.topBarBackOnly
+    readonly property real chromeLeft: world.androidHost ? Math.max(adaptive.pageMargin, safeInsets.left) : adaptive.pageMargin
+    readonly property real chromeRight: world.androidHost ? Math.max(adaptive.pageMargin, safeInsets.right) : adaptive.pageMargin
+    readonly property real chromeTop: world.androidHost ? Math.max(adaptive.topInset, safeInsets.top) : adaptive.topInset
+    readonly property real shortHeaderLeft: world.chromeLeft
+    readonly property real shortHeaderRight: world.chromeRight
+    readonly property real shortHeaderTop: Math.max(12, world.androidHost ? safeInsets.top : 0)
+    readonly property real scrollTop: world.shortHeaderActive ? world.shortHeaderTop + 56
+        : topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
+    AdaptiveLayout { id: adaptive; page:world; touch:world.androidHost; safeInsets:world.safeInsets }
+    readonly property alias layout:adaptive
     readonly property real pageMargin: adaptive.pageMargin
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0
@@ -224,8 +237,14 @@ Item {
     signal minimizeClicked()
     signal powerClicked()
 
-    function focusStremioButton() { topbar.focusStremioButton() }
-    function focusTrackersButton() { topbar.focusTrackersButton() }
+    function focusStremioButton() {
+        if (shortActions.item) shortActions.item.focusAction("stremio")
+        else topbar.focusStremioButton()
+    }
+    function focusTrackersButton() {
+        if (shortActions.item) shortActions.item.focusAction("trackers")
+        else topbar.focusTrackersButton()
+    }
 
     Theme { id: theme }
 
@@ -235,6 +254,8 @@ Item {
     // ---- pinned top bar (this medium selected; "‹ Home" shown) ----
     TopBar {
         id: topbar
+        objectName: world.medium.toLowerCase() + "WorldHeader"
+        visible: !world.shortHeaderActive
         backdrop: world.backdrop
         activeMedium: world.medium
         backOnly: world.topBarBackOnly
@@ -242,8 +263,8 @@ Item {
         pageSubtitle: world.topBarSubtitle
         lifecycleActive: world.lifecycleActive
         androidHost: world.androidHost
-        x: adaptive.pageMargin; y: adaptive.topInset
-        width: world.width - adaptive.pageMargin * 2
+        x: world.chromeLeft; y: world.chromeTop
+        width: world.width - world.chromeLeft - world.chromeRight
         onHomeRequested: world.homeRequested()
         onMediumSelected: (m) => world.mediumSelected(m)
         onSearchClicked: world.searchClicked()
@@ -260,6 +281,28 @@ Item {
         onPowerClicked: world.powerClicked()
     }
 
+    Loader {
+        id: shortActions
+        objectName: world.medium.toLowerCase() + "ShortChrome"
+        active: world.shortHeaderActive
+        x: world.width - world.shortHeaderRight - width
+        y: world.shortHeaderTop
+        width: item ? item.implicitWidth : 0
+        height: 48
+        sourceComponent: Component {
+            PhoneWorldActions {
+                medium: world.medium
+                automationPrefix: world.medium.toLowerCase() + "ShortChrome"
+                trackersActive: world.trackersActive
+                onSearchClicked: world.searchClicked()
+                onStremioClicked: world.stremioClicked()
+                onTrackersClicked: world.trackersClicked()
+                onAccountClicked: (right, bottom) => world.accountClicked(right, bottom)
+                onWallpaperClicked: world.wallpaperClicked()
+            }
+        }
+    }
+
     Component.onCompleted: if (world.televisionMode && world.visible)
         Qt.callLater(function() { topbar.focusFirst() })
 
@@ -272,6 +315,41 @@ Item {
     // inside its own box (the Discover walls, world-feel Slice 7).
     readonly property Flickable pageFlickable: page
 
+    // Retain the visible board section and position within it when rotation changes
+    // header/hero/grid heights. Raw contentY alone points at another section after reflow.
+    property var phoneViewportAnchor: null
+    property real anchorWidth: 0
+    property real anchorHeight: 0
+    function capturePhoneViewport() {
+        if (!world.phoneLayout || resizeRestore.running) return
+        if (anchorWidth && (anchorWidth !== width || anchorHeight !== height)) return
+        let next = null
+        for (const row of board.children) {
+            if (!row.visible || row.height <= 0 || row.width <= 0) continue
+            const top = row.mapToItem(page.contentItem, 0, 0).y
+            if (top + row.height > page.contentY) {
+                next = {item:row, fraction:(page.contentY - top) / Math.max(1, row.height), atTop:page.contentY <= 0}
+                break
+            }
+        }
+        phoneViewportAnchor = next
+        anchorWidth = width; anchorHeight = height
+    }
+    function restorePhoneViewport() {
+        board.forceLayout()
+        const anchor = phoneViewportAnchor
+        if (world.phoneLayout && anchor && anchor.item && anchor.item.visible) {
+            const top = anchor.item.mapToItem(page.contentItem, 0, 0).y
+            page.contentY = anchor.atTop ? 0 : Math.max(0, Math.min(page.contentHeight - page.height,
+                top + anchor.fraction * anchor.item.height))
+        }
+        anchorWidth = width; anchorHeight = height
+        capturePhoneViewport()
+    }
+    onWidthChanged: if (world.phoneLayout) { if (page) page.cancelFlick(); resizeRestore.restart() }
+    onHeightChanged: if (world.phoneLayout) { if (page) page.cancelFlick(); resizeRestore.restart() }
+    Timer { id: resizeRestore; interval: 32; onTriggered: world.restorePhoneViewport() }
+
     // ---- the widget board (scrolls vertically) ----
     Flickable {
         id: page
@@ -280,14 +358,15 @@ Item {
         // addressable without introducing a second scroller or a presentation shell.
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
         anchors.left: parent.left; anchors.right: parent.right
-        y: topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
+        y: world.scrollTop + (!world.shortHeaderActive && world.phoneLayout && tabDock.visible ? tabDock.height + 8 : 0)
         height: Math.max(0, world.height - y - world.contentBottomInset)
         contentWidth: width
-        contentHeight: board.implicitHeight + 50
+        contentHeight: board.implicitHeight + (world.androidHost ? Math.max(adaptive.sectionSpacing,world.safeInsets.bottom) : 50)
         clip: true
         pixelAligned: false
         flickableDirection: Flickable.VerticalFlick
         boundsBehavior: Flickable.StopAtBounds
+        onContentYChanged: world.capturePhoneViewport()
         ScrollBar.vertical: HouseScrollBar { flick: page }
         // Soft top edge (2026-09-29): content leaving under the top bar fades out over 28px
         // instead of being sliced by the clip line mid-glyph (the catalogue name, "Popular").
@@ -305,10 +384,11 @@ Item {
 
         Column {
             id: board
-            x: adaptive.pageMargin
-            width: world.width - adaptive.pageMargin * 2
+            x: world.chromeLeft
+            width: world.width - world.chromeLeft - world.chromeRight
             topPadding: 12; bottomPadding: 24
             spacing: adaptive.sectionSpacing
+            onPositioningComplete: if (!resizeRestore.running) world.capturePhoneViewport()
         }
     }
 
@@ -346,26 +426,38 @@ Item {
     readonly property bool tabsDocked: {
         page.contentY;       // re-evaluate as the page scrolls
         page.contentHeight;  // …and as content above the bar changes size
-        if (!world.tabBarSource || !world.tabBarSource.visible || !world.lifecycleActive)
-            return false
+        if (!world.tabBarSource || !world.lifecycleActive) return false
+        if (world.phoneLayout) return true
+        if (!world.tabBarSource.visible) return false
         return world.tabBarSource.mapToItem(world, 0, 0).y < page.y
     }
     Binding {
         target: world.tabBarSource
         property: "opacity"
         value: 0
-        when: world.tabsDocked && world.tabBarSource !== null
+        when: !world.phoneLayout && world.tabsDocked && world.tabBarSource !== null
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    Binding {
+        target: world.tabBarSource
+        property: "visible"
+        value: false
+        when: world.phoneLayout && world.tabBarSource !== null
         restoreMode: Binding.RestoreBindingOrValue
     }
     WorldTabBar {
         id: tabDock
+        phoneLayout: world.phoneLayout
         objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
         tabPrefix: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
         compact: true
+        shortWindow: world.shortHeaderActive
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: world.dockContentLeft > 0 ? theme.margin + world.dockContentLeft : 0
-        anchors.rightMargin: world.dockContentLeft > 0 ? theme.margin : 0
-        y: page.y + 4
+        anchors.leftMargin: world.shortHeaderActive ? world.shortHeaderLeft
+            : world.phoneLayout ? world.chromeLeft : (world.dockContentLeft > 0 ? theme.margin + world.dockContentLeft : 0)
+        anchors.rightMargin: world.shortHeaderActive ? world.shortHeaderRight + shortActions.width + 12
+            : world.phoneLayout ? world.chromeRight : (world.dockContentLeft > 0 ? theme.margin : 0)
+        y: world.shortHeaderActive ? world.shortHeaderTop : world.phoneLayout ? world.scrollTop : page.y + 4
         visible: world.tabsDocked
         backdrop: world.backdrop
         track: page.contentY
