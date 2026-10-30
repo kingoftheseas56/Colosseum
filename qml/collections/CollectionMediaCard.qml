@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import ".."
+import "CollectionText.js" as CollectionText
 
 Item {
     id: card
@@ -145,12 +146,21 @@ Item {
             padding: 10
             selectByMouse: true
             Accessible.name: qsTr("Your note for %1").arg(card.media.title)
-            onTextChanged: {
-                if (card.editing && text !== card.noteText) {
-                    if (text.length > 500) text = text.slice(0, 500)
-                    card.noteEdited(text)
+            // Rewriting the text during IME composition would corrupt the
+            // preedit; the draft is synced once composition ends.
+            function syncNote() {
+                if (!card.editing || noteEditor.inputMethodComposing) return
+                if (text.length > 500) {
+                    const clamped = CollectionText.clamp(text, 500)
+                    if (clamped !== text) {
+                        text = clamped
+                        return
+                    }
                 }
+                if (text !== card.noteText) card.noteEdited(text)
             }
+            onTextChanged: syncNote()
+            onInputMethodComposingChanged: syncNote()
             onActiveFocusChanged: if (activeFocus) card.ensureVisibleRequested(noteEditor)
             onCursorRectangleChanged: if (activeFocus) card.ensureVisibleRequested(noteEditor)
             background: Rectangle {

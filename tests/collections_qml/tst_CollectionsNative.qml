@@ -477,5 +477,102 @@ Item {
             }, 3000, "Previous profile picker is destroyed after the profile switch")
             compare(opened.count, 0)
         }
+
+        function test_08_editAndLeaveControlsStayInViewport() {
+            var id = createEmpty("visible edit controls")
+            addTo(0, id)
+            overview()
+            press("collectionCard_" + id)
+            press("editCollectionButton")
+            tryCompare(panel, "pendingChanges", true)
+            var viewport = control("collectionScroller")
+            var name = control("collectionNameInput")
+            var namePoint = name.mapToItem(viewport, 0, 0)
+            console.info("COLLECTIONS_HEADER_GEOMETRY " + JSON.stringify({contentY:viewport.contentY,
+                originY:viewport.originY,contentHeight:viewport.contentHeight,headerY:viewport.headerItem.y,
+                headerHeight:viewport.headerItem.height,topMargin:viewport.topMargin,bottomMargin:viewport.bottomMargin}))
+            verify(namePoint.y >= -1 && namePoint.y + name.height <= viewport.height + 1,
+                "Starting an edit reveals its focused name field without manual scrolling: " + namePoint.y)
+            control("collectionPage").requestBack()
+            wait(60)
+            var stay = control("stayEditingButton")
+            var stayPoint = stay.mapToItem(viewport, 0, 0)
+            verify(stayPoint.y >= -1 && stayPoint.y + stay.height <= viewport.height + 1,
+                "Back reveals its focused leave decision without manual scrolling: " + stayPoint.y)
+            press("stayEditingButton")
+            press("cancelCollectionEdit")
+        }
+
+        function repeatChar(ch, count) {
+            var out = ""
+            for (var i = 0; i < count; ++i) out += ch
+            return out
+        }
+        // U+1F600 as its UTF-16 surrogate pair; typed fixtures stay ASCII, so
+        // Unicode-boundary fixtures are assigned directly to the real editors.
+        function emoji() { return "\uD83D\uDE00" }
+        function test_07_unicodeSafeNoteAndDescriptionLimits() {
+            var id = createEmpty("unicode shelf")
+            addTo(0, id)
+            overview()
+            press("collectionCard_" + id)
+            var film = reference(0).key
+            press("editCollectionButton")
+            tryCompare(panel, "pendingChanges", true)
+            var note = control("noteInput_" + film)
+            var description = control("collectionDescriptionInput")
+
+            // 499 ASCII + one emoji = 501 UTF-16 units. Truncating at raw code
+            // units keeps a lone high surrogate and the real native store
+            // rejects the whole save; the cut must back up to a whole scalar.
+            note.text = repeatChar("a", 499) + emoji()
+            compare(note.text, repeatChar("a", 499),
+                "Note truncates on a complete Unicode boundary")
+            description.text = repeatChar("b", 299) + emoji()
+            compare(description.text, repeatChar("b", 299),
+                "Description truncates on a complete Unicode boundary")
+            press("saveCollectionButton")
+            tryCompare(panel, "pendingChanges", false)
+            compare(byId(id).notes[film], repeatChar("a", 499))
+            compare(byId(id).description, repeatChar("b", 299))
+            assertDiskMatches()
+
+            press("editCollectionButton")
+            tryCompare(panel, "pendingChanges", true)
+            note = control("noteInput_" + film)
+            description = control("collectionDescriptionInput")
+            // Exactly at the native limits with a complete trailing emoji:
+            // valid input must survive the editors untouched.
+            note.text = repeatChar("c", 498) + emoji()
+            compare(note.text, repeatChar("c", 498) + emoji())
+            description.text = repeatChar("d", 298) + emoji()
+            compare(description.text, repeatChar("d", 298) + emoji())
+            press("saveCollectionButton")
+            tryCompare(panel, "pendingChanges", false)
+            var savedNote = byId(id).notes[film]
+            compare(savedNote.length, 500)
+            verify(savedNote.charCodeAt(498) >= 0xD800 && savedNote.charCodeAt(498) <= 0xDBFF,
+                "Saved note keeps its high surrogate")
+            verify(savedNote.charCodeAt(499) >= 0xDC00 && savedNote.charCodeAt(499) <= 0xDFFF,
+                "Saved note keeps its low surrogate")
+            compare(byId(id).description.length, 300)
+            assertDiskMatches()
+
+            press("editCollectionButton")
+            tryCompare(panel, "pendingChanges", true)
+            note = control("noteInput_" + film)
+            description = control("collectionDescriptionInput")
+            // Full ASCII at the native limits is still valid; clamping must
+            // not lower the limits themselves.
+            note.text = repeatChar("e", 500)
+            compare(note.text, repeatChar("e", 500))
+            description.text = repeatChar("f", 300)
+            compare(description.text, repeatChar("f", 300))
+            press("saveCollectionButton")
+            tryCompare(panel, "pendingChanges", false)
+            compare(byId(id).notes[film], repeatChar("e", 500))
+            compare(byId(id).description, repeatChar("f", 300))
+            assertDiskMatches()
+        }
     }
 }

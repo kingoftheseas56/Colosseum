@@ -3,6 +3,7 @@ import QtQuick
 import QtQuick.Controls.Basic
 import QtQuick.Layouts
 import ".."
+import "CollectionText.js" as CollectionText
 
 Item {
     id: page
@@ -25,6 +26,20 @@ Item {
         const ids = page.editing ? page.draftItems : page.collection ? page.collection.items : []
         if (page.editing || page.kind === "all") return ids
         return ids.filter(function(id) { return page.store.media(id).kind === page.kind })
+    }
+    // Row-chunked member model for the virtualized grid viewport. Only rows
+    // near the viewport are instantiated, so member cards never scale with
+    // the full collection size.
+    readonly property real gridWidth: width - sideMargin * 2
+    readonly property int memberColumns: gridWidth >= 1150 ? 5 : gridWidth >= 850 ? 4 : gridWidth >= 620 ? 3 : gridWidth >= 300 ? 2 : 1
+    readonly property real cardSpacing: narrow ? 16 : 28
+    readonly property real cardWidth: Math.min(230, (gridWidth - (memberColumns - 1) * cardSpacing) / memberColumns)
+    readonly property var memberRows: {
+        const ids = page.visibleItems
+        const columns = page.memberColumns
+        const rows = []
+        for (let i = 0; i < ids.length; i += columns) rows.push(ids.slice(i, i + columns))
+        return rows
     }
     signal backRequested()
     signal titleRequested(string titleId)
@@ -50,9 +65,10 @@ Item {
             page.errorText = page.store.error || qsTr("Could not start editing this collection.")
             return
         }
+        const header = memberList.headerItem
         page.draftToken = draft.token
-        nameEditor.text = draft.name
-        descriptionEditor.text = draft.description || ""
+        header.nameField.text = draft.name
+        header.descriptionField.text = draft.description || ""
         page.draftItems = draft.items.slice()
         page.draftNotes = Object.assign({}, draft.notes || {})
         page.errorText = ""
@@ -61,23 +77,22 @@ Item {
         page.leaving = false
         page.reloading = false
         page.editing = true
-        flick.contentY = 0
-        nameEditor.forceActiveFocus(Qt.TabFocusReason)
+        page.focusHeaderControl(header.nameField)
     }
     function cancelEdit() {
         page.abortEdit()
         page.errorText = ""
         page.navigationCanceled()
-        editButton.forceActiveFocus(Qt.TabFocusReason)
+        page.focusHeaderControl(memberList.headerItem.primaryAction)
     }
     function saveEdit() {
-        if (nameEditor.inputMethodComposing || descriptionEditor.inputMethodComposing) return false
-        const result = page.store.saveEdit(page.draftToken, nameEditor.text,
-            descriptionEditor.text, page.draftItems, page.draftNotes)
+        const header = memberList.headerItem
+        if (header.nameField.inputMethodComposing || header.descriptionField.inputMethodComposing) return false
+        const result = page.store.saveEdit(page.draftToken, header.nameField.text,
+            header.descriptionField.text, page.draftItems, page.draftNotes)
         if (!result.ok) {
             page.errorText = result.error || qsTr("Could not save this collection.")
-            flick.contentY = 0
-            nameEditor.forceActiveFocus(Qt.TabFocusReason)
+            page.focusHeaderControl(header.nameField)
             return false
         }
         page.draftToken = ""
@@ -87,7 +102,7 @@ Item {
         page.removedItem = null
         page.navigationCanceled()
         page.messageRequested(qsTr("Collection updated"))
-        editButton.forceActiveFocus(Qt.TabFocusReason)
+        page.focusHeaderControl(header.primaryAction)
         return true
     }
     function discardEdits() {
@@ -103,14 +118,57 @@ Item {
         if (!page.editing) { page.backRequested(); return }
         page.reloading = false
         page.leaving = true
-        flick.contentY = 0
-        Qt.callLater(function() { stayButton.forceActiveFocus(Qt.TabFocusReason) })
+        page.focusHeaderControl(memberList.headerItem.stayAction)
+    }
+    function scrollToBeginning() {
+        if (!memberList) return
+        memberList.forceLayout()
+        memberList.positionViewAtBeginning()
+    }
+    function focusHeaderControl(control) {
+        Qt.callLater(function() {
+            if (!control || !control.visible) return
+            page.scrollToBeginning()
+            control.forceActiveFocus(Qt.TabFocusReason)
+            page.revealItem(control)
+        })
+    }
+    function boundedScrollPosition(position) {
+        // Inline headers and model changes can give ListView a negative
+        // origin. Zero is not necessarily the beginning or even in bounds.
+        const minimum = memberList.originY - memberList.topMargin
+        const maximum = Math.max(minimum, memberList.originY + memberList.contentHeight
+            - memberList.height + memberList.bottomMargin)
+        return Math.max(minimum, Math.min(maximum, position))
     }
     function setNote(id, note) {
         if (!page.editing) return
         const notes = Object.assign({}, page.draftNotes)
-        notes[id] = note.slice(0, 500)
+        notes[id] = CollectionText.clamp(note, 500)
         page.draftNotes = notes
+    }
+    function memberCard(id) {
+        const name = "memberCard_" + id
+        function scan(item) {
+            if (!item) return null
+            if (item.objectName === name) return item
+            const children = item.children
+            for (let i = 0; i < children.length; ++i) {
+                const found = scan(children[i])
+                if (found) return found
+            }
+            return null
+        }
+        return scan(memberList.contentItem)
+    }
+    function focusMemberCard(id, direction, attempt) {
+        memberList.forceLayout()
+        const card = page.memberCard(id)
+        if (card) { card.focusReorder(direction); return }
+        const index = page.visibleItems.indexOf(id)
+        if (index >= 0)
+            memberList.positionViewAtIndex(Math.floor(index / page.memberColumns), ListView.Contain)
+        if (attempt < 8) Qt.callLater(function() { page.focusMemberCard(id, direction, attempt + 1) })
     }
     function moveItem(id, direction) {
         if (!page.editing) return
@@ -121,10 +179,7 @@ Item {
         items.splice(from, 1)
         items.splice(to, 0, id)
         page.draftItems = items
-        Qt.callLater(function() {
-            const card = cards.itemAt(to)
-            if (card) card.focusReorder(direction)
-        })
+        Qt.callLater(function() { page.focusMemberCard(id, direction, 0) })
     }
     function removeItem(id) {
         if (!page.editing) return
@@ -134,7 +189,7 @@ Item {
         page.removedItem = { id: id, index: index }
         items.splice(index, 1)
         page.draftItems = items
-        Qt.callLater(function() { undoButton.forceActiveFocus(Qt.TabFocusReason) })
+        page.focusHeaderControl(memberList.headerItem.undoAction)
     }
     function undoRemove() {
         if (!page.removedItem) return
@@ -146,18 +201,17 @@ Item {
     function revealItem(item) {
         const caret = item.cursorRectangle
         const useCaret = item.activeFocus && caret !== undefined
-        const p = item.mapToItem(flick.contentItem, 0, useCaret ? caret.y : 0)
+        const p = item.mapToItem(memberList.contentItem, 0, useCaret ? caret.y : 0)
         const targetHeight = useCaret ? Math.max(1, caret.height) : item.height
-        if (p.y < flick.contentY + 12) flick.contentY = Math.max(0, p.y - 12)
-        else if (p.y + targetHeight > flick.contentY + flick.height - 12)
-            flick.contentY = Math.min(Math.max(0, flick.contentHeight - flick.height),
-                Math.max(0, p.y + targetHeight - flick.height + 12))
+        if (p.y < memberList.contentY + 12) memberList.contentY = page.boundedScrollPosition(p.y - 12)
+        else if (p.y + targetHeight > memberList.contentY + memberList.height - 12)
+            memberList.contentY = page.boundedScrollPosition(p.y + targetHeight - memberList.height + 12)
     }
     Component.onDestruction: page.abortEdit()
     onCollectionIdChanged: {
         page.abortEdit()
         page.kind = "all"
-        if (flick) flick.contentY = 0
+        Qt.callLater(page.scrollToBeginning)
     }
     Keys.priority: Keys.AfterItem
     Keys.onEscapePressed: {
@@ -166,28 +220,37 @@ Item {
     }
     Keys.onPressed: function(event) {
         if (event.key === Qt.Key_PageDown) {
-            flick.contentY = Math.min(Math.max(0, flick.contentHeight - flick.height), flick.contentY + flick.height * 0.8)
+            memberList.contentY = page.boundedScrollPosition(memberList.contentY + memberList.height * 0.8)
             event.accepted = true
         } else if (event.key === Qt.Key_PageUp) {
-            flick.contentY = Math.max(0, flick.contentY - flick.height * 0.8)
+            memberList.contentY = page.boundedScrollPosition(memberList.contentY - memberList.height * 0.8)
             event.accepted = true
         }
     }
 
-    Flickable {
-        id: flick
+    ListView {
+        id: memberList
         objectName: "collectionScroller"
         anchors.fill: parent
-        contentWidth: width
-        contentHeight: content.implicitHeight + 40
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+        topMargin: 10
+        bottomMargin: 40
+        cacheBuffer: 320
+        spacing: 0
         ScrollBar.vertical: ScrollBar { policy: ScrollBar.AsNeeded }
-        ColumnLayout {
+        model: page.memberRows
+        // The header is its own component scope, so the controls the page
+        // functions drive are exposed through these properties.
+        header: ColumnLayout {
             id: content
+            property Item nameField: nameEditor
+            property Item descriptionField: descriptionEditor
+            property Item primaryAction: editButton
+            property Item undoAction: undoButton
+            property Item stayAction: stayButton
             x: page.sideMargin
-            y: 10
-            width: flick.width - page.sideMargin * 2
+            width: memberList.width - page.sideMargin * 2
             spacing: 24
             CollectionActionButton {
                 objectName: "backToCollections"
@@ -261,7 +324,15 @@ Item {
                         selectByMouse: true
                         wrapMode: TextEdit.Wrap
                         Accessible.name: qsTr("Collection description")
-                        onTextChanged: if (text.length > 300) text = text.slice(0, 300)
+                        // Rewriting the text during IME composition would
+                        // corrupt the preedit; clamp once it ends.
+                        function applyLimit() {
+                            if (descriptionEditor.inputMethodComposing) return
+                            const clamped = CollectionText.clamp(text, 300)
+                            if (clamped !== text) text = clamped
+                        }
+                        onTextChanged: applyLimit()
+                        onInputMethodComposingChanged: applyLimit()
                         onActiveFocusChanged: if (activeFocus) page.revealItem(descriptionEditor)
                         onCursorRectangleChanged: if (activeFocus) page.revealItem(descriptionEditor)
                         background: Rectangle { color: "#0effffff"; radius: 7; border.width: 1; border.color: descriptionEditor.activeFocus ? theme.gold : theme.edge }
@@ -286,7 +357,7 @@ Item {
                         onClicked: {
                             page.reloading = true
                             page.leaving = true
-                            Qt.callLater(function() { stayButton.forceActiveFocus(Qt.TabFocusReason) })
+                            page.focusHeaderControl(stayButton)
                         }
                     }
                 }
@@ -392,41 +463,51 @@ Item {
                 }
             }
             Rectangle { Layout.fillWidth: true; Layout.preferredHeight: 1; color: "#18ffffff" }
-            Grid {
-                id: mediaGrid
-                Layout.fillWidth: true
-                columns: width >= 1150 ? 5 : width >= 850 ? 4 : width >= 620 ? 3 : width >= 300 ? 2 : 1
-                columnSpacing: page.narrow ? 16 : 28
-                rowSpacing: 34
-                readonly property real cardWidth: Math.min(230,
-                    (width - (columns - 1) * columnSpacing) / columns)
+            Item { Layout.fillWidth: true; Layout.preferredHeight: 24 }
+        }
+        delegate: Item {
+            id: memberRow
+            required property var modelData
+            required property int index
+            width: memberList.width
+            height: memberRowCards.height + (memberRow.index < page.memberRows.length - 1 ? 34 : 0)
+            Row {
+                id: memberRowCards
+                x: page.sideMargin
+                spacing: page.cardSpacing
                 Repeater {
-                    id: cards
-                    model: page.visibleItems
+                    model: memberRow.modelData
                     CollectionMediaCard {
-                        id: mediaCard
+                        id: memberCardItem
                         required property string modelData
                         required property int index
-                        width: mediaGrid.cardWidth
+                        objectName: "memberCard_" + modelData
+                        width: page.cardWidth
                         height: implicitHeight
                         media: page.store.media(modelData)
                         noteText: (page.editing ? page.draftNotes : page.collection ? page.collection.notes : {})[modelData] || ""
                         editing: page.editing
-                        position: index
+                        position: memberRow.index * page.memberColumns + index
                         itemCount: page.visibleItems.length
                         onTitleRequested: page.titleRequested(modelData)
                         onNoteEdited: (note) => page.setNote(modelData, note)
                         onMoveRequested: (direction) => page.moveItem(modelData, direction)
                         onRemoveRequested: page.removeItem(modelData)
-                        onEnsureVisibleRequested: function(target) { page.revealItem(target) }
+                        onEnsureVisibleRequested: (target) => page.revealItem(target)
                     }
                 }
             }
+        }
+        footer: Item {
+            width: memberList.width
+            visible: page.visibleItems.length === 0
+            implicitHeight: visible ? emptyState.implicitHeight + 108 : 0
+            height: implicitHeight
             ColumnLayout {
-                visible: page.visibleItems.length === 0
-                Layout.fillWidth: true
-                Layout.topMargin: 48
-                Layout.bottomMargin: 60
+                id: emptyState
+                x: page.sideMargin
+                y: 48
+                width: parent.width - page.sideMargin * 2
                 spacing: 14
                 CollectionIcon { name: "collections"; strokeColor: theme.inkDimmer; Layout.preferredWidth: 36; Layout.preferredHeight: 36; Layout.alignment: Qt.AlignHCenter }
                 Text { Layout.fillWidth: true; text: page.kind === "all" ? qsTr("Room for your next favourite") : qsTr("No titles of this kind yet"); color: theme.ink; font.family: theme.display; font.pixelSize: 26; wrapMode: Text.Wrap; horizontalAlignment: Text.AlignHCenter; textFormat: Text.PlainText }
