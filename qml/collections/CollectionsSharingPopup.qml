@@ -313,6 +313,7 @@ Popup {
                     }
                     CollectionGiftPresentation {
                         id: receivedGift
+                        objectName: "receivedGiftPresentation"
                         Layout.fillWidth: true
                         visible: !!root.received.share_id
                         collectionName: root.receivedSnapshot.name || ""

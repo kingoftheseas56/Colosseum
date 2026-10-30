@@ -20,6 +20,7 @@ Rectangle {
     border.width: 1
     Theme { id: theme }
     onPresentationChanged: opened = preview || initiallyOpened
+    onPreviewChanged: opened = preview || initiallyOpened
     onInitiallyOpenedChanged: if (initiallyOpened) opened = true
     ColumnLayout {
         id: body
@@ -46,7 +47,7 @@ Rectangle {
             wrapMode: Text.Wrap
         }
         CollectionActionButton {
-            objectName: "openCollectionGift"
+            objectName: gift.preview ? "previewCollectionGift" : "openCollectionGift"
             visible: !gift.opened && !gift.preview
             text: qsTr("Open your gift")
             emphasis: "primary"

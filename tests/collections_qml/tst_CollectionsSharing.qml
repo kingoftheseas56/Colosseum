@@ -44,6 +44,7 @@ Item {
             function loadCover(url) { return "" }
             function copyLink(id) { called={op:"copyLink",id:id} }
         }
+        Component { id: giftComponent; CollectionsUi.CollectionGiftPresentation {} }
         Component { id: detailComponent; CollectionsUi.CollectionPage { collectionId: "c1" } }
         CollectionsUi.CollectionsSharingPopup { id: popup; store: store; controller: controller; collectionId: "c1" }
     }
@@ -85,12 +86,31 @@ Item {
             compare(controller.called.op,"open"); compare(controller.called.phrase,"test phrase")
             controller.received={share_id:"opaque",kind:"gift",revision:1,snapshot:{name:"A gift",presentation:{preset:"paper",dedication:"Personal"},members:[{title:"One",kind:"book",note:"A note"}]}}
             wait(20)
-            control("openCollectionGift").clicked()
+            const receivedGift=findChild(popup,"receivedGiftPresentation")
+            verify(receivedGift!==null)
+            const openGift=findChild(receivedGift,"openCollectionGift")
+            verify(openGift!==null)
+            verify(openGift.visible)
+            verify(!control("keepReceivedGift").visible)
+            openGift.clicked()
             verify(control("keepReceivedGift").visible)
             wait(30)
             grabImage(window.contentItem).save("collections-sharing-received.png")
             control("keepReceivedGift").clicked()
             compare(controller.called.op,"keep")
+        }
+        function test_preview_to_received_gift_starts_closed() {
+            const gift=createTemporaryObject(giftComponent, window.contentItem,
+                {width:500,preview:true,presentation:{preset:"paper",dedication:"Preview"}})
+            verify(gift!==null)
+            gift.presentation={preset:"paper",dedication:"Updated preview"}
+            compare(gift.opened,true)
+            // Reproduce dependent bindings: presentation can update while the
+            // previous preview=true value is still in effect.
+            gift.presentation={preset:"sea",dedication:"An unopened gift"}
+            gift.preview=false
+            compare(gift.opened,false)
+            verify(findChild(gift,"openCollectionGift").visible)
         }
         function test_close_clears_passphrases() {
             control("publishPassphrase").text="private"
