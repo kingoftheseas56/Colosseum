@@ -343,7 +343,7 @@ std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
         const VaultIndex::FileRow& r = v.row;
         if (v.kind == QLatin1String("video") && isJunkVideo(r))
             continue; // cheap, string-only: reject before any stat
-        if (!rootThere(r.rootPath))
+        if (!v.synthetic && !rootThere(r.rootPath))
             continue; // a vanished root is skipped without a stat per file
         const QFileInfo fi(r.path);
         // The stat IS necessary: the index keeps rows for deleted/replaced files (the downloads
@@ -355,6 +355,15 @@ std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
             continue;
         Cand c;
         c.row = r;
+        if (v.kind == QLatin1String("video") && VaultKit::isEpisodeVideo(r.realName)
+            && (groupKeyOf(r) == r.rootPath || groupKeyOf(r).endsWith(QLatin1String("::LOOSE")))) {
+            const QString title = VaultKit::episodeSeriesTitle(r.realName);
+            if (!title.isEmpty()) {
+                c.row.groupTitle = title;
+                c.row.groupKey = VaultKit::episodeShowKey(r.rootPath, title);
+                c.row.subtreePath = c.row.groupKey;
+            }
+        }
         c.size = fi.size();
         c.mtimeMs = fi.lastModified().toMSecsSinceEpoch();
         c.synthetic = v.synthetic;
@@ -410,8 +419,8 @@ std::shared_ptr<DlnaSnapshot> buildSnapshot(const BuildInput& in)
             bool folderFound = false;
             seasonFolderOrdinal(c->row, &folderFound);
             const VaultKit::SeasonEpisode se = VaultKit::parseEpisodeNumber(c->row.realName);
-            const bool isEpisode = (se.matched && !se.absolute) || folderFound
-                || (se.matched && se.absolute && absoluteRun >= 2);
+            const bool isEpisode = folderFound
+                || VaultKit::isEpisodeVideo(c->row.realName, absoluteRun);
             (isEpisode ? episodeRows : movieRows).append(c);
         }
 

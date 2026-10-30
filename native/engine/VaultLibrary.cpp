@@ -573,7 +573,23 @@ QVariantList VaultLibrary::browseAt(const QString& rootOrPath, const QString& so
         return VaultBrowseAway::indexedBrowseAt(m_index, roots, rootOrPath, sort, filter);
 
     const QStringList scanIgnore = m_config ? m_config->scanIgnore() : QStringList();
-    const QList<VaultKit::BrowseNode> nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore);
+    QList<VaultKit::BrowseNode> nodes;
+    if (m_index && m_config && m_config->isSyntheticRoot(rootOrPath)) {
+        QMap<QString, VaultKit::BrowseNode> groups;
+        for (const auto& row : m_index->rowsForRoot(rootOrPath)) {
+            if (!QFileInfo::exists(row.path) || m_config->isHidden(row.id)) continue;
+            auto& node = groups[row.groupKey];
+            node.key = node.path = row.groupKey;
+            node.displayTitle = row.groupTitle;
+            node.nodeType = row.kind == QLatin1String("video")
+                    && row.groupKey.contains(QLatin1String("::show::"))
+                ? VaultKit::BrowseNodeType::Show : VaultKit::BrowseNodeType::Film;
+            ++node.mediaCount;
+        }
+        nodes = groups.values();
+    } else {
+        nodes = VaultKit::planBrowseLevel(rootOrPath, scanIgnore);
+    }
     const bool levelRootAway = VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath);
     if (nodes.isEmpty() && levelRootAway) {
         // The drive that holds this level is gone: VaultKit::planBrowseLevel cannot walk a
@@ -917,9 +933,9 @@ QVariantList VaultLibrary::rootsDetail() const
         row.insert(QStringLiteral("name"), name.isEmpty() ? path : name);
         const QList<VaultIndex::FileRow> rootRows
             = m_index ? m_index->rowsForRoot(path) : QList<VaultIndex::FileRow>();
-        const bool available = VaultLocation::isContentUri(path)
+        const bool available = m.value(QStringLiteral("synthetic")).toBool() || (VaultLocation::isContentUri(path)
             ? (rootRows.isEmpty() || !rootRows.first().away)
-            : QDir(path).exists();
+            : QDir(path).exists());
         row.insert(QStringLiteral("available"), available);
         row.insert(QStringLiteral("fileCount"), rootRows.size());
         row.insert(QStringLiteral("itemCount"), browseAt(path).size());
@@ -1157,6 +1173,14 @@ QVariantMap VaultLibrary::seasonFactsForShow(const QString& showFolderPath) cons
                 entryLabel = top;
             supplemental = true;
         }
+        if (entryKey.isEmpty() && showFolderPath.contains(QLatin1String("::show::"))) {
+            const auto episode = VaultKit::parseEpisodeNumber(row.realName);
+            if (episode.matched) {
+                ord = episode.absolute ? 1 : episode.season;
+                entryKey = showFolderPath + QStringLiteral("::season::") + QString::number(ord);
+                entryLabel = ord == 0 ? QStringLiteral("Specials") : QStringLiteral("Season %1").arg(ord);
+            }
+        }
         const QString mapKey = entryKey.isEmpty()
             ? QStringLiteral("__flat__")
             : QStringLiteral("path:") + normPath(entryKey);
@@ -1237,7 +1261,8 @@ QString VaultLibrary::browseEmptyCause(const QString& rootOrPath,
     // alone is not enough. Scoped to THIS method only — VaultBrowseAway::ownerRootAway itself is
     // untouched so Slice 6's own pinned tests/behavior stay exactly as they are.
     const QString ownerRoot = VaultBrowseAway::ownerRootPath(roots, rootOrPath);
-    const bool ownerDirExists = ownerRoot.isEmpty() ? true : QDir(ownerRoot).exists();
+    const bool ownerDirExists = ownerRoot.isEmpty() || (m_config && m_config->isSyntheticRoot(ownerRoot))
+        || QDir(ownerRoot).exists();
     const bool levelAway = VaultBrowseEmpty::isLevelAway(
         VaultBrowseAway::ownerRootAway(m_index, roots, rootOrPath),
         !ownerRoot.isEmpty(), ownerDirExists);
@@ -1574,8 +1599,22 @@ void VaultLibrary::removeDownloadsRoot()
 
 void VaultLibrary::setDownloadsRoot(VaultDownloadsRoot* root, const QString& path)
 {
+    if (m_downloadsRoot)
+        disconnect(m_downloadsRoot, &VaultDownloadsRoot::changed, this, &VaultLibrary::refreshDownloads);
     m_downloadsRoot = root;
-    m_downloadsRootPath = path;
+    m_downloadsRootPath = normPath(path);
+    if (root)
+        connect(root, &VaultDownloadsRoot::changed, this, &VaultLibrary::refreshDownloads);
+}
+
+void VaultLibrary::refreshDownloads()
+{
+    if (!m_config || !m_downloadsRoot || m_downloadsRootPath.isEmpty()) return;
+    if (!m_config->hasRoot(m_downloadsRootPath)) {
+        if (!m_downloadsRoot->hasContainerDownloads()) return;
+        m_config->addSyntheticRoot(m_downloadsRootPath);
+    }
+    publishAllConfirmed();
 }
 
 bool VaultLibrary::immersive() const
