@@ -402,8 +402,9 @@ TestCase {
         var staleStatus=findChild(world,"vinylShelfStatus_personalized:stale-lane");
         var loadingStatus=findChild(world,"vinylShelfStatus_personalized:loading-lane");
         var failedStatus=findChild(world,"vinylShelfStatus_personalized:failed-lane");
-        verify(staleStatus!==null && staleStatus.visible);
-        verify(staleStatus.text.toLowerCase().indexOf("cached")>=0);
+        verify(staleStatus!==null && !staleStatus.visible,
+            "Usable music must stay visible without an internal cache-status banner.");
+        compare(staleStatus.parent.height,0);
         verify(loadingStatus!==null && loadingStatus.visible);
         verify(loadingStatus.text.toLowerCase().indexOf("loading")>=0);
         verify(failedStatus!==null && failedStatus.visible);

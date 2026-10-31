@@ -1,5 +1,6 @@
 #include <QtTest>
 #include <algorithm>
+#include <QSet>
 #include "vinyl/VinylHomeListening.h"
 
 class ListeningSource final : public QObject {
@@ -154,20 +155,87 @@ private slots:
         complete(model, source.requests.last(), {{"status", "empty"}, {"complete", true}, {"items", QVariantList()}});
         QCOMPARE(model.radioState(), QStringLiteral("exhausted"));
     }
-    void excludedFirstTasteArtistIsAbsentFromCardsStartAndRestore() {
+    void exclusionsApplyToEverySelectedArtistCardAndRadioStart() {
         ListeningSource source;
         VinylHomeListening model(nullptr, [] {}, [](const QVariantList &, bool) {});
         const auto excludedId = seed(0).value("providerId").toString();
         model.setInputs(&source, "profile", 1, seeds(), {}, "day", {excludedId});
         const auto cards = model.cards();
-        QCOMPARE(cards.size(), 1);
-        QCOMPARE(cards.first().toMap().value("seedArtist").toMap().value("providerId").toString(),
-                 seed(1).value("providerId").toString());
+        QCOMPARE(cards.size(), 4);
+        QSet<QString> actual;
+        for (const auto &value : cards) {
+            const auto card = value.toMap();
+            QVERIFY(card.value("kind").toString() == QStringLiteral("radio"));
+            const auto id = card.value("seedArtist").toMap().value("providerId").toString();
+            QVERIFY(id != excludedId);
+            actual.insert(id);
+        }
+        QSet<QString> expected;
+        for (int i = 1; i < 5; ++i) expected.insert(seed(i).value("providerId").toString());
+        QCOMPARE(actual, expected);
         model.startRadio(seed(0));
         QVERIFY(!model.radioActive());
         model.restoreRadio({{"kind", "artist-radio"}, {"seed", seed(0)}}, {});
         QVERIFY(!model.radioActive());
         QVERIFY(source.requests.isEmpty());
+    }
+    void cardsExposeEachValidSelectedArtistWithoutStartingWork() {
+        ListeningSource source; int batches = 0;
+        VinylHomeListening model(nullptr, [] {}, [&](const QVariantList &, bool) { ++batches; });
+        auto selected = seeds();
+        auto imaged = seed(2); imaged["image"] = QStringLiteral("https://example.test/artist-2.jpg");
+        selected[2] = imaged;
+        auto duplicate = seed(2); duplicate["name"] = QStringLiteral("Duplicate name");
+        duplicate["image"] = QStringLiteral("https://example.test/duplicate.jpg");
+        selected.append(duplicate);
+        auto malformed = seed(9); malformed["providerId"] = QStringLiteral("not-a-channel");
+        selected.append(malformed);
+        auto local = seed(10); local["provider"] = QStringLiteral("local");
+        selected.append(local);
+
+        model.setInputs(&source, "profile", 1, selected, personalSections(), "day");
+        for (int i = 0; i < source.requests.size(); ++i) {
+            const auto request = source.requests[i];
+            if (request.operation == "album") complete(model, request, album(request.value));
+            else complete(model, request, {{"items", QVariantList{candidate("adjacent-album", 8)}}});
+        }
+        const int requestsBeforeEnumeration = source.requests.size();
+        const auto cards = model.cards();
+        QCOMPARE(source.requests.size(), requestsBeforeEnumeration);
+        QCOMPARE(batches, 0);
+        QVERIFY(!model.radioActive());
+
+        QSet<QString> stationIds, stationSeeds, mixIds; int stationCount = 0;
+        for (const auto &value : cards) {
+            const auto card = value.toMap();
+            if (card.value("kind").toString() == QStringLiteral("mixes")) {
+                mixIds.insert(card.value("id").toString());
+                continue;
+            }
+            QCOMPARE(card.value("kind").toString(), QStringLiteral("radio"));
+            ++stationCount;
+            const auto ref = card.value("seedArtist").toMap();
+            const auto providerId = ref.value("providerId").toString();
+            stationIds.insert(card.value("id").toString());
+            stationSeeds.insert(providerId);
+            if (providerId == seed(2).value("providerId").toString()) {
+                QCOMPARE(card.value("id").toString(), QStringLiteral("home-radio:") + providerId);
+                QCOMPARE(card.value("cover").toString(), imaged.value("image").toString());
+                QCOMPARE(ref, imaged);
+            }
+        }
+        QCOMPARE(stationCount, 5);
+        QCOMPARE(stationIds.size(), 5);
+        QCOMPARE(stationSeeds.size(), 5);
+        for (int i = 0; i < 5; ++i) {
+            const auto providerId = seed(i).value("providerId").toString();
+            QVERIFY(stationIds.contains(QStringLiteral("home-radio:") + providerId));
+            QVERIFY(stationSeeds.contains(providerId));
+        }
+        QVERIFY(!stationSeeds.contains(malformed.value("providerId").toString()));
+        QVERIFY(!stationSeeds.contains(local.value("providerId").toString()));
+        QSet<QString> expectedMixIds{QStringLiteral("home-mix:personal"), QStringLiteral("home-mix:discovery")};
+        QCOMPARE(mixIds, expectedMixIds);
     }
     void excludedCollaboratorTracksAreSkippedWithoutChangingAlbumData() {
         ListeningSource source; QList<QVariantList> batches;

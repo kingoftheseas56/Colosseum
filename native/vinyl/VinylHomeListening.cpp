@@ -263,13 +263,15 @@ QVariantList VinylHomeListening::cards() const {
             {"subtitle", songs.isEmpty() ? (failed && !loading ? QStringLiteral("Unavailable") : QString()) : QStringLiteral("%1 songs").arg(songs.size())},
             {"status", loading ? "loading" : songs.isEmpty() ? "error" : "ready"}, {"cover", cover}, {"mixId", kind}});
     }
+    QSet<QString> seen;
     for (const auto &value : m_seeds) {
         const auto seed = artistRef(value.toMap());
-        if (seed.isEmpty() || m_excludedArtistProviderIds.contains(seed.value("providerId").toString())) continue;
-        result.append(QVariantMap{{"id", "home-radio:" + seed.value("providerId").toString()}, {"kind", "radio"},
+        const auto providerId = seed.value("providerId").toString();
+        if (seed.isEmpty() || m_excludedArtistProviderIds.contains(providerId) || seen.contains(providerId)) continue;
+        seen.insert(providerId);
+        result.append(QVariantMap{{"id", "home-radio:" + providerId}, {"kind", "radio"},
             {"title", seed.value("name").toString() + QStringLiteral(" radio")}, {"subtitle", QStringLiteral("Radio")},
             {"cover", seed.value("image", seed.value("cover"))}, {"seedArtist", seed}});
-        break;
     }
     return result;
 }
