@@ -28,6 +28,10 @@ Item {
     property var collectionEntry: null
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
+    property bool hasSeriesLanguageOverride: false
+    property string continueChapterId: ""
+    property string continueChapterLabel: ""
+    property bool continueChapterReady: false
     property bool loading: false
     property string errorText: ""
     property bool sourceEnabled: true
@@ -68,7 +72,10 @@ Item {
     signal closeRequested()
     signal tankobanRequested()
     signal chapterLanguageRequested(string code)
+    signal chapterDefaultLanguageRequested()
+    signal languageSettingsRequested()
     signal readChapterRequested(string chapterId, string chapterLabel)
+    signal continueChapterRequested()
     signal openExtensionsRequested()
 
     function requestExtensions() { root.openExtensionsRequested() }
@@ -129,6 +136,9 @@ Item {
         collectionEntry: root.collectionEntry
         chapterLanguages: root.chapterLanguages
         selectedChapterLanguage: root.selectedChapterLanguage
+        hasSeriesLanguageOverride: root.hasSeriesLanguageOverride
+        onChapterDefaultLanguageRequested: root.chapterDefaultLanguageRequested()
+        onLanguageSettingsRequested: root.languageSettingsRequested()
         onBackRequested: root.backRequested()
         onMinimizeRequested: root.minimizeRequested()
         onFullscreenRequested: root.fullscreenRequested()
@@ -158,7 +168,8 @@ Item {
 
             Item {
                 width: parent.width
-                height: root.phoneNarrow ? 100 : 58
+                height: root.phoneNarrow && root.continueChapterId.length ? 156
+                    : (root.phoneNarrow ? 100 : 58)
                 Text {
                     anchors.left: parent.left; anchors.leftMargin: theme.margin
                     anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
@@ -185,6 +196,60 @@ Item {
                     Keys.onReturnPressed: root.togglePageMenu()
                     Keys.onEnterPressed: root.togglePageMenu()
                     Keys.onEscapePressed: pagePopup.close()
+                }
+                // Resume the exact saved/downloaded chapter. Missing downloads remain
+                // visible as a recovery explanation without replacing Progress.
+                Rectangle {
+                    id: continueChapterButton
+                    objectName: "mangaChapterContinueAction"
+                    visible: root.continueChapterReady
+                    width: Math.min(root.phoneNarrow ? parent.width - 32 : 300,
+                                    continueChapterLabelText.implicitWidth + 32)
+                    height: root.phoneNarrow ? 40 : 36
+                    radius: 10
+                    anchors.right: root.phoneNarrow ? undefined : pageSelector.left
+                    anchors.rightMargin: root.phoneNarrow ? 0 : 12
+                    anchors.horizontalCenter: root.phoneNarrow ? parent.horizontalCenter : undefined
+                    anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                    anchors.top: root.phoneNarrow ? parent.top : undefined
+                    anchors.topMargin: root.phoneNarrow ? 105 : 0
+                    color: theme.gold
+                    Text {
+                        id: continueChapterLabelText
+                        anchors.fill: parent
+                        anchors.leftMargin: 12; anchors.rightMargin: 12
+                        verticalAlignment: Text.AlignVCenter
+                        horizontalAlignment: Text.AlignHCenter
+                        text: root.continueChapterLabel
+                        color: "#211806"; font.family: theme.ui
+                        font.pixelSize: 12; font.weight: Font.DemiBold
+                        elide: Text.ElideRight
+                    }
+                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                                onClicked: root.continueChapterRequested() }
+                    KeyboardAction {
+                        anchors.fill: parent; pointerEnabled: false
+                        objectName: "mangaChapterContinueKeyboardAction"
+                        focusEnabled: root.continueChapterReady
+                        accessibleName: root.continueChapterLabel
+                        focusRadius: continueChapterButton.radius
+                        onTriggered: root.continueChapterRequested()
+                    }
+                }
+                Text {
+                    objectName: "mangaChapterSavedUnavailable"
+                    visible: root.continueChapterId.length > 0 && !root.continueChapterReady
+                    width: Math.min(root.phoneNarrow ? parent.width - 32 : 360, 320)
+                    anchors.right: root.phoneNarrow ? undefined : pageSelector.left
+                    anchors.rightMargin: 12
+                    anchors.horizontalCenter: root.phoneNarrow ? parent.horizontalCenter : undefined
+                    anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                    anchors.top: root.phoneNarrow ? parent.top : undefined
+                    anchors.topMargin: root.phoneNarrow ? 105 : 0
+                    text: "Saved chapter unavailable on this device · choose a source below"
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 11
+                    elide: Text.ElideRight
                 }
             }
             Item {

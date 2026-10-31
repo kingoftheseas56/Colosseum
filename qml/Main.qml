@@ -2759,9 +2759,11 @@ Window {
     // world (optional, R1 2026-08-21): lands the page straight on that world's Sources
     // tab instead of the default "theatre" — the manga picker's empty-state route
     // passes "tankoban" so enabling Nyaa is one click, not a hunt through tabs.
-    function openExtensionsPage(world) {
-        if (win.guardNamedCollectionsNavigation(function() { win.openExtensionsPage(world) })) return
+    property string pendingExtensionConfiguration: ""
+    function openExtensionsPage(world, configurationId) {
+        if (win.guardNamedCollectionsNavigation(function() { win.openExtensionsPage(world, configurationId) })) return
 
+        pendingExtensionConfiguration = String(configurationId || "")
         win.parkFeria(true)
         win.bookRouteGeneration += 1
         downloadsLayer.active = false
@@ -2771,11 +2773,20 @@ Window {
         vaultLayer.active = false
         extensionsLayer.active = true
         if (world && extensionsLayer.item) extensionsLayer.item.world = world
+        win.openPendingExtensionConfiguration()
         taskbar.open = false
         if (extensionsLayer.item && extensionsLayer.item.takeKeyboardFocus)
             Qt.callLater(extensionsLayer.item.takeKeyboardFocus)
     }
-    function closeExtensionsPage() { extensionsLayer.active = false }
+    function openPendingExtensionConfiguration() {
+        if (!pendingExtensionConfiguration.length || !extensionsLayer.item) return
+        extensionsLayer.item.openConfiguration(pendingExtensionConfiguration)
+        pendingExtensionConfiguration = ""
+    }
+    function closeExtensionsPage() {
+        pendingExtensionConfiguration = ""
+        extensionsLayer.active = false
+    }
 
     // ---- Update page: the verified release chronicle, mutually exclusive with the other
     // taskbar full-pages. Opening it marks only the current release as seen; availability stays.
@@ -3312,13 +3323,28 @@ Window {
     }
     function closeWallpaperSearch() { wallpaperLayer.active = false }
 
-    // ---- Continue card has TWO actions: the center icon RESUMES into the content; clicking
-    //      elsewhere opens the SERIES / DETAIL view. Both use the resume payload each world wrote. ----
-    //  resume (center play/read icon):
+    // ---- Continue: manga/volume poster and center control both resume when a
+    //      saved target exists. Explicit Details stays separate; other media retain
+    //      their existing routes. Progress ownership remains unchanged. ----
     function resumeContinue(entry) {
         if (!entry) return
         if (entry.kind === "music") { win.openVinylResume(entry, true); return }
         var r = entry.resume || ({})
+        // Continue never guesses a replacement chapter or drops saved progress.
+        // A vanished download leads to the series/download surface, not an empty reader.
+        var isLocalArchive = /^(vault:|vault-file:)/.test(String(entry.id || ""))
+        if (entry.kind === "tankoban" || (entry.kind === "manga" && !isLocalArchive)) {
+            var savedId = String(r.chapterId || "").trim()
+            if (!savedId.length) { win.detailContinue(entry); return }
+            if (entry.kind === "manga" && typeof Downloads !== "undefined" && Downloads.statusOf) {
+                var chapterState = Downloads.statusOf(savedId) || ({})
+                if (String(chapterState.state || "") !== "done") { win.detailContinue(entry); return }
+            }
+            if (entry.kind === "tankoban" && typeof TankobanVolumes !== "undefined" && TankobanVolumes.statusOf) {
+                var volumeState = TankobanVolumes.statusOf(savedId) || ({})
+                if (String(volumeState.state || "") !== "ready") { win.detailContinue(entry); return }
+            }
+        }
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)
         var title = entry.title || entry.caption || presentation.title || ""
@@ -4122,8 +4148,11 @@ Window {
                     else if (event.key === Qt.Key_Right) event.accepted = contCol.navigate(1)
                     else if (event.key === Qt.Key_Return || event.key === Qt.Key_Enter
                              || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
-                        if (contCol.currentIndex >= 0 && contCol.currentIndex < contCol.contItems.length)
-                            win.resumeContinue(contCol.contItems[contCol.currentIndex])
+                        if (contCol.currentIndex >= 0 && contCol.currentIndex < contCol.contItems.length) {
+                            const tileItem = contRepeater.itemAt(contCol.currentIndex)
+                            if (tileItem && tileItem.isMangaReading) tileItem.activatePrimary()
+                            else win.resumeContinue(contCol.contItems[contCol.currentIndex])
+                        }
                         event.accepted = true
                     }
                 }
@@ -4933,6 +4962,12 @@ Window {
             item.closeRequested.connect(function() { win.requestApplicationQuit() })
             if (item.openExtensionsRequested)
                 item.openExtensionsRequested.connect(function() { win.openExtensionsPage("tankoban") })
+            if (item.languageSettingsRequested)
+                item.languageSettingsRequested.connect(function() {
+                    win.openExtensionsPage("tankoban", "colosseum.well.tankoyomi")
+                })
+            if (item.resumeSavedRequested)
+                item.resumeSavedRequested.connect(win.resumeContinue)
             // the READER's own chrome (not the page topbar): session verbs
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
@@ -5835,6 +5870,7 @@ Window {
             // Same global preference Discover/genres/search read — a live binding so
             // the registry follows the shell visibility policy.
             item.showExplicit = Qt.binding(function() { return contentPreferences.showExplicit })
+            win.openPendingExtensionConfiguration()
             item.backRequested.connect(win.closeExtensionsPage)
             item.minimizeRequested.connect(win.minimizeShell)
             item.fullscreenRequested.connect(win.toggleFullscreenShell)

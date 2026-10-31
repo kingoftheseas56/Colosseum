@@ -106,6 +106,7 @@ Column {
     ContinueRow {
         id: collectionRow
         title: "Your Collection"
+        primaryMangaResumeEnabled: false
         showSeeAll: false
         items: (Collection.revision, Collection.items("tankoban").filter(function(e) { return e.type === "manga" }))
         forgetHandler: function(e) { Collection.remove("tankoban", String(e.id)) }

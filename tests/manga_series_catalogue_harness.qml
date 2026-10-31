@@ -134,9 +134,64 @@ Item {
     FakeVolumesService { id: volService }
     FakeExtensions { id: fakeExtensions }
     FakeMangaEngine { id: fakeMangaEngine }
+    component FakeMangaPreferences: QtObject {
+        property var overrides: ({})
+        property int mangaLanguageRevision: 0
+        property bool rejectWrites: false
+        signal mangaLanguagesChanged()
+        function mangaLanguageForSeries(id) { return String(overrides[String(id)] || "") }
+        function setMangaLanguageForSeries(id, code) {
+            if (rejectWrites) return false
+            var next = ({})
+            for (var k in overrides) next[k] = overrides[k]
+            next[String(id)] = String(code)
+            overrides = next
+            mangaLanguageRevision++
+            mangaLanguagesChanged()
+            return true
+        }
+        function clearMangaLanguageForSeries(id) {
+            if (rejectWrites) return false
+            var next = ({})
+            for (var k in overrides) if (k !== String(id)) next[k] = overrides[k]
+            overrides = next
+            mangaLanguageRevision++
+            mangaLanguagesChanged()
+            return true
+        }
+    }
+    FakeMangaPreferences { id: fakePrefs }
+    FakeMangaPreferences { id: fakeOtherProfile }
+    component FakeContinueProgress: QtObject {
+        property int revision: 0
+        property var records: ({})
+        signal changed()
+        function get(kind, seriesId) { return records[String(kind) + "|" + String(seriesId)] || ({}) }
+        function setRecords(next) { records = next; revision++; changed() }
+    }
+    component FakeContinueDownloads: QtObject {
+        property var states: ({})
+        signal finished(string chapterId)
+        signal failed(string chapterId, string reason)
+        signal removed(string chapterId)
+        function statusOf(chapterId) { return states[String(chapterId)] || ({ "state": "none" }) }
+        function downloadChapter(chapterId, seriesId, title, label) {}
+    }
+    FakeContinueProgress { id: fakeContinueProgress }
+    FakeContinueDownloads { id: fakeContinueDownloads }
 
     function ck(condition, message) {
         if (!condition) throw new Error(message)
+    }
+    function findNamed(item, name, enabledOnly) {
+        if (!item) return null
+        if (item.objectName === name && (!enabledOnly || item.enabled)) return item
+        var children = item.children || []
+        for (var i = 0; i < children.length; i++) {
+            var found = findNamed(children[i], name, enabledOnly)
+            if (found) return found
+        }
+        return null
     }
 
     property var pageComp: null
@@ -155,6 +210,9 @@ Item {
         // Mirror production sequencing: the edition profile and malId must be
         // present BEFORE seriesTitle triggers resolve().
         var pr = profile || ({})
+        p.preferencesRef = pr.preferencesRef || null
+        if (pr.progressRef) p.progressRef = pr.progressRef
+        if (pr.downloadsRef) p.downloadsRef = pr.downloadsRef
         p.seriesIdOverride = pr.seriesIdOverride || ""
         p.sourceSearchTitle = pr.sourceSearchTitle || ""
         p.sourceSearchAliases = pr.sourceSearchAliases || []
@@ -487,15 +545,173 @@ Item {
             var unresolved = makePage("", "Unmatched remote title")
             ck(unresolved.resolvedMalId === 0 && unresolved.seriesId === "",
                "remote: title-only missing metadata remains unresolved")
+            // Arc 74-B: test production QML with injected profile-local persistent owner.
+            malCatalog.setReady(true)
+            malCatalog.rows = ({ "1": monsterRow, "13": colorRow })
+            tankCatalog.readyVal = true
+            tankCatalog.remoteEnabled = false
+            tankCatalog.infoMap = ({ "1": { "volumeCount": 18 }, "13": { "volumeCount": 113 } })
+            fakeMangaEngine.chapterDefaultLanguage = "en"
+            fakeExtensions.setTankoyomiEnabled(true)
+            var first = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            first.mangaEngineRef = fakeMangaEngine
+            first.extensionsRef = fakeExtensions
+            first._enterChapterMode()
+            ck(first.selectedChapterLanguage === "en", "arc74 initial global default")
+            first._selectChapterLanguage("pt")
+            ck(fakePrefs.mangaLanguageForSeries("mal:1") === "pt", "arc74 must save manga override")
+            var reopened = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            reopened.mangaEngineRef = fakeMangaEngine
+            reopened.extensionsRef = fakeExtensions
+            reopened._enterChapterMode()
+            ck(reopened.selectedChapterLanguage === "pt", "arc74 same manga must retain Portuguese")
+            fakeMangaEngine.setChapterDefaultLanguage("es")
+            ck(reopened.selectedChapterLanguage === "pt", "arc74 series override must beat changed global default")
+            var separate = makePage("13", "One Piece", {preferencesRef: fakePrefs})
+            separate.mangaEngineRef = fakeMangaEngine
+            separate.extensionsRef = fakeExtensions
+            separate._enterChapterMode()
+            ck(separate.selectedChapterLanguage === "es", "arc74 another manga must use global default")
+            first.malId = "13"
+            first.seriesTitle = "One Piece"
+            first._enterChapterMode()
+            ck(first.selectedChapterLanguage === "es", "arc74 reused page must not leak Portuguese")
+            reopened.preferencesRef = fakeOtherProfile
+            ck(reopened.selectedChapterLanguage === "es", "arc74 profile switch must use new profile")
+            reopened.preferencesRef = fakePrefs
+            ck(reopened.selectedChapterLanguage === "pt", "arc74 switching back restores own profile")
+            var languageCombo = findNamed(reopened, "mangaLanguageCombo", true)
+            ck(languageCombo !== null && languageCombo.count === 5,
+               "arc74 selector offers preferred/default plus four real languages")
+            ck(languageCombo.currentIndex === 3, "arc74 selector reflects the saved Portuguese override")
+            var languageSettingsCount = 0
+            reopened.languageSettingsRequested.connect(function() { languageSettingsCount++ })
+            var languageSettingsShortcut = findNamed(reopened, "mangaLanguageSettingsShortcut", true)
+            ck(languageSettingsShortcut !== null && languageSettingsShortcut.visible,
+               "arc74 existing language settings shortcut is discoverable")
+            languageSettingsShortcut.clicked()
+            ck(languageSettingsCount === 1, "arc74 shared-header shortcut reaches series navigation")
+            languageCombo.activated(0) // simulate the public ComboBox default-choice signal
+            ck(fakePrefs.mangaLanguageForSeries("mal:1") === "", "arc74 reset removes only series override")
+            ck(reopened.selectedChapterLanguage === "es", "arc74 reset adopts global default")
+            fakePrefs.rejectWrites = true
+            reopened._selectChapterLanguage("fr")
+            ck(reopened.selectedChapterLanguage === "es", "arc74 rejected disk write must not change selection")
+            fakePrefs.rejectWrites = false
+            fakePrefs.overrides = ({"mal:1": "zz"})
+            fakePrefs.mangaLanguagesChanged()
+            ck(reopened.selectedChapterLanguage === "zz", "arc74 unavailable override remains explicit")
+            ck(reopened.chaptersError.indexOf("unavailable") >= 0,
+               "arc74 unavailable language must not silently fall back")
+            // Both title-page implementations must preserve this contract.
+            fakePrefs.overrides = ({})
+            fakePrefs.mangaLanguagesChanged()
+            pageComp = Qt.createComponent("../qml/TankobanSeriesView.qml")
+            ck(pageComp.status !== Component.Error, "arc74 rebuilt series component must load")
+            fakeMangaEngine.chapterDefaultLanguage = "es"
+            var rebuilt = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            rebuilt.mangaEngineRef = fakeMangaEngine
+            rebuilt.extensionsRef = fakeExtensions
+            rebuilt._enterChapterMode()
+            ck(rebuilt.selectedChapterLanguage === "es", "arc74 rebuilt title starts global Spanish")
+            rebuilt._selectChapterLanguage("pt")
+            ck(fakePrefs.mangaLanguageForSeries("mal:1") === "pt", "arc74 rebuilt title writes override")
+            var rebuiltAgain = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            rebuiltAgain.mangaEngineRef = fakeMangaEngine
+            rebuiltAgain.extensionsRef = fakeExtensions
+            rebuiltAgain._enterChapterMode()
+            ck(rebuiltAgain.selectedChapterLanguage === "pt", "arc74 rebuilt title reopens Portuguese")
+            var rebuiltCombo = findNamed(rebuiltAgain, "mangaLanguageCombo", true)
+            ck(rebuiltCombo !== null && rebuiltCombo.count === 5 && rebuiltCombo.currentIndex === 3,
+               "arc74 rebuilt selector reflects saved Portuguese override")
+            rebuiltAgain.languageSettingsRequested.connect(function() { languageSettingsCount++ })
+            var rebuiltSettingsShortcut = findNamed(rebuiltAgain, "mangaLanguageSettingsShortcut", true)
+            ck(rebuiltSettingsShortcut !== null && rebuiltSettingsShortcut.visible,
+               "arc74 rebuilt language settings shortcut is discoverable")
+            rebuiltSettingsShortcut.clicked()
+            ck(languageSettingsCount === 2, "arc74 rebuilt shortcut reaches series navigation")
+            rebuilt.malId = "13"
+            rebuilt.seriesTitle = "One Piece"
+            rebuilt._enterChapterMode()
+            ck(rebuilt.selectedChapterLanguage === "es", "arc74 rebuilt title rejects cross-series bleed")
+            console.log("ARC74_B_QML_LANGUAGE_OK")
+            // Arc 74-C: a saved chapter/volume is a direct CTA only when the
+            // actual local download is ready; never create an invented position.
+            var savedEntry = ({ id: "mal:1", kind: "manga", title: "Monster",
+                sub: "Chapter 47", resume: { chapterId: "qualified:chapter-47",
+                                            page: 12, pageFraction: 0.4 } })
+            fakeContinueProgress.setRecords(({
+                "manga|mal:1": savedEntry,
+                "tankoban|mal:1": { id: "mal:1", kind: "tankoban",
+                                    resume: {chapterId: "volume-one", page: 4} }
+            }))
+            fakeContinueDownloads.states = ({ "qualified:chapter-47": { "state": "done" } })
+            volService.volMap = ({ "mal:1": [
+                { id: "volume-one", number: "1", state: "ready" }
+            ] })
+            tankCatalog.infoMap = ({ "1": { volumeCount: 1, countBasis: "catalogue" } })
+            for (var variant = 0; variant < 2; variant++) {
+                pageComp = Qt.createComponent(variant === 0
+                    ? "../qml/MangaSeries.qml" : "../qml/TankobanSeriesView.qml")
+                ck(pageComp.status !== Component.Error, "arc74-c variant component loads")
+                var view = makePage("1", "Monster", {progressRef: fakeContinueProgress,
+                    downloadsRef: fakeContinueDownloads, preferencesRef: fakePrefs})
+                view.mangaEngineRef = fakeMangaEngine
+                view.extensionsRef = fakeExtensions
+                view._enterChapterMode()
+                ck(view.savedChapterReady, "arc74-c saved chapter must be ready")
+                ck(view.savedChapterCtaLabel === "Continue Chapter 47 · p. 12",
+                   "arc74-c truthful chapter/page label")
+                var buttonName = variant === 0
+                    ? "mangaChapterContinueAction" : "tankobanChapterContinueAction"
+                var chapterButton = findNamed(view, buttonName)
+                ck(chapterButton && chapterButton.visible,
+                   "arc74-c saved downloaded chapter CTA visible " + buttonName)
+                var resumed = null
+                view.resumeSavedRequested.connect(function(record) { resumed = record })
+                ck(view.resumeSavedChapter(), "arc74-c resume dispatch succeeds")
+                ck(resumed && resumed.resume.chapterId === "qualified:chapter-47"
+                   && resumed.resume.page === 12 && resumed.resume.pageFraction === 0.4,
+                   "arc74-c original qualified chapter and page passed unchanged")
+                ck(fakeContinueProgress.get("manga", "mal:1").resume.page === 12,
+                   "arc74-c CTA must not write or advance saved progress")
+                fakeContinueDownloads.states = ({})
+                fakeContinueDownloads.removed("qualified:chapter-47")
+                ck(!view.savedChapterReady, "arc74-c missing download disables direct Continue")
+                ck(!chapterButton.visible,
+                   "arc74-c missing download must hide direct action")
+                var unavailableName = variant === 0
+                    ? "mangaChapterSavedUnavailable" : "tankobanSavedChapterUnavailable"
+                var unavailable = findNamed(view, unavailableName)
+                ck(unavailable && unavailable.visible,
+                   "arc74-c missing download shows truthful recovery copy")
+                ck(!view.resumeSavedChapter(),
+                   "arc74-c missing target cannot emit resume")
+                fakeContinueDownloads.states = ({ "qualified:chapter-47": { "state": "done" } })
+                fakeContinueDownloads.finished("qualified:chapter-47")
+                ck(view.savedChapterReady, "arc74-c completed download re-enables Continue")
+                // The fake volume service does not synthesize canonical download IDs
+                // as the real native owner does; publish the ready row explicitly.
+                volService.volMap = ({ "mal:1": [
+                    {id: "volume-one", number: "1", state: "ready"}
+                ] })
+                volService.volumesChanged("mal:1")
+                ck(view.readCtaLabel === "Continue Vol. 1",
+                   "arc74-c existing volume Resume CTA reads nested saved Progress")
+                view.destroy()
+            }
+            console.log("ARC74_C_QML_CONTINUE_OK")
+            watchdog.stop()
             console.log("MANGA_SERIES_CATALOGUE_OK")
             Qt.exit(0)
         } catch (e) {
+            watchdog.stop()
             console.log("MANGA_SERIES_CATALOGUE_FAIL: " + e.message)
             Qt.exit(1)
         }
     }
 
     Timer { interval: 100; running: true; repeat: false; onTriggered: harness.runChecks() }
-    Timer { interval: 8000; running: true
+    Timer { id: watchdog; interval: 8000; running: true
         onTriggered: { console.log("MANGA_SERIES_CATALOGUE_FAIL timeout"); Qt.exit(1) } }
 }

@@ -354,9 +354,9 @@ Item {
                "ready manga: layout must default to 'paired_pages', got " + mShell.layout)
             ck(mShell.order === "rtl", "ready manga: order must default to 'rtl', got " + mShell.order)
 
-            // trailing eager record on entry change: the freshly-opened entry is already persisted
-            // (a crash before the next page-turn/close must not lose it) — MangaReader.qml:157.
-            ck(mProg.records.length >= 1, "ready manga: entry open must EAGERLY record once (not wait for a page-turn), got " + mProg.records.length)
+            // Arc 74-D: opening a new chapter is not evidence of actual page presentation.
+            // A crash/close before first paint must preserve the previous Continue target.
+            ck(mProg.records.length === 0, "ready manga: an unpainted entry must NOT eagerly overwrite Continue, got " + mProg.records.length)
 
             // progressKind flips manga -> comic -> tankoban
             ck(mShell.progressKind === "manga", "progressKind must be 'manga', got " + mShell.progressKind)
@@ -622,6 +622,9 @@ Item {
             // at the MIDDLE entry: both directions available
             ck(xShell.hasNext === true, "hasNext must be true at a middle entry (c2)")
             ck(xShell.hasPrev === true, "hasPrev must be true at a middle entry (c2)")
+            // Arc 74-D: crossing must record the OUTGOING displayed page, not an
+            // unpainted opening intent. Simulate the real surface's presentation.
+            xShell._onPresented(1, 0)
             xShell.goNext()
             ck(String(xShell.curChapterId) === "c3", "crossing next: curChapterId must become 'c3' (newest-first index-1), got " + xShell.curChapterId)
             ck(xCore.lastOpenEntry && xCore.lastOpenEntry.entryId === "c3",

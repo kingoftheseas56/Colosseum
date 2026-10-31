@@ -109,7 +109,7 @@ Item {
     // single handler. In Long Strip the fraction is the only one of the three that is ever non-zero —
     // you genuinely stop part way down a page here — which is why it is in the signature at all.
     // Nothing consumes it yet; that is Task 11.
-    signal presented(int anchorPage, real withinPageFraction)
+    signal presented(int anchorPage, real withinPageFraction, bool hasPixels)
     // Activity presentation (§9 Lane C): fires ONLY for a USER-DRIVEN move that brings the
     // viewport centre into a NEW successfully rendered physical page — never for a programmatic
     // resume/compensation/layout-anchor write (those hold `_programmatic` true and never reach
@@ -382,6 +382,8 @@ Item {
             // "the reader is here" for resume purposes.
             readonly property bool pixelsShown: !hasError
                     && (previewImg.status === Image.Ready || pageImg.status === Image.Ready)
+            onPixelsShownChanged: if (pixelsShown) Qt.callLater(root._emitPresented)
+            onHasErrorChanged: if (hasError) Qt.callLater(root._emitPresented)
 
             // ---- TWO TIERS, stacked (Task 8), exactly as Single and Pair stack them ----
             // A fast half-width PREVIEW underneath, the real page faded over it as it completes.
@@ -668,7 +670,12 @@ Item {
             var it = list.itemAt(list.width / 2, centreY)
             frac = (it && it.height > 0) ? (centreY - it.y) / it.height : 0
         }
-        root.presented(idx + 1, Math.max(0, Math.min(1, frac)))
+        var hasPixels = root._activityPageRendered(idx)
+        var item = list.itemAtIndex(idx)
+        // Geometry and a queued decode do not establish that this source was
+        // shown. Retry presentation when the visible Image actually becomes ready.
+        if (core && core.imageUrl && !hasPixels && !(item && item.hasError)) return
+        root.presented(idx + 1, Math.max(0, Math.min(1, frac)), hasPixels)
     }
     // Change the strip's page width / gap WITHOUT losing the reader's place. The backend owns the
     // geometry (QML paints, C++ decides): it anchors the page under the viewport centre across the
@@ -895,6 +902,16 @@ Item {
     // an out-of-range page): landing on the page is far better than not landing at all.
     function seekToPageFraction(page0, frac) {
         if (!core || !core.stripPageTop) return false
+        if (core.pageInfo) {
+            var info = core.pageInfo(page0) || ({})
+            if (!(Number(info.sourceWidth) > 0 && Number(info.sourceHeight) > 0)) {
+                // A distant resume target might not be in the current decode
+                // window yet. Request it without treating its estimate as paper.
+                if (core.setVisible) core.setVisible([page0])
+                return false
+            }
+        }
+        list.forceLayout()
         var span = list.contentHeight - list.height
         if (span <= 0) return false            // not laid out yet, or the whole book fits
         var h = (core.stripPageHeight) ? core.stripPageHeight(page0) : 0
@@ -913,6 +930,10 @@ Item {
         _smoothY = y
         _programmatic = true
         list.contentY = y
+        // Metadata for preceding pages can arrive before the next throttled
+        // report. Compensation must use the new viewport, not the old top.
+        if (active && core && core.setStripViewport)
+            core.setStripViewport(list.contentY, list.height)
         _programmatic = false
         // The reader is now looking at wherever this put them, so report it — presented() only, never
         // the tracking pair (see _emitPresented). Deferred through Qt.callLater so it lands after the

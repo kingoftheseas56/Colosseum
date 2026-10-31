@@ -22,6 +22,7 @@ Item {
     property var collectionEntry: null
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
+    property bool hasSeriesLanguageOverride: false
     readonly property real modeSwitchX: modeSwitch.x
     readonly property real modeSwitchY: modeSwitch.y
     readonly property real modeSwitchWidth: modeSwitch.width
@@ -37,6 +38,8 @@ Item {
     signal tankobanRequested()
     signal chapterRequested()
     signal chapterLanguageRequested(string code)
+    signal chapterDefaultLanguageRequested()
+    signal languageSettingsRequested()
 
     function languageIndex(code) {
         var wanted = String(code || "en")
@@ -239,7 +242,7 @@ Item {
             visible: root.phoneNarrow
             anchors.left: parent.left; anchors.leftMargin: theme.margin
             anchors.right: parent.right; anchors.rightMargin: theme.margin
-            anchors.top: languageSelector.bottom; anchors.topMargin: 14
+            anchors.top: languageSettingsShortcut.visible ? languageSettingsShortcut.bottom : languageSelector.bottom; anchors.topMargin: 14
             spacing: 9
             Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
             Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
@@ -290,16 +293,23 @@ Item {
                 anchors.right: parent.right; anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 width: 166; height: 28
-                model: root.chapterLanguages
+                model: [{ "code": "", "label": "Use preferred language" }].concat(root.chapterLanguages)
                 textRole: "label"
                 enabled: !root.tankobanMode
-                currentIndex: root.languageIndex(root.tankobanMode ? "en" : root.selectedChapterLanguage)
-                displayText: root.tankobanMode ? "English"
-                    : (currentIndex >= 0 && root.chapterLanguages[currentIndex]
-                       ? String(root.chapterLanguages[currentIndex].label || "English") : "English")
+                currentIndex: root.hasSeriesLanguageOverride
+                    ? root.languageIndex(root.selectedChapterLanguage) + 1 : 0
+                displayText: {
+                    if (root.tankobanMode) return "English"
+                    var languageIndex = root.languageIndex(root.selectedChapterLanguage)
+                    var name = languageIndex >= 0 && root.chapterLanguages[languageIndex]
+                        ? String(root.chapterLanguages[languageIndex].label || "English") : "Unavailable"
+                    return root.hasSeriesLanguageOverride ? name : "Default · " + name
+                }
                 onActivated: function(index) {
-                    if (!root.tankobanMode && index >= 0 && root.chapterLanguages[index])
-                        root.chapterLanguageRequested(String(root.chapterLanguages[index].code || "en"))
+                    if (root.tankobanMode) return
+                    if (index === 0) root.chapterDefaultLanguageRequested()
+                    else if (index > 0 && root.chapterLanguages[index - 1])
+                        root.chapterLanguageRequested(String(root.chapterLanguages[index - 1].code || ""))
                 }
                 contentItem: Text {
                     leftPadding: 10; rightPadding: 24; verticalAlignment: Text.AlignVCenter
@@ -325,6 +335,21 @@ Item {
             ToolTip.visible: root.tankobanMode && lockedLanguageMa.containsMouse
             ToolTip.text: "Available in Chapter Mode"
             ToolTip.delay: 350
+        }
+
+        Button {
+            id: languageSettingsShortcut
+            objectName: "mangaLanguageSettingsShortcut"
+            visible: !root.tankobanMode
+            enabled: visible
+            anchors.top: languageSelector.bottom
+            anchors.right: languageSelector.right
+            width: languageSelector.width; height: 28
+            flat: true
+            text: qsTr("Language settings")
+            font.family: theme.ui; font.pixelSize: 11
+            palette.buttonText: theme.gold
+            onClicked: root.languageSettingsRequested()
         }
 
         Rectangle {

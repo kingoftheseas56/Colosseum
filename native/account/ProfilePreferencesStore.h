@@ -31,6 +31,9 @@ class ProfilePreferencesStore final : public QObject {
     Q_PROPERTY(bool keepActivityHistory READ keepActivityHistory WRITE setKeepActivityHistory NOTIFY keepActivityHistoryChanged)
     Q_PROPERTY(bool syncActivityHistory READ syncActivityHistory WRITE setSyncActivityHistory NOTIFY syncActivityHistoryChanged)
 
+    // Arc 74-B: chapter discovery preference belongs to the active personal profile.
+    // The global default remains in TankoyomiConfigurationStore.
+    Q_PROPERTY(int mangaLanguageRevision READ mangaLanguageRevision NOTIFY mangaLanguagesChanged)
     Q_PROPERTY(bool vinylTasteAnswered READ vinylTasteAnswered NOTIFY vinylTasteChanged)
     Q_PROPERTY(QStringList vinylTasteArtistIds READ vinylTasteArtistIds NOTIFY vinylTasteChanged)
     Q_PROPERTY(QVariantList vinylTasteArtists READ vinylTasteArtists NOTIFY vinylTasteChanged)
@@ -79,6 +82,11 @@ public:
     bool syncActivityHistory() const;
     QString mainSyncProvider() const;
 
+    int mangaLanguageRevision() const { return m_mangaLanguageRevision; }
+    Q_INVOKABLE QString mangaLanguageForSeries(const QString &seriesId) const;
+    Q_INVOKABLE bool setMangaLanguageForSeries(const QString &seriesId, const QString &language);
+    Q_INVOKABLE bool clearMangaLanguageForSeries(const QString &seriesId);
+
     QStringList ratingsReviewsProviderOrder() const;
     bool hasRatingsReviewsProviderOrder() const;
     bool setRatingsReviewsProviderOrder(const QStringList &providerIds);
@@ -120,6 +128,7 @@ signals:
     void vinylFeedbackChanged();
     void vinylRecommendationExposureChanged();
     void vinylPersistenceErrorChanged();
+    void mangaLanguagesChanged();
     void showExplicitChanged();
     void rememberSearchHistoryChanged();
     void keepActivityHistoryChanged();
@@ -160,6 +169,7 @@ private:
 
     void load();
     void loadRatingsReviewsPreferences();
+    bool persistMangaLanguages(const QHash<QString, QString> &next);
 
     std::unique_ptr<QSettings> m_settings;
     RatingsReviewsConversionTestHook m_conversionTestHook;
@@ -170,6 +180,8 @@ private:
     bool m_keepActivityHistory = true;
     bool m_syncActivityHistory = true;
     QString m_mainSyncProvider;
+    QHash<QString, QString> m_mangaLanguageOverrides;
+    int m_mangaLanguageRevision = 0;
 
     QStringList m_ratingsReviewsProviderOrder;
     bool m_hasRatingsReviewsProviderOrder = false;

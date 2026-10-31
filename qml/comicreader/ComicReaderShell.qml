@@ -1028,6 +1028,15 @@ Item {
     // cover (MangaReader lines 214-219). This is the IMMEDIATE record (crossing + close use it directly).
     function recordProgress() {
         if (_suspendRecord) return
+        // Arc 74-D: a Long Strip resume is not committed until the column has
+        // reached its saved anchor. Minimize, hide, teardown and the eager-open
+        // path all call this directly, bypassing the normal debounce. A provisional
+        // mount-time page-1 report must NEVER replace the saved chapter/page.
+        if (_stripRestorePending) return
+        // Arc 74-D: opening another downloaded chapter is an intent, not proof
+        // that any of its pages reached the screen. A close/crash before first
+        // actual presentation must leave the old saved source and page intact.
+        if (!_pageRenderConfirmed) return
         if (!progress || !seriesId.length || max <= 0) return
         // An immediate record satisfies whatever the debounce was still holding. Without this, a
         // crossing or a close would write, and then the pending timer would write the SAME thing a
@@ -1072,14 +1081,19 @@ Item {
     // is the disk-churn guarantee this task owes. The ANCHOR is updated immediately either way, so
     // anything that flushes now — a crossing, hiding the reader, shutdown — already carries the
     // newest position rather than waiting for the timer.
-    function _onPresented(page, pageFraction) {
+    function _onPresented(page, pageFraction, hasPixels) {
         if (_suspendRecord) return
         if (max <= 0) return
+        // A newly mounted strip can report contentY=0 before the restore seek.
+        // That position is NOT a real user-chosen page. Keep the opening saved
+        // anchor (including its fraction) until the settle-gated seek finishes;
+        // otherwise an immediate close can flush the wrong position.
+        if (layout === "long_strip" && _stripRestorePending) return
         presentedPage = Math.max(1, Math.min(max, Math.round(page)))
         presentedPageFraction = Math.max(0, Math.min(1, Number(pageFraction) || 0))
         // A REAL surface report landed (never load()'s eager seed) — readerReady may now consider
         // this entry's current page render-ready, gated further by presentedPage === currentPage.
-        _pageRenderConfirmed = true
+        if (hasPixels !== false) _pageRenderConfirmed = true
         // Hold the strip's anchor so a layout excursion can bring the reader back to the same panel
         // area, not merely the same page. Only the strip writes it: it is the only layout where a
         // fraction means anything, and a paged surface's honest 0 would wipe a real one.
@@ -1304,16 +1318,12 @@ Item {
     }
 
     // ================= reactions =================
-    // entry change: load the entry, then EAGERLY record it (the record is suppressed DURING load(),
-    // so this trailing call persists the freshly-opened/crossed spot immediately — a crash before
-    // the next page-turn/close otherwise leaves Continue one entry behind). Mirrors MangaReader.qml:157.
-    //
-    // WHY THIS SURVIVES Task 11's "no record without presentation" rule, since it looks like exactly
-    // the kind of write that rule deletes: the position it banks is the entry's OPENING anchor,
-    // which load() has just set (page 1, or the spot this book's own last record already said the
-    // reader was on). It is not a page nobody has seen — it is where this open is putting them, and
-    // for a resume it is a page they demonstrably saw last time. What the rule removed is the write
-    // that fired for every page number a FLICK swept through inside an already-open entry.
+    // An entry change loads its saved source and intended position, but never
+    // replaces the prior Continue record until a real surface confirms the
+    // new position. recordProgress() below deliberately no-ops while the
+    // opening anchor is unpainted or a Long Strip restore remains pending.
+    // This matters when a new chapter/translation opens but fails before paint:
+    // the user's last successfully read source and page must remain recoverable.
     onCurChapterIdChanged: {
         load()
         if (!_remoteResumeApplying) recordProgress()
@@ -1610,13 +1620,18 @@ Item {
             _pendingPageFraction = -1
             return
         }
-        _stripRestoreTries = 0
         // THE WITHIN-PAGE ANCHOR WINS (Task 11). It is anchored to the paper — page N, this far down
         // page N — so it survives a page-width or gap change since the record was written, where a
         // whole-column scrollFrac does not: change the measure and every page's share of the column
         // moves, so the same 0.41 lands somewhere else entirely.
         if (_pendingPageFraction >= 0) {
-            stripSurface.seekToPageFraction(currentPage - 1, _pendingPageFraction)
+            if (!stripSurface.seekToPageFraction(currentPage - 1, _pendingPageFraction)) {
+                // Geometry can arrive after the initial settle timer. Keep the
+                // saved anchor armed and protected until the target is measured.
+                _stripRestoreTries += 1
+                stripRestore.restart()
+                return
+            }
             _pendingPageFraction = -1
             _pendingStripFrac = 0        // one target, one landing: never let the legacy arm fire too
         } else if (_pendingStripFrac > 0) {
@@ -1625,6 +1640,8 @@ Item {
         } else if (currentPage > 1) {
             stripSurface.seekToPage(currentPage - 1)   // backend-exact page top
         }
+        _stripRestoreTries = 0
+        stripRestore.stop()
     }
 
     // ---- reactions: every settings write goes straight back to its store ----
@@ -1724,7 +1741,7 @@ Item {
         // THE progress trigger (Task 11). The column reports the page it is really showing and how
         // far down it the viewport centre sits — the only layout where that fraction is ever
         // non-zero, and the reason the record can put you back on the same panel area.
-        onPresented: function (page, frac) { reader._onPresented(page, frac) }
+        onPresented: function (page, frac, hasPixels) { reader._onPresented(page, frac, hasPixels) }
         onActivityPagesPresented: function (pageKeys) { reader._onActivityPagesPresented(pageKeys) }
         // a damaged page's card, from whichever ROW carries it (never the page under the centre)
         onRetryRequested: function (page) { reader.retryPage(page) }

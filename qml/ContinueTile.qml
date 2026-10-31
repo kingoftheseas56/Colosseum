@@ -14,8 +14,8 @@
 // runs for manga ONLY (coverless western comics keep the gradient — they were being searched
 // on AniList as manga).
 //
-// Interaction contract (same as always): the circle RESUMES; anywhere else opens detail;
-// the ✕ asks the row to forget the entry.
+// On resumable manga/volume Continue entries the whole poster is the primary Resume action;
+// a separate Details control remains visible. Other media keep the established two-action contract.
 
 import QtQuick
 import QtQuick.Effects
@@ -28,6 +28,7 @@ Item {
 
     property string variant: "world"      // "home" | "world"
     property var entry: ({})              // Progress record: id/kind/title|caption/sub/cover/c1/c2/progress/watched
+    property bool primaryMangaResumeEnabled: true // false for Collection bookmarks
     property Item backdrop: null          // home only (Glass requires a backdrop)
     property real track: 0                // home only — scroll offset for the live blur
     // Arc 41 collection owners and Android/TV composite rails use different public seams.
@@ -48,6 +49,11 @@ Item {
 
     readonly property bool isHome: variant === "home"
     readonly property string kind: entry.kind !== undefined ? entry.kind : ""
+    readonly property bool isMangaReading: kind === "manga" || kind === "tankoban"
+    // A saved chapter/volume ID is a necessary target; the app-level resume door
+    // still validates local availability and never fabricates a new position.
+    readonly property bool hasMangaResume: primaryMangaResumeEnabled && isMangaReading
+        && entry && entry.resume && String(entry.resume.chapterId || "").trim().length > 0
     readonly property var videoPresentation: {
         var catalog = typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null;
         var revision = catalog && catalog.revision !== undefined ? catalog.revision : 0;
@@ -78,6 +84,15 @@ Item {
     Component.onCompleted: if (!cover && kind === "manga")
         ContinueCovers.fetch(label, function(u) { tile.cover = u })
 
+    function activatePrimary() {
+        if (hasMangaResume) tile.resumeRequested()
+        else tile.detailRequested()
+    }
+    function activateResumeControl() {
+        if (isMangaReading) tile.activatePrimary()
+        else tile.resumeRequested()
+    }
+
     function badgeFor(k) {
         return ({ video: "VIDEO", manga: "MANGA", comic: "COMIC", book: "BOOK" })[k]
                || (k ? k.toUpperCase() : "")
@@ -100,7 +115,7 @@ Item {
         tile.keyboardContextOpen = false
         tile.keyboardContextReturn = null
         if (index === 0) tile.detailRequested()
-        else if (index === 1) tile.resumeRequested()
+        else if (index === 1) tile.activateResumeControl()
         else if (index === 2) tile.removeRequested()
         if (target) Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
@@ -282,24 +297,24 @@ Item {
         z: tile.effectiveKeyboardFocused ? 10000 : 0
         Behavior on color { ColorAnimation { duration: 120 } }
     }
-    MouseArea {   // anywhere on the tile → detail (resume/remove sit on top)
+    MouseArea {   // whole manga Continue tile resumes; other media open details
         id: rootMa
         anchors.fill: parent
         hoverEnabled: true
         cursorShape: Qt.PointingHandCursor
-        onClicked: tile.detailRequested()
+        onClicked: tile.activatePrimary()
     }
     KeyboardAction {
         id: detailKeyboardAction
         objectName: tile.entry && tile.entry.id !== undefined
-                     ? "continueDetail_" + String(tile.entry.id) : ""
+                     ? (tile.hasMangaResume ? "continuePrimary_" : "continueDetail_") + String(tile.entry.id) : ""
         anchors.fill: parent
         pointerEnabled: false
         focusEnabled: !tile.effectiveCollectionManaged
         contextEnabled: true
-        accessibleName: "Open details for " + tile.label
+        accessibleName: (tile.hasMangaResume ? "Resume " : "Open details for ") + tile.label
         focusRadius: tile.isHome ? 14 : 12
-        onTriggered: tile.detailRequested()
+        onTriggered: tile.activatePrimary()
         onContextRequested: tile.openKeyboardContext(detailKeyboardAction)
     }
     Rectangle {
@@ -307,6 +322,30 @@ Item {
         radius: tile.isHome ? 14 : 12
         visible: tile.effectiveCollectionManaged && tile.effectiveKeyboardFocused && !tile.keyboardContextOpen
         color: "transparent"; border.width: 2; border.color: theme.gold; z: 9000
+    }
+
+    // A visible, independently focusable Details route for manga Continue tiles.
+    // Keep it separate from the center resume circle and top-right remove button.
+    Rectangle {
+        id: mangaDetailsButton
+        objectName: "continueMangaDetailsButton"
+        visible: tile.hasMangaResume
+        x: 8; y: 8; width: 70; height: 24; radius: 7; z: 20
+        color: detailsMouse.containsMouse ? Qt.rgba(0,0,0,0.92) : Qt.rgba(0,0,0,0.75)
+        border.width: 1; border.color: Qt.rgba(1,1,1,0.5)
+        Text { anchors.centerIn: parent; text: "Details"; color: "#ffffff"
+               font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold }
+        MouseArea { id: detailsMouse; anchors.fill: parent; hoverEnabled: true
+                    cursorShape: Qt.PointingHandCursor; onClicked: tile.detailRequested() }
+        KeyboardAction {
+            objectName: tile.entry && tile.entry.id !== undefined
+                        ? "continueDetail_" + String(tile.entry.id) : ""
+            anchors.fill: parent; pointerEnabled: false
+            focusEnabled: tile.hasMangaResume && !tile.effectiveCollectionManaged
+            accessibleName: "Open details for " + tile.label
+            focusRadius: mangaDetailsButton.radius
+            onTriggered: tile.detailRequested()
+        }
     }
 
     // ── shared: ✓ watched face ──
@@ -344,7 +383,7 @@ Item {
             fillMode: Image.PreserveAspectFit
         }
         HoverHandler { id: rbHov }
-        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.resumeRequested() }
+        MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: tile.activateResumeControl() }
         KeyboardAction {
             id: resumeKeyboardAction
             objectName: tile.entry && tile.entry.id !== undefined
@@ -354,7 +393,7 @@ Item {
             focusEnabled: !tile.effectiveCollectionManaged
             accessibleName: "Resume " + tile.label
             focusRadius: resumeButton.radius
-            onTriggered: tile.resumeRequested()
+            onTriggered: tile.activateResumeControl()
         }
     }
 
@@ -419,7 +458,8 @@ Item {
             Column {
                 anchors.fill: parent; anchors.margins: 6; spacing: 2
                 Repeater {
-                    model: ["Open details", "Resume", "Remove"]
+                    model: ["Open details", tile.isMangaReading && !tile.hasMangaResume
+                                              ? "Open series" : "Resume", "Remove"]
                     delegate: Rectangle {
                         required property string modelData
                         required property int index
@@ -434,5 +474,6 @@ Item {
     }
 
     Accessible.role: Accessible.Button
-    Accessible.name: tile.label + (tile.sub.length ? " — " + tile.sub : "")
+    Accessible.name: (tile.hasMangaResume ? "Resume " : "") + tile.label
+                     + (tile.sub.length ? " — " + tile.sub : "")
 }

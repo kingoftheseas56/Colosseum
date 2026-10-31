@@ -1815,6 +1815,20 @@ set_tests_properties(colosseum.qml PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QML2_IMPORT_PATH=$<TARGET_FILE_DIR:Qt6::Qml>/../qml;PATH=$<TARGET_FILE_DIR:Qt6::Qml>"
     TIMEOUT 300)
 
+foreach(arc74_suite IN ITEMS continue_tile continue_surfaces restore_integrity strip_restore)
+    if(arc74_suite STREQUAL "restore_integrity")
+        set(arc74_qml_file "tst_arc74d_${arc74_suite}.qml")
+    else()
+        set(arc74_qml_file "tst_arc74_${arc74_suite}.qml")
+    endif()
+    add_test(NAME "colosseum.qml.arc74_${arc74_suite}"
+        COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/${arc74_qml_file}")
+    set_tests_properties("colosseum.qml.arc74_${arc74_suite}" PROPERTIES
+        LABELS "qml;tankoban;reader;arc74"
+        ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic;QT_QUICK_BACKEND=software"
+        TIMEOUT 60)
+endforeach()
+
 add_test(NAME colosseum.qml.native_wallpaper_assets
          COMMAND colosseum_qml_tests -input "${CMAKE_CURRENT_SOURCE_DIR}/qml/tst_native_wallpaper_assets.qml")
 set_tests_properties(colosseum.qml.native_wallpaper_assets PROPERTIES
@@ -4152,6 +4166,41 @@ set_tests_properties(colosseum.qttest.vinyl_feedback_snapshot PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 120)
 
+
+# Arc 74-B: per-manga language preference is profile-scoped and durable.
+add_executable(tst_manga_series_language_preferences
+    auto/account/tst_manga_series_language_preferences.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePreferencesStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/RatingsReviewsConversionMap.h")
+target_include_directories(tst_manga_series_language_preferences PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_manga_series_language_preferences PRIVATE Qt6::Core Qt6::Test)
+set_target_properties(tst_manga_series_language_preferences PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.qttest.manga_series_language_preferences
+         COMMAND tst_manga_series_language_preferences)
+set_tests_properties(colosseum.qttest.manga_series_language_preferences PROPERTIES
+    LABELS "unit;qttest;tankoban;preferences" TIMEOUT 120)
+
+# Arc 74-D: source-exact chapter/Long Strip restore with a real disk-backed
+# ProgressStore, real ComicReaderShell and independent-process readback.
+# No network, installed-app state, provider service or live user account.
+add_executable(tst_arc74d_progress_resume
+    auto/arc74d/tst_arc74d_progress_resume.cpp
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+target_include_directories(tst_arc74d_progress_resume PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_arc74d_progress_resume PRIVATE
+    ARC74D_QML_SOURCE_DIR=\"${COLOSSEUM_NATIVE_DIR}/../qml\")
+target_link_libraries(tst_arc74d_progress_resume PRIVATE
+    Qt6::Core Qt6::Gui Qt6::Qml Qt6::Quick Qt6::Test)
+set_target_properties(tst_arc74d_progress_resume PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.qttest.arc74d_progress_resume
+         COMMAND tst_arc74d_progress_resume)
+set_tests_properties(colosseum.qttest.arc74d_progress_resume PROPERTIES
+    LABELS "unit;qttest;tankoban;progress;reader;arc74"
+    ENVIRONMENT "QT_QPA_PLATFORM=offscreen;QT_QUICK_BACKEND=software;QT_QUICK_CONTROLS_STYLE=Basic"
+    ENVIRONMENT_MODIFICATION "PATH=path_list_prepend:$<TARGET_FILE_DIR:Qt6::Qml>"
+    TIMEOUT 120)
 
 # ── Tankoban reader-preference codec/adapter contract (Bundle 8C) ──
 # Production registration remains fail-closed until the concrete

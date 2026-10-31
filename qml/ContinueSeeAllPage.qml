@@ -216,6 +216,7 @@ Item {
             // ---- the grid ----
             Grid {
                 id: grid
+                objectName: "continueSeeAllGrid"
                 width: parent.width
                 columns: Math.max(4, Math.floor(width / 168))
                 columnSpacing: 20; rowSpacing: 22
@@ -232,7 +233,7 @@ Item {
                         else if (p.y+item.height > page.contentY+page.height-12)
                             page.contentY=Math.min(Math.max(0,page.contentHeight-page.height),p.y+item.height-page.height+12)
                     }
-                    onActivated: (index) => { var item=continueRepeater.itemAt(index); if(item) item.detailRequested() }
+                    onActivated: (index) => { var item=continueRepeater.itemAt(index); if(item) item.activatePrimary() }
                     onContextRequested: (index) => { var item=continueRepeater.itemAt(index); if(item) item.openKeyboardContext(grid) }
                 }
                 Repeater {
@@ -241,6 +242,7 @@ Item {
                     delegate: ContinueTile {
                         required property var modelData
                         required property int index
+                        objectName: "continueSeeAllTile_" + String(modelData.id || index)
                         collectionManaged: true
                         collectionSelected: grid.activeFocus && grid.currentIndex === index
                         variant: "world"

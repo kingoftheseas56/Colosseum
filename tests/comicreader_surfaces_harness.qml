@@ -221,9 +221,9 @@ Item {
             return page * 1220
         }
         // The other two halves of the backend's strip geometry (ComicReaderCore::stripPageAtCenter /
-        // stripPageHeight). The surface asks THESE rather than the drawn column for presented(),
-        // because after a restore the ListView has no item at the new position — so a fake that
-        // lacked them would make that path untestable, which is exactly how the gap survived.
+        // stripPageHeight). The backend supplies the position even when a restored target
+        // delegate is not realized yet. Geometry alone does not prove presentation: the
+        // surface still requires actual delegate pixels or a typed error.
         // Both read the MODEL, which is what the real backend's strip geometry is.
         function stripPageHeight(page) {
             if (!stripModel || page < 0 || page >= stripModel.count) return 0
@@ -493,21 +493,13 @@ Item {
            "B3: once the throttle window elapses the scheduled emit must fire scrolled()+pageInView(), got "
            + (harness.stripScrolledCount - b3Before))
 
-        // --- PRESENTED (Task 4): the strip reports the page whose pixels are on screen AND how far
-        // down it the viewport centre sits. It rides the SAME throttled flush as pageInView (one
-        // emit per window, never per contentY tick), and the fraction is real geometry, not a
-        // pages*ratio estimate: contentY is 900 and the viewport is 480 tall, so the centre is at
-        // 1140 inside page 0 — whose delegate this scenario resized to 1700 — i.e. 0.671 down it.
-        // This is the one surface where the fraction is ever non-zero, which is why it exists. ---
-        ck(harness.stripPresentedCount === presentedBefore + 1,
-           "B3/presented: the throttled flush must emit presented() exactly ONCE, got "
+        // This fake's image:// provider does not exist: geometry and a ready model
+        // role cannot establish that page pixels were shown or authorize a saved position.
+        ck(harness.stripPresentedCount === presentedBefore,
+           "B3/presented: a throttled flush over blank pixels must not emit presented(), got "
            + (harness.stripPresentedCount - presentedBefore))
-        ck(harness.stripPresentedPage === 1,
-           "B3/presented: the presented page must be the 1-based page under the viewport centre (1), got "
-           + harness.stripPresentedPage)
-        ck(approx(harness.stripPresentedFrac, 1140.0 / 1700.0, 0.01),
-           "B3/presented: withinPageFraction must be the geometric position inside that page ("
-           + fx(1140.0 / 1700.0, 3) + "), got " + fx(harness.stripPresentedFrac, 3))
+        ck(harness.stripPresentedPage === -1 && harness.stripPresentedFrac === -1,
+           "B3/presented: blank pixels must leave the presented position unset")
         ck(stripSurface._emitPending === false,
            "B3: flushing the scheduled emit must clear _emitPending, got " + stripSurface._emitPending)
         ck(stripSurface._userInteracted === false,
@@ -747,8 +739,18 @@ Item {
         // The numbers are chosen so a wrong-but-plausible implementation cannot pass by luck: a
         // top-anchored seek gives 12200, forgetting the half-viewport gives 12500, and using the
         // page's own height as the whole column gives something far away. All three are distinct.
+        var beforeUnmeasuredSeek = stripSurface.contentY
+        var requestsBeforeSeek = coreStrip.setVisibleCalls
+        ck(stripSurface.seekToPageFraction(10, 0.25) === false,
+           "restore: estimated geometry must not authorize a within-page seek")
+        ck(approx(stripSurface.contentY, beforeUnmeasuredSeek, 0.001),
+           "restore: an unmeasured fraction seek must preserve the current viewport")
+        ck(coreStrip.setVisibleCalls === requestsBeforeSeek + 1
+               && JSON.stringify(coreStrip.lastVisible) === "[10]",
+           "restore: an unmeasured seek must request the exact target page for dimensions")
+        coreStrip.pageSizes[10] = { w: 800, h: 1200 }
         var fracOk = stripSurface.seekToPageFraction(10, 0.25)
-        ck(fracOk === true, "restore: seekToPageFraction must report success once the column is laid out")
+        ck(fracOk === true, "restore: seekToPageFraction must succeed once target dimensions are measured")
         ck(approx(stripSurface.contentY, 12260, 0.001),
            "restore: seekToPageFraction(10, 0.25) must put that point under the viewport CENTRE "
            + "(12200 + 0.25*1200 - 480/2 = 12260), got " + stripSurface.contentY)
@@ -765,7 +767,9 @@ Item {
            "restore: ...and seekToPage still lands the page TOP at the viewport top, got " + stripSurface.contentY)
         // Clamped like its sibling: a fraction near the end of the last page must not assign past
         // the scrollable span.
-        stripSurface.seekToPageFraction(199, 1)
+        coreStrip.pageSizes[199] = { w: 800, h: 1200 }
+        ck(stripSurface.seekToPageFraction(199, 1) === true,
+           "restore: measured last-page fraction seek must exercise the span clamp")
         ck(stripSurface.contentY <= stripSurface.contentHeight - 480 + 0.001
                && stripSurface.contentY >= 0,
            "restore: seekToPageFraction must clamp to the scrollable span, got " + stripSurface.contentY)
@@ -773,44 +777,25 @@ Item {
         // a restore must NEVER masquerade as a user scroll — that is the loop, from the other side.
         var scrollsBefore = harness.stripScrolledCount
         var presentedBeforeRestore = harness.stripPresentedCount
+        var presentedPageBeforeRestore = harness.stripPresentedPage
+        var presentedFracBeforeRestore = harness.stripPresentedFrac
         stripSurface.seekToPage(20)
         stripSurface.haltScrollAt(700)
         ck(harness.stripScrolledCount === scrollsBefore,
            "restore: a programmatic restore must emit NO scrolled()/pageInView() (that is the feedback loop), got "
            + (harness.stripScrolledCount - scrollsBefore) + " emissions")
-        // presented() is the OPPOSITE case, and an earlier version of this gate had it backwards.
-        // scrolled()/pageInView() write back into the shell's page and fraction, so a restore that
-        // emitted them would clobber the very spot it was restoring TO. presented() writes back into
-        // nothing — it is an outbound notice that the reader can now see this position — and after a
-        // resume the reader genuinely IS looking at that page. Suppressing it meant the landing page of
-        // every resumed book went unreported, which Task 11 (which banks progress on this signal) would
-        // have inherited as a silence it could not tell apart from "never seen".
-        //
-        // It is DEFERRED (Qt.callLater in haltScrollAt) so it lands after the caller's own bindings
-        // settle. So: nothing synchronous here, and then the same entry point callLater will reach,
-        // invoked directly (the house pattern this file uses for _flushEmit / _flushViewportReport,
-        // so no phase waits on a wall clock).
+        // A jump can leave the landing delegate unrealized. Even with backend geometry,
+        // this fake has no page pixels, so neither a deferred report nor an explicit flush
+        // may claim presentation or overwrite the previously presented position.
         ck(harness.stripPresentedCount === presentedBeforeRestore,
-           "restore: presented() must be DEFERRED past the restore, not fired against the position the "
-           + "reader was on before it, got " + (harness.stripPresentedCount - presentedBeforeRestore))
+           "restore: blank landing geometry must not report presentation synchronously")
         stripSurface._emitPresented()
-        ck(harness.stripPresentedCount === presentedBeforeRestore + 1,
-           "restore: the deferred report must then fire exactly ONCE for the landing page, got "
+        ck(harness.stripPresentedCount === presentedBeforeRestore,
+           "restore: a deferred blank/unrealized landing must not emit presented(), got "
            + (harness.stripPresentedCount - presentedBeforeRestore))
-        // AND IT MUST NAME THE LANDING PAGE rather than fall silent. This is the assertion that
-        // catches the real trap: the column has just been jumped from 24400 to 700, so the ListView
-        // holds no item anywhere near the new centre — measured, indexAt() and itemAtIndex() both
-        // answer nothing there, and neither forceLayout() nor a later event-loop pass brings them
-        // back — so a delegate-derived report emits NOTHING AT ALL. The surface has to ask the
-        // BACKEND (stripPageAtCenter / stripPageTop / stripPageHeight), which knows the column's
-        // geometry whether or not it has been drawn. contentY 700 + half of a 480 viewport = 940,
-        // inside page 0 (top 0, height 1700 after this scenario resized it) -> page 1, frac 940/1700.
-        ck(harness.stripPresentedPage === 1,
-           "restore: the report must NAME the landing page (1), got " + harness.stripPresentedPage)
-        ck(approx(harness.stripPresentedFrac, 940.0 / 1700.0, 0.01),
-           "restore: ...and carry the position INSIDE that page (" + fx(940.0 / 1700.0, 3)
-           + "), so a resume cannot bank a worse fraction than the one it restored from, got "
-           + fx(harness.stripPresentedFrac, 3))
+        ck(harness.stripPresentedPage === presentedPageBeforeRestore
+               && harness.stripPresentedFrac === presentedFracBeforeRestore,
+           "restore: a blank/unrealized landing must not authorize a new saved position")
         ck(harness.stripScrolledCount === scrollsBefore,
            "restore: and it must STILL not have emitted scrolled()/pageInView() — those are the "
            + "feedback loop, presented() is not")
@@ -833,14 +818,13 @@ Item {
            "strip: an INACTIVE strip must NOT emit presented() — it is not what the reader is looking "
            + "at, got " + (harness.stripPresentedCount - presentedInactive) + " emissions")
 
-        // ...and MOUNTING it onto that position IS a presentation: the same rule the two paged
-        // surfaces follow in their own onActiveChanged. Without it, switching layout back to Long
-        // Strip left the landing page unreported until the reader happened to scroll.
+        // Mounting enables the surface, but does not make this fake provider paint.
+        // Presentation still waits for a realized page with actual pixels or a typed error.
         stripSurface.active = true
-        stripSurface._emitPresented()          // the same entry point onActiveChanged's callLater reaches
-        ck(harness.stripPresentedCount === presentedInactive + 1,
-           "strip: becoming the MOUNTED surface must report the position the reader is now looking at, "
-           + "got " + (harness.stripPresentedCount - presentedInactive) + " emissions")
+        stripSurface._emitPresented()
+        ck(harness.stripPresentedCount === presentedInactive,
+           "strip: mounting a blank surface must not emit presented(), got "
+           + (harness.stripPresentedCount - presentedInactive) + " emissions")
     }
 
     // ---- page failure isolation (its own surface + model so it never disturbs the strip asserts) ----

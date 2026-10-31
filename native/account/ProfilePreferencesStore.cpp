@@ -5,6 +5,8 @@
 #include <QByteArray>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QJsonObject>
+#include <QRegularExpression>
 #include <QSet>
 #include <QSettings>
 #include <QUuid>
@@ -31,6 +33,27 @@ constexpr auto kRatingsReviewsProviderOrderKey = "ratingsReviews/providerOrder";
 constexpr auto kRatingsReviewsDefaultRatingKey = "ratingsReviews/defaultRatingDestinations";
 constexpr auto kRatingsReviewsDefaultReviewKey = "ratingsReviews/defaultReviewDestinations";
 constexpr auto kRatingsReviewsConversionGroup = "ratingsReviews/conversionMaps";
+constexpr auto kMangaLanguagesKey = "manga/seriesLanguageOverrides";
+constexpr int kMangaLanguageVersion = 1;
+constexpr qsizetype kMangaLanguageLimitBytes = 128 * 1024;
+constexpr int kMangaLanguageLimitSeries = 2048;
+
+bool validMangaSeriesId(const QString &id) {
+    // Canonical MAL identity plus optional edition (for example mal:13:color).
+    // Never write a title, filesystem path, provider URL or ambiguous ID here.
+    static const QRegularExpression pattern(
+        QStringLiteral("^(?:mal:)[1-9][0-9]{0,9}(?::[a-z0-9][a-z0-9-]{0,31})?$"));
+    return id.size() <= 64 && pattern.match(id).hasMatch();
+}
+
+QString normalizedMangaLanguage(const QString &value) {
+    if (value.size() > 32) return {};
+    QString code = value.trimmed().toLower();
+    if (code == QStringLiteral("pt-br")) code = QStringLiteral("pt");
+    static const QRegularExpression pattern(
+        QStringLiteral("^[a-z]{2,8}(?:-[a-z0-9]{2,8}){0,3}$"));
+    return pattern.match(code).hasMatch() ? code : QString();
+}
 
 bool isValidVinylFeedbackSnapshot(const QString &snapshot) {
     if (snapshot.contains(QChar::Null)
@@ -509,6 +532,64 @@ bool ProfilePreferencesStore::keepActivityHistory() const { return m_keepActivit
 bool ProfilePreferencesStore::syncActivityHistory() const { return m_syncActivityHistory; }
 QString ProfilePreferencesStore::mainSyncProvider() const { return m_mainSyncProvider; }
 
+QString ProfilePreferencesStore::mangaLanguageForSeries(const QString &seriesId) const {
+    if (!validMangaSeriesId(seriesId)) return {};
+    return m_mangaLanguageOverrides.value(seriesId);
+}
+
+bool ProfilePreferencesStore::persistMangaLanguages(const QHash<QString, QString> &next) {
+    if (next.size() > kMangaLanguageLimitSeries) return false;
+    QJsonObject entries;
+    for (auto it = next.cbegin(); it != next.cend(); ++it) {
+        if (!validMangaSeriesId(it.key()) || normalizedMangaLanguage(it.value()) != it.value())
+            return false;
+        entries.insert(it.key(), it.value());
+    }
+    const QJsonObject payload{
+        {QStringLiteral("version"), kMangaLanguageVersion},
+        {QStringLiteral("entries"), entries}};
+    const QByteArray encoded = QJsonDocument(payload).toJson(QJsonDocument::Compact);
+    if (encoded.size() > kMangaLanguageLimitBytes) return false;
+
+    const QString key = QString::fromLatin1(kMangaLanguagesKey);
+    const bool existed = m_settings->contains(key);
+    const QVariant previous = m_settings->value(key);
+    if (next.isEmpty()) m_settings->remove(key);
+    else m_settings->setValue(key, encoded);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError) {
+        if (existed) m_settings->setValue(key, previous);
+        else m_settings->remove(key);
+        m_settings->sync();
+        return false;
+    }
+    m_mangaLanguageOverrides = next;
+    ++m_mangaLanguageRevision;
+    ++m_revision;
+    emit mangaLanguagesChanged();
+    emit changed();
+    return true;
+}
+
+bool ProfilePreferencesStore::setMangaLanguageForSeries(const QString &seriesId,
+                                                        const QString &language) {
+    if (!validMangaSeriesId(seriesId)) return false;
+    const QString code = normalizedMangaLanguage(language);
+    if (code.isEmpty()) return false;
+    if (m_mangaLanguageOverrides.value(seriesId) == code) return true;
+    QHash<QString, QString> next = m_mangaLanguageOverrides;
+    next.insert(seriesId, code);
+    return persistMangaLanguages(next);
+}
+
+bool ProfilePreferencesStore::clearMangaLanguageForSeries(const QString &seriesId) {
+    if (!validMangaSeriesId(seriesId)) return false;
+    if (!m_mangaLanguageOverrides.contains(seriesId)) return true;
+    QHash<QString, QString> next = m_mangaLanguageOverrides;
+    next.remove(seriesId);
+    return persistMangaLanguages(next);
+}
+
 void ProfilePreferencesStore::
 setShowExplicit(
     bool showExplicitValue) {
@@ -935,6 +1016,29 @@ void ProfilePreferencesStore::load() {
     m_syncActivityHistory = m_settings->value(QString::fromLatin1(kSyncActivityHistoryKey), true).toBool();
     const QString provider = m_settings->value(QString::fromLatin1(kMainSyncProviderKey)).toString().trimmed().toLower();
     m_mainSyncProvider = provider == QStringLiteral("stremio") ? provider : QString();
+
+    // The active ProfileStoreRuntime provides a separate INI file for each user.
+    // Legacy users keep the pre-existing QSettings scope, without migration.
+    const QVariant rawManga = m_settings->value(QString::fromLatin1(kMangaLanguagesKey));
+    if (rawManga.metaType().id() == QMetaType::QByteArray) {
+        const QByteArray encoded = rawManga.toByteArray();
+        if (encoded.size() <= kMangaLanguageLimitBytes) {
+            const QJsonDocument document = QJsonDocument::fromJson(encoded);
+            if (document.isObject()) {
+                const QJsonObject payload = document.object();
+                const QJsonObject entries = payload.value(QStringLiteral("entries")).toObject();
+                if (payload.value(QStringLiteral("version")).toInt(-1) == kMangaLanguageVersion
+                    && entries.size() <= kMangaLanguageLimitSeries) {
+                    for (auto it = entries.constBegin(); it != entries.constEnd(); ++it) {
+                        const QString code = it.value().toString();
+                        if (validMangaSeriesId(it.key()) && !code.isEmpty()
+                            && normalizedMangaLanguage(code) == code)
+                            m_mangaLanguageOverrides.insert(it.key(), code);
+                    }
+                }
+            }
+        }
+    }
     loadRatingsReviewsPreferences();
 }
 
