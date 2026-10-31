@@ -1174,6 +1174,17 @@ int main(int argc, char **argv) {
         require(missingShelf.status == StaticCatalogueResolver::Status::NotPrepared,
                 "old publication lacking new manga shelf falls through, never a false successful empty page");
     }
+    for (const QString &format : {QString("manga"), QString("Manhwa"), QString("manhua")}) {
+        const auto missingFormat = resolve(mangaResolver, "discoverPageFiltered",
+            {QString("popular"), QVariantList{QVariantMap{{"axis","format"},{"key",format}}}, false, 0, 24}, "mal");
+        require(missingFormat.status == StaticCatalogueResolver::Status::NotPrepared,
+                "old publication missing format selection falls through to semantic owner");
+    }
+    const auto invalidFormat = resolve(mangaResolver, "discoverPageFiltered",
+        {QString("popular"), QVariantList{QVariantMap{{"axis","format"},{"key","novel"}}}, false, 0, 24}, "mal");
+    require(invalidFormat.status == StaticCatalogueResolver::Status::Prepared &&
+                invalidFormat.result.toObject().value("items").toArray().isEmpty(),
+            "unsupported publication value fails closed");
 
     publish("publication-one");
     auto first = resolve(r);

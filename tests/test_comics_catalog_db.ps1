@@ -40,7 +40,9 @@ Assert-Contains $ws 'engine.search(q, 30)' "comics search asks the seam for a re
 Assert-Absent  $ws 'mergeTankobanResults' "legacy 4-lane merge retired 2026-07-18 - mergeSearchLanes is the survivor"
 # 4) shelf rows + gcd routing wiring (browse-landing arc)
 $tw = Get-Content (Join-Path $root "qml/TankobanWorld.qml") -Raw
-Assert-Contains $tw 'ComicsCatalog.shelf' "world page computes catalogue shelf rows"
+Assert-Contains $tw 'ComicsShelves.initial(ComicsCatalog)' "world page initializes catalogue shelves through the delivery owner"
+$shelves = Get-Content (Join-Path $root "qml/ComicsShelfDelivery.js") -Raw
+Assert-Contains $shelves 'catalog.shelf(' "delivery owner reads catalogue shelf rows"
 Assert-Contains $tw 'gcdSeriesRequested' "shelf tiles route to the run page"
 # 5) deployed-db data-scale floor (moved here from the retired gen.js logic harness, P4
 #    Task 4: the >=1100-row check was a DATA check, not a logic check — it belongs against

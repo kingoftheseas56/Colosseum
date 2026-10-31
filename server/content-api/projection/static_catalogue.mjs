@@ -56,6 +56,7 @@ for(const explicit of [false,true])for(const dataset of ['mal','comics']){
   if(dataset==='mal')fixed(dataset,'cachedDiscoverFilters',[axis,explicit],values);
   for(const r of values)filters.push([{axis,key:r.key??r.value}]);
  }
+ if(dataset==='mal')for(const key of ['manga','manhwa','manhua'])filters.push([{axis:'format',key}]);
  for(const catalog of dataset==='mal'?['popular','trending','top-rated','new-releases','completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s']:['popular','new-releases','most-stocked','all','recently-available','complete-runs','near-complete','community-collections'])for(const filter of filters){
   const args=[catalog,filter,explicit],items=dataset==='comics'?await comicsPreparedList(db,[...args,0,100]):(await catalogueMethod(all,dataset,'discoverPageFiltered',[...args,0,100])).items;
   list(dataset,'discoverPageFiltered',args,items,dataset,dataset==='comics'?year:catalog==='new-releases'?today:'stable');

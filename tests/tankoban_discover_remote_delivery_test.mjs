@@ -89,15 +89,16 @@ function harness(type) {
     return {adapter, cat, pages, fetch};
 }
 
-for (const type of ['manga', 'comics']) {
+for (const type of ['manga', 'manhwa', 'comics']) {
     const rows = type === 'comics' ? comics : manga;
+    const query = offset => ['popular', type === 'manhwa' ? [{axis:'format',key:'manhwa'}] : [], false, offset, 24];
 
     test(`${type}: uncached first-page failure is a failed page, not an exhausted empty catalogue`, async () => {
         const {cat, pages, fetch} = harness(type);
         fetch(null);
         await tick();
         assert.equal(pages.length, 0, 'pending query delivers nothing early');
-        cat.fail(['popular', [], false, 0, 24], 'HTTP_503');
+        cat.fail(query(0), 'HTTP_503');
         assert.equal(pages.length, 1);
         assert.equal(pages[0].failed, true);
         assert.equal(pages[0].exhausted, false, 'failure must not end paging');
@@ -111,7 +112,7 @@ for (const type of ['manga', 'comics']) {
         const {cat, pages, fetch} = harness(type);
         fetch(null);
         await tick();
-        cat.succeed(['popular', [], false, 0, 24], {items: rows(24), nextOffset: 24, exhausted: false});
+        cat.succeed(query(0), {items: rows(24), nextOffset: 24, exhausted: false});
         assert.equal(pages.length, 1);
         assert.notEqual(pages[0].failed, true);
         assert.equal(pages[0].items.length, 24);
@@ -123,7 +124,7 @@ for (const type of ['manga', 'comics']) {
         const {cat, pages, fetch} = harness(type);
         fetch(null);
         await tick();
-        cat.succeed(['popular', [], false, 0, 24], {items: [], nextOffset: 0, exhausted: true});
+        cat.succeed(query(0), {items: [], nextOffset: 0, exhausted: true});
         assert.notEqual(pages[0].failed, true);
         assert.equal(pages[0].exhausted, true);
     });
@@ -132,15 +133,15 @@ for (const type of ['manga', 'comics']) {
         const {adapter, cat, pages, fetch} = harness(type);
         fetch(24);
         await tick();
-        cat.fail(['popular', [], false, 24, 24], 'HTTP_500');
+        cat.fail(query(24), 'HTTP_500');
         assert.equal(pages[0].failed, true);
         assert.equal(pages[0].nextCursor, 24, 'cursor retained');
         assert.equal(adapter.retryPage(state(type), 24), true, 'retry re-queues the exact failed key');
-        assert.equal(JSON.stringify(cat.retries[0]), JSON.stringify(['popular', [], false, 24, 24]));
+        assert.equal(JSON.stringify(cat.retries[0]), JSON.stringify(query(24)));
         fetch(24);
         await tick();
         assert.equal(pages.length, 1, 'retried page waits on the in-flight key');
-        cat.succeed(['popular', [], false, 24, 24], {items: rows(3), nextOffset: 27, exhausted: true});
+        cat.succeed(query(24), {items: rows(3), nextOffset: 27, exhausted: true});
         assert.equal(pages.length, 2);
         assert.notEqual(pages[1].failed, true);
         assert.equal(pages[1].items.length, 3);
@@ -148,11 +149,11 @@ for (const type of ['manga', 'comics']) {
 
     test(`${type}: failed refresh of validated stale cache paints rows under the offline notice`, async () => {
         const {cat, pages, fetch} = harness(type);
-        cat.seed(['popular', [], false, 0, 24], {items: rows(5), nextOffset: 5, exhausted: true}, true);
+        cat.seed(query(0), {items: rows(5), nextOffset: 5, exhausted: true}, true);
         fetch(null);
         await tick();
         assert.equal(pages.length, 0, 'stale refresh in flight is not terminal');
-        cat.fail(['popular', [], false, 0, 24], 'HTTP_502');
+        cat.fail(query(0), 'HTTP_502');
         assert.equal(pages.length, 1);
         assert.notEqual(pages[0].failed, true);
         assert.equal(pages[0].items.length, 5, 'validated stale rows retained');
@@ -164,7 +165,7 @@ for (const type of ['manga', 'comics']) {
         const cancel = fetch(null);
         await tick();
         cancel();
-        cat.succeed(['popular', [], false, 0, 24], {items: rows(2), nextOffset: 2, exhausted: true});
+        cat.succeed(query(0), {items: rows(2), nextOffset: 2, exhausted: true});
         assert.equal(pages.length, 0);
         assert.equal(cat.remoteQueryChanged.count, 0);
     });
@@ -173,7 +174,61 @@ for (const type of ['manga', 'comics']) {
         const {cat, pages, fetch} = harness(type);
         fetch(null);
         await tick();
-        cat.succeed(['popular', [], false, 24, 24], {items: rows(1), nextOffset: 25, exhausted: true});
+        cat.succeed(query(24), {items: rows(1), nextOffset: 25, exhausted: true});
         assert.equal(pages.length, 0);
     });
 }
+
+test('Manhwa lens and Manga publication filter share bound format semantics and existing card identity', () => {
+    const mod=adapterModule(),calls=[];
+    const mal={discoverFilters:axis=>axis==='genre'?[{value:'Action',count:1}]:[],
+        discoverPageFiltered(...args){calls.push(args);return {items:[{mal_id:121496,title:'Solo Leveling',type:'Manhwa'}],nextOffset:1,exhausted:true};}};
+    const adapter=mod.create(mal,null,[],false,null);
+    assert.deepEqual(JSON.parse(JSON.stringify(adapter.types())),[
+        {key:'manga',label:'Manga'},{key:'manhwa',label:'Manhwa'},{key:'comics',label:'Comics'}]);
+    assert.deepEqual(Array.from(adapter.catalogs('manhwa'),c=>c.key),['trending','popular','top-rated','new-releases']);
+    const publication=adapter.filters('manga','popular').find(g=>g.group==='Publication Type');
+    assert.deepEqual(Array.from(publication.options,o=>[o.key,o.label]),[['manga','Manga'],['manhwa','Manhwa'],['manhua','Manhua']]);
+    assert.ok(!adapter.filters('manhwa','popular').some(g=>g.group==='Publication Type'),'lens keeps its mandatory format');
+    let page;
+    adapter.fetchPage({...state('manhwa'),filters:{Genres:'action'}},null,1,(_,p)=>page=p);
+    assert.deepEqual(JSON.parse(JSON.stringify(calls[0][1])),[{axis:'genre',key:'action'},{axis:'format',key:'manhwa'}]);
+    assert.equal(page.items[0].type,'manga');assert.equal(page.items[0].id,'121496');assert.equal(page.items[0].format,'Manhwa');
+    adapter.fetchPage({...state('manga'),filters:{'Publication Type':'manhua'}},null,1,()=>{});
+    assert.deepEqual(JSON.parse(JSON.stringify(calls[1][1])),[{axis:'format',key:'manhua'}]);
+    const pin=adapter.resolvePin({type:'manhwa',catalogId:'one-shots',filterGroup:'genre',filterKey:'Action'});
+    assert.equal(pin.type,'manhwa');assert.equal(pin.catalogKey,'popular');assert.equal(pin.filterKey,'action');
+    const formatPin=adapter.resolvePin({type:'manga',catalogId:'popular',filterGroup:'format',filterKey:'Manhwa'});
+    assert.equal(formatPin.filterGroup,'Publication Type');assert.equal(formatPin.filterKey,'manhwa');
+});
+
+test('Manhwa completion cannot satisfy a pending Manga query or cross-enrich its live cache', async () => {
+    const mod=adapterModule(),cat=fakeCatalog(),adapter=mod.create(cat,null,[],false,null),pages=[];
+    adapter.fetchPage(state('manga'),null,1,(_,page)=>pages.push(['manga',page]));
+    adapter.fetchPage(state('manhwa'),null,2,(_,page)=>pages.push(['manhwa',page]));
+    await tick();
+    cat.succeed(['popular',[{axis:'format',key:'manhwa'}],false,0,24],{items:[{mal_id:2,type:'Manhwa'}],nextOffset:1,exhausted:true});
+    assert.deepEqual(pages.map(p=>p[0]),['manhwa']);
+    cat.succeed(['popular',[],false,0,24],{items:[{mal_id:1,type:'Manga'}],nextOffset:1,exhausted:true});
+    assert.deepEqual(pages.map(p=>p[0]),['manhwa','manga']);
+    assert.notEqual(mod.liveCacheKey(state('manga'),false),mod.liveCacheKey(state('manhwa'),false));
+});
+
+test('Jikan refresh scopes publication requests and overlays only matching stable identities in each lens', () => {
+    const mod=adapterModule(),requests=[];
+    const mal={discoverPageFiltered(){return {items:[{mal_id:2,title:'Bundled Solo',type:'Manhwa'}],nextOffset:1,exhausted:true}}};
+    const adapter=mod.create(mal,null,[],false,()=>{
+        const xhr={open(method,url){this.url=url},send(){}};requests.push(xhr);return xhr;
+    });
+    const fetch=type=>{let page;adapter.fetchPage(state(type),null,1,(_,p)=>page=p);return page;};
+    fetch('manhwa');fetch('manga');
+    assert.equal(requests.length,2,'concurrent lenses have separate refreshes');
+    const url=new URL(requests[0].url);
+    assert.equal(url.pathname,'/v4/manga');assert.equal(url.searchParams.get('type'),'manhwa');
+    assert.equal(url.searchParams.get('order_by'),'members');assert.equal(url.searchParams.get('sfw'),'true');
+    requests[0].responseText=JSON.stringify({data:[{mal_id:2,title:'Live Solo',type:'Manhwa'},{mal_id:99,title:'Unowned live row',type:'Manhwa'}]});requests[0].onload();
+    assert.deepEqual(Array.from(fetch('manhwa').items,i=>[i.id,i.title]),[['2','Live Solo']]);
+    assert.equal(fetch('manga').items[0].title,'Bundled Solo','pending Manga refresh cannot borrow Manhwa cache');
+    requests[1].responseText=JSON.stringify({data:[{mal_id:2,title:'Wrong publication',type:'Manga'}]});requests[1].onload();
+    assert.equal(fetch('manga').items[0].title,'Bundled Solo','same ID with conflicting publication cannot cross-enrich');
+});

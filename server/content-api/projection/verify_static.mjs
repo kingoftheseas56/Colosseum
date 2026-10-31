@@ -36,6 +36,9 @@ const cases=[
  ['comics','curatedReady',[]],['comics','curatedRanked',[]],['comics','curatedGenreShelves',[3]],['comics','shelf',['stocked','',24]],
  ['mal','animeCatalog',[{},0,24]],['mal','animeCatalog',[{order:'members'},72,24]],['imdb','titleCatalog',[{order:'votes'},72,24]],
 ];
+for(const format of ['manga','manhwa','manhua'])for(const explicit of [false,true])
+ for(const catalog of ['popular','trending','top-rated','new-releases'])for(const offset of [0,24])
+  cases.push(['mal','discoverPageFiltered',[catalog,[{axis:'format',key:format}],explicit,offset,24]]);
 for(const r of sqlite.prepare('SELECT locg_id,norm_title FROM lib_comics_curated_series LIMIT 3').all())for(const method of ['curatedSeries','curatedCoverage','curatedHasDownloadable','curatedByNorm'])cases.push(['comics',method,[method==='curatedByNorm'?r.norm_title:r.locg_id]]);
 for(const {gcd_id}of sqlite.prepare('SELECT gcd_id FROM den_comics_series LIMIT 3').all())for(const method of ['series','downloadsFor'])cases.push(['comics',method,[gcd_id]]);
 const rules={};vm.createContext(rules);vm.runInContext(readFileSync(new URL('../../../qml/TheatreCatalogRules.js',import.meta.url),'utf8').replace(/^\s*\.pragma.*$/gm,''),rules);

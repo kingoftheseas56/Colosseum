@@ -36,6 +36,7 @@ Item {
     // Same phone gate as the world tab bar: Android, window under 840 wide.
     readonly property bool phoneNarrow: !!(browser.Window.window && browser.Window.window.androidHost
                                             && browser.Window.window.width < 840)
+    readonly property bool stackedTypeHeader: typeRepeater.count > 2 && masthead.width < typeSwitch.width + 180
 
     // ── automation identity (Lanista; Discover sidebar plan Slice 0) ──
     // World-namespaced by the host (theatre/biblio/tankoban): a bare shared stem would resolve
@@ -697,7 +698,8 @@ Item {
         anchors.left: parent.left
         anchors.leftMargin: browser.contentLeft
         anchors.right: parent.right
-        height: 76
+        height: browser.stackedTypeHeader
+                ? typeSwitch.height + shelf.height + 32 + (browser.showBackAction ? 22 : 0) : 76
 
         Rectangle {
             id: mastheadRule
@@ -735,7 +737,7 @@ Item {
             id: typeSwitch
             anchors.left: parent.left
             anchors.bottom: mastheadRule.top
-            anchors.bottomMargin: 12
+            anchors.bottomMargin: browser.stackedTypeHeader ? shelf.height + 22 : 12
             spacing: browser.phoneNarrow ? 18 : 28
             property int currentIndex: 0
             focusPolicy: typeRepeater.count > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -833,10 +835,10 @@ Item {
                     color: (catMa.containsMouse || browser.catalogMenuOpen) ? "#ffffff" : theme.ink
                     font.family: theme.display; font.pixelSize: browser.phoneNarrow ? 22 : 30; font.weight: Font.DemiBold; style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                     // phone width: the catalogue name gives way to the type tabs instead of printing over them
-                    width: browser.phoneNarrow
-                           ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - typeSwitch.width - 44))
+                    width: browser.phoneNarrow || browser.stackedTypeHeader
+                           ? Math.min(implicitWidth, Math.max(60, shelf.parent.width - (browser.stackedTypeHeader ? 0 : typeSwitch.width) - 44))
                            : implicitWidth
-                    elide: browser.phoneNarrow ? Text.ElideRight : Text.ElideNone
+                    elide: browser.phoneNarrow || browser.stackedTypeHeader ? Text.ElideRight : Text.ElideNone
                 }
                 Text {
                     visible: browser.categoryPickable

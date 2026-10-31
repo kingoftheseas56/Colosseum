@@ -37,6 +37,7 @@ var MANGA_CATALOGS = [
     { key: "started-2000s", title: "Began in the 2000s", sourceKind: "builtin" },
     { key: "started-2010s", title: "Began in the 2010s", sourceKind: "builtin" }
 ];
+var MANHWA_CATALOGS = MANGA_CATALOGS.slice(0, 4);
 var COMICS_CATALOGS = [
     { key: "popular",               title: "Popular",               sourceKind: "builtin" },
     { key: "new-releases",          title: "New Releases",          sourceKind: "builtin" },
@@ -65,7 +66,7 @@ var liveCache = {};
 var liveInFlight = {};
 var CACHE_MS = 15 * 60 * 1000;
 function liveCacheKey(state, showExplicit) {
-    return state.catalogKey + "|" + filterSignature(state)
+    return state.type + "|" + publicationType(state) + "|" + state.catalogKey + "|" + filterSignature(state)
          + "|" + (showExplicit ? "x" : "s");
 }
 
@@ -91,12 +92,25 @@ function nativeFilters(state, axisFor) {
     var pairs = activeFilters(state), out = [];
     for (var i = 0; i < pairs.length; i++) {
         var axis = axisFor(pairs[i].group);
-        if (axis.length) out.push({ axis: axis, key: pairs[i].key });
+        if (axis.length && !(state.type === "manhwa" && axis === "format"))
+            out.push({ axis: axis, key: pairs[i].key });
     }
+    if (state.type === "manhwa") out.push({ axis: "format", key: "manhwa" });
     return out;
 }
+function publicationType(state) {
+    if (state.type === "manhwa") return "manhwa";
+    var pairs = activeFilters(state);
+    for (var i = 0; i < pairs.length; i++)
+        if (mangaAxis(pairs[i].group) === "format") return stableKey(pairs[i].key);
+    return "";
+}
+function builtinCatalogs(type) {
+    return type === "manga" ? MANGA_CATALOGS : type === "manhwa" ? MANHWA_CATALOGS
+         : type === "comics" ? COMICS_CATALOGS : [];
+}
 function isBuiltinCatalog(type, catalogKey) {
-    var list = (type === "manga") ? MANGA_CATALOGS : (type === "comics") ? COMICS_CATALOGS : [];
+    var list = builtinCatalogs(type);
     for (var i = 0; i < list.length; i++) if (list[i].key === catalogKey) return true;
     return false;
 }
@@ -104,26 +118,24 @@ function isBuiltinCatalog(type, catalogKey) {
 // Jikan endpoint base. sfw derives from the global preference (spec 5.3/6.3):
 // showExplicit=false -> sfw=true (the conservative default); showExplicit=true ->
 // sfw=false so an opted-in user can see explicit MAL titles in the wall.
-var JIKAN_TOP = "https://api.jikan.moe/v4/top/manga";
+var JIKAN_SEARCH = "https://api.jikan.moe/v4/manga";
 var JIKAN_TRENDING_FALLBACK_WARNING = "Trending is using the latest popularity snapshot.";
 
 // Build the Jikan URL for a catalogue + page offset. Pure: the harness calls it
 // directly to assert the sfw derivation and endpoint pin.
-function jikanUrl(catalogId, offset, showExplicit) {
+function jikanUrl(catalogId, offset, showExplicit, format) {
     var sfw = showExplicit ? "false" : "true";
-    // Popular/Top-Rated map to /top/manga with a type filter; Trending would need a
-    // real /seasons or /watch/promotions endpoint with comparable snapshots, which we
-    // do not have yet, so it is handled by the bundled fallback (no fake momentum URL).
-    var order = (catalogId === "top-rated") ? "by=score" : "by=popularity";
+    // Jikan v4 search supports order_by/sort/sfw; /top/manga does not.
+    // Trending stays the declared popularity fallback; refresh only enriches IDs.
+    var order = catalogId === "top-rated" ? "score" : catalogId === "new-releases" ? "start_date" : "members";
     var page = Math.floor((offset || 0) / 24) + 1;   // Jikan is 1-indexed, ~24/page
-    return JIKAN_TOP + "?type=manga&order_by=" + (catalogId === "top-rated" ? "score" : "members")
-         + "&sort=desc&sfw=" + sfw + "&page=" + page;
+    return JIKAN_SEARCH + "?" + (format ? "type=" + encodeURIComponent(format) + "&" : "")
+         + "order_by=" + order + "&sort=desc&sfw=" + sfw + "&limit=24&page=" + page;
 }
 
 // --- normalization (spec 3.5) ---
 // A Jikan-shaped MAL row -> the shell's normalized card. Format preserves Manga /
-// Manhwa / Manhua (origin shows on the card metadata line, never as a separate
-// launch filter). Availability defaults false; the adapter enriches it later when a
+// Manhwa / Manhua. Availability defaults false; the adapter enriches it later when a
 // live refresh carries a stable MAL id we already hold.
 function normalizeManga(row) {
     var r = row || {};
@@ -207,7 +219,7 @@ function enrichByIdentity(cards, liveRows) {
     for (var j = 0; j < cards.length; j++) {
         var c = cards[j];
         var live = byId[c.id];
-        if (!live) { out.push(c); continue; }
+        if (!live || (live.type && stableKey(live.type) !== stableKey(c.format))) { out.push(c); continue; }
         var merged = normalizeManga(live);
         merged.availability = c.availability;   // bundled acquisition truth survives
         out.push(merged);
@@ -236,17 +248,21 @@ function buildFilterOptions(facets) {
 
 function filtersForType(type, catalog, malCatalog, comicsCatalog, showExplicit) {
     if (!catalog || catalog.length === 0) return [];
-    if (type === "manga") {
+    if (type === "manga" || type === "manhwa") {
         if (!malCatalog) return [];
         // The native catalogue warms these facets on a worker. Never run the full
         // classification scan while constructing the Tankoban page on the GUI thread.
         var readFilters = typeof malCatalog.cachedDiscoverFilters === "function"
                         ? function(axis) { return malCatalog.cachedDiscoverFilters(axis, showExplicit) }
                         : function(axis) { return malCatalog.discoverFilters(axis, showExplicit) };
-        return [
+        var groups = [
             { group: "Genres",      options: buildFilterOptions(readFilters("genre")) },
             { group: "Demographics", options: buildFilterOptions(readFilters("demographic")) }
         ].filter(function(g){ return g.options.length > 0 });
+        if (type === "manga") groups.unshift({ group: "Publication Type", options: [
+            {key: "manga", label: "Manga"}, {key: "manhwa", label: "Manhwa"}, {key: "manhua", label: "Manhua"}
+        ] });
+        return groups;
     }
     if (type === "comics") {
         if (!comicsCatalog) return [];
@@ -289,7 +305,7 @@ function extensionCatalogs(type, extensions) {
 }
 
 function catalogsForType(type, extensions) {
-    var builtins = (type === "manga") ? MANGA_CATALOGS : (type === "comics") ? COMICS_CATALOGS : [];
+    var builtins = builtinCatalogs(type);
     var out = [];
     for (var i = 0; i < builtins.length; i++) {
         out.push({
@@ -298,8 +314,8 @@ function catalogsForType(type, extensions) {
             sourceKind: builtins[i].sourceKind,
             section: BUILTIN_SECTION,
             attribution: BUILTIN_ATTRIBUTION,
-            sourceName: type === "manga" ? MANGA_SOURCE : COMICS_SOURCE,
-            addonId: type === "manga" ? MANGA_SOURCE_ID : COMICS_SOURCE_ID
+            sourceName: type !== "comics" ? MANGA_SOURCE : COMICS_SOURCE,
+            addonId: type !== "comics" ? MANGA_SOURCE_ID : COMICS_SOURCE_ID
         });
     }
     var exts = extensionCatalogs(type, extensions || []);
@@ -322,9 +338,10 @@ function catalogsForType(type, extensions) {
 // AND a tolerant display-label pin works too. Unknown groups return "" (dropped).
 function canonicalFilterGroup(type, group) {
     var g = String(group || "").toLowerCase();
-    if (type === "manga") {
+    if (type === "manga" || type === "manhwa") {
         if (g === "genre" || g === "genres") return "Genres";
         if (g === "demographic" || g === "demographics") return "Demographics";
+        if (type === "manga" && (g === "format" || g === "formats" || g === "publication type")) return "Publication Type";
     } else if (type === "comics") {
         if (g === "genre" || g === "genres") return "Genres";
         if (g === "publisher" || g === "publishers") return "Publishers";
@@ -344,7 +361,8 @@ function validateFilterKey(type, filterGroup, filterKey, malCatalog, comicsCatal
     if (!canonical.length) return false;
     var axis = "";
     var source = null;
-    if (type === "manga" && malCatalog) {
+    if (canonical === "Publication Type") return ["manga", "manhwa", "manhua"].indexOf(stableKey(filterKey)) >= 0;
+    if ((type === "manga" || type === "manhwa") && malCatalog) {
         axis = (canonical === "Genres") ? "genre" : (canonical === "Demographics") ? "demographic" : "";
         source = malCatalog;
     } else if (type === "comics" && comicsCatalog) {
@@ -391,6 +409,7 @@ function mangaAxis(filterGroup) {
     var c = canonicalFilterGroup("manga", filterGroup);
     if (c === "Genres") return "genre";
     if (c === "Demographics") return "demographic";
+    if (c === "Publication Type") return "format";
     return "";
 }
 function comicsAxis(filterGroup) {
@@ -480,6 +499,9 @@ function fetchMangaPage(deps, state, cursor, generation, done) {
     var mal = deps.malCatalog;
     var facets = nativeFilters(state, mangaAxis);
     var axis = facets.length ? facets[0].axis : "";
+    var format = publicationType(state);
+    var refreshable = facets.every(function(f) { return f.axis === "format" })
+                   && (!format || ["manga", "manhwa", "manhua"].indexOf(format) >= 0);
     // cursor is the offset (bundled MAL paging is offset-based)
     var offset = (cursor !== null && cursor !== undefined) ? cursor : 0;
     var limit = 24;
@@ -511,7 +533,7 @@ function fetchMangaPage(deps, state, cursor, generation, done) {
     // reload" path: the cache was written by an earlier refresh; this reload reads it.
     var freshness = "bundled";
     var cacheKey = liveCacheKey(state, deps.showExplicit);
-    if (!axis && offset === 0) {
+    if (refreshable && offset === 0) {
         var cached = liveCache[cacheKey];
         if (cached && (Date.now() - cached.fetchedAt) < CACHE_MS && cached.items.length) {
             // defense-in-depth: a live overlay could carry a classification the bundled
@@ -536,7 +558,7 @@ function fetchMangaPage(deps, state, cursor, generation, done) {
     // A live response merges by stable MAL id on the NEXT reload; it never replaces a
     // bundled row by title similarity and never reorders the wall mid-interaction
     // (the shell owns that fence; the enrich overlay preserves order regardless).
-    if (deps.xhrFactory && !axis && offset === 0
+    if (deps.xhrFactory && refreshable && offset === 0
             && ["popular", "top-rated", "trending", "new-releases"].indexOf(state.catalogKey) >= 0) {
         var fresh = liveCache[cacheKey]
                     && (Date.now() - liveCache[cacheKey].fetchedAt) < CACHE_MS;
@@ -544,10 +566,11 @@ function fetchMangaPage(deps, state, cursor, generation, done) {
             liveInFlight[cacheKey] = true;
             try {
                 var xhr = deps.xhrFactory();
-                var url = jikanUrl(state.catalogKey, offset, deps.showExplicit);
+                var url = jikanUrl(state.catalogKey, offset, deps.showExplicit, format);
                 xhr.open("GET", url);
                 xhr.onload = function() {
                     var live = parseJikanResponse(xhr.responseText);
+                    if (format) live = live.filter(function(r) { return stableKey(r.type) === format });
                     if (live.length) liveCache[cacheKey] = { fetchedAt: Date.now(), items: live };
                     delete liveInFlight[cacheKey];
                 };
@@ -613,7 +636,7 @@ function create(malCatalog, comicsCatalog, extensions, showExplicit, xhrFactory)
     };
     return {
         types: function() {
-            return [{ key: "manga", label: "Manga" }, { key: "comics", label: "Comics" }];
+            return [{ key: "manga", label: "Manga" }, { key: "manhwa", label: "Manhwa" }, { key: "comics", label: "Comics" }];
         },
         catalogs: function(type) { return catalogsForType(type, deps.extensions); },
         filters: function(type, catalogKey) {

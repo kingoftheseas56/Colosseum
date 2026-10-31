@@ -745,34 +745,27 @@ QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVa
         const QString axis = fm.value(QStringLiteral("axis")).toString();
         const QString key = fm.value(QStringLiteral("key")).toString();
         if (!(axis.isEmpty() || axis == QStringLiteral("genre")
-              || axis == QStringLiteral("demographic")))
+              || axis == QStringLiteral("demographic") || axis == QStringLiteral("format")))
+            return pack({});
+        if (axis == QStringLiteral("format") && !key.isEmpty()
+            && !QStringList{"manga", "manhwa", "manhua"}.contains(key.toLower()))
             return pack({});
         if (!axis.isEmpty() && !key.isEmpty())
             facets.append({axis, key});
     }
-    const QString filterAxis = facets.isEmpty() ? QString() : facets.first().first;
-    const QString filterKey = facets.isEmpty() ? QString() : facets.first().second;
-
-    // FROM (+ optional classification join for the first facet filter; value is BOUND).
-    const bool joinClass = !facets.isEmpty();
     QString from = QStringLiteral("manga m");
     QStringList where;
     QVariantList binds;
-    if (joinClass) {
-        from = QStringLiteral("classification c JOIN manga m ON m.mal_id = c.mal_id");
-        // Case-insensitive value match: the bake stores classification values in their
-        // canonical Titlecase ("Romance", "Seinen"), but the Tankoban adapter derives a
-        // STABLE lower-case filter key ("romance"). Compare LOWER-to-LOWER so the stable
-        // key resolves — an exact `c.value = ?` silently returned zero rows for every
-        // filter (2026-08-02: the Discover Romance filter painted an empty wall).
-        where << QStringLiteral("c.medium = 'manga' AND c.axis = ? AND LOWER(c.value) = LOWER(?)");
-        binds << filterAxis << filterKey;
-    }
-    // Every further facet narrows the same set: a non-correlated IN, evaluated once per query.
-    for (int i = 1; i < facets.size(); ++i) {
-        where << QStringLiteral("m.mal_id IN (SELECT c2.mal_id FROM classification c2 "
-                                "WHERE c2.medium = 'manga' AND c2.axis = ? AND LOWER(c2.value) = LOWER(?))");
-        binds << facets.at(i).first << facets.at(i).second;
+    for (const auto &facet : facets) {
+        if (facet.first == QStringLiteral("format")) {
+            where << QStringLiteral("LOWER(m.type) = LOWER(?)");
+            binds << facet.second;
+        } else {
+            // Membership does not multiply rows, including duplicate classifications.
+            where << QStringLiteral("m.mal_id IN (SELECT c.mal_id FROM classification c "
+                                    "WHERE c.medium = 'manga' AND c.axis = ? AND LOWER(c.value) = LOWER(?))");
+            binds << facet.first << facet.second;
+        }
     }
     if (!includeExplicit)
         where << QStringLiteral("m.explicit = 0");

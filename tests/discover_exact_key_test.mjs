@@ -86,6 +86,19 @@ function subscribe(adapter, st, cursor, generation=1, trace=true) {
     return {arrived,phases,cancel};
 }
 
+test('Manhwa keeps the opaque native query identity for its mandatory publication facet', () => {
+    const {catalog,adapter}=makeAdapter('manhwa');
+    const args=nativeArguments('popular',[{axis:'format',key:'manhwa'}]);
+    const opaque='NATIVE-Manhwa-Q#A (not JS(args))';
+    catalog.given(args,opaque);
+    const result=subscribe(adapter,state('manhwa'),null);
+    assert.equal(result.arrived.length,0);
+    catalog.succeed(args,page([{mal_id:121496,title:'Solo Leveling',type:'Manhwa',explicit:false}]));
+    assert.equal(result.arrived[0].page._traceQueryKey,opaque);
+    assert.equal(result.arrived[0].page.items[0].type,'manga');
+    assert.ok(result.phases.length>=2&&result.phases.every(phase=>phase[1]===opaque));
+});
+
 for (const type of ['manga','comics']) {
     const rows = type === 'manga' ? mangaRows : comicsRows;
     test(type+': success carries EXACT opaque native key through normalized page', () => {
