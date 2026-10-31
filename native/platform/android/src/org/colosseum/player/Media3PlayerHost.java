@@ -31,6 +31,7 @@ import androidx.media3.datasource.DefaultHttpDataSource;
 import androidx.media3.datasource.TransferListener;
 import androidx.media3.exoplayer.DefaultRenderersFactory;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.mediacodec.MediaCodecAdapter;
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.exoplayer.source.MediaSource;
 
@@ -93,7 +94,17 @@ public final class Media3PlayerHost {
     private ExoPlayer createPlayerOnMain() {
         return callOnMain(() -> {
             DefaultRenderersFactory renderersFactory =
-                new DefaultRenderersFactory(appContext)
+                new DefaultRenderersFactory(appContext) {
+                    @Override
+                    protected MediaCodecAdapter.Factory getCodecAdapterFactory() {
+                        MediaCodecAdapter.Factory delegate = super.getCodecAdapterFactory();
+                        return configuration -> {
+                            Media3CodecFormat.normalize(configuration.codecInfo.name,
+                                    configuration.mediaFormat);
+                            return delegate.createAdapter(configuration);
+                        };
+                    }
+                }
                     .setEnableDecoderFallback(true);
             ExoPlayer created = new ExoPlayer.Builder(appContext)
                 .setRenderersFactory(renderersFactory)
