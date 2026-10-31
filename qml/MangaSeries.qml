@@ -60,8 +60,8 @@ Item {
         return false
     }
 
-    // Arc 39: Chapter mode is a sibling surface. The existing Tankoban page remains
-    // the default; switching to Chapters enters the enabled Tankoyomi provider chain.
+    // Chapter mode is the Manhwa default and a sibling choice for other publications.
+    // It uses the enabled Tankoyomi provider chain.
     property bool chapterMode: false
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
@@ -100,6 +100,7 @@ Item {
     // shelf-less page, never a guess (identity-key vocabulary, plan Standing constraints).
     property int resolvedMalId: 0
     property var catalogRow: ({})   // the mangaById() row backing the masthead facts
+    readonly property bool isManhwa: String(page.catalogRow.type || "").toLowerCase() === "manhwa"
     Timer { id: malSemanticRetry; interval: 75; onTriggered: page.resolve() }
     Connections {
         target: page.malCatalogRef
@@ -131,10 +132,8 @@ Item {
            : errorMsg)
 
     // --- Tankoban mode ---
-    // Tankoban mode is PERMANENT for qualified series (2026-07-29 ruling): the gate in
-    // ComickCatalogClient emits a complete volume list or nothing at all, so
-    // volumes.length IS the verdict. No toggle, no per-series persistence.
-    property bool tankobanMode: volumes.length > 0
+    // Manhwa uses chapters; other publications retain the existing volume gate.
+    property bool tankobanMode: !page.isManhwa && volumes.length > 0
     property bool _tankobanPrepared: false
     // A per-series remote cache never makes the entire local catalogue ready.
     onResolvedMalIdChanged: page._requestCatalogueSeries()
@@ -336,6 +335,7 @@ Item {
     }
 
     function _enterTankobanMode() {
+        if (page.isManhwa) return
         page._clearPendingChapterRead()
         page._invalidateChapterRequest()
         page.openChapterId = ""
@@ -429,6 +429,7 @@ Item {
     // no C++ change was needed for this slice. One-shot per seriesId — onSeriesIdChanged
     // resets the latch for a reused page instance.
     function _prepareTankoban() {
+        if (page.isManhwa) return
         if (!page.hasShelf) return                 // no known catalogue count: never seed
         if (!page.tankobanVolumesRef || !page.seriesId.length) return
         if (page._tankobanPrepared) return
@@ -774,6 +775,7 @@ Item {
         return "Read"
     }
     function readPrimary() {
+        if (page.isManhwa) { page._enterChapterMode(); return }
         // resume beats everything — it is the only target the user already chose
         if (readingRoom.library.continueVolumeId.length) { page._readVolume(readingRoom.library.continueVolumeId); return }
         var rows = readingRoom.library.volumeRows || []
@@ -814,12 +816,13 @@ Item {
     // ready, re-run resolve() so the page catches up without the user backing out and
     // reopening it. Targets the REF (not the bare MalCatalog context property) so a harness
     // driving a fake catalog through malCatalogRef exercises the same path production does.
-    // Guarded on resolvedMalId === 0 so an already-resolved page NEVER re-resolves — a second
-    // readyChanged pulse (or a page opened after the catalog was already ready) is a no-op.
+    // A remote ID can resolve before its MAL row exists. Retry that case too, so the
+    // publication type can select the series surface; a complete row needs no retry.
     Connections {
         target: page.malCatalogRef
         function onReadyChanged() {
-            if (page.resolvedMalId === 0 && page.seriesTitle.length) page.resolve()
+            if ((page.resolvedMalId === 0 || Object.keys(page.catalogRow).length === 0)
+                    && page.seriesTitle.length) page.resolve()
         }
     }
 
@@ -909,6 +912,12 @@ Item {
         // synchronous batch as everything else, so by the time `ready` flips true below,
         // every masthead scalar an external reader can observe is already final.
         tankobanSeriesMasthead.displayTitle = seriesTitle
+        if (page.isManhwa) {
+            // Select the series surface without closing an existing Library reader.
+            page._refreshChapterLanguages()
+            page.chapterMode = true
+            page._loadChapterCatalogue(false)
+        }
         loading = false
     }
 
@@ -1063,6 +1072,8 @@ Item {
         anchors.fill: parent
         z: 45
         visible: !page.loading && page.chapterMode
+        allowTankobanMode: !page.isManhwa
+        publicationLabel: page.isManhwa ? "Manhwa" : "Manga"
         backdrop: page.backdrop
         seriesId: page.seriesId
         sourceSeriesId: page.chapterSourceSeriesId

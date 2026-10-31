@@ -13,6 +13,7 @@ Item {
     property Item backdrop
     property string seriesId: ""              // canonical Colosseum identity (mal:N)
     property string sourceSeriesId: ""        // Tankoyomi provider identity
+    property string publicationLabel: "Manga"
     property string seriesTitle: ""
     property string banner: ""
     property string cover: ""
@@ -31,6 +32,7 @@ Item {
     property bool loading: false
     property string errorText: ""
     property bool sourceEnabled: true
+    property bool allowTankobanMode: true
     readonly property bool extensionGateVisible: !root.sourceEnabled
 
     property int currentPageIndex: 0
@@ -118,6 +120,8 @@ Item {
         parent: root.phoneNarrow ? phoneStack : root
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         tankobanMode: false
+        allowTankobanMode: root.allowTankobanMode
+        publicationLabel: root.publicationLabel
         seriesTitle: root.seriesTitle
         banner: root.banner
         cover: root.cover

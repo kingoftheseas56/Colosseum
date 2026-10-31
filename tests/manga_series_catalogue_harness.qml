@@ -11,6 +11,7 @@ Item {
     width: 1440
     height: 900
     visible: true
+    readonly property bool rebuiltLayout: Qt.application.arguments.indexOf("--rebuilt") >= 0
 
     component FakeMalCatalog: QtObject {
         property bool readyVal: true
@@ -63,6 +64,7 @@ Item {
     // MangaReadingRoom -> MangaTankobanLibrary chain needs the full surface.
     component FakeVolumesService: QtObject {
         property var volMap: ({})     // seriesId -> [{number,state,...}]
+        property int prepareSeriesCalls: 0
         signal volumesChanged(string seriesId)
         signal progress(string volumeId, real done, real total)
         signal finished(string volumeId)
@@ -74,6 +76,7 @@ Item {
         function localPages(vid) { return [] }
         function cancel(vid) {}
         function prepareSeries(info, volumes, chapters) {
+            prepareSeriesCalls++
             volMap[info.seriesId] = volumes
         }
     }
@@ -135,22 +138,38 @@ Item {
     FakeExtensions { id: fakeExtensions }
     FakeMangaEngine { id: fakeMangaEngine }
 
+    // Isolated dependencies for the Manhwa policy cases below. They are created before
+    // each page resolves, so these cases cannot perturb the older global call-count checks.
+    Component { id: modeMalCatalogFactory; FakeMalCatalog {} }
+    Component { id: modeTankobanCatalogFactory; FakeTankobanCatalog {} }
+    Component { id: modeVolumesServiceFactory; FakeVolumesService {} }
+    Component { id: modeExtensionsFactory; FakeExtensions {} }
+    Component { id: modeMangaEngineFactory; FakeMangaEngine {} }
+
     function ck(condition, message) {
         if (!condition) throw new Error(message)
     }
 
     property var pageComp: null
-    function makePage(malId, seriesTitle, profile) {
+    function makePage(malId, seriesTitle, profile, dependencies) {
         if (!pageComp) {
-            pageComp = Qt.createComponent("../qml/MangaSeries.qml")
+            var pageSource = rebuiltLayout ? "../qml/TankobanSeriesView.qml" : "../qml/MangaSeries.qml"
+            pageComp = Qt.createComponent(pageSource)
             if (pageComp.status === Component.Error)
                 throw new Error("MangaSeries component: " + pageComp.errorString())
         }
-        var p = pageComp.createObject(harness, {
+        var props = {
             "width": 1320, "height": 860,
             "malCatalogRef": malCatalog, "tankobanCatalogRef": tankCatalog,
             "tankobanVolumesRef": volService
-        })
+        }
+        var refs = dependencies || ({})
+        if (refs.malCatalog) props.malCatalogRef = refs.malCatalog
+        if (refs.tankobanCatalog) props.tankobanCatalogRef = refs.tankobanCatalog
+        if (refs.volumes) props.tankobanVolumesRef = refs.volumes
+        if (refs.extensions) props.extensionsRef = refs.extensions
+        if (refs.mangaEngine) props.mangaEngineRef = refs.mangaEngine
+        var p = pageComp.createObject(harness, props)
         if (!p) throw new Error("MangaSeries createObject returned null")
         // Mirror production sequencing: the edition profile and malId must be
         // present BEFORE seriesTitle triggers resolve().
@@ -162,6 +181,240 @@ Item {
         p.malId = malId || ""
         p.seriesTitle = seriesTitle || ""
         return p
+    }
+
+    function makeModeFakes() {
+        return {
+            malCatalog: modeMalCatalogFactory.createObject(harness),
+            tankobanCatalog: modeTankobanCatalogFactory.createObject(harness),
+            volumes: modeVolumesServiceFactory.createObject(harness),
+            extensions: modeExtensionsFactory.createObject(harness),
+            mangaEngine: modeMangaEngineFactory.createObject(harness)
+        }
+    }
+
+    function makeTypedRow(id, title, type) {
+        return {
+            "mal_id": id, "title": title, "title_english": title, "type": type,
+            "status": "Publishing", "volumes": 4,
+            "images": { "jpg": { "large_image_url": "" } },
+            "authors": [ { "name": "Test Author" } ], "genres": []
+        }
+    }
+
+    function findNamedObject(root, name) {
+        if (!root) return null
+        if (String(root.objectName || "") === name) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; ++i) {
+            var found = findNamedObject(kids[i], name)
+            if (found) return found
+        }
+        return null
+    }
+
+    function chapterViewFor(page) {
+        return findNamedObject(page, "mangaChapterSeriesView")
+    }
+
+    function chapterHeaderFor(page) {
+        var view = chapterViewFor(page)
+        return findNamedObject(view, "mangaSeriesSharedHeader")
+    }
+
+    property var _lateManhwaPage: null
+    property var _lateManhwaFakes: null
+
+    function finishLateManhwaCheck() {
+        try {
+            var p = _lateManhwaPage
+            var f = _lateManhwaFakes
+            ck(p.isManhwa === true && (!rebuiltLayout || p.chapterOnly === true),
+               "manhwa-late: ready metadata must classify the already-known MAL ID and apply its policy")
+            ck(p.resolvedMalId === 506 && p.seriesId === "mal:506",
+               "manhwa-late: metadata wake must preserve canonical MAL identity")
+            ck(p.chapterMode === true && p.tankobanMode === false,
+               "manhwa-late: late Manhwa metadata must apply chapter-only mode")
+            ck(f.volumes.prepareSeriesCalls === 0,
+               "manhwa-late: ready metadata must not prepare Tankoban volumes")
+            ck(f.mangaEngine.catalogueCalls === 1
+               && f.mangaEngine.lastProfile.title === "Late Manhwa"
+               && f.mangaEngine.lastLanguage === "pt",
+               "manhwa-late: enabled chapter source must load once with its title and configured language")
+            console.log("MANGA_SERIES_CATALOGUE_OK")
+            Qt.exit(0)
+        } catch (e) {
+            console.log("MANGA_SERIES_CATALOGUE_FAIL: " + e.message)
+            Qt.exit(1)
+        }
+    }
+
+    function checkOrdinaryMangaMode(page, f, type, id, title) {
+        f.malCatalog.rows[String(id)] = makeTypedRow(id, title, type)
+        f.tankobanCatalog.infoMap[String(id)] = {
+            "volumeCount": rebuiltLayout ? 4 : 0, "countBasis": "mal"
+        }
+        page.malId = String(id)
+        page.seriesTitle = title
+        ck(page.isManhwa === false && (!rebuiltLayout || page.chapterOnly === false),
+           "mode-control-" + type + ": only Manhwa metadata may activate the chapter-only policy")
+        ck(page.chapterMode === false,
+           "mode-control-" + type + ": ordinary series must keep the normal initial mode")
+        page._enterChapterMode()
+        if (rebuiltLayout) {
+            var modeSwitch = findNamedObject(page, "mangaSeriesModeSwitch")
+            ck(modeSwitch && modeSwitch.visible === true,
+               "mode-control-" + type + ": rebuilt selector must remain visible when a volume shelf exists")
+        } else {
+            var view = chapterViewFor(page)
+            var header = chapterHeaderFor(page)
+            var tankobanControl = findNamedObject(header, "mangaModeTankoban")
+            ck(view && view.allowTankobanMode === true,
+               "mode-control-" + type + ": ChapterSeriesView must allow Tankoban mode by default")
+            ck(header && header.allowTankobanMode === true,
+               "mode-control-" + type + ": chapter header must allow Tankoban mode by default")
+            ck(header && header.publicationLabel === "Manga",
+               "mode-control-" + type + ": ordinary publication header must use the Manga label")
+            ck(tankobanControl && tankobanControl.visible === true,
+               "mode-control-" + type + ": Tankoban option must remain visible")
+        }
+        page._enterTankobanMode()
+        ck(page.chapterMode === false,
+           "mode-control-" + type + ": ordinary series must still accept Tankoban mode")
+    }
+
+    function runManhwaModeChecks() {
+        var directFakes = makeModeFakes()
+        var directRow = makeTypedRow(501, "Direct Manhwa", "mAnHwA")
+        directFakes.malCatalog.rows = ({ "501": directRow })
+        directFakes.tankobanCatalog.infoMap = ({
+            "501": { "volumeCount": 4, "countBasis": "mal" }
+        })
+        directFakes.tankobanCatalog.volumeMap = ({
+            "501": [{ "number": "1", "cover": "http://catalog/501", "name": "One" }]
+        })
+        var readyVolume = { "id": "saved-501-1", "number": "1", "state": "ready", "path": "local/501/1" }
+        directFakes.volumes.volMap = ({ "mal:501": [readyVolume] })
+        directFakes.mangaEngine.chapterDefaultLanguage = "fr"
+        directFakes.extensions.tankoyomiEnabled = false
+        var directRefs = {
+            "malCatalog": directFakes.malCatalog,
+            "tankobanCatalog": directFakes.tankobanCatalog,
+            "volumes": directFakes.volumes,
+            "extensions": directFakes.extensions,
+            "mangaEngine": directFakes.mangaEngine
+        }
+        var direct = makePage("501", "Direct Manhwa", null, directRefs)
+        ck(direct.isManhwa === true,
+           "manhwa-direct: case-insensitive catalogue type must identify Manhwa")
+        if (rebuiltLayout) {
+            ck(direct.chapterOnly === true,
+               "manhwa-direct: rebuilt page must mark known Manhwa chapter-only even with a shelf")
+        }
+        ck(direct.resolvedMalId === 501 && direct.seriesId === "mal:501",
+           "manhwa-direct: MAL identity and canonical seriesId must remain unchanged")
+        ck(direct.chapterMode === true,
+           "manhwa-direct: a known Manhwa must open directly in Chapter Mode")
+        if (rebuiltLayout) {
+            var rebuiltModeSwitch = findNamedObject(direct, "mangaSeriesModeSwitch")
+            var publicationEyebrow = findNamedObject(direct, "mangaPublicationLabel")
+            ck(rebuiltModeSwitch && rebuiltModeSwitch.visible === false,
+               "manhwa-direct: rebuilt selector must be hidden for Manhwa")
+            ck(publicationEyebrow && publicationEyebrow.text === "Manhwa  ·  Tankoban",
+               "manhwa-direct: rebuilt eyebrow must identify the Manhwa publication")
+        }
+        direct.volumes = [{ "number": "1" }]
+        ck(direct.tankobanMode === false,
+           "manhwa-direct: Manhwa must stay out of Tankoban mode even when volume rows exist")
+        ck(directFakes.volumes.prepareSeriesCalls === 0,
+           "manhwa-direct: resolving Manhwa must not prepare or replace Tankoban volumes")
+        ck(directFakes.volumes.volMap["mal:501"].length === 1
+           && directFakes.volumes.volMap["mal:501"][0].id === "saved-501-1"
+           && directFakes.volumes.volMap["mal:501"][0].state === "ready",
+           "manhwa-direct: an existing downloaded volume row and ready state must be preserved")
+        ck(direct.tankoyomiEnabled === false && direct.chaptersLoading === false
+           && direct.chaptersError.indexOf("Tankoyomi") >= 0,
+           "manhwa-direct: disabled Tankoyomi must show its honest disabled state")
+        ck(directFakes.mangaEngine.catalogueCalls === 0,
+           "manhwa-direct: disabled Tankoyomi must make no chapter provider calls")
+        ck(direct.selectedChapterLanguage === "fr",
+           "manhwa-direct: Chapter Mode must retain the configured default language")
+
+        if (!rebuiltLayout) {
+            var view = chapterViewFor(direct)
+            var header = chapterHeaderFor(direct)
+            var tankobanControl = findNamedObject(header, "mangaModeTankoban")
+            ck(view && view.visible === true && view.allowTankobanMode === false,
+               "manhwa-direct: active ChapterSeriesView must disallow Tankoban mode")
+            ck(header && header.allowTankobanMode === false,
+               "manhwa-direct: its shared chapter header must disallow Tankoban mode")
+            ck(header && header.publicationLabel === "Manhwa",
+               "manhwa-direct: the shared chapter header must label the publication as Manhwa")
+            ck(tankobanControl && tankobanControl.visible === false,
+               "manhwa-direct: the chapter header must hide the Tankoban mode control")
+        }
+        direct.resumeTankobanVolume("saved-501-1")
+        ck(direct.openChapterId === "saved-501-1" && direct.openEntryKind === "tankoban",
+           "manhwa-direct: an existing saved volume must still resume through the Tankoban reader")
+        direct.openChapterId = ""
+        direct.openChapterLabel = ""
+        direct.openEntryKind = "manga"
+        direct._enterTankobanMode()
+        ck(direct.chapterMode === true,
+           "manhwa-direct: a Tankoban mode request must leave Manhwa in Chapter Mode")
+
+        directFakes.malCatalog.rows["502"] = makeTypedRow(502, "Exact Manhwa", "MANHWA")
+        directFakes.malCatalog.titleMap = ({ "Exact Manhwa": [502] })
+        directFakes.tankobanCatalog.infoMap["502"] = { "volumeCount": 3, "countBasis": "mal" }
+        direct.malId = ""
+        direct.seriesTitle = "Exact Manhwa"
+        var exact = direct
+        ck(exact.isManhwa === true && (!rebuiltLayout || exact.chapterOnly === true)
+           && exact.chapterMode === true,
+           "manhwa-title: exact-title resolution must apply the Manhwa-only policy")
+        ck(exact.resolvedMalId === 502 && exact.seriesId === "mal:502"
+           && exact.collectionEntry().id === "mal:502",
+           "manhwa-title: exact-title resolution must preserve MAL and collection identity")
+        ck(directFakes.volumes.prepareSeriesCalls === 0,
+           "manhwa-title: exact-title resolution must not prepare Tankoban volumes")
+
+        // Reusing this Manhwa page for Manga and Manhua must restore the normal options.
+        checkOrdinaryMangaMode(direct, directFakes, "Manga", 503, "Reused Manga")
+        checkOrdinaryMangaMode(direct, directFakes, "Manhua", 504, "Manhua Control")
+
+        // Start from an explicit remote MAL ID whose full row is not ready yet. Only after
+        // readyChanged supplies authoritative Manhwa metadata do we expect chapter-only mode.
+        var lateFakes = makeModeFakes()
+        lateFakes.malCatalog.readyVal = false
+        lateFakes.extensions.tankoyomiEnabled = true
+        lateFakes.mangaEngine.chapterDefaultLanguage = "pt"
+        lateFakes.tankobanCatalog.remoteEnabled = true
+        lateFakes.tankobanCatalog.readyVal = false
+        lateFakes.malCatalog.rows = ({})
+        var lateRefs = {
+            "malCatalog": lateFakes.malCatalog,
+            "tankobanCatalog": lateFakes.tankobanCatalog,
+            "volumes": lateFakes.volumes,
+            "extensions": lateFakes.extensions,
+            "mangaEngine": lateFakes.mangaEngine
+        }
+        _lateManhwaPage = makePage("506", "Late Manhwa", null, lateRefs)
+        _lateManhwaFakes = lateFakes
+        ck(_lateManhwaPage.resolvedMalId === 506
+           && _lateManhwaPage.seriesId === "mal:506",
+           "manhwa-late: an explicit remote MAL ID keeps its canonical identity before metadata")
+        lateFakes.malCatalog.rows = ({
+            "506": makeTypedRow(506, "Late Manhwa", "mAnHwA")
+        })
+        lateFakes.malCatalog.setReady(true)
+        lateManhwaMetadataWait.start()
+    }
+
+    Timer {
+        id: lateManhwaMetadataWait
+        interval: 180
+        repeat: false
+        onTriggered: harness.finishLateManhwaCheck()
     }
 
     // Case 4's sub-cases live behind one flag so the negative control (flip the "get"
@@ -176,6 +429,10 @@ Item {
 
     function runChecks() {
         try {
+            if (harness.rebuiltLayout) {
+                harness.runManhwaModeChecks()
+                return
+            }
             var monsterRow = {
                 "mal_id": 1, "title": "Monster", "title_english": "Monster",
                 "score": 9.1, "members": 500000, "status": "Finished", "volumes": 18,
@@ -487,8 +744,7 @@ Item {
             var unresolved = makePage("", "Unmatched remote title")
             ck(unresolved.resolvedMalId === 0 && unresolved.seriesId === "",
                "remote: title-only missing metadata remains unresolved")
-            console.log("MANGA_SERIES_CATALOGUE_OK")
-            Qt.exit(0)
+            harness.runManhwaModeChecks()
         } catch (e) {
             console.log("MANGA_SERIES_CATALOGUE_FAIL: " + e.message)
             Qt.exit(1)
