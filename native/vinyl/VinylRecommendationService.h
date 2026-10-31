@@ -17,9 +17,13 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(bool profileActive READ profileActive WRITE setProfileActive NOTIFY stateChanged)
     Q_PROPERTY(QVariantList suggestions READ suggestions WRITE setSuggestions NOTIFY resultsChanged)
     Q_PROPERTY(QString onboardingState READ onboardingState NOTIFY stateChanged)
+    Q_PROPERTY(int minimumArtists READ minimumArtists CONSTANT)
+    Q_PROPERTY(bool canEnterVinyl READ canEnterVinyl NOTIFY stateChanged)
+    Q_PROPERTY(int draftArtistCount READ draftArtistCount NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap artistResults READ artistResults NOTIFY resultsChanged)
     Q_PROPERTY(QVariantList draftArtists READ draftArtists NOTIFY stateChanged)
     Q_PROPERTY(QVariantList selectedArtists READ selectedArtists NOTIFY stateChanged)
+    Q_PROPERTY(int minimumArtistCount READ minimumArtistCount CONSTANT)
     Q_PROPERTY(QString error READ error NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap homeCollections READ homeCollections WRITE setHomeCollections NOTIFY homeChanged)
     Q_PROPERTY(QVariantList homeSections READ homeSections NOTIFY homeChanged)
@@ -27,11 +31,20 @@ class VinylRecommendationService : public QObject {
     Q_PROPERTY(QString homeError READ homeError NOTIFY homeChanged)
     Q_PROPERTY(int homeRevision READ homeRevision NOTIFY homeChanged)
     Q_PROPERTY(QVariantMap homeSnapshot READ homeSnapshot NOTIFY homeChanged)
+    Q_PROPERTY(QVariantList homeCarouselItems READ homeCarouselItems NOTIFY homeChanged)
+    Q_PROPERTY(QVariantList homeListeningCards READ homeListeningCards NOTIFY listeningChanged)
+    Q_PROPERTY(QVariantList homeQuickPicks READ homeQuickPicks NOTIFY listeningChanged)
+    Q_PROPERTY(QVariantMap homeMixView READ homeMixView NOTIFY listeningChanged)
+    Q_PROPERTY(bool homeRadioActive READ homeRadioActive NOTIFY listeningChanged)
+    Q_PROPERTY(QString homeRadioState READ homeRadioState NOTIFY listeningChanged)
+    Q_PROPERTY(QVariantMap homeRadioContext READ homeRadioContext NOTIFY listeningChanged)
     Q_PROPERTY(QObject* activityStore READ activityStore WRITE setActivityStore NOTIFY stateChanged)
     Q_PROPERTY(QObject* historyStore READ historyStore WRITE setHistoryStore NOTIFY stateChanged)
     Q_PROPERTY(bool keepHistory READ keepHistory WRITE setKeepHistory NOTIFY stateChanged)
     Q_PROPERTY(QVariantMap historySnapshot READ historySnapshot NOTIFY homeChanged)
 public:
+    static constexpr int MinimumArtistCount = 5;
+    int minimumArtistCount() const { return MinimumArtistCount; }
     explicit VinylRecommendationService(QObject *parent=nullptr,std::function<qint64()> clock={});
     ~VinylRecommendationService() override;
     QObject* source() const{return m_source;}
@@ -41,6 +54,9 @@ public:
     bool profileActive() const{return m_active;}
     QVariantList suggestions() const{return m_suggestions;}
     QString onboardingState() const{return m_state;}
+    int minimumArtists() const{return MinimumArtistCount;}
+    bool canEnterVinyl() const;
+    int draftArtistCount() const;
     QVariantMap artistResults() const{return m_results;}
     QVariantList draftArtists() const{return m_draft;}
     QVariantList selectedArtists() const{return m_saved;}
@@ -65,6 +81,19 @@ public:
     QString homeError() const;
     int homeRevision() const;
     QVariantMap homeSnapshot() const;
+    QVariantList homeCarouselItems() const;
+    QVariantList homeListeningCards() const;
+    QVariantList homeQuickPicks() const;
+    QVariantMap homeMixView() const;
+    bool homeRadioActive() const;
+    QString homeRadioState() const;
+    QVariantMap homeRadioContext() const;
+    Q_INVOKABLE void refreshHomeSelection();
+    Q_INVOKABLE void openHomeMix(const QString &kind);
+    Q_INVOKABLE void startHomeRadio(const QVariantMap &artist);
+    Q_INVOKABLE void refillHomeRadio(const QStringList &queuedTracks = {});
+    Q_INVOKABLE void stopHomeRadio();
+    Q_INVOKABLE void restoreHomeRadio(const QVariantMap &context, const QStringList &queuedTracks);
     Q_INVOKABLE void refreshHome(bool force=false);
     QObject *activityStore() const{return m_activityStore;}
     QObject *historyStore() const{return m_historyStore;}
@@ -79,6 +108,8 @@ signals:
     void stateChanged();
     void resultsChanged();
     void homeChanged();
+    void listeningChanged();
+    void homeRadioBatchReady(const QVariantList &songs, bool append);
 private slots:
     void loadPreferences();
     void accept(const QString&,int,const QVariant&,const QString&);
@@ -97,6 +128,7 @@ private:
     void dispatch();
     static QVariantMap artist(const QVariantMap&);
     static QVariantList uniqueArtists(const QVariantList&);
+    static int uniqueTasteArtistCount(const QVariantList&);
     struct HomeState;
     std::shared_ptr<HomeState> m_home;
     void initializeHome(std::function<qint64()>);
@@ -105,6 +137,7 @@ private:
     void homeSeedsChanged();
     void visitHome();
     void rebuildHome();
+    void selectHomeCarousel(bool refresh=false);
     void pumpHome();
     bool acceptHome(const QString&,int,const QVariant&,const QString&);
     bool storeExposure(const QString &snapshot);

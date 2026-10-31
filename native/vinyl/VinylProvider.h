@@ -25,7 +25,9 @@
 // Public metadata uses the existing app cache. Resolved audio never enters it.
 class VinylProvider : public QObject {
     Q_OBJECT
+    Q_PROPERTY(int annotationsVersion READ annotationsVersion CONSTANT)
 public:
+    int annotationsVersion() const { return 1; }
     explicit VinylProvider(QString helper,QObject *parent=nullptr,qint64 cacheBudgetBytes=128LL*1024*1024,
         std::function<qint64()> clock={},QString cacheRoot={}):QObject(parent),m_helper(std::move(helper)),
         m_cacheBudget(qBound<qint64>(1,cacheBudgetBytes,128LL*1024*1024)),
@@ -124,14 +126,30 @@ public:
         if(data.isEmpty()){data=readCache(path,key,operation,value,payload,true,false);if(!data.isEmpty())data["_stale"]=true;}
         if(!data.isEmpty())data["_cached"]=true;return data;
     }
+    Q_INVOKABLE QVariantMap annotationCache(const QString &key) const {
+        if(!key.startsWith("genius-web-v1:")||key.size()>4096)return {};
+        const auto hash=QString::fromLatin1(QCryptographicHash::hash(key.toUtf8(),QCryptographicHash::Sha256).toHex());
+        return readCache(m_cacheRoot+"/"+hash+".json",hash,{},{},{},false,true);
+    }
+    Q_INVOKABLE void storeAnnotationCache(const QString &key,const QVariantMap &data) {
+        if(!key.startsWith("genius-web-v1:")||key.size()>4096||data.isEmpty())return;
+        const auto bytes=QJsonDocument::fromVariant(data).toJson(QJsonDocument::Compact);
+        if(bytes.size()>2*1024*1024)return;
+        const auto hash=QString::fromLatin1(QCryptographicHash::hash(key.toUtf8(),QCryptographicHash::Sha256).toHex());
+        if(!QDir().mkpath(m_cacheRoot))return;
+        QSaveFile file(m_cacheRoot+"/"+hash+".json");
+        if(file.open(QIODevice::WriteOnly)&&file.write(bytes)==bytes.size())file.commit();
+        prune();
+    }
     Q_INVOKABLE int requestPayload(const QString &lane,const QString &operation,const QString &value,const QVariantMap &payload){
-        static const QStringList operations{"search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","recommendationIdentity","recordingMatch","populationCandidates"};
-        static const QStringList lanes{"browse","queue","play","playFallback","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","named-collections"};
+        static const QStringList operations{"search","catalogueSearch","cataloguePage","playlistPage","discover","playlist","album","resolve","resolveVideo","relatedVideo","artist","artistReleases","artistVideos","artistIdentity","artistArtwork","artistCandidates","recommendationIdentity","recordingMatch","populationCandidates","lyrics"};
+        static const QStringList lanes{"browse","queue","play","playFallback","video-match","video-stream","playlist-page","search-albums","search-artists","search-songs","search-playlists","taste-artists","discover-new-releases","discover-trending","discover-artists","discover-charts","artist","artist-albums","artist-singles","artist-videos","artist-identity","artist-artwork","home-seed-0","home-seed-1","home-identity","home-population","home-listening-0","home-listening-1","named-collections","lyrics"};
         if(!operations.contains(operation)||!lanes.contains(lane)||value.size()>300)return -1;
+        if(lane.startsWith("home-listening-") && operation!="album" && operation!="artistCandidates")return -1;
         // Collections may read exact album metadata, never resolve playback or
         // take ownership of an existing browse/play/queue request.
         if(lane=="named-collections" && operation!="album")return -1;
-        cancel(lane);const int id=++m_serial;const bool home=homeOperation(operation),cacheable=operation!="resolve";
+        cancel(lane);const int id=++m_serial;const bool home=homeOperation(operation),cacheable=operation!="resolve"&&operation!="resolveVideo";
         if(home){
             const QSet<QString> allowed{"seed","recording","refresh","region","fetchedAt","limit"};
             for(auto it=payload.cbegin();it!=payload.cend();++it)if(!allowed.contains(it.key()))return -1;
@@ -182,15 +200,22 @@ public:
         connect(process,&QProcess::errorOccurred,this,[finish](QProcess::ProcessError error){if(error==QProcess::FailedToStart)finish({},"The music catalogue runtime is unavailable. Local music is still available.");});
         connect(process,&QProcess::readyReadStandardError,this,[process]{process->readAllStandardError();});
         connect(process,&QProcess::readyReadStandardOutput,this,[process,output,finish]{output->append(process->readAllStandardOutput());if(output->size()>4*1024*1024)finish({},"The catalogue response exceeded its limit.");});
-        connect(process,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,[process,output,finish](int code,QProcess::ExitStatus status){
+        connect(process,qOverload<int,QProcess::ExitStatus>(&QProcess::finished),this,[this,process,output,finish,operation](int code,QProcess::ExitStatus status){
             output->append(process->readAllStandardOutput());QJsonParseError parse;const auto doc=QJsonDocument::fromJson(*output,&parse);const auto object=doc.object();
             if(output->size()>4*1024*1024||code!=0||status!=QProcess::NormalExit||parse.error!=QJsonParseError::NoError||!object.value("ok").isBool())finish({},"The music catalogue helper failed.");
-            else if(!object.value("ok").toBool())finish({},object.value("error").toString("The music catalogue is unavailable."));
+            else if(!object.value("ok").toBool()){
+                if(operation=="lyrics"&&object.value("errorCode")=="rate_limited")
+                    m_deferred["lrclib"]=m_clock()+qint64(qBound(1,object.value("retryAfterSeconds").toInt(60),3600))*1000;
+                finish({},object.value("error").toString("The music catalogue is unavailable."));
+            }
             else finish(object.value("data").toVariant(),{});
         });
-        if((home||operation=="discover")&&!payload.value("refresh").toBool()){
+        if((home||operation=="discover"||operation=="lyrics")&&!payload.value("refresh").toBool()){
             const auto cached=readCache(path,key,operation,value,payload,home,true);
             if(!cached.isEmpty()){QTimer::singleShot(0,process,[finish,cached]{auto map=cached;map["_cached"]=true;finish(map,{});});return id;}
+        }
+        if(operation=="lyrics"&&m_deferred.value("lrclib")>m_clock()){
+            QTimer::singleShot(0,process,[finish]{finish({},"Lyrics are temporarily rate limited. Retry later.");});return id;
         }
         if(home&&m_deferred.value(service(operation))>m_clock()){
             QVariantMap data{{"version",1},{"seed",payload.value("seed",QVariantMap())},{"items",QVariantList()},
@@ -208,7 +233,7 @@ public:
         auto launch=[this,process,deadline,lane,python,requestBytes,operation,home]{
             if(m_active.value(lane)!=process)return;
             if(home)m_running.insert(process);
-            else deadline->start(operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
+            else deadline->start(operation=="lyrics"?12000:operation=="discover"?18000:operation=="artistIdentity"?180000:90000);
             process->start(python,{"-I",m_helper});
             if(m_active.value(lane)==process){process->write(requestBytes);process->closeWriteChannel();}
         };

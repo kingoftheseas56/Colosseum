@@ -85,3 +85,113 @@ result=visit({id:"tt1",kind:"video",title:"Film",resume:{localPath:"C:/Video/tes
 check(result.route.length===1 && result.route[0].kind==="video",
       "video resume unaffected");
 console.log("PASS " + checked + " production Main.qml Continue routing checks");
+
+const extensionsStart = main.indexOf("    function openExtensionsPage(world, configurationId) {");
+const pendingStart = main.indexOf("    function openPendingExtensionConfiguration() {", extensionsStart);
+const closeStart = main.indexOf("    function closeExtensionsPage() {", pendingStart);
+const updateStart = main.indexOf("    // ---- Update page:", closeStart);
+assert(extensionsStart >= 0 && pendingStart > extensionsStart && closeStart > pendingStart
+       && updateStart > closeStart,
+       "current production Extensions navigation functions found");
+const extensionsSource = main.slice(extensionsStart, updateStart);
+
+let extensionChecks = 0;
+function checkExtension(condition, message) {
+    assert.ok(condition, message);
+    extensionChecks++;
+}
+
+function makeExtensionsRouter({loaded = true, guard = () => false} = {}) {
+    const opened = [];
+    const item = loaded ? {
+        world: "",
+        openConfiguration(id) { opened.push(id); },
+        takeKeyboardFocus() {}
+    } : null;
+    const ctx = {
+        pendingExtensionConfiguration: "",
+        extensionsLayer: {active: false, item},
+        downloadsLayer: {active: true},
+        updateLayer: {active: true},
+        historyStatsLayer: {active: true},
+        syncCenterLayer: {active: true},
+        vaultLayer: {active: true},
+        taskbar: {open: true},
+        Qt: {callLater(callback) { callback(); }}
+    };
+    const win = {
+        bookRouteGeneration: 0,
+        parkFeria() {},
+        guardNamedCollectionsNavigation(continuation) { return guard(continuation); },
+        openExtensionsPage(...args) { return ctx.openExtensionsPage(...args); },
+        openPendingExtensionConfiguration() { return ctx.openPendingExtensionConfiguration(); }
+    };
+    ctx.win = win;
+    runInNewContext(extensionsSource, ctx);
+    return {ctx, item, opened};
+}
+
+const configurationId = "colosseum.well.tankoyomi";
+
+// An already-created Loader item should receive the requested configuration once.
+{
+    const router = makeExtensionsRouter();
+    router.ctx.openExtensionsPage("tankoban", configurationId);
+    router.ctx.openPendingExtensionConfiguration();
+    checkExtension(router.opened.length === 1 && router.opened[0] === configurationId,
+                   "ready Extensions item opens the requested Tankoyomi configuration once");
+    checkExtension(router.ctx.pendingExtensionConfiguration === "",
+                   "ready configuration open clears the pending ID");
+    checkExtension(router.item.world === "tankoban",
+                   "ready Extensions item receives the requested world");
+}
+
+// If activation precedes Loader completion, retain the ID until the item arrives.
+{
+    const router = makeExtensionsRouter({loaded: false});
+    router.ctx.openExtensionsPage("tankoban", configurationId);
+    checkExtension(router.ctx.pendingExtensionConfiguration === configurationId
+                   && router.opened.length === 0,
+                   "unloaded Extensions item keeps the pending configuration ID");
+    router.ctx.extensionsLayer.item = {
+        world: "",
+        openConfiguration(id) { router.opened.push(id); },
+        takeKeyboardFocus() {}
+    };
+    router.ctx.openPendingExtensionConfiguration();
+    checkExtension(router.opened.length === 1 && router.opened[0] === configurationId
+                   && router.ctx.pendingExtensionConfiguration === "",
+                   "pending configuration opens and clears when the Loader item arrives");
+}
+
+// The navigation guard must keep the original arguments in its deferred callback.
+{
+    let shouldDefer = true;
+    let deferred = null;
+    const router = makeExtensionsRouter({guard(continuation) {
+        if (!shouldDefer) return false;
+        deferred = continuation;
+        return true;
+    }});
+    router.ctx.openExtensionsPage("tankoban", configurationId);
+    checkExtension(typeof deferred === "function" && !router.ctx.extensionsLayer.active
+                   && router.opened.length === 0,
+                   "named-collection guard defers the Extensions route");
+    shouldDefer = false;
+    deferred();
+    checkExtension(router.opened.length === 1 && router.opened[0] === configurationId
+                   && router.ctx.pendingExtensionConfiguration === "",
+                   "deferred callback preserves and opens the requested configuration ID");
+}
+
+// Closing the Extensions page must discard any configuration still waiting on the Loader.
+{
+    const router = makeExtensionsRouter({loaded: false});
+    router.ctx.openExtensionsPage("tankoban", configurationId);
+    router.ctx.closeExtensionsPage();
+    checkExtension(router.ctx.pendingExtensionConfiguration === ""
+                   && !router.ctx.extensionsLayer.active,
+                   "closing Extensions clears a pending configuration and deactivates the layer");
+}
+
+console.log("PASS " + extensionChecks + " production Main.qml Extensions navigation checks");

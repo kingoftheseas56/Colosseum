@@ -119,10 +119,12 @@ export async function malMethod(db: CatalogueDb, method: string, args: any[]): P
   const pack=(items:Row[])=>({items,nextOffset:off+items.length,exhausted:items.length<lim,freshness:'bundled',fallbackCatalog:catalog==='trending'?'popular':''});
   if(!['popular','trending','top-rated','new-releases','completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s'].includes(catalog))return pack([]);
   const facets:{axis:string,key:string}[]=[];
-  for(const f of Array.isArray(filters)?filters:[]){const axis=text(f?.axis),key=text(f?.key);if(!['','genre','demographic'].includes(axis))return pack([]);if(axis&&key)facets.push({axis,key});}
+  for(const f of Array.isArray(filters)?filters:[]){const axis=text(f?.axis),key=text(f?.key);if(!['','genre','demographic','format'].includes(axis))return pack([]);if(axis==='format'&&key&&!['manga','manhwa','manhua'].includes(key.toLowerCase()))return pack([]);if(axis&&key)facets.push({axis,key});}
   let from='den_mal_manga m';const where:string[]=[],binds:any[]=[];
-  if(facets.length){from+=',json_each(m.__membership) c';where.push("json_extract(c.value,'$[0]')=? AND LOWER(json_extract(c.value,'$[1]'))=LOWER(?)");binds.push(facets[0].axis,facets[0].key);}
-  for(const f of facets.slice(1)){where.push("EXISTS(SELECT 1 FROM json_each(m.__membership) c2 WHERE json_extract(c2.value,'$[0]')=? AND LOWER(json_extract(c2.value,'$[1]'))=LOWER(?))");binds.push(f.axis,f.key);}
+  for(const f of facets){
+   if(f.axis==='format'){where.push('LOWER(m.type)=LOWER(?)');binds.push(f.key);}
+   else{where.push("EXISTS(SELECT 1 FROM json_each(m.__membership) c WHERE json_extract(c.value,'$[0]')=? AND LOWER(json_extract(c.value,'$[1]'))=LOWER(?))");binds.push(f.axis,f.key);}
+  }
   if(!explicit)where.push('m.explicit=0');let order='m.members DESC,COALESCE(m.score,0) DESC,m.mal_id ASC';
   // Metadata shelves exclude prose formats; existing catalogue semantics stay unchanged.
   if(['completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s'].includes(catalog)) {

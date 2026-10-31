@@ -275,14 +275,14 @@ Item {
         return Qt.platform.os === "linux"
                 && (available !== true || reason === "credential_storage_unavailable"
                     || reason === "profile_unavailable")
-                && (providerKey === "trakt" || providerKey === "simkl" || providerKey === "mal")
+                && (providerKey === "trakt" || providerKey === "simkl" || providerKey === "mal"
+                    || providerKey === "anilist")
     }
     // Linux has no secure tracker vault. Missing Windows registrations retain
     // their existing future-provider and Stremio-linked presentation.
     function comingSoon(providerKey, available) {
-        return providerKey === "anilist"
-                || (providerKey === "mal" && available !== true
-                    && !platformUnavailable(providerKey, available))
+        return (providerKey === "mal" || providerKey === "anilist") && available !== true
+                && !platformUnavailable(providerKey, available)
     }
     function providerStatus(providerKey, status, available, reason, connected) {
         if (connected === true)
@@ -2707,6 +2707,9 @@ Item {
                                           ? "This tracker's connection service is unavailable. Colosseum's local Progress and History remain available."
                                           : root.selectedDossier.connectUnavailableReason === "profile_unavailable"
                                           ? "Choose an available Colosseum profile before connecting a tracker. Local Progress and History remain available."
+                                          : root.selectedDossier.reconnectRequired === true
+                                          ? (root.selectedDossier.providerName || "This tracker")
+                                            + " no longer accepts this sign-in. Reconnect the same account to resume syncing. Queued updates are kept."
                                           : root.selectedProviderKey === "trakt"
                                           && root.selectedDossier.available !== true
                                           ? (root.stremioConnected && root.stremioState.hasTrakt === true
@@ -2753,7 +2756,8 @@ Item {
                                     id: connectButton
                                     objectName: "trackerConnectButton"
                                     visible: root.selectedProviderKey !== "global"
-                                             && root.selectedDossier.connected !== true
+                                             && (root.selectedDossier.connected !== true
+                                                 || root.selectedDossier.reconnectRequired === true)
                                     enabled: root.selectedDossier.connectEnabled === true
                                              && root.selectedDossier.available === true
                                     text: root.platformUnavailable(root.selectedProviderKey,
@@ -2772,6 +2776,8 @@ Item {
                                           : root.comingSoon(root.selectedProviderKey,
                                                             root.selectedDossier.available)
                                           ? "Coming soon"
+                                          : root.selectedDossier.reconnectRequired === true
+                                          ? "Reconnect " + (root.selectedDossier.providerName || "tracker")
                                           : root.selectedDossier.pendingWork === true
                                           ? "Reconnect to recover pending work"
                                           : (root.selectedDossier.available ? "Connect" : "Not available")
@@ -2792,7 +2798,9 @@ Item {
                                                                        root.selectedDossier.available)
                                                      ? "Coming soon"
                                                      : root.selectedDossier.available
-                                                     ? (root.selectedDossier.pendingWork === true
+                                                     ? (root.selectedDossier.reconnectRequired === true
+                                                        ? "Reconnect " + (root.selectedDossier.providerName || "tracker")
+                                                        : root.selectedDossier.pendingWork === true
                                                         ? "Reconnect the same "
                                                           + (root.selectedDossier.providerName || "tracker")
                                                           + " account to recover pending work"

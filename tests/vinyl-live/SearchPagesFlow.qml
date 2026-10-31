@@ -23,6 +23,9 @@ Main {
     function check(ok,message){if(!ok){console.error("VINYL_SEARCH_FAIL",stage,message);Qt.exit(15);}return !!ok;}
     function next(value){stage=value;ticks=0;console.log("VINYL_SEARCH_STAGE",value);}
     function activate(name) {
+        var hud=control("vinylPlayerBar");
+        if(name==="vinylSongPlay" && hud && hud.playViewedWithoutSession)name="vinylBarPlay";
+        if(/^vinylSong(Save|Playlist|Next|Queue|Play)$/.test(name))control("vinylBarSongActions").openActionMenu();
         var c=name==="vinylListBack" ? item(control("vinylListPage"),name) : control(name);
         if(!check(c && c.visible && c.enabled,"Missing action: "+name))return false;
         var view=vinylWorld.worldView;

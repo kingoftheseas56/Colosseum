@@ -295,7 +295,10 @@ Item {
             Pill { label: "Biblio" }
             Pill { label: "Theatre" }
             Pill { label: "Universes" }
-            Pill { label: "Feria"; comingSoon: true }
+            Pill {
+                label: "Feria"
+                comingSoon: !bar.Window.window || bar.Window.window.feriaComingSoon !== false
+            }
             Pill {
                 label: "Vinyl"
                 readonly property bool qualificationEnabled: typeof VinylLiveEnabled !== "undefined" && VinylLiveEnabled

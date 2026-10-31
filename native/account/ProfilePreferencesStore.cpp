@@ -3,15 +3,18 @@
 #include "ProfilePreferencesStore.h"
 
 #include <QByteArray>
+#include <QDate>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QRegularExpression>
+#include <QJsonParseError>
 #include <QSet>
 #include <QSettings>
 #include <QUuid>
 
 #include <algorithm>
+#include <cmath>
 
 namespace {
 constexpr auto kShowExplicitKey =
@@ -24,11 +27,18 @@ constexpr auto kVinylTasteKey = "vinyl/taste";
 constexpr auto kVinylFeedbackSnapshotKey = "vinyl/feedbackSnapshot";
 constexpr auto kVinylRecommendationExposureSnapshotKey =
     "vinyl/recommendationExposureSnapshot";
+constexpr auto kVinylHomeSelectionSnapshotKey =
+    "vinyl/homeSelectionSnapshot";
 constexpr int kVinylTasteVersion = 1;
 constexpr qsizetype kMaximumVinylTasteBytes = 4 * 1024 * 1024;
 constexpr int kMaximumVinylTasteArtists = 512;
 constexpr qsizetype kMaximumVinylTasteTextBytes = 4096;
 constexpr qsizetype kMaximumVinylFeedbackSnapshotBytes = 4 * 1024 * 1024;
+constexpr qsizetype kMaximumVinylHomeSelectionSnapshotBytes = 16 * 1024;
+constexpr qsizetype kMaximumVinylHomeSelectionStringBytes = 1024;
+constexpr qsizetype kMaximumVinylHomeSelectionProfileIdBytes = 512;
+constexpr qsizetype kMaximumVinylHomeSelectionSeedHashBytes = 256;
+constexpr double kMaximumVinylHomeSelectionSerial = 9007199254740991.0;
 constexpr auto kRatingsReviewsProviderOrderKey = "ratingsReviews/providerOrder";
 constexpr auto kRatingsReviewsDefaultRatingKey = "ratingsReviews/defaultRatingDestinations";
 constexpr auto kRatingsReviewsDefaultReviewKey = "ratingsReviews/defaultReviewDestinations";
@@ -69,6 +79,136 @@ bool isValidVinylRecommendationExposureSnapshot(const QString &snapshot) {
         return false;
     }
     return snapshot.toUtf8().size() <= kMaximumVinylFeedbackSnapshotBytes;
+}
+
+bool isBoundedSelectionString(
+    const QJsonValue &value,
+    qsizetype maxBytes,
+    bool allowEmpty,
+    QString *text = nullptr) {
+    if (!value.isString())
+        return false;
+    const QString candidate = value.toString();
+    if (candidate.contains(QChar::Null)
+        || candidate.toUtf8().size() > maxBytes
+        || (!allowEmpty && candidate.isEmpty())) {
+        return false;
+    }
+    if (text)
+        *text = candidate;
+    return true;
+}
+
+bool isValidVinylHomeSelectionKeys(
+    const QJsonValue &value,
+    int maxCount) {
+    if (!value.isArray())
+        return false;
+    const QJsonArray keys = value.toArray();
+    if (keys.size() > maxCount)
+        return false;
+
+    QSet<QString> seen;
+    for (const QJsonValue &keyValue : keys) {
+        QString key;
+        if (!isBoundedSelectionString(
+                keyValue, kMaximumVinylHomeSelectionStringBytes, false, &key)
+            || seen.contains(key)) {
+            return false;
+        }
+        seen.insert(key);
+    }
+    return true;
+}
+
+bool isValidVinylHomeSelectionSnapshot(const QString &snapshot) {
+    if (snapshot.isEmpty())
+        return true;
+    if (snapshot.contains(QChar::Null)
+        || snapshot.size() > kMaximumVinylHomeSelectionSnapshotBytes) {
+        return false;
+    }
+    const QByteArray bytes = snapshot.toUtf8();
+    if (bytes.size() > kMaximumVinylHomeSelectionSnapshotBytes)
+        return false;
+
+    QJsonParseError parseError;
+    const QJsonDocument document = QJsonDocument::fromJson(bytes, &parseError);
+    if (parseError.error != QJsonParseError::NoError || !document.isObject())
+        return false;
+
+    const QJsonObject object = document.object();
+    const QSet<QString> allowedFields{
+        QStringLiteral("version"),
+        QStringLiteral("profileId"),
+        QStringLiteral("day"),
+        QStringLiteral("seedHash"),
+        QStringLiteral("refreshSerial"),
+        QStringLiteral("keys"),
+        QStringLiteral("previousKeys")};
+    if (object.size() < 6 || object.size() > 7)
+        return false;
+    for (auto it = object.constBegin(); it != object.constEnd(); ++it) {
+        if (!allowedFields.contains(it.key()))
+            return false;
+    }
+
+    const QJsonValue version = object.value(QStringLiteral("version"));
+    if (!version.isDouble() || version.toDouble() != 1.0)
+        return false;
+
+    if (!isBoundedSelectionString(
+            object.value(QStringLiteral("profileId")),
+            kMaximumVinylHomeSelectionProfileIdBytes,
+            false)
+        || !isBoundedSelectionString(
+            object.value(QStringLiteral("seedHash")),
+            kMaximumVinylHomeSelectionSeedHashBytes,
+            false)) {
+        return false;
+    }
+
+    const QJsonValue dayValue = object.value(QStringLiteral("day"));
+    QString day;
+    if (!isBoundedSelectionString(dayValue, 10, false, &day)
+        || day.size() != 10
+        || day.at(4) != QLatin1Char('-')
+        || day.at(7) != QLatin1Char('-')) {
+        return false;
+    }
+    for (qsizetype index = 0; index < day.size(); ++index) {
+        if (index == 4 || index == 7)
+            continue;
+        if (day.at(index) < QLatin1Char('0')
+            || day.at(index) > QLatin1Char('9')) {
+            return false;
+        }
+    }
+    const QDate parsedDay = QDate::fromString(day, Qt::ISODate);
+    if (!parsedDay.isValid() || parsedDay.toString(Qt::ISODate) != day)
+        return false;
+
+    const QJsonValue refreshSerial =
+        object.value(QStringLiteral("refreshSerial"));
+    if (!refreshSerial.isDouble())
+        return false;
+    const double serial = refreshSerial.toDouble();
+    if (!std::isfinite(serial) || serial < 0.0
+        || serial > kMaximumVinylHomeSelectionSerial
+        || std::floor(serial) != serial) {
+        return false;
+    }
+
+    if (!isValidVinylHomeSelectionKeys(
+            object.value(QStringLiteral("keys")), 5)) {
+        return false;
+    }
+    if (object.contains(QStringLiteral("previousKeys"))
+        && !isValidVinylHomeSelectionKeys(
+            object.value(QStringLiteral("previousKeys")), 10)) {
+        return false;
+    }
+    return true;
 }
 
 bool containsNul(const QVariant &value) {
@@ -750,6 +890,40 @@ bool ProfilePreferencesStore::setVinylRecommendationExposureSnapshot(
     return true;
 }
 
+bool ProfilePreferencesStore::setVinylHomeSelectionSnapshot(
+    const QString &snapshot) {
+    if (!isValidVinylHomeSelectionSnapshot(snapshot)) {
+        m_vinylPersistenceError = QStringLiteral(
+            "Home selection snapshot is malformed or exceeds 16 KiB.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    const QString key = QString::fromLatin1(kVinylHomeSelectionSnapshotKey);
+    const bool existed = m_settings->contains(key);
+    const QVariant previous = m_settings->value(key);
+    m_settings->setValue(key, snapshot);
+    m_settings->sync();
+    if (m_settings->status() != QSettings::NoError) {
+        if (existed)
+            m_settings->setValue(key, previous);
+        else
+            m_settings->remove(key);
+        m_vinylPersistenceError = QStringLiteral(
+            "Home selection snapshot could not be saved.");
+        emit vinylPersistenceErrorChanged();
+        return false;
+    }
+
+    m_vinylHomeSelectionSnapshot = snapshot;
+    m_vinylPersistenceError.clear();
+    ++m_revision;
+    emit vinylHomeSelectionChanged();
+    emit vinylPersistenceErrorChanged();
+    emit changed();
+    return true;
+}
+
 void ProfilePreferencesStore::setRememberSearchHistory(bool enabled) {
     if (m_rememberSearchHistory == enabled)
         return;
@@ -996,6 +1170,20 @@ void ProfilePreferencesStore::load() {
         } else {
             m_vinylPersistenceError = QStringLiteral(
                 "Saved recommendation exposure snapshot is malformed and could not be loaded.");
+        }
+    }
+
+    const QString homeSelectionSnapshotKey = QString::fromLatin1(
+        kVinylHomeSelectionSnapshotKey);
+    if (m_settings->contains(homeSelectionSnapshotKey)) {
+        const QVariant raw = m_settings->value(homeSelectionSnapshotKey);
+        const QString snapshot = raw.toString();
+        if (raw.metaType().id() == QMetaType::QString
+            && isValidVinylHomeSelectionSnapshot(snapshot)) {
+            m_vinylHomeSelectionSnapshot = snapshot;
+        } else {
+            m_vinylPersistenceError = QStringLiteral(
+                "Saved home selection snapshot is malformed and could not be loaded.");
         }
     }
 

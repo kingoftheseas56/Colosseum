@@ -76,6 +76,14 @@ set(COLOSSEUM_MAL_REDIRECT_URI "http://127.0.0.1:38191/oauth/mal/callback" CACHE
 set(COLOSSEUM_MAL_TOKEN_BROKER_URL "" CACHE STRING
     "Optional HTTPS Colosseum-owned confidential-client token broker")
 
+# AniList desktop sign-in uses the no-secret implicit grant: the app never holds
+# a client secret and never compiles one in. Set both to "" to build without
+# AniList.
+set(COLOSSEUM_ANILIST_CLIENT_ID "55437" CACHE STRING
+    "Public AniList client id; empty keeps AniList unavailable")
+set(COLOSSEUM_ANILIST_REDIRECT_URI "http://127.0.0.1:47823/anilist/callback" CACHE STRING
+    "Registered fixed loopback redirect URI")
+
 # Trakt device OAuth requires Colosseum's own public registration and HTTPS
 # broker; confidential provider credentials remain on the broker.
 # The defaults are Colosseum's own public Trakt client ID and its hosted token
@@ -388,6 +396,12 @@ qt_add_executable(colosseum
     trackers/MalListStateStore.cpp
     trackers/MalConnectionController.cpp
     trackers/MalSyncRuntime.cpp
+    trackers/AniListProtocol.cpp
+    trackers/AniListHttpTransport.cpp
+    trackers/AniListApiClient.cpp
+    trackers/AniListLoopbackServer.cpp
+    trackers/AniListConnectionController.cpp
+    trackers/AniListSyncRuntime.cpp
     trackers/TraktAuth.cpp
     trackers/TraktCodec.cpp
     trackers/TraktHttpTransport.cpp
@@ -495,6 +509,12 @@ qt_add_executable(colosseum
     trackers/MalListStateStore.h
     trackers/MalConnectionController.h
     trackers/MalSyncRuntime.h
+    trackers/AniListProtocol.h
+    trackers/AniListHttpTransport.h
+    trackers/AniListApiClient.h
+    trackers/AniListLoopbackServer.h
+    trackers/AniListConnectionController.h
+    trackers/AniListSyncRuntime.h
     trackers/TraktAuth.h
     trackers/TraktCodec.h
     trackers/TraktHttpTransport.h
@@ -1016,6 +1036,28 @@ if(COLOSSEUM_MAL_CLIENT_ID OR COLOSSEUM_MAL_REDIRECT_URI OR COLOSSEUM_MAL_TOKEN_
     message(STATUS "MyAnimeList tracker enabled for this build")
 else()
     message(STATUS "MyAnimeList tracker disabled: registration is not configured")
+endif()
+if(COLOSSEUM_ANILIST_CLIENT_ID OR COLOSSEUM_ANILIST_REDIRECT_URI)
+    string(STRIP "${COLOSSEUM_ANILIST_CLIENT_ID}" colosseum_anilist_client_id)
+    string(STRIP "${COLOSSEUM_ANILIST_REDIRECT_URI}" colosseum_anilist_redirect_uri)
+
+    if(colosseum_anilist_client_id STREQUAL "" OR colosseum_anilist_redirect_uri STREQUAL "")
+        message(FATAL_ERROR "AniList requires both COLOSSEUM_ANILIST_CLIENT_ID and COLOSSEUM_ANILIST_REDIRECT_URI")
+    endif()
+    if(colosseum_anilist_client_id MATCHES "[\"\\\\]"
+       OR colosseum_anilist_redirect_uri MATCHES "[\"\\\\]")
+        message(FATAL_ERROR "AniList build configuration contains unsafe quoting")
+    endif()
+    if(NOT colosseum_anilist_redirect_uri MATCHES "^http://(localhost|127[.]0[.]0[.]1|\\[::1\\]):[0-9]+/")
+        message(FATAL_ERROR "COLOSSEUM_ANILIST_REDIRECT_URI must be a fixed loopback HTTP URI with a port")
+    endif()
+
+    target_compile_definitions(colosseum PRIVATE
+        COLOSSEUM_ANILIST_CLIENT_ID="${colosseum_anilist_client_id}"
+        COLOSSEUM_ANILIST_REDIRECT_URI="${colosseum_anilist_redirect_uri}")
+    message(STATUS "AniList tracker enabled for this build")
+else()
+    message(STATUS "AniList tracker disabled: registration is not configured")
 endif()
 if(COLOSSEUM_TRAKT_CLIENT_ID OR COLOSSEUM_TRAKT_TOKEN_BROKER_URL)
     if(NOT COLOSSEUM_TRAKT_CLIENT_ID MATCHES "^[A-Za-z0-9_-]+$"
@@ -3191,7 +3233,10 @@ target_sources(colosseum PRIVATE
     torrent/MusicTorrentQueryPlanner.h torrent/MusicTorrentQueryPlanner.cpp)
 include("${CMAKE_CURRENT_SOURCE_DIR}/vinyl/backend/CMakeLists.txt")
 add_library(colosseum_vinyl_app STATIC
+    vinyl/VinylGeniusService.h vinyl/VinylGeniusService.cpp
+    vinyl/VinylLyricsService.h vinyl/VinylLyricsService.cpp
     vinyl/VinylRecommendationService.h vinyl/VinylRecommendationService.cpp vinyl/VinylRecommendationHome.cpp
+    vinyl/VinylHomeListening.h vinyl/VinylHomeListening.cpp
     vinyl/VinylRecommendationHistory.h vinyl/VinylRecommendationHistory.cpp
     vinyl/VinylBackendSession.h vinyl/VinylBackendSession.cpp)
 target_include_directories(colosseum_vinyl_app PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")

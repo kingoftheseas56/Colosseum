@@ -24,7 +24,10 @@ Main {
     function control(name){return item(contentItem,name);}
     function check(ok,message){if(!ok){console.error("VINYL_QUEUE_FAIL",stage,message);Qt.exit(16);}return !!ok;}
     function next(value){stage=value;ticks=0;console.log("VINYL_QUEUE_STAGE",value);}
-    function activate(name){var c=control(name);if(!check(c && c.enabled,"Missing action: "+name))return false;if(typeof c.activate==="function")c.activate(Qt.MouseFocusReason);else if(typeof c.triggered==="function")c.triggered();else return check(false,"No action handler: "+name);return true;}
+    function activate(name){
+        if(/^vinylSong(Save|Playlist|Next|Queue|Play)$/.test(name))control("vinylBarSongActions").openActionMenu();
+        var c=control(name);if(!check(c && c.enabled,"Missing action: "+name))return false;if(typeof c.activate==="function")c.activate(Qt.MouseFocusReason);else if(typeof c.triggered==="function")c.triggered();else return check(false,"No action handler: "+name);return true;
+    }
     function ids(s){return s.queue.map(r=>r.queueId);}
     function capture(name,target){next("capture");contentItem.grabToImage(function(result){result.saveToFile(Qt.application.arguments[3]+"/"+name+".png");root.next(target);});}
     Timer {

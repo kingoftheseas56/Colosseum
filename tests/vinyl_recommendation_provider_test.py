@@ -99,6 +99,19 @@ class FakeClient:
         return self.search_rows
 
 
+class FakeDiscoveryClient:
+    def __init__(self):
+        self.calls = []
+
+    def get_explore(self):
+        self.calls.append(("get_explore", ()))
+        return {"trending": {"items": []}}
+
+    def get_charts(self, region):
+        self.calls.append(("get_charts", (region,)))
+        return {"artists": [], "videos": []}
+
+
 class UnavailableMusicBrainz:
     """A no-network double: every attempted MusicBrainz call is unavailable."""
 
@@ -167,6 +180,48 @@ class VinylRecommendationProviderTest(unittest.TestCase):
         self.assertIs(result["complete"], False)
         self.assertIn(result["status"], {"ready", "empty", "unavailable"})
 
+    def test_regionless_requests_do_not_supply_a_default_music_market(self):
+        self.assertEqual(provider.requested_region({}), "")
+        self.assertEqual(provider.requested_region({"region": None}), "")
+        self.assertEqual(provider.ytmusic_location_options(""), {})
+        self.assertEqual(provider.requested_region({"region": "GB"}), "GB")
+        self.assertEqual(provider.ytmusic_location_options("GB"), {"location": "GB"})
+
+    def test_market_discovery_requires_and_preserves_an_explicit_market(self):
+        client = FakeDiscoveryClient()
+        with self.assertRaises(provider.InvalidArgumentError):
+            provider.handle({"operation": "discover", "value": "artists"}, client=client)
+        self.assertEqual(client.calls, [])
+
+        result = provider.handle(
+            {"operation": "discover", "value": "artists", "region": "GB"},
+            client=client,
+        )
+        self.assertEqual(result["region"], "GB")
+        self.assertEqual(client.calls, [("get_charts", ("GB",))])
+
+    def test_global_discovery_keeps_regionless_request_regionless(self):
+        client = FakeDiscoveryClient()
+        result = provider.handle({"operation": "discover", "value": "trending"}, client=client)
+
+        self.assertEqual(result["region"], "")
+        self.assertEqual(client.calls, [("get_explore", ())])
+
+    def test_artist_search_pages_need_no_market(self):
+        client = FakeClient()
+        with mock.patch.object(provider, "read_search_page", return_value={
+            "items": [{"browseId": CHANNEL_ID, "title": "Fixture", "artist": "Fixture"}],
+            "continuation": "next-page",
+        }):
+            result = provider.handle({
+                "operation": "cataloguePage", "value": "Fixture", "kind": "artists",
+                "cursor": {},
+            }, client=client)
+
+        self.assertEqual(result["region"], "")
+        self.assertEqual(result["items"][0]["artistId"], "ytm:artist:" + CHANNEL_ID)
+        self.assertEqual(result["nextCursor"]["region"], "")
+
     def test_youtube_only_artist_keeps_own_releases_when_musicbrainz_is_unavailable(self):
         artist = raw_artist(
             albums=[raw_release("Fixture Album", "ALBUM_fixture_01")],
@@ -191,6 +246,40 @@ class VinylRecommendationProviderTest(unittest.TestCase):
                 {item.get("title") for item in result["items"]}
             )
         )
+
+    def test_null_or_missing_release_shelf_owner_does_not_block_artist_candidates(self):
+        artist = raw_artist(
+            albums=[raw_release("Fixture Album", "ALBUM_fixture_null")],
+            singles=[raw_release("Fixture Single", "SINGLE_fixture_missing")],
+        )
+        artist["albums"]["browseId"] = None
+
+        result = provider.handle(
+            candidate_request(),
+            client=FakeClient(artist),
+            mb_client=UnavailableMusicBrainz(),
+        )
+
+        self.assert_candidate_envelope(result)
+        self.assertEqual(result["status"], "ready")
+        self.assertEqual(
+            {item["title"] for item in result["items"] if item["relation"] == "own-release"},
+            {"Fixture Album", "Fixture Single"},
+        )
+
+    def test_non_string_release_shelf_owner_remains_invalid(self):
+        artist = raw_artist(albums=[raw_release("Fixture Album", "ALBUM_fixture_bad_owner")])
+        artist["albums"]["browseId"] = 123
+
+        result = provider.handle(
+            candidate_request(),
+            client=FakeClient(artist),
+            mb_client=UnavailableMusicBrainz(),
+        )
+
+        self.assert_candidate_envelope(result)
+        self.assertEqual(result["status"], "unavailable")
+        self.assertEqual(result["items"], [])
 
     def test_candidate_limit_deduplication_and_seed_binding(self):
         albums = [

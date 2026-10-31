@@ -26,6 +26,38 @@ TestCase {
             }
         }
     }
+    function test_realLocalSessionProjectsLyricsAndRetainsReadingAcrossRetry() {
+        var album=session.plainData(rawAlbum);
+        album.tracks[0].lyrics=[{text:"Original local opening",time:0},{text:"Original local passage",time:0.5}];
+        album.tracks[0].notes={0:[{text:"A genuine supplied local note for the test passage."}]};
+        (album.editions || []).forEach(function(edition){edition.tracks[0].lyrics=album.tracks[0].lyrics;edition.tracks[0].notes=album.tracks[0].notes;});
+        NativeSource.setAlbums([album]);session.shownEdition=session.normalize(album);session.playTrack(0);
+        tryVerify(()=>session.loaded);
+        tryCompare(session,"timedLyrics",true);
+        compare(session.lyrics.length,2);compare(session.lyricsSource,"local");
+        var document=session.lyricsDocumentId,occurrence=session.queue[session.queueIndex].queueId;
+        verify(document.length>0);
+        session.toggleLyrics();session.autoNotes=true;session.pauseLyrics(80);session.showNotes(0);
+        session.seekToLine(1);compare(session.manualNoteLine,0);
+        session.toggleLyrics();session.toggleLyrics();
+        compare(session.lyricsScrollY,80);compare(session.manualNoteLine,0);
+        session.retry();tryVerify(()=>session.loaded);
+        compare(session.lyricsDocumentId,document);compare(session.queue[session.queueIndex].queueId,occurrence);
+        compare(session.manualNoteLine,0);verify(!session.lyricsFollowing);
+        session.resumeLyrics();verify(session.lyricsFollowing);compare(session.manualNoteLine,0);
+        session.toggleNotes();verify(session.autoNotes);compare(session.manualNoteLine,-1);
+        session.clearProfile();compare(session.lyrics.length,0);compare(session.manualNoteLine,-1);
+    }
+    function test_lyricsUseSelectedEditionContent() {
+        var album=session.plainData(rawAlbum),track=session.plainData(album.tracks[0]);
+        album.tracks[0].lyrics="Unselected album text";
+        track.lyrics="Selected edition text";
+        var selected={id:"selected-content-edition",title:"Selected edition",tracks:[track]};
+        album.editions=[selected];
+        NativeSource.setAlbums([album]);session.shownEdition=session.normalize(album,selected);session.playTrack(0);
+        tryVerify(()=>session.hasLyrics);
+        compare(session.lyrics[0].text,"Selected edition text");
+    }
     function test_changedAudioSameMediaCancelAndProfileFence() {
         var store=collectionFactory.createObject(test);session.collectionStore=store;
         var path=BridgeFixtures.createIdentityAudio();compare(session.importFiles([path]).imported,1);

@@ -63,7 +63,9 @@ Assert-Contains $tw 'Qt.binding' "comics data is reactively bound into the loade
 Assert-Contains $tw 'FeaturedCarousel' "featured stays shared above the tabs"
 Assert-Contains $tw 'Next Up' "next up stays shared"
 Assert-Contains $tw 'Continue Reading' "continue stays shared"
-Assert-Contains $tw 'ComicsCatalog.shelf' "world still owns the one-time shelf compute"
+$shelves = Get-Content (Join-Path $root "qml/ComicsShelfDelivery.js") -Raw
+Assert-Contains $tw 'ComicsShelves.initial(ComicsCatalog)' "world initializes shelves through the current delivery owner"
+Assert-Contains $shelves 'catalog.shelf(' "delivery owner reads native catalogue shelves"
 Assert-Contains $tw 'GcApi.explore' "world still owns the one-time explore fetch"
 Assert-Contains $tw 'onMangaSeriesRequested' "Discover manga card routes to the existing manga series door (Task 7)"
 Assert-Contains $tw 'onComicSeriesRequested' "Discover comics card routes to the existing comic series door (Task 7)"
@@ -71,8 +73,8 @@ Assert-Contains $tw 'showExplicitContent: tanko.showExplicitContent' "Discover r
 Assert-Contains $tw 'function openDiscoverPin(pin)' "world defines openDiscoverPin to route a See-all pin into Discover (Task 8)"
 Assert-Contains $tw 'discoverPage.applyPin(pin)' "openDiscoverPin applies the pin to the in-tab Discover wall (Task 8)"
 Assert-Contains $tw "item.discoverPinRequested.connect(tanko.openDiscoverPin)" "world connects the browse tab See-all pins into Discover (Task 8)"
-Assert-Contains $tw 'kind: spec.kind' "shelf object carries its kind so the tab can build a pin (Task 8)"
-Assert-Contains $tw 'arg: spec.arg' "shelf object carries its arg so the tab can build a stable filter key (Task 8)"
+Assert-Contains $shelves 'result.kind=spec.kind' "shelf object carries its kind so the tab can build a pin (Task 8)"
+Assert-Contains $shelves 'result.arg=spec.arg' "shelf object carries its arg so the tab can build a stable filter key (Task 8)"
 Assert-Absent  $tw 'title: "Top in Tankoban — Manga"' "manga row moved out of the world into the tab"
 Assert-Absent  $tw 'title: "Top in Tankoban — Comics"' "comics row moved out of the world into the tab"
 Assert-Absent  $tw 'title: "Explore Comics"' "explore-comics moved out of the world into the tab"
@@ -80,7 +82,7 @@ Assert-Absent  $tw 'title: "Explore Comics"' "explore-comics moved out of the wo
 # --- TB-001: Library is a FOURTH tab, retained alongside Discover (not Loader-swapped) ---
 Assert-Contains $tw '"library"' "tab model has the library key (TB-001)"
 Assert-Contains $tw 'TankobanLibraryTab {' "world mounts the retained TankobanLibraryTab (TB-001)"
-Assert-Contains $tw 'active: tanko.activeTab === "manga" || tanko.activeTab === "comics"' `
+Assert-Contains $tw 'active: tanko.lifecycleActive && (tanko.activeTab === "manga" || tanko.activeTab === "comics")' `
     "the Manga/Comics Loader's active condition must stay exactly two tabs (Library is not a third)"
 
 Write-Host "tankoban tabs contract OK"

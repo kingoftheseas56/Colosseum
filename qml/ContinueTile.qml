@@ -25,6 +25,7 @@ import "CatalogueVisualMetrics.js" as Metrics
 
 Item {
     id: tile
+    objectName: "continueTile_" + tile.variant + "_" + tile.kind + "_" + String(tile.entry.id || "")
 
     property string variant: "world"      // "home" | "world"
     property var entry: ({})              // Progress record: id/kind/title|caption/sub/cover/c1/c2/progress/watched
@@ -377,7 +378,7 @@ Item {
         Image {
             anchors.centerIn: parent
             width: tile.kind === "video" ? 18 : 21; height: width
-            source: tile.kind === "video" ? "../assets/icons/play.svg"
+            source: tile.kind === "video" || tile.kind === "music" ? "../assets/icons/play.svg"
                   : tile.kind === "book"  ? "../assets/icons/books.svg"
                   : "../assets/icons/manga.svg"
             fillMode: Image.PreserveAspectFit

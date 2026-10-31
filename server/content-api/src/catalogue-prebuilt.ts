@@ -76,9 +76,10 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
   if(method==='discoverPage'){catalog=text(args[0]);filters=args[1]||args[2]?[{axis:args[1],key:args[2]}]:[];explicit=args[3];offset=Math.max(0,integer(args[4]));limit=clamp(args[5]);}
   else{catalog=text(args[0]);filters=args[1];explicit=args[2];offset=Math.max(0,integer(args[3]));limit=clamp(args[4]);}
   const raw=(Array.isArray(filters)?filters:[]).map(f=>({axis:text(f?.axis),key:text(f?.key)}));
-  const axes=dataset==='mal'?['','genre','demographic']:['','genre','publisher','format','availability'];
+  const axes=dataset==='mal'?['','genre','demographic','format']:['','genre','publisher','format','availability'];
   const empty=()=>({result:{items:[],nextOffset:offset,exhausted:true,freshness:'bundled',...(dataset==='mal'?{fallbackCatalog:catalog==='trending'?'popular':''}:{})}});
   if(raw.some(f=>!axes.includes(f.axis)))return empty();
+  if(dataset==='mal'&&raw.some(f=>f.axis==='format'&&f.key&&!['manga','manhwa','manhua'].includes(fold(f.key))))return empty();
   const catalogs=dataset==='mal'?['popular','trending','top-rated','new-releases','completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s']:['popular','new-releases','most-stocked','all','recently-available','complete-runs','near-complete','community-collections'];
   if(!catalogs.includes(catalog))return empty();
   const normalized=raw.filter(f=>f.axis&&f.key);
@@ -113,7 +114,7 @@ export async function prebuiltCatalogue(assets:Fetcher,revision:string,dataset:s
    return{result:{items,nextOffset:offset+items.length,exhausted:list.shape==='comics'?offset+items.length>=list.length:items.length<limit,freshness:'bundled',...(list.shape==='mal'?{fallbackCatalog:catalog==='trending'?'popular':''}:{})}};
   }
   // An older publication lacks new shelf selections; let the semantic owner answer.
-  if(dataset==='mal'&&['completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s'].includes(catalog))return null;
+  if(dataset==='mal'&&listMethod==='discoverPageFiltered'&&(['completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s'].includes(catalog)||(selection[1] as any[]).some(f=>f.axis==='format')))return null;
   if(['mal','comics'].includes(dataset)&&listMethod==='discoverPageFiltered')return{result:{items:[],nextOffset:offset,exhausted:true,freshness:'bundled',...(dataset==='mal'?{fallbackCatalog:catalog==='trending'?'popular':''}:{})}};
   if(dataset==='mal'&&method==='genreEntries')return{result:[]};
  }

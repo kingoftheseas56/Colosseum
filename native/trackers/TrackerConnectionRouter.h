@@ -3,6 +3,7 @@
 #include <QObject>
 #include <QString>
 
+class AniListConnectionController;
 class MalConnectionController;
 class SimklConnectionController;
 class TraktConnectionController;
@@ -26,6 +27,11 @@ public:
     TrackerConnectionRouter(SimklConnectionController *simkl,
                             MalConnectionController *mal,
                             TraktConnectionController *trakt,
+                            QObject *parent);
+    TrackerConnectionRouter(SimklConnectionController *simkl,
+                            MalConnectionController *mal,
+                            TraktConnectionController *trakt,
+                            AniListConnectionController *aniList,
                             QObject *parent);
 
     bool available() const;
@@ -58,9 +64,14 @@ private:
     {
         return m_activeProviderKey == QLatin1String("trakt");
     }
+    bool aniListActive() const
+    {
+        return m_activeProviderKey == QLatin1String("anilist");
+    }
 
     SimklConnectionController *m_simkl = nullptr;
     MalConnectionController *m_mal = nullptr;
     TraktConnectionController *m_trakt = nullptr;
+    AniListConnectionController *m_aniList = nullptr;
     QString m_activeProviderKey = QStringLiteral("simkl");
 };

@@ -281,6 +281,18 @@ function(colosseum_add_tracker_delivery_runtime_sources target)
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalConnectionController.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/MalSyncRuntime.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.h"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListSyncRuntime.cpp"
+        "${COLOSSEUM_NATIVE_DIR}/trackers/AniListSyncRuntime.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.cpp"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TraktAuth.h"
         "${COLOSSEUM_NATIVE_DIR}/trackers/TraktCodec.cpp"
@@ -1850,12 +1862,19 @@ foreach(vinyl_suite IN ITEMS
     vinyl_artist_shared_picker
     vinyl_discover_page
     vinyl_home_page
+    vinyl_home_mix_page
+    vinyl_live_world_state
     vinyl_local_controls
     vinyl_live_artist
     vinyl_note_picker
     vinyl_page_data
     vinyl_personal_state
     vinyl_song_page
+    vinyl_song_action_menu
+    vinyl_hud_context
+    vinyl_lyrics_column
+    vinyl_reading_state
+    vinyl_notes_column
     vinyl_world_journeys
     vinyl_world_lists
     vinyl_world_navigation
@@ -1871,6 +1890,8 @@ foreach(vinyl_suite IN ITEMS
         ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1;QT_QUICK_CONTROLS_STYLE=Basic"
         TIMEOUT 120)
 endforeach()
+
+set_tests_properties(colosseum.qml.vinyl_world_navigation PROPERTIES TIMEOUT 240)
 
 add_test(NAME colosseum.qml.account_flyout_local_privacy
     COMMAND colosseum_qml_tests -input
@@ -2660,6 +2681,48 @@ target_link_libraries(tst_vinyl_music_actions PRIVATE Qt6::Core Qt6::Sql Qt6::Te
 set_target_properties(tst_vinyl_music_actions PROPERTIES AUTOMOC ON RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
 add_test(NAME colosseum.qttest.vinyl_music_actions COMMAND tst_vinyl_music_actions)
 set_tests_properties(colosseum.qttest.vinyl_music_actions PROPERTIES LABELS "vinyl;activity;history;unit" TIMEOUT 60)
+add_executable(vinyl_genius_contracts vinyl_genius_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
+target_include_directories(vinyl_genius_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_genius_contracts PRIVATE colosseum_vinyl_backend Qt6::Network Qt6::Test)
+set_target_properties(vinyl_genius_contracts PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.vinyl_genius_contracts COMMAND vinyl_genius_contracts)
+set_tests_properties(colosseum.vinyl_genius_contracts PROPERTIES LABELS "vinyl;annotations;unit" TIMEOUT 60)
+
+add_executable(vinyl_genius_live vinyl_genius_live.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylGeniusService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.h"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
+target_include_directories(vinyl_genius_live PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_genius_live PRIVATE colosseum_vinyl_backend Qt6::Network)
+set_target_properties(vinyl_genius_live PROPERTIES AUTOMOC ON)
+if(MSVC)
+    target_compile_options(vinyl_genius_live PRIVATE /utf-8)
+    target_compile_options(vinyl_genius_contracts PRIVATE /utf-8)
+endif()
+
+add_executable(vinyl_lyrics_contracts vinyl_lyrics_contracts.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylLyricsService.h")
+target_include_directories(vinyl_lyrics_contracts PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_lyrics_contracts PRIVATE colosseum_vinyl_backend Qt6::Test)
+set_target_properties(vinyl_lyrics_contracts PROPERTIES AUTOMOC ON)
+add_test(NAME colosseum.vinyl_lyrics_contracts COMMAND vinyl_lyrics_contracts)
+set_tests_properties(colosseum.vinyl_lyrics_contracts PROPERTIES LABELS "vinyl;lyrics;unit" TIMEOUT 60)
+
+add_executable(vinyl_timed_text_core_test "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/bc1-timed-text-prototype/test_timed_text.cpp")
+add_executable(vinyl_translation_test "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/bc2-translation-prototype/test_translation.cpp")
+add_executable(vinyl_annotation_meaning_test "${COLOSSEUM_NATIVE_DIR}/vinyl/backend/bc3-annotation-prototype/test_annotation_meaning.cpp")
+foreach(content_test IN ITEMS vinyl_timed_text_core_test vinyl_translation_test vinyl_annotation_meaning_test)
+    target_link_libraries(${content_test} PRIVATE colosseum_vinyl_backend Qt6::Core)
+    add_test(NAME colosseum.${content_test} COMMAND ${content_test})
+    set_tests_properties(colosseum.${content_test} PROPERTIES LABELS "vinyl;lyrics;contracts" TIMEOUT 60)
+endforeach()
+
 add_executable(vinyl_recommendation_history_test vinyl_recommendation_history_test.cpp
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
 target_include_directories(vinyl_recommendation_history_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
@@ -4845,6 +4908,101 @@ set_tests_properties(colosseum.qttest.tracker_mal PROPERTIES
     ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
     TIMEOUT 60)
 
+# Arc 76: native AniList GraphQL protocol, transport classification, and API
+# client. Fake transport only; no production AniList build definitions reach
+# this target, so its unconfigured case proves an unregistered build stays
+# fail-closed.
+add_executable(tst_tracker_anilist
+    auto/tracker_anilist/tst_tracker_anilist.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerTypes.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerCredentialVault.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListProtocol.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListHttpTransport.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListApiClient.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListLoopbackServer.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/AniListConnectionController.h"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/trackers/TrackerConnectionStore.h")
+target_include_directories(tst_tracker_anilist PRIVATE
+    "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(tst_tracker_anilist PRIVATE
+    Qt6::Core
+    Qt6::Gui
+    Qt6::Network
+    Qt6::Test)
+set_target_properties(tst_tracker_anilist PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_anilist PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_anilist POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Gui>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE_DIR:tst_tracker_anilist>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_anilist
+         COMMAND tst_tracker_anilist)
+set_tests_properties(colosseum.qttest.tracker_anilist PROPERTIES
+    LABELS "unit;qttest;tracker;anilist"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
+# Arc 76 S3/S4: AniList mapping, domain gate and sync runtime against a fake
+# transport, an in-memory vault and synthetic profiles in temp directories.
+add_executable(tst_tracker_anilist_sync
+    auto/tracker_anilist/tst_tracker_anilist_sync.cpp
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ProfilePaths.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ActivityProjector.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/ConsumptionHistoryBridge.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/HistoryStore.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncOwnershipInventory.h"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/account/SyncPayloadFirewall.h"
+    "${COLOSSEUM_NATIVE_DIR}/ProgressStore.h")
+colosseum_add_tracker_delivery_runtime_sources(tst_tracker_anilist_sync)
+target_include_directories(tst_tracker_anilist_sync PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_compile_definitions(tst_tracker_anilist_sync PRIVATE
+    COLOSSEUM_TRACKER_DELIVERY_TESTING=1)
+target_link_libraries(tst_tracker_anilist_sync PRIVATE Qt6::Core Qt6::Sql Qt6::Test)
+set_target_properties(tst_tracker_anilist_sync PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/..")
+if(WIN32)
+    target_link_libraries(tst_tracker_anilist_sync PRIVATE advapi32)
+    add_custom_command(TARGET tst_tracker_anilist_sync POST_BUILD
+        COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>"
+                "$<TARGET_FILE:Qt6::Gui>"
+                "$<TARGET_FILE:Qt6::Network>"
+                "$<TARGET_FILE:Qt6::Sql>"
+                "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_tracker_anilist_sync>"
+        VERBATIM)
+endif()
+add_test(NAME colosseum.qttest.tracker_anilist_sync COMMAND tst_tracker_anilist_sync)
+set_tests_properties(colosseum.qttest.tracker_anilist_sync PROPERTIES
+    LABELS "unit;qttest;tracker;anilist"
+    ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
+    TIMEOUT 60)
+
 # Direct Trakt keeps production registration defines out of the fixture build.
 add_executable(tst_trakt_direct
     auto/trakt_direct/tst_trakt_direct.cpp
@@ -5443,10 +5601,22 @@ add_test(NAME colosseum.vinyl_be3_ranker COMMAND vinyl_be3_ranker_test)
 
 add_executable(vinyl_recommendation_contracts_test vinyl_recommendation_contracts.cpp)
 add_executable(vinyl_recommendation_service_test vinyl_recommendation_service_test.cpp)
+
+add_executable(vinyl_home_listening_test vinyl_home_listening_test.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylHomeListening.cpp")
+set_target_properties(vinyl_home_listening_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_home_listening_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_home_listening_test PRIVATE Qt6::Core Qt6::Qml Qt6::Test)
+if(MSVC)
+    target_compile_options(vinyl_home_listening_test PRIVATE /utf-8)
+endif()
+add_test(NAME colosseum.vinyl_home_listening COMMAND vinyl_home_listening_test)
+set_tests_properties(colosseum.vinyl_home_listening PROPERTIES LABELS "vinyl;home;unit" TIMEOUT 60)
 target_sources(vinyl_recommendation_service_test PRIVATE
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationService.h"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHome.cpp"
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylHomeListening.cpp"
     "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylRecommendationHistory.cpp")
 set_target_properties(vinyl_recommendation_service_test PROPERTIES AUTOMOC ON)
 target_include_directories(vinyl_recommendation_service_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")

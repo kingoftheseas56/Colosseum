@@ -7,7 +7,7 @@ $root = Split-Path -Parent $PSScriptRoot
 # the bake pipeline exists and the seam is registered
 if (!(Test-Path (Join-Path $root 'scripts/anime_brain/build_mal_db.py'))) { throw 'bake script missing' }
 $main = Get-Content (Join-Path $root 'native/main.cpp') -Raw
-if ($main -notmatch 'MalCatalog.*data/mal_catalog\.db') { throw 'MalCatalog not registered in main.cpp' }
+if ($main -notmatch 'data/mal_catalog\.db' -or $main -notmatch 'new MalCatalog\([^\r\n]*malRes\.path') { throw 'MalCatalog not registered through the catalogue path resolver in main.cpp' }
 $cmake = Get-Content (Join-Path $root 'native/CMakeLists.txt') -Raw
 if ($cmake -notmatch 'engine/MalCatalog\.cpp') { throw 'MalCatalog.cpp not in the app target' }
 
@@ -31,7 +31,7 @@ foreach ($f in @('qml/TheatreGenreApi.js', 'qml/GenreApi.js')) {
     if ($src -match 'MalCatalog\.ready' -or $src -match 'MalCatalog\.genreEntries') {
         throw "$f references the MalCatalog global directly; use the passed-in catalog"
     }
-    if ($src -notmatch 'catalog\.ready\(\)') { throw "$f lost the passed-in catalog-first guard" }
+    if ($src -notmatch 'catalog\.ready\(\)' -and $src -notmatch 'CatalogDelivery\.available\(catalog\)') { throw "$f lost the passed-in catalogue availability guard" }
     if ($src -notmatch 'catalog\.genreEntries\(') { throw "$f no longer queries the passed-in catalog" }
     if ($src -notmatch 'api\.jikan\.moe') { throw "$f lost its live Jikan fallback" }
 }

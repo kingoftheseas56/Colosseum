@@ -4,6 +4,7 @@
 #include "DeterministicRanker.h"
 #include "FeedbackTastePersistence.h"
 #include "VinylRecommendationHistory.h"
+#include "VinylHomeListening.h"
 #include "account/ActivityStore.h"
 #include "account/HistoryStore.h"
 #include <QCryptographicHash>
@@ -76,6 +77,7 @@ struct VinylRecommendationService::HomeState {
     struct Active {int id;Job job;};
     QVariantMap collections,snapshot,history;
     QVariantList sections,seeds;
+    QStringList excludedArtistProviderIds;
     QMap<QString,QVariantMap> evidence,identities,population;
     QMap<QString,Active> active;
     QList<Job> waiting;
@@ -90,6 +92,12 @@ struct VinylRecommendationService::HomeState {
     bool persisting=false;
     quint64 activityReset=0;
     qint64 historyReset=0;
+    std::unique_ptr<VinylHomeListening> listening;
+    QVariantList carousel;
+    QMap<QString,QVariantMap> retainedCarousel;
+    QString selectionKey;
+    QStringList selectionKeys, previousKeys;
+    qint64 selectionSerial=0;
 };
 
 QVariantMap VinylRecommendationService::historySnapshot()const{return m_home->history;}
@@ -130,7 +138,16 @@ void VinylRecommendationService::historyInputsChanged() {
     const auto activityReset=activity?activity->resetGeneration():0;
     const auto historyReset=history?history->syncResetGeneration():0;
     if(!m_keepHistory || (activity && !activity->retentionEnabled())
-        || activityReset!=m_home->activityReset || historyReset!=m_home->historyReset)storeExposure({});
+        || activityReset!=m_home->activityReset || historyReset!=m_home->historyReset){
+        storeExposure({});
+        m_home->selectionKey.clear();m_home->selectionKeys.clear();m_home->previousKeys.clear();m_home->carousel.clear();
+        if(m_preferences && !m_preferences->property("vinylHomeSelectionSnapshot").toString().isEmpty()
+            &&m_preferences->metaObject()->indexOfMethod("setVinylHomeSelectionSnapshot(QString)")>=0){
+            bool saved=false;QScopedValueRollback<bool> guard(m_home->persisting,true);
+            QMetaObject::invokeMethod(m_preferences,"setVinylHomeSelectionSnapshot",Qt::DirectConnection,
+                Q_RETURN_ARG(bool,saved),Q_ARG(QString,QString()));
+        }
+    }
     m_home->activityReset=activityReset;m_home->historyReset=historyReset;
     if(m_home->visited && m_state=="answered") {m_home->evaluatedAt=m_home->clock();rebuildHome();}
 }
@@ -191,6 +208,9 @@ bool VinylRecommendationService::recordVisibleItems(const QString &shelf,const Q
 void VinylRecommendationService::initializeHome(std::function<qint64()> clock){
     m_home=std::make_shared<HomeState>();m_home->clock=clock?std::move(clock):std::function<qint64()>([]{return QDateTime::currentMSecsSinceEpoch();});
     m_home->deadline=new QTimer(this);m_home->deadline->setSingleShot(true);
+    m_home->listening=std::make_unique<VinylHomeListening>(nullptr,
+        [this]{emit listeningChanged();},
+        [this](const QVariantList &songs,bool append){emit homeRadioBatchReady(songs,append);});
     connect(m_home->deadline,&QTimer::timeout,this,[this]{
         auto incomplete=[this](const HomeState::Job &job){if(job.operation=="artistCandidates")m_home->failed.insert(job.key);else m_home->optionalUnavailable.insert(job.operation+":"+job.key);};
         for(const auto &active:m_home->active)incomplete(active.job);
@@ -211,14 +231,32 @@ QString VinylRecommendationService::homeStatus() const{return m_home->status;}
 QString VinylRecommendationService::homeError() const{return m_home->error;}
 int VinylRecommendationService::homeRevision() const{return m_home->revision;}
 QVariantMap VinylRecommendationService::homeSnapshot() const{return m_home->snapshot;}
+QVariantList VinylRecommendationService::homeCarouselItems() const{return m_home->carousel;}
+QVariantList VinylRecommendationService::homeListeningCards() const{return m_home->listening->cards();}
+QVariantList VinylRecommendationService::homeQuickPicks() const{return m_home->listening->quickPicks();}
+QVariantMap VinylRecommendationService::homeMixView() const{return m_home->listening->view();}
+bool VinylRecommendationService::homeRadioActive() const{return m_home->listening->radioActive();}
+QString VinylRecommendationService::homeRadioState() const{return m_home->listening->radioState();}
+QVariantMap VinylRecommendationService::homeRadioContext() const{return m_home->listening->radioContext();}
+void VinylRecommendationService::openHomeMix(const QString &kind){if(m_active&&canEnterVinyl())m_home->listening->openMix(kind);}
+void VinylRecommendationService::startHomeRadio(const QVariantMap &artist){if(m_active&&canEnterVinyl())m_home->listening->startRadio(artist);}
+void VinylRecommendationService::refillHomeRadio(const QStringList &queuedTracks){if(m_active&&canEnterVinyl())m_home->listening->refillRadio(queuedTracks);}
+void VinylRecommendationService::stopHomeRadio(){m_home->listening->stopRadio();}
+void VinylRecommendationService::restoreHomeRadio(const QVariantMap &context,const QStringList &queuedTracks){if(m_active&&canEnterVinyl())m_home->listening->restoreRadio(context,queuedTracks);}
+void VinylRecommendationService::refreshHomeSelection(){
+    if(!m_active||!canEnterVinyl())return;
+    selectHomeCarousel(true);emit homeChanged();
+    refreshHome(false);
+}
 void VinylRecommendationService::setHomeCollections(const QVariantMap &value){
     if(value==m_home->collections)return;m_home->collections=value;
     homeSeedsChanged();if(m_home->visited&&m_state=="answered")rebuildHome();emit homeChanged();
 }
 void VinylRecommendationService::cancelHome(bool clear){
     if(!m_home)return;++m_home->epoch;m_home->deadline->stop();
+    if(clear){m_home->listening->clear();m_home->carousel.clear();m_home->selectionKey.clear();m_home->selectionKeys.clear();m_home->previousKeys.clear();m_home->selectionSerial=0;}
     const auto lanes=m_home->active.keys();m_home->active.clear();m_home->waiting.clear();for(const auto &lane:lanes)cancelLane(m_source,lane);
-    if(clear){m_home->evidence.clear();m_home->identities.clear();m_home->population.clear();m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->sections.clear();m_home->snapshot.clear();m_home->seeds.clear();m_home->seedHash.clear();m_home->status="idle";m_home->error.clear();m_home->visited=false;m_home->refreshed=false;m_home->cursor=0;m_home->nextCursor=0;++m_home->revision;emit homeChanged();}
+    if(clear){m_home->evidence.clear();m_home->identities.clear();m_home->population.clear();m_home->failed.clear();m_home->optionalUnavailable.clear();m_home->sections.clear();m_home->snapshot.clear();m_home->seeds.clear();m_home->seedHash.clear();m_home->excludedArtistProviderIds.clear();m_home->status="idle";m_home->error.clear();m_home->visited=false;m_home->refreshed=false;m_home->cursor=0;m_home->nextCursor=0;++m_home->revision;emit homeChanged();}
 }
 void VinylRecommendationService::clearHomeProfile(){m_home->collections.clear();m_home->history.clear();m_home->visitId.clear();cancelHome(true);}
 void VinylRecommendationService::homeSeedsChanged(){
@@ -278,6 +316,10 @@ void VinylRecommendationService::pumpHome(){
     rebuildHome();
 }
 bool VinylRecommendationService::acceptHome(const QString &lane,int id,const QVariant &raw,const QString &error){
+    if(lane.startsWith("home-listening-")){
+        if(m_active&&sender()==m_source)m_home->listening->accept(lane,id,raw,error);
+        return true;
+    }
     if(!lane.startsWith("home-"))return false;
     if(!m_active||sender()!=m_source||!m_home->active.contains(lane)||m_home->active.value(lane).id!=id)return true;
     const auto job=m_home->active.take(lane).job;QVariantMap data;QString failure=error;
@@ -310,6 +352,37 @@ void VinylRecommendationService::rebuildHome(){
     const auto feedback=m_preferences?m_preferences->property("vinylFeedbackSnapshot").toString():QString();
     if(!feedback.isEmpty()){const auto restored=FeedbackTastePersistence::restore(*profile.value,feedback.toUtf8());
         if(!restored.ok()){m_home->sections.clear();m_home->status="error";m_home->error="Saved feedback could not be read.";emit homeChanged();return;}taste=*restored.value;}
+    QSet<QString> excludedArtistProviderIds;
+    for(const auto &state:taste.states()) {
+        if(state.canonical().kind()!=CanonicalEntityKind::Artist)continue;
+        const auto &suppression=state.suppression();
+        if(!suppression.doNotRecommend()&&!suppression.hidden()&&!suppression.isSnoozedAt(now))continue;
+        const auto &artist=state.canonical();
+        if(const auto provider=artist.providerRef()) {
+            if(provider->providerId().value()=="youtube-music"&&!provider->itemId().value().isEmpty())
+                excludedArtistProviderIds.insert(provider->itemId().value());
+        }else if(artist.isCanonical()) {
+            const auto mbid=artist.mbidString().toLower();
+            for(const auto &value:m_home->seeds) {
+                const auto seed=value.toMap();
+                if(seed.value("provider")!="youtube-music")continue;
+                bool matched=seed.value("mappingStatus")=="verified"
+                    &&seed.value("canonicalMbid").toString().toLower()==mbid;
+                if(!matched) {
+                    const auto identity=m_home->identities.value(seed.value("key").toString());
+                    if(identity.value("status")=="verified") {
+                        const auto ref=RecommendationEntityRef::fromJson(QJsonObject::fromVariantMap(identity.value("ref").toMap()));
+                        matched=ref.ok()&&*ref.value==artist;
+                    }
+                }
+                if(matched&&!seed.value("providerId").toString().isEmpty())
+                    excludedArtistProviderIds.insert(seed.value("providerId").toString());
+            }
+        }
+    }
+    m_home->excludedArtistProviderIds.clear();
+    for(const auto &id:excludedArtistProviderIds)m_home->excludedArtistProviderIds.append(id);
+    std::sort(m_home->excludedArtistProviderIds.begin(),m_home->excludedArtistProviderIds.end());
     m_home->history=m_keepHistory?VinylRecommendationHistory::project(qobject_cast<ActivityStore*>(m_activityStore.data()),
         qobject_cast<HistoryStore*>(m_historyStore.data()),m_home->collections.value("albums").toList(),now):QVariantMap();
     const auto derived=VinylRecommendationHistory::derive(m_scope,m_home->history,now);
@@ -448,7 +521,17 @@ void VinylRecommendationService::rebuildHome(){
                 {"excluded",!excluded.isEmpty()},{"excludedArtistRefs",excluded}});
         }return suppressed;
     };
-    for(const auto &node:nodes)appendSuppressed(node.card);
+    m_home->retainedCarousel.clear();
+    for(const auto &node:nodes) {
+        if(appendSuppressed(node.card))continue;
+        const auto key=node.card.value("key").toString();
+        if(m_home->selectionKeys.contains(key)){
+            auto card=node.card;
+            card["spotlightKind"]=node.sections.contains("new-from-your-artists")?"new-from-your-artists"
+                :node.sections.contains("related-discoveries")?"related-discoveries":"from-your-artists";
+            m_home->retainedCarousel.insert(key,card);
+        }
+    }
     const bool loading=!m_home->active.isEmpty()||!m_home->waiting.isEmpty();QVariantList sections;QSet<QString> prior,distinctSeeds;
     for(const auto &seed:m_home->seeds)if(const auto ref=seedIdentity(seed.toMap()))distinctSeeds.insert(ref->stableKey());
     const QStringList sectionIds{"from-your-artists","related-discoveries","new-from-your-artists"};
@@ -583,5 +666,81 @@ void VinylRecommendationService::rebuildHome(){
         {"historyEnabled",m_keepHistory && m_home->history.value("enabled").toBool()},
         {"activityResetGeneration",QVariant::fromValue(m_home->activityReset)},{"historyResetGeneration",m_home->historyReset}};
     if(sections!=m_home->sections||snapshot!=m_home->snapshot){m_home->sections=sections;m_home->snapshot=snapshot;++m_home->revision;}
+    selectHomeCarousel();
+    const bool selectionReady=m_home->active.isEmpty()&&m_home->waiting.isEmpty();
+    m_home->listening->setInputs(m_source,m_scope,m_generation,m_saved,selectionReady?m_home->sections:QVariantList(),
+        m_home->selectionKey+QString::number(m_home->selectionSerial)+digest(feedback)+QString::number(m_keepHistory),
+        m_home->excludedArtistProviderIds);
     emit homeChanged();
+}
+
+void VinylRecommendationService::selectHomeCarousel(bool refresh) {
+    const auto day=QDateTime::fromMSecsSinceEpoch(m_home->clock()).date().toString(Qt::ISODate);
+    const auto selectionKey=day+"/"+m_home->seedHash+"/"+QString::number(m_home->activityReset)+"/"+QString::number(m_home->historyReset);
+    const auto stored=m_preferences?QJsonDocument::fromJson(m_preferences->property("vinylHomeSelectionSnapshot").toString().toUtf8()).object():QJsonObject();
+    if(m_home->selectionKey!=selectionKey){
+        m_home->previousKeys=m_home->selectionKeys;
+        m_home->selectionKeys.clear();m_home->selectionSerial=0;m_home->selectionKey=selectionKey;
+        if(stored.value("version")==1&&stored.value("profileId").toString()==m_scope&&stored.value("seedHash").toString()==m_home->seedHash){
+            QStringList oldKeys;for(const auto &key:stored.value("keys").toArray())oldKeys.append(key.toString());
+            if(stored.value("day").toString()==day){
+                m_home->selectionKeys=oldKeys;m_home->selectionSerial=stored.value("refreshSerial").toInteger();
+                for(const auto &key:stored.value("previousKeys").toArray())m_home->previousKeys.append(key.toString());
+            }else m_home->previousKeys=oldKeys;
+        }
+    }
+    if(refresh){m_home->previousKeys=m_home->selectionKeys;m_home->selectionKeys.clear();++m_home->selectionSerial;}
+    QMap<QString,QVariantMap> pool;
+    QStringList fresh;
+    for(const auto &value:m_home->sections){
+        const auto section=value.toMap();const auto sectionId=section.value("id").toString();
+        if(sectionId=="rediscover-library"||sectionId=="less-played")continue;
+        for(const auto &item:section.value("items").toList()){
+            auto card=item.toMap();const auto destination=card.value("destination").toMap();
+            if(destination.isEmpty()||card.value("title").toString().isEmpty())continue;
+            const auto key=card.value("key",card.value("id")).toString();if(key.isEmpty())continue;
+            card["spotlightKind"]=sectionId;pool.insert(key,card);
+            if(sectionId=="new-from-your-artists")fresh.append(key);
+        }
+    }
+    if(!refresh)for(auto it=m_home->retainedCarousel.cbegin();it!=m_home->retainedCarousel.cend();++it)
+        if(m_home->selectionKeys.contains(it.key()))pool.insert(it.key(),it.value());
+    if(pool.isEmpty()){m_home->carousel.clear();return;}
+    // Previously selected but unseen cards are rotated too; actual impressions
+    // keep their separate, qualified exposure policy in the ranker.
+    QStringList keys;
+    for(const auto &key:m_home->selectionKeys)if(pool.contains(key)&&!keys.contains(key))keys.append(key);
+    const bool restoringPending=!refresh&&!m_home->selectionKeys.isEmpty()
+        &&(!m_home->active.isEmpty()||!m_home->waiting.isEmpty());
+    QStringList candidates=pool.keys();
+    const auto salt=selectionKey+"/"+QString::number(m_home->selectionSerial);
+    std::stable_sort(candidates.begin(),candidates.end(),[&](const QString &a,const QString &b){
+        const bool oldA=m_home->previousKeys.contains(a),oldB=m_home->previousKeys.contains(b);
+        if(oldA!=oldB)return !oldA;
+        return digest(QVariantList{salt,a})<digest(QVariantList{salt,b});
+    });
+    if(keys.isEmpty()&&!restoringPending){
+        for(const auto &key:candidates)if(fresh.contains(key)&&!m_home->previousKeys.contains(key)){keys.append(key);break;}
+    }
+    QMap<QString,int> artistCounts;
+    auto primaryArtist=[&](const QString &key){const auto refs=pool.value(key).value("artistRefs").toList();return refs.isEmpty()?QString():refs.first().toMap().value("providerId").toString();};
+    for(const auto &key:keys)++artistCounts[primaryArtist(key)];
+    for(int pass=0;!restoringPending&&pass<2&&keys.size()<5;++pass)for(const auto &key:candidates){
+        if(keys.size()==5)break;if(keys.contains(key))continue;
+        const auto artist=primaryArtist(key);if(pass==0&&!artist.isEmpty()&&artistCounts.value(artist)>=2)continue;
+        keys.append(key);++artistCounts[artist];
+    }
+    m_home->previousKeys.removeDuplicates();
+    if(!restoringPending&&(refresh||(m_home->active.isEmpty()&&m_home->waiting.isEmpty())))m_home->selectionKeys=keys;
+    m_home->carousel.clear();
+    for(const auto &key:keys)m_home->carousel.append(pool.value(key));
+    if(!keys.isEmpty()&&m_home->active.isEmpty()&&m_home->waiting.isEmpty()&&m_preferences
+        &&m_preferences->metaObject()->indexOfMethod("setVinylHomeSelectionSnapshot(QString)")>=0){
+        const auto snapshot=QString::fromUtf8(wire(QVariantMap{{"version",1},{"profileId",m_scope},{"day",day},
+            {"seedHash",m_home->seedHash},{"refreshSerial",m_home->selectionSerial},{"keys",keys},{"previousKeys",m_home->previousKeys.mid(0,10)}}));
+        if(snapshot!=m_preferences->property("vinylHomeSelectionSnapshot").toString()){
+            bool saved=false;QScopedValueRollback<bool> guard(m_home->persisting,true);
+            QMetaObject::invokeMethod(m_preferences,"setVinylHomeSelectionSnapshot",Qt::DirectConnection,Q_RETURN_ARG(bool,saved),Q_ARG(QString,snapshot));
+        }
+    }
 }

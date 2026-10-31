@@ -85,6 +85,15 @@ QList<TrackerProviderDescriptor> trackerBuiltInProviderCatalog()
         | TrackerProviderCapability::WriteCompletion
         | TrackerProviderCapability::Scrobble;
 #endif
+    // AniList follows the app registration only. It has no scrobble: progress
+    // and completion go through the shared delivery outbox.
+    TrackerProviderCapabilities aniList;
+#if defined(COLOSSEUM_ANILIST_CLIENT_ID) && defined(COLOSSEUM_ANILIST_REDIRECT_URI)
+    aniList = TrackerProviderCapability::ReadHistory
+        | TrackerProviderCapability::ReadProgress
+        | TrackerProviderCapability::WriteProgress
+        | TrackerProviderCapability::WriteCompletion;
+#endif
     return {
         {TrackerProviderId::Simkl, trackerProviderDisplayName(TrackerProviderId::Simkl),
          simkl, simkl != TrackerProviderCapabilities{}},
@@ -92,6 +101,7 @@ QList<TrackerProviderDescriptor> trackerBuiltInProviderCatalog()
          mal, mal != TrackerProviderCapabilities{}},
         {TrackerProviderId::Trakt, trackerProviderDisplayName(TrackerProviderId::Trakt),
          trakt, trakt != TrackerProviderCapabilities{}},
-        {TrackerProviderId::AniList, trackerProviderDisplayName(TrackerProviderId::AniList), {}, false}
+        {TrackerProviderId::AniList, trackerProviderDisplayName(TrackerProviderId::AniList),
+         aniList, aniList != TrackerProviderCapabilities{}}
     };
 }

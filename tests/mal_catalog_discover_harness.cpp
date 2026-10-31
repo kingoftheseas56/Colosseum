@@ -22,9 +22,11 @@
 #include <QDir>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QFileInfo>
 #include <QSqlDatabase>
 #include <QSqlQuery>
 #include <QThread>
+#include <QTemporaryDir>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -565,6 +567,66 @@ int main(int argc, char** argv)
             "stable tied ordering and no overlap across shelf pages");
     require(shelf("short-completed", false, 4, 2).value("exhausted").toBool(), "shelf ends cleanly");
 
+    cat.closeForSwap();
+    QTemporaryDir formatTemp;
+    const QString formatPath = formatTemp.filePath("manhwa.db");
+    {
+        QFile fixture(QFileInfo(QString::fromUtf8(__FILE__)).dir().filePath("fixtures/manhwa_discover.sql"));
+        require(fixture.open(QIODevice::ReadOnly), "shared Manhwa parity fixture opens");
+        auto w = QSqlDatabase::addDatabase("QSQLITE", "format_fixture_writer");
+        w.setDatabaseName(formatPath);
+        require(w.open(), "format fixture writer opens");
+        QSqlQuery q(w);
+        for (const auto &statement : QString::fromUtf8(fixture.readAll()).split(';', Qt::SkipEmptyParts))
+            if (!statement.trimmed().isEmpty()) require(q.exec(statement), "shared Manhwa SQL seeds");
+    }
+    QSqlDatabase::removeDatabase("format_fixture_writer");
+    require(cat.reopen(formatPath), "native opens shared Manhwa parity fixture");
+    const QVariantMap format{{"axis", "format"}, {"key", "manhwa"}};
+    const QVariantMap action{{"axis", "genre"}, {"key", "action"}};
+    const QVariantMap seinen{{"axis", "demographic"}, {"key", "seinen"}};
+    const auto formatPage = [&](const QString &catalog, const QVariantList &filters,
+                                bool explicitContent = false, int offset = 0) {
+        return cat.discoverPageFiltered(catalog, filters, explicitContent, offset, 24);
+    };
+    const auto firstFormat = formatPage("popular", {format});
+    QList<int> firstFormatIds{2, 6};
+    for (int id = 100; id <= 121; ++id) firstFormatIds << id;
+    require(idsOf(firstFormat.value("items").toList()) == firstFormatIds, "format applied before full 24-row page");
+    require(firstFormat.value("nextOffset").toInt() == 24 && !firstFormat.value("exhausted").toBool(),
+            "format first-page cursor and exhaustion");
+    const auto secondFormat = formatPage("popular", {format}, false, 24);
+    require(idsOf(secondFormat.value("items").toList()) == QList<int>({122,123,124,125,126,127,128,129,7,8}),
+            "format second page has no skips or duplicates");
+    require(secondFormat.value("nextOffset").toInt() == 34 && secondFormat.value("exhausted").toBool(),
+            "format exhausted only at real end");
+    for (const QVariantList &filters : {QVariantList{format,action,seinen}, QVariantList{seinen,format,action}, QVariantList{action,seinen,format}})
+        require(idsOf(formatPage("popular", filters).value("items").toList()) == QList<int>({2}),
+                "publication and classification facets are order independent");
+    require(idsOf(formatPage("popular", {action,format}).value("items").toList()) == QList<int>({2,6}),
+            "format works without demographic membership");
+    require(idsOf(formatPage("popular", {format}, true).value("items").toList()).mid(0,3) == QList<int>({5,2,6}),
+            "format explicit opt-in");
+    require(idsOf(formatPage("popular", {QVariantMap{{"axis","format"},{"key","MANHUA"}}}).value("items").toList()) == QList<int>({3}),
+            "Manhua exact case-insensitive membership");
+    require(idsOf(formatPage("popular", {QVariantMap{{"axis","format"},{"key","manga"}}}).value("items").toList()) == QList<int>({1}),
+            "Manga publication filter is narrower than legacy broad discovery");
+    for (const QString &key : {QString("novel"), QString("unknown"), QString("Manhwa' OR 1=1 --")})
+        require(formatPage("popular", {QVariantMap{{"axis","format"},{"key",key}}}).value("items").toList().isEmpty(),
+                "invalid publication values fail closed");
+    require(idsOf(formatPage("popular", {}).value("items").toList()).mid(0,5) == QList<int>({1,2,3,4,6}),
+            "broad legacy rows still include prose and other formats");
+    require(idsOf(formatPage("top-rated", {format}).value("items").toList()).first() == 2,
+            "scoped rank protects against single-vote 9.9");
+    require(idsOf(formatPage("top-rated", {format,action}).value("items").toList()) == QList<int>({6,2}),
+            "Bayesian mean is from the filtered population");
+    const auto releases = idsOf(formatPage("new-releases", {format}).value("items").toList());
+    require(releases.mid(0,2) == QList<int>({6,2}) && !releases.contains(7) && !releases.contains(8),
+            "format release sort rejects future and invalid dates");
+    const auto trendingFormat = formatPage("trending", {format});
+    require(idsOf(trendingFormat.value("items").toList()) == firstFormatIds && trendingFormat.value("fallbackCatalog") == "popular",
+            "format trending retains honest popularity fallback");
+    cat.closeForSwap();
     QFile::remove(dbPath);
     std::cout << "MAL_CATALOG_DISCOVER_OK\n";
     return 0;

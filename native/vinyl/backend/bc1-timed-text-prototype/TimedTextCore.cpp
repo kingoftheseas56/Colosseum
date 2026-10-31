@@ -125,7 +125,7 @@ TimedTextResult<TimedTextCueId> TimedTextCueId::create(const QString &value)
 }
 
 TimedTextDocumentId TimedTextDocument::deriveDocumentId(
-    const RecordingMbid &recordingMbid,
+    const RecommendationEntityRef &recordingMbid,
     const TimedTextProvenance &provenance,
     TimedTextKind kind,
     qint64 providerOffsetMs,
@@ -134,7 +134,8 @@ TimedTextDocumentId TimedTextDocument::deriveDocumentId(
 {
     QCryptographicHash hash(QCryptographicHash::Sha256);
     addDocumentIdentityField(hash, QByteArrayLiteral("vinyl-timed-text-v1"));
-    addDocumentIdentityField(hash, recordingMbid.toString().toUtf8());
+    addDocumentIdentityField(hash, (recordingMbid.isCanonical()
+        ? recordingMbid.mbidString() : recordingMbid.stableKey()).toUtf8());
     addDocumentIdentityField(hash, provenance.providerId().value().toUtf8());
     if (provenance.sourceItemId().has_value()) {
         addDocumentIdentityField(hash, QByteArrayLiteral("item"));
@@ -173,6 +174,29 @@ TimedTextResult<TimedTextDocument> TimedTextDocument::unavailable(
     RecordingMbid recordingMbid,
     TimedTextProvenance provenance)
 {
+    return unavailable(RecommendationEntityRef(CanonicalEntityRef::from(recordingMbid)),std::move(provenance));
+}
+
+TimedTextResult<TimedTextDocument> TimedTextDocument::plain(
+    RecordingMbid recordingMbid, TimedTextProvenance provenance, QString text)
+{
+    return plain(RecommendationEntityRef(CanonicalEntityRef::from(recordingMbid)),std::move(provenance),std::move(text));
+}
+
+TimedTextResult<TimedTextDocument> TimedTextDocument::synchronized(
+    RecordingMbid recordingMbid, TimedTextProvenance provenance,
+    TimedTextKind kind, QVector<TimedTextCue> cues, qint64 providerOffsetMs)
+{
+    return synchronized(RecommendationEntityRef(CanonicalEntityRef::from(recordingMbid)),
+        std::move(provenance),kind,std::move(cues),providerOffsetMs);
+}
+
+TimedTextResult<TimedTextDocument> TimedTextDocument::unavailable(
+    RecommendationEntityRef recordingMbid,
+    TimedTextProvenance provenance)
+{
+    if(recordingMbid.kind()!=CanonicalEntityKind::Recording)
+        return validationFailure(TimedTextErrorCode::InvalidDocumentShape,"recording","Timed text requires a recording identity.");
     const TimedTextDocumentId documentId = deriveDocumentId(
         recordingMbid,
         provenance,
@@ -191,11 +215,11 @@ TimedTextResult<TimedTextDocument> TimedTextDocument::unavailable(
 }
 
 TimedTextResult<TimedTextDocument> TimedTextDocument::plain(
-    RecordingMbid recordingMbid,
+    RecommendationEntityRef recordingMbid,
     TimedTextProvenance provenance,
     QString text)
 {
-    if (text.isEmpty()) {
+    if (recordingMbid.kind()!=CanonicalEntityKind::Recording || text.isEmpty()) {
         return validationFailure(
             TimedTextErrorCode::InvalidDocumentShape,
             QStringLiteral("plainText"),
@@ -220,13 +244,14 @@ TimedTextResult<TimedTextDocument> TimedTextDocument::plain(
 }
 
 TimedTextResult<TimedTextDocument> TimedTextDocument::synchronized(
-    RecordingMbid recordingMbid,
+    RecommendationEntityRef recordingMbid,
     TimedTextProvenance provenance,
     TimedTextKind kind,
     QVector<TimedTextCue> cues,
     qint64 providerOffsetMs)
 {
-    if (kind != TimedTextKind::LineSynced && kind != TimedTextKind::WordSynced) {
+    if (recordingMbid.kind()!=CanonicalEntityKind::Recording
+        || (kind != TimedTextKind::LineSynced && kind != TimedTextKind::WordSynced)) {
         return validationFailure(
             TimedTextErrorCode::InvalidDocumentShape,
             QStringLiteral("kind"),
@@ -461,7 +486,7 @@ bool canApplyTimedTextResult(const TimedTextRequestKey &requested,
                              const TimedTextDocument &document) noexcept
 {
     return requested == current
-        && document.recordingMbid() == requested.recordingMbid();
+        && document.recordingIdentity() == requested.recordingIdentity();
 }
 
 } // namespace vinyl

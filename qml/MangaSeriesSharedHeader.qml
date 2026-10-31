@@ -11,6 +11,8 @@ Item {
     height: root.phoneNarrow ? chrome.height + hero.height : 263
 
     property bool tankobanMode: true
+    property bool allowTankobanMode: true
+    property string publicationLabel: "Manga"
     property string seriesTitle: ""
     property string banner: ""
     property string cover: ""
@@ -174,7 +176,7 @@ Item {
             anchors.top: root.phoneNarrow ? phoneCover.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 14 : 22
             spacing: 5
-            Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
+            Text { text: root.publicationLabel.toUpperCase(); color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
             Row {
                 id: titleRow
                 spacing: 10
@@ -361,7 +363,7 @@ Item {
             anchors.rightMargin: theme.margin
             anchors.top: root.phoneNarrow ? titleBlock.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 12 : 31
-            width: root.phoneNarrow ? hero.width - 2 * theme.margin : 258
+            width: root.phoneNarrow ? hero.width - 2 * theme.margin : (root.allowTankobanMode ? 258 : 133)
             height: root.phoneNarrow ? 44 : 36
             radius: 10; z: 10
             color: Qt.rgba(.06,.065,.075,.92)
@@ -370,6 +372,8 @@ Item {
                 anchors.centerIn: parent
                 Rectangle {
                     objectName: "mangaModeTankoban"
+                    visible: root.allowTankobanMode
+                    enabled: root.allowTankobanMode
                     width: 125; height: 28; radius: 7
                     color: root.tankobanMode ? theme.gold : "transparent"
                     Text { anchors.centerIn: parent; text: "Tankoban Mode"; color: root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: root.tankobanMode ? Font.DemiBold : Font.Normal }
@@ -380,7 +384,7 @@ Item {
                     width: 125; height: 28; radius: 7
                     color: !root.tankobanMode ? theme.gold : "transparent"
                     Text { anchors.centerIn: parent; text: "Chapter Mode"; color: !root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: !root.tankobanMode ? Font.DemiBold : Font.Normal }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chapterRequested() }
+                    MouseArea { anchors.fill: parent; enabled: root.allowTankobanMode; cursorShape: Qt.PointingHandCursor; onClicked: root.chapterRequested() }
                 }
             }
         }
