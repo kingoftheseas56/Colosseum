@@ -153,6 +153,25 @@ index 8a04890..a3fc32f 100644
      endforeach()
  
      set(BUILD_SHARED_LIBS OFF)
+diff --git a/cmake/patches/libtorrent-2.0.12-nuvio-streaming-stall.patch b/cmake/patches/libtorrent-2.0.12-nuvio-streaming-stall.patch
+index bf72e79..e949eeb 100644
+--- a/cmake/patches/libtorrent-2.0.12-nuvio-streaming-stall.patch
++++ b/cmake/patches/libtorrent-2.0.12-nuvio-streaming-stall.patch
+@@ -15,3 +15,14 @@ diff --git a/src/torrent.cpp b/src/torrent.cpp
+ +					: nuvio_stall_budget_ms;
+ +				timed_out = int(total_milliseconds(now - i.last_requested)
+ +					/ std::max(stall_budget, 1));
++diff --git a/src/peer_connection.cpp b/src/peer_connection.cpp
++--- a/src/peer_connection.cpp
+++++ b/src/peer_connection.cpp
++@@ -3703,0 +3704,3 @@ namespace libtorrent {
+++		// Completion can release the picker while time-critical requests are
+++		// still queued. Always drain the queue; only picker accounting requires
+++		// a live picker (as in disconnect() and clear_request_queue()).
++@@ -3706 +3709,2 @@ namespace libtorrent {
++-			t->picker().abort_download(m_request_queue.back().block, peer_info_struct());
+++			if (t->has_picker())
+++				t->picker().abort_download(m_request_queue.back().block, peer_info_struct());
 diff --git a/include/nuvio_engine/nuvio_engine.h b/include/nuvio_engine/nuvio_engine.h
 index 10e59e7..5d4e447 100644
 --- a/include/nuvio_engine/nuvio_engine.h

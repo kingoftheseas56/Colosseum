@@ -55,7 +55,13 @@ baseline (`git apply --check` verified in this worktree). It:
 6. applies the existing `cmake/nuvio-engine-linux.map` version script and
    `--exclude-libs,ALL` to Android shared builds as well. The mapped C API
    remains public, while embedded OpenSSL/Boost/libtorrent symbols stay private.
-   The Android linker also uses strict defined-symbol/RELRO binding options.
+   The Android linker also uses strict defined-symbol/RELRO binding options;
+7. extends the pinned streaming-stall patch so upload-mode cancellation drains
+   queued requests after a completed torrent releases its piece picker. Picker
+   accounting runs only while the picker exists; sent requests still receive
+   wire cancels. `tests/android/nuvio_cancel_requests_regression.cpp` in Colosseum
+   exercises both live-picker cancellation and deterministic picker retirement
+   on the session thread with a real loopback peer and requests in flight.
 
 The Android preparation verifier accepts equivalent LF/CRLF checkouts,
 rejects stray carriage returns and validates the twelve complete patch
