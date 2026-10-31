@@ -373,7 +373,7 @@ Item {
                 objectName: "readerBookTitle"
                 anchors.left: icBack.right
                 anchors.leftMargin: 22
-                anchors.right: verbs.left
+                anchors.right: verbs.visible ? verbs.left : parent.right
                 anchors.rightMargin: 18
                 anchors.verticalCenter: parent.verticalCenter
                 // "ONE PIECE · VOLUME 70" — series then the entry, the approved mock's title line.
