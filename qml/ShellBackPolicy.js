@@ -35,6 +35,8 @@ function actionFor(state) {
     if (on(s.vaultComicActive) || on(s.comicReaderActive) || s.activeSessionKind === "comic")
         return "comicReader"
 
+    if(on(s.librarySelectionActive))return "librarySelection"
+
     // Taskbar full pages occupy the upper shell layers. Later document siblings win if a
     // broken caller ever leaves two active at once, so recovery remains deterministic.
     if (on(s.updateActive)) return "update"

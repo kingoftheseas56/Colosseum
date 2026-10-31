@@ -198,6 +198,8 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
+    // Ephemeral input owner; Collection/Progress retain canonical library state.
+    property var phoneLibrarySelectionOwner:null
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -895,6 +897,7 @@ Window {
         return {
             androidHost: win.androidHost,
             keyboardVisible: win.androidHost && Qt.inputMethod.visible,
+            librarySelectionActive:!!win.phoneLibrarySelectionOwner,
             transitioning: fullscreenTransition.transitioning,
             bootVisible: boot.visible,
             accountHostVisible: accountHost.visible,
@@ -1018,6 +1021,10 @@ Window {
     function handleEscape() {
         if (!(win.androidHost && Qt.inputMethod.visible) && PhoneOverlays.dismiss(win)) return
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
+        if(action==="librarySelection") {
+            if(win.phoneLibrarySelectionOwner)win.phoneLibrarySelectionOwner.handleBack()
+            return
+        }
         if (action === "dismissKeyboard") {
             if (typeof PlatformRuntime !== "undefined" && PlatformRuntime)
                 PlatformRuntime.dismissKeyboard()
