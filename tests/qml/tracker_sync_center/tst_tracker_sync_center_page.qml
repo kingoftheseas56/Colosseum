@@ -1312,7 +1312,7 @@ TestCase {
         verify(stremioCard !== null)
         verify(scroll !== null)
         compare(nativeCard.color, stremioCard.color)
-        compare(Math.round(page.height - scroll.height), page.taskbarBottomClearance)
+        compare(Math.round(page.height - scroll.y - scroll.height), page.taskbarBottomClearance)
 
         var stremioIcon = findChild(page, "trackerStremioIcon")
         verify(stremioIcon !== null)
@@ -2569,6 +2569,7 @@ TestCase {
         verify(stremioIcon !== null)
         verify(stremioIcon.source.toString().indexOf("stremio-official.svg") >= 0)
         verify(findChild(page, "trackerMainSyncButton").height <= 40)
+        revealScrollableItem(findChild(page, "trackerMainSyncButton"))
         mouseClick(findChild(page, "trackerMainSyncButton"))
         compare(mainSyncSpy.count, 1)
         compare(TrackerSyncCenter.connectedTrackers.length, 0)

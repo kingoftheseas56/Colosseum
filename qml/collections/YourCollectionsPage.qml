@@ -11,6 +11,7 @@ Item {
     required property var store
     signal collectionRequested(string collectionId)
     signal createRequested(var opener)
+    signal backRequested()
     property alias searchText: searchField.text
     property int visibleLimit: 36
     readonly property int pageMargin: width < 650 ? 22 : 48
@@ -42,6 +43,13 @@ Item {
             y: 22
             width: scroller.width - root.pageMargin * 2
             spacing: 24
+            BackAction {
+                id: overviewBack
+                objectName: "collectionsOverviewBack"
+                label: qsTr("Back")
+                onTriggered: root.backRequested()
+                onAutomationActiveFocusChanged: if (overviewBack.automationActiveFocus) root.reveal(overviewBack)
+            }
             GridLayout {
                 width: parent.width
                 columns: root.width < 900 ? 1 : 2

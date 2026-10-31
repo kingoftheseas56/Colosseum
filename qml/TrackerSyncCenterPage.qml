@@ -120,8 +120,8 @@ Item {
     readonly property bool dossierOpen: selectedProviderKey.length > 0
     readonly property bool importReviewOpen: selectedImportBatchId.length > 0
     readonly property bool exportReviewOpen: selectedExportReview.accepted === true
-    readonly property int connectedColumns: width >= 1100 ? 3 : (width >= 760 ? 2 : 1)
-    readonly property int catalogueColumns: width >= 1180 ? 4 : (width >= 760 ? 2 : 1)
+    readonly property int connectedColumns: width >= 900 ? 2 : 1
+    readonly property int catalogueColumns: width >= 1380 ? 3 : (width >= 760 ? 2 : 1)
     readonly property var dossierCapabilities:
         root.capabilitiesForDisplay(selectedDossier.capabilities)
     readonly property int pageInset: Math.min(theme.margin, Math.max(22, width * 0.05))
@@ -1645,10 +1645,20 @@ Item {
         onQuitRequested: root.closeRequested()
     }
 
+    BackAction {
+        objectName: "trackerBackButton"
+        x: root.pageInset
+        y: 14
+        z: 10
+        label: "Back"
+        onTriggered: root.requestEscape()
+    }
+
     Flickable {
         id: pageScroll
         objectName: "trackerSyncCenterScroll"
         anchors.fill: parent
+        anchors.topMargin: 60
         anchors.bottomMargin: root.taskbarBottomClearance
         clip: true
         boundsBehavior: Flickable.StopAtBounds
@@ -1661,29 +1671,35 @@ Item {
 
         ColumnLayout {
             id: pageColumn
-            x: root.pageInset
-            y: 45
-            width: root.width - root.pageInset * 2
+            x: (root.width - width) / 2
+            y: 18
+            width: Math.min(1240, root.width - root.pageInset * 2)
             spacing: 0
 
-            RowLayout {
+            GridLayout {
                 Layout.fillWidth: true
-                Layout.bottomMargin: 6
-                spacing: 20
+                Layout.bottomMargin: 24
+                columns: root.width >= 700 ? 2 : 1
+                columnSpacing: 20
+                rowSpacing: 16
 
                 ColumnLayout {
-                    spacing: 0
+                    Layout.fillWidth: true
+                    spacing: 5
                     Text {
                         objectName: "trackerSyncPageTitle"
+                        Layout.fillWidth: true
                         text: "Connections"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 52
+                        font.pixelSize: root.width >= 700 ? 42 : 36
                         font.weight: Font.DemiBold
-                        font.letterSpacing: -1.8
+                        font.letterSpacing: -0.9
                         Accessible.role: Accessible.Heading
                     }
                     Text {
+                        Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
                         text: "Your external library connections"
                         color: theme.inkDim
                         font.family: theme.ui
@@ -1691,72 +1707,76 @@ Item {
                     }
                 }
 
-                Item { Layout.fillWidth: true }
+                RowLayout {
+                    spacing: 10
+                    Layout.alignment: (root.width >= 700 ? Qt.AlignRight : Qt.AlignLeft) | Qt.AlignVCenter
 
-                Button {
-                    id: preferencesButton
-                    objectName: "trackerPreferencesButton"
-                    Accessible.name: "Connection preferences"
-                    activeFocusOnTab: true
-                    onClicked: root.openDossier("global", this)
-                    contentItem: RowLayout {
-                        spacing: 9
-                        Image {
-                            source: "../assets/icons/preferences.svg"
-                            Layout.preferredWidth: 18
-                            Layout.preferredHeight: 18
-                            fillMode: Image.PreserveAspectFit
+                    Button {
+                        id: preferencesButton
+                        objectName: "trackerPreferencesButton"
+                        Accessible.name: "Connection preferences"
+                        activeFocusOnTab: true
+                        onClicked: root.openDossier("global", this)
+                        contentItem: RowLayout {
+                            spacing: 9
+                            Image {
+                                source: "../assets/icons/preferences.svg"
+                                Layout.preferredWidth: 18
+                                Layout.preferredHeight: 18
+                                fillMode: Image.PreserveAspectFit
+                            }
+                            Text {
+                                text: "Preferences"
+                                color: preferencesButton.enabled ? theme.ink : theme.inkDimmer
+                                font.family: theme.ui
+                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                            }
                         }
-                        Text {
-                            text: "Preferences"
-                            color: preferencesButton.enabled ? theme.ink : theme.inkDimmer
-                            font.family: theme.ui
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
+                        background: Rectangle {
+                            radius: 12
+                            color: preferencesButton.down || preferencesButton.hovered ? theme.glassHi : theme.glassTint
+                            border.width: 1
+                            border.color: preferencesButton.activeFocus ? theme.gold : theme.edge
                         }
+                        padding: 13
                     }
-                    background: Rectangle {
-                        radius: 12
-                        color: preferencesButton.down ? theme.glassHi : theme.glassTint
-                        border.width: 1
-                        border.color: preferencesButton.activeFocus ? theme.gold : theme.edge
-                    }
-                    padding: 13
-                }
 
-                Button {
-                    id: syncAllButton
-                    objectName: "trackerSyncAllButton"
-                    Accessible.name: "Sync all connected trackers"
-                    activeFocusOnTab: true
-                    enabled: root.syncAllEnabled
-                    onClicked: root.syncNow()
-                    contentItem: RowLayout {
-                        spacing: 9
-                        Image {
-                            source: "../assets/icons/sync.svg"
-                            Layout.preferredWidth: 18
-                            Layout.preferredHeight: 18
-                            fillMode: Image.PreserveAspectFit
-                            opacity: syncAllButton.enabled ? 1 : 0.5
+                    Button {
+                        id: syncAllButton
+                        objectName: "trackerSyncAllButton"
+                        Accessible.name: "Sync all connected trackers"
+                        activeFocusOnTab: true
+                        enabled: root.syncAllEnabled
+                        onClicked: root.syncNow()
+                        contentItem: RowLayout {
+                            spacing: 9
+                            Image {
+                                source: "../assets/icons/sync.svg"
+                                Layout.preferredWidth: 18
+                                Layout.preferredHeight: 18
+                                fillMode: Image.PreserveAspectFit
+                                opacity: syncAllButton.enabled ? 1 : 0.5
+                            }
+                            Text {
+                                text: "Sync all"
+                                color: syncAllButton.enabled ? theme.gold : theme.inkDimmer
+                                font.family: theme.ui
+                                font.pixelSize: 13
+                                font.weight: Font.DemiBold
+                            }
                         }
-                        Text {
-                            text: "Sync all"
-                            color: syncAllButton.enabled ? theme.gold : theme.inkDimmer
-                            font.family: theme.ui
-                            font.pixelSize: 13
-                            font.weight: Font.DemiBold
+                        background: Rectangle {
+                            radius: 12
+                            color: syncAllButton.down || syncAllButton.hovered ? theme.glassHi
+                                   : syncAllButton.enabled ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.07)
+                                                           : theme.glassTint
+                            border.width: 1
+                            border.color: syncAllButton.activeFocus ? theme.gold : syncAllButton.enabled ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.42)
+                                                                : theme.edge
                         }
+                        padding: 13
                     }
-                    background: Rectangle {
-                        radius: 12
-                        color: syncAllButton.enabled ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.07)
-                                                     : theme.glassTint
-                        border.width: 1
-                        border.color: syncAllButton.enabled ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.42)
-                                                            : theme.edge
-                    }
-                    padding: 13
                 }
             }
 
@@ -1854,184 +1874,64 @@ Item {
                 Layout.fillWidth: true
                 Layout.bottomMargin: 16
                 visible: root.connectedCount > 0
-                implicitHeight: relayColumn.implicitHeight + (root.connectedCount > 0 ? 54 : 36)
-                radius: 22
-                color: Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.045)
+                implicitHeight: relayColumn.implicitHeight + 36
+                radius: 16
+                color: theme.glassTint
                 border.width: 1
                 border.color: theme.edge
 
-                ColumnLayout {
+                GridLayout {
                     id: relayColumn
+                    objectName: "trackerRelayMap"
                     anchors.fill: parent
-                    anchors.margins: root.connectedCount > 0 ? 28 : 18
-                    spacing: root.connectedCount > 0 ? 20 : 8
+                    anchors.margins: 18
+                    columns: root.width >= 700 ? 2 : 1
+                    columnSpacing: 24
+                    rowSpacing: 12
 
                     RowLayout {
+                        objectName: "trackerCanonicalNode"
                         Layout.fillWidth: true
-                        Text {
-                            text: "CONNECTION STATUS"
-                            color: theme.inkDimmer
-                            font.family: theme.ui
-                            font.pixelSize: 10
-                            font.letterSpacing: 1.7
-                            font.weight: Font.Bold
+                        spacing: 14
+                        Image {
+                            source: "../assets/icons/colosseum.svg"
+                            Layout.preferredWidth: 38
+                            Layout.preferredHeight: 38
+                            fillMode: Image.PreserveAspectFit
+                        }
+                        ColumnLayout {
                             Layout.fillWidth: true
-                        }
-                        Text {
-                            id: relaySummary
-                            objectName: "trackerRelayStatus"
-                            text: root.aggregateSummary()
-                            color: theme.inkDim
-                            font.family: theme.ui
-                            font.pixelSize: 12
-                            horizontalAlignment: Text.AlignRight
-                        }
-                    }
-
-                    Item {
-                        id: relayMap
-                        objectName: "trackerRelayMap"
-                        Layout.fillWidth: true
-                        Layout.preferredHeight: root.connectedCount > 0 ? 190 : 132
-
-                        visible: root.connectedCount > 0
-
-                        Rectangle {
-                            id: canonicalNode
-                            objectName: "trackerCanonicalNode"
-                            width: 220
-                            height: 76
-                            anchors.top: parent.top
-                            anchors.horizontalCenter: parent.horizontalCenter
-                            radius: 18
-                            color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.055)
-                            border.width: 1
-                            border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.38)
-
-                            RowLayout {
-                                anchors.fill: parent
-                                anchors.margins: 14
-                                spacing: 15
-                                Image {
-                                    source: "../assets/icons/colosseum.svg"
-                                    Layout.preferredWidth: 47
-                                    Layout.preferredHeight: 47
-                                    fillMode: Image.PreserveAspectFit
-                                }
-                                ColumnLayout {
-                                    spacing: 5
-                                    Text {
-                                        text: "Colosseum"
-                                        color: theme.ink
-                                        font.family: theme.display
-                                        font.pixelSize: 20
-                                    }
-                                    Text {
-                                        text: "CANONICAL"
-                                        color: theme.gold
-                                        font.family: theme.ui
-                                        font.pixelSize: 10
-                                        font.letterSpacing: 0.5
-                                    }
-                                }
+                            spacing: 4
+                            Text {
+                                text: "Your library stays in Colosseum"
+                                color: theme.ink
+                                font.family: theme.ui
+                                font.pixelSize: 14
+                                font.weight: Font.DemiBold
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
                             }
-                        }
-
-                        Rectangle {
-                            visible: root.connectedCount > 0
-                            x: parent.width / 2 - 0.5
-                            y: 76
-                            width: 1
-                            height: 30
-                            color: theme.edge
-                        }
-                        Rectangle {
-                            visible: root.connectedCount > 1
-                            x: parent.width * 0.17
-                            y: 106
-                            width: parent.width * 0.66
-                            height: 1
-                            color: theme.edge
-                        }
-                        Repeater {
-                            model: root.connectedTrackers
-                            delegate: Rectangle {
-                                required property var modelData
-                                required property int index
-                                x: (index + 0.5) * relayMap.width / root.connectedCount - 0.5
-                                y: root.connectedCount > 1 ? 106 : 106
-                                width: 1
-                                height: 16
-                                color: theme.edge
-                            }
-                        }
-
-                        RowLayout {
-                            id: relayProviderRow
-                            anchors.left: parent.left
-                            anchors.right: parent.right
-                            y: 122
-                            height: 68
-                            spacing: 12
-
-                            Repeater {
-                                model: root.connectedTrackers
-                                delegate: Rectangle {
-                                    id: relayCard
-                                    required property var modelData
-                                    Layout.fillWidth: true
-                                    Layout.preferredHeight: 68
-                                    radius: 15
-                                    color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.72)
-                                    border.width: 1
-                                    border.color: modelData.status === "Attention"
-                                                  ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.52)
-                                                  : theme.edge
-                                    RowLayout {
-                                        anchors.fill: parent
-                                        anchors.margins: 11
-                                        spacing: 12
-                                        Rectangle {
-                                            Layout.preferredWidth: 42
-                                            Layout.preferredHeight: 42
-                                            radius: 12
-                                            color: theme.glassTint
-                                            border.width: 1
-                                            border.color: theme.edge
-                                            Image {
-                                                anchors.centerIn: parent
-                                                source: root.providerIcon(relayCard.modelData.providerKey)
-                                                width: 26; height: 26
-                                                fillMode: Image.PreserveAspectFit
-                                            }
-                                        }
-                                        ColumnLayout {
-                                            spacing: 5
-                                            Layout.fillWidth: true
-                                            Text {
-                                                text: relayCard.modelData.providerName || "Tracker"
-                                                color: theme.ink
-                                                font.family: theme.ui
-                                                font.pixelSize: 13
-                                                elide: Text.ElideRight
-                                                Layout.fillWidth: true
-                                            }
-                                            Text {
-                                                text: root.displayStatus(relayCard.modelData.status)
-                                                color: relayCard.modelData.status === "Attention"
-                                                       ? theme.gold : theme.inkDim
-                                                font.family: theme.ui
-                                                font.pixelSize: 10
-                                                elide: Text.ElideRight
-                                                Layout.fillWidth: true
-                                            }
-                                        }
-                                    }
-                                }
+                            Text {
+                                text: "Trackers connect to your native progress and History."
+                                color: theme.inkDim
+                                font.family: theme.ui
+                                font.pixelSize: 12
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
                             }
                         }
                     }
-
+                    Text {
+                        id: relaySummary
+                        objectName: "trackerRelayStatus"
+                        text: root.aggregateSummary()
+                        color: root.attentionProviderCount > 0 ? theme.gold : theme.inkDim
+                        font.family: theme.ui
+                        font.pixelSize: 12
+                        Layout.alignment: root.width >= 700 ? Qt.AlignRight : Qt.AlignLeft
+                        Layout.fillWidth: root.width < 700
+                        wrapMode: Text.WordWrap
+                    }
                 }
             }
 
@@ -2039,18 +1939,23 @@ Item {
                 objectName: "trackerAttentionRegion"
                 Layout.fillWidth: true
                 Layout.bottomMargin: 22
-                implicitHeight: 62
+                implicitHeight: attentionContent.implicitHeight + 30
                 visible: root.attentionProviderCount > 0 || root.unresolvedCount > 0
                 radius: 16
                 color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.05)
                 border.width: 1
                 border.color: Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.35)
 
-                RowLayout {
+                GridLayout {
+                    id: attentionContent
+                    columns: root.width >= 700 ? 3 : 2
                     anchors.fill: parent
+                    anchors.topMargin: 15
+                    anchors.bottomMargin: 15
                     anchors.leftMargin: 18
                     anchors.rightMargin: 18
-                    spacing: 12
+                    columnSpacing: 12
+                    rowSpacing: 8
                     Text {
                         text: "!"
                         color: theme.gold
@@ -2064,11 +1969,16 @@ Item {
                               : root.attentionProviderCount + " trackers need attention"
                         color: theme.ink
                         font.family: theme.ui
-                        font.pixelSize: 14
+                        font.pixelSize: 13
                         font.weight: Font.DemiBold
                         Layout.fillWidth: true
+                        wrapMode: Text.WordWrap
                     }
                     Text {
+                        Layout.columnSpan: root.width >= 700 ? 1 : 2
+                        Layout.fillWidth: true
+                        horizontalAlignment: root.width >= 700 ? Text.AlignRight : Text.AlignLeft
+                        wrapMode: Text.WordWrap
                         text: "Native History is unchanged."
                         color: theme.inkDim
                         font.family: theme.ui
@@ -2081,17 +1991,17 @@ Item {
                 id: connectedSection
                 objectName: "trackerConnectedSection"
                 Layout.fillWidth: true
-                Layout.bottomMargin: 34
+                Layout.bottomMargin: 28
                 spacing: 16
                 visible: root.connectedTrackers.length > 0
 
                 RowLayout {
                     Layout.fillWidth: true
                     Text {
-                        text: "Your trackers"
+                        text: "Connected trackers"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 27
+                        font.pixelSize: 25
                         Layout.fillWidth: true
                     }
                     Text {
@@ -2117,7 +2027,8 @@ Item {
                             required property var modelData
                             objectName: "trackerCard_" + modelData.providerKey
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 177
+                            Layout.preferredHeight: 140
+                            padding: 18
                             activeFocusOnTab: true
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
                                              + root.displayStatus(modelData.status)
@@ -2131,9 +2042,10 @@ Item {
                                        ? Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.075)
                                        : Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.045)
                                 border.width: trackerCard.activeFocus ? 1.5 : 1
-                                border.color: trackerCard.modelData.status === "Attention"
-                                              ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.42)
-                                              : (trackerCard.activeFocus ? theme.gold : theme.edge)
+                                border.color: trackerCard.activeFocus ? theme.gold
+                                              : trackerCard.modelData.status === "Attention"
+                                                ? Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.42)
+                                                : theme.edge
                                 Behavior on color {
                                     enabled: root.motionEnabled
                                     ColorAnimation { duration: 140 }
@@ -2143,6 +2055,7 @@ Item {
                             contentItem: ColumnLayout {
                                 spacing: 14
                                 RowLayout {
+                                    Layout.fillWidth: true
                                     spacing: 12
                                     Rectangle {
                                         Layout.preferredWidth: 44
@@ -2227,7 +2140,7 @@ Item {
                                         }
                                     }
                                     Text {
-                                        text: "Open ›"
+                                        text: trackerCard.modelData.status === "Attention" ? "Review ›" : "Open ›"
                                         color: theme.gold
                                         font.family: theme.ui
                                         font.pixelSize: 11
@@ -2241,149 +2154,10 @@ Item {
             }
 
             ColumnLayout {
-                id: mainSyncSection
-                objectName: "trackerMainSyncSection"
-                Layout.fillWidth: true
-                Layout.bottomMargin: 16
-                spacing: 12
-
-                Text {
-                    objectName: "trackerExternalServicesTitle"
-                    text: "External services"
-                    color: theme.ink
-                    font.family: theme.display
-                    font.pixelSize: 27
-                }
-                Text {
-                    objectName: "trackerExternalServicesDescription"
-                    text: "Manage connections to external libraries."
-                    color: theme.inkDim
-                    font.family: theme.ui
-                    font.pixelSize: 11
-                }
-
-                Rectangle {
-                    objectName: "trackerStremioCard"
-                    Layout.fillWidth: true
-                    Layout.preferredHeight: 116
-                    radius: 16
-                    color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.96)
-                    border.width: 1
-                    border.color: theme.edge
-
-                    RowLayout {
-                        anchors.fill: parent
-                        anchors.leftMargin: 26
-                        anchors.rightMargin: 24
-                        spacing: 22
-
-                        Image {
-                            objectName: "trackerStremioIcon"
-                            source: "../assets/icons/stremio-official.svg"
-                            Layout.preferredWidth: 74
-                            Layout.preferredHeight: 74
-                            fillMode: Image.PreserveAspectFit
-                        }
-                        ColumnLayout {
-                            spacing: 6
-                            Text {
-                                text: "Stremio"
-                                color: theme.ink
-                                font.family: theme.display
-                                font.pixelSize: 24
-                                font.weight: Font.DemiBold
-                            }
-                            Text {
-                                text: "Library, progress, and History"
-                                color: theme.inkDim
-                                font.family: theme.ui
-                                font.pixelSize: 11
-                            }
-                            RowLayout {
-                                visible: root.width >= 760
-                                spacing: 6
-                                Repeater {
-                                    model: ["Library", "Progress", "History"]
-                                    delegate: Rectangle {
-                                        id: stremioTag
-                                        required property string modelData
-                                        objectName: "trackerStremioCapabilityTag_"
-                                                     + modelData.toLowerCase()
-                                        implicitWidth: tagLabel.implicitWidth + 14
-                                        implicitHeight: 21
-                                        radius: 5
-                                        color: Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.075)
-                                        border.width: 0
-                                        Text {
-                                            id: tagLabel
-                                            objectName: "trackerStremioCapabilityLabel_"
-                                                         + stremioTag.modelData.toLowerCase()
-                                            anchors.centerIn: parent
-                                            text: stremioTag.modelData
-                                            color: theme.inkDim
-                                            font.family: theme.ui
-                                            font.pixelSize: 10
-                                        }
-                                    }
-                                }
-                            }
-                        }
-                        Item { Layout.fillWidth: true }
-                        ColumnLayout {
-                            spacing: 7
-                            Rectangle {
-                                objectName: "trackerStremioStatusBadge"
-                                Layout.alignment: Qt.AlignRight
-                                implicitWidth: stremioStatusText.implicitWidth + 24
-                                implicitHeight: 28
-                                radius: 10
-                                color: theme.glassTint
-                                border.width: 1
-                                border.color: theme.edge
-                                Text {
-                                    id: stremioStatusText
-                                    anchors.centerIn: parent
-                                    text: root.stremioStatusLabel()
-                                    color: theme.inkDim
-                                    font.family: theme.ui
-                                    font.pixelSize: 11
-                                }
-                            }
-                            Button {
-                                id: mainSyncButton
-                                objectName: "trackerMainSyncButton"
-                                Layout.preferredWidth: 142
-                                Layout.preferredHeight: 40
-                                activeFocusOnTab: true
-                                Accessible.name: "Open Stremio settings"
-                                onClicked: root.mainSyncRequested()
-                                background: Rectangle {
-                                    radius: 9
-                                    color: mainSyncButton.down || mainSyncButton.hovered
-                                           ? theme.glassHi : theme.glassTint
-                                    border.width: mainSyncButton.activeFocus ? 2 : 1
-                                    border.color: theme.gold
-                                }
-                                contentItem: Text {
-                                    text: "Open settings ›"
-                                    color: theme.gold
-                                    font.family: theme.ui
-                                    font.pixelSize: 11
-                                    font.weight: Font.DemiBold
-                                    horizontalAlignment: Text.AlignHCenter
-                                    verticalAlignment: Text.AlignVCenter
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-
-            ColumnLayout {
                 id: catalogueSection
                 objectName: "trackerCatalogueSection"
                 Layout.fillWidth: true
-                Layout.bottomMargin: 120
+                Layout.bottomMargin: 28
                 spacing: 16
 
                 RowLayout {
@@ -2393,10 +2167,11 @@ Item {
                         text: "Available trackers"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 27
+                        font.pixelSize: 25
                         Layout.fillWidth: true
                     }
                     Text {
+                        visible: root.width >= 900
                         text: "Capabilities are verified per provider"
                         color: theme.inkDimmer
                         font.family: theme.ui
@@ -2419,7 +2194,7 @@ Item {
                             required property var modelData
                             objectName: "trackerCatalogue_" + modelData.providerKey
                             Layout.fillWidth: true
-                            Layout.preferredHeight: 130
+                            Layout.preferredHeight: 126
                             padding: 15
                             activeFocusOnTab: true
                             Accessible.name: (modelData.providerName || "Tracker") + ", "
@@ -2512,6 +2287,151 @@ Item {
                     }
                 }
             }
+            ColumnLayout {
+                id: mainSyncSection
+                objectName: "trackerMainSyncSection"
+                Layout.fillWidth: true
+                Layout.bottomMargin: 0
+                spacing: 12
+
+                Text {
+                    objectName: "trackerExternalServicesTitle"
+                    text: "External services"
+                    color: theme.ink
+                    font.family: theme.display
+                    font.pixelSize: 25
+                }
+                Text {
+                    objectName: "trackerExternalServicesDescription"
+                    text: "Manage connections to external libraries."
+                    color: theme.inkDim
+                    font.family: theme.ui
+                    font.pixelSize: 11
+                }
+
+                Rectangle {
+                    objectName: "trackerStremioCard"
+                    Layout.fillWidth: true
+                    Layout.preferredHeight: root.width >= 640 ? 116 : 190
+                    radius: 16
+                    color: Qt.rgba(6 / 255, 7 / 255, 11 / 255, 0.96)
+                    border.width: 1
+                    border.color: theme.edge
+
+                    GridLayout {
+                        anchors.fill: parent
+                        anchors.margins: 18
+                        columns: root.width >= 640 ? 3 : 2
+                        columnSpacing: 16
+                        rowSpacing: 12
+
+                        Image {
+                            objectName: "trackerStremioIcon"
+                            source: "../assets/icons/stremio-official.svg"
+                            Layout.preferredWidth: 50
+                            Layout.preferredHeight: 50
+                            fillMode: Image.PreserveAspectFit
+                        }
+                        ColumnLayout {
+                            Layout.fillWidth: true
+                            spacing: 6
+                            Text {
+                                text: "Stremio"
+                                color: theme.ink
+                                font.family: theme.display
+                                font.pixelSize: 24
+                                font.weight: Font.DemiBold
+                            }
+                            Text {
+                                Layout.fillWidth: true
+                                wrapMode: Text.WordWrap
+                                text: "Library, progress, and History"
+                                color: theme.inkDim
+                                font.family: theme.ui
+                                font.pixelSize: 11
+                            }
+                            RowLayout {
+                                visible: root.width >= 760
+                                spacing: 6
+                                Repeater {
+                                    model: ["Library", "Progress", "History"]
+                                    delegate: Rectangle {
+                                        id: stremioTag
+                                        required property string modelData
+                                        objectName: "trackerStremioCapabilityTag_"
+                                                     + modelData.toLowerCase()
+                                        implicitWidth: tagLabel.implicitWidth + 14
+                                        implicitHeight: 21
+                                        radius: 5
+                                        color: Qt.rgba(255 / 255, 255 / 255, 255 / 255, 0.075)
+                                        border.width: 0
+                                        Text {
+                                            id: tagLabel
+                                            objectName: "trackerStremioCapabilityLabel_"
+                                                         + stremioTag.modelData.toLowerCase()
+                                            anchors.centerIn: parent
+                                            text: stremioTag.modelData
+                                            color: theme.inkDim
+                                            font.family: theme.ui
+                                            font.pixelSize: 10
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                        ColumnLayout {
+                            Layout.columnSpan: root.width >= 640 ? 1 : 2
+                            Layout.alignment: Qt.AlignRight
+                            spacing: 7
+                            Rectangle {
+                                objectName: "trackerStremioStatusBadge"
+                                Layout.alignment: Qt.AlignRight
+                                implicitWidth: stremioStatusText.implicitWidth + 24
+                                implicitHeight: 28
+                                radius: 10
+                                color: theme.glassTint
+                                border.width: 1
+                                border.color: theme.edge
+                                Text {
+                                    id: stremioStatusText
+                                    anchors.centerIn: parent
+                                    text: root.stremioStatusLabel()
+                                    color: theme.inkDim
+                                    font.family: theme.ui
+                                    font.pixelSize: 11
+                                }
+                            }
+                            Button {
+                                id: mainSyncButton
+                                objectName: "trackerMainSyncButton"
+                                Layout.alignment: Qt.AlignRight
+                                Layout.preferredWidth: 142
+                                Layout.preferredHeight: 40
+                                activeFocusOnTab: true
+                                Accessible.name: "Open Stremio settings"
+                                onClicked: root.mainSyncRequested()
+                                background: Rectangle {
+                                    radius: 9
+                                    color: mainSyncButton.down || mainSyncButton.hovered
+                                           ? theme.glassHi : theme.glassTint
+                                    border.width: mainSyncButton.activeFocus ? 2 : 1
+                                    border.color: theme.gold
+                                }
+                                contentItem: Text {
+                                    text: "Open settings ›"
+                                    color: theme.gold
+                                    font.family: theme.ui
+                                    font.pixelSize: 11
+                                    font.weight: Font.DemiBold
+                                    horizontalAlignment: Text.AlignHCenter
+                                    verticalAlignment: Text.AlignVCenter
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+
         }
     }
 

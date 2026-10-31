@@ -259,6 +259,7 @@ Item {
         id: overviewComponent
         YourCollectionsPage {
             store: adapter
+            onBackRequested: panel.requestClose()
             onCreateRequested: function(opener) { panel.createCollection(opener) }
             onCollectionRequested: function(id) { panel.collectionId = id }
         }
