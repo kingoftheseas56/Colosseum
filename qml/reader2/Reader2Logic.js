@@ -494,8 +494,15 @@ function clamp_(v, lo, hi) {
 }
 
 // A phone column is ~350 px wide; the desktop's 72 px margins would leave ~200 px of text.
+function onAndroid_() {
+    return typeof Qt !== "undefined" && !!Qt.platform && Qt.platform.os === "android"
+}
 function defaultMarginPx() {
-    return (typeof Qt !== "undefined" && Qt.platform && Qt.platform.os === "android") ? 24 : 72
+    return onAndroid_() ? 24 : 72
+}
+// ...and justified lines that short open wide word gaps, so a phone starts ragged.
+function defaultJustify() {
+    return !onAndroid_()
 }
 
 // appearanceDefaults() → the ratified default reader2 appearance (PARITY 2026-07-24:
@@ -503,7 +510,7 @@ function defaultMarginPx() {
 function appearanceDefaults() {
     return {
         theme: "night", font: "literata", sizePct: 100, fontWeight: 400,
-        lineHeight: 1.6, marginPx: defaultMarginPx(), justify: true, flow: "paginated",
+        lineHeight: 1.6, marginPx: defaultMarginPx(), justify: defaultJustify(), flow: "paginated",
         wordSpacing: 0, letterSpacing: 0, paraSpacing: 0, paraIndent: "book",
         maxLineWidthPx: 960, hyphens: false, columns: "single",
         customPage: "#111214", customInk: "#c9c5bc", customCss: "",
@@ -636,7 +643,7 @@ function appearanceToPaper(settings) {
         fontWeight: clamp_(Math.round(clamp_(s.fontWeight === undefined ? 400 : s.fontWeight, 100, 900) / 100) * 100, 100, 900),
         lineHeight: clamp_(s.lineHeight === undefined ? 1.6 : s.lineHeight, 1.0, 2.2),
         marginPx: clamp_(s.marginPx === undefined ? defaultMarginPx() : s.marginPx, 24, 160),
-        justify: s.justify === undefined ? true : !!s.justify,
+        justify: s.justify === undefined ? defaultJustify() : !!s.justify,
         flow: s.flow === "scrolled" ? "scrolled" : "paginated",
         wordSpacing: clamp_(s.wordSpacing === undefined ? 0 : s.wordSpacing, 0, 1),
         letterSpacing: clamp_(s.letterSpacing === undefined ? 0 : s.letterSpacing, 0, 0.5),
