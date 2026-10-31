@@ -27,7 +27,6 @@ import "BiblioDiscoverApi.js" as Api
 
 BrowseScaffold {
     id: root
-    desktopPageMargin:theme.margin
 
     // ── injected dependencies ──
     property var biblioCatalog: null           // the native BiblioCatalog context object (null-safe)

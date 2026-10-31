@@ -73,6 +73,14 @@ TestCase {
         const button=find(page,"trackerPreferencesButton")
         verify(button!==null && button.width>=48 && button.height>=48)
     }
+    function test_wide_account_session_action_keeps_a_touch_target() {
+        host.width=1280;host.height=800
+        const center=createTemporaryObject(centerComponent,host.contentItem)
+        verify(center!==null)
+        tryCompare(center,"compactPhoneLayout",false)
+        const session=find(center,"accountCenterRailSessionAction")
+        verify(session!==null && session.width>=48 && session.height>=48)
+    }
     function test_existing_panel_content_uses_the_exclusive_sheet_and_returns_home() {
         host.requestActivate()
         const panel=createTemporaryObject(stremioComponent,host.contentItem)

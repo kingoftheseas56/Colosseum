@@ -6,6 +6,7 @@ import QtQuick
 
 Item {
     id: controls
+    AdaptiveLayout { id:metrics;page:controls }
 
     property string rowKey: ""
     property string label: ""
@@ -23,7 +24,7 @@ Item {
     property bool editing: false
     property Item editFocusReturn: null
 
-    implicitHeight: 34
+    implicitHeight:metrics.targetSize(34)
     implicitWidth: bar.width
 
     Theme { id: theme }
@@ -60,7 +61,7 @@ Item {
         property string tip: ""
         property bool enabledLook: true
         signal clicked()
-        width: 28; height: 28; radius: 6
+        width:metrics.targetSize(28);height:metrics.targetSize(28);radius:6
         color: action.interactionActive && btn.enabledLook ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
         border.width: 1
         border.color: btn.enabledLook ? theme.edge : Qt.rgba(1, 1, 1, 0.06)
@@ -105,14 +106,14 @@ Item {
 
         // rename affordance: a label button that flips into an inline editor
         Rectangle {
-            width: 88; height: 28; radius: 6
+            width:88;height:metrics.targetSize(28);radius:6
             visible: !controls.editing
             color: renameAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
             border.width: 1; border.color: theme.edge
             anchors.verticalCenter: parent.verticalCenter
             Text {
                 anchors.centerIn: parent; text: "Rename"
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold
             }
             KeyboardAction {
                 id: renameAction
@@ -123,7 +124,7 @@ Item {
             }
         }
         Rectangle {
-            width: 160; height: 28; radius: 6
+            width:160;height:metrics.targetSize(28);radius:6
             visible: controls.editing
             color: "#12151c"; border.width: 1; border.color: theme.gold
             anchors.verticalCenter: parent.verticalCenter
@@ -131,7 +132,7 @@ Item {
                 id: nameField
                 anchors.fill: parent; anchors.leftMargin: 8; anchors.rightMargin: 8
                 verticalAlignment: TextInput.AlignVCenter
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 selectByMouse: true; clip: true
                 onEditingFinished: controls.commitEdit()      // Enter or focus loss commits
                 Keys.onEscapePressed: controls.cancelEdit()

@@ -26,7 +26,6 @@ import "TankobanDiscoverApi.js" as Api
 
 BrowseScaffold {
     id: root
-    desktopPageMargin:theme.margin
 
     // ── injected dependencies ──
     property var malCatalog: null              // the MalCatalog context object (null-safe)

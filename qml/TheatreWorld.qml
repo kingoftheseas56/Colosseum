@@ -14,6 +14,7 @@ import "CatalogueRecents.js" as CatalogueRecents
 
 WorldPage {
     id: theatre
+    Theme { id:theme }
     dockContentLeft: discoverPage.visible ? discoverPage.contentLeft
                      : theatreCatalog.visible ? theatreCatalog.contentLeft : 0
     objectName: "theatreWorld"
@@ -277,6 +278,10 @@ WorldPage {
     // Library — the fifth tab (Stage 2). The saved shelf, life-marked, with the ⋮ menu.
     LibraryPage {
         id: libraryPage
+        removeSelectionEntry: function(entry) {
+            return typeof StremioActions !== "undefined" && StremioActions
+                ? StremioActions.removeTheatreItem(String(entry.id), String(entry.type || "movie"), false) : false
+        }
         visible: theatre.activeTab === "library"
         active: theatre.lifecycleActive && visible
         width: parent.width

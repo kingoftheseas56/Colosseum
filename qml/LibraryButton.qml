@@ -6,6 +6,7 @@ import QtQuick
 // (universe-tile law). Naming Collection.revision keeps `saved` live.
 Rectangle {
     id: lib
+    AdaptiveLayout { id:metrics;page:lib }
     property string world: ""
     property var entry: null
     signal removeRequested(var entry)
@@ -19,8 +20,8 @@ Rectangle {
         else Collection.add(lib.world, lib.entry)
     }
 
-    width: libRow.implicitWidth + 36
-    height: 42
+    width:metrics.targetSize(libRow.implicitWidth+36)
+    height:metrics.targetSize(42)
     radius: 11
     color: input.interactionActive ? Qt.rgba(1, 1, 1, 0.10) : Qt.rgba(1, 1, 1, 0.05)
     border.width: 1
@@ -37,13 +38,13 @@ Rectangle {
         Text {
             text: lib.saved ? "✓" : "+"
             color: lib.saved ? theme.gold : theme.ink
-            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
             anchors.verticalCenter: parent.verticalCenter
         }
         Text {
             text: lib.saved ? "In Library" : "Library"
             color: theme.ink
-            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
             anchors.verticalCenter: parent.verticalCenter
         }
     }

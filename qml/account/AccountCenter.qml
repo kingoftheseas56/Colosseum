@@ -418,6 +418,10 @@ SettingsScaffold {
 
                 Text {
                     id: railSessionAction
+                    objectName:"accountCenterRailSessionAction"
+                    width:root.layout.targetSize(implicitWidth)
+                    height:root.layout.targetSize(implicitHeight)
+                    verticalAlignment:Text.AlignVCenter
                     visible: !root.feriaOnly
                     text: root.accountPresent ? qsTr("Sign out of Colosseum") : qsTr("Sign in to Colosseum")
                     color: railSessionAction.activeFocus || railOutMa.containsMouse

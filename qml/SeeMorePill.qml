@@ -4,12 +4,13 @@ import QtQuick
 
 Item {
     id: root
+    AdaptiveLayout { id:metrics;page:root }
     property int extra: 0          // how many more beyond the one shown row
     property bool expanded: false
     signal toggled()
     visible: extra > 0
-    implicitWidth: pillRow.implicitWidth + 30
-    implicitHeight: 34
+    implicitWidth:metrics.targetSize(pillRow.implicitWidth+30)
+    implicitHeight:metrics.targetSize(34)
     width: implicitWidth; height: implicitHeight
 
     Theme { id: theme }
@@ -23,13 +24,13 @@ Item {
             Text {
                 text: root.expanded ? "Show less" : ("See more · " + root.extra)
                 color: input.interactionActive ? theme.gold : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 13
+                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 anchors.verticalCenter: parent.verticalCenter
             }
             Text {
                 text: root.expanded ? "▴" : "▾"
                 color: input.interactionActive ? theme.gold : theme.inkDimmer
-                font.pixelSize: 11; anchors.verticalCenter: parent.verticalCenter
+                font.pixelSize: theme.fontSize(11); anchors.verticalCenter: parent.verticalCenter
             }
         }
         KeyboardAction {
