@@ -98,7 +98,7 @@ Item {
         width: Math.min(parent.width - 56, 760)
         height: 56
         radius: 14
-        color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, 0.94)
+        color: Qt.rgba(12 / 255, 14 / 255, 18 / 255, Qt.platform.os === "android" ? 1 : 0.94)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.12)
 

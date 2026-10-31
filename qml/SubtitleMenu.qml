@@ -168,6 +168,18 @@ Item {
         return track.label || track.title || track.lang || track.id || "Subtitle";
     }
 
+    // Android reports codecs as MIME types ("application/x-media3-cues"). Show the format name a
+    // person knows, and nothing for Media3's internal cue format, which names no file format.
+    function codecLabel(codec) {
+        var c = String(codec || "").trim().toLowerCase();
+        if (!c.length || c.indexOf("media3-cues") >= 0)
+            return "";
+        c = c.replace(/^[a-z]+\//, "").replace(/^x-/, "");
+        var known = { "subrip": "SRT", "vtt": "VTT", "webvtt": "VTT", "ssa": "SSA", "ass": "ASS",
+                      "pgs": "PGS", "hdmv-pgs": "PGS", "dvdsub": "VOBSUB", "vobsub": "VOBSUB", "ttml+xml": "TTML" };
+        return known[c] || c.toUpperCase();
+    }
+
     function rowMeta(track) {
         // Tier 2 rich rows (2026-07-20): builder pre-computes `tech` (codec · embedded/
         // external, or "provider · fetched" for online). Salient state moves to the
@@ -181,8 +193,9 @@ Item {
         if (track.lang && String(track.lang).trim() !== "")
             parts.push(String(track.lang).toUpperCase());
         parts.push(track.external ? "EXTERNAL" : "EMBEDDED");
-        if (track.codec && String(track.codec).trim() !== "")
-            parts.push(String(track.codec).toUpperCase());
+        var codec = menu.codecLabel(track.codec);
+        if (codec.length)
+            parts.push(codec);
         if (track.forced)
             parts.push("Forced");
         if (track.hearingImpaired)
@@ -374,7 +387,7 @@ Item {
         rotation: 45
         x: menu.width / 2 - width / 2
         y: -14
-        color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+        color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.94)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.14)
     }
@@ -389,7 +402,7 @@ Item {
         height: menu.panelHeight
         onVisibleChanged: if (visible) menu.positionPanel(panel)
         radius: 22
-        color: Qt.rgba(10 / 255, 12 / 255, 17 / 255, 0.96)
+        color: Qt.rgba(10 / 255, 12 / 255, 17 / 255, Qt.platform.os === "android" ? 1 : 0.96)
         border.width: 1
         border.color: Qt.rgba(1, 1, 1, 0.14)
         clip: true

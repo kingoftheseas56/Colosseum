@@ -394,7 +394,10 @@ Item {
         root.wakeChrome()
     }
     onOverflowOpenChanged: {
-        if (root.overflowOpen)
+        // Touch opens the menu with a finger, not a key: take focus for Back, but don't ring the first row.
+        if (root.overflowOpen && Qt.platform.os === "android")
+            Qt.callLater(function() { overflowPanel.forceActiveFocus(Qt.PopupFocusReason) })
+        else if (root.overflowOpen)
             Qt.callLater(function() { overflowPanel.beginKeyboardNavigation() })
         else if (root.overflowFocusReturnItem) {
             var target = root.overflowFocusReturnItem
@@ -699,6 +702,16 @@ Item {
     // so channel-count/bitrate live under dashed keys reached by bracket access.
     function trackCodecLabel(track) {
         var c = String(track.codec || "").split(" ")[0]
+        // Android (Media3) reports MIME types: "application/x-subrip", "audio/mp4a-latm". Name the format;
+        // Media3's internal "x-media3-cues" names none, so it shows nothing.
+        if (c.indexOf("/") > 0) {
+            c = c.toLowerCase().replace(/^[a-z]+\//, "").replace(/^x-/, "")
+            if (c.indexOf("media3-cues") >= 0) return ""
+            var known = { "subrip": "SRT", "vtt": "VTT", "ssa": "SSA", "ass": "ASS", "hdmv-pgs": "PGS",
+                          "pgs": "PGS", "vobsub": "VOBSUB", "ttml+xml": "TTML", "mp4a-latm": "AAC",
+                          "ac3": "AC3", "eac3": "EAC3", "eac3-joc": "EAC3", "true-hd": "TRUEHD", "vnd.dts": "DTS" }
+            return known[c] || c.toUpperCase()
+        }
         return c.length ? c.toUpperCase() : ""
     }
     function trackChannels(track) {
@@ -1268,13 +1281,41 @@ Item {
         root.deadStreamKeys = Object.assign({}, root.deadStreamKeys)
     }
 
+    // Provider lists for a film also carry other films (remakes, dubbed foreign films, collections).
+    // A film's row whose release name names a different year, or lacks a word of the film's title,
+    // is another film. Episodes are left alone: pack names carry show years and season tags.
+    function candidateIsOtherTitle(c) {
+        if (/^tt\d+:\d+:\d+$/.test(String(root.mediaId || "")))
+            return false
+        var release = String((c || ({})).title || "").toLowerCase()
+        if (!release.length)
+            return false
+        var want = String(root.mediaYear || "").substring(0, 4)
+        var years = release.match(/\b(19|20)\d{2}\b/g) || []
+        if (/^\d{4}$/.test(want) && years.length && years.indexOf(want) < 0)
+            return true
+        var title = String(root.mediaTitle || "").toLowerCase()
+        if (!title.length || /[^\x00-\x7f]/.test(title))
+            return false
+        var have = " " + release.replace(/[^a-z0-9]+/g, " ") + " "
+        var words = title.replace(/[^a-z0-9]+/g, " ").split(" ")
+        for (var i = 0; i < words.length; i++) {
+            if (words[i].length > 2 && have.indexOf(" " + words[i] + " ") < 0)
+                return true
+        }
+        return false
+    }
+
+    // Automatic switches (start watchdog, stub check, skip to next) stay on the same film;
+    // the sources list still offers every row by hand.
     function nextPlayableStreamIndex(afterIndex) {
         if (root.streamCandidates.length <= 0)
             return -1
         var start = Math.max(-1, Number(afterIndex || -1))
         for (var offset = 1; offset <= root.streamCandidates.length; offset++) {
             var idx = (start + offset) % root.streamCandidates.length
-            if (idx !== root.currentStreamIndex && !root.isStreamDead(idx))
+            if (idx !== root.currentStreamIndex && !root.isStreamDead(idx)
+                    && !root.candidateIsOtherTitle(root.streamCandidates[idx]))
                 return idx
         }
         return -1
@@ -3801,7 +3842,7 @@ Item {
 
     // ── Pause info card machinery (Tier 2) ──
     readonly property bool pauseCardEligible:
-        mpv.pause && !root.starting && !root.errored && !root.seeking && !root.anyMenuOpen && root.fileReady
+        mpv.pause && !root.starting && !root.errored && !root.seeking && !root.anyMenuOpen && !root.resumeChoiceOpen && root.fileReady
     onPauseCardEligibleChanged: {
         if (root.pauseCardEligible) { root.hydratePauseCard(); pauseCardDelay.restart() }
         else { pauseCardDelay.stop(); root.pauseCardShown = false }
@@ -4649,7 +4690,7 @@ Item {
             width: Math.min(parent.width - 48, 380)
             height: resumeChoiceColumn.implicitHeight + 36
             radius: 10
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
 
@@ -4714,7 +4755,7 @@ Item {
             width: 380
             height: 150
             radius: 18
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.95)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.95)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
@@ -4846,7 +4887,7 @@ Item {
             width: 300
             height: overflowColumn.implicitHeight + 30
             radius: 14
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
 
@@ -4878,7 +4919,8 @@ Item {
                     bottomPadding: 4
                 }
 
-                VolumeControl { visible: root.tight }
+                // Phones and tablets have hardware volume keys; no on-screen slider there.
+                VolumeControl { visible: root.tight && Qt.platform.os !== "android" }
 
                 Repeater {
                     model: [
@@ -4900,7 +4942,7 @@ Item {
                         // they were simply never offered anywhere in this menu.
                         { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
                           "kind": "pip", "when": root.supportsPlayerCapability("pictureInPicture") },
-                        { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
+                        { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": Qt.platform.os !== "android" }
                     ]
                     delegate: Rectangle {
                         required property var modelData
@@ -4971,7 +5013,7 @@ Item {
             Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, liveGuide, false) }
             z: 11
             anchors.fill: parent
-            color: Qt.rgba(4 / 255, 6 / 255, 10 / 255, 0.96)
+            color: Qt.rgba(4 / 255, 6 / 255, 10 / 255, Qt.platform.os === "android" ? 1 : 0.96)
 
             // Absorb background clicks (parity spec F2).
             MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
@@ -4981,7 +5023,7 @@ Item {
                 anchors.right: parent.right
                 anchors.top: parent.top
                 height: 92
-                color: Qt.rgba(0.04, 0.05, 0.07, 0.96)
+                color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.96)
                 border.width: 0
                 RoundButton {
                     x: 22
@@ -5120,7 +5162,7 @@ Item {
             width: Math.min(520, parent.width - 36)
             height: Math.min(420, parent.height - 72)
             radius: 18
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.96)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.96)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
@@ -5584,7 +5626,7 @@ Item {
             width: 344
             height: upNextCol.implicitHeight + 28
             radius: 14
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.16)
 
@@ -6141,7 +6183,7 @@ Item {
 
                     VolumeControl {
                         id: volumeControl
-                        visible: !tight
+                        visible: !tight && Qt.platform.os !== "android"
                         anchors.verticalCenter: parent.verticalCenter
                     }
 
@@ -6642,7 +6684,7 @@ Item {
             x: parent.width - width
             y: -height - 12
             radius: 18
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.12)
 
@@ -6894,7 +6936,7 @@ Item {
                 y = p.y - height - 12
             }
             radius: 14
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
             // Absorb background clicks (parity spec F2).
@@ -7198,7 +7240,7 @@ Item {
                 y = p.y - height - 12
             }
             radius: 14
-            color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
+            color: Qt.rgba(0.04, 0.05, 0.07, Qt.platform.os === "android" ? 1 : 0.94)
             border.width: 1
             border.color: Qt.rgba(1, 1, 1, 0.14)
             // Absorb background clicks (parity spec F2).
