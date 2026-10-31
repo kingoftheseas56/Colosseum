@@ -196,19 +196,24 @@ TestCase {
         compare(grid.posterW, Math.min(148, Math.max(0, grid.cellWidth - 16)),
                 pageName + " landscape phone should retain its previous poster width")
 
-        const desktopSizes = [
-            { "width": 1280, "height": 800, "android": false },
-            { "width": 800, "height": 1280, "android": true }
+        const layoutSizes = [
+            { "width": 1280, "height": 800, "android": false, "compact": false },
+            { "width": 800, "height": 1280, "android": true, "compact": true },
+            { "width": 900, "height": 1280, "android": true, "compact": false }
         ]
-        for (const size of desktopSizes) {
+        for (const size of layoutSizes) {
             testWindow.width = size.width
             testWindow.height = size.height
             testWindow.androidHost = size.android
             wait(100)
             grid.forceLayout()
-            verify(!page.phoneLayout,
-                   pageName + " tablet/desktop dimensions should keep the existing layout")
-            if (pageName === "Biblio") {
+            compare(page.phoneLayout, size.compact,
+                    pageName + " compact touch policy applies below 840dp")
+            if (size.compact) {
+                compare(page.portraitPhoneLayout, false, "tablet keeps larger posters than a narrow phone")
+                compare(grid.columnCount, Math.max(1, Math.floor(grid.width / 128)))
+                compare(grid.posterW, Math.min(148, Math.max(0, grid.cellWidth - 16)))
+            } else if (pageName === "Biblio") {
                 compare(grid.columnCount, Math.max(2, Math.floor((grid.width + 20) / 168)),
                         "Biblio tablet/desktop should preserve its previous column rule")
                 compare(grid.posterW, 148, "Biblio tablet/desktop should preserve 148dp posters")

@@ -67,13 +67,29 @@ TestCase {
         return null
     }
     function touch(item) {
-        verify(item !== null)
+        verify(item !== null && item.visible && item.enabled)
         const point = item.mapToItem(host.contentItem, item.width / 2, item.height / 2)
         verify(point.x >= 0 && point.x <= host.width && point.y >= 0 && point.y <= host.height)
         touchEvent(host.contentItem).press(0, host.contentItem, point.x, point.y).commit()
         wait(20)
         touchEvent(host.contentItem).release(0, host.contentItem, point.x, point.y).commit()
         wait(280)
+    }
+    function findAction(root, name) {
+        if (root["accessibleName"] === name) return root
+        for (const child of root.children || []) {
+            const found = findAction(child, name)
+            if (found) return found
+        }
+        return null
+    }
+    function closeChoiceSheet(owner, title, count) {
+        const sheet = owner.activeChoiceSheet
+        verify(sheet !== null && sheet.visible, "compact browse opens a modal choice sheet")
+        compare(sheet.title, title)
+        compare(sheet.choices.length, count)
+        touch(findAction(sheet.contentItem, "Close"))
+        tryVerify(function() { return owner.activeChoiceSheet === null || !owner.activeChoiceSheet.visible })
     }
     function test_discover_data() { return [{tag: "tankoban", comp: tankDiscover}, {tag: "biblio", comp: bookDiscover}] }
     function test_discover(data) {
@@ -88,13 +104,16 @@ TestCase {
         const action = find(browser, data.tag + "DiscoverSourcesAction")
         verify(action.height >= 48)
         touch(action)
-        compare(sidebar.collapsed, false)
-        touch(find(sidebar, data.tag + "DiscoverSidebarCollapse"))
         compare(sidebar.collapsed, true)
+        compare(sidebar.visible, false)
+        closeChoiceSheet(browser, "Sources", browser.sources.length)
         compare(page.contentLeft, 0)
         host.width = 792; host.height = 354; wait(40)
         compare(browser.compactPhonePortrait, false)
-        compare(page.contentLeft, 64)
+        compare(browser.phoneNarrow, true, "short landscape retains compact browse")
+        compare(page.contentLeft, 0)
+        touch(action)
+        closeChoiceSheet(browser, "Sources", browser.sources.length)
     }
     function test_rows_data() {
         return [
@@ -118,16 +137,18 @@ TestCase {
         wait(80)
         touch(action)
         compare(rowsActionSpy.count, 1, "Rows action receives one ordinary touch")
-        compare(sidebar.collapsed, false)
-        compare(sidebar.visible, true)
-        touch(find(sidebar, data.prefix + "CollapseAction"))
         compare(sidebar.collapsed, true)
         compare(sidebar.visible, false)
+        closeChoiceSheet(sidebar, "On this page", sidebar.visibleRows.length)
         compare(page.contentLeft, 0)
         host.width = 792; host.height = 354; wait(40)
         compare(page.phonePortrait, false)
-        compare(page.contentLeft, 64)
-        compare(sidebar.visible, true)
+        compare(page.layout.compactBrowse, true)
+        compare(page.contentLeft, 0)
+        const landscapeAction = action.visible ? action : find(sidebar, data.prefix + "CollapseAction")
+        verify(landscapeAction.visible && landscapeAction.height >= 48)
+        touch(landscapeAction)
+        closeChoiceSheet(sidebar, "On this page", sidebar.visibleRows.length)
     }
     function test_comics_lazy_reservation_matches_compact_rail() {
         const fixture = createTemporaryObject(comicsFixture, board)

@@ -118,6 +118,13 @@ TestCase {
         compare(window.phoneLibrarySelectionOwner, host)
         verify(host.reservedHeight >= 128)
         const button = named(window.contentItem, "libraryRemoveSelection")
+        let actionStrip = button.parent
+        while (actionStrip && actionStrip["contentX"] === undefined) actionStrip = actionStrip.parent
+        verify(actionStrip !== null, "selection actions have a horizontal viewport")
+        actionStrip.contentX = Math.max(0, actionStrip.contentWidth - actionStrip.width)
+        waitForPolish(window)
+        const point = button.mapToItem(actionStrip, button.width / 2, 24)
+        verify(point.x >= 0 && point.x <= actionStrip.width, "Remove is revealed before its real pointer click")
         mouseClick(button, button.width / 2, 24)
         verify(host.confirmationOpen)
         verify(host.handleBack())

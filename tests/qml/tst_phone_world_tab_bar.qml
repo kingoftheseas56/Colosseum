@@ -13,6 +13,7 @@ TestCase {
         width: 412
         height: 915
         visible: true
+        property bool androidHost: true
     }
 
     Component {
@@ -77,11 +78,20 @@ TestCase {
             verify(hitArea !== null, names[i] + " must own a consuming hit area")
             compare(hitArea.width, tab.width)
             compare(hitArea.height, tab.height)
-            compare(hitArea.preventStealing, true)
+            compare(hitArea.preventStealing, false, "world swipes may take over after crossing the drag threshold")
             compare(hitArea.propagateComposedEvents, false)
         }
     }
 
+    function test_touch_drag_does_not_activate_a_world() {
+        const theatre = findChild(bar, "phoneWorldTab_Theatre")
+        const point = theatre.mapToItem(testWindow.contentItem, theatre.width / 2, theatre.height / 2)
+        touchEvent(testWindow.contentItem).press(0, testWindow.contentItem, point.x, point.y).commit()
+        touchEvent(testWindow.contentItem).move(0, testWindow.contentItem, point.x + 60, point.y).commit()
+        touchEvent(testWindow.contentItem).release(0, testWindow.contentItem, point.x + 60, point.y).commit()
+        compare(worldSpy.count, 0)
+        compare(profileSpy.count, 0)
+    }
     function test_world_and_profile_intent() {
         var theatre = findChild(bar, "phoneWorldTab_Theatre")
         var profile = findChild(bar, "phoneWorldTab_Profile")

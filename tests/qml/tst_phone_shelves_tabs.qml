@@ -70,7 +70,9 @@ TestCase {
             uni: fixtureUniverse()
         })
         verify(shelvesPage !== null, "the production Shelves page instantiates with local data")
-        wait(30)
+        tryVerify(function() { return shelvesPage.uiFace.length > 0 && shelvesPage.displayFace.length > 0 },
+                  5000, "local font loaders finish before measuring natural tab widths")
+        waitForPolish(host)
     }
 
     function cleanup() {
@@ -241,8 +243,12 @@ TestCase {
         compare(tabs.height, 46)
         fuzzyCompare(tabs.x, 64, 0.1)
         fuzzyCompare(tabs.y, 400, 0.1)
-        compare(tabs.width, 1168,
-                "desktop keeps the measured natural-width shelf tab strip")
+        const scroller = findChild(shelvesPage, "shelvesTabScroller")
+        const finalTab = findChild(shelvesPage, "shelvesTab_4")
+        verify(scroller !== null && finalTab !== null)
+        const finalRect = rectIn(finalTab, scroller.contentItem)
+        fuzzyCompare(tabs.width, finalRect.x + finalRect.width + 8, 0.5,
+                     "desktop fits the measured natural label widths and tab padding")
         var firstTab = findChild(shelvesPage, "shelvesTab_0")
         if (firstTab)
             compare(firstTab.height, 36)

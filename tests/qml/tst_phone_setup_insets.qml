@@ -130,6 +130,10 @@ TestCase {
                + " view=" + scroll.height + " contentY=" + scroll.contentY
                + " focus=" + testWindow.activeFocusItem)
         const install = byName(sheet, "extensionsSetupInstall")
+        const contentBottom = install.mapToItem(scroll.contentItem, 0, install.height).y
+        verify(scroll.contentHeight >= contentBottom - 0.5,
+               "Hosted content reflow must update the scroll extent: bottom=" + contentBottom
+               + " content=" + scroll.contentHeight)
         install.forceActiveFocus()
         wait(30)
         point = install.mapToItem(scroll, 0, 0)

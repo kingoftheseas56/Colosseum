@@ -64,11 +64,14 @@ TestCase {
         const sheet=createTemporaryObject(sheetComponent,window.contentItem)
         sheet.status="A long setup message that must remain reachable with large text. ".repeat(20)
         wait(20)
-        const panel=find(sheet,item=>item.objectName==="extensionsSetupPanel")
-        const scroll=find(sheet,item=>item.objectName==="extensionsSetupScroll")
+        const popup=sheet.activePhoneSheet
+        verify(popup!==null && popup.visible, "the shared modal is the active phone surface")
+        const panel=popup.contentItem.parent
+        const scroll=popup.bodyViewport
         verify(panel.y>=0 && panel.y+panel.height<=window.height)
         verify(scroll.contentHeight>scroll.height)
-        const install=find(sheet,item=>item.objectName==="extensionsSetupInstall")
+        const install=find(popup.contentItem,item=>item.objectName==="extensionsSetupInstall")
+        verify(install!==null, "the hosted install action is in the modal visual tree")
         install.forceActiveFocus()
         sheet.revealFocusedControl()
         wait(10)

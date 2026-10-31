@@ -60,6 +60,20 @@ Popup {
         if(visible && _presentedItem)bodyColumn.state="hosted"
     }
     onHostedItemChanged:presentHostedItem()
+    Binding {
+        target: sheet._presentedItem
+        property: "width"
+        value: bodyColumn.width
+        when: bodyColumn.state === "hosted" && sheet._presentedItem !== null
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    Binding {
+        target: sheet._presentedItem
+        property: "height"
+        value: sheet._presentedItem ? sheet._presentedItem.implicitHeight : 0
+        when: bodyColumn.state === "hosted" && sheet._presentedItem !== null
+        restoreMode: Binding.RestoreBindingOrValue
+    }
     function requestDismiss() {
         if(inputMethod && inputMethod.visible && typeof inputMethod.hide==="function") { inputMethod.hide();return }
         if(dismissHandler && dismissHandler()===true)return
@@ -149,7 +163,7 @@ Popup {
                 width: parent.width
                 states:State {
                     name:"hosted"
-                    ParentChange { target:sheet._presentedItem; parent:bodyColumn; x:0; y:0; width:bodyColumn.width; height:sheet._presentedItem ? sheet._presentedItem.implicitHeight : 0 }
+                    ParentChange { target:sheet._presentedItem; parent:bodyColumn; x:0; y:0 }
                     AnchorChanges { target:sheet._presentedItem; anchors.left:undefined; anchors.right:undefined; anchors.top:undefined; anchors.bottom:undefined; anchors.horizontalCenter:undefined; anchors.verticalCenter:undefined }
                 }
             }
