@@ -203,21 +203,6 @@ Item {
             sourceComponent: panel.collectionId ? detailComponent : overviewComponent
         }
     }
-    CollectionActionButton {
-        anchors.top: windowControls.visible ? windowControls.top : parent.top
-        anchors.topMargin: windowControls.visible ? -11 : 16
-        anchors.right: windowControls.visible ? windowControls.left : parent.right
-        anchors.rightMargin: windowControls.visible ? 18 : 16
-        visible: panel.showing
-        objectName: "closeCollectionsButton"
-        iconName: "close"
-        compact: true
-        emphasis: "ghost"
-        Accessible.name: qsTr("Close Collections")
-        ToolTip.visible: hovered
-        ToolTip.text: qsTr("Close Collections")
-        onClicked: panel.requestClose()
-    }
     HouseWindowControls {
         id: windowControls
         objectPrefix: "collectionsWindow"

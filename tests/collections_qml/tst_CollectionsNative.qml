@@ -258,7 +258,13 @@ Item {
             return created.id
         }
         function titlePicker(index) {
-            if (panel.showing) press("closeCollectionsButton")
+            if (panel.showing) {
+                if (panel.collectionId) {
+                    press("backToCollections")
+                    tryCompare(panel, "collectionId", "")
+                }
+                press("collectionsOverviewBack")
+            }
             tryCompare(panel, "showing", false)
             window.fixtureIndex = index
             wait(40)
