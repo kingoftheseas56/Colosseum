@@ -3760,16 +3760,20 @@ Item {
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
+        // D8 (Hemanth 2026-10-31): playback turns to landscape on its own; native side restores on release.
+        if (Qt.platform.os === "android") PlatformRuntime.setPlayerLandscape(root.visible)
         if (root.supportsPlayerCapability("loudnessNormalization"))
             mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: {
         root.sendTraktPlayback(false)
+        if (Qt.platform.os === "android") PlatformRuntime.setPlayerLandscape(false)
         if (typeof Power !== "undefined") Power.release()
     }
     onVisibleChanged: {
         // Hidden retained players cannot render video. Stop their watchdogs and
         // discard the hidden interval before granting a fresh visible grace period.
+        if (Qt.platform.os === "android") PlatformRuntime.setPlayerLandscape(visible)
         root.resetRecoveryWatch()
         if (visible && root.starting)
             streamWatchdog.restart()
