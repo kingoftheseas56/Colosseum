@@ -23,13 +23,13 @@ SettingsScaffold {
         title:sheet.addon ? String(sheet.addon.name || qsTr("Set up add-on")) : ""
         hostedItem:body
         inputMethod:sheet.inputMethod
+        inputMethodScale:sheet.inputMethodScale
         usableRect:sheet.availableRect
         safeInsets:({left:0,top:0,right:0,bottom:0})
         onClosed:if(sheet.open)sheet.closeRequested()
     }
     readonly property rect availableRect: {
-        let keyboard = inputMethod && inputMethod.keyboardRectangle
-                ? inputMethod.keyboardRectangle : Qt.rect(0, 0, 0, 0)
+        const keyboard = sheet.logicalKeyboardRectangle
         const origin = sheet.mapFromItem(null, keyboard.x, keyboard.y)
         const box = Viewport.available(width, height, safeInsets,
                 !!(inputMethod && inputMethod.visible),

@@ -1,5 +1,12 @@
 .pragma library
 
+function logicalKeyboardRect(rect, scale) {
+    const k = rect || ({x: 0, y: 0, width: 0, height: 0})
+    const factor = Math.max(1, Number(scale) || 1)
+    return {x: k.x / factor, y: k.y / factor,
+            width: k.width / factor, height: k.height / factor}
+}
+
 function insetRect(width, height, insets, margin) {
     const s = insets || ({})
     const left = Math.max(margin, Number(s.left) || 0)

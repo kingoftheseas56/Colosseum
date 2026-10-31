@@ -89,6 +89,8 @@ TestCase {
     function test_keyboard_avoidance_data() {
         return [
             {tag: "docked", w: 354, h: 792, keyboard: Qt.rect(0, 450, 354, 342)},
+            {tag: "T20_native_pixels", w: 800, h: 1280, scale: 1.5,
+             keyboard: Qt.rect(0, 1368, 1200, 480), logical: Qt.rect(0, 912, 800, 320)},
             {tag: "floating_right", w: 792, h: 354, keyboard: Qt.rect(494, 68, 246, 230)},
             {tag: "floating_center", w: 354, h: 792, keyboard: Qt.rect(60, 250, 220, 260)},
             {tag: "unknown_landscape", w: 792, h: 354, keyboard: Qt.rect(0, 0, 0, 0)},
@@ -100,7 +102,7 @@ TestCase {
         testWindow.width = data.w; testWindow.height = data.h
         testWindow.requestActivate()
         const sheet = createTemporaryObject(sheetComponent, testWindow.contentItem, {
-            width: data.w, height: data.h, inputMethod: fakeInputMethod,
+            width: data.w, height: data.h, inputMethod: fakeInputMethod, inputMethodScale: data.scale || 1,
             addon: {name: "Torrentio", manifestUrl: "https://example.invalid/manifest.json"}
         })
         verify(sheet !== null)
@@ -112,7 +114,7 @@ TestCase {
         verify(panel.x >= 0 && panel.y >= 0)
         verify(panel.x + panel.width <= data.w && panel.y + panel.height <= data.h)
         if (data.keyboard.width > 0 && data.keyboard.height > 0) {
-            const k = data.keyboard
+            const k = data.logical || data.keyboard
             verify(panel.x + panel.width <= k.x || panel.x >= k.x + k.width
                    || panel.y + panel.height <= k.y || panel.y >= k.y + k.height,
                    "Panel must avoid the reported floating/docked keyboard")

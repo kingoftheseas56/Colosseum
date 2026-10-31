@@ -17,14 +17,20 @@ Popup {
     property var inputMethod:Qt.inputMethod
     readonly property alias bodyViewport:bodyScroll
     readonly property var hostWindow: parent ? parent.Window.window : null
+    // Qt's Android IME rectangle is in native pixels; Item geometry is logical.
+    property real inputMethodScale:Qt.platform.os==="android" && parent ? parent.Screen.devicePixelRatio : 1
+    readonly property rect logicalKeyboardRectangle: {
+        const box=Viewport.logicalKeyboardRect(inputMethod ? inputMethod.keyboardRectangle : null,inputMethodScale)
+        return Qt.rect(box.x,box.y,box.width,box.height)
+    }
     property var safeInsets: parent ? parent.SafeArea.margins : ({left:0, top:0, right:0, bottom:0})
-    property real keyboardInset: inputMethod && inputMethod.visible && parent
-        ? Math.max(0, parent.height - inputMethod.keyboardRectangle.y) : 0
+    property real keyboardInset: inputMethod && inputMethod.visible && parent && logicalKeyboardRectangle.height>0
+        ? Math.max(0, parent.height-parent.mapFromItem(null,logicalKeyboardRectangle.x,logicalKeyboardRectangle.y).y) : 0
     default property alias body: bodyColumn.data
     property rect usableRect: {
         if(!parent)return Qt.rect(0,0,0,0)
         const keyboard=inputMethod && inputMethod.visible && inputMethod.keyboardRectangle
-            ? inputMethod.keyboardRectangle : Qt.rect(0,parent.height-keyboardInset,parent.width,keyboardInset)
+            ? logicalKeyboardRectangle : Qt.rect(0,parent.height-keyboardInset,parent.width,keyboardInset)
         const origin=parent.mapFromItem(null,keyboard.x,keyboard.y)
         const box=Viewport.available(parent.width,parent.height,{left:0,top:safeInsets.top,right:0,bottom:0},
             !!(inputMethod && inputMethod.visible) || keyboardInset>0,
@@ -68,11 +74,11 @@ Popup {
         const wanted=top<bodyScroll.contentY ? top : top+item.height>bodyScroll.contentY+bodyScroll.height ? top+item.height-bodyScroll.height : bodyScroll.contentY
         bodyScroll.contentY=Math.max(0,Math.min(wanted,bodyScroll.contentHeight-bodyScroll.height))
     }
-    onKeyboardInsetChanged:Qt.callLater(function(){sheet.reveal(hostWindow ? hostWindow.activeFocusItem : null)})
-    onUsableRectChanged:Qt.callLater(function(){sheet.reveal(hostWindow ? hostWindow.activeFocusItem : null)})
+    onKeyboardInsetChanged:Qt.callLater(function(){if(sheet)sheet.reveal(sheet.hostWindow ? sheet.hostWindow.activeFocusItem : null)})
+    onUsableRectChanged:Qt.callLater(function(){if(sheet)sheet.reveal(sheet.hostWindow ? sheet.hostWindow.activeFocusItem : null)})
     Connections {
         target:sheet.hostWindow
-        function onActiveFocusItemChanged() { if(sheet.visible)Qt.callLater(function(){sheet.reveal(sheet.hostWindow.activeFocusItem)}) }
+        function onActiveFocusItemChanged() { if(sheet.visible)Qt.callLater(function(){if(sheet && sheet.hostWindow)sheet.reveal(sheet.hostWindow.activeFocusItem)}) }
     }
 
     onAboutToShow: {

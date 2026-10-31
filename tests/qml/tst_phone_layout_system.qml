@@ -119,6 +119,37 @@ TestCase {
         compare(fixture.metrics.usableWidth,354)
         compare(fixture.metrics.layoutClass,"compact-phone")
     }
+    Component {
+        id: imeComponent
+        QtObject {
+            property bool visible: true
+            property rect keyboardRectangle: Qt.rect(0, 1368, 1200, 480)
+        }
+    }
+    Component { id: settingsComponent; App.SettingsScaffold { anchors.fill: parent } }
+    function test_android_keyboard_pixels_are_mapped_to_window_coordinates_data() {
+        return [{tag:"logical", scale:1}, {tag:"T20", scale:1.5}, {tag:"phone", scale:3}]
+    }
+    function test_android_keyboard_pixels_are_mapped_to_window_coordinates(data) {
+        host.width=800; host.height=1280
+        const ime=createTemporaryObject(imeComponent,tests,
+            {keyboardRectangle:Qt.rect(0,912*data.scale,800*data.scale,320*data.scale)})
+        const sheet=createTemporaryObject(sheetComponent,host.contentItem,
+            {inputMethod:ime, inputMethodScale:data.scale})
+        verify(sheet!==null)
+        sheet.open()
+        tryCompare(sheet,"opened",true)
+        compare(sheet.logicalKeyboardRectangle,Qt.rect(0,912,800,320))
+        verify(sheet.y+sheet.height<=912,"the sheet must remain above the physical Android IME")
+        const settings=createTemporaryObject(settingsComponent,host.contentItem,
+            {inputMethod:ime, inputMethodScale:data.scale})
+        verify(settings!==null)
+        tryCompare(settings,"keyboardOverlap",368)
+        compare(settings.layout.usableHeight,912)
+        sheet.close()
+        ime.visible=false
+        wait(0)
+    }
     function init() {
         host.width=412;host.height=900;host.androidHost=true
         host.requestActivate()
