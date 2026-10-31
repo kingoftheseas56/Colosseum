@@ -101,7 +101,7 @@ Item {
     Theme { id: theme }
 
     // mock's exact glass micro-values (surface 02 is the binding contract; finer than Theme's kit)
-    readonly property color cGlassDeep:  Qt.rgba(9 / 255, 10 / 255, 13 / 255, 0.94)
+    readonly property color cGlassDeep:  Qt.rgba(9 / 255, 10 / 255, 13 / 255, Qt.platform.os === "android" ? 1 : 0.94)
     readonly property color cEdge:       Qt.rgba(1, 1, 1, 0.18)
     readonly property color cEdgeSoft:   Qt.rgba(1, 1, 1, 0.09)
     readonly property color cRowLine:    Qt.rgba(1, 1, 1, 0.06)

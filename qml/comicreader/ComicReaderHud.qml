@@ -98,11 +98,11 @@ Item {
     // BAR in the mock, not a wash) and the rail carries flat gold; both still FLOAT over the comic,
     // which never resizes to make room for them — that is the "never shifts" rule, and it is also
     // why they can vanish whole after 2.5s and hand the screen back.
-    readonly property color cTitleBar:    Qt.rgba(5 / 255, 5 / 255, 6 / 255, 0.92)
-    readonly property color cCommandBar:  Qt.rgba(8 / 255, 8 / 255, 9 / 255, 0.90)
+    readonly property color cTitleBar:    Qt.rgba(5 / 255, 5 / 255, 6 / 255, Qt.platform.os === "android" ? 1 : 0.92)
+    readonly property color cCommandBar:  Qt.rgba(8 / 255, 8 / 255, 9 / 255, Qt.platform.os === "android" ? 1 : 0.90)
     readonly property color cHairline:    Qt.rgba(1, 1, 1, 0.07)
-    readonly property color cGlassDeep:   Qt.rgba(9 / 255, 10 / 255, 13 / 255, 0.94)
-    readonly property color cRailGold:    Qt.rgba(240 / 255, 196 / 255, 74 / 255, 0.94)
+    readonly property color cGlassDeep:   Qt.rgba(9 / 255, 10 / 255, 13 / 255, Qt.platform.os === "android" ? 1 : 0.94)
+    readonly property color cRailGold:    Qt.rgba(240 / 255, 196 / 255, 74 / 255, Qt.platform.os === "android" ? 1 : 0.94)
     readonly property color cRailInk:     Qt.rgba(23 / 255, 19 / 255, 10 / 255, 1.0)
     readonly property color cRailTrack:   Qt.rgba(23 / 255, 19 / 255, 10 / 255, 0.42)
     readonly property color cRailTick:    Qt.rgba(23 / 255, 19 / 255, 10 / 255, 0.55)
@@ -419,6 +419,7 @@ Item {
             ComicReaderCommandBar {
                 id: commandBar
                 anchors.fill: parent
+                readerHeight: hud.height
                 layout: hud.layout
                 order: hud.order
                 activeOverlay: hud.activeOverlay
@@ -562,7 +563,8 @@ Item {
         Rectangle {
             id: titleToast
             objectName: "readerTitleToast"
-            visible: hud.seriesTitle.length > 0
+            // Phones: the title already leads the top strip, and this copy sat on the page itself.
+            visible: hud.seriesTitle.length > 0 && Qt.platform.os !== "android"
             anchors.horizontalCenter: parent.horizontalCenter
             anchors.bottom: progressRail.top
             anchors.bottomMargin: 26

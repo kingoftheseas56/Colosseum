@@ -99,7 +99,7 @@ Item {
 
     Theme { id: theme }
 
-    readonly property color cGlassDeep:  Qt.rgba(9 / 255, 10 / 255, 13 / 255, 0.96)
+    readonly property color cGlassDeep:  Qt.rgba(9 / 255, 10 / 255, 13 / 255, Qt.platform.os === "android" ? 1 : 0.96)
     readonly property color cEdge:       Qt.rgba(1, 1, 1, 0.18)
     readonly property color cEdgeSoft:   Qt.rgba(1, 1, 1, 0.09)
     readonly property color cRowLine:    Qt.rgba(1, 1, 1, 0.06)

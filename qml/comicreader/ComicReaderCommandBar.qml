@@ -29,7 +29,10 @@ Item {
 
     // Android phone width: the six commands show as icons only (their names stay as accessible
     // labels). Named, the row is wider than a phone and ran off the left edge.
-    readonly property bool compact: Qt.platform.os === "android" && width < 600
+    // A phone held sideways is ~790 wide but only ~350 tall: still a phone, so still icons.
+    property real readerHeight: 0     // the reader's height, set by the HUD
+    readonly property bool compact: Qt.platform.os === "android"
+        && (width < 600 || (readerHeight > 0 && readerHeight < 500))
     objectName: "readerCommandBar"
 
     // ---- shell facts, bound in by the HUD (never written back) ----

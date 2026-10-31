@@ -80,7 +80,7 @@ Item {
 
     Theme { id: theme }
 
-    readonly property color cBand:     Qt.rgba(6 / 255, 6 / 255, 8 / 255, 0.93)
+    readonly property color cBand:     Qt.rgba(6 / 255, 6 / 255, 8 / 255, Qt.platform.os === "android" ? 1 : 0.93)
     readonly property color cHairline: Qt.rgba(1, 1, 1, 0.07)
     readonly property color cSlot:     Qt.rgba(1, 1, 1, 0.05)
 
