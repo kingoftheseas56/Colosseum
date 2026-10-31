@@ -699,10 +699,12 @@ Item {
             spacing: 8
             Text { text: gate.portal.label || ""; color: gate.accent
                    font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1
-                   width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 2 }
+                   width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 2 }
+            // Text.Wrap, not WordWrap: on a phone-width gate one long word can be wider than
+            // the column, and WordWrap would let it paint past the card.
             Text { text: gate.portal.book.title || ""; color: theme.ink
                    font.family: theme.display; font.pixelSize: theme.fontSize(17)
-                   width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 3
+                   width: parent.width; wrapMode: Text.Wrap; maximumLineCount: 3
                    elide: Text.ElideRight }
             Text { text: "OPEN IN BIBLIO  →"; color: theme.inkDimmer
                    width: parent.width; elide: Text.ElideRight
