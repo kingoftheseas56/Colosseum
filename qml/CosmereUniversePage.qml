@@ -9,6 +9,7 @@ import "Universes.js" as UDB
 
 Item {
     id: root
+    objectName: "cosmereUniversePage"
     onUniverseContentGenerationChanged: reload()
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     anchors.fill: parent
@@ -31,6 +32,9 @@ Item {
     readonly property color cognitiveBlue: "#78cfe3"
     readonly property color stormlight: "#d9e8ff"
     readonly property color copper: "#b8734a"
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: androidHost && Math.min(width, height) < 600
+    readonly property real contentInset: phoneLayout ? 20 : theme.margin
     property var guide: (root.universeContentGeneration, UDB.configFor)(root.universeName)
     property var uni: ({ name: "Cosmere", blurb: "", banner: "", metaline: "",
                          starters: [], worlds: [], series: [] })
@@ -51,6 +55,13 @@ Item {
     function openBook(book) {
         if (book && typeof book === "object" && book.id && book.title)
             root.bookRequested(book)
+    }
+    function revealWorld(index) {
+        const section = worldRepeater.itemAt(index)
+        if (!section) return
+        const position = section.mapToItem(page.contentItem, 0, 0)
+        page.contentY = Math.max(0, Math.min(page.contentHeight - page.height,
+                                           position.y - (root.phoneLayout ? 80 : 0)))
     }
 
     Component.onCompleted: { reload(); reveal.start() }
@@ -79,6 +90,7 @@ Item {
 
     Flickable {
         id: page
+        objectName: "cosmerePageScroll"
         anchors.fill: parent
         contentWidth: width
         contentHeight: contentColumn.implicitHeight
@@ -97,7 +109,9 @@ Item {
             Item {
                 id: hero
                 width: parent.width
-                height: Math.max(680, root.height)
+                height: root.phoneLayout
+                        ? Math.max(720, root.height, heroCopy.y + heroCopy.height + entryAtlas.height + 36)
+                        : Math.max(680, root.height)
                 clip: true
 
                 Image {
@@ -119,18 +133,22 @@ Item {
                 }
 
                 Column {
+                    id: heroCopy
                     anchors.left: parent.left
-                    anchors.leftMargin: theme.margin
+                    anchors.leftMargin: root.contentInset
                     anchors.top: parent.top
                     anchors.topMargin: 104
-                    width: Math.min(600, parent.width * 0.49)
+                    width: root.phoneLayout ? parent.width - root.contentInset * 2
+                                            : Math.min(600, parent.width * 0.49)
                     spacing: 13
                     Text {
                         text: "THE COSMERE  /  A CONNECTED EPIC"
                         color: root.cognitiveBlue
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.letterSpacing: 3
+                        width: parent.width
+                        wrapMode: Text.WordWrap
                     }
                     Text {
                         // the name carries the hero; the description below is the Wikipedia
@@ -138,24 +156,28 @@ Item {
                         text: root.uni.name || "Cosmere"
                         color: theme.ink
                         font.family: theme.display
-                        font.pixelSize: 54
+                        font.pixelSize: theme.fontSize(root.phoneLayout ? 44 : 54)
                         lineHeight: 0.92
+                        width: parent.width
+                        wrapMode: Text.WordWrap
                     }
                     Text {
                         text: root.uni.blurb || root.guide.blurb || ""
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 15
+                        font.pixelSize: theme.fontSize(15)
                         lineHeight: 1.35
-                        width: parent.width - 20
+                        width: parent.width - (root.phoneLayout ? 0 : 20)
                         wrapMode: Text.WordWrap
                     }
                     Text {
                         text: "Begin with the kind of journey you want."
                         color: theme.inkDimmer
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         topPadding: 4
+                        width: parent.width
+                        wrapMode: Text.WordWrap
                     }
                 }
 
@@ -165,15 +187,58 @@ Item {
                     anchors.left: parent.left
                     anchors.right: parent.right
                     anchors.bottom: parent.bottom
-                    height: 320
+                    height: root.phoneLayout ? 336 : 320
+                    readonly property real phoneInset: 16
+                    readonly property real phoneGap: 10
+                    readonly property real phoneCardTop: 54
+                    readonly property real phoneUsableWidth: Math.max(0, width - phoneInset * 2)
+                    readonly property int phoneColumns: Math.max(1, Math.min(2,
+                        Math.floor((phoneUsableWidth + phoneGap) / (320 + phoneGap))))
+                    readonly property int phoneRows: Math.max(1, Math.ceil(starterRepeater.count / phoneColumns))
+                    readonly property real phoneCardWidth:
+                        (phoneUsableWidth - (phoneColumns - 1) * phoneGap) / phoneColumns
+                    readonly property real phoneCardHeight: Math.min(116, Math.max(80,
+                        (height - phoneCardTop - 8 - (phoneRows - 1) * phoneGap) / phoneRows))
+                    function phoneCardX(index) {
+                        const row = Math.floor(index / phoneColumns)
+                        const countInRow = Math.min(phoneColumns, starterRepeater.count - row * phoneColumns)
+                        const inset = (phoneColumns - countInRow) * (phoneCardWidth + phoneGap) / 2
+                        return phoneInset + inset + (index % phoneColumns) * (phoneCardWidth + phoneGap)
+                    }
+                    function phoneCardY(index) {
+                        return phoneCardTop + Math.floor(index / phoneColumns) * (phoneCardHeight + phoneGap)
+                    }
 
                     Canvas {
+                        id: entryArtwork
                         anchors.fill: parent
                         opacity: 0.62
+                        onWidthChanged: requestPaint()
+                        onHeightChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.reset()
                             var cx = width / 2
+                            if (root.phoneLayout) {
+                                var cy = 34
+                                var points = []
+                                var count = Math.min(entryAtlas.phoneColumns, starterRepeater.count)
+                                for (var p = 0; p < count; ++p)
+                                    points.push([entryAtlas.phoneCardX(p) + entryAtlas.phoneCardWidth / 2,
+                                                 entryAtlas.phoneCardTop])
+                                ctx.lineWidth = 1
+                                for (var i = 0; i < points.length; ++i) {
+                                    var g = ctx.createLinearGradient(cx, cy, points[i][0], points[i][1])
+                                    g.addColorStop(0, "#78cfe3")
+                                    g.addColorStop(1, "#32566b")
+                                    ctx.strokeStyle = g
+                                    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(points[i][0], points[i][1]); ctx.stroke()
+                                }
+                                ctx.strokeStyle = "#31546a"
+                                ctx.beginPath(); ctx.arc(cx, cy, 18, 0, Math.PI * 2); ctx.stroke()
+                                ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI * 2); ctx.stroke()
+                                return
+                            }
                             var cy = 126
                             var points = [ [84 + 138, 156], [width - 84 - 138, 156], [width / 2, 276] ]
                             ctx.lineWidth = 1
@@ -194,30 +259,34 @@ Item {
                     }
                     Rectangle {
                         width: 12; height: 12; radius: 6
-                        x: parent.width / 2 - 6; y: 120
+                        x: parent.width / 2 - 6; y: root.phoneLayout ? 28 : 120
                         color: root.stormlight
                         border.width: 4; border.color: Qt.rgba(0.47,0.81,0.89,0.28)
                     }
                     Text {
-                        x: parent.width / 2 - width / 2; y: 78
+                        x: parent.width / 2 - width / 2; y: root.phoneLayout ? 3 : 78
                         text: "BEGIN HERE"
                         color: root.stormlight
                         font.family: theme.ui
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.letterSpacing: 3
                     }
 
                     Repeater {
+                        id: starterRepeater
+                        onCountChanged: entryArtwork.requestPaint()
                         model: root.guide.cosmereStarters || []
                         delegate: StarterGate {
                             required property var modelData
                             required property int index
                             guide: modelData
                             portal: root.portalFor(modelData.query)
-                            width: 276; height: 116
-                            x: index === 0 ? 84 : index === 1 ? entryAtlas.width - width - 84
+                            width: root.phoneLayout ? entryAtlas.phoneCardWidth : 276
+                            height: root.phoneLayout ? entryAtlas.phoneCardHeight : 116
+                            x: root.phoneLayout ? entryAtlas.phoneCardX(index)
+                               : index === 0 ? 84 : index === 1 ? entryAtlas.width - width - 84
                                : entryAtlas.width / 2 - width / 2
-                            y: index < 2 ? 98 : 218
+                            y: root.phoneLayout ? entryAtlas.phoneCardY(index) : index < 2 ? 98 : 218
                             onActivated: root.openBook(portal ? portal.book : null)
                         }
                     }
@@ -227,34 +296,69 @@ Item {
             // ===== THE MAP =====
             Item {
                 id: mapSection
+                objectName: "cosmereMapSection"
                 width: parent.width
-                height: 470
+                height: root.phoneLayout
+                        ? mapHeading.y + mapHeading.height + 18 + systemMap.phoneMapHeight + 24
+                        : 470
 
                 Column {
-                    x: theme.margin
+                    id: mapHeading
+                    objectName: "cosmereMapHeading"
+                    x: root.contentInset
                     y: 34
+                    width: parent.width - root.contentInset * 2
                     spacing: 6
                     Text { text: "THE COGNITIVE ATLAS"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                           width: parent.width; wrapMode: Text.WordWrap
+                           font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 3 }
                     Text { text: "Six systems. One underlying light."; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 31 }
+                           width: parent.width; wrapMode: Text.WordWrap
+                           font.family: theme.display; font.pixelSize: theme.fontSize(31) }
                 }
 
                 Item {
                     id: systemMap
+                    objectName: "cosmereSystemMap"
                     anchors.left: parent.left; anchors.right: parent.right
-                    anchors.top: parent.top; anchors.topMargin: 112
+                    anchors.top: parent.top
+                    anchors.topMargin: root.phoneLayout ? mapHeading.y + mapHeading.height + 18 : 112
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 24
-                    anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
+                    anchors.leftMargin: root.contentInset; anchors.rightMargin: root.contentInset
+                    readonly property real phoneGap: 12
+                    readonly property int phoneColumns: Math.max(1, Math.min(2,
+                        Math.floor((width + phoneGap) / (260 + phoneGap))))
+                    readonly property int phoneRows: Math.ceil(worldNodeRepeater.count / phoneColumns)
+                    readonly property real phoneNodeWidth: (width - (phoneColumns - 1) * phoneGap) / phoneColumns
+                    readonly property real phoneNodeHeight: 82
+                    readonly property real phoneNodeTop: 48
+                    readonly property real phoneMapHeight: phoneNodeTop + phoneRows * phoneNodeHeight
+                                                           + Math.max(0, phoneRows - 1) * phoneGap + 20
+                    function phoneNodeX(index) { return (index % phoneColumns) * (phoneNodeWidth + phoneGap) }
+                    function phoneNodeY(index) { return phoneNodeTop + Math.floor(index / phoneColumns) * (phoneNodeHeight + phoneGap) }
 
                     Canvas {
+                        id: systemArtwork
                         anchors.fill: parent
                         opacity: 0.45
+                        onWidthChanged: requestPaint()
+                        onHeightChanged: requestPaint()
                         onPaint: {
                             var ctx = getContext("2d")
                             ctx.reset()
                             var cx = width / 2, cy = height / 2
                             ctx.strokeStyle = "#355568"; ctx.lineWidth = 1
+                            if (root.phoneLayout) {
+                                cy = 18
+                                for (var p = 0; p < worldNodeRepeater.count; ++p) {
+                                    var px = systemMap.phoneNodeX(p) + systemMap.phoneNodeWidth / 2
+                                    var py = systemMap.phoneNodeY(p) + systemMap.phoneNodeHeight / 2
+                                    ctx.beginPath(); ctx.moveTo(cx, cy); ctx.lineTo(px, py); ctx.stroke()
+                                }
+                                ctx.strokeStyle = "#203846"
+                                ctx.beginPath(); ctx.arc(cx, cy, 16, 0, Math.PI * 2); ctx.stroke()
+                                return
+                            }
                             var pts = [ [130,74], [cx,44], [width-130,74],
                                         [130,height-64], [cx,height-42], [width-130,height-64] ]
                             for (var i = 0; i < pts.length; i++) {
@@ -265,51 +369,65 @@ Item {
                         }
                     }
                     Rectangle {
-                        anchors.centerIn: parent
                         width: 9; height: 9; radius: 5
+                        x: (parent.width - width) / 2
+                        y: root.phoneLayout ? 18 - height / 2 : (parent.height - height) / 2
                         color: root.cognitiveBlue
                     }
                     Repeater {
+                        id: worldNodeRepeater
+                        onCountChanged: systemArtwork.requestPaint()
                         model: root.guide.cosmereWorlds || []
                         delegate: WorldNode {
                             required property var modelData
                             required property int index
+                            objectName: "cosmereWorldNode_" + index
                             world: modelData
-                            width: 230; height: 74
-                            x: index % 3 === 0 ? 15 : index % 3 === 1 ? systemMap.width / 2 - width / 2
+                            width: root.phoneLayout ? systemMap.phoneNodeWidth : 230
+                            height: root.phoneLayout ? systemMap.phoneNodeHeight : 74
+                            x: root.phoneLayout ? systemMap.phoneNodeX(index)
+                               : index % 3 === 0 ? 15 : index % 3 === 1 ? systemMap.width / 2 - width / 2
                                : systemMap.width - width - 15
-                            y: index < 3 ? 20 : systemMap.height - height - 20
-                            onActivated: page.contentY = Math.min(page.contentHeight - page.height,
-                                                                   mapSection.y + mapSection.height + index * 278)
+                            y: root.phoneLayout ? systemMap.phoneNodeY(index)
+                                                : index < 3 ? 20 : systemMap.height - height - 20
+                            onActivated: root.revealWorld(index)
                         }
                     }
                 }
             }
 
             Rectangle {
-                width: parent.width - theme.margin * 2
+                width: parent.width - root.contentInset * 2
                 height: 1
-                x: theme.margin
+                x: root.contentInset
                 color: Qt.rgba(0.47,0.81,0.89,0.22)
             }
 
             // ===== THE WORLD GATES =====
             Item {
-                width: parent.width; height: 94
+                objectName: "cosmereWorldGatesHeading"
+                width: parent.width
+                height: root.phoneLayout ? worldGatesCopy.implicitHeight + 48 : 94
                 Column {
-                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 5
+                    id: worldGatesCopy
+                    x: root.contentInset; anchors.verticalCenter: parent.verticalCenter; spacing: 5
+                    width: parent.width - root.contentInset * 2
                     Text { text: "WORLD GATES"; color: root.cognitiveBlue
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                           width: parent.width; wrapMode: Text.WordWrap
+                           font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 3 }
                     Text { text: "Follow a system into Biblio"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 27 }
+                           width: parent.width; wrapMode: Text.WordWrap
+                           font.family: theme.display; font.pixelSize: theme.fontSize(27) }
                 }
             }
 
             Repeater {
+                id: worldRepeater
                 model: root.uni.worlds || []
                 delegate: WorldSection {
                     required property var modelData
                     required property int index
+                    objectName: "cosmereWorldSection_" + index
                     world: modelData
                     width: contentColumn.width
                     alternate: index % 2 === 1
@@ -321,15 +439,22 @@ Item {
             // Starting points answer "where do I begin?"; these ordered rows answer the
             // universe-page contract: everything the house provider can actually open.
             Item {
-                width: parent.width; height: 126
+                objectName: "cosmereCompleteShelvesHeading"
+                width: parent.width
+                height: root.phoneLayout ? completeShelvesCopy.implicitHeight + 48 : 126
                 Column {
-                    x: theme.margin; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                    id: completeShelvesCopy
+                    x: root.contentInset; anchors.verticalCenter: parent.verticalCenter; spacing: 6
+                    width: parent.width - root.contentInset * 2
                     Text { text: "THE COMPLETE SHELVES"; color: theme.gold
-                           font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 3 }
+                           width: parent.width; wrapMode: Text.WordWrap
+                           font.family: theme.ui; font.pixelSize: theme.fontSize(10); font.letterSpacing: 3 }
                     Text { text: "Every published road through the Cosmere"; color: theme.ink
-                           font.family: theme.display; font.pixelSize: 31 }
+                           width: parent.width; wrapMode: Text.WordWrap
+                           font.family: theme.display; font.pixelSize: theme.fontSize(31) }
                     Text { text: "Main arcs, novellas, graphic stories, and the books between worlds."
-                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12 }
+                           width: parent.width; wrapMode: Text.WordWrap
+                           color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                 }
             }
 
@@ -338,6 +463,7 @@ Item {
                 delegate: WorldSection {
                     required property var modelData
                     required property int index
+                    objectName: "cosmereSeriesSection_" + index
                     world: modelData
                     width: contentColumn.width
                     alternate: index % 2 === 0
@@ -362,6 +488,7 @@ Item {
     BackAction { x: theme.margin; y: 28; z: 20; onTriggered: root.backRequested() }
     Row {
         z: 30
+        visible: !root.androidHost
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
         Item {
@@ -408,12 +535,12 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 5
             Text { text: starter.guide.short || "ENTRY"; color: root.cognitiveBlue
-                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
             Text { text: starter.guide.label || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 18; width: parent.width
+                   font.family: theme.display; font.pixelSize: theme.fontSize(18); width: parent.width
                    elide: Text.ElideRight }
             Text { text: starter.guide.note || ""; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 10; width: parent.width
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(10); width: parent.width
                    wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
         }
         Image {
@@ -432,7 +559,7 @@ Item {
             visible: !starter.available
             text: "RESOLVING"
             color: theme.inkDimmer
-            font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 2
+            font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 2
         }
         MouseArea {
             id: starterMa
@@ -463,11 +590,14 @@ Item {
                     anchors.left: parent.left; anchors.leftMargin: 20; anchors.verticalCenter: parent.verticalCenter }
         Column {
             anchors.left: parent.left; anchors.leftMargin: 42
+            anchors.right: parent.right; anchors.rightMargin: 18
             anchors.verticalCenter: parent.verticalCenter; spacing: 3
             Text { text: node.world.name || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 18 }
+                   width: parent.width; elide: Text.ElideRight
+                   font.family: theme.display; font.pixelSize: theme.fontSize(18) }
             Text { text: node.world.epithet || ""; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 1 }
+                   width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 1 }
         }
         MouseArea { id: nodeMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: node.activated() }
@@ -481,33 +611,41 @@ Item {
         property var world: ({ books: [] })
         property bool alternate: false
         signal bookActivated(var book)
-        height: 278
+        height: root.phoneLayout ? bookWalk.y + bookWalk.height + 24 : 278
 
         Rectangle {
             anchors.fill: parent
             color: section.alternate ? Qt.rgba(0.47,0.81,0.89,0.025) : "transparent"
         }
         Rectangle {
-            x: theme.margin; y: 28; width: 3; height: 58
+            x: root.contentInset; y: 28; width: 3; height: 58
             color: section.world.accent || root.cognitiveBlue
         }
         Column {
-            x: theme.margin + 18; y: 26; spacing: 5
+            id: worldHeading
+            x: root.contentInset + 18; y: 26; spacing: 5
+            width: parent.width - root.contentInset * 2 - 18
             Text { text: section.world.name || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 29 }
+                   width: parent.width
+                   wrapMode: Text.WordWrap
+                   font.family: theme.display; font.pixelSize: theme.fontSize(29) }
             Text { text: section.world.epithet || ""; color: section.world.accent || root.cognitiveBlue
-                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 2 }
+                   width: parent.width
+                   wrapMode: Text.WordWrap
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 2 }
         }
         Text {
-            anchors.right: parent.right; anchors.rightMargin: theme.margin
-            y: 39
+            id: portalCount
+            anchors.right: parent.right; anchors.rightMargin: root.contentInset
+            y: root.phoneLayout ? worldHeading.y + worldHeading.height + 8 : 39
             text: (section.world.books || []).length + ((section.world.books || []).length === 1 ? " portal" : " portals")
-            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
         }
         Flickable {
             id: bookWalk
-            x: theme.margin; y: 108
-            width: parent.width - theme.margin * 2
+            x: root.contentInset
+            y: root.phoneLayout ? Math.max(108, portalCount.y + portalCount.height + 16) : 108
+            width: parent.width - root.contentInset * 2
             height: 148
             contentWidth: gates.width
             contentHeight: height
@@ -523,7 +661,8 @@ Item {
                     delegate: BookGate {
                         required property var modelData
                         portal: modelData
-                        width: 230; height: 138
+                        width: root.phoneLayout ? Math.min(230, bookWalk.width) : 230
+                        height: 138
                         accent: section.world.accent || root.cognitiveBlue
                         onActivated: section.bookActivated(portal.book)
                     }
@@ -559,14 +698,15 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             spacing: 8
             Text { text: gate.portal.label || ""; color: gate.accent
-                   font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1
                    width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 2 }
             Text { text: gate.portal.book.title || ""; color: theme.ink
-                   font.family: theme.display; font.pixelSize: 17
+                   font.family: theme.display; font.pixelSize: theme.fontSize(17)
                    width: parent.width; wrapMode: Text.WordWrap; maximumLineCount: 3
                    elide: Text.ElideRight }
             Text { text: "OPEN IN BIBLIO  →"; color: theme.inkDimmer
-                   font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 1 }
+                   width: parent.width; elide: Text.ElideRight
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 1 }
         }
         MouseArea { id: gateMa; anchors.fill: parent; hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor; onClicked: gate.activated() }

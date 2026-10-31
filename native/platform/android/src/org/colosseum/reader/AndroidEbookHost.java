@@ -12,6 +12,11 @@ import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import android.webkit.WebViewClient;
+import android.graphics.Rect;
+import android.view.ActionMode;
+import android.view.Menu;
+import android.view.MenuItem;
+import android.view.View;
 
 import androidx.webkit.WebViewAssetLoader;
 import androidx.webkit.WebViewCompat;
@@ -45,7 +50,15 @@ public final class AndroidEbookHost {
     public AndroidEbookHost(Context context, long instance) {
         this.context = context;
         nativeId = instance;
-        view = new WebView(context);
+        view = new WebView(context) {
+            @Override public ActionMode startActionMode(ActionMode.Callback callback) {
+                return super.startActionMode(new ReaderSelectionCallback(callback));
+            }
+
+            @Override public ActionMode startActionMode(ActionMode.Callback callback, int type) {
+                return super.startActionMode(new ReaderSelectionCallback(callback), type);
+            }
+        };
         view.setBackgroundColor(0xFF09090B); // the shell's own background; no white flash before it loads
         WebSettings settings = view.getSettings();
         settings.setJavaScriptEnabled(true);
@@ -140,6 +153,38 @@ public final class AndroidEbookHost {
     }
 
     public WebView view() { return view; }
+
+    /** Keep WebView selection handles, while Reader2 owns the visible selection actions. */
+    private static final class ReaderSelectionCallback extends ActionMode.Callback2 {
+        private final ActionMode.Callback delegate;
+
+        ReaderSelectionCallback(ActionMode.Callback delegate) { this.delegate = delegate; }
+
+        @Override public boolean onCreateActionMode(ActionMode mode, Menu menu) {
+            boolean created = delegate.onCreateActionMode(mode, menu);
+            menu.clear();
+            return created;
+        }
+
+        @Override public boolean onPrepareActionMode(ActionMode mode, Menu menu) {
+            delegate.onPrepareActionMode(mode, menu);
+            menu.clear();
+            return true;
+        }
+
+        @Override public boolean onActionItemClicked(ActionMode mode, MenuItem item) {
+            return delegate.onActionItemClicked(mode, item);
+        }
+
+        @Override public void onDestroyActionMode(ActionMode mode) { delegate.onDestroyActionMode(mode); }
+
+        @Override public void onGetContentRect(ActionMode mode, View view, Rect rect) {
+            if (delegate instanceof ActionMode.Callback2)
+                ((ActionMode.Callback2) delegate).onGetContentRect(mode, view, rect);
+            else
+                super.onGetContentRect(mode, view, rect);
+        }
+    }
 
     public void open(String source, String cfi, long generation) {
         if (destroyed || !ready) {

@@ -190,9 +190,10 @@ Item {
         property string accessibleName: ""
         property bool showLabel: false
         signal clicked()
-        width: showLabel ? 82 : 22; height: 22
+        width: bar.androidHost ? (showLabel ? 96 : 48) : (showLabel ? 82 : 22)
+        height: bar.androidHost ? 48 : 22
         Image {
-            anchors.left: parent.left
+            x: sysRoot.showLabel ? 0 : (parent.width - width) / 2
             anchors.verticalCenter: parent.verticalCenter
             width: 22; height: 22
             source: sysRoot.source
@@ -208,7 +209,7 @@ Item {
             text: sysRoot.accessibleName
             color: input.interactionActive ? theme.ink : theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
         }
         KeyboardAction {
             id: input
@@ -250,7 +251,7 @@ Item {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: bar.televisionMode ? 16 : (bar.compactLayout ? 12 : 14)
+                font.family: theme.ui; font.pixelSize: theme.fontSize(bar.televisionMode ? 16 : (bar.compactLayout ? 12 : 14))
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -261,7 +262,7 @@ Item {
                 color: Qt.rgba(1,1,1,0.10)
                 Text {
                     id: soonText; anchors.centerIn: parent; text: "SOON"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 0.8
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 0.8
                 }
             }
         }
@@ -280,7 +281,8 @@ Item {
     Row {
         id: leftCluster
         x: 0
-        y: bar.compactLayout ? 7 : Math.round((bar.height - height) / 2)
+        y: bar.androidHost ? Math.round((bar.height - height) / 2)
+                          : (bar.compactLayout ? 7 : Math.round((bar.height - height) / 2))
         spacing: bar.compactLayout ? 10 : 18
         BackAction {
             // world-root variant: destination label, dim→bright hover (never gold up here)
@@ -297,10 +299,12 @@ Item {
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
-            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24) }
             Text {
                 visible: bar.pageSubtitle.length > 0
-                text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                // Large Android text: stay inside the bar beside the back arrow instead of running off-screen.
+                width: Math.min(implicitWidth, Math.max(80, bar.width - 120)); elide: Text.ElideRight
+                text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
         }
         Column {
@@ -309,11 +313,11 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: bar.televisionMode ? 36 : (bar.compactLayout ? 19 : 32) }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 18 : (bar.compactLayout ? 10 : 16)
+                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(bar.televisionMode ? 36 : (bar.compactLayout ? 19 : 32)) }
+                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(bar.televisionMode ? 18 : (bar.compactLayout ? 10 : 16))
                     anchors.bottom: parent.bottom; anchors.bottomMargin: bar.televisionMode ? 4 : (bar.compactLayout ? 2 : 4) }
             }
-            Text { visible: bar.televisionMode || !bar.compactLayout; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: bar.televisionMode ? 15 : 13 }
+            Text { visible: bar.televisionMode || !bar.compactLayout; text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(bar.televisionMode ? 15 : 13) }
         }
     }
 
@@ -346,7 +350,7 @@ Item {
     Row {
         visible: !bar.backOnly
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
-        spacing: 20
+        spacing: bar.androidHost ? 0 : 20
         // Search — worlds only.
         SysIcon {
             // Retained worlds keep their TopBars alive together. Give each
@@ -366,12 +370,13 @@ Item {
             // Retained worlds each own a TopBar. Name only Theatre's copy so
             // accessibility/automation never resolves a hidden sibling.
             objectName: bar.activeMedium === "Theatre" ? "topBarStremioButton" : ""
-            width: 22; height: 22
+            width: bar.androidHost ? 48 : 22; height: bar.androidHost ? 48 : 22
             visible: bar.activeMedium === "Theatre" && bar.lifecycleActive
             opacity: stremioInput.interactionActive ? 1.0 : 0.92
             Image {
                 objectName: "topBarStremioOfficialAsset"
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: 22; height: 22
                 source: "../../assets/icons/stremio-official.svg"
                 sourceSize.width: 22; sourceSize.height: 22
                 fillMode: Image.PreserveAspectFit
@@ -383,7 +388,8 @@ Item {
                     && (stremioSyncState.status === "reconnectRequired"
                         || stremioSyncState.status === "syncFailed")
                 anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                anchors.rightMargin: bar.androidHost ? 10 : -3
+                anchors.bottomMargin: bar.androidHost ? 10 : -3
                 width: 8; height: 8; radius: 4
                 color: theme.gold
                 border.width: 1; border.color: "#15151a"
@@ -400,12 +406,13 @@ Item {
         // Update — home only. Takes search's throne; the silver badge signals an
         // available release (pulse on unseen, steady once seen).
         Item {
-            width: 22; height: 22
+            width: bar.androidHost ? 48 : 22; height: bar.androidHost ? 48 : 22
             visible: bar.activeMedium === ""
             opacity: updateInput.interactionActive ? 1.0 : 0.92
             objectName: "colosseumTopbarUpdateButton"
             Image {
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: 22; height: 22
                 source: "../../assets/icons/update.svg"
                 sourceSize.width: 22; sourceSize.height: 22
                 fillMode: Image.PreserveAspectFit
@@ -414,7 +421,8 @@ Item {
                 objectName: "colosseumTopbarUpdateBadge"
                 visible: bar.updateAvailable
                 anchors.top: parent.top; anchors.right: parent.right
-                anchors.topMargin: -2; anchors.rightMargin: -2
+                anchors.topMargin: bar.androidHost ? 11 : -2
+                anchors.rightMargin: bar.androidHost ? 11 : -2
                 width: 9; height: 9; radius: 4.5
                 color: "#f2f2ef"; border.width: 1; border.color: "#15151a"
                 SequentialAnimation on scale {
@@ -443,11 +451,12 @@ Item {
             objectName: !bar.lifecycleActive ? ""
                         : bar.activeMedium === "" ? "topBarTrackersButton"
                         : "topBarTrackersButton_" + bar.activeMedium
-            width: 22; height: 22
+            width: bar.androidHost ? 48 : 22; height: bar.androidHost ? 48 : 22
             visible: bar.trackersEnabled && bar.lifecycleActive
             opacity: trackersInput.interactionActive || bar.trackersActive ? 1.0 : 0.92
             Image {
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: 22; height: 22
                 source: "../../assets/icons/trackers.svg"
                 sourceSize.width: 44; sourceSize.height: 44
                 fillMode: Image.PreserveAspectFit
@@ -456,7 +465,8 @@ Item {
                 objectName: "topBarTrackersStatusDot"
                 visible: bar.trackersDotState !== ""
                 anchors.right: parent.right; anchors.bottom: parent.bottom
-                anchors.rightMargin: -3; anchors.bottomMargin: -3
+                anchors.rightMargin: bar.androidHost ? 10 : -3
+                anchors.bottomMargin: bar.androidHost ? 10 : -3
                 width: 8; height: 8; radius: 4
                 color: bar.trackersDotState === "ok" ? "#5fd18b"
                      : bar.trackersDotState === "error" ? "#ef6a5a" : theme.gold
@@ -476,12 +486,14 @@ Item {
         // signed in, quiet outline when not. Sits beside Update + Wallpapers.
         Item {
             id: accountButton
-            width: bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22
-            height: 22
+            width: bar.androidHost ? 48 : (bar.localDevice ? Math.max(58, localDeviceText.implicitWidth + 18) : 22)
+            height: bar.androidHost ? 48 : 22
             objectName: "colosseumTopbarAccountButton"
             opacity: accountInput.interactionActive ? 1.0 : 0.92
             Rectangle {
-                anchors.fill: parent
+                anchors.centerIn: parent
+                width: bar.localDevice ? parent.width : 22
+                height: 22
                 radius: bar.localDevice ? 11 : width / 2
                 color: bar.accountPresent
                     ? Qt.rgba(0.94, 0.77, 0.29, 0.16)
@@ -516,7 +528,7 @@ Item {
                     text: qsTr("Device")
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -528,7 +540,7 @@ Item {
                     }
                     color: "#f0df9a"
                     font.family: "Inter"
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: Font.DemiBold
                 }
             }

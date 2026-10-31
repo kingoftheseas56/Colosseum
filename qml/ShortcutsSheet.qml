@@ -70,7 +70,7 @@ Item {
                 text: "Keyboard shortcuts"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 15
+                font.pixelSize: theme.fontSize(15)
                 font.weight: Font.DemiBold
             }
             Text {
@@ -80,7 +80,7 @@ Item {
                 text: "Esc to close"
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
             }
         }
 
@@ -125,7 +125,7 @@ Item {
                             text: (modelData.group || "").toUpperCase()
                             color: theme.inkDimmer
                             font.family: theme.hud
-                            font.pixelSize: 10
+                            font.pixelSize: theme.fontSize(10)
                             font.letterSpacing: 1.5
                         }
 
@@ -146,7 +146,7 @@ Item {
                                           : modelData.label
                                     color: theme.ink
                                     font.family: theme.hud
-                                    font.pixelSize: 13
+                                    font.pixelSize: theme.fontSize(13)
                                     elide: Text.ElideRight
                                     wrapMode: Text.NoWrap
                                 }
@@ -172,7 +172,7 @@ Item {
                                                 text: modelData
                                                 color: theme.ink
                                                 font.family: theme.hud
-                                                font.pixelSize: 11
+                                                font.pixelSize: theme.fontSize(11)
                                             }
                                         }
                                     }

@@ -13,7 +13,13 @@ Item {
     width: faceChip.width
     height: faceChip.height
 
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: androidHost && overlayParent
+        && Math.min(overlayParent.width, overlayParent.height) < 600
     property bool panelOpen: false
+    // Phone: the source and HI/Forced filters fold behind one pill so the subtitles themselves
+    // are the first thing on a short landscape screen.
+    property bool phoneFiltersOpen: false
     property var player: null
     property var tracks: []
     property alias delegateModel: menu.tracks
@@ -42,6 +48,8 @@ Item {
     property bool forced: false
     property string filterMode: "all"
     property bool appearanceOpen: false
+    onAppearanceOpenChanged: body.contentY = 0
+    onSearchingChanged: body.contentY = 0
     property var fontFamilies: {
         var families = Qt.fontFamilies()
         return families && families.length ? families : ["Arial", "Segoe UI", "Verdana", "Tahoma", "Georgia"]
@@ -308,13 +316,18 @@ Item {
         if (overlayParent) {
             var p = menu.mapToItem(overlayParent, 0, 0);
             panel.x = clampX(p.x + menu.width - panel.width, 10, overlayParent.width - panel.width - 10);
-            panel.y = p.y - panel.height - 10;
+            panel.y = clampX(p.y - panel.height - 10, 10, overlayParent.height - panel.height - 10);
         } else {
             panel.x = menu.width - panel.width;
             panel.y = -panel.height - 10;
         }
     }
 
+    Connections {
+        target: menu.overlayParent
+        function onWidthChanged() { Qt.callLater(function() { menu.positionPanel(panel) }) }
+        function onHeightChanged() { Qt.callLater(function() { menu.positionPanel(panel) }) }
+    }
     onSelectedIdChanged: resolvePending()
     onPanelOpenChanged: {
         if (!panelOpen) {
@@ -399,7 +412,10 @@ Item {
         z: menu.overlayParent ? 40 : 30
         // narrow windows (a portrait tablet is ~750 wide) shrink the panel to fit
         width: Math.min(menu.panelWidth, (menu.overlayParent ? menu.overlayParent.width : menu.panelWidth + 20) - 20)
-        height: menu.panelHeight
+        objectName: "subtitlePanel"
+        height: Math.min(menu.panelHeight, menu.overlayParent ? Math.max(1, menu.overlayParent.height - 20) : menu.panelHeight)
+        onHeightChanged: if (visible) menu.positionPanel(panel)
+        onWidthChanged: if (visible) menu.positionPanel(panel)
         onVisibleChanged: if (visible) menu.positionPanel(panel)
         radius: 22
         color: Qt.rgba(10 / 255, 12 / 255, 17 / 255, Qt.platform.os === "android" ? 1 : 0.96)
@@ -427,7 +443,7 @@ Item {
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: parent.top
-            height: 72
+            height: menu.phoneLayout ? 56 : 72
 
             Text {
                 id: title
@@ -437,7 +453,7 @@ Item {
                 text: "Subtitles"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 19
+                font.pixelSize: theme.fontSize(19)
                 font.weight: Font.DemiBold
             }
             Text {
@@ -448,7 +464,7 @@ Item {
                 color: theme.inkDimmer
                 font.family: theme.hud
                 font.features: ({ "tnum": 1 })
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
             }
             Text {
                 id: autoStatus
@@ -460,7 +476,7 @@ Item {
                 text: menu.selectionError
                 color: "#ff8a8a"
                 font.family: theme.hud
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 elide: Text.ElideRight
                 horizontalAlignment: Text.AlignRight
             }
@@ -480,6 +496,7 @@ Item {
             }
             HeaderButton {
                 id: styleButton
+                        objectName: "subtitleStyleButton"
                 anchors.right: closeButton.left
                 anchors.rightMargin: 7
                 anchors.verticalCenter: parent.verticalCenter
@@ -510,8 +527,14 @@ Item {
             }
         }
 
-        Item {
+        Flickable {
             id: body
+            objectName: "subtitleBodyScroll"
+            contentWidth: width
+            contentHeight: menu.phoneLayout ? Math.max(height, menu.appearanceOpen ? 454 : 640) : height
+            interactive: menu.phoneLayout
+            boundsBehavior: Flickable.StopAtBounds
+            clip: true
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: header.bottom
@@ -522,7 +545,8 @@ Item {
                 anchors.left: parent.left
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
-                width: menu.appearanceOpen ? parent.width - 280 : parent.width
+                visible: !menu.phoneLayout || !menu.appearanceOpen
+                width: menu.appearanceOpen && !menu.phoneLayout ? parent.width - 280 : parent.width
 
                 Behavior on width { NumberAnimation { duration: 150; easing.type: Easing.OutCubic } }
 
@@ -531,12 +555,12 @@ Item {
                     anchors.fill: parent
                     visible: !menu.searching
 
-                    Row {
+                    Flow {
                         id: toolbar
                         x: 20
                         y: 18
                         width: parent.width - 40
-                        height: 36
+                        height: menu.phoneLayout ? childrenRect.height : 36
                         spacing: 10
 
                         ToggleButton {
@@ -545,10 +569,29 @@ Item {
                             onClicked: menu.toggleSubtitleState()
                         }
 
+                        FilterPill {
+                            visible: menu.phoneLayout
+                            text: "Filters"
+                            selected: menu.phoneFiltersOpen || menu.source !== "all" || menu.filterMode !== "all"
+                            onClicked: menu.phoneFiltersOpen = !menu.phoneFiltersOpen
+                        }
+
+                        Flickable {
+                            id: phoneSourceViewport
+                            visible: menu.phoneLayout && menu.phoneFiltersOpen
+                            width: toolbar.width
+                            height: 48
+                            contentWidth: sourceStrip.implicitWidth
+                            contentHeight: height
+                            clip: true
+                            boundsBehavior: Flickable.StopAtBounds
+                        }
+
                         Row {
                             id: sourceStrip
+                            parent: menu.phoneLayout ? phoneSourceViewport.contentItem : toolbar
                             spacing: 4
-                            height: 36
+                            height: menu.phoneLayout ? 48 : 36
                             property int keyboardIndex: menu.source === "embedded" ? 1 : menu.source === "external" ? 2 : 0
                             focusPolicy: menu.panelOpen ? Qt.TabFocus : Qt.NoFocus
                             function enabledAt(index) { return index === 0 || (index === 1 ? menu.embeddedCount > 0 : menu.externalCount > 0) }
@@ -598,16 +641,17 @@ Item {
 
                     Controls.ComboBox {
                         id: languageCollection
+                        objectName: "subtitleLanguageCollection"
                         anchors.right: parent.right
                         anchors.rightMargin: 20
-                        y: 77
-                        width: 142
-                        height: 36
+                        y: menu.phoneLayout ? filters.y + filters.height + (menu.phoneFiltersOpen ? 10 : 0) : 77
+                        width: menu.phoneLayout ? parent.width - 40 : 142
+                        height: menu.phoneLayout ? 48 : 36
                         model: menu.languageOptions()
                         textRole: "label"
                         currentIndex: menu.languageIndex()
                         font.family: theme.hud
-                        font.pixelSize: 14
+                        font.pixelSize: theme.fontSize(14)
                         onActivated: function(index) {
                             var row = menu.languageOptions()[index]
                             if (row) menu.lang = row.key
@@ -619,7 +663,7 @@ Item {
                             text: languageCollection.displayText
                             color: theme.inkDim
                             font.family: theme.hud
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                             elide: Text.ElideRight
                         }
                         indicator: PlayerIcon {
@@ -643,9 +687,11 @@ Item {
 
                     Row {
                         id: filters
+                        objectName: "subtitleFilters"
                         x: 20
-                        y: 79
-                        height: 32
+                        y: menu.phoneLayout ? toolbar.y + toolbar.height + 12 : 79
+                        visible: !menu.phoneLayout || menu.phoneFiltersOpen
+                        height: menu.phoneLayout ? (menu.phoneFiltersOpen ? 48 : 0) : 32
                         spacing: 7
 
                         FilterPill { text: "All"; selected: menu.filterMode === "all"; onClicked: menu.filterMode = "all" }
@@ -655,8 +701,9 @@ Item {
 
                     ListView {
                         id: variants
+                        objectName: "subtitleVariants"
                         x: 20
-                        y: 126
+                        y: menu.phoneLayout ? languageCollection.y + languageCollection.height + 10 : 126
                         width: parent.width - 40
                         height: Math.max(40, footer.y - y - 8)
                         clip: true
@@ -689,24 +736,25 @@ Item {
                     Text {
                         visible: menu.visibleTracks.length === 0
                         anchors.horizontalCenter: parent.horizontalCenter
-                        y: 184
+                        y: menu.phoneLayout ? variants.y + 20 : 184
                         width: parent.width - 80
                         text: menu.loading ? "Finding subtitles..." : "No tracks match these filters."
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
 
                     Rectangle {
                         id: footer
+                        objectName: "subtitleFooter"
                         anchors.left: parent.left
                         anchors.leftMargin: 20
                         anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 13
-                        width: Math.min(320, parent.width - 40)
-                        height: 48
+                        anchors.bottomMargin: menu.phoneLayout ? delayRow.height + 26 : 13
+                        width: menu.phoneLayout ? parent.width - 40 : Math.min(320, parent.width - 40)
+                        height: menu.phoneLayout ? 60 : 48
                         radius: 13
                         color: Qt.rgba(1, 1, 1, 0.025)
                         border.width: 1
@@ -768,7 +816,7 @@ Item {
                                 text: menu.searchId.length ? ("IMDb " + menu.searchId) : "Online search needs a matched title"
                                 color: menu.searchId.length ? theme.ink : theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 14
+                                font.pixelSize: theme.fontSize(14)
                                 elide: Text.ElideRight
                             }
                         }
@@ -783,7 +831,7 @@ Item {
                                 text: menu.searchLoading ? "..." : "Search"
                                 color: menu.searchId.length ? "#111111" : theme.inkDimmer
                                 font.family: theme.hud
-                                font.pixelSize: 13
+                                font.pixelSize: theme.fontSize(13)
                                 font.weight: Font.DemiBold
                             }
                             MouseArea {
@@ -853,7 +901,7 @@ Item {
                              : "No subtitles found."
                         color: theme.inkDimmer
                         font.family: theme.hud
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
                     }
@@ -863,7 +911,7 @@ Item {
                         anchors.left: parent.left
                         anchors.leftMargin: 20
                         anchors.bottom: parent.bottom
-                        anchors.bottomMargin: 13
+                        anchors.bottomMargin: menu.phoneLayout ? delayRow.height + 26 : 13
                         width: 146
                         text: "Back to tracks"
                         icon: "back"
@@ -873,6 +921,7 @@ Item {
 
                 DelayRow {
                     id: delayRow
+                        objectName: "subtitleDelay"
                     visible: !menu.appearanceOpen
                     anchors.right: parent.right
                     anchors.rightMargin: 20
@@ -892,11 +941,12 @@ Item {
 
             Rectangle {
                 id: appearanceDrawer
+                        objectName: "subtitleAppearanceDrawer"
                 visible: menu.appearanceOpen
                 anchors.top: parent.top
                 anchors.bottom: parent.bottom
                 anchors.right: parent.right
-                width: 280
+                width: menu.phoneLayout ? parent.width : 280
                 color: Qt.rgba(5 / 255, 7 / 255, 10 / 255, 0.72)
                 border.width: 0
 
@@ -914,7 +964,7 @@ Item {
                     text: "Appearance"
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                 }
                 FooterButton {
@@ -933,7 +983,7 @@ Item {
                     text: "Changes apply live and persist."
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                 }
 
                 Text {
@@ -942,7 +992,7 @@ Item {
                     text: "FONT"
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.weight: Font.Bold
                     font.letterSpacing: 1.2
                 }
@@ -953,7 +1003,7 @@ Item {
                     text: subtitleStylePrefs.fontFamily
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                 }
                 Controls.ComboBox {
                     id: fontPicker
@@ -964,7 +1014,7 @@ Item {
                     model: menu.fontFamilies
                     currentIndex: Math.max(0, menu.fontFamilies.indexOf(subtitleStylePrefs.fontFamily))
                     font.family: theme.hud
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     onActivated: function(index) {
                         subtitleStylePrefs.fontFamily = menu.fontFamilies[index]
                         menu.setStyleOption("sub-font", subtitleStylePrefs.fontFamily)
@@ -976,7 +1026,7 @@ Item {
                         text: fontPicker.displayText
                         color: theme.ink
                         font.family: subtitleStylePrefs.fontFamily
-                        font.pixelSize: 13
+                        font.pixelSize: theme.fontSize(13)
                         elide: Text.ElideRight
                     }
                     indicator: PlayerIcon {
@@ -1021,7 +1071,7 @@ Item {
                     text: "TEXT COLOR"
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.weight: Font.Bold
                     font.letterSpacing: 1.2
                 }
@@ -1090,7 +1140,7 @@ Item {
                         text: "Subtitle preview"
                         color: subtitleStylePrefs.textColor
                         font.family: subtitleStylePrefs.fontFamily
-                        font.pixelSize: Math.max(12, 16 * subtitleStylePrefs.scale)
+                        font.pixelSize: theme.fontSize(Math.max(12, 16 * subtitleStylePrefs.scale))
                         style: Text.Outline
                         styleColor: subtitleStylePrefs.outlineColor
                     }
@@ -1122,7 +1172,7 @@ Item {
         property string accessibleName: ""
         signal clicked()
         width: 44
-        height: 44
+        height: menu.phoneLayout ? 48 : 44
         Rectangle {
             anchors.fill: parent
             radius: 14
@@ -1161,7 +1211,7 @@ Item {
         property bool active: false
         signal clicked()
         width: 78
-        height: 36
+        height: menu.phoneLayout ? 48 : 36
         radius: 11
         color: toggleMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.075) : Qt.rgba(1, 1, 1, 0.055)
         border.width: 1
@@ -1180,7 +1230,7 @@ Item {
                     text: button.active ? "\u2713" : ""
                     color: "#111111"
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: Font.Bold
                 }
             }
@@ -1189,7 +1239,7 @@ Item {
                 text: button.active ? "On" : "Off"
                 color: button.active ? theme.ink : theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.Medium
             }
         }
@@ -1231,7 +1281,7 @@ Item {
             text: button.text
             color: button.selected ? theme.ink : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             font.weight: Font.Medium
         }
         MouseArea {
@@ -1257,7 +1307,7 @@ Item {
         property bool selected: false
         signal clicked()
         width: Math.max(52, label.implicitWidth + 22)
-        height: 32
+        height: menu.phoneLayout ? 48 : 32
         radius: 16
         color: pill.selected ? theme.gold
                              : filterMouse.containsMouse ? Qt.rgba(1, 1, 1, 0.07) : Qt.rgba(1, 1, 1, 0.025)
@@ -1269,7 +1319,7 @@ Item {
             text: pill.text
             color: pill.selected ? "#171306" : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.weight: pill.selected ? Font.DemiBold : Font.Medium
         }
         MouseArea {
@@ -1304,7 +1354,7 @@ Item {
             text: control.label
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 10
+            font.pixelSize: theme.fontSize(10)
             font.weight: Font.Bold
             font.letterSpacing: 1.2
         }
@@ -1314,7 +1364,7 @@ Item {
             text: control.valueText
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
         }
         Controls.Slider {
             id: slider
@@ -1431,7 +1481,7 @@ Item {
                 text: row.selected ? "\u2713" : row.pending ? "..." : ""
                 color: "#111111"
                 font.family: theme.hud
-                font.pixelSize: 11
+                font.pixelSize: theme.fontSize(11)
                 font.weight: Font.Bold
             }
         }
@@ -1443,7 +1493,7 @@ Item {
             text: menu.rowLabel(row.track)
             color: theme.ink
             font.family: theme.hud
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             font.weight: Font.DemiBold
             elide: Text.ElideRight
         }
@@ -1469,7 +1519,7 @@ Item {
                 text: String(row.track.tag || "")
                 color: String(row.track.tag || "").toLowerCase() === "default" ? theme.gold : theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
             }
         }
 
@@ -1480,7 +1530,7 @@ Item {
             text: menu.rowMeta(row.track)
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
             font.letterSpacing: 0.2
             elide: Text.ElideRight
         }
@@ -1529,7 +1579,7 @@ Item {
                 text: button.text
                 color: footerMouse.containsMouse ? theme.ink : theme.inkDim
                 font.family: theme.hud
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.Medium
             }
         }
@@ -1566,7 +1616,7 @@ Item {
                 text: "SYNC"
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
                 font.weight: Font.Bold
                 font.letterSpacing: 1.1
             }
@@ -1598,7 +1648,7 @@ Item {
                             color: theme.ink
                             font.family: theme.hud
                             font.features: ({ "tnum": 1 })
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
                         MouseArea {

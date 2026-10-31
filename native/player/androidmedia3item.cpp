@@ -386,6 +386,7 @@ void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &header
     const bool hadCues = !m_state.subtitleCues().isEmpty();
     clearExternalSubtitles();
     const quint64 generation = m_state.beginLoad(url, headers);
+    if (m_seekable) { m_seekable = false; emit seekableChanged(); }
     m_state.noteUserPlay(generation);
     m_fileLoadedEmitted = false;
     m_resumeAfterEnd = false;
@@ -425,6 +426,7 @@ void AndroidMedia3Item::loadSource(const QString &url, const QVariantMap &header
 
 void AndroidMedia3Item::stopPlayback()
 {
+    if (m_seekable) { m_seekable = false; emit seekableChanged(); }
     if (m_state.generation() == 0)
         return;
     const auto before = m_state.snapshot();
@@ -860,10 +862,12 @@ void AndroidMedia3Item::handleError(quint64 generation, const QString &family,
 void AndroidMedia3Item::handleTimeline(quint64 generation, qint64 durationMs,
                                        bool seekable, bool live)
 {
-    Q_UNUSED(seekable)
-    Q_UNUSED(live)
     if (!m_state.accepts(generation))
         return;
+    if (m_seekable != (seekable && !live)) {
+        m_seekable = seekable && !live;
+        emit seekableChanged();
+    }
     const auto before = m_state.snapshot();
     const auto snapshot = m_state.snapshot();
     m_state.updateTimeline(generation, msFromSeconds(snapshot.positionSec), durationMs,

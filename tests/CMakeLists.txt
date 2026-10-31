@@ -18,6 +18,11 @@ if(WIN32)
     add_subdirectory(feria_host_probe)
 endif()
 
+add_executable(android_surface_redraw_gate_test android_surface_redraw_gate_test.cpp)
+target_include_directories(android_surface_redraw_gate_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+add_test(NAME colosseum.android_surface_redraw_gate_test COMMAND android_surface_redraw_gate_test)
+set_tests_properties(colosseum.android_surface_redraw_gate_test PROPERTIES LABELS "unit;android;platform")
+
 add_executable(feria_account_store_test feria_account_store_test.cpp)
 target_link_libraries(feria_account_store_test PRIVATE feria_discovery Qt6::Core)
 add_test(NAME colosseum.feria_account_store_test COMMAND feria_account_store_test)

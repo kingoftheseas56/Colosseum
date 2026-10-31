@@ -146,15 +146,15 @@ Item {
                             accessibleName: "Back from Calendar"; onTriggered: root.backRequested() }
                     }
                     Text { text: "THEATRE · COLLECTION"; color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6; font.weight: Font.DemiBold
                         anchors.verticalCenter: parent.verticalCenter }
                 }
-                Text { text: "Calendar"; color: theme.ink; font.family: theme.display; font.pixelSize: 46; font.letterSpacing: -1 }
+                Text { text: "Calendar"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(46); font.letterSpacing: -1 }
                 Text {
                     text: root.monthEpisodes === 0 ? "Nothing dated this month"
                         : root.monthEpisodes + (root.monthEpisodes === 1 ? " episode coming to your shelf this month"
                                                                         : " episodes coming to your shelf this month")
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
             }
 
@@ -164,13 +164,13 @@ Item {
                 width: parent.width
                 spacing: 14
                 topPadding: 40
-                Text { text: "Nothing scheduled"; color: theme.ink; font.family: theme.display; font.pixelSize: 28 }
+                Text { text: "Nothing scheduled"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(28) }
                 Text { text: "Save some running shows and their next episodes land here."
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14 }
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                 Rectangle {
                     width: goText.implicitWidth + 34; height: 40; radius: 11; color: theme.gold
                     Text { id: goText; anchors.centerIn: parent; text: "Browse Discover"
-                        color: "#17120a"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                        color: "#17120a"; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.discoverRequested() }
                     KeyboardAction { anchors.fill: parent; pointerEnabled: false
                         accessibleName: "Browse Discover"; onTriggered: root.discoverRequested() }
@@ -182,10 +182,10 @@ Item {
                 visible: !root.shelfEmpty
                 width: parent.width
                 spacing: 12
-                Text { text: "Coming up"; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+                Text { text: "Coming up"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24) }
                 Text { visible: root.comingRows.length === 0
                     text: "All caught up — nothing dated ahead."
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14 }
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14) }
                 ListView {
                     id: comingList
                     visible: root.comingRows.length > 0
@@ -234,18 +234,18 @@ Item {
                                     width: parent.width - 102; height: parent.height; spacing: 6
                                     Text { width: parent.width; text: rc.modelData.dayLabel
                                         color: rc.modelData.state === "aired" ? theme.gold : theme.inkDim
-                                        font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold }
                                     Text { width: parent.width; text: rc.modelData.title
-                                        color: theme.ink; font.family: theme.display; font.pixelSize: 17
+                                        color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(17)
                                         wrapMode: Text.WordWrap; maximumLineCount: 2; elide: Text.ElideRight }
                                     Text { width: parent.width
                                         text: "S" + rc.modelData.season + " · E" + rc.modelData.episode
                                               + (rc.modelData.epTitle ? "  " + rc.modelData.epTitle : "")
-                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                         elide: Text.ElideRight }
                                     Item { width: 1; height: 2 }
                                     Text { text: rc.modelData.state === "aired" ? "▶ Play" : "View series"
-                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12 }
+                                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12) }
                                 }
                             }
                             MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
@@ -264,7 +264,7 @@ Item {
                 Row {
                     width: parent.width
                     Text { text: root.grid ? root.grid.label : ""
-                        color: theme.ink; font.family: theme.display; font.pixelSize: 24
+                        color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24)
                         anchors.verticalCenter: parent.verticalCenter }
                     Item { width: parent.width - monthTitleNav.childrenRect.width - (root.grid ? 200 : 0); height: 1 }
                     Row {
@@ -291,7 +291,7 @@ Item {
                             required property var modelData
                             width: (col.width) / 7; height: 22
                             Text { anchors.left: parent.left; anchors.leftMargin: 4; text: modelData
-                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1 }
+                                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1 }
                         }
                     }
                 }
@@ -339,7 +339,7 @@ Item {
                                         Text { anchors.top: parent.top; anchors.left: parent.left; anchors.margins: 7
                                             text: modelData.day
                                             color: modelData.isToday ? theme.gold : theme.inkDim
-                                            font.family: theme.ui; font.pixelSize: 12; font.weight: modelData.isToday ? Font.DemiBold : Font.Normal }
+                                            font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: modelData.isToday ? Font.DemiBold : Font.Normal }
                                         // chips
                                         Row {
                                             anchors.bottom: parent.bottom; anchors.left: parent.left
@@ -395,7 +395,7 @@ Item {
                     event.accepted = true
                 }
                 Text { text: root.grid ? (root.grid.label.split(" ")[0] + " " + root.selectedDay) : ""
-                    color: theme.ink; font.family: theme.display; font.pixelSize: 20 }
+                    color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(20) }
                 Repeater {
                     model: root.dayRows
                     delegate: Rectangle {
@@ -410,15 +410,15 @@ Item {
                             anchors.left: parent.left; anchors.leftMargin: 16
                             anchors.verticalCenter: parent.verticalCenter; spacing: 12
                             Text { text: modelData.title; color: theme.ink; font.family: theme.ui
-                                font.pixelSize: 14; font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
+                                font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold; anchors.verticalCenter: parent.verticalCenter }
                             Text { text: "S" + modelData.season + "E" + modelData.episode
                                    + (modelData.epTitle ? " · " + modelData.epTitle : "")
-                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; anchors.verticalCenter: parent.verticalCenter }
+                                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13); anchors.verticalCenter: parent.verticalCenter }
                         }
                         Text { anchors.right: parent.right; anchors.rightMargin: 16; anchors.verticalCenter: parent.verticalCenter
                             text: modelData.state === "aired" ? "▶ Play" : "Upcoming"
                             color: modelData.state === "aired" ? theme.gold : theme.inkDimmer
-                            font.family: theme.ui; font.pixelSize: 13 }
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: {
                                 root.keyboardDayRow = index

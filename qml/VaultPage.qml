@@ -911,7 +911,7 @@ Item {
                     anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 16
                     text: Math.round((continueTile.modelData.progressFraction || 0) * 100) + "% complete"
                     visible: (continueTile.modelData.progressFraction || 0) > 0
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 11
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
                 Rectangle {
                     anchors.bottom: parent.bottom; width: parent.width; height: 3; color: "#40ffffff"
@@ -928,12 +928,12 @@ Item {
                 spacing: 4
                 Text {
                     width: parent.width; text: continueTile.modelData.title || ""
-                    color: theme.ink; font.family: theme.ui; font.pixelSize: 13
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                     font.weight: Font.DemiBold; elide: Text.ElideRight
                 }
                 Text {
                     text: continueTile.modelData.kind === "video" ? "Continue watching" : "Continue reading"
-                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+                    color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                 }
             }
             KeyboardAction {
@@ -1005,9 +1005,9 @@ Item {
                 width: col.width
                 spacing: 0
                 Text { text: "ON THIS MACHINE"; color: theme.inkDimmer
-                       font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
+                       font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6; font.weight: Font.DemiBold }
                 Text { text: "Vault"; color: theme.ink; topPadding: 8
-                       font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
+                       font.family: theme.display; font.pixelSize: theme.fontSize(56); font.letterSpacing: -1 }
                 Item { width: 1; height: 20 }
                 Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
             }
@@ -1056,7 +1056,7 @@ Item {
                         text: root.scanningEmpty ? "Looking through your folder…"
                                                  : "Add a folder of comics, books, or videos"
                         color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 18; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -1066,7 +1066,7 @@ Item {
                         visible: !root.scanningEmpty
                         text: "The Vault reads what is already on this machine and keeps it here — nothing is downloaded or moved."
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.3
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); lineHeight: 1.3
                     }
 
                     // Add folder — opens the native folder picker (Slice 10). The ingest behind it
@@ -1084,7 +1084,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Add folder"
                             color: addMa.containsMouse ? "#141207" : theme.ink
-                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                         }
                         MouseArea {
                             id: addMa
@@ -1199,7 +1199,7 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: 24
             anchors.bottom: parent.bottom; anchors.bottomMargin: 36
             text: root.scanning ? "●  Scanning your library…" : "●  On this machine"
-            color: root.scanning ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11
+            color: root.scanning ? theme.gold : theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
         }
         Item {
             id: mainArea
@@ -1290,7 +1290,7 @@ Item {
                                 anchors.rightMargin: 18; anchors.verticalCenter: parent.verticalCenter
                                 text: root.searchViewActive ? "Search results" : root.hiddenViewActive ? "Hidden items"
                                     : root.crumbStack.length ? root.crumbStack[root.crumbStack.length - 1].displayTitle : "Vault"
-                                color: theme.ink; font.family: theme.display; font.pixelSize: 32
+                                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(32)
                                 font.weight: Font.DemiBold; elide: Text.ElideRight
                             }
                             Row {
@@ -1320,7 +1320,7 @@ Item {
                             Text {
                                 objectName: "vaultContinueRailKicker"
                                 text: "Pick up where you left off"
-                                color: theme.ink; font.family: theme.display; font.pixelSize: 22
+                                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22)
                             }
                             ListView {
                                 id: continueList
@@ -1338,7 +1338,7 @@ Item {
                             width: parent.width; spacing: 14
                             visible: (root.continueItems.length === 0 || root.recentShelfExpanded) && root.carouselSlides.length > 0
                                 && !root.searchViewActive && !root.hiddenViewActive
-                            Text { text: "Just arrived"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
+                            Text { text: "Just arrived"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22) }
                             ListView {
                                 id: arrivals; objectName: "vaultBrowseCarousel"
                                 width: parent.width; height: 174
@@ -1354,7 +1354,7 @@ Item {
                                     Column {
                                         anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 14
                                         spacing: 12
-                                        Text { width: parent.width; text: modelData.__row.displayTitle || ""; color: theme.ink; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold; elide: Text.ElideRight }
+                                        Text { width: parent.width; text: modelData.__row.displayTitle || ""; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold; elide: Text.ElideRight }
                                         Row {
                                             spacing: 8
                                             VaultAction { text: "▶  Play"; primary: true; enabled: !modelData.__row.away; onTriggered: root.handleCarouselPrimary(modelData.__row) }
@@ -1367,7 +1367,7 @@ Item {
                         Column {
                             width: parent.width; spacing: 14
                             visible: root.browseFolderRows.length > 0
-                            Text { text: "Your folders"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
+                            Text { text: "Your folders"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22) }
                             ListView {
                                 id: foldersList
                                 width: parent.width; height: 80; spacing: 12
@@ -1392,8 +1392,8 @@ Item {
                                         Column {
                                             anchors.left: parent.left; anchors.right: parent.right
                                             anchors.leftMargin: 48; anchors.rightMargin: 14; anchors.verticalCenter: parent.verticalCenter; spacing: 5
-                                            Text { width: parent.width; text: folderTile.modelData.displayTitle || ""; elide: Text.ElideRight; color: theme.ink; font.family: theme.ui; font.pixelSize: 12; font.weight: Font.DemiBold }
-                                            Text { width: parent.width; text: folderTile.modelData.physicalFact || "Folder"; elide: Text.ElideRight; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11 }
+                                            Text { width: parent.width; text: folderTile.modelData.displayTitle || ""; elide: Text.ElideRight; color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold }
+                                            Text { width: parent.width; text: folderTile.modelData.physicalFact || "Folder"; elide: Text.ElideRight; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
                                         }
                                         KeyboardAction {
                                             id: folderAction; anchors.fill: parent; contextEnabled: true
@@ -1408,7 +1408,7 @@ Item {
                             id: showNextUp; objectName: "vaultShowNextUp"
                             width: parent.width; spacing: 14
                             visible: root.showPageActive && root.showNextUpRows.length > 0 && !root.searchViewActive && !root.hiddenViewActive
-                            Text { objectName: "vaultShowNextUpKicker"; text: "Next up"; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
+                            Text { objectName: "vaultShowNextUpKicker"; text: "Next up"; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22) }
                             ListView { width: parent.width; height: 214; orientation: ListView.Horizontal; model: root.showNextUpRows; delegate: vaultContinueTileComp }
                         }
                         Item {
@@ -1416,7 +1416,7 @@ Item {
                             Text {
                                 anchors.left: parent.left; y: 8
                                 text: "In your library  ·  " + grid.count
-                                color: theme.ink; font.family: theme.display; font.pixelSize: 22
+                                color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22)
                             }
                             Row {
                                 anchors.right: parent.right; anchors.bottom: parent.bottom; spacing: 8
@@ -1499,14 +1499,14 @@ Item {
                         anchors.centerIn: parent
                         text: "No matches in the Vault."
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                     Text {
                         visible: grid.count === 0 && root.hiddenViewActive
                         anchors.centerIn: parent
                         text: "Nothing is hidden."
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                                     }
                 }
@@ -1561,7 +1561,7 @@ Item {
                     text: "Vault"
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 22
+                    font.pixelSize: theme.fontSize(22)
                     font.weight: Font.DemiBold
                     font.preferTypoLineMetrics: true
                 }
@@ -1636,7 +1636,7 @@ Item {
             TextInput {
                 id: searchInput; objectName: "vaultBrowseSearchInput"
                 anchors.fill: parent; anchors.leftMargin: 38; anchors.rightMargin: 36
-                color: theme.ink; font.family: theme.ui; font.pixelSize: 12
+                color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 verticalAlignment: TextInput.AlignVCenter; clip: true
                 selectionColor: theme.gold; selectedTextColor: theme.background
                 Accessible.name: "Search the Vault"
@@ -1660,7 +1660,7 @@ Item {
                 anchors.fill: parent; anchors.leftMargin: 38; anchors.rightMargin: 12
                 verticalAlignment: Text.AlignVCenter; visible: searchInput.length === 0
                 text: "Search titles, identities, filenames"; elide: Text.ElideRight
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
             }
             VaultAction {
                 objectName: "vaultHeaderClearSearch"
@@ -1798,13 +1798,13 @@ Item {
                             Text {
                                 text: root.sortMode === sortMenuItem.modelData.mode ? "✓" : ""
                                 color: theme.gold
-                                font.family: theme.ui; font.pixelSize: 12
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                 width: 12
                             }
                             Text {
                                 text: sortMenuItem.modelData.label
                                 color: sortItemMa.containsMouse ? theme.ink : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
                         }
                         MouseArea {
@@ -1884,7 +1884,7 @@ Item {
                         anchors.centerIn: parent
                         text: chip.label
                         color: chip.active ? theme.gold : (chipMa.containsMouse ? theme.ink : theme.inkDim)
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     }
                     MouseArea {
                         id: chipMa
@@ -1908,7 +1908,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "KIND"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterKindVideoChip; label: "Video"; active: root.filterKind === "video"
@@ -1932,7 +1932,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "WATCHED"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterWatchedUnwatchedChip; label: "Unwatched"; active: root.filterWatched === "unwatched"
@@ -1951,7 +1951,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "IDENTIFICATION"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterIdentChip; label: "Needs identifying"; active: root.filterIdent === "uncertain"
@@ -1965,7 +1965,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "PRESENCE"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterPresenceHereChip; label: "Here"; active: root.filterPresence === "present"
@@ -1990,7 +1990,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Clear all"
                         color: clearMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     }
                     MouseArea {
                         id: clearMa
@@ -2073,7 +2073,7 @@ Item {
                         : (base + "…")
                 }
                 color: theme.ink
-                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
             }
 
             Rectangle {
@@ -2086,7 +2086,7 @@ Item {
                     anchors.centerIn: parent
                     text: "Cancel"
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
                 MouseArea {
                     id: cancelMa

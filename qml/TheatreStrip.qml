@@ -63,7 +63,7 @@ Glass {
         anchors.top: parent.top; anchors.topMargin: strip.compactLayout ? 20 : 28
         anchors.horizontalCenter: parent.horizontalCenter
         text: strip.heading; color: theme.ink
-        font.family: theme.display; font.pixelSize: strip.compactLayout ? 30 : 33
+        font.family: theme.display; font.pixelSize: theme.fontSize(strip.compactLayout ? 30 : 33)
         MouseArea {
             anchors.fill: parent; anchors.margins: -12
             cursorShape: Qt.PointingHandCursor; onClicked: strip.clicked()
@@ -82,7 +82,7 @@ Glass {
         anchors.top: parent.top; anchors.topMargin: 36
         visible: !strip.compactLayout
         text: "Trending"; color: theme.inkDim
-        font.family: theme.display; font.italic: true; font.pixelSize: 22
+        font.family: theme.display; font.italic: true; font.pixelSize: theme.fontSize(22)
     }
 
     // ---- the film band: dark, sprocketed, edge to edge ----
@@ -146,7 +146,7 @@ Glass {
                             anchors.left: parent.left; anchors.leftMargin: 10
                             anchors.top: parent.top; anchors.topMargin: 8
                             text: frame.modelData.lane.toUpperCase(); color: Qt.rgba(1, 1, 1, 0.6)
-                            font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1.6
                             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.5)
                         }
                         Text {
@@ -154,7 +154,7 @@ Glass {
                             anchors.right: parent.right; anchors.rightMargin: 10
                             anchors.bottom: parent.bottom; anchors.bottomMargin: 8
                             text: frame.modelData.title; color: theme.ink
-                            font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                             elide: Text.ElideRight
                         }
                     }

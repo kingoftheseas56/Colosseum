@@ -191,7 +191,7 @@ Item {
                 text: "Audio"
                 color: theme.ink
                 font.family: theme.hud
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.DemiBold
             }
             Text {
@@ -199,7 +199,7 @@ Item {
                 text: (menu.tracks || []).length
                 color: theme.inkDimmer
                 font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
             }
             Item { width: 1; height: 1; LayoutMirroring.enabled: false }
         }
@@ -259,7 +259,7 @@ Item {
                         text: row.selected ? "✓" : ""
                         color: "#111111"
                         font.family: theme.hud
-                        font.pixelSize: 10
+                        font.pixelSize: theme.fontSize(10)
                         font.weight: Font.Bold
                     }
                 }
@@ -281,7 +281,7 @@ Item {
                     text: menu.rowLabel(row.modelData)
                     color: theme.ink
                     font.family: theme.hud
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: row.selected ? Font.DemiBold : Font.Medium
                     elide: Text.ElideRight
                 }
@@ -296,7 +296,7 @@ Item {
                     text: String(row.modelData.tag || "").toUpperCase()
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.letterSpacing: 1.5
                 }
                 Text {
@@ -306,7 +306,7 @@ Item {
                     text: menu.rowMeta(row.modelData)
                     color: theme.inkDimmer
                     font.family: theme.hud
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     elide: Text.ElideRight
                 }
                 MouseArea {
@@ -335,7 +335,7 @@ Item {
             text: "This file has one audio track."
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
             horizontalAlignment: Text.AlignHCenter
             wrapMode: Text.WordWrap
         }
@@ -372,7 +372,7 @@ Item {
             text: "x"
             color: closeMouse.containsMouse ? theme.ink : theme.inkDim
             font.family: theme.hud
-            font.pixelSize: 16
+            font.pixelSize: theme.fontSize(16)
             font.weight: Font.DemiBold
         }
         MouseArea {
@@ -410,7 +410,7 @@ Item {
                 text: delayRow.label
                 color: theme.inkDimmer
                 font.family: theme.hud
-                font.pixelSize: 10
+                font.pixelSize: theme.fontSize(10)
                 font.weight: Font.Bold
                 font.letterSpacing: 1.4
             }
@@ -421,7 +421,7 @@ Item {
                 text: menu.fmtSigned(delayRow.value)
                 color: theme.ink
                 font.family: theme.hud; font.features: ({ "tnum": 1 })
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 horizontalAlignment: Text.AlignHCenter
             }
             StepButton { text: "+0.1"; onClicked: delayRow.step(0.1) }
@@ -452,7 +452,7 @@ Item {
             text: stepButton.text
             color: theme.inkDim
             font.family: theme.hud; font.features: ({ "tnum": 1 })
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
             font.weight: Font.DemiBold
         }
         MouseArea {

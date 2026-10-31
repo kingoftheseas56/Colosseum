@@ -211,7 +211,7 @@ Item {
             text: chip.label
             color: chip.active ? theme.gold : theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
             font.bold: chip.active
         }
         ComicReaderKeyboardArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; keyboardLabel: chip.label; onClicked: chip.tapped() }
@@ -291,7 +291,7 @@ Item {
             text: slider.label
             color: theme.inkDim
             font.family: theme.hud
-            font.pixelSize: 12
+            font.pixelSize: theme.fontSize(12)
         }
         Text {
             objectName: slider.objectName.length ? (slider.objectName + "Readout") : ""
@@ -300,7 +300,7 @@ Item {
             text: slider.readout
             color: theme.inkDimmer
             font.family: theme.hud
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
         }
 
         Rectangle {
@@ -414,7 +414,7 @@ Item {
                     text: "Quality"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                 }
                 Row {
                     anchors.right: parent.right
@@ -453,7 +453,7 @@ Item {
                     text: "Night filter"
                     color: theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                 }
                 Switch {
                     objectName: "imageNightFilter"
@@ -480,7 +480,7 @@ Item {
                     text: "Advanced image tools"
                     color: discloseMa.containsMouse || root.advancedOpen ? theme.ink : theme.inkDim
                     font.family: theme.hud
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                 }
                 // A REAL glyph, never a text arrow (semantic-icon-audit law). The
                 // chevron the reader already owns, turned a quarter to point down
@@ -542,7 +542,7 @@ Item {
                         text: "Rotate"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                     Row {
                         anchors.right: parent.right
@@ -570,7 +570,7 @@ Item {
                         text: "Auto-crop"
                         color: theme.inkDim
                         font.family: theme.hud
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                     }
                     Switch {
                         objectName: "imageAutoCrop"

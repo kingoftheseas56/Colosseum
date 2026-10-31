@@ -88,10 +88,36 @@ function visible(a, showExplicit) {
 
 function res(a, r) { return a.resources.indexOf(r) >= 0 }
 
+function isTorrentio(a) {
+    return a.id === "com.stremio.torrentio.addon"
+        || a.manifestUrl === "https://torrentio.strem.fun/manifest.json"
+}
+
+function essentialName(a) { return isTorrentio(a) ? "Torrentio" : a.name }
+
+// Keep the bundled Theatre source discoverable independently of the community index.
+// This only supplies a Store card; installation and enablement remain explicit actions.
+function withTorrentio(all) {
+    var out = all.filter(function(a) { return !isTorrentio(a) || visible(a, false) })
+    for (var i = 0; i < out.length; i++)
+        if (isTorrentio(out[i])) return out
+    out.push(normalize({
+        slug: "torrentio", manifestUrl: "https://torrentio.strem.fun/manifest.json",
+        configureUrl: "https://torrentio.strem.fun/configure",
+        categories: [{name: "movies"}, {name: "tv shows"}, {name: "anime"}],
+        manifest: {id: "com.stremio.torrentio.addon", name: "Torrentio",
+            logo: "../assets/addon-logos/torrentio.png",
+            description: "Provides torrent streams from scraped torrent providers.",
+            resources: ["stream"], types: ["movie", "series", "anime"],
+            behaviorHints: {configurable: true}}
+    }))
+    return out
+}
+
 // done(addons, error) — addons is the full cleaned list, most starred first.
 function fetchAll(done) {
     var all = [], page = 1, finished = false
-    function fail(msg) { if (!finished) { finished = true; done(all, msg) } }
+    function fail(msg) { if (!finished) { finished = true; done(withTorrentio(all), msg) } }
     function next() {
         var xhr = new XMLHttpRequest()
         xhr.onreadystatechange = function() {
@@ -105,7 +131,7 @@ function fetchAll(done) {
             if (p.hasNextPage && page < 20) { page++; next(); return }
             finished = true
             all.sort(function(x, y) { return y.stars - x.stars })
-            done(all, "")
+            done(withTorrentio(all), "")
         }
         xhr.open("GET", API + "?limit=" + PAGE + "&page=" + page)
         xhr.send()
@@ -117,13 +143,15 @@ function essentials(all) {
     var out = []
     for (var i = 0; i < ESSENTIALS.length; i++)
         for (var j = 0; j < all.length; j++)
-            if (all[j].name === ESSENTIALS[i]) { out.push(all[j]); break }
+            if (essentialName(all[j]) === ESSENTIALS[i]) {
+                out.push(all[j]); break
+            }
     return out
 }
 
 // [{ title, sub, items, all }] — each row's top add-ons by stars (all = the See-all list), Essentials left out.
 function rows(all, showExplicit) {
-    var shown = all.filter(function(a) { return visible(a, showExplicit) && ESSENTIALS.indexOf(a.name) < 0 })
+    var shown = all.filter(function(a) { return visible(a, showExplicit) && ESSENTIALS.indexOf(essentialName(a)) < 0 })
     var out = []
     for (var i = 0; i < ROWS.length; i++) {
         var all = shown.filter(ROWS[i][2])

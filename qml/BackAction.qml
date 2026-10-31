@@ -7,7 +7,7 @@
 //   variant "immersive" icon-only, chrome-mounted       (reader HUD; player keeps its own Canvas
 //                                                        icon system but shares this stroke grammar)
 //
-// The hit target is always ≥44px (invisible margins), icon-only variants must pass `tip`.
+// Android reserves48dp in the layout; desktop keeps its existing44px hit target.
 
 import QtQuick
 import QtQuick.Shapes
@@ -34,22 +34,28 @@ Item {
     signal triggered()
 
     Theme { id: theme }
+    readonly property bool androidTarget: {
+        const window = root.Window.window
+        return !!(window && window.androidHost) || Qt.platform.os === "android"
+    }
 
     readonly property color _c: input.interactionActive ? hoverColor : idleColor
     readonly property int _chev: variant === "plain" ? 20 : (variant === "capsule" ? 18 : 24)
     readonly property bool automationActiveFocus: input.activeFocus
 
-    implicitWidth: variant === "capsule" ? 42
+    implicitWidth: Math.max(androidTarget ? 48 : 0, variant === "capsule" ? 42
                  : variant === "immersive" ? 34
-                 : chevron.width + (labelText.visible ? 9 + labelText.implicitWidth : 0) + 8
-    implicitHeight: variant === "capsule" ? 34 : 34
+                 : chevron.width + (labelText.visible ? 9 + labelText.implicitWidth : 0) + 8)
+    implicitHeight: androidTarget ? 48 : 34
     width: implicitWidth
     height: implicitHeight
 
     // capsule container (the familiar dark pill over busy art)
     Rectangle {
         visible: root.variant === "capsule"
-        anchors.fill: parent
+        anchors.centerIn: parent
+        width: root.androidTarget ? Math.max(42, root.width - 6) : root.width
+        height: root.androidTarget ? 34 : root.height
         radius: height / 2
         color: input.interactionActive ? Qt.rgba(1, 1, 1, 0.18) : Qt.rgba(0, 0, 0, 0.40)
         Behavior on color { ColorAnimation { duration: 120 } }
@@ -117,7 +123,7 @@ Item {
             text: root.label
             color: root._c
             font.family: theme.ui
-            font.pixelSize: root.labelSize
+            font.pixelSize: theme.fontSize(root.labelSize)
             style: root.raisedLabel ? Text.Raised : Text.Normal
             styleColor: Qt.rgba(0, 0, 0, 0.5)
             anchors.verticalCenter: parent.verticalCenter
@@ -128,8 +134,9 @@ Item {
     KeyboardAction {
         id: input
         anchors.fill: parent
-        // stretch the interactive target to ≥44px in both axes without moving the visuals
-        anchors.margins: -Math.max(0, Math.ceil((44 - Math.min(root.width, root.height)) / 2))
+        // Normal Android callers reserve their target above, rather than extending over neighbours.
+        anchors.margins: root.androidTarget ? 0
+            : -Math.max(0, Math.ceil((44 - Math.min(root.width, root.height)) / 2))
         accessibleName: root.tip.length > 0 ? root.tip : root.label
         focusRadius: root.variant === "capsule" ? root.height / 2 : 7
         onTriggered: root.triggered()
@@ -145,7 +152,7 @@ Item {
         border.width: 1; border.color: theme.edge
         z: 1000
         Text { id: tipText; anchors.centerIn: parent; text: root.tip
-            color: theme.ink; font.family: theme.ui; font.pixelSize: 11 }
+            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
     }
     Timer {
         id: tipDelay

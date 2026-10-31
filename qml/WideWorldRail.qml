@@ -111,7 +111,7 @@ Item {
                     text: tab.entry.name
                     color: tab.active ? "#f0c44a" : "#9a99a5"
                     font.family: theme.ui
-                    font.pixelSize: 12
+                    font.pixelSize: theme.fontSize(12)
                     font.weight: tab.active ? Font.DemiBold : Font.Normal
                 }
 

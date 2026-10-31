@@ -47,12 +47,35 @@ ReaderOverlay {
     readonly property int cardW: Math.min(520, Math.round(width * 0.8))
     readonly property bool hasResults: results && results.length > 0
 
+    // The soft keyboard's overlap with this sheet while the platform reports an IME rect
+    // through Qt.inputMethod. 0 on desktop, whenever no IME is showing, and on hosts that
+    // resize the window out from under the keyboard (adjustResize) — there the sheet
+    // height has already shrunk, so the rect lands at or below the sheet's own bottom.
+    readonly property real keyboardOverlap: {
+        var ime = Qt.inputMethod
+        if (!ime || !ime.visible) return 0
+        var kb = ime.keyboardRectangle
+        if (!kb || kb.height <= 0) return 0
+        // Android reports the keyboard in device pixels; the scene is in logical ones.
+        var scale = Qt.platform.os === "android" ? Math.max(1, sheet.Screen.devicePixelRatio) : 1
+        var top = sheet.mapFromItem(null, 0, kb.y / scale).y
+        return (top >= sheet.height) ? 0 : Math.max(0, sheet.height - top)
+    }
+    // Vertical room the card may occupy: the parent/window height minus any keyboard
+    // overlap, less a small inset so a capped card keeps its bottom edge off the viewport
+    // edge. Only binds on short windows — with room to spare the card stays content-sized.
+    readonly property real availableH: Math.max(0, height - keyboardOverlap - 10)
+    // The mock's fixed 68px top offset, pulled toward 0 when even the input row would not
+    // fit below it.
+    readonly property real cardTop: Math.min(68, Math.max(0, availableH - inrow.height - divider.height))
+
     // ---------- the floating glass card (mock .search: top 68, centered, min(520,80%)) ----------
     Rectangle {
         id: card
+        objectName: "reader2SearchCard"
         width: sheet.cardW
         x: (sheet.width - width) / 2
-        y: 68
+        y: sheet.cardTop
         radius: 13
         // Near-opaque: dense page text was bleeding through the old 0.88 glass and reading
         // as "shading" behind the results. Keep it a hair off solid so it still reads as glass.
@@ -62,7 +85,10 @@ ReaderOverlay {
         antialiasing: true
         clip: true
 
-        height: inrow.height + divider.height + resultsArea.height
+        // content-sized, capped at the room actually inside the viewport (phone-height
+        // windows and the soft keyboard) so the card never ends below the window.
+        height: Math.min(inrow.height + divider.height + resultsArea.height,
+                         Math.max(0, sheet.availableH - sheet.cardTop))
         enabled: sheet.open
         opacity: sheet.open ? 1 : 0
         visible: opacity > 0
@@ -170,8 +196,11 @@ ReaderOverlay {
             anchors.top: divider.bottom
             anchors.left: parent.left
             anchors.right: parent.right
-            // content-sized, capped at the mock's 280px scroll region (+16 vertical padding).
-            height: sheet.hasResults ? Math.min(resList.contentHeight + 16, 296) : 64
+            // content-sized, capped at the mock's 280px scroll region (+16 vertical padding)
+            // and at whatever height remains inside the viewport once the input row is
+            // placed (phone-height windows, and the soft keyboard); never negative.
+            height: Math.min(sheet.hasResults ? Math.min(resList.contentHeight + 16, 296) : 64,
+                             Math.max(0, sheet.availableH - sheet.cardTop - inrow.height - divider.height))
 
             // quiet empty state: "Type to search" before a search, "No results" after one.
             Text {

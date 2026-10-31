@@ -137,18 +137,18 @@ Popup {
         spacing: 10
         Text {
             text: "Identify this Vault folder"
-            color: theme.ink; font.family: theme.display; font.pixelSize: 24
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24)
         }
         Text {
             width: parent.width
             text: "Folder: " + (dialog.titleText || "Untitled folder")
-            color: theme.gold; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+            color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
             elide: Text.ElideRight
         }
         Text {
             width: parent.width
             text: dialog.feedback || "Search offline catalogues first. Your files stay in place."
-            color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12; wrapMode: Text.WordWrap
+            color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(12); wrapMode: Text.WordWrap
         }
         TextField {
             id: queryField
@@ -213,14 +213,14 @@ Popup {
                     Text {
                         width: parent.width
                         text: modelData.title || "Untitled"
-                        color: theme.ink; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                        color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                         elide: Text.ElideRight
                     }
                     Text {
                         width: parent.width
                         text: (modelData.year ? modelData.year + " · " : "") + (modelData.source || "") +
                               (modelData.detail ? " · " + modelData.detail : "")
-                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 10
+                        color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(10)
                         elide: Text.ElideRight
                     }
                 }
@@ -228,7 +228,7 @@ Popup {
                     objectName: "vaultIdentifyUse_" + index
                     anchors.right: parent.right; anchors.rightMargin: 8; anchors.verticalCenter: parent.verticalCenter
                     width: useText.implicitWidth + 18; height: 32; radius: 8; color: theme.gold
-                    Text { id: useText; anchors.centerIn: parent; text: "Use this"; color: "#151310"; font.pixelSize: 12; font.weight: Font.DemiBold }
+                    Text { id: useText; anchors.centerIn: parent; text: "Use this"; color: "#151310"; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold }
                     MouseArea { anchors.fill: parent; onClicked: dialog.identityChosen(dialog.groupKey, modelData) }
                 }
             }
@@ -241,7 +241,7 @@ Popup {
                 objectName: "vaultIdentifyCancel"
                 width: cancelText.implicitWidth + 28; height: 36; radius: 9
                 color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: theme.edge
-                Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                 MouseArea { anchors.fill: parent; onClicked: dialog.close() }
                 KeyboardAction {
                     id: cancelKey

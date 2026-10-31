@@ -36,7 +36,7 @@ Control {
                 text: control.title
                 color: theme.ink
                 font.family: theme.ui
-                font.pixelSize: 15
+                font.pixelSize: theme.fontSize(15)
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -46,7 +46,7 @@ Control {
                 text: control.detail
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 wrapMode: Text.WordWrap
             }
         }

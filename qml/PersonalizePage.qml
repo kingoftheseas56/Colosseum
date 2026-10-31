@@ -78,7 +78,7 @@ Window {
             spacing: 15
             Text {
                 text: "DRESSING"; color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.5
+                font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.5
                 anchors.verticalCenter: parent.verticalCenter
             }
             Repeater {
@@ -96,7 +96,7 @@ Window {
         Text {
             anchors.right: parent.right
             text: "Tankoban"; color: theme.gold
-            font.family: theme.display; font.pixelSize: 16
+            font.family: theme.display; font.pixelSize: theme.fontSize(16)
         }
     }
 
@@ -107,12 +107,12 @@ Window {
         spacing: 14
         Text {
             text: root.tiles[root.current].name
-            color: theme.ink; font.family: theme.display; font.pixelSize: 34
+            color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(34)
             Layout.fillWidth: true
         }
         Text {
             text: root.tiles[root.current].spec
-            color: theme.inkDim; font.family: root.mono; font.pixelSize: 13; font.letterSpacing: 0.5
+            color: theme.inkDim; font.family: root.mono; font.pixelSize: theme.fontSize(13); font.letterSpacing: 0.5
         }
         RowLayout {
             spacing: 14
@@ -121,7 +121,7 @@ Window {
                 color: applyMa.containsMouse ? "#ffd864" : theme.gold
                 Text {
                     anchors.centerIn: parent; text: "Apply to Tankoban"
-                    color: "#1a1206"; font.family: theme.ui; font.pixelSize: 14; font.bold: true
+                    color: "#1a1206"; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.bold: true
                 }
                 MouseArea { id: applyMa; anchors.fill: parent; hoverEnabled: true }
             }
@@ -132,7 +132,7 @@ Window {
                 Text {
                     anchors.centerIn: parent; text: "All worlds >"
                     color: allMa.containsMouse ? theme.ink : theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 14
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 }
                 MouseArea { id: allMa; anchors.fill: parent; hoverEnabled: true }
             }
@@ -157,16 +157,16 @@ Window {
 
             Text {
                 text: "PERSONALIZE"; color: theme.gold
-                font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 5; font.bold: true
+                font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 5; font.bold: true
             }
             Text {
                 text: "Tankoban"; color: theme.ink
-                font.family: theme.display; font.pixelSize: 46
+                font.family: theme.display; font.pixelSize: theme.fontSize(46)
                 Layout.topMargin: -6
             }
             Text {
                 text: "Choose this world's wallpaper. Hover to try it on live - apply when it feels like home."
-                color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14
+                color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 lineHeight: 1.35; wrapMode: Text.WordWrap; Layout.fillWidth: true
             }
 
@@ -184,7 +184,7 @@ Window {
                     }
                     Text {
                         text: "Search wallpapers - a title, a mood, a colour"
-                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
+                        color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                         anchors.verticalCenter: parent.verticalCenter
                     }
                 }
@@ -214,7 +214,7 @@ Window {
                             text: parent.modelData
                             color: root.activeLane === parent.index ? theme.ink
                                  : (laneMa.containsMouse ? theme.inkDim : theme.inkDimmer)
-                            font.family: theme.ui; font.pixelSize: 13
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         }
                         Rectangle {
                             anchors.top: laneTxt.bottom; anchors.topMargin: 5
@@ -297,7 +297,7 @@ Window {
                                 Text { text: ">"; color: theme.gold; font.pixelSize: 8; anchors.verticalCenter: parent.verticalCenter }
                                 Text {
                                     id: badge; text: "MOTION"; color: theme.gold
-                                    font.family: root.mono; font.pixelSize: 9; font.letterSpacing: 0.6
+                                    font.family: root.mono; font.pixelSize: theme.fontSize(9); font.letterSpacing: 0.6
                                     anchors.verticalCenter: parent.verticalCenter
                                 }
                             }
@@ -305,7 +305,7 @@ Window {
 
                         Text {
                             anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 10
-                            text: modelData.name; color: "white"; font.family: theme.ui; font.pixelSize: 12
+                            text: modelData.name; color: "white"; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.6)
                         }
 

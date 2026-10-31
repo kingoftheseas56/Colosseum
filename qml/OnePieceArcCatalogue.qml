@@ -18,6 +18,9 @@ Item {
     property var _volumeRequestCatalog: null
     property int _volumeRequestMalId: 0
     property bool _volumeReentry: false
+    readonly property bool phoneLayout: Qt.platform.os === "android"
+                                        && (width < 600 || (width < 900 && height < 500))
+    readonly property bool shortPhone: phoneLayout && height < 500
     readonly property string seaLabel: root.arc && root.arc.seaLabel ? String(root.arc.seaLabel) : "East Blue"
     readonly property string sagaLabel: root.arc && root.arc.sagaLabel ? String(root.arc.sagaLabel) : root.seaLabel
 
@@ -193,7 +196,7 @@ Item {
     Flickable {
         id: catalogue
         anchors.fill: parent
-        anchors.topMargin: 92
+        anchors.topMargin: root.shortPhone ? 72 : (root.phoneLayout ? 80 : 92)
         contentWidth: width
         contentHeight: contentCol.height + theme.margin
         clip: true
@@ -204,32 +207,36 @@ Item {
             id: contentCol
             x: theme.margin
             width: catalogue.width - theme.margin * 2
-            spacing: 46
+            spacing: root.shortPhone ? 26 : (root.phoneLayout ? 34 : 46)
 
             Column {
                 width: parent.width
-                spacing: 7
+                spacing: root.phoneLayout ? 5 : 7
                 Text {
+                    width: root.phoneLayout ? parent.width : implicitWidth
                     text: root.seaLabel.toUpperCase() + "  /  STORY CATALOGUE"
                     color: theme.gold
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(root.phoneLayout ? 9 : 10)
                     font.bold: true
-                    font.letterSpacing: 2.6
+                    font.letterSpacing: root.phoneLayout ? 1.7 : 2.6
                 }
                 Text {
+                    width: root.phoneLayout ? parent.width : implicitWidth
                     text: root.arc ? root.arc.title : ""
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 44
+                    font.pixelSize: theme.fontSize(root.shortPhone ? 28 : (root.phoneLayout ? 34 : 44))
                     font.bold: true
+                    wrapMode: root.phoneLayout ? Text.WordWrap : Text.NoWrap
+                    lineHeight: root.phoneLayout ? 1.02 : 1.0
                 }
                 Text {
-                    width: Math.min(parent.width * 0.76, 900)
+                    width: root.phoneLayout ? parent.width : Math.min(parent.width * 0.76, 900)
                     text: root.arc ? root.arc.summary || "" : ""
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(root.phoneLayout ? 12 : 13)
                     wrapMode: Text.WordWrap
                     lineHeight: 1.25
                 }
@@ -453,21 +460,30 @@ Item {
 
     ChromeScrim { z: 16 }
     BackAction {
+        id: arcBackAction
         x: theme.margin
-        y: 28
+        y: root.phoneLayout ? 12 : 28
         z: 20
+        height: root.phoneLayout ? 48 : implicitHeight
         onTriggered: root.backRequested()
     }
 
     Text {
+        id: arcChromeTitle
         z: 20
-        anchors.horizontalCenter: parent.horizontalCenter
-        y: 34
+        x: root.phoneLayout ? arcBackAction.x + arcBackAction.width + 10 : (parent.width - width) / 2
+        width: root.phoneLayout ? Math.max(0, parent.width - x - theme.margin) : implicitWidth
+        y: root.phoneLayout ? 12 : 34
+        height: root.phoneLayout ? 48 : implicitHeight
         text: root.arc ? root.arc.title.toUpperCase() + " · " + root.sagaLabel.toUpperCase() : ""
         color: theme.inkDim
         font.family: theme.ui
-        font.pixelSize: 10
+        font.pixelSize: theme.fontSize(root.phoneLayout ? 9 : 10)
         font.bold: true
-        font.letterSpacing: 2.0
+        font.letterSpacing: root.phoneLayout ? 1.0 : 2.0
+        horizontalAlignment: root.phoneLayout ? Text.AlignLeft : Text.AlignHCenter
+        verticalAlignment: Text.AlignVCenter
+        wrapMode: Text.NoWrap
+        elide: root.phoneLayout ? Text.ElideRight : Text.ElideNone
     }
 }

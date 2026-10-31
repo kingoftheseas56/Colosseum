@@ -74,11 +74,11 @@ check(!/^\s*ExtensionsSetupSheet\s*\{/m.test(store) && /Qt\.platform\.os === "an
 check(!/QtWebEngine/.test(phoneSheet.replace(/^\s*\/\/.*$/gm, '')) && /openUrlExternally/.test(phoneSheet),
   'the Android sheet needs no WebEngine and opens setup in the browser');
 check(/topBarBackOnly:\s*true/.test(store), 'the Store top bar carries only Back');
-check(/sourceToggleMinimumTouchTarget:\s*44/.test(houseHero)
+check(Number(/sourceToggleMinimumTouchTarget:\s*(\d+)/.exec(houseHero)?.[1]) >= 48
     && houseHero.includes('hero.sourceToggleMinimumTouchTarget / Math.max(0.01, appsRow.scale)')
     && /width:\s*Qt\.platform\.os === "android"/.test(houseHero)
     && /height:\s*Qt\.platform\.os === "android"/.test(houseHero),
-  'House source toggles keep a 44 logical px Android touch target after tray scaling');
+  'House source toggles keep at least a48 logical px Android touch target after tray scaling');
 
 if (failures) { console.error('\n' + failures + ' Store contract check(s) failed'); process.exit(1); }
 console.log('\nPASS — Extensions Store contract');

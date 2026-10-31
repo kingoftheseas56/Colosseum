@@ -20,7 +20,7 @@
         android:hardwareAccelerated="true"
         android:label="-- %%INSERT_APP_NAME%% --"
         android:icon="-- %%INSERT_APP_ICON%% --"
-        android:enableOnBackInvokedCallback="false"
+        android:enableOnBackInvokedCallback="true"
         android:allowBackup="true"
         android:fullBackupOnly="false"
         android:networkSecurityConfig="@xml/network_security_config">

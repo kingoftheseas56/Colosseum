@@ -158,7 +158,7 @@ Item {
             text: sysRoot.accessibleName
             color: input.interactionActive ? theme.ink : theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
         }
         KeyboardAction {
             id: input
@@ -200,7 +200,7 @@ Item {
                 text: pill.label
                 color: pill.active ? "#1a1408" : (pillInput.interactionActive && !pill.comingSoon ? theme.ink : theme.inkDim)
                 opacity: pill.comingSoon ? 0.6 : 1.0
-                font.family: theme.ui; font.pixelSize: 14
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                 font.weight: pill.active ? Font.DemiBold : Font.Medium
                 anchors.verticalCenter: parent.verticalCenter
             }
@@ -211,7 +211,7 @@ Item {
                 color: Qt.rgba(1,1,1,0.10)
                 Text {
                     id: soonText; anchors.centerIn: parent; text: "SOON"
-                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 8; font.letterSpacing: 0.8
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(8); font.letterSpacing: 0.8
                 }
             }
         }
@@ -246,10 +246,10 @@ Item {
             visible: bar.backOnly && bar.pageTitle.length > 0
             spacing: 2
             anchors.verticalCenter: parent.verticalCenter
-            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: 24 }
+            Text { text: bar.pageTitle; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(24) }
             Text {
                 visible: bar.pageSubtitle.length > 0
-                text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 11
+                text: bar.pageSubtitle; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(11)
             }
         }
         Column {
@@ -259,11 +259,11 @@ Item {
             anchors.verticalCenter: parent.verticalCenter
             Row {
                 spacing: 5
-                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: 32 }
-                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 16
+                Text { text: bar.clock; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(32) }
+                Text { text: bar.ampm; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(16)
                     anchors.bottom: parent.bottom; anchors.bottomMargin: 4 }
             }
-            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+            Text { text: bar.date; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
         }
     }
 
@@ -477,7 +477,7 @@ Item {
                     text: qsTr("Device")
                     color: theme.inkDim
                     font.family: theme.ui
-                    font.pixelSize: 10
+                    font.pixelSize: theme.fontSize(10)
                     font.weight: Font.DemiBold
                 }
                 Text {
@@ -489,7 +489,7 @@ Item {
                     }
                     color: "#f0df9a"
                     font.family: "Inter"
-                    font.pixelSize: 11
+                    font.pixelSize: theme.fontSize(11)
                     font.weight: Font.DemiBold
                 }
             }

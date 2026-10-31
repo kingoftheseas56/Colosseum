@@ -143,7 +143,7 @@ Item {
                 text: "TANKOBAN · MANGA"
                 color: theme.inkDimmer
                 font.family: theme.ui
-                font.pixelSize: 12
+                font.pixelSize: theme.fontSize(12)
                 font.letterSpacing: 2.6
                 font.weight: Font.DemiBold
             }
@@ -151,7 +151,7 @@ Item {
                 text: "Top Manga"
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: 48
+                font.pixelSize: theme.fontSize(48)
                 font.letterSpacing: -1
             }
             Text {
@@ -160,7 +160,7 @@ Item {
                       : root.visibleRows.length + " of " + root.catalogRows.length + " ranked"
                 color: theme.inkDim
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
             }
         }
 
@@ -180,7 +180,7 @@ Item {
             selectionColor: theme.gold
             selectedTextColor: "#111111"
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             background: Rectangle {
                 radius: 19
                 color: Qt.rgba(0.03, 0.04, 0.06, 0.62)
@@ -232,7 +232,7 @@ Item {
                 text: parent.label
                 color: parent.active ? "#17120a" : theme.ink
                 font.family: theme.ui
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
                 font.weight: Font.DemiBold
             }
             HoverHandler { id: pillHover }
@@ -346,7 +346,7 @@ Item {
                         text: card.modelData.title || "Untitled"
                         color: Qt.rgba(1, 1, 1, 0.72)
                         font.family: theme.display
-                        font.pixelSize: 18
+                        font.pixelSize: theme.fontSize(18)
                         font.weight: Font.DemiBold
                         horizontalAlignment: Text.AlignHCenter
                         wrapMode: Text.WordWrap
@@ -385,7 +385,7 @@ Item {
                     text: card.modelData.displayRank
                     color: Qt.rgba(1, 1, 1, 0.48)
                     font.family: theme.display
-                    font.pixelSize: 48
+                    font.pixelSize: theme.fontSize(48)
                     font.weight: Font.Bold
                 }
                 Row {
@@ -399,7 +399,7 @@ Item {
                         text: Number(card.modelData.score).toFixed(2)
                         color: "#ffffff"
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.weight: Font.DemiBold
                     }
                 }
@@ -413,7 +413,7 @@ Item {
                 text: card.modelData.title || "Untitled"
                 color: theme.ink
                 font.family: theme.display
-                font.pixelSize: 16
+                font.pixelSize: theme.fontSize(16)
                 font.weight: Font.DemiBold
                 wrapMode: Text.WordWrap
                 maximumLineCount: 2
@@ -444,14 +444,14 @@ Item {
             text: "Catalog unavailable"
             color: theme.ink
             font.family: theme.display
-            font.pixelSize: 30
+            font.pixelSize: theme.fontSize(30)
         }
         Text {
             anchors.horizontalCenter: parent.horizontalCenter
             text: "The manga catalog could not be loaded."
             color: theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
         }
     }
 
@@ -464,7 +464,7 @@ Item {
             text: "No manga match this search"
             color: theme.ink
             font.family: theme.display
-            font.pixelSize: 30
+            font.pixelSize: theme.fontSize(30)
         }
     }
 

@@ -451,8 +451,8 @@ Item {
                 text: chainNode.title
                 color: root.ivory
                 font.family: "Georgia"
-                font.pixelSize: chainNode.rootNode ? root.designWidth * 0.0215
-                                                     : root.designWidth * 0.0148
+                font.pixelSize: theme.fontSize(chainNode.rootNode ? root.designWidth * 0.0215
+                                                     : root.designWidth * 0.0148)
                 font.weight: Font.DemiBold
                 elide: Text.ElideRight
             }
@@ -461,8 +461,8 @@ Item {
                 text: chainNode.subtitle
                 color: root.dimInk
                 font.family: root.uiFamily
-                font.pixelSize: chainNode.rootNode ? root.designWidth * 0.0077
-                                                     : root.designWidth * 0.0071
+                font.pixelSize: theme.fontSize(chainNode.rootNode ? root.designWidth * 0.0077
+                                                     : root.designWidth * 0.0071)
                 elide: Text.ElideRight
             }
         }
@@ -477,7 +477,7 @@ Item {
             text: chainNode.title
             color: chainNode.installed ? root.ivory : root.dimInk
             font.family: root.displayFamily
-            font.pixelSize: root.designWidth * 0.011
+            font.pixelSize: theme.fontSize(root.designWidth * 0.011)
             font.weight: Font.DemiBold
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
@@ -492,7 +492,7 @@ Item {
             text: chainNode.subtitle
             color: "#7f7b73"
             font.family: root.uiFamily
-            font.pixelSize: root.designWidth * 0.0068
+            font.pixelSize: theme.fontSize(root.designWidth * 0.0068)
             horizontalAlignment: Text.AlignHCenter
             elide: Text.ElideRight
         }
@@ -507,7 +507,7 @@ Item {
                    ? Qt.rgba(240/255,196/255,74/255,0.82)
                    : Qt.rgba(1,1,1,0.40)
             font.family: root.uiFamily
-            font.pixelSize: root.designWidth * 0.0056
+            font.pixelSize: theme.fontSize(root.designWidth * 0.0056)
             font.capitalization: Font.AllUppercase
             font.letterSpacing: 1.1
         }
@@ -529,7 +529,7 @@ Item {
                 text: "SHARED"
                 color: root.gold
                 font.family: root.uiFamily
-                font.pixelSize: root.designWidth * 0.0061
+                font.pixelSize: theme.fontSize(root.designWidth * 0.0061)
                 font.weight: Font.DemiBold
                 font.letterSpacing: 1.0
             }
@@ -626,7 +626,7 @@ Item {
             text: endpoint.label
             color: endpoint.unlocked ? "#ffe477" : "#a6a199"
             font.family: root.displayFamily
-            font.pixelSize: root.designWidth * 0.0102
+            font.pixelSize: theme.fontSize(root.designWidth * 0.0102)
             font.weight: Font.DemiBold
             font.letterSpacing: 1.0
             horizontalAlignment: Text.AlignHCenter
@@ -716,7 +716,7 @@ Item {
                             text: "Chain"
                             color: "#15120b"
                             font.family: root.uiFamily
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                             font.weight: Font.DemiBold
                         }
                         MouseArea {
@@ -741,7 +741,7 @@ Item {
                             color: root.ivory
                             opacity: 0.72
                             font.family: root.uiFamily
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                         }
                         MouseArea {
                             id: houseTabMouse
@@ -769,7 +769,7 @@ Item {
                             color: root.ivory
                             opacity: 0.70
                             font.family: root.uiFamily
-                            font.pixelSize: 14
+                            font.pixelSize: theme.fontSize(14)
                         }
                         MouseArea {
                             id: storeTabMouse
@@ -800,7 +800,7 @@ Item {
                     text: "Manage"
                     color: Qt.rgba(1,1,1,0.78)
                     font.family: root.uiFamily
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.Medium
                 }
                 MouseArea {

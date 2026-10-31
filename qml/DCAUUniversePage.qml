@@ -15,6 +15,8 @@ Item {
     property string extensionId: ""
     property string universeName: ""
     property bool reducedMotion: false
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: root.androidHost && Math.min(width, height) < 600
     property var payload: null
     property string currentHubId: ""
     property int progressRevision: typeof Progress !== "undefined" ? Progress.revision : 0
@@ -46,18 +48,28 @@ Item {
             if ((root.universeContentGeneration, DCAU.progressBelongsToJustice)(recent[i])) out.push(recent[i])
         return out
     }
+    function requestEscape() {
+        if (!root.currentHubId.length) return false
+        root.currentHubId = ""
+        return true
+    }
     function navigateBack() {
-        if (root.currentHubId.length) root.currentHubId = ""
-        else root.backRequested()
+        if (!root.requestEscape()) root.backRequested()
     }
     function openHub(id) { root.currentHubId = id }
 
     DCAULandingBackdrop { id: pageBackdrop; anchors.fill: parent }
 
-    Item {
+    Flickable {
         id: landing
+        objectName: "dcauLandingScroll"
         anchors.fill: parent
         visible: root.currentHubId.length === 0
+        contentWidth: width
+        contentHeight: root.phoneLayout ? Math.max(height, portalStage.y + portalStage.height + 24) : height
+        interactive: root.phoneLayout && contentHeight > height
+        clip: root.phoneLayout
+        boundsBehavior: Flickable.StopAtBounds
         property int selectedIndex: 0
 
         function centerPortal(i) {
@@ -88,9 +100,10 @@ Item {
 
         Column {
             id: continueCol
-            x: theme.margin
-            y: 30
-            width: parent.width - theme.margin * 2
+            objectName: "dcauContinueSection"
+            x: root.phoneLayout ? 20 : theme.margin
+            y: root.phoneLayout ? 88 : 30
+            width: landing.width - x * 2
             spacing: 14
             visible: root.continueItems.length > 0
 
@@ -128,12 +141,13 @@ Item {
         Item {
             id: portalStage
             x: 0
-            width: parent.width
-            y: continueCol.visible ? continueCol.y + continueCol.implicitHeight + 18 : 30
-            height: parent.height - y - 24
+            width: landing.width
+            y: continueCol.visible ? continueCol.y + continueCol.implicitHeight + 18 : (root.phoneLayout ? 80 : 30)
+            height: root.phoneLayout ? Math.max(220, root.height - y - 24) : landing.height - y - 24
 
             Flickable {
                 id: portalFlick
+                objectName: "dcauPortalViewport"
                 anchors.fill: parent
                 clip: true
                 contentWidth: Math.max(width, portalRow.x + portalRow.width + portalStage.width * 0.07)
@@ -153,7 +167,9 @@ Item {
                         delegate: DCAUWorldPortal {
                             required property var modelData
                             required property int index
-                            width: portalStage.width <= 900
+                            width: root.phoneLayout
+                                   ? Math.min(portalStage.width * 0.48, (portalFlick.height - 16) * 5 / 8)
+                                   : portalStage.width <= 900
                                    ? portalStage.width * 0.48
                                    : Math.min(300, portalStage.width * 0.24)
                             ordinal: index < 9 ? "0" + String(index + 1) : String(index + 1)
@@ -213,6 +229,8 @@ Item {
     BackAction { x: theme.margin; y: 28; z: 20; onTriggered: root.navigateBack() }
 
     Row {
+        objectName: "dcauDesktopWindowControls"
+        visible: !root.androidHost
         z: 30
         anchors.right: parent.right
         anchors.rightMargin: theme.margin

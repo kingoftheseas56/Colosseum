@@ -101,7 +101,7 @@ Item {
                     text: card.modelData.title || ""
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 42
+                    font.pixelSize: theme.fontSize(42)
                     font.weight: Font.DemiBold
                     maximumLineCount: 2
                     elide: Text.ElideRight
@@ -114,7 +114,7 @@ Item {
                         text: card.modelData.releaseInfo || ""
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.letterSpacing: 1.8
                         font.capitalization: Font.AllUppercase
                     }
@@ -122,7 +122,7 @@ Item {
                         text: "Series"
                         color: theme.inkDim
                         font.family: theme.ui
-                        font.pixelSize: 12
+                        font.pixelSize: theme.fontSize(12)
                         font.letterSpacing: 1.8
                         font.capitalization: Font.AllUppercase
                     }
@@ -140,7 +140,7 @@ Item {
                             text: "Play"
                             color: "#08090b"
                             font.family: theme.ui
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.DemiBold
                         }
                         MouseArea {
@@ -161,7 +161,7 @@ Item {
                             text: "Episodes"
                             color: theme.ink
                             font.family: theme.ui
-                            font.pixelSize: 13
+                            font.pixelSize: theme.fontSize(13)
                             font.weight: Font.Medium
                         }
                         MouseArea {

@@ -126,7 +126,7 @@ Item {
             width: parent.width
             text: banner.entry.name || ""
             color: theme.ink
-            font.family: theme.display; font.pixelSize: 30
+            font.family: theme.display; font.pixelSize: theme.fontSize(30)
             elide: Text.ElideRight
         }
         Text {
@@ -135,7 +135,7 @@ Item {
             visible: text.length > 0
             text: banner.entry.blurb || ""
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             lineHeight: 1.35
             wrapMode: Text.WordWrap
             maximumLineCount: 2
@@ -146,7 +146,7 @@ Item {
             visible: text.length > 0
             text: banner.holds
             color: theme.inkDim
-            font.family: theme.ui; font.pixelSize: 13
+            font.family: theme.ui; font.pixelSize: theme.fontSize(13)
             elide: Text.ElideRight
         }
     }
@@ -168,7 +168,7 @@ Item {
             anchors.centerIn: parent
             spacing: 7
             Text { text: "Explore"; color: theme.ink
-                   font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
+                   font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold }
             Image {
                 width: 12; height: 12
                 anchors.verticalCenter: parent.verticalCenter

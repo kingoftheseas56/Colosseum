@@ -242,7 +242,7 @@ Item {
                     color: "#ffffff"
                     opacity: 0.62
                     font.family: root.uiFamily
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                 }
                 MouseArea {
                     id: chainMouse
@@ -269,7 +269,7 @@ Item {
                     text: "House"
                     color: "#1a1408"
                     font.family: root.uiFamily
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                     font.weight: Font.DemiBold
                 }
                 MouseArea {
@@ -294,7 +294,7 @@ Item {
                     color: "#ffffff"
                     opacity: 0.62
                     font.family: root.uiFamily
-                    font.pixelSize: 14
+                    font.pixelSize: theme.fontSize(14)
                 }
                 MouseArea {
                     id: storeMouse
@@ -325,7 +325,7 @@ Item {
             text: "Manage"
             color: Qt.rgba(1,1,1,0.78)
             font.family: root.uiFamily
-            font.pixelSize: 14
+            font.pixelSize: theme.fontSize(14)
             font.weight: Font.Medium
         }
         MouseArea {
@@ -525,7 +525,7 @@ Item {
                                 text: tileItem.tileName
                                 color: Qt.rgba(1,1,1,0.84)
                                 font.family: root.uiFamily
-                                font.pixelSize: root.width < 1250 ? 10 : 11
+                                font.pixelSize: theme.fontSize(root.width < 1250 ? 10 : 11)
                                 elide: Text.ElideRight
                             }
                         }

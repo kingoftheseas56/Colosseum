@@ -19,6 +19,8 @@ FocusScope {
     property bool indexVisible: false
     property bool nonCanonMode: false
     property real shellChromeInset: 172
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool phoneLayout: root.androidHost && Math.min(width, height) < 600
     property real previewX: 18
     property real previewY: 88
     readonly property real shellChromeReservedLeft: root.width - 54 - (22 * 3 + 20 * 2)
@@ -438,15 +440,17 @@ FocusScope {
             Button {
                 id: paradiseButton
                 objectName: "eastBlueToParadise"
-                x: 0.8381 * mapStage.width - width
+                parent: root.phoneLayout ? root : mapStage
+                z: 20
+                x: root.phoneLayout ? root.width - width - 16 : 0.8381 * mapStage.width - width
                 // The design coordinate sits beside Reverse Mountain. At short
                 // viewports the 48 px native hit target would otherwise fall
                 // through the Flickable clip by a few pixels; keep it in the
                 // same mapped lower-right region while clamping its bottom edge.
-                y: Math.min(0.8938 * mapStage.height,
+                y: root.phoneLayout ? root.height - height - 16 : Math.min(0.8938 * mapStage.height,
                             Math.max(0, mapViewport.height - mapStage.y - height))
-                width: 148 * root.zoom
-                height: 48 * root.zoom
+                width: root.phoneLayout ? 148 : 148 * root.zoom
+                height: root.phoneLayout ? 48 : 48 * root.zoom
                 text: "TO PARADISE"
                 activeFocusOnTab: true
                 focusPolicy: Qt.StrongFocus
@@ -483,8 +487,8 @@ FocusScope {
         // Clear of the shell taskbar dock's closed footprint: the dock spans
         // leftEdge..leftEdge+130 with leftEdge clamped to 80, plus a gap. Under it
         // the zoom clicks hit the dock instead of the chart controls.
-        anchors.leftMargin: 218
-        anchors.bottomMargin: 30
+        anchors.leftMargin: root.phoneLayout ? 16 : 218
+        anchors.bottomMargin: root.phoneLayout ? 16 : 30
         spacing: 4
         z: 20
         Button {
@@ -521,7 +525,7 @@ FocusScope {
         anchors.top: parent.top
         anchors.right: parent.right
         anchors.topMargin: 24
-        anchors.rightMargin: root.shellChromeInset
+        anchors.rightMargin: root.phoneLayout ? 16 : root.shellChromeInset
         width: 116
         height: 48
         z: 30
@@ -573,9 +577,10 @@ FocusScope {
         objectName: "eastBlueIndexPanel"
         visible: root.indexVisible
         anchors.top: indexButton.bottom
-        anchors.right: indexButton.right
+        anchors.right: parent.right
+        anchors.rightMargin: root.phoneLayout ? 18 : root.shellChromeInset
         anchors.topMargin: 8
-        width: Math.min(420, Math.max(290, root.width * 0.34))
+        width: Math.min(root.width - 36, 420, Math.max(290, root.width * 0.34))
         height: Math.min(root.height - indexButton.y - indexButton.height - 30, 610)
         color: "#efe1bd"
         border.color: "#8a6b41"
@@ -790,7 +795,7 @@ FocusScope {
         objectName: "eastBlueArcPreview"
         x: root.previewX
         y: root.previewY
-        width: Math.min(500, Math.max(360, root.width * 0.38))
+        width: Math.min(root.width - 36, 500, Math.max(360, root.width * 0.38))
         height: Math.min(230, Math.max(180, root.height - 48))
         color: "#efe1bd"
         border.color: "#8a6b41"
@@ -809,77 +814,100 @@ FocusScope {
         }
         activeFocusOnTab: true
 
-        Row {
-            anchors.fill: parent
-            anchors.margins: 12
-            spacing: 14
-            Item {
-                width: Math.min(135, preview.width * 0.34)
-                height: Math.max(130, preview.height - 24)
-                Image {
-                    id: previewPoster
-                    anchors.fill: parent
-                    objectName: "eastBlueArcPreviewPoster"
-                    property bool canonPosterFallback: false
-                    property bool posterFallback: false
-                    source: {
-                        var marker = root.selectedArc ? (root.universeContentGeneration, AtlasData.canonMarker)(root.selectedArc.id) : null
-                        return marker ? (posterFallback ? marker.badge
-                                       : canonPosterFallback ? marker.poster
-                                       : (root.universeContentGeneration, AtlasData.bannerSource)(marker.id)) : ""
-                    }
-                    fillMode: Image.PreserveAspectCrop
-                    asynchronous: true
-                    smooth: true
-                    mipmap: true
-                    sourceSize: Qt.size(540, 816)
-                    onStatusChanged: {
-                        if (status === Image.Error && !posterFallback) {
-                            if (!canonPosterFallback) canonPosterFallback = true
-                            else posterFallback = true
+        Flickable {
+            id: previewContent
+            objectName: "eastBluePreviewContent"
+            x: 12
+            y: 12
+            width: parent.width - 24
+            height: parent.height - (root.phoneLayout ? 84 : 24)
+            contentWidth: width
+            contentHeight: previewBody.height
+            clip: root.phoneLayout
+            interactive: root.phoneLayout && contentHeight > height
+            boundsBehavior: Flickable.StopAtBounds
+
+            Row {
+                id: previewBody
+                width: previewContent.width
+                height: Math.max(previewArt.height, previewCopy.height)
+                spacing: 14
+                Item {
+                    id: previewArt
+                    width: root.phoneLayout ? 74 : Math.min(135, preview.width * 0.34)
+                    height: root.phoneLayout ? 112 : Math.max(130, preview.height - 24)
+                    Image {
+                        id: previewPoster
+                        anchors.fill: parent
+                        objectName: "eastBlueArcPreviewPoster"
+                        property bool canonPosterFallback: false
+                        property bool posterFallback: false
+                        source: {
+                            var marker = root.selectedArc ? (root.universeContentGeneration, AtlasData.canonMarker)(root.selectedArc.id) : null
+                            return marker ? (posterFallback ? marker.badge
+                                           : canonPosterFallback ? marker.poster
+                                           : (root.universeContentGeneration, AtlasData.bannerSource)(marker.id)) : ""
+                        }
+                        fillMode: Image.PreserveAspectCrop
+                        asynchronous: true
+                        smooth: true
+                        mipmap: true
+                        sourceSize: Qt.size(540, 816)
+                        onStatusChanged: {
+                            if (status === Image.Error && !posterFallback) {
+                                if (!canonPosterFallback) canonPosterFallback = true
+                                else posterFallback = true
+                            }
                         }
                     }
+                    Rectangle {
+                        anchors.fill: parent
+                        visible: previewPoster.status === Image.Error
+                        color: "#d8bd8a"
+                        border.color: "#80633e"
+                        Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter }
+                    }
                 }
-                Rectangle {
-                    anchors.fill: parent
-                    visible: previewPoster.status === Image.Error
-                    color: "#d8bd8a"
-                    border.color: "#80633e"
-                    Text { anchors.centerIn: parent; text: "POSTER\nUNAVAILABLE"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 11; horizontalAlignment: Text.AlignHCenter }
+                Column {
+                    id: previewCopy
+                    width: root.phoneLayout ? parent.width - previewArt.width - 14 : parent.width - 150
+                    spacing: 6
+                    Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.2 }
+                    Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
+                    Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.italic: true; wrapMode: Text.WordWrap }
+                    Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: 12; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
                 }
             }
-            Column {
-                width: parent.width - 150
-                spacing: 6
-                Text { text: root.selectedArc ? String(root.selectedArc.order).padStart(2, "0") + " / EAST BLUE" : ""; color: "#9b774a"; font.family: atlasBodyFont.name; font.pixelSize: 10; font.letterSpacing: 1.2 }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.title : ""; color: "#523a25"; font.family: atlasDisplayFont.name; font.pixelSize: 24; wrapMode: Text.WordWrap }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.place : ""; color: "#896c48"; font.family: atlasBodyFont.name; font.pixelSize: 12; font.italic: true; wrapMode: Text.WordWrap }
-                Text { width: parent.width; text: root.selectedArc ? root.selectedArc.summary : ""; color: "#654b31"; font.family: atlasBodyFont.name; font.pixelSize: 12; wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight }
-                Row {
-                    spacing: 8
-                    Button {
-                        id: openArcButton
-                        objectName: "eastBlueOpenArc"
-                        text: "OPEN ARC"
-                        width: 104
-                        height: 44
-                        // Clicking must not park the scope's focus flag on a control
-                        // that hides with the preview; keyboard users still reach it by Tab.
-                        focusPolicy: Qt.TabFocus
-                    contentItem: Text { text: openArcButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; font.bold: true; color: openArcButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        onClicked: root.openSelectedArc()
-                    }
-                    Button {
-                        id: closePreviewButton
-                        objectName: "eastBlueClosePreview"
-                        text: "CLOSE"
-                        width: 80
-                        height: 44
-                        focusPolicy: Qt.TabFocus
-                    contentItem: Text { text: closePreviewButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: closePreviewButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-                        onClicked: root.closePreview()
-                    }
-                }
+        }
+
+        Row {
+            id: previewActions
+            x: root.phoneLayout ? 12 : previewContent.x + previewCopy.x
+            y: root.phoneLayout ? preview.height - height - 12 : previewContent.y + previewCopy.height + 6
+            width: root.phoneLayout ? preview.width - 24 : implicitWidth
+            height: root.phoneLayout ? 48 : 44
+            spacing: 8
+            Button {
+                id: openArcButton
+                objectName: "eastBlueOpenArc"
+                text: "OPEN ARC"
+                width: root.phoneLayout ? (previewActions.width - 8) / 2 : 104
+                height: previewActions.height
+                // Clicking must not park the scope's focus flag on a control
+                // that hides with the preview; keyboard users still reach it by Tab.
+                focusPolicy: Qt.TabFocus
+                contentItem: Text { text: openArcButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; font.bold: true; color: openArcButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                onClicked: root.openSelectedArc()
+            }
+            Button {
+                id: closePreviewButton
+                objectName: "eastBlueClosePreview"
+                text: "CLOSE"
+                width: root.phoneLayout ? (previewActions.width - 8) / 2 : 80
+                height: previewActions.height
+                focusPolicy: Qt.TabFocus
+                contentItem: Text { text: closePreviewButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: closePreviewButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
+                onClicked: root.closePreview()
             }
         }
 

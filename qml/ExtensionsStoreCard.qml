@@ -1,8 +1,4 @@
-// ExtensionsStoreCard — one add-on in a Store row, to the measurements of
-// agents/colosseum-extensions-world-mock.html (.addon / .art / .wash / .logo-stage):
-// the add-on's own logo blown up and blurred into a colour wash, the crisp logo centred on a
-// tile, then name and two lines of description. No button: the card is the button. Install
-// state is a quiet corner badge that only appears once the add-on is installed or being added.
+// ExtensionsStoreCard keeps the wide artwork tile and uses a compact, actionable row on phones.
 import QtQuick
 import QtQuick.Effects
 import "ExtensionsStoreApi.js" as StoreApi
@@ -16,6 +12,7 @@ Item {
     property bool busy: false
     property bool selected: false            // keyboard focus from the row
     property bool phoneLayout: false
+    property bool phoneDescriptionExpanded: false
     // Keep the card/navigation alive while distant artwork releases its images
     // and effect textures on memory-constrained hosts.
     property bool artworkActive: true
@@ -25,12 +22,15 @@ Item {
     readonly property real h: StoreApi.hue(card.addon.name || "")
 
     width: 365
-    height: phoneLayout ? mobileInstall.y + mobileInstall.height + 12 : art.height + 12 + 24 + 3 + 40
+    height: phoneLayout ? phoneRow.height : art.height + 12 + 24 + 3 + 40
+    onAddonChanged: card.phoneDescriptionExpanded = false
 
     Theme { id: theme }
 
     Rectangle {
         id: art
+        objectName: "extensionsStoreArt"
+        visible: !card.phoneLayout
         width: parent.width
         height: card.phoneLayout ? 140 : Math.round(parent.width * 220 / 365)
         radius: 23
@@ -51,7 +51,7 @@ Item {
             anchors.centerIn: parent
             width: art.width * 1.7 * 0.56 * 1.35
             height: width
-            source: card.artworkActive ? (card.addon.logo || "") : ""
+            source: card.artworkActive && !card.phoneLayout ? (card.addon.logo || "") : ""
             fillMode: Image.PreserveAspectFit
             asynchronous: true
             visible: false
@@ -59,7 +59,7 @@ Item {
         }
         Loader {
             anchors.fill: washSource
-            active: card.artworkActive
+            active: card.artworkActive && !card.phoneLayout
             sourceComponent: Component {
                 MultiEffect {
                     anchors.fill: parent
@@ -99,7 +99,7 @@ Item {
                 id: logo
                 anchors.centerIn: parent
                 width: parent.width * 0.78; height: width
-                source: card.artworkActive ? (card.addon.logo || "") : ""
+                source: card.artworkActive && !card.phoneLayout ? (card.addon.logo || "") : ""
                 fillMode: Image.PreserveAspectFit
                 asynchronous: true
                 sourceSize.width: 192; sourceSize.height: 192
@@ -128,64 +128,170 @@ Item {
                 anchors.centerIn: parent
                 text: card.busy ? "Adding…" : "✓ Installed"
                 color: card.installed ? theme.gold : theme.inkDim
-                font.family: theme.ui; font.pixelSize: 11; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.weight: Font.DemiBold
             }
         }
     }
 
     Text {
         id: title
+        visible: !card.phoneLayout
         anchors.top: art.bottom; anchors.topMargin: 12
         width: parent.width
         text: card.addon.title || card.addon.name || ""
         color: theme.ink
-        font.family: theme.ui; font.pixelSize: 18; font.weight: Font.DemiBold
+        font.family: theme.ui; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
         wrapMode: card.phoneLayout ? Text.WordWrap : Text.NoWrap
         elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
     }
     Text {
         id: description
+        visible: !card.phoneLayout
         anchors.top: title.bottom; anchors.topMargin: 3
         width: parent.width
         height: card.phoneLayout ? implicitHeight : 40
         text: card.addon.description || ""
         color: "#aaa69e"
-        font.family: theme.ui; font.pixelSize: 14
+        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
         wrapMode: Text.WordWrap
         maximumLineCount: card.phoneLayout ? 100 : 2
         elide: card.phoneLayout ? Text.ElideNone : Text.ElideRight
     }
 
-    Rectangle {
-        id: mobileInstall
+    Item {
+        id: phoneRow
+        objectName: card.phoneLayout && card.addon && card.addon.slug
+                    ? "extensionsPhoneRow_" + card.addon.slug : "extensionsPhoneRow"
         visible: card.phoneLayout
-        z: 2
-        anchors.top: description.bottom
-        anchors.topMargin: 12
-        anchors.right: parent.right
-        width: 130; height: 38; radius: 8
-        color: card.installed ? "#45403a" : "#e9c46a"
-        Text {
-            anchors.centerIn: parent
-            // Same state word as the desktop badge; a configurable add-on stays tappable to set up again.
-            text: card.busy ? "Adding…" : card.installed
-                  ? "✓ Installed"
-                  : (card.addon.configurable ? "Set up" : "Install")
-            color: card.installed ? "#ffffff" : "#171717"
-            font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-        }
-        KeyboardAction {
+        width: parent.width
+        height: phoneContent.implicitHeight + 20
+        Rectangle {
             anchors.fill: parent
-            accessibleName: (card.addon.title || card.addon.name || "") + ", "
-                            + (card.installed ? "installed" : "install")
-            enabled: !card.busy && (!card.installed || card.addon.configurable)
-            focusRadius: 8
-            onTriggered: card.activated()
+            radius: 14
+            color: theme.glassTint
+            border.width: card.selected ? 2 : 1
+            border.color: card.selected ? theme.gold : theme.edge
+        }
+        Row {
+            id: phoneContent
+            anchors.fill: parent; anchors.margins: 10; spacing: 10
+            Rectangle {
+                id: phoneArtwork
+                objectName: "extensionsPhoneArtwork"
+                width: 56; height: 56; radius: 12; clip: true
+                color: Qt.hsla(card.h, 0.30, 0.15, 1)
+                Image {
+                    id: phoneArtworkImage
+                    anchors.fill: parent
+                    anchors.margins: 5
+                    source: card.artworkActive ? (card.addon.logo || "") : ""
+                    sourceSize.width: 96; sourceSize.height: 96
+                    fillMode: Image.PreserveAspectFit; asynchronous: true
+                }
+                Text {
+                    objectName: "extensionsPhoneArtworkFallback"
+                    anchors.centerIn: parent
+                    visible: !card.artworkActive || !card.addon.logo
+                             || phoneArtworkImage.status === Image.Error
+                    text: String(card.addon.title || card.addon.name || "?").charAt(0).toUpperCase()
+                    color: theme.inkDim; font.family: theme.display; font.pixelSize: 24
+                }
+            }
+            Column {
+                id: phoneDetails
+                width: Math.max(0, parent.width - phoneArtwork.width - phoneActions.width - parent.spacing * 2)
+                spacing: 4
+                Text {
+                    objectName: "extensionsPhoneTitle"
+                    width: parent.width
+                    text: card.addon.title || card.addon.name || ""
+                    color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
+                    wrapMode: Text.Wrap; maximumLineCount: 2; elide: Text.ElideRight
+                }
+                Row {
+                    width: parent.width; spacing: 4
+                    Text {
+                        id: phoneDescription
+                        objectName: "extensionsPhoneDescription"
+                        width: Math.max(0, parent.width - 52)
+                        text: card.addon.description || ""
+                        color: "#aaa69e"; font.family: theme.ui; font.pixelSize: theme.fontSize(13)
+                        wrapMode: Text.Wrap
+                        maximumLineCount: card.phoneDescriptionExpanded ? 0 : 2
+                        elide: card.phoneDescriptionExpanded ? Text.ElideNone : Text.ElideRight
+                    }
+                    Rectangle {
+                        objectName: "extensionsPhoneMore"
+                        visible: phoneDescription.truncated || card.phoneDescriptionExpanded
+                        width: 48; height: 48; radius: 8
+                        color: theme.glassTint; border.width: 1; border.color: theme.edge
+                        Text {
+                            anchors.centerIn: parent
+                            text: card.phoneDescriptionExpanded ? qsTr("Less") : qsTr("More")
+                            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                            font.weight: Font.DemiBold
+                        }
+                        KeyboardAction {
+                            objectName: "extensionsPhoneMoreAction"
+                            anchors.fill: parent
+                            accessibleName: card.phoneDescriptionExpanded
+                                            ? qsTr("Show less description") : qsTr("Show more description")
+                            focusRadius: 8
+                            onTriggered: card.phoneDescriptionExpanded = !card.phoneDescriptionExpanded
+                        }
+                    }
+                }
+            }
+            Column {
+                id: phoneActions
+                width: 92; spacing: 4
+                Text {
+                    objectName: "extensionsPhoneState"
+                    visible: card.installed && !card.busy
+                    width: parent.width
+                    text: card.installed
+                          ? "✓ Installed" : ""
+                    color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(12)
+                    font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter
+                    elide: Text.ElideRight; maximumLineCount: 1
+                }
+                Rectangle {
+                    objectName: "extensionsPhonePrimaryAction"
+                    width: parent.width; height: 48; radius: 10
+                    color: primaryAction.enabled
+                           ? (card.installed ? "#45403a" : "#e9c46a")
+                           : Qt.rgba(1, 1, 1, 0.10)
+                    Text {
+                        objectName: "extensionsPhoneActionLabel"
+                        anchors.centerIn: parent
+                        text: card.busy ? qsTr("Adding…") : card.installed
+                              ? (card.addon.configurable ? qsTr("Set up") : qsTr("Installed"))
+                              : (card.addon.configurable || card.addon.setupRequired
+                                 ? qsTr("Set up") : qsTr("Install"))
+                        color: card.installed ? "#ffffff" : "#171717"
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        id: primaryAction
+                        objectName: "extensionsPhonePrimaryActionKeyboard"
+                        anchors.fill: parent
+                        accessibleName: (card.addon.title || card.addon.name || "") + ", "
+                                        + (card.busy ? qsTr("adding") : card.installed
+                                           ? (card.addon.configurable ? qsTr("set up") : qsTr("installed"))
+                                           : (card.addon.configurable || card.addon.setupRequired
+                                              ? qsTr("set up") : qsTr("install")))
+                        enabled: !card.busy && (!card.installed || !!card.addon.configurable)
+                        focusRadius: 10
+                        onTriggered: card.activated()
+                    }
+                }
+            }
         }
     }
 
     KeyboardAction {
         id: action
+        visible: !card.phoneLayout
         anchors.fill: parent
         z: 0
         accessibleName: (card.addon.title || card.addon.name || "")

@@ -118,7 +118,7 @@ Item {
                 Text {
                     text: "VAULT · NEW FOLDER"
                     color: theme.gold
-                    font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 3.5; font.weight: Font.DemiBold
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 3.5; font.weight: Font.DemiBold
                 }
                 Text {
                     topPadding: 8
@@ -126,7 +126,7 @@ Item {
                     elide: Text.ElideMiddle
                     text: card.rootPath
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 40
+                    font.family: theme.display; font.pixelSize: theme.fontSize(40)
                 }
 
                 // ── counts strip: items · shelves · size ──
@@ -136,22 +136,22 @@ Item {
                     spacing: 26
                     Row {
                         spacing: 6
-                        Text { text: card.totalItems; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
+                        Text { text: card.totalItems; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22) }
                         Text { anchors.bottom: parent.bottom; anchors.bottomMargin: 3
-                               text: "items"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
+                               text: "items"; color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     }
                     Row {
                         spacing: 6
-                        Text { text: card.totalShelves; color: theme.ink; font.family: theme.display; font.pixelSize: 22 }
+                        Text { text: card.totalShelves; color: theme.ink; font.family: theme.display; font.pixelSize: theme.fontSize(22) }
                         Text { anchors.bottom: parent.bottom; anchors.bottomMargin: 3
                                text: card.totalShelves === 1 ? "shelf" : "shelves"; color: theme.inkDim
-                               font.family: theme.ui; font.pixelSize: 13 }
+                               font.family: theme.ui; font.pixelSize: theme.fontSize(13) }
                     }
                     Row {
                         spacing: 6
                         visible: card.totalBytes > 0
                         Text { text: card.humanSize(card.totalBytes); color: theme.ink
-                               font.family: theme.display; font.pixelSize: 22 }
+                               font.family: theme.display; font.pixelSize: theme.fontSize(22) }
                     }
                 }
 
@@ -197,7 +197,7 @@ Item {
                                     // card header already shows the root; per-row paths overloaded the rows)
                                     text: modelData.groupTitle || card.leafName(modelData.subtreePath)
                                     color: theme.inkDimmer
-                                    font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 0.3
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 0.3
                                 }
                                 Text {
                                     Layout.fillWidth: true
@@ -213,7 +213,7 @@ Item {
                                         return s
                                     }
                                     color: theme.ink
-                                    font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                                    font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                                 }
                             }
 
@@ -236,7 +236,7 @@ Item {
                                         anchors.verticalCenter: parent.verticalCenter
                                         text: card.kindLabel(sliceRow.kind)
                                         color: modelData.loose ? theme.inkDim : theme.gold
-                                        font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                                     }
                                     Text {
                                         anchors.verticalCenter: parent.verticalCenter
@@ -306,7 +306,7 @@ Item {
                                                     anchors.left: parent.left; anchors.leftMargin: 12
                                                     text: modelData.label
                                                     color: (sliceRow.kind === modelData.k) ? theme.gold : theme.ink
-                                                    font.family: theme.ui; font.pixelSize: 13
+                                                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                                                 }
                                                 MouseArea {
                                                     id: pickMa
@@ -353,7 +353,7 @@ Item {
                     text: card.totalLeftover + (card.totalLeftover === 1 ? " file" : " files")
                           + " Colosseum doesn't read — left where they are."
                     color: theme.inkDimmer
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                 }
 
                 // ── consent ──
@@ -368,7 +368,7 @@ Item {
                         width: shelveT.implicitWidth + 56; height: 46; radius: 12
                         color: shelveMa.containsMouse ? Qt.rgba(0.98, 0.82, 0.36, 1) : theme.gold
                         Text { id: shelveT; anchors.centerIn: parent; text: "Shelve it all"
-                               color: "#151310"; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                               color: "#151310"; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold }
                         MouseArea {
                             id: shelveMa
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -390,7 +390,7 @@ Item {
                         color: notNowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.08) : "transparent"
                         border.width: 1; border.color: theme.edge
                         Text { id: notNowT; anchors.centerIn: parent; text: "Not now"
-                               color: theme.inkDim; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold }
+                               color: theme.inkDim; font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold }
                         MouseArea {
                             id: notNowMa
                             anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor

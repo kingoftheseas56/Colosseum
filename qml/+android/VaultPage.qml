@@ -874,7 +874,7 @@ Item {
                     Text {
                         id: contBadgeT; anchors.centerIn: parent
                         text: modelData.kind === "comic" ? "COMIC" : modelData.kind === "book" ? "BOOK" : "VIDEO"
-                        color: theme.gold; font.family: theme.ui; font.pixelSize: 9; font.letterSpacing: 1.6
+                        color: theme.gold; font.family: theme.ui; font.pixelSize: theme.fontSize(9); font.letterSpacing: 1.6
                     }
                 }
                 Rectangle {   // scrim behind the title
@@ -889,7 +889,7 @@ Item {
                     anchors.left: parent.left; anchors.right: parent.right; anchors.bottom: parent.bottom
                     anchors.leftMargin: 9; anchors.rightMargin: 9; anchors.bottomMargin: 12
                     text: modelData.title || ""
-                    color: "#f2f2f0"; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold
+                    color: "#f2f2f0"; font.family: theme.ui; font.pixelSize: theme.fontSize(13); font.weight: Font.DemiBold
                     elide: Text.ElideRight; maximumLineCount: 2; wrapMode: Text.WordWrap
                     style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.9)
                 }
@@ -909,7 +909,7 @@ Item {
             }
             Text {
                 text: modelData.kind === "comic" ? "Comic" : modelData.kind === "book" ? "Book" : "Video"
-                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 0.4
+                color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 0.4
             }
         }
     }
@@ -982,9 +982,9 @@ Item {
                 width: col.width
                 spacing: 0
                 Text { text: "ON THIS MACHINE"; color: theme.inkDimmer
-                       font.family: theme.ui; font.pixelSize: 12; font.letterSpacing: 2.6; font.weight: Font.DemiBold }
+                       font.family: theme.ui; font.pixelSize: theme.fontSize(12); font.letterSpacing: 2.6; font.weight: Font.DemiBold }
                 Text { text: "Vault"; color: theme.ink; topPadding: 8
-                       font.family: theme.display; font.pixelSize: 56; font.letterSpacing: -1 }
+                       font.family: theme.display; font.pixelSize: theme.fontSize(56); font.letterSpacing: -1 }
                 Item { width: 1; height: 20 }
                 Rectangle { width: 34; height: 3; radius: 2; color: theme.gold }
             }
@@ -1033,7 +1033,7 @@ Item {
                         text: root.scanningEmpty ? "Looking through your folder…"
                                                  : "Add a folder of comics, books, or videos"
                         color: theme.ink
-                        font.family: theme.ui; font.pixelSize: 18; font.weight: Font.DemiBold
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(18); font.weight: Font.DemiBold
                     }
                     Text {
                         anchors.horizontalCenter: parent.horizontalCenter
@@ -1043,7 +1043,7 @@ Item {
                         visible: !root.scanningEmpty
                         text: "The Vault reads what is already on this machine and keeps it here — nothing is downloaded or moved."
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.3
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13); lineHeight: 1.3
                     }
 
                     // Add folder — opens the native folder picker (Slice 10). The ingest behind it
@@ -1061,7 +1061,7 @@ Item {
                             anchors.centerIn: parent
                             text: "Add folder"
                             color: addMa.containsMouse ? "#141207" : theme.ink
-                            font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(15); font.weight: Font.DemiBold
                         }
                         MouseArea {
                             id: addMa
@@ -1190,7 +1190,7 @@ Item {
                 anchors.top: parent.top; anchors.left: parent.left
                 text: "CONTINUE"
                 color: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
+                font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1.5
                 font.weight: Font.DemiBold
             }
             // PosterRail's own house shape: a clipped horizontal ListView, StopAtBounds,
@@ -1332,7 +1332,7 @@ Item {
                         color: theme.ink
                         selectionColor: theme.gold
                         selectedTextColor: "#141207"
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         verticalAlignment: TextInput.AlignVCenter
                         // live results — the plan's "≤3 keystrokes" law
                         onTextChanged: root.searchQuery = text
@@ -1348,7 +1348,7 @@ Item {
                         verticalAlignment: Text.AlignVCenter
                         text: "Search the Vault — titles, identities, filenames"
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 13
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                         elide: Text.ElideRight
                         MouseArea { anchors.fill: parent; onClicked: searchInput.forceActiveFocus() }
                     }
@@ -1360,7 +1360,7 @@ Item {
                         text: root.searchRowsJoined.length === 60 ? "60+"
                               : String(root.searchRowsJoined.length)
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 11
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     }
                 }
 
@@ -1424,7 +1424,7 @@ Item {
                             text: root.activeFilterCount > 0
                                   ? ("Filter · " + root.activeFilterCount) : "Filter"
                             color: root.filterMenuOpen || filterFaceMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 12
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         }
                     }
                     MouseArea {
@@ -1469,7 +1469,7 @@ Item {
                             visible: !adaptive.phone
                             text: root.sortLabelOf(root.sortMode)
                             color: root.sortMenuOpen || sortFaceMa.containsMouse ? theme.ink : theme.inkDim
-                            font.family: theme.ui; font.pixelSize: 12
+                            font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                         }
                     }
                     MouseArea {
@@ -1505,7 +1505,7 @@ Item {
                         anchors.top: parent.top; anchors.left: parent.left
                         text: "NEXT UP"
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 11; font.letterSpacing: 1.5
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(11); font.letterSpacing: 1.5
                         font.weight: Font.DemiBold
                     }
                     ListView {
@@ -1644,14 +1644,14 @@ Item {
                         anchors.centerIn: parent
                         text: "No matches in the Vault."
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                     Text {
                         visible: grid.count === 0 && root.hiddenViewActive
                         anchors.centerIn: parent
                         text: "Nothing is hidden."
                         color: theme.inkDimmer
-                        font.family: theme.ui; font.pixelSize: 14
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(14)
                     }
                 }
             }
@@ -1774,13 +1774,13 @@ Item {
                             Text {
                                 text: root.sortMode === sortMenuItem.modelData.mode ? "✓" : ""
                                 color: theme.gold
-                                font.family: theme.ui; font.pixelSize: 12
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                                 width: 12
                             }
                             Text {
                                 text: sortMenuItem.modelData.label
                                 color: sortItemMa.containsMouse ? theme.ink : theme.inkDim
-                                font.family: theme.ui; font.pixelSize: 13
+                                font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                             }
                         }
                         MouseArea {
@@ -1860,7 +1860,7 @@ Item {
                         anchors.centerIn: parent
                         text: chip.label
                         color: chip.active ? theme.gold : (chipMa.containsMouse ? theme.ink : theme.inkDim)
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     }
                     MouseArea {
                         id: chipMa
@@ -1884,7 +1884,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "KIND"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterKindVideoChip; label: "Video"; active: root.filterKind === "video"
@@ -1908,7 +1908,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "WATCHED"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterWatchedUnwatchedChip; label: "Unwatched"; active: root.filterWatched === "unwatched"
@@ -1927,7 +1927,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "IDENTIFICATION"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterIdentChip; label: "Needs identifying"; active: root.filterIdent === "uncertain"
@@ -1941,7 +1941,7 @@ Item {
                 Column {
                     width: parent.width; spacing: 6
                     Text { text: "PRESENCE"; color: theme.inkDimmer; font.family: theme.ui
-                           font.pixelSize: 10; font.letterSpacing: 1.4; font.weight: Font.DemiBold }
+                           font.pixelSize: theme.fontSize(10); font.letterSpacing: 1.4; font.weight: Font.DemiBold }
                     Row {
                         spacing: 6
                         FilterChip { id: filterPresenceHereChip; label: "Here"; active: root.filterPresence === "present"
@@ -1966,7 +1966,7 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         text: "Clear all"
                         color: clearMa.containsMouse ? theme.ink : theme.inkDim
-                        font.family: theme.ui; font.pixelSize: 12
+                        font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     }
                     MouseArea {
                         id: clearMa
@@ -2049,7 +2049,7 @@ Item {
                         : (base + "…")
                 }
                 color: theme.ink
-                font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                font.family: theme.ui; font.pixelSize: theme.fontSize(14); font.weight: Font.DemiBold
             }
 
             Rectangle {
@@ -2062,7 +2062,7 @@ Item {
                     anchors.centerIn: parent
                     text: "Cancel"
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 13
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(13)
                 }
                 MouseArea {
                     id: cancelMa

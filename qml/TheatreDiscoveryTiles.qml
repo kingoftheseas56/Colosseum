@@ -71,7 +71,7 @@ Column {
                     text: tile.modelData.ghost || ""
                     color: Qt.rgba(1, 1, 1, 0.10)
                     font.family: theme.display
-                    font.pixelSize: 92
+                    font.pixelSize: theme.fontSize(92)
                     font.weight: Font.Bold
                     anchors.right: parent.right
                     anchors.rightMargin: 12
@@ -86,7 +86,7 @@ Column {
                     text: tile.modelData.title || ""
                     color: theme.ink
                     font.family: theme.display
-                    font.pixelSize: 22
+                    font.pixelSize: theme.fontSize(22)
                     font.weight: Font.DemiBold
                     elide: Text.ElideRight
                 }

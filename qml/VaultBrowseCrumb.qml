@@ -106,7 +106,7 @@ Item {
                     text: seg.modelData.title
                     color: seg.isLast ? theme.ink : theme.inkDimmer
                     font.family: theme.ui
-                    font.pixelSize: 13
+                    font.pixelSize: theme.fontSize(13)
                     font.weight: seg.isLast ? Font.DemiBold : Font.Normal
                     // S15 — the ring pins to the crumb's keyboardSegment, never to a hover.
                     // Inside the Text (a non-positioner) so the Row's own layout is untouched.

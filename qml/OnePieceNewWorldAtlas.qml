@@ -17,6 +17,7 @@ FocusScope {
     property string bodyFamily: "Georgia"
     property url chartSource: Qt.resolvedUrl("NewWorldChart.qml")
     property real shellChromeInset: 172
+    readonly property bool phoneLayout: Qt.platform.os === "android" && Math.min(width, height) < 600
     property real zoom: 1
     property bool indexVisible: false
     property bool previewVisible: false
@@ -346,7 +347,7 @@ FocusScope {
         id: zoomTools
         objectName: "newWorldZoomTools"
         // Right of the shell taskbar dock's closed footprint (leftEdge<=80 + 130 wide + gap).
-        x: 218; y: root.height - height - 26
+        x: root.phoneLayout ? 16 : 218; y: root.height - height - (root.phoneLayout ? 16 : 26)
         spacing: 4
         z: 20
         NewWorldInkButton { objectName: "newWorldZoomOut"; text: "−"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom out"; onClicked: root.setZoom(root.zoom - 0.25) }
@@ -356,8 +357,8 @@ FocusScope {
     NewWorldInkButton {
         id: paradiseButton
         objectName: "newWorldToParadise"
-        x: Geometry.clamp(root.mapPoint(0.125, 0.30).x - width / 2, 24, root.width - width - 24)
-        y: Geometry.clamp(root.mapPoint(0.125, 0.30).y, 90, root.height - height - 90)
+        x: root.phoneLayout ? 16 : Geometry.clamp(root.mapPoint(0.125, 0.30).x - width / 2, 24, root.width - width - 24)
+        y: root.phoneLayout ? root.height - height - 80 : Geometry.clamp(root.mapPoint(0.125, 0.30).y, 90, root.height - height - 90)
         width: 142; height: 46
         z: 20
         text: "TO PARADISE"
@@ -368,8 +369,8 @@ FocusScope {
     NewWorldInkButton {
         id: beyondWanoButton
         objectName: "newWorldBeyondWano"
-        x: Geometry.clamp(root.mapPoint(0.912, 0.90).x - width / 2, 24, root.width - width - 24)
-        y: Geometry.clamp(root.mapPoint(0.912, 0.90).y, 90, root.height - height - 24)
+        x: root.phoneLayout ? root.width - width - 16 : Geometry.clamp(root.mapPoint(0.912, 0.90).x - width / 2, 24, root.width - width - 24)
+        y: root.phoneLayout ? root.height - height - 16 : Geometry.clamp(root.mapPoint(0.912, 0.90).y, 90, root.height - height - 24)
         width: 158; height: 50
         z: 20
         text: "BEYOND WANO"
@@ -385,7 +386,7 @@ FocusScope {
     NewWorldInkButton {
         id: indexButton
         objectName: "newWorldIndexButton"
-        x: Math.max(24, root.width - root.shellChromeInset - width)
+        x: root.phoneLayout ? root.width - width - 16 : Math.max(24, root.width - root.shellChromeInset - width)
         y: 24
         width: 116; height: 48
         z: 30

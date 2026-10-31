@@ -17,6 +17,7 @@ FocusScope {
     property string bodyFamily: "Georgia"
     property url chartSource: Qt.resolvedUrl("ParadiseChart.qml")
     property real shellChromeInset: 172
+    readonly property bool phoneLayout: Qt.platform.os === "android" && Math.min(width, height) < 600
     property real zoom: 1
     property bool indexVisible: false
     property bool previewVisible: false
@@ -374,7 +375,7 @@ FocusScope {
         id: zoomTools
         objectName: "paradiseZoomTools"
         // Right of the shell taskbar dock's closed footprint (leftEdge<=80 + 130 wide + gap).
-        x: 218; y: root.height - height - 26
+        x: root.phoneLayout ? 16 : 218; y: root.height - height - (root.phoneLayout ? 16 : 26)
         spacing: 4
         z: 20
         ParadiseInkButton { objectName: "paradiseZoomOut"; text: "−"; width: 44; fontFamily: root.bodyFamily; reducedMotion: root.reducedMotion; Accessible.name: "Zoom out"; onClicked: root.setZoom(root.zoom - 0.25) }
@@ -384,8 +385,8 @@ FocusScope {
     ParadiseInkButton {
         id: eastBlueButton
         objectName: "paradiseEastBlue"
-        x: Geometry.clamp(root.mapPoint(0.105, 0.76).x - width / 2, 24, root.width - width - 24)
-        y: Geometry.clamp(root.mapPoint(0.105, 0.76).y, 90, root.height - height - 90)
+        x: root.phoneLayout ? 16 : Geometry.clamp(root.mapPoint(0.105, 0.76).x - width / 2, 24, root.width - width - 24)
+        y: root.phoneLayout ? root.height - height - 80 : Geometry.clamp(root.mapPoint(0.105, 0.76).y, 90, root.height - height - 90)
         width: 142; height: 46
         z: 20
         text: "TO EAST BLUE"
@@ -396,8 +397,8 @@ FocusScope {
     ParadiseInkButton {
         id: newWorldButton
         objectName: "paradiseNewWorld"
-        x: root.width - width - 28
-        y: root.height - height - 26
+        x: root.width - width - (root.phoneLayout ? 16 : 28)
+        y: root.height - height - (root.phoneLayout ? 16 : 26)
         width: 154; height: 50
         z: 20
         text: "TO NEW WORLD"
@@ -413,7 +414,7 @@ FocusScope {
     ParadiseInkButton {
         id: indexButton
         objectName: "paradiseIndexButton"
-        x: Math.max(24, root.width - root.shellChromeInset - width)
+        x: root.phoneLayout ? root.width - width - 16 : Math.max(24, root.width - root.shellChromeInset - width)
         y: 24
         width: 116; height: 48
         z: 30

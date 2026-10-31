@@ -33,7 +33,7 @@ Glass {
         text: vault.heading
         color: theme.ink
         font.family: theme.display
-        font.pixelSize: vault.compactLayout ? 30 : 33
+        font.pixelSize: theme.fontSize(vault.compactLayout ? 30 : 33)
     }
 
     Rectangle {
@@ -375,7 +375,7 @@ Glass {
         color: theme.inkDim
         font.family: theme.display
         font.italic: true
-        font.pixelSize: 22
+        font.pixelSize: theme.fontSize(22)
     }
 
     MouseArea {

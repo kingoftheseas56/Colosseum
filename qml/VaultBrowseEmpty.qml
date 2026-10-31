@@ -77,7 +77,7 @@ Item {
             text: root.headingText
             color: theme.ink
             font.family: theme.display
-            font.pixelSize: 22
+            font.pixelSize: theme.fontSize(22)
             font.weight: Font.DemiBold
         }
         Text {
@@ -89,7 +89,7 @@ Item {
             text: root.bodyText
             color: theme.inkDimmer
             font.family: theme.ui
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
         }
 
         Rectangle {
@@ -109,7 +109,7 @@ Item {
                 text: "Add storage"
                 color: addMa.containsMouse ? "#141207" : theme.ink
                 font.family: theme.ui
-                font.pixelSize: 14
+                font.pixelSize: theme.fontSize(14)
                 font.weight: Font.DemiBold
             }
             MouseArea {
@@ -147,7 +147,7 @@ Item {
                 text: "Clear filter"
                 color: clearMa.containsMouse ? "#141207" : theme.ink
                 font.family: theme.ui
-                font.pixelSize: 13
+                font.pixelSize: theme.fontSize(13)
             }
             MouseArea {
                 id: clearMa

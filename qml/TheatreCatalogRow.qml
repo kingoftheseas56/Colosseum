@@ -63,7 +63,7 @@ Column {
                             color: Qt.rgba(1, 1, 1, 0.16)
                             font.family: theme.display
                             font.bold: true
-                            font.pixelSize: 132
+                            font.pixelSize: theme.fontSize(132)
                             anchors.left: parent.left
                             anchors.bottom: parent.bottom
                             anchors.bottomMargin: -8

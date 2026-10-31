@@ -18,10 +18,10 @@ function check(cond, label) {
     console.log(cond ? "PASS" : "FAIL", label);
     if (!cond) failures += 1;
 }
-function tap({ android, shownAtPress, paused = false, menuOpen = false }) {
+function tap({ android, shownAtPress, paused = false, menuOpen = false, resumeChoiceOpen = false }) {
     const calls = [];
     const root = {
-        controlsShown: true, controlsShownAtPress: shownAtPress, anyMenuOpen: menuOpen, paused,
+        controlsShown: true, controlsShownAtPress: shownAtPress, anyMenuOpen: menuOpen, paused, resumeChoiceOpen,
         togglePlayPause() { calls.push("toggle"); this.paused = !this.paused; },
         wakeChrome() { calls.push("wake"); this.controlsShown = true; },
         closeMenus() { calls.push("closeMenus"); },
@@ -29,6 +29,9 @@ function tap({ android, shownAtPress, paused = false, menuOpen = false }) {
     };
     if (!shownAtPress) root.controlsShown = false;
     const hideTimer = { stop: () => calls.push("hideTimer.stop") };
+    const body = /function handleAndroidVideoTap\(\) \{([\s\S]*?)\n    \}/.exec(qml)?.[1];
+    if (!body) throw new Error("Actual Android video-tap owner is missing");
+    root.handleAndroidVideoTap = () => new Function("root", "hideTimer", body)(root, hideTimer);
     clicked({ button: 1 }, root, { android }, hideTimer, { RightButton: 2 }, () => ({}), {});
     return { root, calls };
 }
@@ -46,6 +49,9 @@ check(menu.calls.join() === "closeMenus" && menu.root.controlsShown === true,
       "android tap with a menu open only closes the menu");
 const desktop = tap({ android: false, shownAtPress: true });
 check(desktop.calls.includes("toggle"), "desktop click still toggles play/pause");
+const resume = tap({ android: true, shownAtPress: true, resumeChoiceOpen: true });
+check(resume.calls.length === 0 && resume.root.controlsShown,
+      "outside tap cannot hide an open resume-choice dialog");
 
 console.log(`ANDROID_PLAYER_TAP_HUD ${failures ? "FAIL" : "PASS"} failures=${failures}`);
 process.exit(failures ? 1 : 0);

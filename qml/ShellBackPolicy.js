@@ -18,6 +18,7 @@ function actionFor(state) {
 
     // Same-window modal/transient surfaces, highest visual/interaction ownership first.
     if (on(s.identityCeremonyOpen)) return "cancelIdentityCeremony"
+    if (on(s.theatreRemovalOpen)) return "theatreRemoval"
     // Main Sync sits above taskbar pages, but an identity ceremony may cover it.
     if (on(s.stremioSyncOpen)) return "stremioSync"
     if (on(s.watchPartyJoinOpen)) return "watchPartyJoin"
@@ -35,7 +36,7 @@ function actionFor(state) {
     if (on(s.vaultComicActive) || on(s.comicReaderActive) || s.activeSessionKind === "comic")
         return "comicReader"
 
-    if(on(s.librarySelectionActive))return "librarySelection"
+    if (on(s.librarySelectionActive)) return "librarySelection"
 
     // Taskbar full pages occupy the upper shell layers. Later document siblings win if a
     // broken caller ever leaves two active at once, so recovery remains deterministic.

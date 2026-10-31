@@ -130,6 +130,12 @@ ReaderOverlay {
 
     readonly property int colWidth: 348
     readonly property int topBarPx: 64
+    // Touch (Android): bookmark rows reserve a right-hand gutter so the always-visible
+    // delete × never overlaps the row's text or its activation target. Desktop keeps the
+    // hover-reveal × over an unbroken row (gutter 0 = today's layout exactly).
+    property bool androidHost: Qt.platform.os === "android"
+    readonly property bool touchDelete: androidHost
+    readonly property int touchDeleteGutter: touchDelete ? 48 : 0
 
     function focusActiveTab() {
         if (activeTab === "bookmarks") bookmarksTab.focusKeyboard()
@@ -391,7 +397,8 @@ ReaderOverlay {
                             anchors.right: parent.right
                             anchors.verticalCenter: parent.verticalCenter
                             anchors.leftMargin: 12
-                            anchors.rightMargin: 12
+                            // the touch-delete gutter is reserved so text never runs under the ×
+                            anchors.rightMargin: 12 + panel.touchDeleteGutter
                             spacing: 6
                             Text {
                                 width: parent.width
@@ -418,18 +425,20 @@ ReaderOverlay {
                         ReaderKeyboardArea {
                             id: bmMa
                             anchors.fill: parent
+                            // row activation stops at the reserved touch-delete gutter
+                            anchors.rightMargin: panel.touchDeleteGutter
                             keyboardTabStop: false
                             hoverEnabled: true
                             cursorShape: Qt.PointingHandCursor
                             onClicked: { bmList.currentIndex = bmRow.index; panel.bookmarkActivated(bmRow.r.cfi) }
                         }
-                        // hover delete
+                        // hover delete (desktop — touch keeps an always-visible × in the gutter below)
                         Text {
                             anchors.right: parent.right
                             anchors.top: parent.top
                             anchors.rightMargin: 10
                             anchors.topMargin: 10
-                            visible: bmMa.containsMouse || bmDelMa.containsMouse
+                            visible: !panel.touchDelete && (bmMa.containsMouse || bmDelMa.containsMouse)
                             text: "×"
                             font.family: Theme.ui
                             font.pixelSize: 15
@@ -442,6 +451,30 @@ ReaderOverlay {
                                 hoverEnabled: true
                                 cursorShape: Qt.PointingHandCursor
                                 onClicked: panel.bookmarkDeleted(bmRow.r.id)
+                            }
+                        }
+                        // touch delete (Android): always visible in its reserved gutter; the
+                        // gutter × the full row height is the target, so a thumb tap never
+                        // lands ambiguously between delete and jump.
+                        ReaderKeyboardArea {
+                            id: bmTouchDel
+                            objectName: "reader2BookmarkDelete_" + bmRow.index
+                            visible: panel.touchDelete
+                            anchors.right: parent.right
+                            anchors.top: parent.top
+                            anchors.bottom: parent.bottom
+                            width: panel.touchDeleteGutter
+                            keyboardTabStop: false
+                            keyboardLabel: "Delete bookmark"
+                            hoverEnabled: true
+                            cursorShape: Qt.PointingHandCursor
+                            onClicked: panel.bookmarkDeleted(bmRow.r.id)
+                            Text {
+                                anchors.centerIn: parent
+                                text: "×"
+                                font.family: Theme.ui
+                                font.pixelSize: 18
+                                color: bmTouchDel.pressed || bmTouchDel.containsMouse ? Theme.ink : Theme.inkFaint
                             }
                         }
                     }

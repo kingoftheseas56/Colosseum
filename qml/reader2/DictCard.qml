@@ -17,7 +17,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
-    nativeWindow: false
+    nativeWindow: true
     id: dictCard
     objectName: "reader2DictCard"
 
@@ -71,7 +71,8 @@ ReaderOverlay {
         width: dictCard.cardW
         height: dictCard.cardH
         radius: 14
-        color: Theme.panelBg
+        color: dictCard.nativeOverlay && Math.min(dictCard.width, dictCard.height) < 600
+            ? Qt.rgba(13 / 255, 13 / 255, 16 / 255, 0.985) : Theme.panelBg
         border.color: Theme.barBorder
         border.width: 1
         antialiasing: true
@@ -178,7 +179,7 @@ ReaderOverlay {
             anchors.topMargin: 12
             anchors.leftMargin: dictCard.pad
             anchors.rightMargin: dictCard.pad
-            text: dictCard.dictState === "loading" ? "Looking upâ€¦" : "No definition found."
+            text: dictCard.dictState === "loading" ? "Looking up…" : "No definition found."
             font.family: Theme.ui
             font.pixelSize: 13
             color: Theme.inkFaint

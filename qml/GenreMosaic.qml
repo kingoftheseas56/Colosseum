@@ -2,6 +2,7 @@
 // The genre becomes its own art instead of an abstract color. `covers` is a pool of cover URLs the
 // tiles cycle through (placeholder mapping until real per-genre art).
 import QtQuick
+import QtQuick.Window
 
 Column {
     id: gm
@@ -23,7 +24,11 @@ Column {
     property string moreLabel: "Explore"
     property var genres: []
     property var covers: []
-    property int columns: 5
+    readonly property bool phoneLayout: {
+        const window = gm.Window.window
+        return !!(window && window.androidHost && Math.min(window.width, window.height) < 600)
+    }
+    property int columns: phoneLayout ? Math.max(1, Math.min(5, Math.floor((width + 16) / 128))) : 5
     property bool navigable: true            // show the header's "Explore ›" affordance
     signal genreClicked(int index)
     signal exploreClicked()                  // tapped "Explore ›" → host opens the full genre index
@@ -74,14 +79,18 @@ Column {
 
                 Text {
                     text: cell.modelData.name; color: theme.ink
-                    font.family: theme.display; font.pixelSize: 16; font.weight: Font.DemiBold
+                    font.family: theme.display; font.pixelSize: theme.fontSize(16); font.weight: Font.DemiBold
                     anchors.left: parent.left; anchors.bottom: parent.bottom; anchors.margins: 13
+                    width: gm.phoneLayout ? parent.width - 26 : implicitWidth
+                    wrapMode: gm.phoneLayout ? Text.WordWrap : Text.NoWrap
+                    maximumLineCount: gm.phoneLayout ? 2 : 1
+                    elide: gm.phoneLayout ? Text.ElideRight : Text.ElideNone
                     style: Text.Outline; styleColor: Qt.rgba(0, 0, 0, 0.6)
                 }
                 Text {
                     text: cell.modelData.count !== undefined ? cell.modelData.count : ""
                     color: Qt.rgba(1, 1, 1, 0.82)
-                    font.family: theme.ui; font.pixelSize: 11
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(11)
                     anchors.right: parent.right; anchors.top: parent.top; anchors.margins: 12
                 }
                 Rectangle {

@@ -1075,7 +1075,11 @@ FocusScope {
                 // over a stale/empty selection. Gen-gated too (re-review #3): a queued clear
                 // from the PREVIOUS book must not dismiss a menu the current book just opened.
                 if (!shell.acceptPaperBookEvent(p)) return
-                if (shell.selMenuShown) shell.dismissSelectionMenu()
+                // Android's WebView clears its DOM selection when the native QML note
+                // editor takes focus. The draft still owns the stashed text/CFI until
+                // Save or Cancel; that focus handoff must not close the editor.
+                if (shell.selMenuShown && !(selectionMenu.nativeOverlay && selectionMenu.noteEditing))
+                    shell.dismissSelectionMenu()
             } else if (name === "selection") {
                 if (!shell.acceptPaperBookEvent(p)) return  // pre-ready / stale — no popover over the wrong book
                 // text selected in the paper → stash it + open the SelectionMenu at its rect.

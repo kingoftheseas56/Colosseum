@@ -56,7 +56,7 @@ Popup {
             text: dialog.copyCeremony ? "This looks like a copy" : "The media at this path changed"
             color: theme.ink
             font.family: theme.display
-            font.pixelSize: 23
+            font.pixelSize: theme.fontSize(23)
         }
         Text {
             width: parent.width
@@ -65,7 +65,7 @@ Popup {
                   : "Is this still the same media, or should it start with new state?"
             color: theme.inkDim
             font.family: theme.ui
-            font.pixelSize: 13
+            font.pixelSize: theme.fontSize(13)
             wrapMode: Text.WordWrap
         }
         Text {
@@ -74,7 +74,7 @@ Popup {
                   ? "  →  " + dialog.ceremony.newPath : "")
             color: theme.gold
             font.family: theme.ui
-            font.pixelSize: 11
+            font.pixelSize: theme.fontSize(11)
             elide: Text.ElideMiddle
         }
         Item { width: 1; height: 10 }
@@ -87,7 +87,7 @@ Popup {
                 visible: !dialog.copyCeremony
                 width: sameMediaText.implicitWidth + 24; height: 38; radius: 9
                 color: theme.gold
-                Text { id: sameMediaText; anchors.centerIn: parent; text: "Same Media"; color: "#151310"; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Text { id: sameMediaText; anchors.centerIn: parent; text: "Same Media"; color: "#151310"; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("same-media") }
                 KeyboardAction {
                     id: sameKey
@@ -106,7 +106,7 @@ Popup {
                 visible: !dialog.copyCeremony
                 width: newMediaText.implicitWidth + 24; height: 38; radius: 9
                 color: Qt.rgba(1, 1, 1, 0.08); border.width: 1; border.color: theme.edge
-                Text { id: newMediaText; anchors.centerIn: parent; text: "New Media"; color: theme.ink; font.pixelSize: 12 }
+                Text { id: newMediaText; anchors.centerIn: parent; text: "New Media"; color: theme.ink; font.pixelSize: theme.fontSize(12) }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("new-media") }
                 KeyboardAction {
                     id: newKey
@@ -125,7 +125,7 @@ Popup {
                 visible: dialog.copyCeremony
                 width: existingText.implicitWidth + 24; height: 38; radius: 9
                 color: theme.gold
-                Text { id: existingText; anchors.centerIn: parent; text: "Use Existing State"; color: "#151310"; font.pixelSize: 12; font.weight: Font.DemiBold }
+                Text { id: existingText; anchors.centerIn: parent; text: "Use Existing State"; color: "#151310"; font.pixelSize: theme.fontSize(12); font.weight: Font.DemiBold }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("use-existing-state") }
                 KeyboardAction {
                     id: existingKey
@@ -144,7 +144,7 @@ Popup {
                 visible: dialog.copyCeremony
                 width: separateText.implicitWidth + 24; height: 38; radius: 9
                 color: Qt.rgba(1, 1, 1, 0.08); border.width: 1; border.color: theme.edge
-                Text { id: separateText; anchors.centerIn: parent; text: "Separate Copy"; color: theme.ink; font.pixelSize: 12 }
+                Text { id: separateText; anchors.centerIn: parent; text: "Separate Copy"; color: theme.ink; font.pixelSize: theme.fontSize(12) }
                 MouseArea { anchors.fill: parent; onClicked: dialog.choose("separate-copy") }
                 KeyboardAction {
                     id: separateKey
@@ -162,7 +162,7 @@ Popup {
                 objectName: "vaultCancelIdentity"
                 width: cancelText.implicitWidth + 24; height: 38; radius: 9
                 color: Qt.rgba(1, 1, 1, 0.08); border.width: 1; border.color: theme.edge
-                Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: theme.ink; font.pixelSize: 12 }
+                Text { id: cancelText; anchors.centerIn: parent; text: "Cancel"; color: theme.ink; font.pixelSize: theme.fontSize(12) }
                 KeyboardAction {
                     id: cancelKey
                     anchors.fill: parent

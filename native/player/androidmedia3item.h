@@ -49,6 +49,7 @@ class AndroidMedia3Item : public QQuickItem, public PlayerBackendContract
     Q_PROPERTY(double cacheTime READ cacheTime NOTIFY cacheTimeChanged)
     Q_PROPERTY(double cacheBufferingState READ cacheBufferingState NOTIFY cacheBufferingStateChanged)
     Q_PROPERTY(bool coreSeeking READ coreSeeking NOTIFY coreSeekingChanged)
+    Q_PROPERTY(bool seekable READ seekable NOTIFY seekableChanged)
     Q_PROPERTY(bool gifEncoding READ gifEncoding NOTIFY gifEncodingChanged)
 
 public:
@@ -94,6 +95,7 @@ public:
     double cacheTime() const;
     double cacheBufferingState() const;
     bool coreSeeking() const;
+    bool seekable() const { return m_seekable; }
     bool gifEncoding() const;
 
     Q_INVOKABLE void loadSource(const QString &url);
@@ -158,6 +160,7 @@ Q_SIGNALS:
     void cacheTimeChanged();
     void cacheBufferingStateChanged();
     void coreSeekingChanged();
+    void seekableChanged();
     void gifEncodingChanged();
     void gifSaved(QString path);
     void gifFailed();
@@ -212,6 +215,7 @@ private:
     QString m_videoAspect = QStringLiteral("auto");
     QSize m_videoSize;
     bool m_fileLoadedEmitted = false;
+    bool m_seekable = false;
     bool m_resumeAfterEnd = false;
     bool m_surfaceReleased = false;
     quint64 m_restoreLifecycleEpoch = 0;

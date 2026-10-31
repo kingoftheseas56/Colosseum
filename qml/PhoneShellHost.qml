@@ -167,7 +167,18 @@ Item {
             item.contentBottomInset = Qt.binding(function() { return host.contentBottomInset })
     }
 
-    // Back keys use the existing shell route owner.
+    // API34+ gestures preview through the native bridge; commit uses the same shell ladder.
+    BackGestureIndicator {
+        parent: host.window.contentItem
+        anchors.fill: parent
+        z: 100000
+        gestureActive: host.androidHost && typeof PlatformRuntime !== "undefined"
+            && PlatformRuntime.backGestureActive === true
+        progress: gestureActive ? PlatformRuntime.backGestureProgress : 0
+        edge: gestureActive ? PlatformRuntime.backGestureEdge : 0
+    }
+
+    // Legacy Back keys still use the same owner. Modern callbacks do not synthesize keys.
     Shortcut {
         sequence: "Back"
         enabled: {

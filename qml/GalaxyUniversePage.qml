@@ -11,6 +11,8 @@ Item {
     readonly property var contentLayout: { root.universeContentGeneration; return UniverseContent.resolveAssets(UniverseContent.document("tribute-star-wars")) }
     readonly property var destinations: contentLayout.destinations || UniverseContent.resolveAssets(starterDestinations)
     readonly property var skywalkerDestination: contentLayout.skywalkerDestination || starterSkywalkerDestination
+    readonly property bool phoneLayout: Qt.platform.os === "android" && Math.min(width, height) < 600
+    readonly property real pageMargin: phoneLayout ? 20 : theme.margin
     objectName: "galaxyUniversePage"
     anchors.fill: parent
     focus: true
@@ -113,10 +115,10 @@ Item {
         Qt.callLater(root.takeKeyboardFocus)
     }
     function requestEscape() {
-        if (selectedDestinationId.length)
-            closeDestination()
-        else
-            backRequested()
+        if (!selectedDestinationId.length)
+            return false
+        closeDestination()
+        return true
     }
     function openEntry(kind, entry) {
         if (!entry) return
@@ -201,31 +203,38 @@ Item {
             ScrollGlide { flick: destinationPage }
             Column {
                 id: destinationColumn
-                x: theme.margin
-                width: destinationPage.width - theme.margin * 2
+                x: root.pageMargin
+                width: destinationPage.width - root.pageMargin * 2
                 spacing: 0
 
                 Item {
-                    width: parent.width; height: 168
+                    width: parent.width; height: root.phoneLayout ? 156 : 168
                     Text {
-                        anchors.left: parent.left; anchors.top: parent.top; anchors.topMargin: 96
+                        anchors.left: parent.left; anchors.top: parent.top
+                        anchors.topMargin: root.phoneLayout ? 58 : 96
+                        width: parent.width
                         text: "In a galaxy far far away"
                         color: Qt.rgba(247/255,247/255,245/255,.09)
-                        font.family: theme.display; font.pixelSize: 34
+                        font.family: theme.display; font.pixelSize: theme.fontSize(root.phoneLayout ? 24 : 34)
+                        wrapMode: Text.WordWrap
+                        maximumLineCount: root.phoneLayout ? 2 : 1
+                        elide: Text.ElideRight
                     }
                 }
                 Text {
+                    width: parent.width
                     text: root.currentDestination ? root.currentDestination.world : ""
                     color: theme.inkDim
-                    font.family: theme.ui; font.pixelSize: 12
+                    font.family: theme.ui; font.pixelSize: theme.fontSize(12)
                     font.weight: Font.DemiBold; font.letterSpacing: 2.2
+                    wrapMode: Text.WordWrap
                 }
                 Text {
-                    width: Math.min(parent.width * .58, 760)
+                    width: Math.min(parent.width * (root.phoneLayout ? .96 : .58), 760)
                     topPadding: 10
                     text: root.currentDestination ? root.currentDestination.title : ""
                     color: theme.ink
-                    font.family: theme.display; font.pixelSize: 62
+                    font.family: theme.display; font.pixelSize: theme.fontSize(root.phoneLayout ? 40 : 62)
                     wrapMode: Text.WordWrap; lineHeight: .98
                 }
                 Item { width: 1; height: 48 }
@@ -261,12 +270,12 @@ Item {
     BackAction {
         x: theme.margin; y: 28; z: 20
         onTriggered: {
-            if (root.selectedDestinationId.length) root.closeDestination()
-            else root.backRequested()
+            if (!root.requestEscape()) root.backRequested()
         }
     }
     Row {
         z: 30
+        visible: Qt.platform.os !== "android"
         anchors.right: parent.right; anchors.rightMargin: theme.margin; y: 34
         spacing: 20
         UniverseChromeAction {
