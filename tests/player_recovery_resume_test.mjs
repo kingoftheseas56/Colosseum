@@ -73,7 +73,10 @@ function session({ paused = false, visible = true, direct = false } = {}) {
   };
   const context = vm.createContext({
     root, mpv, visible, Date: { now: () => now }, console: { info: noop, log: noop },
-    Stream: { play: () => calls.push('stream-play'), unwatchStats: noop },
+    Stream: { play: () => calls.push('stream-play'), unwatchStats: noop,
+              stopDemand: () => calls.push('stream-stop-demand') },
+    Qt: { platform: { os: 'test' } },
+    PlatformRuntime: { android: false, setPlayerLandscape: noop },
     streamWatchdog: { restart: () => calls.push('watchdog-start'), stop: () => calls.push('watchdog-stop') },
     seekSettleGuard: { restart: noop },
   });
@@ -180,6 +183,29 @@ test('source switching carries the last position even after a transport reset', 
   s.root.playStreamAt(0, 'switch');
   s.reload();
   assert.equal(s.mpv.position, 120);
+});
+
+test('switching from a torrent to a direct source ends the torrent demand first', () => {
+  const s = session();
+  s.root.streamRouteUrl = 'http://127.0.0.1/torrent';
+  s.root.streamCandidates.push({ infoHash: 'url:direct', url: 'https://example.test/film.mp4' });
+  s.root.directStreamUrl = c => String(c.url || '');
+  s.root.loadDirectStreamUrl = url => { s.calls.push(['direct', url]); return true; };
+  s.root.playStreamAt(1, 'switch');
+  const stopAt = s.calls.indexOf('stream-stop-demand');
+  const directAt = s.calls.findIndex(c => Array.isArray(c) && c[0] === 'direct');
+  assert.ok(stopAt >= 0 && directAt > stopAt);
+  assert.ok(!s.calls.includes('stream-play'));
+  assert.equal(s.root.streamRouteUrl, '');
+});
+
+test('switching between torrents leaves the demand to Stream.play', () => {
+  const s = session();
+  s.root.streamCandidates.push({ infoHash: 'other', fileIdx: 0 });
+  s.root.clearActiveDirectHeaders = () => {};
+  s.root.playStreamAt(1, 'switch');
+  assert.ok(s.calls.includes('stream-play'));
+  assert.ok(!s.calls.includes('stream-stop-demand'));
 });
 
 test('a new item clears a previous recovery target', () => {

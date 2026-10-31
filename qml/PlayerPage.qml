@@ -1567,6 +1567,13 @@ Item {
         // resume path carries only the hash). Extensions spec Phase 2, slice G.
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
+            // Leaving a torrent for a direct source ends the torrent's playing demand, as
+            // stop() does: its in-flight requests are cancelled and a late streamReady for it
+            // is fenced, so it can never load over the direct stream. Downloads and prefetch
+            // have their own owners and are untouched by stopDemand().
+            root.streamRouteUrl = ""
+            if (typeof Stream !== "undefined" && Stream.stopDemand)
+                Stream.stopDemand()
             root.mediaTransport = "Direct stream"
             root.updateMediaSubtitle()
             // HTTP hosts that gate on a Referer/Origin need those headers on every request,
