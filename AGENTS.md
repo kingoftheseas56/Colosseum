@@ -57,7 +57,8 @@ This file guides contributors and coding agents working in Colosseum. The instru
 
 ## Working-tree safety
 - Preserve unrelated modified, staged, and untracked work.
-- Commit only changes belonging to the current task, using a branch or fork authorized for the work. Push only when the requested workflow or repository maintainer authorizes it; never assume permission to push to a shared branch.
+- Commit only changes belonging to the current task, using a branch or fork authorized for the work.
+- Always push task commits to `origin` on the authorized working branch, including `master` when working there, unless Hemanth explicitly asks to keep them local or not push. This is standing authorization; do not ask for separate push confirmation. Never force-push.
 - Do not reset, clean, stash, rewrite history, or discard unrelated changes to simplify a task.
 - Do not commit credentials, tokens, machine-specific paths, local databases, caches, logs, screenshots, or build output unless they are intentional repository artifacts.
 
