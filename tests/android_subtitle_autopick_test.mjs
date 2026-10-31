@@ -87,7 +87,7 @@ function stripQmlDirectives(source) {
 }
 
 const qmlFunctionNames = [
-    'fetchSubtitles', 'pickSubtitle', 'onlineSubtitleRow', 'subtitleRow',
+    'fetchSubtitles', 'pickSubtitle', 'onlineSubtitleRow', 'subtitleDisplayTitle', 'subtitleRow',
     'maybeAutoSub', 'currentShowKey', 'currentTrackPreference', 'saveTrackPreference',
     'trackAutomationExcluded', 'trackPolicyKey', 'effectiveAudioLanguages',
     'effectiveSubtitleLanguages', 'selectedAudioRow', 'applySavedTrackDelays',
@@ -156,7 +156,8 @@ function makeHarness() {
     context.playerSettings = settings;
     context.Subtitles = {
         fetch: function(type, id, done) { pending.push({ type, id, done }); },
-        pickDefault: context.pickDefault
+        pickDefault: context.pickDefault,
+        langName: context.langName
     };
     context.TrackLanguage = {
         normalizeLang: context.normalizeLang,

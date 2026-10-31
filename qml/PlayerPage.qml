@@ -641,8 +641,18 @@ Item {
         return parts.length ? parts[parts.length - 1] : "Subtitle"
     }
 
+    // Media3 titles every embedded track "Subtitle", and fetched files arrive as "OpenSubtitles v3 #<id>";
+    // neither tells a person anything, so those rows take the language's name instead.
+    function subtitleDisplayTitle(title, lang) {
+        var t = String(title || "").trim()
+        var generic = !t.length || /^(subtitles?|track\s*\d*)$/i.test(t) || /#\d+\s*$/.test(t)
+        if (!generic || !String(lang || "").trim().length)
+            return t.length ? t : "Subtitle"
+        return Subtitles.langName(lang)
+    }
+
     function subtitleRow(track) {
-        var title = track.title || track.label || track.lang || "Subtitle"
+        var title = root.subtitleDisplayTitle(track.title || track.label, track.lang)
         var lang = track.lang || ""
         var hiProbe = (title + " " + lang).toLowerCase()
         return {
@@ -3700,6 +3710,7 @@ Item {
         }
         if (kind === "audio") audioMenu.panelOpen = true
         else if (kind === "speed") speedMenu.panelOpen = true
+        else if (kind === "party") watchPartyMenu.panelOpen = true
         else if (kind === "fill") fillMenu.panelOpen = true
         else if (kind === "browser") root.browserOpen = true
         else if (kind === "stream") root.pickAnotherStream()
@@ -4935,7 +4946,8 @@ Item {
                         { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
                         { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
                         { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
-                        { "label": "Speed", "kind": "speed", "when": root.barTiny },
+                        { "label": "Speed", "kind": "speed", "when": root.barTiny || Qt.platform.os === "android" },
+                        { "label": "Watch party", "kind": "party", "when": Qt.platform.os === "android" },
                         { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug && root.supportsPlayerCapability("videoTransform") },
                         // The two rows Player 2's menu carried and this one never did. Both features
                         // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
@@ -6301,6 +6313,8 @@ Item {
                     WatchPartyPanel {
                         id: watchPartyMenu
                         anchors.verticalCenter: parent.verticalCenter
+                        // Android: an unlabeled icon on a short bar; it lives in More with a name instead.
+                        visible: Qt.platform.os !== "android" || watchPartyMenu.panelOpen
                         overlayParent: chrome
                         controller: typeof WatchPartyUi !== "undefined" ? WatchPartyUi : null
                         syncController: typeof WatchPartySync !== "undefined" ? WatchPartySync : null
@@ -6384,7 +6398,7 @@ Item {
                     SpeedMenuButton {
                         id: speedMenu
                         anchors.verticalCenter: parent.verticalCenter
-                        visible: !root.barTiny || speedMenu.panelOpen
+                        visible: (!root.barTiny && Qt.platform.os !== "android") || speedMenu.panelOpen
                     }
 
                     // Fullscreen — relocated here from the top window group so it exists ONCE,
