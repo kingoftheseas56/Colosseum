@@ -205,8 +205,9 @@ Item {
 
         Column {
             id: contentCol
-            x: theme.margin
-            width: catalogue.width - theme.margin * 2
+            // The desktop's 54 px gutters leave a ~250 px column on a phone.
+            x: root.phoneLayout ? 20 : theme.margin
+            width: catalogue.width - x * 2
             spacing: root.shortPhone ? 26 : (root.phoneLayout ? 34 : 46)
 
             Column {

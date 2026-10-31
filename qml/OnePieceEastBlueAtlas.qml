@@ -30,6 +30,14 @@ FocusScope {
     // viewport at base zoom while the Flickable is not interactive, cropping Arlong
     // and the next-sea gate beyond the window edge with no panning recovery.
     readonly property real fitScale: Math.max(0.01, Math.min(mapViewport.width / 1680, mapViewport.height / 960))
+    // A phone held upright fits the 16:9 chart to its width and draws a thin strip with
+    // ~15 px badges, so it opens zoomed to ~70% of the height and pans sideways instead.
+    readonly property real maxZoom: root.phoneLayout ? 3.5 : 2.0
+    readonly property real phoneStartZoom: (root.phoneLayout && mapViewport.height > mapViewport.width)
+            ? Math.max(1.0, Math.min(3.0, mapViewport.height * 0.7 / (960 * root.fitScale))) : 1.0
+    property bool userZoomed: false
+    onPhoneStartZoomChanged: if (!root.userZoomed) root.zoom = root.phoneStartZoom
+    Component.onCompleted: if (!root.userZoomed) root.zoom = root.phoneStartZoom
     readonly property real badgeDiameter: 84 * root.fitScale * root.zoom
     readonly property real badgeHitDiameter: Math.max(44, root.badgeDiameter)
     readonly property bool fontsReady: atlasDisplayFont.status === FontLoader.Ready
@@ -355,7 +363,8 @@ FocusScope {
                     objectName: "eastBlueBadge-" + markerId
                     Accessible.role: Accessible.Button
                     Accessible.name: markerArc ? markerArc.title : markerId
-                    Accessible.description: "Hover or focus to preview this East Blue arc"
+                    Accessible.description: root.phoneLayout ? "Preview this East Blue arc"
+                                                             : "Hover or focus to preview this East Blue arc"
 
                     activeFocusOnTab: true
                     Keys.onReturnPressed: root.openPreview(marker.markerId)
@@ -393,6 +402,12 @@ FocusScope {
                     }
                     // Deliberately consumes no pointer buttons: badge clicks are no-ops.
                     TapHandler { acceptedButtons: Qt.NoButton }
+                    // ...except on a phone, where the whole 44 px hit box opens the preview.
+                    MouseArea {
+                        anchors.fill: parent
+                        enabled: root.phoneLayout
+                        onClicked: root.openPreview(marker.markerId)
+                    }
 
                     Button {
                         id: badgeButton
@@ -409,6 +424,8 @@ FocusScope {
                         hoverEnabled: false
                         padding: 0
                         background: null
+                        // A phone has no hover, so there a tap is how a badge opens its preview.
+                        onClicked: if (root.phoneLayout) root.openPreview(marker.markerId)
                         contentItem: Image {
                             id: badgeImage
                             source: (root.universeContentGeneration, AtlasData.badgeSource)(marker.markerId)
@@ -498,7 +515,7 @@ FocusScope {
             Accessible.name: "Zoom out"
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomOutButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomOutButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-            onClicked: root.zoom = Math.max(1.0, root.zoom - 0.25)
+            onClicked: { root.userZoomed = true; root.zoom = Math.max(1.0, root.zoom - 0.25) }
         }
         Button {
             id: zoomResetButton
@@ -506,7 +523,7 @@ FocusScope {
             text: "100%"; width: 58; height: 44
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomResetButton.text; font.family: atlasBodyFont.name; font.pixelSize: 11; color: zoomResetButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-            onClicked: root.zoom = 1.0
+            onClicked: { root.userZoomed = true; root.zoom = 1.0 }
         }
         Button {
             id: zoomInButton
@@ -515,7 +532,7 @@ FocusScope {
             Accessible.name: "Zoom in"
             font.family: atlasBodyFont.name
             contentItem: Text { text: zoomInButton.text; font.family: atlasBodyFont.name; font.pixelSize: 14; color: zoomInButton.palette.buttonText; horizontalAlignment: Text.AlignHCenter; verticalAlignment: Text.AlignVCenter }
-            onClicked: root.zoom = Math.min(2.0, root.zoom + 0.25)
+            onClicked: { root.userZoomed = true; root.zoom = Math.min(root.maxZoom, root.zoom + 0.25) }
         }
     }
 
