@@ -476,14 +476,14 @@ FocusScope {
                 activeFocusOnTab: true
                 focusPolicy: Qt.StrongFocus
                 font.family: atlasBodyFont.name
-                font.pixelSize: Math.max(8, 11 * root.zoom)
+                font.pixelSize: root.phoneLayout ? 13 : Math.max(8, 11 * root.zoom)
                 font.bold: true
                 palette.buttonText: "#584126"
                 contentItem: Text {
                     text: paradiseButton.text
                     color: paradiseButton.palette.buttonText
                     font.family: atlasBodyFont.name
-                    font.pixelSize: Math.max(8, 11 * root.zoom)
+                    font.pixelSize: root.phoneLayout ? 13 : Math.max(8, 11 * root.zoom)
                     font.bold: true
                     horizontalAlignment: Text.AlignHCenter
                     verticalAlignment: Text.AlignVCenter
