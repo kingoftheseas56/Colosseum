@@ -173,6 +173,15 @@ const parentState = {
     PlatformRuntime: { android: true },
     hideTimer: { stops: 0, stop() { this.stops += 1; } },
 };
+// The click body hands Android taps to root.handleAndroidVideoTap(); compile the real one.
+const tapFn = qml.indexOf("function handleAndroidVideoTap()");
+const tapOpen = qml.indexOf("{", tapFn);
+const tapBody = qml.slice(tapOpen + 1, matchingBrace(qml, tapOpen));
+function attachVideoTap(state) {
+    state.root.handleAndroidVideoTap = new Function("scope", `with (scope) { ${tapBody}
+ }`).bind(null, state);
+}
+attachVideoTap(parentState);
 const videoPress = new Function("scope", `with (scope) { ${propertyExpression(catcher.text, "onPressed")}\n }`).bind(null, parentState);
 const videoClick = compileBody("mouse", parentClickBody, parentState);
 videoPress();
@@ -185,6 +194,7 @@ const hiddenState = {
     root: { ...parentState.root, controlsShown: false },
     hideTimer: { stops: 0, stop() { this.stops += 1; } },
 };
+attachVideoTap(hiddenState);
 new Function("scope", `with (scope) { ${propertyExpression(catcher.text, "onPressed")}\n }`).bind(null, hiddenState)();
 compileBody("mouse", parentClickBody, hiddenState)({ button: hiddenState.Qt.LeftButton });
 check(hiddenState.root.controlsShown && hiddenState.hideTimer.stops === 0,
