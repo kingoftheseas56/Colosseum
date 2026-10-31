@@ -56,12 +56,48 @@
 #include <QScopedValueRollback>
 #include <QStandardPaths>
 #include <QDir>
+#include <QRegularExpression>
 #include <memory>
 #include <algorithm>
 #include <cmath>
 #include <functional>
 
 namespace ProgressStoreDetail {
+inline bool isCanonicalMangaSeries(const QString &id) {
+    static const QRegularExpression pattern(QStringLiteral("^mal:[1-9][0-9]*(?::[^:\\s]+)?$"));
+    return pattern.match(id).hasMatch();
+}
+
+// Compare decimal chapter numbers as strings: no rounding and no special-to-integer aliasing.
+inline QString mangaChapterNumber(QString number) {
+    number = number.trimmed();
+    static const QRegularExpression pattern(QStringLiteral("^[0-9]+(?:\\.[0-9]+)?$"));
+    if (!pattern.match(number).hasMatch())
+        return {};
+    const QStringList parts = number.split(QLatin1Char('.'));
+    QString whole = parts.first();
+    while (whole.size() > 1 && whole.startsWith(QLatin1Char('0')))
+        whole.remove(0, 1);
+    QString fraction = parts.size() == 2 ? parts.last() : QString();
+    while (fraction.endsWith(QLatin1Char('0')))
+        fraction.chop(1);
+    return fraction.isEmpty() ? whole : whole + QLatin1Char('.') + fraction;
+}
+
+inline QString mangaResumeChapterNumber(const QVariantMap &entry) {
+    const QVariantMap resume = entry.value(QStringLiteral("resume")).toMap();
+    if (resume.contains(QStringLiteral("chapterNumber")))
+        return mangaChapterNumber(resume.value(QStringLiteral("chapterNumber")).toString());
+    // Legacy labels are accepted only when the entire label identifies one chapter.
+    static const QRegularExpression label(QStringLiteral(
+        "^(?:Chapter|Ch\\.|Capítulo|Capitulo)\\s+([0-9]+(?:\\.[0-9]+)?)(?:\\s*[:\\-–—]\\s*(.+))?$"),
+        QRegularExpression::CaseInsensitiveOption);
+    const auto match = label.match(entry.value(QStringLiteral("sub")).toString().trimmed());
+    if (!match.hasMatch() || !mangaChapterNumber(match.captured(2)).isEmpty())
+        return {}; // A bare numeric suffix is an ambiguous range, not a chapter title.
+    return mangaChapterNumber(match.captured(1));
+}
+
 // Isolation gate (2026-08-14 fix). ProgressStore/CollectionStore historically hardcoded the
 // QSettings two-arg constructor (org="Brotherhood", app="Colosseum"), which resolves straight
 // to the Windows registry at HKCU\Software\Brotherhood\Colosseum — the REAL user's hive — no
@@ -883,6 +919,17 @@ public:
     Q_INVOKABLE QVariantMap get(const QString &kind, const QString &id) const {
         return ProgressStoreDetail::withoutTrackerPrivateMetadata(
             m_map.value(mapKey(kind, id)).toMap());
+    }
+
+    Q_INVOKABLE QVariantMap mangaChapterResume(const QString &seriesId,
+                                              const QString &chapterNumber) const {
+        const QString number = ProgressStoreDetail::mangaChapterNumber(chapterNumber);
+        if (!ProgressStoreDetail::isCanonicalMangaSeries(seriesId) || number.isEmpty())
+            return {};
+        const QVariantMap entry = m_map.value(mapKey(QStringLiteral("manga"), seriesId)).toMap();
+        if (ProgressStoreDetail::mangaResumeChapterNumber(entry) == number)
+            return entry.value(QStringLiteral("resume")).toMap();
+        return entry.value(QStringLiteral("_mangaChapterResumes")).toMap().value(number).toMap();
     }
 
     // Whole-kind purge (catalogue-independence Slice 5, 2026-08-20): unlike forget(),
@@ -2048,6 +2095,27 @@ private:
         }
 
         QVariantMap rec = canonicalEntry;
+        if (kind == QLatin1String("manga") && ProgressStoreDetail::isCanonicalMangaSeries(id)) {
+            QVariantMap chapters = previous.value(QStringLiteral("_mangaChapterResumes")).toMap();
+            const QString previousNumber = ProgressStoreDetail::mangaResumeChapterNumber(previous);
+            QVariantMap previousResume = previous.value(QStringLiteral("resume")).toMap();
+            if (!previousNumber.isEmpty()) {
+                previousResume.insert(QStringLiteral("chapterNumber"), previousNumber);
+                chapters.insert(previousNumber, previousResume);
+            }
+            QVariantMap resume = rec.value(QStringLiteral("resume")).toMap();
+            QString number = ProgressStoreDetail::mangaResumeChapterNumber(rec);
+            if (!resume.contains(QStringLiteral("chapterNumber")) && number.isEmpty()
+                && !resume.value(QStringLiteral("chapterId")).toString().isEmpty()
+                && resume.value(QStringLiteral("chapterId")) == previousResume.value(QStringLiteral("chapterId")))
+                number = previousNumber;
+            if (!number.isEmpty()) {
+                resume.insert(QStringLiteral("chapterNumber"), number);
+                chapters.insert(number, resume);
+            }
+            rec.insert(QStringLiteral("resume"), resume);
+            rec.insert(QStringLiteral("_mangaChapterResumes"), chapters);
+        }
         rec.insert(QStringLiteral("id"), id);
         rec.insert(QStringLiteral("kind"), kind);
         rec.insert(QStringLiteral("_trackerOrigin"), QStringLiteral("native_local"));

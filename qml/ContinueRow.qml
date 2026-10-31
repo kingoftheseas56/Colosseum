@@ -77,9 +77,8 @@ Column {
     function activateCurrent() {
         if (currentIndex < 0 || currentIndex >= ordered.length) return
         const tileItem = tileRepeater.itemAt(currentIndex)
-        // TV Select remains resume-first for non-manga. A manga without an actual
-        // chapter/volume destination opens details instead of a blank reader.
-        if (tileItem && tileItem.isMangaReading) tileItem.activatePrimary()
+        // TV Select uses the center resume action for every medium.
+        if (tileItem) tileItem.activateResumeControl()
         else cont.resumeRequested(ordered[currentIndex])
     }
 

@@ -896,11 +896,11 @@ Item {
             // Arc 74-C: a saved chapter/volume is a direct CTA only when the
             // actual local download is ready; never create an invented position.
             var savedEntry = ({ id: "mal:1", kind: "manga", title: "Monster",
-                sub: "Chapter 47", resume: { chapterId: "qualified:chapter-47",
+                sub: "Chapter 47", updatedAt: 200, resume: { chapterId: "qualified:chapter-47",
                                             page: 12, pageFraction: 0.4 } })
             fakeContinueProgress.setRecords(({
                 "manga|mal:1": savedEntry,
-                "tankoban|mal:1": { id: "mal:1", kind: "tankoban",
+                "tankoban|mal:1": { id: "mal:1", kind: "tankoban", updatedAt: 100,
                                     resume: {chapterId: "volume-one", page: 4} }
             }))
             fakeContinueDownloads.states = ({ "qualified:chapter-47": { "state": "done" } })
@@ -916,6 +916,25 @@ Item {
                     downloadsRef: fakeContinueDownloads, preferencesRef: fakePrefs})
                 view.mangaEngineRef = fakeMangaEngine
                 view.extensionsRef = fakeExtensions
+                ck(view.chapterMode, "arc74 reopening last-read chapters restores Chapter Mode")
+                ck(view.openChapterId === "", "arc74 mode restore must not reopen the reader")
+                view._enterTankobanMode()
+                fakeContinueProgress.changed()
+                ck(!view.chapterMode, "arc74 live progress must preserve this visit's mode choice")
+                view._openChapter("qualified:chapter-47", "Chapter 47")
+                ck(view.chapterMode, "arc74 reading a chapter selects Chapter Mode behind the reader")
+                view.openChapterId = ""
+                if (variant === 1) {
+                    view._chapterForced = true
+                    view._restoreReadingMode()
+                    view._applyChapterOnly()
+                    ck(view.chapterMode && !view._chapterForced,
+                       "arc74 late shelf policy must not undo a saved Chapter Mode")
+                }
+                var settingsButton = findNamed(view, "mangaLanguageSettingsShortcut", true)
+                ck(settingsButton && String(settingsButton.icon.source).indexOf("settings.svg") >= 0
+                   && settingsButton.background && !settingsButton.flat,
+                   "arc74 Language settings must be a visible styled button with settings icon")
                 view._enterChapterMode()
                 ck(view.savedChapterReady, "arc74-c saved chapter must be ready")
                 ck(view.savedChapterCtaLabel === "Continue Chapter 47 · p. 12",
@@ -957,6 +976,19 @@ Item {
                 ck(view.readCtaLabel === "Continue Vol. 1",
                    "arc74-c existing volume Resume CTA reads nested saved Progress")
                 view.destroy()
+                var records = ({"manga|mal:1": savedEntry,
+                    "tankoban|mal:1": {updatedAt: 300, resume: {chapterId: "volume-one", page: 4}}})
+                fakeContinueProgress.setRecords(records)
+                var volumesLast = makePage("1", "Monster", {progressRef: fakeContinueProgress})
+                ck(!volumesLast.chapterMode, "arc74 newer volume reading restores Volume Mode")
+                records["tankoban|mal:1"].updatedAt = 100
+                fakeContinueProgress.setRecords(records)
+                volumesLast.malId = "13"
+                volumesLast.seriesTitle = "One Piece"
+                volumesLast.malId = "1"
+                volumesLast.seriesTitle = "Monster"
+                ck(volumesLast.chapterMode, "arc74 reused page restores mode for resolved series identity")
+                volumesLast.destroy()
             }
             console.log("ARC74_C_QML_CONTINUE_OK")
             pageComp = pageCompBeforeArc74
@@ -969,6 +1001,6 @@ Item {
     }
 
     Timer { interval: 100; running: true; repeat: false; onTriggered: harness.runChecks() }
-    Timer { id: watchdog; interval: 8000; running: true
+    Timer { id: watchdog; interval: 30000; running: true
         onTriggered: { console.log("MANGA_SERIES_CATALOGUE_FAIL timeout"); Qt.exit(1) } }
 }

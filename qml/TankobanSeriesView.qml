@@ -83,6 +83,25 @@ Item {
         return "Continue " + label + (isFinite(position) && position > 0
             ? " · p. " + Math.floor(position) : "")
     }
+    readonly property string savedChapterCtaMetadata: {
+        var entry = page.savedChapterEntry || ({})
+        var resume = entry.resume || ({})
+        var chapter = String(entry.sub || "").trim()
+        if (!chapter.length || chapter.toLowerCase() === "chapter"
+                || chapter.toLowerCase() === "saved chapter") {
+            var chapterNumber = resume.chapterNumber !== undefined && resume.chapterNumber !== null
+                ? String(resume.chapterNumber).trim() : ""
+            var numericChapterNumber = Number(chapterNumber)
+            if (chapterNumber.length && isFinite(numericChapterNumber))
+                chapterNumber = String(numericChapterNumber)
+            chapter = chapterNumber.length ? qsTr("Chapter %1").arg(chapterNumber) : ""
+        }
+        var position = Number(resume.page || 0)
+        var details = []
+        if (chapter.length) details.push(chapter)
+        if (isFinite(position) && position > 0) details.push(qsTr("Page %1").arg(Math.floor(position)))
+        return details.join(" · ") || qsTr("Saved position")
+    }
     function resumeSavedChapter() {
         if (!page.savedChapterReady || !page.progressRef) return false
         var fresh = page.progressRef.get("manga", page.seriesId) || ({})
@@ -263,6 +282,21 @@ Item {
             page._enterChapterMode()
         } else if (!page.chapterOnly && page._chapterForced && page.chapterMode) {
             page._chapterForced = false
+            page._enterTankobanMode()
+        }
+    }
+
+    // Reading history owns the reopen mode; live progress never changes this visit's selection.
+    function _restoreReadingMode() {
+        if (!page.seriesId.length || !page.progressRef || typeof page.progressRef.get !== "function") return
+        var chapter = page.progressRef.get("manga", page.seriesId) || ({})
+        var volume = page.progressRef.get("tankoban", page.seriesId) || ({})
+        var chapterTime = Number(chapter.updatedAt || 0)
+        var volumeTime = Number(volume.updatedAt || 0)
+        if (chapterTime > 0 && chapterTime >= volumeTime) {
+            page._chapterForced = false
+            if (!page.chapterMode) page._enterChapterMode()
+        } else if (volumeTime > 0 && !page.isManhwa && page.chapterMode) {
             page._enterTankobanMode()
         }
     }
@@ -467,6 +501,8 @@ Item {
     function _openChapter(chapterId, label) {
         var id = String(chapterId || "")
         if (!id.length) return
+        page.chapterMode = true
+        page._chapterForced = false
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
@@ -1054,6 +1090,7 @@ Item {
             page.chapterMode = true
             page._loadChapterCatalogue(false)
         }
+        page._restoreReadingMode()
         loading = false
     }
 
@@ -1350,30 +1387,14 @@ Item {
                 spacing: 10
                 // Chapter Mode gets a direct saved-chapter action when its exact
                 // downloaded ID is still present. No new chapter/source is guessed.
-                Rectangle {
+                MangaContinueButton {
                     objectName: "tankobanChapterContinueAction"
                     visible: page.chapterMode && page.savedChapterReady
-                    height: 40
-                    width: Math.min(parent.width, continueChapterText.implicitWidth + 36)
-                    radius: 11
-                    color: theme.gold
-                    Text {
-                        id: continueChapterText
-                        anchors.centerIn: parent
-                        text: page.savedChapterCtaLabel
-                        color: "#211806"; font.family: theme.ui
-                        font.pixelSize: 14; font.weight: Font.DemiBold
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                onClicked: page.resumeSavedChapter() }
-                    KeyboardAction {
-                        anchors.fill: parent; pointerEnabled: false
-                        objectName: "tankobanChapterContinueKeyboardAction"
-                        focusEnabled: page.chapterMode && page.savedChapterReady
-                        accessibleName: page.savedChapterCtaLabel
-                        focusRadius: parent.radius
-                        onTriggered: page.resumeSavedChapter()
-                    }
+                    height: 60
+                    width: Math.min(parent.width, 258)
+                    metadata: page.savedChapterCtaMetadata
+                    keyboardObjectName: "tankobanChapterContinueKeyboardAction"
+                    onTriggered: page.resumeSavedChapter()
                 }
                 Text {
                     objectName: "tankobanSavedChapterUnavailable"
@@ -1524,14 +1545,24 @@ Item {
                 }
             }
             Button {
+                id: languageSettingsShortcut
                 objectName: "mangaLanguageSettingsShortcut"
                 visible: page.chapterMode
                 enabled: visible
-                width: parent.width; height: 28
-                flat: true
+                width: parent.width; height: 32
+                hoverEnabled: true
                 text: qsTr("Language settings")
                 font.family: theme.ui; font.pixelSize: 12
                 palette.buttonText: theme.gold
+                icon.source: "../assets/icons/settings.svg"
+                icon.width: 14; icon.height: 14; icon.color: theme.gold
+                background: Rectangle {
+                    radius: 7
+                    color: languageSettingsShortcut.down ? Qt.rgba(1,1,1,.12)
+                         : languageSettingsShortcut.hovered ? Qt.rgba(1,1,1,.08) : Qt.rgba(1,1,1,.045)
+                    border.width: 1
+                    border.color: languageSettingsShortcut.visualFocus ? theme.gold : Qt.rgba(1,1,1,.2)
+                }
                 onClicked: page.languageSettingsRequested()
             }
         }

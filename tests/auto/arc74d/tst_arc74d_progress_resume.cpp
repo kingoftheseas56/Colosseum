@@ -102,6 +102,9 @@ private slots:
     void persistsExactChapterPageFractionAndNamespace();
     void rebuiltQmlReaderReadsRealPersistedRecord();
     void survivesIndependentProcessRestart();
+    void sharedNumberedChaptersRetainHistory();
+    void sharedChapterIdentityIsStrict();
+    void legacyChapterLabelsAreConservative();
 };
 
 void tst_arc74d_progress_resume::initTestCase() {
@@ -109,6 +112,116 @@ void tst_arc74d_progress_resume::initTestCase() {
     QCoreApplication::setOrganizationDomain(QStringLiteral("test.invalid"));
     QCoreApplication::setApplicationName(QStringLiteral("Arc74DProgress"));
     QStandardPaths::setTestModeEnabled(true);
+}
+
+void tst_arc74d_progress_resume::sharedNumberedChaptersRetainHistory() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("shared.ini"));
+    const auto numbered = [](const QString &source, const QString &number, int page) {
+        QVariantMap entry = record(QStringLiteral("manga"), source);
+        QVariantMap resume = entry.value(QStringLiteral("resume")).toMap();
+        resume.insert(QStringLiteral("chapterNumber"), number);
+        resume.insert(QStringLiteral("page"), page);
+        entry.insert(QStringLiteral("resume"), resume);
+        return entry;
+    };
+    {
+        ProgressStore store(path);
+        store.record(numbered(QStringLiteral("pt:opaque"), QStringLiteral("047.0"), 4));
+        QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("47")).value(QStringLiteral("page")).toInt(), 4);
+        QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("47")).value(QStringLiteral("pageFraction")).toDouble(), 0.37);
+        QVERIFY(store.mangaChapterResume(kSeries, QStringLiteral("48")).isEmpty());
+        store.record(numbered(QStringLiteral("en:different"), QStringLiteral("47"), 7));
+        QCOMPARE(store.get(QStringLiteral("manga"), kSeries).value(QStringLiteral("resume")).toMap()
+                     .value(QStringLiteral("chapterId")).toString(), QStringLiteral("en:different"));
+        store.record(numbered(QStringLiteral("pt:next"), QStringLiteral("48"), 2));
+        QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("47")).value(QStringLiteral("page")).toInt(), 7);
+        store.record(numbered(QStringLiteral("en:next"), QStringLiteral("48"), 3));
+        // A metadata-free write of the very same source retains the canonical chapter.
+        QVariantMap bare = record(QStringLiteral("manga"), QStringLiteral("en:next"));
+        bare.insert(QStringLiteral("sub"), QString());
+        store.record(bare);
+        QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("48")).value(QStringLiteral("page")).toInt(), 4);
+        store.flush();
+    }
+    ProgressStore restored(path);
+    QCOMPARE(restored.mangaChapterResume(kSeries, QStringLiteral("47")).value(QStringLiteral("page")).toInt(), 7);
+    QCOMPARE(restored.mangaChapterResume(kSeries, QStringLiteral("48")).value(QStringLiteral("page")).toInt(), 4);
+    restored.forget(QStringLiteral("manga"), kSeries);
+    QVERIFY(restored.mangaChapterResume(kSeries, QStringLiteral("47")).isEmpty());
+}
+
+void tst_arc74d_progress_resume::sharedChapterIdentityIsStrict() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    ProgressStore store(temporary.filePath(QStringLiteral("strict.ini")));
+    const auto seed = [&store](const QString &kind, const QString &id,
+                               const QString &number, int page) {
+        QVariantMap entry = record(kind, QStringLiteral("same:opaque"));
+        entry.insert(QStringLiteral("id"), id);
+        QVariantMap resume = entry.value(QStringLiteral("resume")).toMap();
+        resume.insert(QStringLiteral("chapterNumber"), number);
+        resume.insert(QStringLiteral("page"), page);
+        entry.insert(QStringLiteral("resume"), resume);
+        store.record(entry);
+    };
+    seed(QStringLiteral("manga"), kSeries, QStringLiteral("01.0"), 1);
+    seed(QStringLiteral("manga"), kSeries, QStringLiteral("1.50"), 5);
+    seed(QStringLiteral("manga"), kSeries, QStringLiteral("0"), 0);
+    seed(QStringLiteral("manga"), QStringLiteral("mal:1:edition"), QStringLiteral("1"), 9);
+    seed(QStringLiteral("tankoban"), kSeries, QStringLiteral("2"), 8);
+    QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("1")).value(QStringLiteral("page")).toInt(), 1);
+    QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("1.5")).value(QStringLiteral("page")).toInt(), 5);
+    QVERIFY(!store.mangaChapterResume(kSeries, QStringLiteral("0.0")).isEmpty());
+    QCOMPARE(store.mangaChapterResume(QStringLiteral("mal:1:edition"), QStringLiteral("1")).value(QStringLiteral("page")).toInt(), 9);
+    QVERIFY(store.mangaChapterResume(kSeries, QStringLiteral("2")).isEmpty());
+    QVERIFY(store.mangaChapterResume(QStringLiteral("mal:2"), QStringLiteral("1")).isEmpty());
+    QVERIFY(store.mangaChapterResume(QStringLiteral("mal:1:other"), QStringLiteral("1")).isEmpty());
+    seed(QStringLiteral("manga"), QStringLiteral("provider:1"), QStringLiteral("1"), 6);
+    QVERIFY(store.mangaChapterResume(QStringLiteral("provider:1"), QStringLiteral("1")).isEmpty());
+    for (const QString number : {QStringLiteral("1e0"), QStringLiteral("1.5.0"), QStringLiteral("-1")})
+        QVERIFY(store.mangaChapterResume(kSeries, number).isEmpty());
+}
+
+void tst_arc74d_progress_resume::legacyChapterLabelsAreConservative() {
+    QTemporaryDir temporary;
+    QVERIFY(temporary.isValid());
+    const QString path = temporary.filePath(QStringLiteral("legacy.ini"));
+    const QStringList labels{QStringLiteral("Chapter 47"), QStringLiteral("Ch. 47: A title"),
+        QString::fromUtf8("Capítulo 47 - Título"), QStringLiteral("Capitulo 47")};
+    // Seed real legacy disk records, bypassing new-write normalization.
+    for (const QString &label : labels + QStringList{QStringLiteral("Explicit metadata")}) {
+        QVariantMap legacy = record(QStringLiteral("manga"), kChapter);
+        legacy.insert(QStringLiteral("sub"), label);
+        if (label == QLatin1String("Explicit metadata")) {
+            QVariantMap resume = legacy.value(QStringLiteral("resume")).toMap();
+            resume.insert(QStringLiteral("chapterNumber"), QStringLiteral("047.00"));
+            legacy.insert(QStringLiteral("resume"), resume);
+        }
+        QSettings settings(path, QSettings::IniFormat);
+        QJsonObject snapshot;
+        snapshot.insert(QStringLiteral("manga") + QChar(0x1f) + kSeries, QJsonObject::fromVariantMap(legacy));
+        settings.setValue(QStringLiteral("continue/entries"), QJsonDocument(snapshot).toJson(QJsonDocument::Compact));
+        settings.sync();
+        ProgressStore store(path);
+        const int revision = store.revision();
+        QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("47")).value(QStringLiteral("page")).toInt(), 4);
+        QCOMPARE(store.revision(), revision);
+        QVariantMap next = record(QStringLiteral("manga"), QStringLiteral("next"));
+        next.insert(QStringLiteral("sub"), QStringLiteral("Chapter 48"));
+        store.record(next);
+        QCOMPARE(store.mangaChapterResume(kSeries, QStringLiteral("47")).value(QStringLiteral("chapterId")).toString(), kChapter);
+    }
+    for (const QString &label : {QStringLiteral("Volume 47"), QStringLiteral("Release 2026-10-31"),
+             QStringLiteral("Chapter 47 / 48"), QStringLiteral("Chapter 47-48"),
+             QStringLiteral("My title 47"), QStringLiteral("Chapter 47.5.1")}) {
+        ProgressStore store(temporary.filePath(label.contains(QLatin1Char('/')) ? QStringLiteral("slash.ini") : QString::number(qHash(label)) + QStringLiteral(".ini")));
+        QVariantMap entry = record(QStringLiteral("manga"), kChapter);
+        entry.insert(QStringLiteral("sub"), label);
+        store.record(entry);
+        QVERIFY2(store.mangaChapterResume(kSeries, QStringLiteral("47")).isEmpty(), qPrintable(label));
+    }
 }
 
 void tst_arc74d_progress_resume::persistsExactChapterPageFractionAndNamespace() {
@@ -152,10 +265,11 @@ void tst_arc74d_progress_resume::rebuiltQmlReaderReadsRealPersistedRecord() {
         previous.flush();
     }
 
-    {
+    for (const QString target : {kChapter, QStringLiteral("tankoyomi:en:other:chapter-47")}) {
         ProgressStore fresh(path);
         QVERIFY(fresh.healthy());
         Pages pages;
+        pages.readyChapter = target;
         SeriesRecords prefs;
         QQmlEngine engine;
         engine.rootContext()->setContextProperty(
@@ -171,7 +285,10 @@ void tst_arc74d_progress_resume::rebuiltQmlReaderReadsRealPersistedRecord() {
         QObject *instance=component.beginCreate(engine.rootContext());
         QVERIFY2(instance,qPrintable(component.errorString()));
         QVERIFY(QQmlProperty::write(instance,QStringLiteral("seriesId"),kSeries));
-        QVERIFY(QQmlProperty::write(instance,QStringLiteral("chapterId"),kChapter));
+        QVERIFY(QQmlProperty::write(instance,QStringLiteral("chapterId"),target));
+        QVERIFY(QQmlProperty::write(instance,QStringLiteral("chapters"),QVariantList{
+            QVariantMap{{QStringLiteral("id"),target},{QStringLiteral("number"),47},
+                        {QStringLiteral("name"),QStringLiteral("Chapter 47")}}}));
         QVERIFY(QQmlProperty::write(instance,QStringLiteral("chapterLabel"),
                                    QStringLiteral("Chapter 47")));
         QVERIFY(QQmlProperty::write(instance,QStringLiteral("entryKind"),
@@ -184,7 +301,7 @@ void tst_arc74d_progress_resume::rebuiltQmlReaderReadsRealPersistedRecord() {
                                    QVariant::fromValue(static_cast<QObject*>(&fresh))));
         component.completeCreate();
 
-        QCOMPARE(instance->property("curChapterId").toString(),kChapter);
+        QCOMPARE(instance->property("curChapterId").toString(),target);
         QCOMPARE(instance->property("currentPage").toInt(),4);
         QVERIFY(qAbs(instance->property("_pendingPageFraction").toDouble()-0.37)<1e-7);
         QVERIFY(instance->property("_stripRestorePending").toBool());
@@ -198,6 +315,20 @@ void tst_arc74d_progress_resume::rebuiltQmlReaderReadsRealPersistedRecord() {
         QCOMPARE(fresh.get(QStringLiteral("manga"),kSeries)
                      .value(QStringLiteral("resume")).toMap()
                      .value(QStringLiteral("page")).toInt(),4);
+        QCOMPARE(fresh.get(QStringLiteral("manga"),kSeries)
+                     .value(QStringLiteral("resume")).toMap()
+                     .value(QStringLiteral("chapterId")).toString(),kChapter);
+        if (target != kChapter) {
+            // This controlled store has no rendering backend. Real input cancels
+            // its pending seek; only the subsequent presentation may replace source.
+            QVERIFY2(run(engine,instance,QStringLiteral("manualActivity()"),&error),qPrintable(error));
+            QTRY_VERIFY(!instance->property("_stripRestorePending").toBool());
+            QVERIFY2(run(engine,instance,QStringLiteral("_onPresented(4,0.37); recordProgress()"),&error),
+                     qPrintable(error));
+            const auto translated=fresh.mangaChapterResume(kSeries,QStringLiteral("47"));
+            QCOMPARE(translated.value(QStringLiteral("chapterId")).toString(),target);
+            QCOMPARE(translated.value(QStringLiteral("page")).toInt(),4);
+        }
         delete instance;
         fresh.flush();
     }
@@ -206,7 +337,7 @@ void tst_arc74d_progress_resume::rebuiltQmlReaderReadsRealPersistedRecord() {
     QVERIFY(afterClose.healthy());
     const auto resume=afterClose.get(QStringLiteral("manga"),kSeries)
                           .value(QStringLiteral("resume")).toMap();
-    QCOMPARE(resume.value(QStringLiteral("chapterId")).toString(),kChapter);
+    QCOMPARE(resume.value(QStringLiteral("chapterId")).toString(),QStringLiteral("tankoyomi:en:other:chapter-47"));
     QCOMPARE(resume.value(QStringLiteral("page")).toInt(),4);
     QVERIFY(qAbs(resume.value(QStringLiteral("pageFraction")).toDouble()-0.37)<1e-7);
     QCOMPARE(resume.value(QStringLiteral("scrollFrac")).toDouble(),0.81);

@@ -84,7 +84,7 @@ function completion(page, pageCount, maxSeen) {
 // see the harness's pinned max=0 case for the exact documented output.
 function progressPayload(args) {
     var a = args || {}
-    return {
+    var payload = {
         "id": a.seriesId,
         "kind": a.kind,
         "caption": a.seriesTitle,
@@ -116,6 +116,9 @@ function progressPayload(args) {
             "finished": a.maxSeen >= a.max
         }
     }
+    if (a.kind === "manga" && a.chapterNumber !== undefined && String(a.chapterNumber).length)
+        payload.resume.chapterNumber = String(a.chapterNumber)
+    return payload
 }
 // Total: a record is persisted state, so an absent / hand-edited / future-version value must
 // degrade to "no opinion" (0) rather than writing NaN into the store.

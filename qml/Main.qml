@@ -3355,9 +3355,8 @@ Window {
     }
     function closeWallpaperSearch() { wallpaperLayer.active = false }
 
-    // ---- Continue: manga/volume poster and center control both resume when a
-    //      saved target exists. Explicit Details stays separate; other media retain
-    //      their existing routes. Progress ownership remains unchanged. ----
+    // ---- Continue: the center control resumes; the rest of the thumbnail
+    //      opens the series/detail page, consistently across media. ----
     function resumeContinue(entry) {
         if (!entry) return
         if (entry.kind === "music") { win.openVinylResume(entry, true); return }
@@ -3733,6 +3732,22 @@ Window {
         else if (comicSeriesLayer.active && comicSeriesLayer.item && comicSeriesLayer.item.openChapterId.length) win.closeComicSeries()
         else if (westernLayer.active && westernLayer.item && westernLayer.item.openChapterId.length) win.closeWestern()
         else win.closeSeries()
+    }
+    function backFromMangaReader() {
+        var page = seriesLayer.item
+        if (!page || !page.openChapterId) { win.closeComicReader(); return }
+        var title = page.seriesTitle
+        var legacy = seriesLayer.legacyWeebCentral
+        var profile = {
+            malId: seriesLayer.malId,
+            seriesId: seriesLayer.seriesIdOverride,
+            sourceSearchTitle: seriesLayer.sourceSearchTitle,
+            sourceSearchAliases: seriesLayer.sourceSearchAliases,
+            sourceRequiredMarkers: seriesLayer.sourceRequiredMarkers
+        }
+        win.closeComicReader()
+        if (legacy) win.openWeebCentralSeries(title)
+        else win.openSeries(title, profile.malId, profile)
     }
     // Vault comic (standalone reader host) session verbs — mirror the comic reader verbs,
     // but the live surface is vaultComicLayer, not a series page.
@@ -4183,7 +4198,7 @@ Window {
                              || event.key === Qt.Key_Select || event.key === Qt.Key_Space) {
                         if (contCol.currentIndex >= 0 && contCol.currentIndex < contCol.contItems.length) {
                             const tileItem = contRepeater.itemAt(contCol.currentIndex)
-                            if (tileItem && tileItem.isMangaReading) tileItem.activatePrimary()
+                            if (tileItem) tileItem.activateResumeControl()
                             else win.resumeContinue(contCol.contItems[contCol.currentIndex])
                         }
                         event.accepted = true
@@ -5005,7 +5020,7 @@ Window {
             item.readerMinimizeRequested.connect(win.minimizeComicReader)
             item.readerFullscreenRequested.connect(win.toggleFullscreenShell)
             item.readerCloseRequested.connect(win.closeComicReader)
-            item.readerBackRequested.connect(win.closeComicReader)
+            item.readerBackRequested.connect(win.backFromMangaReader)
             // Rebuilt title page only: the world pills, search and a Back pill that names its place.
             if (item.worldRequested)
                 item.worldRequested.connect(function(w) { win.closeSeries(); win.openWorld(w) })

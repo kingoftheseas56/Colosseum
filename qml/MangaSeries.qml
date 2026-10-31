@@ -74,6 +74,9 @@ Item {
     readonly property string savedChapterCtaLabel: {
         if (!page.savedChapterId.length) return ""
         var label = String(page.savedChapterEntry.sub || "saved chapter").trim()
+        var number = String((page.savedChapterEntry.resume || ({})).chapterNumber || "")
+        if (number.length && (label.toLowerCase() === "saved chapter" || label.toLowerCase() === "chapter"))
+            label = qsTr("Chapter %1").arg(number)
         var position = Number((page.savedChapterEntry.resume || ({})).page || 0)
         return "Continue " + label + (isFinite(position) && position > 0
             ? " · p. " + Math.floor(position) : "")
@@ -243,6 +246,20 @@ Item {
         page.chaptersError = ""
         page._tankobanPrepared = false
         page.tankobanReaderEntries = []
+    }
+
+    // Reading history owns the reopen mode; live progress never changes this visit's selection.
+    function _restoreReadingMode() {
+        if (!page.seriesId.length || !page.progressRef || typeof page.progressRef.get !== "function") return
+        var chapter = page.progressRef.get("manga", page.seriesId) || ({})
+        var volume = page.progressRef.get("tankoban", page.seriesId) || ({})
+        var chapterTime = Number(chapter.updatedAt || 0)
+        var volumeTime = Number(volume.updatedAt || 0)
+        if (chapterTime > 0 && chapterTime >= volumeTime) {
+            if (!page.chapterMode) page._enterChapterMode()
+        } else if (volumeTime > 0 && !page.isManhwa && page.chapterMode) {
+            page._enterTankobanMode()
+        }
     }
 
     function _invalidateChapterRequest() {
@@ -445,6 +462,7 @@ Item {
     function _openChapter(chapterId, label) {
         var id = String(chapterId || "")
         if (!id.length) return
+        page.chapterMode = true
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
@@ -1032,6 +1050,7 @@ Item {
             page.chapterMode = true
             page._loadChapterCatalogue(false)
         }
+        page._restoreReadingMode()
         loading = false
     }
 

@@ -37,7 +37,7 @@ TestCase {
     function init() {resumed=0;detailed=0}
     function cleanup() {if (subject) subject.destroy();subject=null}
 
-    function test_row_main_click_and_keyboard_activation_resume_manga() {
+    function test_row_pointer_and_collection_keyboard_contract() {
         subject = rowComponent.createObject(stage.contentItem,{
             x:24,y:24,width:990,items:[manga(true),volume(true)]})
         verify(subject!==null)
@@ -47,12 +47,19 @@ TestCase {
         var tile=findItem(subject,"continueRowTile_mal:1")
         verify(tile!==null)
         mouseClick(tile,15,64,Qt.LeftButton)
-        compare(resumed,1);compare(detailed,0)
+        compare(resumed,0);compare(detailed,1)
+        var rail = findItem(subject, "continueRail")
+        verify(rail !== null)
+        stage.requestActivate()
+        rail.forceActiveFocus(Qt.TabFocusReason)
+        tryVerify(function() { return rail.activeFocus })
+        keyClick(Qt.Key_Return)
+        compare(resumed,0);compare(detailed,2)
+        mouseClick(tile,tile.width/2,tile.height/2,Qt.LeftButton)
+        compare(resumed,1);compare(detailed,2)
         subject.currentIndex=0
         subject.activateCurrent()
-        compare(resumed,2);compare(detailed,0)
-        mouseClick(tile,15,19,Qt.LeftButton)
-        compare(detailed,1)
+        compare(resumed,2);compare(detailed,2)
     }
 
     function test_row_missing_target_and_collection_bookmark_remain_details() {
@@ -62,19 +69,21 @@ TestCase {
         subject.resumeRequested.connect(function(item){resumed++})
         subject.detailRequested.connect(function(item){detailed++})
         wait(80)
-        subject.activateCurrent()
+        var missing=findItem(subject,"continueRowTile_mal:1")
+        mouseClick(missing,14,65,Qt.LeftButton)
         compare(resumed,0);compare(detailed,1)
         subject.primaryMangaResumeEnabled=false
         subject.items=[manga(true)]
         wait(80)
         var tile=findItem(subject,"continueRowTile_mal:1")
         verify(tile!==null)
-        verify(!tile.hasMangaResume)
         mouseClick(tile,14,65,Qt.LeftButton)
         compare(resumed,0);compare(detailed,2)
+        subject.activateCurrent()
+        compare(resumed,0);compare(detailed,3)
     }
 
-    function test_seeall_grid_pointer_and_keyboard_resume_saved_manga() {
+    function test_seeall_grid_pointer_and_keyboard_details_center_resume() {
         subject=allComponent.createObject(stage.contentItem,{x:0,y:0,width:1190,height:860,scope:"tankoban"})
         verify(subject!==null)
         subject.resumeRequested.connect(function(item){resumed++})
@@ -85,7 +94,7 @@ TestCase {
         var tile=findItem(subject,"continueSeeAllTile_mal:1")
         verify(tile!==null,"See All must instantiate shared tile")
         mouseClick(tile,15,65,Qt.LeftButton)
-        compare(resumed,1);compare(detailed,0)
+        compare(resumed,0);compare(detailed,1)
         var grid=findItem(subject,"continueSeeAllGrid")
         verify(grid!==null)
         stage.requestActivate()
@@ -95,9 +104,9 @@ TestCase {
         tryVerify(function() { return grid.activeFocus }, 1000,
                   "The See All grid must actually receive keyboard focus")
         keyClick(Qt.Key_Return)
-        compare(resumed,2)
-        mouseClick(tile,15,18,Qt.LeftButton)
-        compare(detailed,1)
+        compare(resumed,0);compare(detailed,2)
+        mouseClick(tile,tile.width/2,tile.height/2,Qt.LeftButton)
+        compare(resumed,1);compare(detailed,2)
     }
 
     function test_seeall_missing_target_opens_details() {

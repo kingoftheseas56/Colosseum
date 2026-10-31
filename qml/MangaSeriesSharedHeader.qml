@@ -346,11 +346,20 @@ Item {
             enabled: visible
             anchors.top: languageSelector.bottom
             anchors.right: languageSelector.right
-            width: languageSelector.width; height: 28
-            flat: true
+            width: languageSelector.width; height: 32
+            hoverEnabled: true
             text: qsTr("Language settings")
             font.family: theme.ui; font.pixelSize: 11
             palette.buttonText: theme.gold
+            icon.source: "../assets/icons/settings.svg"
+            icon.width: 14; icon.height: 14; icon.color: theme.gold
+            background: Rectangle {
+                radius: 7
+                color: languageSettingsShortcut.down ? Qt.rgba(1,1,1,.12)
+                     : languageSettingsShortcut.hovered ? Qt.rgba(1,1,1,.08) : Qt.rgba(1,1,1,.045)
+                border.width: 1
+                border.color: languageSettingsShortcut.visualFocus ? theme.gold : Qt.rgba(1,1,1,.2)
+            }
             onClicked: root.languageSettingsRequested()
         }
 

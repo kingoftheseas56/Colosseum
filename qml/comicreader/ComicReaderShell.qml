@@ -395,6 +395,7 @@ Item {
     // --- lifecycle guards ---
     property bool _ready: false                 // construction finished — runtime chapterId changes are live
     property bool _resumeArmed: false           // the next load may restore the saved Continue spot
+    property string _entryChapterNumber: ""
     property bool _pendingAtLast: false         // open the entry at its last page (previous-crossing)
     property bool _suspendRecord: false         // mutating state during load() must not emit records
     // Remote Progress import may switch entries without turning the imported winner
@@ -450,6 +451,7 @@ Item {
         autoScrollRunning = false
         try {
             _pages = (curChapterId.length && store) ? (store.localPages(curChapterId) || []) : []
+            _entryChapterNumber = progressKind === "manga" ? _currentChapterNumber() : ""
 
             // Pull this series' identity override and this entry's remembered reader state BEFORE
             // either is read below — load() is the one place both are consumed, so it is the one
@@ -505,12 +507,42 @@ Item {
     // Continue entry (mirrors MangaReader load() resume, lines 280-290). The shell publishes
     // stripFraction (the HUD reads it) and ARMS the one-shot _pendingStripFrac; load() then opens the
     // ONE restore door (stripRestore) which physically moves the column once it has settled.
+    function _currentChapterNumber() {
+        var index = ComicReaderState.entryIndex(chapters, curChapterId)
+        var chapter = index >= 0 ? chapters[index] : null
+        if (chapter && chapter.number !== undefined && chapter.number !== null
+                && /^[0-9]+(?:\.[0-9]+)?$/.test(String(chapter.number))) return String(chapter.number)
+        var label = chapter ? String(chapter.name || chapter.label || "") : String(chapterLabel || "")
+        // A Downloads/Continue open may precede the live chapter catalogue.
+        // Its existing local index still identifies the chapter without a request.
+        if (store && typeof store.downloadedChapters === "function") {
+            var entries = store.downloadedChapters() || []
+            for (var i = 0; i < entries.length; ++i) {
+                if (String(entries[i].id) === curChapterId && String(entries[i].seriesId) === seriesId) {
+                    label = String(entries[i].label || label)
+                    break
+                }
+            }
+        }
+        var match = /^(?:Chapter|Ch\.|Capítulo|Capitulo)\s+([0-9]+(?:\.[0-9]+)?)(?:\s*[:\-–—]\s*(.+))?$/i.exec(label.trim())
+        return match && !/^[0-9]+(?:\.[0-9]+)?$/.test(String(match[2] || "").trim()) ? match[1] : ""
+    }
+
     function _applyResume() {
         if (!_resumeArmed) return
         _resumeArmed = false
         var saved = (progress && seriesId.length) ? progress.get(progressKind, seriesId) : null
         var r = (saved && saved.resume) ? saved.resume : null
-        if (r && String(r.chapterId) === curChapterId) {
+        if (!r || String(r.chapterId) !== curChapterId) {
+            r = null
+            if (progressKind === "manga" && progress && typeof progress.mangaChapterResume === "function") {
+                var number = _entryChapterNumber
+                r = number.length ? progress.mangaChapterResume(seriesId, number) : null
+            }
+        }
+        if (r && Object.keys(r).length) {
+            // A shared chapter anchor may come from another translation. The
+            // current source remains unchanged until its own pixels are shown.
             currentPage = Math.max(1, Math.min(pageCount, Number(r.page) || 1))
             maxSeen = Math.max(currentPage, Number(r.maxSeen) || 0)
             stripFraction = (mode === "long_strip") ? (Number(r.scrollFrac) || 0) : 0
@@ -1056,7 +1088,8 @@ Item {
             seriesId: seriesId, kind: progressKind, seriesTitle: seriesTitle,
             label: curLabel, cover: cov, page: page, max: max,
             chapterId: curChapterId, style: mode, scrollFrac: stripFraction,
-            pageFraction: presentedPageFraction, maxSeen: maxSeen
+            pageFraction: presentedPageFraction, maxSeen: maxSeen,
+            chapterNumber: _entryChapterNumber
         }))
     }
     // debounced record — QSettings syncs to disk on every record(); don't do that per page-turn.

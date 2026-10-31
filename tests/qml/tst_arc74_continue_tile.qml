@@ -35,78 +35,59 @@ TestCase {
     function init() { resumed = 0; detailed = 0; removed = 0 }
     function cleanup() { if (tile) tile.destroy(); tile = null }
 
-    function test_manga_poster_resumes_and_details_is_explicit() {
-        spawn("manga", "tankoyomi:pt:fixture:chapter-47")
-        verify(tile.hasMangaResume)
-        var details = findItem(tile, "continueMangaDetailsButton")
-        verify(details !== null && details.visible, "Details must be independently visible")
-        mouseClick(tile, 12, 60, Qt.LeftButton)
-        compare(resumed, 1)
-        compare(detailed, 0)
-        mouseClick(tile, 22, 20, Qt.LeftButton)
-        compare(resumed, 1)
-        compare(detailed, 1)
+    function test_shared_pointer_contract_data() {
+        var rows = []
+        for (var kind of ["manga", "tankoban", "video", "book", "comic", "music"])
+            for (var variant of ["home", "world"])
+                rows.push({tag: kind + "_" + variant, kind: kind, variant: variant})
+        return rows
+    }
+    function test_shared_pointer_contract(data) {
+        spawn(data.kind, "qualified:47", data.variant)
+        compare(findItem(tile, "continueMangaDetailsButton"), null)
+        mouseClick(tile, data.variant === "home" ? 170 : 12, 60, Qt.LeftButton)
+        compare(detailed, 1); compare(resumed, 0)
+        mouseClick(tile, data.variant === "home" ? 56 : tile.width / 2, tile.height / 2, Qt.LeftButton)
+        compare(detailed, 1); compare(resumed, 1)
         compare(removed, 0)
     }
 
-    function test_manga_center_also_resumes() {
-        spawn("manga", "tankoyomi:pt:fixture:chapter-47")
-        mouseClick(tile, tile.width / 2, tile.height / 2, Qt.LeftButton)
-        compare(resumed, 1)
-        compare(detailed, 0)
-    }
-
-    function test_volume_poster_and_center_resume() {
-        spawn("tankoban", "volume:mal:1:5")
-        mouseClick(tile, 12, 65, Qt.LeftButton)
-        mouseClick(tile, tile.width / 2, tile.height / 2, Qt.LeftButton)
-        compare(resumed, 2)
-        compare(detailed, 0)
-    }
-
-    function test_manga_without_saved_target_goes_to_details() {
+    function test_missing_saved_target_still_dispatches_to_resume_owner() {
         spawn("manga", "")
-        verify(!tile.hasMangaResume)
         mouseClick(tile, 14, 59, Qt.LeftButton)
+        compare(detailed, 1); compare(resumed, 0)
         mouseClick(tile, tile.width / 2, tile.height / 2, Qt.LeftButton)
-        compare(resumed, 0)
-        compare(detailed, 2)
+        compare(detailed, 1); compare(resumed, 1)
         tile.activateKeyboardContext(1)
-        compare(resumed, 0)
-        compare(detailed, 3)
-    }
-
-    function test_non_manga_semantics_unchanged() {
-        for (var kind of ["video", "book", "comic"]) {
-            spawn(kind, "chapter-47")
-            verify(!tile.hasMangaResume)
-            mouseClick(tile, 12, 61, Qt.LeftButton)
-            mouseClick(tile, tile.width / 2, tile.height / 2, Qt.LeftButton)
-            compare(detailed, 1)
-            compare(resumed, 1)
-            tile.destroy(); tile = null
-            resumed = 0; detailed = 0
-        }
-    }
-
-    function test_home_variant_manga_resumes() {
-        spawn("manga", "qualified:47", "home")
-        mouseClick(tile, 170, 70, Qt.LeftButton)
-        compare(resumed, 1)
-        mouseClick(tile, 15, 18, Qt.LeftButton)
-        compare(detailed, 1)
+        compare(detailed, 1); compare(resumed, 2)
     }
 
     function test_primary_and_context_dispatch() {
         spawn("manga", "qualified:47")
         tile.activatePrimary()
-        compare(resumed, 1)
+        compare(detailed, 1); compare(resumed, 0)
         tile.activateKeyboardContext(0)
-        compare(detailed, 1)
+        compare(detailed, 2)
         tile.activateKeyboardContext(1)
-        compare(resumed, 2)
+        compare(resumed, 1)
         tile.activateKeyboardContext(2)
         compare(removed, 1)
+    }
+
+    function test_standalone_keyboard_details_and_resume() {
+        spawn("manga", "qualified:47")
+        window.requestActivate()
+        var details = findItem(tile, "continueDetail_mal:13")
+        verify(details !== null)
+        details.forceActiveFocus(Qt.TabFocusReason)
+        tryVerify(function() { return details.activeFocus })
+        keyClick(Qt.Key_Return)
+        compare(detailed, 1); compare(resumed, 0)
+        var resume = findItem(tile, "continueResume_mal:13")
+        verify(resume !== null)
+        resume.forceActiveFocus(Qt.TabFocusReason)
+        keyClick(Qt.Key_Return)
+        compare(detailed, 1); compare(resumed, 1)
     }
 
     function findItem(item, name) {

@@ -395,7 +395,7 @@ Item {
                 "sub": "Chapter 1", "cover": "file:///f/cover.png",
                 "c1": "#3a2f55", "c2": "#15111f",
                 "progress": 0.6,
-                "resume": { "chapterId": "ch1", "page": 3, "scrollFrac": 0, "pageFraction": 0,
+                "resume": { "chapterId": "ch1", "chapterNumber": "1", "page": 3, "scrollFrac": 0, "pageFraction": 0,
                             "maxSeen": 3, "finished": false }
             }
             // stash for the deferred phase (after the debounce fires + the close flush)

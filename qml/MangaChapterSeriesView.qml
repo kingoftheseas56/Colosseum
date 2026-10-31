@@ -32,6 +32,17 @@ Item {
     property bool hasSeriesLanguageOverride: false
     property string continueChapterId: ""
     property string continueChapterLabel: ""
+    readonly property string continueChapterMetadata: {
+        var label = String(root.continueChapterLabel || "").trim()
+        var pageMatch = label.match(/(?:^|[·])\s*p(?:age)?\.?\s*(\d+)\s*$/i)
+        var chapter = label.replace(/^continue\s+/i, "")
+                .replace(/\s*[·]\s*p(?:age)?\.?\s*\d+\s*$/i, "").trim()
+        if (chapter.toLowerCase() === "saved chapter" || chapter.toLowerCase() === "chapter") chapter = ""
+        var details = []
+        if (chapter.length) details.push(chapter)
+        if (pageMatch && pageMatch.length > 1) details.push(qsTr("Page %1").arg(pageMatch[1]))
+        return details.join(" · ") || qsTr("Saved position")
+    }
     property bool continueChapterReady: false
     property bool loading: false
     property string errorText: ""
@@ -172,8 +183,8 @@ Item {
 
             Item {
                 width: parent.width
-                height: root.phoneNarrow && root.continueChapterId.length ? 156
-                    : (root.phoneNarrow ? 100 : 58)
+                height: root.phoneNarrow && root.continueChapterId.length ? 168
+                    : (root.phoneNarrow ? 100 : 68)
                 Text {
                     anchors.left: parent.left; anchors.leftMargin: theme.margin
                     anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
@@ -203,42 +214,20 @@ Item {
                 }
                 // Resume the exact saved/downloaded chapter. Missing downloads remain
                 // visible as a recovery explanation without replacing Progress.
-                Rectangle {
-                    id: continueChapterButton
+                MangaContinueButton {
                     objectName: "mangaChapterContinueAction"
                     visible: root.continueChapterReady
-                    width: Math.min(root.phoneNarrow ? parent.width - 32 : 300,
-                                    continueChapterLabelText.implicitWidth + 32)
-                    height: root.phoneNarrow ? 40 : 36
-                    radius: 10
+                    width: Math.min(root.phoneNarrow ? parent.width - 32 : 300, 264)
+                    height: root.phoneNarrow ? 54 : 58
                     anchors.right: root.phoneNarrow ? undefined : pageSelector.left
                     anchors.rightMargin: root.phoneNarrow ? 0 : 12
                     anchors.horizontalCenter: root.phoneNarrow ? parent.horizontalCenter : undefined
                     anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
                     anchors.top: root.phoneNarrow ? parent.top : undefined
                     anchors.topMargin: root.phoneNarrow ? 105 : 0
-                    color: theme.gold
-                    Text {
-                        id: continueChapterLabelText
-                        anchors.fill: parent
-                        anchors.leftMargin: 12; anchors.rightMargin: 12
-                        verticalAlignment: Text.AlignVCenter
-                        horizontalAlignment: Text.AlignHCenter
-                        text: root.continueChapterLabel
-                        color: "#211806"; font.family: theme.ui
-                        font.pixelSize: 12; font.weight: Font.DemiBold
-                        elide: Text.ElideRight
-                    }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
-                                onClicked: root.continueChapterRequested() }
-                    KeyboardAction {
-                        anchors.fill: parent; pointerEnabled: false
-                        objectName: "mangaChapterContinueKeyboardAction"
-                        focusEnabled: root.continueChapterReady
-                        accessibleName: root.continueChapterLabel
-                        focusRadius: continueChapterButton.radius
-                        onTriggered: root.continueChapterRequested()
-                    }
+                    metadata: root.continueChapterMetadata
+                    keyboardObjectName: "mangaChapterContinueKeyboardAction"
+                    onTriggered: root.continueChapterRequested()
                 }
                 Text {
                     objectName: "mangaChapterSavedUnavailable"

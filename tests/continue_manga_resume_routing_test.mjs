@@ -195,3 +195,33 @@ const configurationId = "colosseum.well.tankoyomi";
 }
 
 console.log("PASS " + extensionChecks + " production Main.qml Extensions navigation checks");
+
+const backStart = main.indexOf("    function backFromMangaReader() {");
+const backEnd = main.indexOf("    // Vault comic", backStart);
+assert(backStart >= 0 && backEnd > backStart, "production manga reader Back route exists");
+const backSource = main.slice(backStart, backEnd);
+let backChecks = 0;
+function checkBack(condition, message) { assert.ok(condition, message); backChecks++; }
+for (const legacy of [false, true]) {
+    const calls = [];
+    const layer = {item: {seriesTitle: "One Piece Colored", seriesId: "mal:13:color", openChapterId: "chapter-47"},
+        malId: "13", seriesIdOverride: "mal:13:color", sourceSearchTitle: "One Piece Colored",
+        sourceSearchAliases: ["One Piece Digital Colored Comics"], sourceRequiredMarkers: ["colored"],
+        legacyWeebCentral: legacy};
+    const ctx = {seriesLayer: layer, win: {
+        closeComicReader() { calls.push("close"); layer.item = null; },
+        openSeries(...args) { calls.push({route: "series", args}); },
+        openWeebCentralSeries(...args) { calls.push({route: "legacy", args}); }
+    }};
+    runInNewContext(backSource, ctx);
+    ctx.backFromMangaReader();
+    checkBack(calls[0] === "close" && calls.length === 2,
+              "Back closes/flushed reader before reopening its series");
+    checkBack(calls[1].args[0] === "One Piece Colored"
+              && calls[1].route === (legacy ? "legacy" : "series"),
+              "Back returns to the same series and existing page route");
+    if (!legacy) checkBack(calls[1].args[2].seriesId === "mal:13:color"
+                           && calls[1].args[2].sourceRequiredMarkers[0] === "colored",
+                           "Back preserves the exact edition and its source qualifiers");
+}
+console.log("PASS " + backChecks + " production Main.qml reader Back navigation checks");
