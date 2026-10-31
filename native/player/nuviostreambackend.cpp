@@ -1,4 +1,5 @@
 #include "nuviostreambackend.h"
+#include "NuvioFixtureAdmission.h"
 
 #include <QLibrary>
 
@@ -150,7 +151,8 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
     };
 
     explicit WorkerState(const EngineApi &api, const Configuration &configuration)
-        : m_api(api), m_configuration(configuration), m_engineUnavailable(!api.resolves()) {}
+        : m_fixtureAdmission(configuration.fixtureMetadataSha256), m_api(api),
+          m_configuration(configuration), m_engineUnavailable(!api.resolves()) {}
 
     // The mutex serializes off-thread post scheduling with QObject destruction;
     // Qt itself discards queued invocations when their target is destroyed.
@@ -207,6 +209,7 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
         bool fetch = false;
         QString magnetOverride; // historical task-only magnet seam (disabled in diagnostic profile)
         QByteArray torrentSource; // pinned local .torrent metadata, no MP4 payload
+        bool reuseVerifiedFixtureSession = false;
     };
 
     // A deferred demand is replayed later exactly as it was asked: the whole
@@ -218,7 +221,7 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
 
     // Worker-thread helpers.
     bool ensureEngineCreated(QString *diagnostic);
-    void handleVerifyIsolation();
+    void handleVerifyIsolation(bool reuseVerifiedSession);
     std::string readSessionDiagnostics();
 
     // Task-only isolation evidence: resolved once from the loaded engine
@@ -226,7 +229,7 @@ struct NuvioStreamBackend::WorkerState : std::enable_shared_from_this<WorkerStat
     using SessionDiagnosticsFn = std::size_t (*)(const nuvio_engine *, char *, std::size_t);
     SessionDiagnosticsFn sessionDiagnosticsFn = nullptr;
     bool sessionDiagnosticsResolved = false;
-    std::string m_verifiedSessionId; // set only by empty-session verify on this instance
+    FixtureAdmission m_fixtureAdmission;
     QString engineLibraryPathForDiagnostics;
     void retireStream(const ActiveStream &stream);
     QString retireActiveRoute();
@@ -416,13 +419,14 @@ void NuvioStreamBackend::playTorrentData(
     m_state->enqueueTask(std::move(task));
 }
 
-void NuvioStreamBackend::verifyIsolation() {
+void NuvioStreamBackend::verifyIsolation(bool reuseVerifiedSession) {
     if (!available()) {
         emit streamError(QStringLiteral("nuvio engine backend is unavailable"));
         return;
     }
     WorkerState::Task task;
     task.kind = WorkerState::TaskKind::VerifyIsolation;
+    task.reuseVerifiedFixtureSession = reuseVerifiedSession;
     m_state->enqueueTask(std::move(task));
 }
 
@@ -577,7 +581,7 @@ void NuvioStreamBackend::WorkerState::workerLoop() {
                 quiesce();
                 break;
             case TaskKind::VerifyIsolation:
-                handleVerifyIsolation();
+                handleVerifyIsolation(task.reuseVerifiedFixtureSession);
                 break;
             case TaskKind::Stop:
                 handleStop();
@@ -623,7 +627,7 @@ bool NuvioStreamBackend::WorkerState::ensureEngineCreated(QString *diagnostic) {
     if (m_engine != nullptr) {
         return true;
     }
-    m_verifiedSessionId.clear(); // a newly created session must be reverified
+    m_fixtureAdmission.reset(); // a newly created session must be reverified
     if (m_configuration.requireFixtureIsolation) {
         // The isolated engine refuses fixture admission over saved state, and a
         // previous session's resume data or cached payload would also bypass the
@@ -676,20 +680,17 @@ bool NuvioStreamBackend::WorkerState::ensureEngineCreated(QString *diagnostic) {
     return true;
 }
 
-void NuvioStreamBackend::WorkerState::handleVerifyIsolation() {
+void NuvioStreamBackend::WorkerState::handleVerifyIsolation(bool reuseVerifiedSession) {
     QString diagnostic;
     if (!ensureEngineCreated(&diagnostic)) {
         qWarning() << "[nuvio] isolation-verify: session creation failed:" << diagnostic;
         return;
     }
     const auto current = readSessionDiagnostics();
-    m_verifiedSessionId.clear();
-    const bool passed = current.find("isolation_pass=true") != std::string::npos &&
-                        current.find("torrent_count=0") != std::string::npos;
-    if (passed) m_verifiedSessionId = sessionIdentity(current);
+    const bool passed = m_fixtureAdmission.verify(QString::fromStdString(current), reuseVerifiedSession);
     qInfo() << QStringLiteral("[nuvio011] isolation-verify %1; session=%2; %3")
-                   .arg(!m_verifiedSessionId.empty() ? QStringLiteral("PASS") : QStringLiteral("FAIL"),
-                        QString::fromStdString(m_verifiedSessionId),
+                   .arg(passed ? QStringLiteral("PASS") : QStringLiteral("FAIL"),
+                        m_fixtureAdmission.verifiedSession(),
                         QString::fromStdString(current));
 }
 
@@ -1037,15 +1038,12 @@ void NuvioStreamBackend::WorkerState::issueChain(const Task &task) {
         return;
     }
 
-    // Admission is closed until explicit verification of the identical
-    // session, including a real zero-torrent check immediately before demand.
+    // A fresh isolated session must first prove zero torrents. Only exact
+    // diagnostic metadata pins can then switch within that verified session.
     if (m_configuration.requireFixtureIsolation) {
         const auto current = readSessionDiagnostics();
-        const bool accepted = !m_verifiedSessionId.empty() &&
-            sessionIdentity(current) == m_verifiedSessionId &&
-            current.find("isolation_pass=true") != std::string::npos &&
-            current.find("torrent_count=0") != std::string::npos &&
-            !task.torrentSource.isEmpty();
+        const bool accepted = m_fixtureAdmission.admit(QString::fromStdString(current),
+            task.infoHash, task.fileIdx, task.torrentSource);
         qInfo() << "[nuvio011] admission" << (accepted ? "PASS" : "DENIED")
                 << QString::fromStdString(current);
         if (!accepted) {
@@ -1412,7 +1410,7 @@ void NuvioStreamBackend::WorkerState::finishStartup(
 }
 
 void NuvioStreamBackend::WorkerState::quiesce() {
-    m_verifiedSessionId.clear();
+    m_fixtureAdmission.reset();
     {
         std::lock_guard lock(m_stateMutex);
         retireStream(m_active);

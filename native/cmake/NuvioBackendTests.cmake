@@ -68,4 +68,17 @@ function(colosseum_add_nuvio_backend_tests)
             ENVIRONMENT "QT_FORCE_STDERR_LOGGING=1"
             TIMEOUT 120
     )
+    add_executable(tst_nuvio_fixture_admission
+        "${COLOSSEUM_NATIVE_DIR}/../tests/nuvio_fixture_admission_test.cpp")
+    target_include_directories(tst_nuvio_fixture_admission PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+    target_link_libraries(tst_nuvio_fixture_admission PRIVATE Qt6::Core Qt6::Test)
+    if(WIN32)
+        add_custom_command(TARGET tst_nuvio_fixture_admission POST_BUILD
+            COMMAND ${CMAKE_COMMAND} -E copy_if_different
+                "$<TARGET_FILE:Qt6::Core>" "$<TARGET_FILE:Qt6::Test>"
+                "$<TARGET_FILE_DIR:tst_nuvio_fixture_admission>" VERBATIM)
+    endif()
+    add_test(NAME colosseum.qttest.nuvio_fixture_admission COMMAND tst_nuvio_fixture_admission)
+    set_tests_properties(colosseum.qttest.nuvio_fixture_admission PROPERTIES
+        LABELS "unit;player;qttest;contract" TIMEOUT 15)
 endfunction()

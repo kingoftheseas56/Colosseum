@@ -49,6 +49,7 @@
 #include "nuvioengineapi.h"
 
 #include <QByteArray>
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QVariantMap>
@@ -77,6 +78,7 @@ public:
         // create; certificate verification is never disabled.
         QString tlsCaBundlePath;
         bool requireFixtureIsolation = false; // exact diagnostic-package only
+        QHash<QString, QByteArray> fixtureMetadataSha256; // diagnostic source-switch pins
         // Bounded cache/upload budgets; upload is Disabled for this candidate
         // and the limits below are always configured explicitly rather than
         // inherited from upstream defaults.
@@ -115,7 +117,7 @@ public:
     // that logs the engine's effective discovery diagnostics.
     void playMagnet(const QString &magnet, const QString &infoHash, int fileIdx);
     void playTorrentData(const QByteArray &data, const QString &infoHash, int fileIdx);
-    void verifyIsolation();
+    void verifyIsolation(bool reuseVerifiedSession = false);
     void prefetch(const QString &infoHash, int fileIdx);
     // Speculative browsing cannot replace an explicit download's route.
     Q_INVOKABLE void warmSource(const QString &infoHash, int fileIdx);

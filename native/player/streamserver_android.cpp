@@ -102,6 +102,12 @@ StreamServer::StreamServer(QObject *parent)
     if (m_diagnosticTask) {
         qputenv("NUVIO_ENGINE_DISABLE_DISCOVERY", "1");
         configuration.requireFixtureIsolation = true;
+        configuration.fixtureMetadataSha256 = {
+            {QStringLiteral("7f13e4dfe42445a675cccb6fda1e7549babad2a8"), QByteArrayLiteral(
+                "0a739d0665cd732d8391ab827cd05ba42af373599c0ba7234ac86a85d7e9a9e0")},
+            {QStringLiteral("3265144aea863a4952a75203d6e5a97914227498"), QByteArrayLiteral(
+                "8c1a0d4bdea4f04789c5baf42ac4dd3136d32ef36a1e6c10ae2c5974284d2d88")}
+        };
         configuration.dataDirectory = appData + QStringLiteral("/diag013-data");
         configuration.cacheDirectory =
             QStandardPaths::writableLocation(QStandardPaths::CacheLocation) +
@@ -219,18 +225,21 @@ StreamServer::StreamServer(QObject *parent)
     }
 }
 
-// Task 013 synthetic fixture (cloud-handoff/android-013/claude-013/fixture013):
-// the only metadata the diagnostic package admits, pinned by identity and bytes.
+// Task-owned synthetic fixtures: the diagnostic package admits only these
+// identities and exact metadata bytes. Both carry the original owned MP4.
 QByteArray StreamServer::loadPinnedFixture(const QString &infoHash, int fileIdx) const {
+    const bool switchFixture = infoHash == QStringLiteral("3265144aea863a4952a75203d6e5a97914227498");
     const QString sourcePath =
         QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) +
-        QStringLiteral("/nuvio013-fixture.torrent");
+        (switchFixture ? QStringLiteral("/nuvio022-fixture-b.torrent")
+                       : QStringLiteral("/nuvio013-fixture.torrent"));
     QFile torrentFile(sourcePath);
-    const auto expectedTorrentSha = QByteArrayLiteral(
-        "0a739d0665cd732d8391ab827cd05ba42af373599c0ba7234ac86a85d7e9a9e0");
-    if (infoHash != QStringLiteral("7f13e4dfe42445a675cccb6fda1e7549babad2a8") ||
+    const auto expectedTorrentSha = switchFixture
+        ? QByteArrayLiteral("8c1a0d4bdea4f04789c5baf42ac4dd3136d32ef36a1e6c10ae2c5974284d2d88")
+        : QByteArrayLiteral("0a739d0665cd732d8391ab827cd05ba42af373599c0ba7234ac86a85d7e9a9e0");
+    if ((!switchFixture && infoHash != QStringLiteral("7f13e4dfe42445a675cccb6fda1e7549babad2a8")) ||
         fileIdx != 0 || !torrentFile.open(QIODevice::ReadOnly) ||
-        torrentFile.size() != 2262) {
+        torrentFile.size() != (switchFixture ? 2263 : 2262)) {
         qWarning() << "[nuvio011] fixture trigger rejected: identity or metadata unavailable";
         return {};
     }
@@ -319,13 +328,13 @@ void StreamServer::play(const QString &infoHash, int fileIdx) {
         return;
     }
     if (m_diagnosticTask) {
-        // A fixture re-demand (foreground return after the background quiesce
-        // destroyed the session): prove isolation on the new session, then
-        // admit the same pinned metadata. The worker runs both in order.
+        // Prove a fresh session empty, or retain its proof while switching
+        // between the two exact pins. The worker runs verification and demand
+        // in order; background quiesce always discards the previous proof.
         const auto metadata = loadPinnedFixture(infoHash, fileIdx);
         if (!metadata.isEmpty()) {
             qInfo() << "[nuvio013] fixture re-demand: verify then admit on the current session";
-            m_backend->verifyIsolation();
+            m_backend->verifyIsolation(true);
             m_backend->playTorrentData(metadata, infoHash, fileIdx);
             return;
         }
