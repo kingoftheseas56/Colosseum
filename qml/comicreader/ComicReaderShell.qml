@@ -1482,7 +1482,13 @@ Item {
                 ? rec
                 : { layout: globalPrefs.layout, order: globalPrefs.order, rm: globalPrefs.readingMode }
         var prefsForSeries = ComicReaderState.migrateReaderPrefs(src, entryKind, western)
-        layout = prefsForSeries.layout
+        // On Android the lane default opens a manga in Single Page, not Paired: a phone screen
+        // cannot show two pages, and a lone page in Paired is fitted to the spread width and
+        // runs past the screen. A layout the reader picked (series or global) still wins.
+        var laneDefaultPaired = !ComicReaderState.layoutIsValid(src.layout)
+                && !src.rm && !src.readingMode && prefsForSeries.layout === "paired_pages"
+        layout = (Qt.platform.os === "android" && laneDefaultPaired) ? "single_page"
+                                                                     : prefsForSeries.layout
         order = prefsForSeries.order
 
         // The Image panel's adjustments, replayed BEFORE core.openEntry() (load()
