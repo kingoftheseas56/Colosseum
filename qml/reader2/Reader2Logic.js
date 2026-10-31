@@ -493,12 +493,17 @@ function clamp_(v, lo, hi) {
     return n < lo ? lo : (n > hi ? hi : n)
 }
 
+// A phone column is ~350 px wide; the desktop's 72 px margins would leave ~200 px of text.
+function defaultMarginPx() {
+    return (typeof Qt !== "undefined" && Qt.platform && Qt.platform.os === "android") ? 24 : 72
+}
+
 // appearanceDefaults() → the ratified default reader2 appearance (PARITY 2026-07-24:
 // full Reader-1 control set; sizePct replaces sizePx — 100% == the old 18px look).
 function appearanceDefaults() {
     return {
         theme: "night", font: "literata", sizePct: 100, fontWeight: 400,
-        lineHeight: 1.6, marginPx: 72, justify: true, flow: "paginated",
+        lineHeight: 1.6, marginPx: defaultMarginPx(), justify: true, flow: "paginated",
         wordSpacing: 0, letterSpacing: 0, paraSpacing: 0, paraIndent: "book",
         maxLineWidthPx: 960, hyphens: false, columns: "single",
         customPage: "#111214", customInk: "#c9c5bc", customCss: "",
@@ -630,7 +635,7 @@ function appearanceToPaper(settings) {
         sizePx: clamp_(Math.round(18 * pct / 100), 9, 54),
         fontWeight: clamp_(Math.round(clamp_(s.fontWeight === undefined ? 400 : s.fontWeight, 100, 900) / 100) * 100, 100, 900),
         lineHeight: clamp_(s.lineHeight === undefined ? 1.6 : s.lineHeight, 1.0, 2.2),
-        marginPx: clamp_(s.marginPx === undefined ? 72 : s.marginPx, 24, 160),
+        marginPx: clamp_(s.marginPx === undefined ? defaultMarginPx() : s.marginPx, 24, 160),
         justify: s.justify === undefined ? true : !!s.justify,
         flow: s.flow === "scrolled" ? "scrolled" : "paginated",
         wordSpacing: clamp_(s.wordSpacing === undefined ? 0 : s.wordSpacing, 0, 1),

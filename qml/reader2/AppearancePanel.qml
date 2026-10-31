@@ -100,7 +100,8 @@ ReaderOverlay {
         }
         event.accepted = true; return true
     }
-    onOpenChanged: if (open) Qt.callLater(function() { paperSwatch.focusKeyboard() })
+    // No keyboard focus on a touch phone: it only paints a ring on Paper beside the real choice.
+    onOpenChanged: if (open && Qt.platform.os !== "android") Qt.callLater(function() { paperSwatch.focusKeyboard() })
     Keys.onPressed: function(event) {
         if (panel.trapTab(event)) return
         if (open && event.key === Qt.Key_Escape) { panel.closeRequested(); event.accepted = true }

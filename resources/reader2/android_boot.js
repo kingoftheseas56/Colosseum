@@ -8,6 +8,8 @@
     'clearSearch', 'addHighlight', 'removeHighlight', 'clearSelection', 'setReadAlongStyle',
     'paintReadAlong', 'clearReadAlong', 'ensureReadAlongVisible', 'navigateReadAlong'])
   window.colosseumDisablePublicationScripts = true
+  // The reading typefaces ship inside the QML runtime bundle, not beside this page.
+  window.colosseumFontBase = '/assets/colosseum-runtime/assets/fonts/'
   window.bridge = {
     epubOnly: true,
     touchTaps: true,

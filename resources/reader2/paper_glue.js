@@ -329,7 +329,10 @@ const clientRectOf = (range, doc) => {
 // at the bundled TTFs by absolute file:// URL. The old reader proves this resolves in
 // QtWebEngine (localContentCanAccessFileUrls) — it injects ReadiumCSS @font-face the same way.
 // Built once from paper.html's location (../../assets/fonts/), reused on every setStyles.
+// A host whose fonts live elsewhere (Android: the runtime bundle) sets window.colosseumFontBase.
 const fontUrl = rel => {
+  const base = window.colosseumFontBase
+  if (base && rel.startsWith('../../assets/fonts/')) rel = base + rel.slice('../../assets/fonts/'.length)
   try { return new URL(rel, window.location.href).toString() }
   catch (e) { return rel }
 }
