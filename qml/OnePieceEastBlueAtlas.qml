@@ -78,6 +78,10 @@ FocusScope {
     }
 
     function closePreviewSoon() {
+        // On a phone a touch reads as a hover that ends on release, so the grace timer
+        // would shut a tapped preview within 160 ms. There it stays until its close
+        // button, Back, or another badge.
+        if (root.phoneLayout) return
         closeGrace.restart()
     }
 
