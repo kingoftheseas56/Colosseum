@@ -322,6 +322,31 @@ def verify_webengine_entitlements(app, report_path):
         report_path.write_text(json.dumps(report, indent=2))
 
 
+def select_sqlite_driver(app):
+    # All application QSqlDatabase::addDatabase sites select QSQLITE. Qt's SDK
+    # also deploys optional server drivers whose client libraries are not part
+    # of Colosseum (Postgres.app, Mimer and iODBC). Do not ship those plugins or
+    # weaken the dependency audit to tolerate their developer-machine paths.
+    directory = app / 'Contents/PlugIns/sqldrivers'
+    required = 'libqsqlite.dylib'
+    omitted = {'libqsqlpsql.dylib', 'libqsqlmimer.dylib', 'libqsqlodbc.dylib'}
+    if directory.is_symlink() or not directory.is_dir():
+        raise RuntimeError('Required SQLite plugin directory is absent or a symlink')
+    entries = sorted(directory.iterdir())
+    if not (directory / required).is_file() or (directory / required).is_symlink():
+        raise RuntimeError('Required libqsqlite.dylib is absent or a symlink')
+    for path in entries:
+        if path.name not in omitted | {required} or not path.is_file() or path.is_symlink():
+            raise RuntimeError(f'Unreviewed SQL driver entry: {path.name}')
+    removed = []
+    for path in entries:
+        if path.name in omitted:
+            removed.append(dict(file=path.name, sha256=sha256_file(path)))
+            path.unlink()
+    return dict(status='PASS', supported_qsql_drivers=['QSQLITE'], retained=[required],
+                omitted=removed, reason='Application SQL stores use SQLite only; unused SDK server drivers are excluded')
+
+
 def package(receipt_path, output):
     receipt = json.loads(receipt_path.read_text())
     source, original = Path(receipt['source']), Path(receipt['bundle'])
@@ -390,6 +415,8 @@ def package(receipt_path, output):
     run(deploy, app, '-qmldir=' + str(source / 'qml'),
         '-executable=' + str(app / 'Contents/MacOS/ffmpeg'),
         '-executable=' + str(app / 'Contents/MacOS/ffprobe'), '-codesign=-', '-verbose=2')
+    sql_policy = select_sqlite_driver(app)
+    (output / 'sql-driver-policy.json').write_text(json.dumps(sql_policy, indent=2))
     normalize_rpaths(app, macho_files(app))
     report = audit(app)
     (output / 'dependency-audit.json').write_text(json.dumps(report, indent=2))

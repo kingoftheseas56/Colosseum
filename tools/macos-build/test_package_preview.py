@@ -37,6 +37,36 @@ class PackagingBoundary(unittest.TestCase):
             self.assertTrue(all(package.system_path(dependency) for dependency in dependencies))
             self.assertEqual(rpaths, [])
 
+    def test_sqlite_only_deployment_retains_required_driver_and_audits_omissions(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / 'Colosseum.app'
+            drivers = app / 'Contents/PlugIns/sqldrivers'
+            drivers.mkdir(parents=True)
+            for name in ('libqsqlite.dylib', 'libqsqlpsql.dylib', 'libqsqlmimer.dylib', 'libqsqlodbc.dylib'):
+                (drivers / name).write_bytes(name.encode())
+            report = package.select_sqlite_driver(app)
+            self.assertEqual(report['retained'], ['libqsqlite.dylib'])
+            self.assertEqual(len(report['omitted']), 3)
+            self.assertEqual(list(drivers.iterdir()), [drivers / 'libqsqlite.dylib'])
+            self.assertEqual((drivers / 'libqsqlite.dylib').read_bytes(), b'libqsqlite.dylib')
+
+    def test_sqlite_policy_fails_closed_without_required_plugin_or_on_unexpected_entry(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app = Path(directory) / 'Colosseum.app'
+            with self.assertRaises(RuntimeError):
+                package.select_sqlite_driver(app)
+            drivers = app / 'Contents/PlugIns/sqldrivers'
+            drivers.mkdir(parents=True)
+            (drivers / 'libqsqlpsql.dylib').write_bytes(b'postgres')
+            with self.assertRaises(RuntimeError):
+                package.select_sqlite_driver(app)
+            self.assertTrue((drivers / 'libqsqlpsql.dylib').exists())
+            (drivers / 'libqsqlite.dylib').write_bytes(b'sqlite')
+            (drivers / 'unreviewed.dylib').write_bytes(b'unknown')
+            with self.assertRaises(RuntimeError):
+                package.select_sqlite_driver(app)
+            self.assertTrue((drivers / 'libqsqlpsql.dylib').exists())
+
     def test_archive_crc_paths_and_contained_framework_symlinks(self):
         with tempfile.TemporaryDirectory() as directory:
             archive = Path(directory) / 'preview.zip'
