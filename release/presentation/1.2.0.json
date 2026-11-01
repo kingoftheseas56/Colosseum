@@ -1,0 +1,16 @@
+{
+  "eyebrow": "COLLECTIONS AND READING",
+  "title": "Colosseum 1.2.0",
+  "summary": "Organize private collections, discover manga and Manhwa, return to your reading position, and manage Extensions and Downloads.",
+  "notes_url": "https://getcolosseum.world/releases/v1.2.0",
+  "highlights": [
+    {"kind": "feature", "section": "COLLECTIONS", "title": "Your own shelves", "body": "Create private local collections across supported media, add notes and arrange titles. Hosted sharing and gifts remain planned for 1.3.0.", "artwork_assets": []},
+    {"kind": "feature", "section": "MANGA", "title": "More ways to browse", "body": "Explore seven additional manga shelves and a dedicated category for existing Manhwa coverage.", "artwork_assets": []},
+    {"kind": "feature", "section": "READING", "title": "Return to your place", "body": "Remember series languages and improve exact Continue, chapter progress and Long Strip restoration.", "artwork_assets": []},
+    {"kind": "feature", "section": "EXTENSIONS", "title": "Preview and manage sources", "body": "Inspect URL manifests and manage installed source instances with their own configuration and artwork.", "artwork_assets": []},
+    {"kind": "feature", "section": "DOWNLOADS", "title": "Keep Vault in step", "body": "Synchronize download-backed shelves and delete downloads in bulk while preserving manually added Vault files.", "artwork_assets": []},
+    {"kind": "feature", "section": "WINDOWS", "title": "Optional integrations", "body": "Share local media through DLNA. AniList is experimental; live sign-in and synchronization were not release-qualified.", "artwork_assets": []},
+    {"kind": "feature", "section": "COMING SOON", "title": "Feria and Vinyl stay unavailable", "body": "Both worlds remain shaded and blocked in the Windows and Linux installers. Android and macOS are outside this candidate.", "artwork_assets": []}
+  ],
+  "artwork": []
+}

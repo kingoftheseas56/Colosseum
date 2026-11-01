@@ -313,6 +313,7 @@ const vinylSource = qml('vinyl/VinylLiveWorld.qml');
 function vinyl() {
     const outcomes = [], calls = [];
     const c = {
+        canEnterVinyl:true, enforceTasteGate:() => {},
         namedCollectionPending:{route:'vinyl-song-detail',sourceId:'vault:track-2',editionId:'edition-b',payload:{albumId:'album-a'}},
         namedCollectionRequestId:5, namedCollectionReturn:null, page:'library', routeStack:[],
         collectionOpenTimeout:{stop:() => {}}, namedCollectionOpened:(ok,message) => outcomes.push({ok,message}),

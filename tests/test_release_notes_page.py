@@ -9,6 +9,15 @@ SPEC.loader.exec_module(notes)
 
 
 class ReleaseNotesPage(unittest.TestCase):
+    def test_120_candidate_notes_match_source_and_disclose_scope(self):
+        source = (ROOT / 'docs/release-notes/v1.2.0.md').read_text(encoding='utf-8')
+        generated = (ROOT / 'scripts/update/release_notes_120.mjs').read_text(encoding='utf-8')
+        self.assertEqual(notes.build(source, '1.2.0'), generated)
+        for expected in ('Personal Collections', 'existing Manhwa coverage',
+                         'experimental', 'not release-qualified', 'XZ compression',
+                         'Feria and Vinyl remain shaded and unavailable'):
+            self.assertIn(expected, source)
+
     def test_served_page_matches_the_tracked_document(self):
         source = (ROOT / "docs/release-notes/v1.1.9.md").read_text(encoding="utf-8")
         self.assertEqual(notes.build(source), (ROOT / "scripts/update/release_notes_119.mjs").read_text(encoding="utf-8"))

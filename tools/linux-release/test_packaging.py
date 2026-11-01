@@ -118,6 +118,10 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(proc.returncode,0,proc.stdout+proc.stderr)
         info=subprocess.check_output(['dpkg-deb','--field',str(out),'Package','Version','Architecture'],text=True)
         self.assertIn('Package: colosseum',info);self.assertIn('Version: 1.1.9',info);self.assertIn('Architecture: amd64',info)
+        # Both control and payload must use XZ; a command-line assertion alone
+        # would miss dpkg environment/default changes or a later repack.
+        members=subprocess.check_output(['ar','t',str(out)],text=True).splitlines()
+        self.assertEqual(members,['debian-binary','control.tar.xz','data.tar.xz'])
         depends=subprocess.check_output(['dpkg-deb','--field',str(out),'Depends'],text=True)
         self.assertIn('libopengl0',[entry.strip() for entry in depends.split(',')])
         self.assertIn('ca-certificates',[entry.strip() for entry in depends.split(',')])

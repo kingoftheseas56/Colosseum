@@ -11,6 +11,13 @@ import sys
 import tempfile
 
 
+def deb_build_command(root, output):
+    # Restore XZ for both archive members and select level 6 explicitly;
+    # dpkg defaults (or a host's compression environment) must not grow assets.
+    return ['dpkg-deb', '--root-owner-group', '-Zxz', '-z6',
+            '--uniform-compression', '--build', str(root), str(output)]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--stage', required=True, type=Path)
@@ -79,8 +86,7 @@ def main():
                            ' Vinyl and Feria remain Coming Soon. Linux updates are manual.\n')
         output.parent.mkdir(parents=True, exist_ok=True)
         intermediate = temporary / 'candidate.deb'
-        subprocess.run(['dpkg-deb', '--root-owner-group', '-Zgzip', '-z6', '--build',
-                        str(root), str(intermediate)], check=True)
+        subprocess.run(deb_build_command(root, intermediate), check=True)
         shutil.copyfile(intermediate, output)
     with output.open('rb') as stream:
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()

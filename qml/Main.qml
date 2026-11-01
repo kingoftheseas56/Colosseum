@@ -98,7 +98,7 @@ Window {
     }
 
     property string currentSurface: "Home"
-    readonly property bool feriaComingSoon: false
+    readonly property bool feriaComingSoon: typeof FeriaLiveEnabled === "undefined" || !FeriaLiveEnabled
     property bool feriaRuntimeReady: false
     readonly property alias televisionMode: phoneShell.televisionMode
     property var vinylWorld: null

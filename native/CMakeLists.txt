@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.16)
 # RC = compile the Windows .rc that carries the app/exe icon. Windows-only: enabled below via
 # enable_language(RC) once WIN32 is known, instead of unconditionally in the base project()
 # declaration (arc-17 Linux port, first configure pass).
-project(colosseum VERSION 1.1.10 LANGUAGES C CXX)
+project(colosseum VERSION 1.2.0 LANGUAGES C CXX)
 if(WIN32)
     enable_language(RC)
 endif()
@@ -28,6 +28,9 @@ option(COLOSSEUM_NO_ACCOUNT_EDITION
 # ordinary development builds; the 1.1.10 shipping configurations set it OFF.
 option(COLOSSEUM_VINYL_IN_APP
     "Enable the Vinyl world in the application"
+    ON)
+option(COLOSSEUM_FERIA_IN_APP
+    "Enable the Feria world in the application"
     ON)
 # The semantic catalogue endpoint is NEVER enabled by an edition switch: the
 # staging endpoint ships only in explicit qualification builds
@@ -984,6 +987,11 @@ if(COLOSSEUM_VINYL_IN_APP)
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_VINYL_IN_APP=1)
 else()
     set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_VINYL_IN_APP=0)
+endif()
+if(COLOSSEUM_FERIA_IN_APP)
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_FERIA_IN_APP=1)
+else()
+    set_property(SOURCE main.cpp APPEND PROPERTY COMPILE_DEFINITIONS COLOSSEUM_FERIA_IN_APP=0)
 endif()
 if(COLOSSEUM_ENABLE_VINYL_QUALIFICATION AND NOT ANDROID)
     target_compile_definitions(colosseum PRIVATE COLOSSEUM_ENABLE_VINYL_QUALIFICATION=1)

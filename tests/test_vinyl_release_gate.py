@@ -11,6 +11,21 @@ PRODUCTION_CONTENT_API = 'https://colosseum-content-api.colosseum-watchparty-rel
 
 
 class VinylReleaseGateTests(unittest.TestCase):
+    def test_feria_has_a_native_shipping_gate_and_fail_closed_shell(self):
+        cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
+        self.assertIn('option(COLOSSEUM_FERIA_IN_APP', cmake)
+        self.assertIn('COLOSSEUM_FERIA_IN_APP=0', cmake)
+        availability = (ROOT / 'native/feria/FeriaAvailability.h').read_text(encoding='utf-8')
+        self.assertIn('#if defined(COLOSSEUM_FERIA_IN_APP) && !COLOSSEUM_FERIA_IN_APP', availability)
+        main = (ROOT / 'native/main.cpp').read_text(encoding='utf-8')
+        self.assertIn('QStringLiteral("FeriaLiveEnabled")', main)
+        self.assertIn('if (!Colosseum::feriaLiveEnabled() || feriaDiscovery)', main)
+        shell = (ROOT / 'qml/Main.qml').read_text(encoding='utf-8')
+        self.assertIn('readonly property bool feriaComingSoon: typeof FeriaLiveEnabled === "undefined" || !FeriaLiveEnabled', shell)
+        for workflow in ('release-installer-smoke.yml', 'release-linux-deb.yml'):
+            self.assertIn('-DCOLOSSEUM_FERIA_IN_APP=OFF',
+                          (ROOT / '.github/workflows' / workflow).read_text(encoding='utf-8'))
+
     def test_development_defaults_on_and_both_release_builds_opt_out(self):
         cmake = (ROOT / 'native/CMakeLists.txt').read_text(encoding='utf-8')
         self.assertIn('option(COLOSSEUM_VINYL_IN_APP\n    "Enable the Vinyl world in the application"\n    ON)', cmake)
@@ -27,7 +42,7 @@ class VinylReleaseGateTests(unittest.TestCase):
         opt_in = availability.index('qEnvironmentVariableIntValue("COLOSSEUM_VINYL_LIVE")')
         self.assertLess(disabled, opt_in)
 
-    def test_windows_packager_requires_vinyl_off_only_for_1110(self):
+    def test_windows_packager_requires_disabled_shipping_worlds(self):
         bash = Path('C:/Program Files/Git/bin/bash.exe')
         bash_command = str(bash) if bash.is_file() else shutil.which('bash')
         if not bash_command:
@@ -45,12 +60,15 @@ class VinylReleaseGateTests(unittest.TestCase):
                       'COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES:BOOL=OFF\n'
                       'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF\n'
                       f'COLOSSEUM_CONTENT_API_URL:STRING={PRODUCTION_CONTENT_API}\n')
-            for version, vinyl_value, expected in (
-                    ('1.1.10', 'OFF', 0), ('1.1.10', 'ON', 1), ('1.1.10', None, 1),
-                    ('1.1.9', 'ON', 0)):
-                with self.subTest(version=version, vinyl_value=vinyl_value):
+            cases = [('1.1.10', 'OFF', None, 0), ('1.1.10', 'ON', None, 1),
+                     ('1.1.10', None, None, 1), ('1.1.9', 'ON', None, 0)]
+            cases += [('1.2.0', vinyl, feria, int(vinyl != 'OFF' or feria != 'OFF'))
+                      for vinyl in ('OFF', 'ON', None) for feria in ('OFF', 'ON', None)]
+            for version, vinyl_value, feria_value, expected in cases:
+                with self.subTest(version=version, vinyl_value=vinyl_value, feria_value=feria_value):
                     vinyl_line = '' if vinyl_value is None else f'COLOSSEUM_VINYL_IN_APP:BOOL={vinyl_value}\n'
-                    cache.write_text(common + vinyl_line, encoding='utf-8')
+                    feria_line = '' if feria_value is None else f'COLOSSEUM_FERIA_IN_APP:BOOL={feria_value}\n'
+                    cache.write_text(common + vinyl_line + feria_line, encoding='utf-8')
                     result = subprocess.run(
                         [bash_command, '--noprofile', '--norc', '-c', guard + 'echo ACCEPTED'],
                         cwd=directory,

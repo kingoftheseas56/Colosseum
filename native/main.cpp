@@ -176,6 +176,7 @@
 #include "vinyl/VinylGeniusService.h"
 #include "vinyl/VinylRecommendationService.h"
 #include "vinyl/VinylAvailability.h"
+#include "feria/FeriaAvailability.h"
 #if defined(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
 #include "devtools/CollectionsTestProfileController.h"
 #include "NamedCollectionsStore.h"
@@ -2035,7 +2036,7 @@ int main(int argc, char *argv[]) {
     FeriaBrowserPolicy *feriaBrowserPolicy = nullptr;
     FeriaAccountStore *feriaAccount = nullptr;
     auto ensureFeriaRuntime = [&app, &engine, &feriaDiscovery, &feriaBrowserPolicy, &feriaAccount, accountRuntime, sessions]() {
-        if (feriaDiscovery)
+        if (!Colosseum::feriaLiveEnabled() || feriaDiscovery)
             return;
         feriaDiscovery = std::make_unique<PorticoComposition>();
         feriaDiscovery->exposeTo(engine.rootContext());
@@ -2080,6 +2081,8 @@ int main(int argc, char *argv[]) {
     engine.rootContext()->setContextProperty(QStringLiteral("VinylProvider"), vinylProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLiveEnabled"),
         Colosseum::vinylLiveEnabled());
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaLiveEnabled"),
+        Colosseum::feriaLiveEnabled());
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
                      vinylLocalSource, &VinylLocalSource::checkpointRequested);
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
