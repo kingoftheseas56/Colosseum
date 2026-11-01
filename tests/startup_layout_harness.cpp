@@ -143,6 +143,66 @@ int main(int argc, char** argv)
     CHECK(overridden && overridden->qmlPath == QFileInfo(overridePath).absoluteFilePath(),
           "explicit QML override wins over build manifest");
 
+#ifdef Q_OS_MACOS
+    const QString macBundle = QDir(temp.path()).filePath(QStringLiteral("Colosseum.app"));
+    const QString macAppDir = QDir(macBundle).filePath(QStringLiteral("Contents/MacOS"));
+    const QString macRuntime = QDir(macBundle).filePath(
+        QStringLiteral("Contents/Resources/colosseum-runtime"));
+    const QString macQml = QDir(macRuntime).filePath(QStringLiteral("qml/Main.qml"));
+    const QString macManifest = QDir(macRuntime).filePath(QStringLiteral("qml-build.manifest"));
+    const QByteArray bundledQml("import QtQuick\nQtObject { property bool bundled: true }\n");
+    QDir().mkpath(macAppDir);
+    writeFile(macQml, bundledQml);
+    const QString macFingerprint = qmlTreeFingerprint(QFileInfo(macQml).absolutePath(), &error);
+    writeManifest(macManifest, macFingerprint);
+    writeFile(QDir(macBundle).filePath(QStringLiteral("Contents/Resources/qml/QtQuick/Extra.qml")),
+              "QtObject {}\n");
+    CHECK(QDir::setCurrent(temp.path()), "Mac bundle starts outside source working directory");
+    const auto macNormal = resolveStartupLayout({QStringLiteral("colosseum")}, macAppDir, &error);
+    CHECK(macNormal && !macNormal->qmlOverride, "Mac app normal startup uses production gate");
+    CHECK(macNormal && macNormal->resourceRoot == QFileInfo(macRuntime).absoluteFilePath(),
+          "Mac app resolves isolated bundled resource root");
+    CHECK(macNormal && macNormal->qmlPath == QFileInfo(macQml).absoluteFilePath(),
+          "Mac app uses bundled QML and excludes macdeployqt imports from fingerprint");
+
+    // Neither a valid source cwd nor the legacy two-ancestor location may
+    // rescue an incomplete .app. A beside-executable manifest is also ignored.
+    CHECK(QDir::setCurrent(repoRoot), "valid source cwd selected for broken Mac bundle probes");
+    writeFile(QDir(macBundle).filePath(QStringLiteral("qml/Main.qml")), bundledQml);
+    writeManifest(QDir(macAppDir).filePath(QStringLiteral("qml-build.manifest")), fingerprint);
+    QFile::remove(macQml);
+    const auto macMissingMain = resolveStartupLayout({QStringLiteral("colosseum")}, macAppDir, &error);
+    CHECK(!macMissingMain && error.startsWith(QStringLiteral("qml_entrypoint_missing:")),
+          "Mac bundle missing Main fails closed despite valid source cwd and legacy tree");
+    writeFile(macQml, bundledQml);
+    QFile::remove(macManifest);
+    const auto macMissingManifest = resolveStartupLayout(
+        {QStringLiteral("colosseum")}, macAppDir, &error, manifest);
+    CHECK(!macMissingManifest && error.startsWith(QStringLiteral("qml_build_manifest_missing:")),
+          "Mac bundle requires its own manifest despite source cwd, legacy manifest and override");
+    writeFile(macManifest, "schema=99\nqmlTreeSha256=invalid\n");
+    const auto macInvalidSchema = resolveStartupLayout({QStringLiteral("colosseum")}, macAppDir, &error);
+    CHECK(!macInvalidSchema && error.startsWith(QStringLiteral("qml_build_manifest_schema_invalid:")),
+          "Mac bundle rejects invalid manifest schema");
+    writeManifest(macManifest, QStringLiteral("invalid"));
+    const auto macInvalidFingerprint = resolveStartupLayout(
+        {QStringLiteral("colosseum")}, macAppDir, &error);
+    CHECK(!macInvalidFingerprint
+              && error.startsWith(QStringLiteral("qml_build_manifest_fingerprint_invalid:")),
+          "Mac bundle rejects invalid manifest fingerprint");
+    writeManifest(macManifest, macFingerprint);
+    writeFile(macQml, "import QtQuick\nQtObject { property bool drifted: true }\n");
+    const auto macDrifted = resolveStartupLayout({QStringLiteral("colosseum")}, macAppDir, &error);
+    CHECK(!macDrifted && error.startsWith(QStringLiteral("qml_build_mismatch:")),
+          "Mac bundle rejects QML drift despite valid source working directory");
+    const auto macExplicitOverride = resolveStartupLayout(
+        {QStringLiteral("colosseum"), overridePath}, macAppDir, &error);
+    CHECK(macExplicitOverride && macExplicitOverride->qmlOverride,
+          "Mac bundle preserves the existing explicit QML override contract");
+    CHECK(QDir::setCurrent(originalCwd), "working directory restored after Mac app probes");
+    std::printf("startup_layout_harness: Mac bundle probes executed\n");
+#endif
+
     writeFile(mainQml, "import QtQuick\nQtObject { property int changed: 1 }\n");
     const auto mismatched = resolveStartupLayout({QStringLiteral("colosseum.exe")}, appDir, &error);
     CHECK(!mismatched.has_value(), "normal launch rejects QML changed after native build");

@@ -249,7 +249,21 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
     }
 
     QDir resourceRoot(applicationDirPath);
-    const bool ancestorRootResolved = resourceRoot.cdUp() && resourceRoot.cdUp();
+    bool macAppBundle = false;
+#ifdef Q_OS_MACOS
+    QDir contents(applicationDirPath);
+    if (contents.dirName() == QStringLiteral("MacOS") && contents.cdUp()
+        && contents.dirName() == QStringLiteral("Contents")) {
+        QDir bundle(contents);
+        if (bundle.cdUp() && bundle.dirName().endsWith(QStringLiteral(".app"), Qt::CaseInsensitive)) {
+            macAppBundle = true;
+            // Keep application QML separate from macdeployqt's Resources/qml
+            // imports, which must not become part of the app's QML fingerprint.
+            resourceRoot = QDir(contents.filePath(QStringLiteral("Resources/colosseum-runtime")));
+        }
+    }
+#endif
+    const bool ancestorRootResolved = macAppBundle || (resourceRoot.cdUp() && resourceRoot.cdUp());
     QFileInfo mainQml;
     if (ancestorRootResolved) {
         const QString candidateQmlRoot = resourceRoot.filePath(QStringLiteral("qml"));
@@ -263,6 +277,10 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
     // when it contains qml/Main.qml; the build manifest below still fingerprints the whole
     // tree and fails closed if the runtime QML differs from what this binary was built with.
     if (!mainQml.isFile()) {
+        if (macAppBundle) {
+            setError(error, QStringLiteral("qml_entrypoint_missing: ") + mainQml.absoluteFilePath());
+            return std::nullopt;
+        }
         const QDir workingRoot(QDir::currentPath());
         const QFileInfo workingMainQml(
             QDir(workingRoot.filePath(QStringLiteral("qml"))).filePath(QStringLiteral("Main.qml")));
@@ -279,9 +297,11 @@ std::optional<StartupLayout> resolveStartupLayout(const QStringList& arguments,
 
     const QString qmlRoot = resourceRoot.filePath(QStringLiteral("qml"));
 
-    const QString manifestPath = manifestPathOverride.isEmpty()
-        ? QDir(applicationDirPath).filePath(QStringLiteral("qml-build.manifest"))
-        : manifestPathOverride;
+    const QString manifestPath = macAppBundle
+        ? resourceRoot.filePath(QStringLiteral("qml-build.manifest"))
+        : (manifestPathOverride.isEmpty()
+               ? QDir(applicationDirPath).filePath(QStringLiteral("qml-build.manifest"))
+               : manifestPathOverride);
     QFile manifest(manifestPath);
     if (!manifest.open(QIODevice::ReadOnly)) {
         setError(error, QStringLiteral("qml_build_manifest_missing: ") + manifestPath);

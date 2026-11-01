@@ -15,7 +15,18 @@ command -v brew >/dev/null || fail 'Install native Homebrew using https://brew.s
 for tool in cmake ninja pkg-config curl tar shasum lipo; do
     command -v "$tool" >/dev/null || fail "Missing $tool; install prerequisites from the handoff"
 done
-root="$HOME/Library/Caches/Colosseum/m1-preview"
+root=${COLOSSEUM_MAC_WORK_ROOT:-"$HOME/Library/Caches/Colosseum/m1-preview"}
+bundle=${COLOSSEUM_MAC_BUNDLE:-0}
+[[ $bundle == 0 || $bundle == 1 ]] || fail 'COLOSSEUM_MAC_BUNDLE must be 0 or 1'
+bundle_flag=OFF
+[[ $bundle == 0 ]] || bundle_flag=ON
+deployment=${MACOSX_DEPLOYMENT_TARGET:-26.1}
+[[ $deployment =~ ^[0-9]+\.[0-9]+(\.[0-9]+)?$ ]] || fail 'MACOSX_DEPLOYMENT_TARGET must be a numeric major.minor[.patch] version'
+export MACOSX_DEPLOYMENT_TARGET="$deployment"
+[[ -z ${COLOSSEUM_MAC_RECEIPT_PATH:-} || ! -e $COLOSSEUM_MAC_RECEIPT_PATH ]] || fail 'Receipt already exists'
+if [[ -n ${COLOSSEUM_MAC_RECEIPT_PATH:-} ]]; then
+    command -v python3 >/dev/null || fail 'python3 is required to write COLOSSEUM_MAC_RECEIPT_PATH (including when reusing an existing Qt SDK)'
+fi
 mkdir -p "$root"
 work=$(mktemp -d "$root/${pin}.XXXXXX")
 log="$work/build.log"
@@ -24,6 +35,8 @@ trap 'result=$?; printf "\nBUILD_EXIT=%s\nSOURCE_SHA=%s\nWORK=%s\nLOG=%s\n" "$re
 printf 'SOURCE_SHA=%s\nSOURCE=%s\nWORK=%s\n' "$pin" "$repo" "$work"
 sw_vers
 xcodebuild -version 2>/dev/null || xcrun clang --version
+xcrun --show-sdk-version
+df -h "$work"
 cmake --version
 brew --version
 formulas=(cmake ninja pkgconf libtorrent-rasterbar boost openssl@3 mpv ffmpeg)
@@ -64,7 +77,8 @@ find_package(Qt6 6.11.1 EXACT REQUIRED COMPONENTS Quick Qml Gui Network Sql Conc
     WebSockets WebEngineQuick WebChannel Positioning SerialPort Svg)
 CMAKE
 cmake -S "$work/sdk-probe" -B "$work/sdk-probe-build" -G Ninja \
-    -DCMAKE_PREFIX_PATH="$qtbase" -DCMAKE_OSX_ARCHITECTURES=arm64
+    -DCMAKE_PREFIX_PATH="$qtbase" -DCMAKE_OSX_ARCHITECTURES=arm64 \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment"
 printf 'QT_PREFIX=%s\n' "$qtbase"
 export PKG_CONFIG_PATH="$(brew --prefix mpv)/lib/pkgconfig:$(brew --prefix openssl@3)/lib/pkgconfig${PKG_CONFIG_PATH:+:$PKG_CONFIG_PATH}"
 pkg-config --modversion mpv
@@ -88,11 +102,16 @@ fetch_source mpvqt https://download.kde.org/stable/mpvqt/mpvqt-1.2.0.tar.xz \
     8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb
 cmake -S "$work/mpvqt-source" -B "$work/mpvqt-build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DBUILD_TESTING=OFF \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment" \
     -DCMAKE_INSTALL_PREFIX="$deps" -DCMAKE_PREFIX_PATH="$qtbase;$deps" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase"
 cmake --build "$work/mpvqt-build" --target install --parallel "$jobs"
 cmake -S "$repo/native" -B "$work/app" -G Ninja \
-    -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_MACOSX_BUNDLE=OFF \
+    -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DCMAKE_MACOSX_BUNDLE="$bundle_flag" \
+    -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment" \
+    -DMACOSX_BUNDLE_GUI_IDENTIFIER=world.getcolosseum.Colosseum \
+    -DMACOSX_BUNDLE_BUNDLE_NAME=Colosseum \
+    -DMACOSX_BUNDLE_BUNDLE_VERSION=1.2.0 -DMACOSX_BUNDLE_SHORT_VERSION_STRING=1.2.0 \
     -DBUILD_TESTING=OFF -DCOLOSSEUM_BUILD_PLAYER2=OFF \
     -DCMAKE_PREFIX_PATH="$qtbase;$deps;$(brew --prefix libtorrent-rasterbar);$(brew --prefix boost);$(brew --prefix openssl@3)" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase" \
@@ -103,9 +122,29 @@ cmake -S "$repo/native" -B "$work/app" -G Ninja \
     -DCOLOSSEUM_ENABLE_VINYL_TEST_FIXTURES=OFF \
     -DCOLOSSEUM_CONTENT_API_URL=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev
 cmake --build "$work/app" --target colosseum_runtime_ready --parallel "$jobs"
-[[ -x "$work/app/colosseum" ]] || fail 'Expected bare developer executable was not produced'
-file "$work/app/colosseum"
-otool -L "$work/app/colosseum"
-printf '\nCOMPILED_EXECUTABLE=%s\n' "$work/app/colosseum"
-printf 'Developer launch (manual, no account qualification):\ncd %q && COLOSSEUM_DEV=1 QT_FORCE_STDERR_LOGGING=1 QML_DISABLE_DISK_CACHE=1 %q qml/Main.qml\n' "$repo" "$work/app/colosseum"
+executable="$work/app/colosseum"
+app_bundle=""
+if [[ $bundle == 1 ]]; then
+    app_bundle="$work/app/colosseum.app"
+    executable="$app_bundle/Contents/MacOS/colosseum"
+fi
+[[ -x "$executable" ]] || fail 'Expected executable was not produced'
+file "$executable"
+otool -L "$executable"
+if [[ -n ${COLOSSEUM_MAC_RECEIPT_PATH:-} ]]; then
+    python3 - "$COLOSSEUM_MAC_RECEIPT_PATH" "$repo" "$pin" "$work" "$qtbase" "$deps" "$executable" "$app_bundle" "$deployment" <<'PY'
+import json, pathlib, subprocess, sys
+output, source, sha, work, qt, deps, executable, bundle, minimum = sys.argv[1:]
+receipt = dict(schema=1, source=source, source_sha=sha, work=work, build=work+'/app',
+               qt_prefix=qt, dependency_prefix=deps, executable=executable, bundle=bundle,
+               deployment_target=minimum, configuration='Release', architecture='arm64',
+               qt_version='6.11.1', mpvqt_version='1.2.0', ecm_version='6.15.0',
+               dependencies=pathlib.Path(work, 'dependencies.txt').read_text().splitlines(),
+               sdk_version=subprocess.check_output(['xcrun','--show-sdk-version'], text=True).strip())
+with open(output, 'x') as stream:
+    json.dump(receipt, stream, indent=2)
+PY
+fi
+printf '\nCOMPILED_EXECUTABLE=%s\n' "$executable"
+printf 'Developer launch (manual, no account qualification):\ncd %q && COLOSSEUM_DEV=1 QT_FORCE_STDERR_LOGGING=1 QML_DISABLE_DISK_CACHE=1 %q qml/Main.qml\n' "$repo" "$executable"
 printf 'Compilation complete; startup, playback, quit, accounts and distributable .app remain unverified.\n'

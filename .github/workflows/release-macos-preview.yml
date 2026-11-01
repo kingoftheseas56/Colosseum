@@ -1,0 +1,92 @@
+name: macOS arm64 preview application
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    # Standard public-repository Apple Silicon runner; no paid large runner.
+    runs-on: macos-26
+    timeout-minutes: 150
+    env:
+      MACOSX_DEPLOYMENT_TARGET: '26.1'
+      COLOSSEUM_BUILD_JOBS: '2'
+      COLOSSEUM_MAC_BUNDLE: '1'
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v7
+      - name: Allocate isolated preview output and record runner SDK
+        run: |
+          set -euo pipefail
+          output=$(mktemp -d "$RUNNER_TEMP/colosseum-mac-output.XXXXXX")
+          work=$(mktemp -d "$RUNNER_TEMP/colosseum-mac-work.XXXXXX")
+          echo "PREVIEW_OUTPUT=$output" >> "$GITHUB_ENV"
+          echo "COLOSSEUM_MAC_WORK_ROOT=$work" >> "$GITHUB_ENV"
+          echo "COLOSSEUM_MAC_RECEIPT_PATH=$output/build-receipt.json" >> "$GITHUB_ENV"
+          if [[ -d /Applications/Xcode_26.1.1.app ]]; then
+            sudo xcode-select --switch /Applications/Xcode_26.1.1.app/Contents/Developer
+          fi
+          {
+            uname -a
+            sw_vers
+            xcodebuild -version
+            xcrun --show-sdk-version
+            xcrun --show-sdk-path
+            df -h
+          } 2>&1 | tee "$output/runner.log"
+      - name: Install native build dependencies
+        run: |
+          set -euo pipefail
+          brew install cmake ninja pkgconf libtorrent-rasterbar boost openssl@3 mpv ffmpeg python \
+            2>&1 | tee "$PREVIEW_OUTPUT/dependency-install.log"
+          df -h | tee -a "$PREVIEW_OUTPUT/dependency-install.log"
+      - name: Packaging helper regressions
+        run: |
+          set -euo pipefail
+          python3 tools/macos-build/test_package_preview.py 2>&1 | tee "$PREVIEW_OUTPUT/packaging-tests.log"
+      - name: Compile exact checkout with coherent official Qt
+        run: |
+          set -euo pipefail
+          bash tools/macos-build/build-m1-preview.sh "$GITHUB_WORKSPACE" "$GITHUB_SHA" \
+            2>&1 | tee "$PREVIEW_OUTPUT/build.log"
+      - name: Verify native Mac bundle bootstrap contracts
+        run: |
+          set -euo pipefail
+          build=$(python3 -c 'import json,os; print(json.load(open(os.environ["COLOSSEUM_MAC_RECEIPT_PATH"]))["build"])')
+          cmake --build "$build" --target startup_layout_harness --parallel 2 \
+            2>&1 | tee "$PREVIEW_OUTPUT/bootstrap-build.log"
+          "$build/startup_layout_harness.app/Contents/MacOS/startup_layout_harness" \
+            2>&1 | tee "$PREVIEW_OUTPUT/bootstrap-tests.log"
+          grep -F 'startup_layout_harness: Mac bundle probes executed' "$PREVIEW_OUTPUT/bootstrap-tests.log"
+          grep -F 'ALL PASS' "$PREVIEW_OUTPUT/bootstrap-tests.log"
+      - name: Deploy, audit, ad-hoc sign and archive preview
+        run: |
+          set -euo pipefail
+          python3 tools/macos-build/package-preview.py package \
+            --receipt "$COLOSSEUM_MAC_RECEIPT_PATH" --output "$PREVIEW_OUTPUT" \
+            2>&1 | tee "$PREVIEW_OUTPUT/deploy-audit-sign.log"
+      - name: Check archived bundle startup and normal quit
+        run: |
+          set -euo pipefail
+          # Archive already exists if the GUI session is unavailable or startup
+          # fails. Runtime evidence remains separate from build/deployment gates.
+          python3 tools/macos-build/package-preview.py smoke --output "$PREVIEW_OUTPUT" \
+            2>&1 | tee "$PREVIEW_OUTPUT/runtime-smoke.log"
+      - name: Upload preview and evidence (including failed-step logs)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.2.0-macOS-arm64-preview
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+          path: |
+            ${{ env.PREVIEW_OUTPUT }}/*.zip
+            ${{ env.PREVIEW_OUTPUT }}/*.sha256
+            ${{ env.PREVIEW_OUTPUT }}/*.json
+            ${{ env.PREVIEW_OUTPUT }}/*.log
