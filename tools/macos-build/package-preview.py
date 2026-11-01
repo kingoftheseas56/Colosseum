@@ -263,6 +263,63 @@ def startup_ready(state, splash):
             and splash.get('props', {}).get('visible') is False)
 
 
+def verify_webengine_entitlements(app, report_path):
+    """Check preserved SDK helper metadata, without claiming functional rendering."""
+    report = dict(status='FAIL', scope='QtWebEngine helper signing metadata only', helpers=[])
+    try:
+        helpers, seen = [], set()
+        for candidate in sorted(app.rglob('QtWebEngineProcess.app')):
+            helper = candidate.resolve(strict=True)
+            if not helper.is_dir() or not within(helper, app):
+                raise RuntimeError(f'Invalid QtWebEngine helper bundle: {candidate}')
+            stat = helper.stat()
+            identity = (stat.st_dev, stat.st_ino)
+            if identity not in seen:
+                seen.add(identity)
+                helpers.append(helper)
+        if not helpers:
+            raise RuntimeError('No QtWebEngineProcess.app helper found')
+        for helper in helpers:
+            record = dict(helper=str(helper.relative_to(app.resolve())), status='FAIL')
+            report['helpers'].append(record)
+            try:
+                expected_path = helper / 'Contents/Resources/QtWebEngineProcess.entitlements'
+                if not within(expected_path, app):
+                    raise RuntimeError('QtWebEngine SDK entitlement file escapes bundle')
+                expected = plistlib.loads(expected_path.read_bytes())
+                if not isinstance(expected, dict) or not expected:
+                    raise RuntimeError('QtWebEngine SDK entitlement plist must be a nonempty dictionary')
+                record['expected'] = expected
+                # Apple TN3125 documents --xml because the default display is
+                # a human-readable DER representation on current macOS.
+                command = ['codesign', '--display', '--entitlements', '-', '--xml', str(helper)]
+                print('+', ' '.join(command), flush=True)
+                # codesign diagnostics belong to stderr; merging them with the
+                # plist would corrupt the actual entitlement evidence.
+                result = subprocess.run(command, check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                print(result.stderr.decode('utf-8', errors='replace'), end='', flush=True)
+                result.check_returncode()
+                actual = plistlib.loads(result.stdout, fmt=plistlib.FMT_XML)
+                if not isinstance(actual, dict) or not actual:
+                    raise RuntimeError('Signed QtWebEngine entitlements must be a nonempty dictionary')
+                record['actual'] = actual
+                mismatches = [key for key, value in expected.items()
+                              if key not in actual or type(actual[key]) is not type(value) or actual[key] != value]
+                if mismatches:
+                    raise RuntimeError('SDK QtWebEngine entitlements missing or changed: ' + ', '.join(mismatches))
+                record['status'] = 'PASS'
+            except Exception as error:
+                record['error'] = str(error)
+                raise
+        report['status'] = 'PASS'
+        return report
+    except Exception as error:
+        report['error'] = str(error)
+        raise
+    finally:
+        report_path.write_text(json.dumps(report, indent=2))
+
+
 def package(receipt_path, output):
     receipt = json.loads(receipt_path.read_text())
     source, original = Path(receipt['source']), Path(receipt['bundle'])
@@ -339,8 +396,10 @@ def package(receipt_path, output):
                     runtime_status='UNVERIFIED', receipt=receipt,
                     qml_manifest_sha256=hashlib.sha256((runtime / 'qml-build.manifest').read_bytes()).hexdigest())
     (app / 'Contents/Resources/BUILD-IDENTITY.json').write_text(json.dumps(identity, indent=2))
-    run('codesign', '--force', '--deep', '--sign', '-', app)
+    run('codesign', '--force', '--deep', '--sign', '-',
+        '--preserve-metadata=identifier,entitlements', app)
     run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
+    verify_webengine_entitlements(app, output / 'signing-entitlements.json')
     run('codesign', '--display', '--verbose=4', app)
     archive = output / 'Colosseum-1.2.0-macOS-arm64-preview.zip'
     if archive.exists():

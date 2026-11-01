@@ -4,6 +4,7 @@ import importlib.util
 import os
 from pathlib import Path
 import plistlib
+import subprocess
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -15,6 +16,69 @@ spec.loader.exec_module(package)
 
 
 class PackagingBoundary(unittest.TestCase):
+    def webengine_fixture(self, root):
+        app = root / 'Colosseum.app'
+        helper = app / 'Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app'
+        expected_path = helper / 'Contents/Resources/QtWebEngineProcess.entitlements'
+        expected_path.parent.mkdir(parents=True)
+        expected = {'com.apple.security.cs.allow-jit': True}
+        expected_path.write_bytes(plistlib.dumps(expected))
+        return app, helper, expected_path, expected, root / 'signing-entitlements.json'
+
+    def test_webengine_entitlements_preserve_sdk_values_and_deduplicate_helpers(self):
+        with tempfile.TemporaryDirectory() as directory:
+            app, helper, _, expected, report_path = self.webengine_fixture(Path(directory))
+            actual = dict(expected, **{'another.existing.sdk.key': True})
+            result = subprocess.CompletedProcess([], 0, stdout=plistlib.dumps(actual),
+                                                 stderr=b'Executable=QtWebEngineProcess\n')
+            with patch.object(Path, 'rglob', return_value=[helper, helper]), patch.object(package.subprocess, 'run', return_value=result) as execute:
+                report = package.verify_webengine_entitlements(app, report_path)
+            self.assertEqual(report['status'], 'PASS')
+            self.assertEqual(len(report['helpers']), 1)
+            self.assertEqual(report['helpers'][0]['expected'], expected)
+            self.assertEqual(report['helpers'][0]['actual'], actual)
+            execute.assert_called_once_with(['codesign', '--display', '--entitlements', '-', '--xml', str(helper.resolve())],
+                                            check=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+            self.assertIn('"status": "PASS"', report_path.read_text())
+
+    def test_webengine_entitlements_fail_missing_changed_or_invalid_signed_values(self):
+        values = (b'', b'not a plist', plistlib.dumps({}),
+                  plistlib.dumps({'com.apple.security.cs.allow-jit': True}, fmt=plistlib.FMT_BINARY),
+                  plistlib.dumps({'some.other.entitlement': True}),
+                  plistlib.dumps({'com.apple.security.cs.allow-jit': False}),
+                  plistlib.dumps({'com.apple.security.cs.allow-jit': 1}))
+        for value in values:
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                app, _, _, _, report_path = self.webengine_fixture(Path(directory))
+                result = subprocess.CompletedProcess([], 0, stdout=value, stderr=b'codesign diagnostic\n')
+                with patch.object(package.subprocess, 'run', return_value=result), self.assertRaises(Exception):
+                    package.verify_webengine_entitlements(app, report_path)
+                self.assertIn('"status": "FAIL"', report_path.read_text())
+
+    def test_webengine_entitlements_require_valid_nonempty_sdk_plist(self):
+        for value in (None, b'', b'invalid', plistlib.dumps({})):
+            with self.subTest(value=value), tempfile.TemporaryDirectory() as directory:
+                app, _, expected_path, _, report_path = self.webengine_fixture(Path(directory))
+                if value is None:
+                    expected_path.unlink()
+                else:
+                    expected_path.write_bytes(value)
+                with patch.object(package.subprocess, 'run') as execute, self.assertRaises(Exception):
+                    package.verify_webengine_entitlements(app, report_path)
+                execute.assert_not_called()
+                self.assertIn('"status": "FAIL"', report_path.read_text())
+
+    def test_webengine_entitlements_require_helper_and_successful_codesign(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            app, _, _, expected, report_path = self.webengine_fixture(root)
+            result = subprocess.CompletedProcess(['codesign'], 1, stdout=plistlib.dumps(expected), stderr=b'unsigned\n')
+            with patch.object(package.subprocess, 'run', return_value=result), self.assertRaises(subprocess.CalledProcessError):
+                package.verify_webengine_entitlements(app, report_path)
+            with self.assertRaisesRegex(RuntimeError, 'No QtWebEngineProcess.app'):
+                package.verify_webengine_entitlements(root / 'absent.app', report_path)
+            self.assertIn('"status": "FAIL"', report_path.read_text())
+
     def test_qt_license_case_aliases_are_copied_once(self):
         qt = MagicMock()
         directories = [MagicMock() for _ in range(3)]
