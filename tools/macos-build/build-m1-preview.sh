@@ -39,13 +39,19 @@ xcrun --show-sdk-version
 df -h "$work"
 cmake --version
 brew --version
-formulas=(cmake ninja pkgconf libtorrent-rasterbar boost openssl@3 mpv ffmpeg)
+formulas=(cmake ninja pkgconf clang-format libtorrent-rasterbar boost openssl@3 mpv ffmpeg)
 [[ -n ${COLOSSEUM_QT_PREFIX:-} ]] || formulas+=(python)
 for formula in "${formulas[@]}"; do
     installed=$(brew list --versions "$formula") || fail "Missing formula: brew install $formula"
     [[ -n $installed ]] || fail "Missing formula: brew install $formula"
     printf '%s\n' "$installed" | tee -a "$work/dependencies.txt"
 done
+# ECM 6.15's optional no-formatter branch is invalid under CMP0175 NEW.
+# Use the real tool's supported branch; never invoke the formatting target.
+formatter="$(brew --prefix clang-format)/bin/clang-format"
+[[ -x "$formatter" ]] || fail "Homebrew clang-format executable missing: $formatter"
+printf 'CLANG_FORMAT_EXECUTABLE=%s\n' "$formatter"
+"$formatter" --version | tee -a "$work/dependencies.txt"
 # Official Qt is coherent and universal (x86_64 + arm64); never mix rolling brew Qt kegs.
 if [[ -n ${COLOSSEUM_QT_PREFIX:-} ]]; then
     qtbase=$(cd "$COLOSSEUM_QT_PREFIX" && pwd -P)
@@ -102,6 +108,7 @@ fetch_source mpvqt https://download.kde.org/stable/mpvqt/mpvqt-1.2.0.tar.xz \
     8660ad79c0d60fed77f29b36e1742841466af5405de702c81a121e6eeb625ebb
 cmake -S "$work/mpvqt-source" -B "$work/mpvqt-build" -G Ninja \
     -DCMAKE_BUILD_TYPE=Release -DCMAKE_OSX_ARCHITECTURES=arm64 -DBUILD_TESTING=OFF \
+    -DKDE_CLANG_FORMAT_EXECUTABLE:FILEPATH="$formatter" \
     -DCMAKE_OSX_DEPLOYMENT_TARGET="$deployment" \
     -DCMAKE_INSTALL_PREFIX="$deps" -DCMAKE_PREFIX_PATH="$qtbase;$deps" \
     -DQT_ADDITIONAL_PACKAGES_PREFIX_PATH="$qtbase"

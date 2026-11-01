@@ -42,7 +42,7 @@ jobs:
       - name: Install native build dependencies
         run: |
           set -euo pipefail
-          brew install cmake ninja pkgconf libtorrent-rasterbar boost openssl@3 mpv ffmpeg python \
+          brew install cmake ninja pkgconf clang-format libtorrent-rasterbar boost openssl@3 mpv ffmpeg python \
             2>&1 | tee "$PREVIEW_OUTPUT/dependency-install.log"
           df -h | tee -a "$PREVIEW_OUTPUT/dependency-install.log"
       - name: Packaging helper regressions
