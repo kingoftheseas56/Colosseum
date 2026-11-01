@@ -12,10 +12,10 @@
 
 Sources read for this roadmap:
 
-- Locked Song/Album brainstorm: `C:/Users/Suprabha/Desktop/Brotherhood/docs/superpowers/specs/2026-10-07-vinyl-song-page-and-album-page-design.md`.
-- Provider split and donor research: `C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/experience/DESKTOP-LISTENING-ROOM.md` and `research/FEATURE-DONOR-MATRIX.md` in that arc.
-- Video/time-offset rulings: `C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/claude-brainstorm-review-post-wave3/CLAUDE-REVIEW-RESPONSE.md`.
-- Artist video rail direction: `C:/Users/Suprabha/Desktop/Preflight-Architect/arcs/62-vinyl/experience/ARTIST-V4-COLLECTION-SHELVES-2026-10-14.md`.
+- Locked Song/Album brainstorm: `<Brotherhood workspace>/docs/superpowers/specs/2026-10-07-vinyl-song-page-and-album-page-design.md`.
+- Provider split and donor research: `<Preflight research archive>/arcs/62-vinyl/experience/DESKTOP-LISTENING-ROOM.md` and `research/FEATURE-DONOR-MATRIX.md` in that arc.
+- Video/time-offset rulings: `<Preflight research archive>/arcs/62-vinyl/claude-brainstorm-review-post-wave3/CLAUDE-REVIEW-RESPONSE.md`.
+- Artist video rail direction: `<Preflight research archive>/arcs/62-vinyl/experience/ARTIST-V4-COLLECTION-SHELVES-2026-10-14.md`.
 - Existing umbrella roadmap: [Vinyl development roadmap](2026-10-20-vinyl-development-roadmap.md), especially M6 and its backend coverage map.
 - Hemanth's later instructions in this conversation override older mock behavior.
 

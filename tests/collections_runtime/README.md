@@ -25,7 +25,7 @@ Normal first-use guest startup currently owns `profiles/legacy/named-collections
 From the isolated source directory, run:
 
 ```powershell
-& 'C:\Users\Suprabha\AppData\Local\Programs\Python\Python311\python.exe' -B tests/collections_runtime/launch_candidate.py --root 'C:/Users/Suprabha/AppData/Roaming/Brotherhood/Colosseum-dltest-collections-fixture-20261030-final' --evidence 'C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/docs/superpowers/handoffs/2026-10-29-collections-gpt6-pro/integration-evidence/completion-20261030' --phase review --pipe CollectionsIntegration-20261030
+python -B tests/collections_runtime/launch_candidate.py --root (Join-Path $env:APPDATA 'Brotherhood/Colosseum-dltest-collections-fixture-20261030-final') --evidence 'docs/superpowers/handoffs/2026-10-29-collections-gpt6-pro/integration-evidence/completion-20261030' --phase review --pipe CollectionsIntegration-20261030
 ```
 
 The script records the executable hash, QML manifest, PID, environment isolation and exit code. Use a distinct phase name for another evidence run. Normal guest startup opens the independently verified guest profile. The gated `collections-test-profile` action `activate-local` selects the prepared cross-world verification profile. Do not launch a second instance on the same pipe/root while one is running.
