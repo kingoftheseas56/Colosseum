@@ -2,6 +2,13 @@ name: macOS arm64 preview application
 
 on:
   workflow_dispatch:
+  push:
+    branches: ['codex/macos-ci-rescue-dots-20261101']
+    paths:
+      - '.github/workflows/release-macos-preview.yml'
+      - 'tools/macos-build/**'
+      - 'native/**'
+      - 'tests/**'
 
 permissions:
   contents: read
@@ -48,6 +55,7 @@ jobs:
       - name: Packaging helper regressions
         run: |
           set -euo pipefail
+          python3 tools/macos-build/test_libmpv_include_root.py
           python3 tools/macos-build/test_package_preview.py 2>&1 | tee "$PREVIEW_OUTPUT/packaging-tests.log"
       - name: Compile exact checkout with coherent official Qt
         run: |

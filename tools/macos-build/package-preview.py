@@ -17,6 +17,8 @@ import socket
 import subprocess
 import tempfile
 import time
+import stat
+import zipfile
 
 MACH_MAGICS = {b'\xfe\xed\xfa\xce', b'\xce\xfa\xed\xfe', b'\xfe\xed\xfa\xcf',
                b'\xcf\xfa\xed\xfe', b'\xca\xfe\xba\xbe', b'\xbe\xba\xfe\xca',
@@ -406,72 +408,139 @@ def package(receipt_path, output):
         raise RuntimeError('Refusing to overwrite archive')
     partial = archive.with_suffix('.zip.partial')
     run('ditto', '-c', '-k', '--sequesterRsrc', '--keepParent', app, partial)
+    archive_audit = verify_archive(partial)
+    (output / 'archive-audit.json').write_text(json.dumps(archive_audit, indent=2))
     partial.rename(archive)
     digest = sha256_file(archive)
     (output / (archive.name + '.sha256')).write_text(digest + '  ' + archive.name + '\n')
     (output / 'BUILD-IDENTITY.json').write_text(json.dumps(identity, indent=2))
 
 
+def verify_archive(archive):
+    """Verify bytes and extraction paths without weakening Qt framework symlinks."""
+    try:
+        with zipfile.ZipFile(archive) as zipped:
+            members = zipped.infolist()
+            seen, links, paths = set(), set(), []
+            for item in members:
+                name = item.filename.rstrip('/')
+                parts = name.split('/')
+                if (not name or item.orig_filename != item.filename or '\\' in name
+                        or name.startswith('/') or any(part in ('', '.', '..') for part in parts)
+                        or parts[0] not in ('Colosseum.app', '__MACOSX')):
+                    raise RuntimeError(f'Unsafe archive member: {item.filename!r}')
+                key = name.casefold()
+                if key in seen:
+                    raise RuntimeError(f'Archive path collision: {name}')
+                seen.add(key)
+                paths.append(name)
+                kind = stat.S_IFMT(item.external_attr >> 16)
+                if kind not in (0, stat.S_IFREG, stat.S_IFDIR, stat.S_IFLNK):
+                    raise RuntimeError(f'Unsupported archive member type: {name}')
+                if kind == stat.S_IFLNK:
+                    target = zipped.read(item).decode('utf-8')
+                    resolved = posixpath.normpath(posixpath.join(posixpath.dirname(name), target))
+                    if (not target or target.startswith('/') or '\\' in target or '\x00' in target
+                            or parts[0] != 'Colosseum.app'
+                            or not (resolved == 'Colosseum.app' or resolved.startswith('Colosseum.app/'))):
+                        raise RuntimeError(f'Unsafe archive symlink: {name}: {target!r}')
+                    links.add(key)
+            if not any(path.startswith('Colosseum.app/') for path in paths):
+                raise RuntimeError('Archive has no application contents')
+            for name in paths:
+                components = name.casefold().split('/')
+                if any('/'.join(components[:i]) in links for i in range(1, len(components))):
+                    raise RuntimeError(f'Archive member descends through symlink: {name}')
+            bad = zipped.testzip()
+            if bad:
+                raise RuntimeError(f'Archive CRC failure: {bad}')
+            return dict(status='PASS', members=len(members), symlinks=len(links), crc='PASS')
+    except (zipfile.BadZipFile, UnicodeError) as error:
+        raise RuntimeError(f'Invalid preview archive: {error}') from error
+
+
+def isolated_roots(state, tag):
+    expected = 'Colosseum-dltest-' + tag
+    return all(isinstance(state.get(key), str) and Path(state[key]).is_absolute()
+               and Path(state[key]).name == expected for key in ('appDataRoot', 'cacheRoot'))
+
+
 def smoke(output):
     environment = {key: value for key, value in os.environ.items()
                    if not key.startswith(('QT', 'QML', 'COLOSSEUM_', 'DYLD_', 'MACOSX_'))}
-    report = dict(version='UNVERIFIED', gui='UNVERIFIED', normal_quit='UNVERIFIED',
-                  physical_m1_playback_gpu_audio='UNVERIFIED')
-    with tempfile.TemporaryDirectory(prefix='colosseum-smoke-') as directory:
-        cwd = Path(directory)
-        # Exercise the actual archive from a fresh path outside source/build.
-        archive = output / 'Colosseum-1.2.0-macOS-arm64-preview.zip'
-        run('ditto', '-x', '-k', archive, cwd)
-        app = cwd / 'Colosseum.app'
-        run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
-        executable = app / 'Contents/MacOS/colosseum'
-        result = subprocess.run([str(executable), '--version'], cwd=cwd, env=environment,
-                                capture_output=True, text=True, timeout=30)
-        if result.returncode or result.stdout.strip() != 'Colosseum 1.2.0':
-            raise RuntimeError(f'--version failed: {result}')
-        report['version'] = 'PASS'
-        # A console user alone does not prove GUI operation, but no console
-        # session is an explicit infrastructure block rather than app failure.
-        console = subprocess.check_output(['stat', '-f', '%Su', '/dev/console'], text=True).strip()
-        if console in ('root', 'loginwindow', ''):
-            report['gui'] = report['normal_quit'] = 'BLOCKED: no logged-in GUI console session'
-        else:
-            address = cwd / 'lanista.sock'
-            environment.update(COLOSSEUM_LANISTA_PIPE=str(address), COLOSSEUM_LANISTA_DRIVE='1',
-                               COLOSSEUM_APPDATA_TAG='mac-preview-' + str(os.getpid()))
-            with (output / 'runtime-startup.log').open('w') as log:
-                process = subprocess.Popen([str(executable)], cwd=cwd, env=environment, stdout=log, stderr=log)
-                try:
-                    deadline = time.monotonic() + 120
-                    reply, splash = {}, {}
-                    while time.monotonic() < deadline and process.poll() is None:
-                        try:
-                            reply = lanista(address, 'get-state')
-                            splash = lanista(address, 'qml-get', {'object': 'bootSplash', 'props': ['visible']})
-                            if startup_ready(reply, splash):
-                                break
-                        except (OSError, ValueError, RuntimeError):
-                            pass
-                        time.sleep(1)
-                    (output / 'runtime-get-state.json').write_text(json.dumps(reply, indent=2))
-                    (output / 'runtime-boot-splash.json').write_text(json.dumps(splash, indent=2))
-                    if not startup_ready(reply, splash):
-                        raise RuntimeError('Normal launch did not report a visible window and completed boot splash within 120 seconds')
-                    report['app_data_root'] = reply.get('appDataRoot')
-                    report['cache_root'] = reply.get('cacheRoot')
-                    report['gui'] = 'PASS: visible window and completed boot splash reported by Lanista only'
-                    lanista(address, 'ui-keypress', {'key': 'Ctrl+Q'})
-                    if process.wait(timeout=45) != 0:
-                        raise RuntimeError('Application normal quit returned nonzero')
-                    report['normal_quit'] = 'PASS'
-                finally:
-                    if process.poll() is None:
-                        process.terminate()
-                        try:
-                            process.wait(timeout=10)
-                        except subprocess.TimeoutExpired:
-                            process.kill()
-    (output / 'runtime-smoke.json').write_text(json.dumps(report, indent=2))
+    report = dict(archive='NOT RUN', version='NOT RUN', gui='NOT RUN', normal_quit='NOT RUN',
+                  profile_isolation='NOT RUN', physical_m1_playback_gpu_audio='NOT RUN')
+    try:
+        with tempfile.TemporaryDirectory(prefix='colosseum-smoke-') as directory:
+            cwd = Path(directory)
+            # Exercise the actual archive from a fresh path outside source/build.
+            archive = output / 'Colosseum-1.2.0-macOS-arm64-preview.zip'
+            report['archive'] = 'FAIL'
+            report['archive_audit'] = verify_archive(archive)
+            report['archive'] = 'PASS'
+            run('ditto', '-x', '-k', archive, cwd)
+            app = cwd / 'Colosseum.app'
+            run('codesign', '--verify', '--deep', '--strict', '--verbose=2', app)
+            executable = app / 'Contents/MacOS/colosseum'
+            report['version'] = 'FAIL'
+            result = subprocess.run([str(executable), '--version'], cwd=cwd, env=environment,
+                                    capture_output=True, text=True, timeout=30)
+            if result.returncode or result.stdout.strip() != 'Colosseum 1.2.0':
+                raise RuntimeError(f'--version failed: {result}')
+            report['version'] = 'PASS'
+            # A console user alone does not prove GUI operation, but no console
+            # session is an explicit infrastructure block rather than app failure.
+            console = subprocess.check_output(['stat', '-f', '%Su', '/dev/console'], text=True).strip()
+            if console in ('root', 'loginwindow', ''):
+                report['gui'] = report['normal_quit'] = 'BLOCKED: no logged-in GUI console session'
+            else:
+                report['gui'] = 'FAIL'
+                address = cwd / 'lanista.sock'
+                tag = 'mac-preview-' + str(os.getpid())
+                environment.update(COLOSSEUM_LANISTA_PIPE=str(address), COLOSSEUM_LANISTA_DRIVE='1',
+                                   COLOSSEUM_APPDATA_TAG=tag)
+                with (output / 'runtime-startup.log').open('w') as log:
+                    process = subprocess.Popen([str(executable)], cwd=cwd, env=environment, stdout=log, stderr=log)
+                    try:
+                        deadline = time.monotonic() + 120
+                        reply, splash = {}, {}
+                        while time.monotonic() < deadline and process.poll() is None:
+                            try:
+                                reply = lanista(address, 'get-state')
+                                splash = lanista(address, 'qml-get', {'object': 'bootSplash', 'props': ['visible']})
+                                if startup_ready(reply, splash):
+                                    break
+                            except (OSError, ValueError, RuntimeError):
+                                pass
+                            time.sleep(1)
+                        (output / 'runtime-get-state.json').write_text(json.dumps(reply, indent=2))
+                        (output / 'runtime-boot-splash.json').write_text(json.dumps(splash, indent=2))
+                        if not startup_ready(reply, splash):
+                            raise RuntimeError('Normal launch did not report a visible window and completed boot splash within 120 seconds')
+                        report['app_data_root'] = reply.get('appDataRoot')
+                        report['cache_root'] = reply.get('cacheRoot')
+                        report['profile_isolation'] = 'FAIL'
+                        if not isolated_roots(reply, tag):
+                            raise RuntimeError('Resolved application/cache roots do not match isolated profile tag')
+                        report['profile_isolation'] = 'PASS'
+                        report['gui'] = 'PASS: visible window and completed boot splash reported by Lanista only'
+                        report['normal_quit'] = 'FAIL'
+                        lanista(address, 'ui-keypress', {'key': 'Ctrl+Q'})
+                        if process.wait(timeout=45) != 0:
+                            raise RuntimeError('Application normal quit returned nonzero')
+                        report['normal_quit'] = 'PASS'
+                    finally:
+                        if process.poll() is None:
+                            process.terminate()
+                            try:
+                                process.wait(timeout=10)
+                            except subprocess.TimeoutExpired:
+                                process.kill()
+    except Exception as error:
+        report['error'] = str(error)
+        raise
+    finally:
+        (output / 'runtime-smoke.json').write_text(json.dumps(report, indent=2))
     print(json.dumps(report, indent=2))
 
 
