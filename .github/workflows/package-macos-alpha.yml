@@ -27,13 +27,35 @@ jobs:
           output="$RUNNER_TEMP/colosseum-distribution-$GITHUB_RUN_ID"
           echo "DISTRIBUTION_OUTPUT=$output" >> "$GITHUB_ENV"
           python3 tools/macos-distribution/package-distribution.py "$output" 2>&1 | tee "$RUNNER_TEMP/distribution.log"
-      - name: Upload distribution and evidence
+      - name: Upload ZIP option
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: Colosseum-1.2.0-macOS-arm64-alpha-distribution
+          name: Colosseum-1.2.0-macOS-arm64-alpha-ZIP
           retention-days: 14
           compression-level: 0
           path: |
-            ${{ env.DISTRIBUTION_OUTPUT }}/*
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.zip
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.zip.sha256
+      - name: Upload DMG option
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.2.0-macOS-arm64-alpha-DMG
+          retention-days: 14
+          compression-level: 0
+          path: |
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.dmg
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.dmg.sha256
+      - name: Upload qualification evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: Colosseum-1.2.0-macOS-arm64-alpha-evidence
+          retention-days: 14
+          compression-level: 0
+          path: |
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.json
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.log
+            ${{ env.DISTRIBUTION_OUTPUT }}/*.png
             ${{ runner.temp }}/distribution.log
