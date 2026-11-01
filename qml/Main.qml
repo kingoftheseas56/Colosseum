@@ -3427,6 +3427,15 @@ Window {
 
     function detailContinue(entry) {
         if (!entry) return
+        // Loose files have no catalogue detail owner. Keep their exact local reader
+        // route, just as raw local video falls back to resume below. Do not infer
+        // local ownership from a downloaded path on a catalogue-associated title.
+        if (/^(vault:|vault-file:)/.test(String(entry.id || ""))
+                && (entry.kind === "comic" || entry.kind === "manga"
+                    || (entry.kind === "book" && entry.resume && entry.resume.path))) {
+            win.resumeContinue(entry)
+            return
+        }
         if (entry.kind === "music") { win.openVinylResume(entry, false); return }
         var presentation = VideoPresentation.forEntry(entry,
             typeof ImdbCatalog !== "undefined" ? ImdbCatalog : null)

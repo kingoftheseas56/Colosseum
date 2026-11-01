@@ -32,7 +32,7 @@ function fixture() {
         root[name] = () => events.push(name);
     const DirectSourcePolicy = vm.runInNewContext('(function(){' + policySource + '\nreturn {admitProviderUrl, copyHeaders};})()');
     const context = {root, mpv, DirectSourcePolicy, streamWatchdog: {stop() { events.push('watch-stop'); }, restart() { events.push('watch-start'); }}};
-    for (const name of ['togglePlayPause', 'resumeFromMinimize', 'suspendForMinimize', 'suspendForAudioHandoff', 'stop', 'loadDirectStreamUrl', 'reloadActiveDirectSource', 'clearActiveDirectHeaders'])
+    for (const name of ['togglePlayPause', 'resumeFromMinimize', 'suspendForMinimize', 'suspendForAudioHandoff', 'stop', 'loadDirectStreamUrl', 'reloadActiveDirectSource', 'clearActiveDirectHeaders', 'resetRecoveryResume'])
         root[name] = fn(player, name, context);
     if (player.includes('function replayEndedPlayback(')) root.replayEndedPlayback = fn(player, 'replayEndedPlayback', context);
     return {root, mpv, events, loads, context, end: handler('onEndFile', context, 'reason')};
