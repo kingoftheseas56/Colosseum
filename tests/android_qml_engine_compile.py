@@ -12,6 +12,7 @@ import os
 import re
 from pathlib import Path
 import shlex
+import shutil
 import subprocess
 import tempfile
 
@@ -21,6 +22,7 @@ PROBE = r'''
 #include <QQmlComponent>
 #include <QQmlFileSelector>
 #include <QDebug>
+#include <cstdio>
 int main(int argc, char **argv) {
     QGuiApplication app(argc, argv);
     QQmlEngine engine;
@@ -38,13 +40,14 @@ int main(int argc, char **argv) {
         QQmlComponent component(&engine, QUrl::fromLocalFile(QString::fromLocal8Bit(argv[i])),
                                 QQmlComponent::PreferSynchronous);
         if (!component.isReady()) {
-            qCritical().noquote() << "ANDROID_QML_COMPILE_FAILED" << argv[i] << component.errorString();
+            fprintf(stderr, "ANDROID_QML_COMPILE_FAILED %s %s\n", argv[i],
+                    component.errorString().toUtf8().constData());
             ++failed;
         } else {
-            qInfo() << "ANDROID_QML_COMPILE_READY" << qVersion() << component.url();
+            fprintf(stdout, "ANDROID_QML_COMPILE_READY %s %s\n", qVersion(), argv[i]);
         }
     }
-    qInfo() << "ANDROID_QML_COMPILE_SUMMARY" << "entries=" << argc - 2 << "failed=" << failed;
+    fprintf(stdout, "ANDROID_QML_COMPILE_SUMMARY entries=%d failed=%d\n", argc - 2, failed);
     return failed ? 1 : 0;
 }
 '''
@@ -86,7 +89,7 @@ def main():
         # Source URLs include deferred Loader pages, world registries and setSource
         # targets. Compilation alone of Main never visits these dynamic graphs.
         for source in root.rglob("*.qml"):
-            for name in re.findall(r'["\']([^"\'\n]+\.qml)["\']', source.read_text()):
+            for name in re.findall(r'["\']([^"\'\n]+\.qml)["\']', source.read_text(encoding="utf-8-sig")):
                 target = (source.parent / name).resolve()
                 if target.is_file() and target.is_relative_to(root):
                     entries.add(target)
@@ -97,22 +100,46 @@ def main():
     env["PKG_CONFIG_PATH"] = str(qt / "lib/pkgconfig")
     env["QT_QPA_PLATFORM"] = "offscreen"
     # Never set GC/JIT overrides: compile the real graph under ordinary Qt policy.
-    flags = shlex.split(subprocess.check_output(
-        ["pkg-config", "--cflags", "--libs", "Qt6Quick"], env=env, text=True))
     with tempfile.TemporaryDirectory(prefix="android-qml-engine-") as directory:
         work = Path(directory)
         (work / "probe.cpp").write_text(PROBE)
         (work / "PlayerItem.qml").write_text(PLAYER)
         (work / "ActivityPlaybackTracker.qml").write_text(
             "import QtQuick\nQtObject { property var sink: null; property int lifecycleScopeGeneration: 0 }\n")
-        command = ["g++", "-std=c++17", "-fPIC", str(work / "probe.cpp"),
-                   "-o", str(work / "probe"), *flags, f"-Wl,-rpath,{qt / 'lib'}"]
+        executable = work / ("probe.exe" if os.name == "nt" else "probe")
+        if os.name == "nt":
+            env["PATH"] = str(qt / "bin") + os.pathsep + env["PATH"]
+            compiler = ["cl", "/nologo", "/std:c++17", "/Zc:__cplusplus", "/permissive-", "/EHsc", "/MD", str(work / "probe.cpp"),
+                        "/Fe:" + str(executable), "/Fo:" + str(work / "probe.obj")]
+            for module in ("", "QtCore", "QtGui", "QtQml", "QtQuick"):
+                compiler.append("/I" + str(qt / "include" / module))
+            compiler += ["/link", "/LIBPATH:" + str(qt / "lib"),
+                         "Qt6Core.lib", "Qt6Gui.lib", "Qt6Qml.lib", "Qt6Quick.lib"]
+            if shutil.which("cl"):
+                command = compiler
+            else:
+                vswhere = Path(os.environ["ProgramFiles(x86)"]) / "Microsoft Visual Studio/Installer/vswhere.exe"
+                installation = subprocess.check_output([str(vswhere), "-latest", "-products", "*",
+                    "-requires", "Microsoft.VisualStudio.Component.VC.Tools.x86.x64", "-property", "installationPath"],
+                    text=True).strip()
+                vcvars = Path(installation) / "VC/Auxiliary/Build/vcvars64.bat"
+                if not vcvars.is_file():
+                    parser.error("MSVC compiler environment or installed vcvars64.bat required")
+                script = work / "build-probe.cmd"
+                script.write_text('@echo off\ncall "' + str(vcvars) + '" >nul\n'
+                    'if errorlevel 1 exit /b %errorlevel%\n' + subprocess.list2cmdline(compiler) + '\n', encoding="utf-8")
+                command = ["cmd", "/c", str(script)]
+        else:
+            flags = shlex.split(subprocess.check_output(
+                ["pkg-config", "--cflags", "--libs", "Qt6Quick"], env=env, text=True))
+            command = ["g++", "-std=c++17", "-fPIC", str(work / "probe.cpp"),
+                       "-o", str(executable), *flags, f"-Wl,-rpath,{qt / 'lib'}"]
         print("BUILD:", shlex.join(command), flush=True)
         subprocess.run(command, env=env, check=True)
         (work / "SeekThumbnailer.qml").write_text(
             "import QtQuick\nQtObject { signal thumbReady(real bucketSec, string imageUrl) }\n")
-        command = [str(work / "probe"), str(work), *map(str, sorted(entries))]
-        print("RUN:", shlex.join(command), flush=True)
+        command = [str(executable), str(work), *map(str, sorted(entries))]
+        print("RUN:", executable, "entries=", len(entries), flush=True)
         return subprocess.run(command, env=env).returncode
 
 
