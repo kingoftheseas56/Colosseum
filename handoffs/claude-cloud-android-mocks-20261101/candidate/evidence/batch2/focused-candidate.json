@@ -1,0 +1,816 @@
+{
+ "tree": "candidate",
+ "chromium": "153.0.8010.12",
+ "at": "2026-11-01T02:01:02.348Z",
+ "cases": 28,
+ "passed": 28,
+ "blocked": [],
+ "results": [
+  {
+   "kind": "film",
+   "renderer": "legacy",
+   "host": "phone-portrait",
+   "w": 354,
+   "h": 792,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "cast-expand"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "legacy",
+   "host": "phone-landscape",
+   "w": 792,
+   "h": 354,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "cast-expand"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "legacy",
+   "host": "phone-portrait-412",
+   "w": 412,
+   "h": 900,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "cast-expand"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "legacy",
+   "host": "phone-landscape-900",
+   "w": 900,
+   "h": 412,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "cast-expand"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "legacy",
+   "host": "tablet",
+   "w": 1280,
+   "h": 800,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy tablet android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "cast-expand"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "legacy",
+   "host": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-portrait tablet is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "cast-expand"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "legacy",
+   "host": "desktop",
+   "w": 1280,
+   "h": 700,
+   "checks": {
+    "desktopLegacyWindowActionsRetained": true
+   },
+   "dom": {
+    "cls": "legacy desktop",
+    "win": [
+     "minimize",
+     "fullscreen",
+     "quit"
+    ],
+    "back": true,
+    "search": false
+   },
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "rebuilt",
+   "host": "phone-portrait",
+   "w": 354,
+   "h": 792,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "rebuilt",
+   "host": "phone-landscape",
+   "w": 792,
+   "h": 354,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "rebuilt",
+   "host": "phone-portrait-412",
+   "w": 412,
+   "h": 900,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "rebuilt",
+   "host": "phone-landscape-900",
+   "w": 900,
+   "h": 412,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "rebuilt",
+   "host": "tablet",
+   "w": 1280,
+   "h": 800,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt tablet android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "synopsis",
+    "watch",
+    "library"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "rebuilt",
+   "host": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-portrait tablet is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "film",
+   "renderer": "rebuilt",
+   "host": "desktop",
+   "w": 1280,
+   "h": 700,
+   "checks": {
+    "menuKeepsActions": true,
+    "quitConfirmation": true,
+    "openMenuClearedOnAndroidResize": true
+   },
+   "dom": {
+    "cls": "rebuilt desktop",
+    "win": [
+     "system-menu"
+    ],
+    "back": true,
+    "search": true
+   },
+   "labels": [
+    "Minimize",
+    "Exit fullscreen",
+    "Quit Colosseum…"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "legacy",
+   "host": "phone-portrait",
+   "w": 354,
+   "h": 792,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "notifications"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "legacy",
+   "host": "phone-landscape",
+   "w": 792,
+   "h": 354,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "notifications"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "legacy",
+   "host": "phone-portrait-412",
+   "w": 412,
+   "h": 900,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "notifications"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "legacy",
+   "host": "phone-landscape-900",
+   "w": 900,
+   "h": 412,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "notifications"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "legacy",
+   "host": "tablet",
+   "w": 1280,
+   "h": 800,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy tablet android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "notifications"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "legacy",
+   "host": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "legacy phone-portrait tablet is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": false
+   },
+   "tabs": [
+    "back",
+    "BODY",
+    "watch",
+    "library",
+    "collections",
+    "notifications"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "legacy",
+   "host": "desktop",
+   "w": 1280,
+   "h": 700,
+   "checks": {
+    "desktopLegacyWindowActionsRetained": true
+   },
+   "dom": {
+    "cls": "legacy desktop",
+    "win": [
+     "minimize",
+     "fullscreen",
+     "quit"
+    ],
+    "back": true,
+    "search": false
+   },
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "rebuilt",
+   "host": "phone-portrait",
+   "w": 354,
+   "h": 792,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "rebuilt",
+   "host": "phone-landscape",
+   "w": 792,
+   "h": 354,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "rebuilt",
+   "host": "phone-portrait-412",
+   "w": 412,
+   "h": 900,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-portrait is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "rebuilt",
+   "host": "phone-landscape-900",
+   "w": 900,
+   "h": 412,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-landscape is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "rebuilt",
+   "host": "tablet",
+   "w": 1280,
+   "h": 800,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt tablet android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "synopsis",
+    "watch",
+    "library"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "rebuilt",
+   "host": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "checks": {
+    "noWindowActionsInDom": true,
+    "backPresent": true,
+    "searchPresent": true,
+    "tabTraversalAvoidsWindowActions": true,
+    "noHorizontalOverflow": true
+   },
+   "dom": {
+    "cls": "rebuilt phone-portrait tablet is-handset android-host",
+    "win": [],
+    "back": true,
+    "search": true
+   },
+   "tabs": [
+    "back",
+    "search",
+    "BODY",
+    "watch",
+    "library",
+    "collections"
+   ],
+   "errors": [],
+   "pass": true
+  },
+  {
+   "kind": "series",
+   "renderer": "rebuilt",
+   "host": "desktop",
+   "w": 1280,
+   "h": 700,
+   "checks": {
+    "menuKeepsActions": true,
+    "quitConfirmation": true,
+    "openMenuClearedOnAndroidResize": true
+   },
+   "dom": {
+    "cls": "rebuilt desktop",
+    "win": [
+     "system-menu"
+    ],
+    "back": true,
+    "search": true
+   },
+   "labels": [
+    "Minimize",
+    "Exit fullscreen",
+    "Quit Colosseum…"
+   ],
+   "errors": [],
+   "pass": true
+  }
+ ]
+}

@@ -1,0 +1,1170 @@
+{
+ "tree": "candidate",
+ "appJsSha256": "33e25fca82938156160618bd69cf2d37af434e0cc1cc36aead0f827909c281cf",
+ "chromium": "153.0.8010.12",
+ "at": "2026-11-01T02:03:33.562Z",
+ "cases": 78,
+ "passed": 78,
+ "errors": [],
+ "blocked": [],
+ "checks": [
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "pause after first character",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "S",
+    "focus": true,
+    "start": 1,
+    "end": 1,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "slow remaining characters",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "fast replacement",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "Enter dispatches existing top-result intent, field kept (fixture-only focus)",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "intents": [
+     "The Adventures of Sherlock Holmes"
+    ],
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "typing continues after Enter; Backspace",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "mid-query caret edit survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 2,
+    "end": 2,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "selection range survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "pending debounce does not steal deliberate result focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "item-open"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "pending debounce keeps deliberate Tab focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": " Sherlock ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "search-clear"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "Clear cancels pending work and returns focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "Backspace to one character then empty",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 412,
+   "h": 900,
+   "name": "no-match Enter fabricates no action",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "zzzzzz",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "pause after first character",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "S",
+    "focus": true,
+    "start": 1,
+    "end": 1,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "slow remaining characters",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "fast replacement",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "Enter dispatches existing top-result intent, field kept (fixture-only focus)",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "intents": [
+     "The Adventures of Sherlock Holmes"
+    ],
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "typing continues after Enter; Backspace",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "mid-query caret edit survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 2,
+    "end": 2,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "selection range survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock",
+    "focus": true,
+    "start": 8,
+    "end": 8,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "pending debounce does not steal deliberate result focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Sherlock ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "item-open"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "pending debounce keeps deliberate Tab focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": " Sherlock ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "search-clear"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "Clear cancels pending work and returns focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "Backspace to one character then empty",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 900,
+   "h": 412,
+   "name": "no-match Enter fabricates no action",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "zzzzzz",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "pause after first character",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "E",
+    "focus": true,
+    "start": 1,
+    "end": 1,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "slow remaining characters",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "fast replacement",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "Enter dispatches existing top-result intent, field kept (fixture-only focus)",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "intents": [
+     "The Empire Strikes Back"
+    ],
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "typing continues after Enter; Backspace",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "mid-query caret edit survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 2,
+    "end": 2,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "selection range survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "pending debounce does not steal deliberate result focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "item-open"
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "pending debounce keeps deliberate Tab focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": " Empire ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "search-clear"
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "Clear cancels pending work and returns focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "Backspace to one character then empty",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 412,
+   "h": 900,
+   "name": "no-match Enter fabricates no action",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "zzzzzz",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "pause after first character",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "E",
+    "focus": true,
+    "start": 1,
+    "end": 1,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "slow remaining characters",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "fast replacement",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "Enter dispatches existing top-result intent, field kept (fixture-only focus)",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "intents": [
+     "The Empire Strikes Back"
+    ],
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "typing continues after Enter; Backspace",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "mid-query caret edit survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 2,
+    "end": 2,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "selection range survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "pending debounce does not steal deliberate result focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Empire ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "item-open"
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "pending debounce keeps deliberate Tab focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": " Empire ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "search-clear"
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "Clear cancels pending work and returns focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "Backspace to one character then empty",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Theatre",
+   "w": 900,
+   "h": 412,
+   "name": "no-match Enter fabricates no action",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "zzzzzz",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "pause after first character",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "A",
+    "focus": true,
+    "start": 1,
+    "end": 1,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "slow remaining characters",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "fast replacement",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "Enter dispatches existing top-result intent, field kept (fixture-only focus)",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "intents": [
+     "One Piece — Arlong Park"
+    ],
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "typing continues after Enter; Backspace",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "mid-query caret edit survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 2,
+    "end": 2,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "selection range survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "pending debounce does not steal deliberate result focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "item-open"
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "pending debounce keeps deliberate Tab focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": " Arlong ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "search-clear"
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "Clear cancels pending work and returns focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "Backspace to one character then empty",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 412,
+   "h": 900,
+   "name": "no-match Enter fabricates no action",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "zzzzzz",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "pause after first character",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "A",
+    "focus": true,
+    "start": 1,
+    "end": 1,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "slow remaining characters",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "fast replacement",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "Enter dispatches existing top-result intent, field kept (fixture-only focus)",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "intents": [
+     "One Piece — Arlong Park"
+    ],
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "typing continues after Enter; Backspace",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "mid-query caret edit survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 2,
+    "end": 2,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "selection range survives debounce",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "pending debounce does not steal deliberate result focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "Arlong ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "item-open"
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "pending debounce keeps deliberate Tab focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": " Arlong ",
+    "focus": false,
+    "start": 0,
+    "end": 0,
+    "activeAction": "search-clear"
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "Clear cancels pending work and returns focus",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "Backspace to one character then empty",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "",
+    "focus": true,
+    "start": 0,
+    "end": 0,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Tankoban",
+   "w": 900,
+   "h": 412,
+   "name": "no-match Enter fabricates no action",
+   "pass": true,
+   "d": {
+    "pass": true,
+    "value": "zzzzzz",
+    "focus": true,
+    "start": 6,
+    "end": 6,
+    "activeAction": null
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 1280,
+   "h": 700,
+   "name": "desktop Minimize pointer focus identity after debounce",
+   "pass": true,
+   "d": {
+    "active": "Minimize"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 1280,
+   "h": 700,
+   "name": "desktop Minimize keyboard focus identity after debounce",
+   "pass": true,
+   "d": {
+    "active": "Minimize"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 1280,
+   "h": 700,
+   "name": "desktop Fullscreen pointer focus identity after debounce",
+   "pass": true,
+   "d": {
+    "active": "Fullscreen"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 1280,
+   "h": 700,
+   "name": "desktop Fullscreen keyboard focus identity after debounce",
+   "pass": true,
+   "d": {
+    "active": "Fullscreen"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 1280,
+   "h": 700,
+   "name": "desktop Close pointer focus identity after debounce",
+   "pass": true,
+   "d": {
+    "active": "Close"
+   }
+  },
+  {
+   "lane": "Biblio",
+   "w": 1280,
+   "h": 700,
+   "name": "desktop Close keyboard focus identity after debounce",
+   "pass": true,
+   "d": {
+    "active": "Close"
+   }
+  }
+ ]
+}

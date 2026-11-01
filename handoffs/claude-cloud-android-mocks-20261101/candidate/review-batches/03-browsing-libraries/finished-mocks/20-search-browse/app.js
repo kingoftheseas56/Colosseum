@@ -144,7 +144,7 @@ function searchBrowse(){
 }
 function renderSearch(){
  const isBib=S.lane==='Biblio';const query=S.query.toLowerCase().trim();const items=laneArt().filter(x=>[x.title,x.author,x.genre].some(t=>String(t||'').toLowerCase().includes(query)));const top=items[0]||laneArt()[0];const empty=S.searchState==='empty';const browsing=S.searchState==='browse';
- const searchHeader='<div class="search-header"><button class="back-capsule search-back" data-action="back" aria-label="Back to world"><svg class="back-vector" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12 14.5 18.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span></button><div class="search-field">'+img('icons/search.svg','glass-icon','Search')+'<input id="searchInput" type="text" value="'+h(empty||browsing?'':S.query)+'" placeholder="'+(isBib?'Search books…':S.lane==='Theatre'?'Search movies, series, anime…':'Search manga…')+'" aria-label="Search">'+(!empty&&!browsing?'<button class="clear" data-action="search-clear" aria-label="Clear search">×</button>':'')+'<button class="esc-key" data-action="back">Esc</button></div><div class="sys-controls">'+iconButton('minimize','Minimize','noop')+iconButton('fullscreen','Fullscreen','noop')+iconButton('power','Close','noop')+'</div></div>';
+ const searchHeader='<div class="search-header"><button class="back-capsule search-back" data-action="back" aria-label="Back to world"><svg class="back-vector" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12 14.5 18.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span></button><div class="search-field">'+img('icons/search.svg','glass-icon','Search')+'<input id="searchInput" type="text" value="'+h(S.query)+'" placeholder="'+(isBib?'Search books…':S.lane==='Theatre'?'Search movies, series, anime…':'Search manga…')+'" aria-label="Search">'+(S.query.length?'<button class="clear" data-action="search-clear" aria-label="Clear search">×</button>':'')+'<button class="esc-key" data-action="back">Esc</button></div><div class="sys-controls">'+iconButton('minimize','Minimize','noop')+iconButton('fullscreen','Fullscreen','noop')+iconButton('power','Close','noop')+'</div></div>';
  const topMatch='<div class="eyebrow top-match-label">TOP MATCH</div><div class="top-match"><div class="top-match-content">'+img(top.cover,'',top.title+' local artwork')+'<div class="top-copy"><h2>'+h(top.title)+'</h2><div class="meta">'+h((isBib?[top.genre,top.author,top.year]:[S.lane==='Theatre'?'MOVIE':'MANGA',top.author||top.year,top.year]).filter(Boolean).join(' · ')).toUpperCase()+'</div>'+(isBib?'':'<p class="synopsis">'+h(top.synopsis)+'</p>')+'</div></div><button class="gold-button" data-action="item-open" data-value="'+h(top.title)+'">Open &nbsp;›</button></div>';
  let body='';
  if(empty)body=searchEmpty();
@@ -291,7 +291,7 @@ function onAppClick(event){
  if(type==='jump-to'){if(value==='Home'){flagAction('Home destination is outside this batch');return;}const back=document.querySelector('[data-action=back]');if(PARAMS.has('from')&&back)back.click();else if(window.batchNavigate)window.batchNavigate('07-biblio-home/biblio-home.html');return;}
  if(type==='item-open'){flagAction('Selected '+value+'; actual detail routing is outside this mock');return;}
  if(type==='noop'){flagAction('Shell action remains in the application; no host operation performed');return;}
- if(type==='search-clear'){S.query='';S.searchState='empty';render(true);return;}
+ if(type==='search-clear'){window.clearTimeout(window.mockSearchTimer);S.query='';S.searchState='empty';renderSearchUpdate(true,true);return;}
  if(type==='recent'){S.query=value;S.searchState='results';S.expanded={};render(true);return;}
  if(type==='recent-remove'){event.preventDefault();event.stopPropagation();S.recent=S.recent.filter(x=>x!==value);render();return;}
  if(type==='browse-genre'){S.browseGenre=value;S.searchState='browse';render(true);return;}
@@ -322,10 +322,27 @@ function onAppClick(event){
  if(type==='continue-detail'||type==='continue-resume'||type==='context-detail'||type==='context-resume'){S.continueMenu=null;render();flagAction((type.includes('resume')?'Resume':'Details')+' for progress item '+value+' (demo only)');return;}
  if(type==='continue-remove'||type==='context-remove'){event.stopPropagation();S.continueMenu=null;S.removed.push(value);render();return;}
 }
+// Search input text is independent of the suggestions/results presentation.
+// Rebuild the fixture without taking focus from an intentionally selected control.
+function renderSearchUpdate(resetScroll=false,focusInput=false){
+ const frame=document.getElementById('appFrame'),input=document.getElementById('searchInput'),active=document.activeElement;
+ const keepInput=focusInput||active===input;
+ const selection=input?[input.selectionStart,input.selectionEnd,input.selectionDirection]:[0,0,'none'];
+ const action=!keepInput&&frame.contains(active)&&active.dataset.action?{type:active.dataset.action,value:active.dataset.value||'',label:active.getAttribute('aria-label')}:null;
+ render(resetScroll);
+ if(keepInput){
+  const replacement=document.getElementById('searchInput');
+  replacement.focus({preventScroll:true});
+  replacement.setSelectionRange(selection[0],selection[1],selection[2]);
+ }else if(action){
+  const replacement=[...frame.querySelectorAll('[data-action]')].find(e=>e.dataset.action===action.type&&(e.dataset.value||'')===action.value&&e.getAttribute('aria-label')===action.label);
+  if(replacement)replacement.focus({preventScroll:true});
+ }
+}
 function onAppInput(event){
  if(event.target.id!=='searchInput')return;
  S.query=event.target.value;window.clearTimeout(window.mockSearchTimer);
- window.mockSearchTimer=window.setTimeout(()=>{S.searchState=S.query.trim().length>1?'results':'empty';S.expanded={};const n=event.target.selectionStart;render();const replacement=document.getElementById('searchInput');if(replacement){replacement.focus();try{replacement.setSelectionRange(n,n)}catch(e){}}},210);
+ window.mockSearchTimer=window.setTimeout(()=>{S.searchState=S.query.trim().length>1?'results':'empty';S.expanded={};renderSearchUpdate();},210);
 }
 function onControlChange(event){
  const el=event.target,key=el.dataset.control;if(!key)return;
@@ -346,7 +363,7 @@ function init(){
  if(capture&&document.body.dataset.fontScale)S.font=Math.min(1.4,Math.max(1,Number(document.body.dataset.fontScale)||1));
  if(S.page==='search')S.query=S.lane==='Biblio'?'Dune':S.lane==='Theatre'?'Star Wars':'One Piece';
  if(STATE==='empty'){S.searchState='empty';S.query='';}
- if(STATE==='browse')S.searchState='browse';
+ if(STATE==='browse'){S.searchState='browse';S.query='';}
  if(STATE==='keyboard'){S.searchState='results';S.keyboard=true;}
  if(STATE==='covers')S.compact=true;
  if(STATE==='context')S.continueMenu='c1';
@@ -357,7 +374,7 @@ function init(){
  document.getElementById('appFrame').addEventListener('click',onAppClick);
  document.getElementById('appFrame').addEventListener('input',onAppInput);
  document.getElementById('appFrame').addEventListener('contextmenu',e=>{const tile=e.target.closest('.continue-tile');if(tile){e.preventDefault();S.continueMenu=tile.dataset.value;render();}});
- document.getElementById('appFrame').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='searchInput'){window.clearTimeout(window.mockSearchTimer);S.searchState=S.query.trim().length>1?'results':'empty';render();}if(e.key==='Escape'&&S.continueMenu){S.continueMenu=null;render();}if((e.key==='ContextMenu'||(e.key==='F10'&&e.shiftKey))&&e.target.closest('.continue-tile')){e.preventDefault();S.continueMenu=e.target.closest('.continue-tile').dataset.value;render();}});
+ document.getElementById('appFrame').addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.id==='searchInput'){e.preventDefault();window.clearTimeout(window.mockSearchTimer);S.searchState=S.query.trim().length>1?'results':'empty';renderSearchUpdate();document.querySelector('.top-match [data-action="item-open"]')?.click();}if(e.key==='Escape'&&S.continueMenu){S.continueMenu=null;render();}if((e.key==='ContextMenu'||(e.key==='F10'&&e.shiftKey))&&e.target.closest('.continue-tile')){e.preventDefault();S.continueMenu=e.target.closest('.continue-tile').dataset.value;render();}});
  const controls=document.getElementById('controls');if(controls)controls.addEventListener('change',onControlChange);
  window.addEventListener('resize',()=>{if(!capture)applyViewport();});
  renderAndControls(true);

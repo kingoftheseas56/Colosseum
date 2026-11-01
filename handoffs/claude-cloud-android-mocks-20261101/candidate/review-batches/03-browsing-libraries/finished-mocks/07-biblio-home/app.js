@@ -147,7 +147,7 @@
         const a=isExplore?' data-action="jump-row" data-row="'+x.key+'"':' data-action="source" data-name="'+attr(x.name)+'"';
         return '<button class="rail-item '+(active?"active":"")+'" '+a+' aria-label="'+attr(x.name)+'">'+
           (isExplore?'<img src="'+rowIndexGlyph(x.name)+'" alt="">':
-           x.name==="Apple Books"?'<img src="'+ref+'addon-logos/applebooks.ico" alt="">':
+           x.name==="Apple Books"?'<img src="../../../../pin-assets/assets/addon-logos/applebooks.ico" alt="">':
            '<span class="addon-letter" aria-hidden="true">O</span>')+
           '<span class="rail-label">'+esc(x.name)+'</span></button>';
       }).join("")+'</div>'+

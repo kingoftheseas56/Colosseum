@@ -309,8 +309,14 @@ function applyFitting(){
    set(".panel-btn, .review-btn",{minHeight:"44px"});
  }
 }
+// Keep stable identities across full DOM replacement, including duplicate provider cards.
+let pendingFocus=null,dialogInvokers=[];
+function focusIdentity(node){if(!node)return null;return {id:node.id||null,action:node.dataset.action,key:node.dataset.key,item:node.dataset.id,choice:node.dataset.choice,card:node.classList.contains("connected-card")?"connected-card":node.classList.contains("catalogue-card")?"catalogue-card":null};}
+function focusCandidate(identity,scope=app){if(!identity)return null;const nodes=identity.id?[document.getElementById(identity.id)]:[...scope.querySelectorAll("[data-action]")].filter(e=>e.dataset.action===identity.action&&e.dataset.key===identity.key&&e.dataset.id===identity.item&&e.dataset.choice===identity.choice&&(!identity.card||e.classList.contains(identity.card)));return nodes.find(e=>e&&scope.contains(e)&&!e.disabled&&!e.closest("[inert]")&&e.getClientRects().length&&getComputedStyle(e).visibility!=="hidden")||null;}
+function closePanel(){pendingFocus=state.returnFocus;state.returnFocus=null;dialogInvokers=[];state.panel=null;state.dialog=null;render();}
+function closeDialog(){const previous=dialogInvokers.pop();state.dialog=previous?.parent||null;pendingFocus=previous?.invoker||null;render();}
 function render(preserve=true){
-const focused=document.activeElement;const focusId=focused?.id;const focusAct=focused?.dataset.action;const focusKey=focused?.dataset.key;
+const focused=document.activeElement,identity=focusIdentity(focused),outside=focused&&focused!==document.body&&!app.contains(focused);
 if(preserve){
 state.scroll.page=el("pageScroll")?.scrollTop??state.scroll.page;
 state.scroll.detail=el("dossierScroll")?.scrollTop??state.scroll.detail;
@@ -322,13 +328,14 @@ applyFitting();
 if(el("pageScroll"))el("pageScroll").scrollTop=state.scroll.page;
 if(el("dossierScroll"))el("dossierScroll").scrollTop=state.scroll.detail;
 if(el("dialogList"))el("dialogList").scrollTop=state.scroll.dialog;
-if(focused&&focused!==document.body){let next=focusId?el(focusId):[...app.querySelectorAll("[data-action]")].find(e=>e.dataset.action===focusAct&&e.dataset.key===focusKey&&!e.closest("[inert]"));if(!next||next.closest("[inert]"))next=top?.querySelector("button:not(:disabled),input:not(:disabled)")||app.querySelector("[data-action=preferences]");next?.focus({preventScroll:true});}
+// Deliberate navigation to an external review control keeps its focus.
+if(!outside){const scope=top||app;let next=focusCandidate(pendingFocus,scope)||focusCandidate(identity,scope);if(!next&&(pendingFocus||focused!==document.body))next=top?top.querySelector("button:not(:disabled),input:not(:disabled)"):app.querySelector("[data-action=preferences]");next?.focus({preventScroll:true});}pendingFocus=null;
 }
-function openPanel(key){if(state.panel&&state.panel!=="global")state.reviews[state.panel]={chosen:{...state.chosen},matches:{...state.matches},selected:[...state.selected],exports:[...state.selectedExports]};const r=state.reviews[key]||{};state.chosen={...(r.chosen||{})};state.matches={...(r.matches||{})};state.selected=new Set(r.selected||[]);state.selectedExports=new Set(r.exports||["one-piece"]);state.returnFocus=document.activeElement?.dataset.action||null;state.panel=key;state.provider=key;state.dialog=null;state.scroll.detail=0;state.scroll.dialog=0;render();}
-function openDialog(key){state.dialog=key;state.scroll.dialog=0;render();}
+function openPanel(key){if(state.panel&&state.panel!=="global")state.reviews[state.panel]={chosen:{...state.chosen},matches:{...state.matches},selected:[...state.selected],exports:[...state.selectedExports]};const r=state.reviews[key]||{};state.chosen={...(r.chosen||{})};state.matches={...(r.matches||{})};state.selected=new Set(r.selected||[]);state.selectedExports=new Set(r.exports||["one-piece"]);state.returnFocus=focusIdentity(document.activeElement);dialogInvokers=[];state.panel=key;state.provider=key;state.dialog=null;state.scroll.detail=0;state.scroll.dialog=0;render();}
+function openDialog(key){if(key==="import"&&["match","bulk"].includes(state.dialog)){const previous=dialogInvokers.pop();pendingFocus=previous?.invoker||null;if(pendingFocus?.choice==="Find match"&&state.matches[pendingFocus.item])pendingFocus={...pendingFocus,choice:"Use tracker progress"};}else dialogInvokers.push({parent:state.dialog,invoker:focusIdentity(document.activeElement)});state.dialog=key;state.scroll.dialog=0;render();}
 function reset(){
 state.scenario="connected";state.panel=mode==="dossier"?"simkl":mode==="preferences"?"global":null;
-state.provider="simkl";state.dialog=null;state.selected.clear();state.chosen={};state.selectedExports=new Set(["one-piece"]);
+state.provider="simkl";state.dialog=null;dialogInvokers=[];pendingFocus=null;state.returnFocus=null;state.selected.clear();state.chosen={};state.selectedExports=new Set(["one-piece"]);
 state.toggles={...seed};state.scroll={page:0,detail:0,dialog:0};state.search="";state.connectedOverrides={};state.removedImports={};state.matches={};state.importConfirmed={};state.exportConfirmed={};state.reviews={};state.providerToggles={};
 if(el("scenario"))el("scenario").value=state.scenario;if(el("provider"))el("provider").value=state.provider;
 render(false);note("Restored representative fixtures. No external state was changed.");
@@ -337,11 +344,11 @@ app.addEventListener("click",ev=>{
 const node=ev.target.closest("[data-action]");if(!node)return;
 const a=node.dataset.action,key=node.dataset.key;
 if(ev.target.closest(".dossier")&&a==="veil-close")return;
-if(a==="veil-close"){state.panel=null;state.dialog=null;render();return;}
-if(a==="dialog-close"){if(ev.target.closest(".dialog")&&node===ev.target.closest(".dialog-veil"))return;state.dialog=null;render();return;}
+if(a==="veil-close"){closePanel();return;}
+if(a==="dialog-close"){if(ev.target.closest(".dialog")&&node===ev.target.closest(".dialog-veil"))return;closeDialog();return;}
 switch(a){
-case"back":if(state.dialog)state.dialog=null;else if(state.panel)state.panel=null;else note("Back returns to the existing Profile route in the app; this file stays standalone.");render();break;
-case"close-dossier":state.panel=null;state.dialog=null;render();break;
+case"back":if(state.dialog)closeDialog();else if(state.panel)closePanel();else note("Back returns to the existing Profile route in the app; this file stays standalone.");break;
+case"close-dossier":closePanel();break;
 case"preferences":openPanel("global");break;
 case"open-provider":openPanel(key);break;
 case"review-import":openDialog("import");break;
@@ -362,10 +369,10 @@ case"connect-attempt":state.connectedOverrides[state.panel]=true;render();note("
 case"open-stremio":note("Stremio settings are a separate existing route; this mock does not open or modify an account.");break;
 case"window-control":note("Desktop chrome is illustrative. No actual window control is invoked.");break;
 case"dock-route":note("Desktop taskbar route is shown for context only. No shell navigation occurred.");break;
-case"confirm-import":state.importConfirmed[state.panel]=true;state.dialog=null;render();note("Local import-review fixture confirmed; native History and real Progress were untouched.");break;
-case"confirm-export":state.exportConfirmed[state.panel]=true;state.dialog=null;render();note("Local export-review fixture confirmed; nothing was sent.");break;
-case"no-disconnect":state.connectedOverrides[state.panel]=false;state.dialog=null;render();note("Only the local fixture was disconnected. No account or pending app work was changed.");break;
-case"no-remove":state.removedImports[state.panel]=true;state.dialog=null;render();note("Only the local imported-data fixture was removed; real data remains untouched.");break;
+case"confirm-import":state.importConfirmed[state.panel]=true;closeDialog();note("Local import-review fixture confirmed; native History and real Progress were untouched.");break;
+case"confirm-export":state.exportConfirmed[state.panel]=true;closeDialog();note("Local export-review fixture confirmed; nothing was sent.");break;
+case"no-disconnect":state.connectedOverrides[state.panel]=false;closeDialog();note("Only the local fixture was disconnected. No account or pending app work was changed.");break;
+case"no-remove":state.removedImports[state.panel]=true;closeDialog();note("Only the local imported-data fixture was removed; real data remains untouched.");break;
 }
 });
 app.addEventListener("change",ev=>{
@@ -383,7 +390,7 @@ if(area)area.innerHTML=["Attack on Titan","One Piece","Naruto"].filter(v=>v.toLo
 });
 window.addEventListener("keydown",ev=>{
 if(ev.key==="Tab"&&(state.dialog||state.panel)){const top=app.querySelector(".dialog")||app.querySelector(".dossier");const nodes=[...top.querySelectorAll("button:not(:disabled),input:not(:disabled),[tabindex]")].filter(e=>e.getClientRects().length&&!e.closest("[inert]"));if(nodes.length){const i=nodes.indexOf(document.activeElement);if(ev.shiftKey&&(i<=0)){ev.preventDefault();nodes.at(-1).focus();}else if(!ev.shiftKey&&(i===nodes.length-1||i===-1)){ev.preventDefault();nodes[0].focus();}}}
-if(ev.key==="Escape"&&(state.dialog||state.panel)){ev.preventDefault();if(state.dialog)state.dialog=null;else state.panel=null;render();}
+if(ev.key==="Escape"&&(state.dialog||state.panel)){ev.preventDefault();if(state.dialog)closeDialog();else closePanel();}
 });
 if(el("preset"))el("preset").addEventListener("change",e=>{
 const [w,h]=e.target.value.split("x").map(Number);const platform=e.target.value==="1280x700"?"desktop":"android";
