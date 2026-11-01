@@ -64,7 +64,7 @@ else
 fi
 [[ -x "$qtbase/bin/qmake" ]] || fail "Official Qt SDK qmake missing under $qtbase"
 [[ $("$qtbase/bin/qmake" -query QT_VERSION) == 6.11.1 ]] || fail 'Use one coherent Qt 6.11.1 SDK'
-lipo -verify_arch arm64 "$qtbase/lib/QtCore.framework/QtCore"
+lipo "$qtbase/lib/QtCore.framework/QtCore" -verify_arch arm64
 for module in QtQuick/Dialogs QtQuick/Controls QtWebEngine; do
     [[ -f "$qtbase/qml/$module/qmldir" ]] || fail "Full Qt QML SDK missing $module (PySide is insufficient)"
     printf 'QML_MODULE=%s\n' "$qtbase/qml/$module/qmldir"

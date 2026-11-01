@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 import plistlib
 import subprocess
+import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
@@ -16,6 +17,23 @@ spec.loader.exec_module(package)
 
 
 class PackagingBoundary(unittest.TestCase):
+    @unittest.skipUnless(sys.platform == 'darwin', 'requires actual Xcode Mach-O tools')
+    def test_real_xcode_macho_inspection_tool_contract(self):
+        with tempfile.TemporaryDirectory(prefix='colosseum-macho-contract-') as directory:
+            root = Path(directory)
+            source = root / 'contract.c'
+            binary = root / 'contract-arm64'
+            source.write_text('int main(void) { return 0; }\n')
+            subprocess.run(['xcrun', 'clang', '-arch', 'arm64', '-mmacosx-version-min=26.1',
+                            '-x', 'c', str(source), '-o', str(binary)], check=True,
+                           capture_output=True, text=True)
+            dependencies, rpaths, minimums = package.inspect_macho(binary)
+            self.assertTrue(minimums)
+            self.assertTrue(all(package.version(value) <= package.version('26.1') for value in minimums))
+            self.assertIn('/usr/lib/libSystem.B.dylib', dependencies)
+            self.assertTrue(all(package.system_path(dependency) for dependency in dependencies))
+            self.assertEqual(rpaths, [])
+
     def webengine_fixture(self, root):
         app = root / 'Colosseum.app'
         helper = app / 'Contents/Frameworks/QtWebEngineCore.framework/Helpers/QtWebEngineProcess.app'

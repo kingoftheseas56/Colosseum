@@ -115,7 +115,7 @@ def resolve_dependency(name, loader, executable, rpaths, app):
 
 
 def inspect_macho(path):
-    run('lipo', '-verify_arch', 'arm64', path)
+    run('lipo', path, '-verify_arch', 'arm64')
     return parse_load_commands(run('otool', '-arch', 'arm64', '-l', path))
 
 
@@ -382,7 +382,7 @@ def package(receipt_path, output):
     (notices / 'build-receipt.json').write_text(json.dumps(receipt, indent=2))
     for name in ('ffmpeg', 'ffprobe'):
         binary = Path(run('brew', '--prefix', 'ffmpeg').strip()) / 'bin' / name
-        run('lipo', '-verify_arch', 'arm64', binary)
+        run('lipo', binary, '-verify_arch', 'arm64')
         shutil.copy2(binary, app / 'Contents/MacOS' / name)
     deploy = qt / 'bin/macdeployqt'
     run(deploy, app, '-qmldir=' + str(source / 'qml'),
