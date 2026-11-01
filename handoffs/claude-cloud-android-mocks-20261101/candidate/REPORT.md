@@ -38,7 +38,7 @@ The candidate figures assume the KDE restore has been run. Without it, wallpaper
 | `f264902` | Batch 1 rebuilt title page and flow pair |
 | `8700ba3` | Batch 4 qualification and tablet fix |
 | `c31616c` | Batch 3 tablet fix and per-family smoke |
-| final commit | Documents, final evidence, and verification scripts now committed |
+| `99b26d7` | Documents, final evidence, and verification scripts now committed |
 
 Two corrections to the commit record:
 - `8700ba3` claims zero reachable window actions across all pages. That came from a generic-parameter audit that could not reach tablet presets, and `c31616c` found and fixed three more pages. That audit has been removed.

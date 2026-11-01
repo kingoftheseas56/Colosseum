@@ -137,5 +137,13 @@
   "compare": "candidate/compare.html",
   "flowReevaluation": "candidate/evidence/batch1/FLOW-REEVALUATION.md",
   "verification": "candidate/verify/"
- }
+ },
+ "commits": [
+  "d8b096e",
+  "22be0b0",
+  "f264902",
+  "8700ba3",
+  "c31616c",
+  "99b26d7"
+ ]
 }
