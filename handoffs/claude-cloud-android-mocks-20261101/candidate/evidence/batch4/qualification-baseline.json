@@ -1,6 +1,6 @@
 {
  "tree": "baseline",
- "tool": "candidate/tools/qualify-b4.mjs",
+ "tool": "candidate/verify/qualify-b4.mjs",
  "chromium": "153.0.8010.12",
  "at": "2026-11-01T02:26:18.339Z",
  "externalRequests": 0,

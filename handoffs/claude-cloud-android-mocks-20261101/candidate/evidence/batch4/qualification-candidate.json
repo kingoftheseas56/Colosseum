@@ -1,8 +1,8 @@
 {
  "tree": "candidate",
- "tool": "candidate/tools/qualify-b4.mjs",
+ "tool": "candidate/verify/qualify-b4.mjs",
  "chromium": "153.0.8010.12",
- "at": "2026-11-01T02:26:17.147Z",
+ "at": "2026-11-01T02:52:16.819Z",
  "externalRequests": 0,
  "fileHashes": {
   "10-profile/app.js": "02529b0d0eef6deae8ddd35f5adfb0db87198dd9241f8925ed67c818d06d50e0",
@@ -131,7 +131,7 @@
    "pass": true,
    "capture": {
     "file": "captures/profile-landscape.png",
-    "sha256": "6565d1052cecbc365bd4d00f69c53488e2bcaa72bdc2028b8755cb126582984c"
+    "sha256": "a3317794702e471fe9e98788cf0905eeb22a102d5fee0426be63d5959709a662"
    }
   },
   {
@@ -1730,7 +1730,7 @@
    "pass": true,
    "capture": {
     "file": "captures/account-security-portrait.png",
-    "sha256": "79a24f546281e844d11d3dd3944d21231a9d45f1d3572bc346d19b4e0f736cca"
+    "sha256": "ae864334a417c9094cc7973d8cdb3a35843bb0083527948d72066ee26a64447f"
    }
   },
   {
@@ -1769,7 +1769,7 @@
    "pass": true,
    "capture": {
     "file": "captures/account-security-landscape.png",
-    "sha256": "82156ad32fab7d3a4068165d0a59070c15afd436c09f99ccfcdbaca271f37f30"
+    "sha256": "97777b71809f39cd54e6df6c1fc06e6b151d879eb2f4f92825d63144b3579dc1"
    }
   },
   {
@@ -2097,7 +2097,7 @@
    "pass": true,
    "capture": {
     "file": "captures/account-recovery-landscape.png",
-    "sha256": "c3c4222c757d430c1e476152a2dfb0b395446c48781e44b44ee7c4539cee91e4"
+    "sha256": "9748dccd1aae0d5dcdb3e714ee14a6d85170c7599d66088f292521681572c259"
    }
   },
   {
@@ -2347,7 +2347,7 @@
    "pass": true,
    "capture": {
     "file": "captures/account-recovery-short-stress.png",
-    "sha256": "a65ca9b1c9baf9a2c21631abb3e6c6de9c4689cc8a9812a170cb8c9c27a7dee3"
+    "sha256": "65a1795ec082fedf2958dc3eb71c13a9744babbd02414ba17d23b01e1fa50cf9"
    }
   },
   {
@@ -3736,7 +3736,7 @@
    "pass": true,
    "capture": {
     "file": "captures/extension-setup-landscape.png",
-    "sha256": "d9295238b2b06faa24d1ba1f46b6c8a5cb18a5b3845883af9093f247b22f20a8"
+    "sha256": "240916c6c0041be972ec6f6ee94039d83681ceacf5c147bbb078551eb381c6b9"
    }
   },
   {

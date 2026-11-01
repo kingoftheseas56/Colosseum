@@ -1,0 +1,186 @@
+{
+ "chromium": "153.0.8010.12",
+ "at": "2026-11-01T02:58:05.168Z",
+ "pairs": [
+  {
+   "id": "b1-manga-series-portrait",
+   "page": "review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-series.html",
+   "size": "P",
+   "viewport": [
+    412,
+    900
+   ],
+   "note": "Batch 1 main series mock: baseline default (older reading room) vs candidate default (rebuilt + TitlePageBar)",
+   "before": {
+    "file": "b1-manga-series-portrait-before.png",
+    "sha256": "febcbd66eaa173fbd7d63f4d6670715270aa3a9745c472fd2bec1f17137f66b6"
+   },
+   "after": {
+    "file": "b1-manga-series-portrait-after.png",
+    "sha256": "b08f048dd2d19436576fa33166ace6e340e30f345de8467bff1be4b45ed0dfa4"
+   }
+  },
+  {
+   "id": "b1-manga-series-landscape",
+   "page": "review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-series.html",
+   "size": "L",
+   "viewport": [
+    900,
+    412
+   ],
+   "note": "Same, phone landscape",
+   "before": {
+    "file": "b1-manga-series-landscape-before.png",
+    "sha256": "ce2981a023781fa2cc5320463381f20161a8e77bb5dc0e44773dd82e73f0936a"
+   },
+   "after": {
+    "file": "b1-manga-series-landscape-after.png",
+    "sha256": "e0d7bb37b9fa4cfb1303afad7e0f41d90e84e7882129ed929b70d06c261db9ca"
+   }
+  },
+  {
+   "id": "b1-manga-chapters-portrait",
+   "page": "review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-chapters.html",
+   "size": "P",
+   "viewport": [
+    412,
+    900
+   ],
+   "note": "Batch 1 chapters: baseline default vs candidate rebuilt",
+   "before": {
+    "file": "b1-manga-chapters-portrait-before.png",
+    "sha256": "b9c2b45d9b5ebce9d0f69688b6fca7186ef826deacd253fba281d6a13fc38c60"
+   },
+   "after": {
+    "file": "b1-manga-chapters-portrait-after.png",
+    "sha256": "00bd37b48b38f0f90b34ed852176235283cbf2b71e4be5bdcf7aa3cf8f4292fe"
+   }
+  },
+  {
+   "id": "b1-manga-series-desktop",
+   "page": "review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-series.html",
+   "size": "D",
+   "viewport": [
+    1280,
+    700
+   ],
+   "note": "Desktop: window controls retained (baseline icons; candidate one system menu)",
+   "before": {
+    "file": "b1-manga-series-desktop-before.png",
+    "sha256": "01cdb2a3c961495cb09b339efc6db913dd0f108ceec4947faddbabce23e08f88"
+   },
+   "after": {
+    "file": "b1-manga-series-desktop-after.png",
+    "sha256": "9eb667b7c2cc89aab74b7eaebcf6f88be29588dc2f5786b6b414ff45426d9b73"
+   }
+  },
+  {
+   "id": "b1-rebuilt-preview-vs-final-portrait",
+   "page": "review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-series.html",
+   "size": "P",
+   "viewport": [
+    412,
+    900
+   ],
+   "note": "Hemanth-viewed rebuilt preview (older chrome) vs final rebuilt with TitlePageBar",
+   "before": {
+    "file": "b1-rebuilt-preview-vs-final-portrait-before.png",
+    "sha256": "a4435d3b69d3113e5ef4ce42095c53041982adc5e1ccbe4da5327a973d2fb2ce"
+   },
+   "after": {
+    "file": "b1-rebuilt-preview-vs-final-portrait-after.png",
+    "sha256": "b08f048dd2d19436576fa33166ace6e340e30f345de8467bff1be4b45ed0dfa4"
+   }
+  },
+  {
+   "id": "b2-film-rebuilt-phone",
+   "page": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html",
+   "size": "SP",
+   "viewport": [
+    354,
+    792
+   ],
+   "note": "Batch 2 Theatre rebuilt on Android phone: Window menu invoker removed (Sol SOL-B2-001)",
+   "before": {
+    "file": "b2-film-rebuilt-phone-before.png",
+    "sha256": "12529410ed2fd3d721f7e2d14d85ea0ce9ca098da19affde331ee20fd2cfe20b"
+   },
+   "after": {
+    "file": "b2-film-rebuilt-phone-after.png",
+    "sha256": "151d8c2baeab7daaca9242d785f52459ec7fecf38c09fdc5cb896b58dec2d81f"
+   }
+  },
+  {
+   "id": "b3-genre-index-tablet",
+   "page": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/genre-index.html",
+   "size": "TL",
+   "viewport": [
+    1280,
+    800
+   ],
+   "note": "Batch 3 genre index on Android tablet: window controls removed",
+   "before": {
+    "file": "b3-genre-index-tablet-before.png",
+    "sha256": "09a367e9730fe61b31f111de56e5ab95c85fd25c9dcab4926fdb32a655b24b36"
+   },
+   "after": {
+    "file": "b3-genre-index-tablet-after.png",
+    "sha256": "310ec83059d49f54a49a5d02ab993d673d8bb9422aacf225dfd58acc3e89deb9"
+   }
+  },
+  {
+   "id": "b4-account-profile-tablet",
+   "page": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-profile.html",
+   "size": "TL",
+   "viewport": [
+    1280,
+    800
+   ],
+   "note": "Batch 4 account profile on Android tablet: window controls removed",
+   "before": {
+    "file": "b4-account-profile-tablet-before.png",
+    "sha256": "f76bee104eeaaf86f8ac1eb94805f7019a370cb54260e57828050be142c4f559"
+   },
+   "after": {
+    "file": "b4-account-profile-tablet-after.png",
+    "sha256": "981810cddedd03efe25eeff05d1c2b380e933c5e402edd354152873e72f4aa6e"
+   }
+  },
+  {
+   "id": "b4-account-flyout-tablet",
+   "page": "review-batches/04-accounts-configuration/finished-mocks/11-account-entry/account-flyout.html",
+   "size": "TL",
+   "viewport": [
+    1280,
+    800
+   ],
+   "note": "Batch 4 flyout TopBar underlay on Android tablet: window controls removed",
+   "before": {
+    "file": "b4-account-flyout-tablet-before.png",
+    "sha256": "3dfed84ff0f5069e9a86f136f88b5f8adb90610895f5a961c2d7a93cfc3c0db3"
+   },
+   "after": {
+    "file": "b4-account-flyout-tablet-after.png",
+    "sha256": "e6edcb47f67fd7a663afe99055f5e2209e8c12f9bccf49c7b88129002de19761"
+   }
+  },
+  {
+   "id": "b5-wallpaper-search-portrait",
+   "page": "review-batches/05-tracker-utilities/finished-mocks/wallpaper-search.html",
+   "size": "P",
+   "viewport": [
+    412,
+    900
+   ],
+   "note": "Batch 5 wallpaper search: omitted KDE art restored byte-exact (requires verify/fetch-kde-wallpapers.py)",
+   "before": {
+    "file": "b5-wallpaper-search-portrait-before.png",
+    "sha256": "ffe3c3c2d0a101c42c3bc298b8ae5df8a2feac29a916aa48fd7576db6c0aef2c"
+   },
+   "after": {
+    "file": "b5-wallpaper-search-portrait-after.png",
+    "sha256": "dc40f64fdb89e80a499eafa656a53bf8bbbd049d4a9f792cd09eac16155b888d"
+   }
+  }
+ ]
+}

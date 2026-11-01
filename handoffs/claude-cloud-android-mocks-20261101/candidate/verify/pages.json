@@ -1,0 +1,320 @@
+[
+ {
+  "batch": "01-sources-manga",
+  "page": "film-sources",
+  "path": "review-batches/01-sources-manga/finished-mocks/01-theatre-sources/film-sources.html",
+  "family": "01-theatre-sources"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "episode-sources",
+  "path": "review-batches/01-sources-manga/finished-mocks/01-theatre-sources/episode-sources.html",
+  "family": "01-theatre-sources"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "comic-sources",
+  "path": "review-batches/01-sources-manga/finished-mocks/02-comic-sources/comic-sources.html",
+  "family": "02-comic-sources"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "comic-source-confirmation",
+  "path": "review-batches/01-sources-manga/finished-mocks/02-comic-sources/comic-source-confirmation.html",
+  "family": "02-comic-sources"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "manga-volume-sources",
+  "path": "review-batches/01-sources-manga/finished-mocks/03-manga-sources/manga-volume-sources.html",
+  "family": "03-manga-sources"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "manga-series",
+  "path": "review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-series.html",
+  "family": "04-manga-series"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "manga-chapters",
+  "path": "review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-chapters.html",
+  "family": "04-manga-series"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "volume-flow-original-fit",
+  "path": "review-batches/01-sources-manga/finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+  "family": "05-volume-flow"
+ },
+ {
+  "batch": "01-sources-manga",
+  "page": "volume-flow-minimal-alternative",
+  "path": "review-batches/01-sources-manga/finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+  "family": "05-volume-flow"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "biblio-book",
+  "path": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html",
+  "family": "06-biblio-book"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "film-detail",
+  "path": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html",
+  "family": "17-theatre-details"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "series-detail",
+  "path": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html",
+  "family": "17-theatre-details"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "comic-series",
+  "path": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html",
+  "family": "18-comic-details"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "comic-edition",
+  "path": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html",
+  "family": "18-comic-details"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "comic-archive",
+  "path": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html",
+  "family": "18-comic-details"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "saga-universe",
+  "path": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html",
+  "family": "19-generic-universes"
+ },
+ {
+  "batch": "02-detail-pages",
+  "page": "shelves-universe",
+  "path": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html",
+  "family": "19-generic-universes"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "biblio-home",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/07-biblio-home/biblio-home.html",
+  "family": "07-biblio-home"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "theatre-discover",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/08-theatre-discover/theatre-discover.html",
+  "family": "08-theatre-discover"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "theatre-catalogue",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/09-catalogue-index/theatre-catalogue.html",
+  "family": "09-catalogue-index"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "manga-catalogue",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/09-catalogue-index/manga-catalogue.html",
+  "family": "09-catalogue-index"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "comics-catalogue",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/09-catalogue-index/comics-catalogue.html",
+  "family": "09-catalogue-index"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "theatre-home",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/15-world-home/theatre-home.html",
+  "family": "15-world-home"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "tankoban-home",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/15-world-home/tankoban-home.html",
+  "family": "15-world-home"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "universes-home",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/15-world-home/universes-home.html",
+  "family": "15-world-home"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "theatre-library",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/theatre-library.html",
+  "family": "16-libraries"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "tankoban-library",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/tankoban-library.html",
+  "family": "16-libraries"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "biblio-library",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/biblio-library.html",
+  "family": "16-libraries"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "search",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/search.html",
+  "family": "20-search-browse"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "biblio-explore",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/biblio-explore.html",
+  "family": "20-search-browse"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "genre-index",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/genre-index.html",
+  "family": "20-search-browse"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "genre-results",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/genre-results.html",
+  "family": "20-search-browse"
+ },
+ {
+  "batch": "03-browsing-libraries",
+  "page": "continue-see-all",
+  "path": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/continue-see-all.html",
+  "family": "20-search-browse"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "profile",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/10-profile/profile.html",
+  "family": "10-profile"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-welcome",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/11-account-entry/account-welcome.html",
+  "family": "11-account-entry"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-flyout",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/11-account-entry/account-flyout.html",
+  "family": "11-account-entry"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-centre",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/11-account-entry/account-centre.html",
+  "family": "11-account-entry"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-profile",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-profile.html",
+  "family": "12-account-forms"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-security",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-security.html",
+  "family": "12-account-forms"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-recovery",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-recovery.html",
+  "family": "12-account-forms"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-privacy",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-privacy.html",
+  "family": "12-account-forms"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-devices",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-devices.html",
+  "family": "12-account-forms"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "account-your-colosseum",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-your-colosseum.html",
+  "family": "12-account-forms"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "stremio-sync",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/13-stremio-sync/stremio-sync.html",
+  "family": "13-stremio-sync"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "extension-setup",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/extension-setup.html",
+  "family": "14-extension-setup"
+ },
+ {
+  "batch": "04-accounts-configuration",
+  "page": "tankoyomi-configuration",
+  "path": "review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/tankoyomi-configuration.html",
+  "family": "14-extension-setup"
+ },
+ {
+  "batch": "05-tracker-utilities",
+  "page": "tracker-connections",
+  "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html",
+  "family": "05-tracker-utilities"
+ },
+ {
+  "batch": "05-tracker-utilities",
+  "page": "tracker-dossier",
+  "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-dossier.html",
+  "family": "05-tracker-utilities"
+ },
+ {
+  "batch": "05-tracker-utilities",
+  "page": "tracker-preferences",
+  "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-preferences.html",
+  "family": "05-tracker-utilities"
+ },
+ {
+  "batch": "05-tracker-utilities",
+  "page": "wallpaper-search",
+  "path": "review-batches/05-tracker-utilities/finished-mocks/wallpaper-search.html",
+  "family": "05-tracker-utilities"
+ },
+ {
+  "batch": "05-tracker-utilities",
+  "page": "extensions-store",
+  "path": "review-batches/05-tracker-utilities/finished-mocks/extensions-store.html",
+  "family": "05-tracker-utilities"
+ },
+ {
+  "batch": "05-tracker-utilities",
+  "page": "update",
+  "path": "review-batches/05-tracker-utilities/finished-mocks/update.html",
+  "family": "05-tracker-utilities"
+ },
+ {
+  "batch": "05-tracker-utilities",
+  "page": "collections",
+  "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+  "family": "05-tracker-utilities"
+ }
+]

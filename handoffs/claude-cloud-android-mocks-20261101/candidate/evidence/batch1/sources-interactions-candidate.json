@@ -1,0 +1,46 @@
+{
+ "tree": "candidate",
+ "chromium": "153.0.8010.12",
+ "at": "2026-11-01T02:49:14.293Z",
+ "cases": 6,
+ "passed": 6,
+ "errors": [],
+ "results": [
+  {
+   "w": 412,
+   "h": 900,
+   "name": "Provider Escape keeps picker, returns focus",
+   "pass": true
+  },
+  {
+   "w": 412,
+   "h": 900,
+   "name": "Provider outside click dismisses without activating a source",
+   "pass": true
+  },
+  {
+   "w": 412,
+   "h": 900,
+   "name": "Weak-match cancel keeps filtered result, query and focus",
+   "pass": true
+  },
+  {
+   "w": 900,
+   "h": 412,
+   "name": "Provider Escape keeps picker, returns focus",
+   "pass": true
+  },
+  {
+   "w": 900,
+   "h": 412,
+   "name": "Provider outside click dismisses without activating a source",
+   "pass": true
+  },
+  {
+   "w": 900,
+   "h": 412,
+   "name": "Weak-match cancel keeps filtered result, query and focus",
+   "pass": true
+  }
+ ]
+}

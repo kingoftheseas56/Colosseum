@@ -1,7 +1,7 @@
 {
- "tool": "candidate/tools/focused-b1.mjs",
+ "tool": "candidate/verify/focused-b1.mjs",
  "chromium": "153.0.8010.12",
- "at": "2026-11-01T02:14:30.293Z",
+ "at": "2026-11-01T02:49:11.429Z",
  "candidate": {
   "appJs": "6ccee54b6dff6a039dfe71d00e544a013dc355b67ab2dc64e1fa998bf6e74235",
   "styleCss": "fec093cbd84aa3fa6a0f7da35ec7cf5c39c028dac5affdd2f4c2de174770af21"
@@ -199,7 +199,7 @@
    "captures": [
     {
      "file": "captures/after-manga-series-phone-landscape.png",
-     "sha256": "2ddf57dfb0a20e2b4adecfadbc8d89bd7835a4312cd8fd8bea48e5a951dfbdcc"
+     "sha256": "dbe42d8408d220d473854a50e18214fbc4bfedaae3c5bcd1a00c28a9694b6769"
     }
    ],
    "errors": [],
@@ -828,7 +828,7 @@
    "captures": [
     {
      "file": "captures/after-manga-chapters-phone-portrait.png",
-     "sha256": "160153a283c7ac718c002ab7f2647326287b5a92e7d6cef0256045bcf320aa39"
+     "sha256": "937e58567fae77417a62360541bd83fde2b69e8199ea6d7c45a277434281a7ed"
     }
    ],
    "errors": [],
@@ -975,7 +975,7 @@
    "captures": [
     {
      "file": "captures/after-manga-chapters-small-landscape-1.3-insets.png",
-     "sha256": "c227761727703ca0827eadab9d16c098cbef5b9689171429a353f8261af46f79"
+     "sha256": "a83018e25eb45003ca361220cf33e5203f4035bdd7b969e4a84670d4d504e7c8"
     }
    ],
    "errors": [],
@@ -1026,7 +1026,7 @@
    "captures": [
     {
      "file": "captures/after-manga-chapters-tablet-portrait.png",
-     "sha256": "3dc544b863719a6e2bfab3f55c3c9ca124846d2a7bf235b28ccae8ad013f40d6"
+     "sha256": "2d6099dd651cd649eb66d309ecb24bf9e72a9d45600c81dd7d239102adbaec50"
     }
    ],
    "errors": [],
@@ -1895,7 +1895,7 @@
    "libraryFitsBelowPinnedBar": false,
    "captureScrolled": {
     "file": "captures/flow-B-scroll-phone-landscape-scrolled-to-flow.png",
-    "sha256": "4056aa308e421975f1a91746a239379745ff2c2e43d4e0cd7edd09d15aabd282"
+    "sha256": "50852135764a41b5548efc86526a39c5d01be24ad38bce3e0a46e6030324d3f8"
    }
   },
   {

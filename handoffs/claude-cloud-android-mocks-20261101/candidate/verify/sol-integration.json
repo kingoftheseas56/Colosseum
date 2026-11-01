@@ -1,0 +1,44 @@
+[
+ {
+  "fix": "SOL-B2-001 Android window-action gating (chromeMarkup)",
+  "source": "baseline/review-batches/02-detail-pages/codex-review-sol/remediation/app.js",
+  "sourceSha256": "64fd16d35f596a89175e1c573924527a48a9c237acb3ba68a72dcac2053c7ce5",
+  "target": "candidate/review-batches/02-detail-pages/finished-mocks/17-theatre-details/app.js",
+  "replacedSeededSha256": "e77ea140833d3079977ec8fb8256d457c46e022c404d57a6756c6ac5d97baeb3",
+  "integratedSha256": "a450f6adfc2d267ebd8b5daf8cfdc3ad516e32014436a5a5c17d08d8cc9dab0b",
+  "rewrites": [
+   [
+    "../../../../reference/desktop/assets/",
+    "../../../../../baseline/reference/desktop/assets/"
+   ]
+  ]
+ },
+ {
+  "fix": "SOL-B3-01/02 + REM-F01 Search query/caret/Enter/focus identity",
+  "source": "baseline/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+  "sourceSha256": "5f3adf984432ea9a0fde19c7a8b6050c93e5b4682ed8d805f39235cba32e27f4",
+  "target": "candidate/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/app.js",
+  "replacedSeededSha256": "452940c65a391ee65f3e5c97dbfe894b335d7500c9fba40a31aa7b4fecb1658a",
+  "integratedSha256": "33e25fca82938156160618bd69cf2d37af434e0cc1cc36aead0f827909c281cf",
+  "rewrites": [
+   [
+    "../../../../reference/desktop/assets/",
+    "../../../../../baseline/reference/desktop/assets/"
+   ]
+  ]
+ },
+ {
+  "fix": "SOL-B5-001 exact dossier opener / nested dialog focus",
+  "source": "baseline/review-batches/05-tracker-utilities/codex-review-sol/tracker.js",
+  "sourceSha256": "866b0560ac0794cf305676e063fbf362f9d2badb580dbe1417b4379e9f5b75c7",
+  "target": "candidate/review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+  "replacedSeededSha256": "f064f1eb4ffe578ea240b1b50fb70c44e9e844d8421a1dfec0d5e4e271124bd1",
+  "integratedSha256": "df2c91b7353f1983ddc032fe4131a3aa9232b29430171d1c34091734c2533613",
+  "rewrites": [
+   [
+    "../../../reference/desktop/assets/",
+    "../../../../baseline/reference/desktop/assets/"
+   ]
+  ]
+ }
+]

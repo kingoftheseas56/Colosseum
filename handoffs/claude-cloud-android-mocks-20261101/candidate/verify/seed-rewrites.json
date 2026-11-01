@@ -1,0 +1,2740 @@
+{
+ "rule": "relative URL escaping the copied finished-mocks tree -> same target under baseline/",
+ "files": [
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/compare.html",
+   "baselineSha256": "ae17a2d2782859bf5097ae141dc0acc809288f1dc94c1fb4e01bf5ae202e0704",
+   "seededSha256": "b93deff0824ef80f7240da653bbd8ce7eaa8f5c15be5c9d9b411b2e749ac7c07",
+   "rewrites": [
+    [
+     "../../../outputs/",
+     "../../../../baseline/outputs/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/index.html",
+   "baselineSha256": "32e641641dfdeb9d85793705a6330094cf6683623c98b24862b077f3dadbf2e7",
+   "seededSha256": "92c548cc11e086f3d6b1fdf5441c9de83495b96c167856aa0fefde1c947c9ffe",
+   "rewrites": [
+    [
+     "../REVIEW.md",
+     "../../../../baseline/review-batches/01-sources-manga/REVIEW.md"
+    ],
+    [
+     "../QML-PORTING.md",
+     "../../../../baseline/review-batches/01-sources-manga/QML-PORTING.md"
+    ],
+    [
+     "../DECISIONS.md",
+     "../../../../baseline/review-batches/01-sources-manga/DECISIONS.md"
+    ],
+    [
+     "../COVERAGE.csv",
+     "../../../../baseline/review-batches/01-sources-manga/COVERAGE.csv"
+    ],
+    [
+     "../FINDINGS.csv",
+     "../../../../baseline/review-batches/01-sources-manga/FINDINGS.csv"
+    ],
+    [
+     "../contact-sheets/index.html",
+     "../../../../baseline/review-batches/01-sources-manga/contact-sheets/index.html"
+    ],
+    [
+     "../../../outputs/01-theatre-sources/film-sources.html",
+     "../../../../baseline/outputs/01-theatre-sources/film-sources.html"
+    ],
+    [
+     "../../../outputs/01-theatre-sources/episode-sources.html",
+     "../../../../baseline/outputs/01-theatre-sources/episode-sources.html"
+    ],
+    [
+     "../../../outputs/02-comic-sources/comic-sources.html",
+     "../../../../baseline/outputs/02-comic-sources/comic-sources.html"
+    ],
+    [
+     "../../../outputs/02-comic-sources/comic-source-confirmation.html",
+     "../../../../baseline/outputs/02-comic-sources/comic-source-confirmation.html"
+    ],
+    [
+     "../../../outputs/03-manga-sources/manga-volume-sources.html",
+     "../../../../baseline/outputs/03-manga-sources/manga-volume-sources.html"
+    ],
+    [
+     "../../../outputs/04-manga-series/manga-series.html",
+     "../../../../baseline/outputs/04-manga-series/manga-series.html"
+    ],
+    [
+     "../../../outputs/04-manga-series/manga-chapters.html",
+     "../../../../baseline/outputs/04-manga-series/manga-chapters.html"
+    ],
+    [
+     "../../../outputs/05-volume-flow/volume-flow-original-fit.html",
+     "../../../../baseline/outputs/05-volume-flow/volume-flow-original-fit.html"
+    ],
+    [
+     "../../../outputs/05-volume-flow/volume-flow-minimal-alternative.html",
+     "../../../../baseline/outputs/05-volume-flow/volume-flow-minimal-alternative.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/02-comic-sources/style.css",
+   "baselineSha256": "d88357e1af6b1fee8c5b41de50465e28379be4b7b760b67de300a6d8fe5f3c83",
+   "seededSha256": "d1e89b73b7d7de38735b1fcb274dab357aea1b62c6a3770633d364a62aec49cb",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+     "../../../../../baseline/reference/desktop/assets/universes/dcau/portals/gotham.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+     "../../../../../baseline/reference/desktop/assets/universes/dcau/portals/gotham.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/02-comic-sources/index.html",
+   "baselineSha256": "32b238c8cda58507f309785731ee222aa1afe74acb8352b3e4b6fc4cf886f3cb",
+   "seededSha256": "fb3b42b7eb3e1aaec1ead52082b0716a43ec52b4c50ca0fff9ff38f896f062bb",
+   "rewrites": [
+    [
+     "../../../../outputs/02-comic-sources/comic-sources.html",
+     "../../../../../baseline/outputs/02-comic-sources/comic-sources.html"
+    ],
+    [
+     "../../../../outputs/02-comic-sources/comic-source-confirmation.html",
+     "../../../../../baseline/outputs/02-comic-sources/comic-source-confirmation.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/01-theatre-sources/app.js",
+   "baselineSha256": "7fcb0c6a1689836a3a4488fb5287e32564d398490bc3ffb932225482f10697a0",
+   "seededSha256": "6e6d5b18624c69b4ca0fc1a4221b4909c311cb99be0c94bd5569c480429217e0",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/extensions/house/starwars-banner.jpg",
+     "../../../../../baseline/reference/desktop/assets/extensions/house/starwars-banner.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/star-wars/nevarro.jpg",
+     "../../../../../baseline/reference/desktop/assets/universes/star-wars/nevarro.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/01-theatre-sources/style.css",
+   "baselineSha256": "9593913b331389fd86b9c1736147a0fde8e208ed8ca7fc4b5ecd3d7707399d81",
+   "seededSha256": "6c1a5394c483c9fd90479d24deafe7e316ff1b07df78fb6d2e7ec8b0c5843632",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/captured-motion.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/captured-motion.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/01-theatre-sources/film-sources.html",
+   "baselineSha256": "2f9178619a05268c0373d6912dd3f63afccec29ee16f9d64785eaeff42c309ac",
+   "seededSha256": "057f14de8b4fbee3cbab39d1a91d3cf76091ffbf65e1d668db11b7374b15a277",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/colosseum.ico",
+     "../../../../../baseline/reference/desktop/assets/icons/colosseum.ico"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/01-theatre-sources/index.html",
+   "baselineSha256": "332911dd85899d0654a9c9daa061a46c1bf3a5e37fad109625eb70d1624a65bf",
+   "seededSha256": "8f1fd27ab0e0481803c54838f893c7ec3d4a6042f9b84436f422f699e2529b00",
+   "rewrites": [
+    [
+     "../../../../outputs/01-theatre-sources/film-sources.html",
+     "../../../../../baseline/outputs/01-theatre-sources/film-sources.html"
+    ],
+    [
+     "../../../../outputs/01-theatre-sources/episode-sources.html",
+     "../../../../../baseline/outputs/01-theatre-sources/episode-sources.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/01-theatre-sources/episode-sources.html",
+   "baselineSha256": "e9cf50c04027ec54fdceca65e01ae906ec4434876defc1581eed5e28de25dc77",
+   "seededSha256": "e23401dddabaa821b65385224e33333d1dd2cf26fe5dcc90d3510757c36c99b6",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/colosseum.ico",
+     "../../../../../baseline/reference/desktop/assets/icons/colosseum.ico"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/03-manga-sources/style.css",
+   "baselineSha256": "aa4c47e0e0b967d1e3e6267ad0e9c6c8b6044f734155cd3e2c09b8ada6971608",
+   "seededSha256": "405ec3dc6e61ec5f1c90ac07b3c1b21ecbf7529871bd5dac32ec7288f6e0a5fd",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/03-manga-sources/index.html",
+   "baselineSha256": "5da68c522e9403c50b3345e9856a7375c1c8002c845d958c4d7be7f9cafdc7c7",
+   "seededSha256": "e4b172946dc30e45a19d0f669079ee0e7aa988a891ffd96c6e93cbd99b398a61",
+   "rewrites": [
+    [
+     "../../../../outputs/03-manga-sources/manga-volume-sources.html",
+     "../../../../../baseline/outputs/03-manga-sources/manga-volume-sources.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/04-manga-series/app.js",
+   "baselineSha256": "cb42793d73d22243e11a7d75d5587c4956783f7a77baeb2000f630bc80e00656",
+   "seededSha256": "8cf56cd4d4c9a15b5062833deb27548767fc1b87448f68fb230ca6d87b5a5419",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/04-manga-series/style.css",
+   "baselineSha256": "2399d6187308779b7cc9b63d4b930c39f6eaf2e17261df6a02267cf83d770ceb",
+   "seededSha256": "8babb0cd10158e328f34882dfd7055beefc858a7ca656dd412a195516cac32f9",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Italic.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Italic.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/04-manga-series/index.html",
+   "baselineSha256": "f8a1ecbee9194f5825f2276be6b5c0b4a3a44f991da6bcf7fddecd5bdd7be387",
+   "seededSha256": "05e63ff6036c2e335b22dfa6bb2731d616fef29dffb7fb586ec0e101ed6976f5",
+   "rewrites": [
+    [
+     "../../../../outputs/04-manga-series/manga-series.html",
+     "../../../../../baseline/outputs/04-manga-series/manga-series.html"
+    ],
+    [
+     "../../../../outputs/04-manga-series/manga-chapters.html",
+     "../../../../../baseline/outputs/04-manga-series/manga-chapters.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/05-volume-flow/app.js",
+   "baselineSha256": "98af3c039c0886105b8af0ac7c2a41de531790be3a9e05b1ca20abc69111f339",
+   "seededSha256": "134dc5b9d8cedc90b3baaddcb75cd1a1bba061926ed1018f489566acb3e3d4a1",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/bookmark-",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/bookmark-"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/05-volume-flow/style.css",
+   "baselineSha256": "9018f64292f1ab7aea95689a0090a8514a93caa25da1d2b7e9f55accfff79515",
+   "seededSha256": "67904c54f8ad78d1977f81bca43c35ae50067fd405e53ab6c4a8e66d7a8e7a91",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/05-volume-flow/index.html",
+   "baselineSha256": "a752667d221967d80ef7144d1cb5458395d568bd7853a5f499e3141485bc1bf6",
+   "seededSha256": "4a5b1f3db08cd6743d9675c4cdbfba0ee9c11e590cdbaec2c088d0c77102761f",
+   "rewrites": [
+    [
+     "../../../../outputs/05-volume-flow/volume-flow-original-fit.html",
+     "../../../../../baseline/outputs/05-volume-flow/volume-flow-original-fit.html"
+    ],
+    [
+     "../../../../outputs/05-volume-flow/volume-flow-minimal-alternative.html",
+     "../../../../../baseline/outputs/05-volume-flow/volume-flow-minimal-alternative.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+   "baselineSha256": "612a1e045d7f8bc2eee0a474783c43b8f570389f919911abd5851534bc7d2e5c",
+   "seededSha256": "8b4c818a9df153603a784e5992ddc80e1d4312c796ea1a9c212465fdd052fe55",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/minimize.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/minimize.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/fullscreen.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/fullscreen.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/power.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/power.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/bookmark-plus.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/download.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/download.svg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/01-sources-manga/finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+   "baselineSha256": "9c16b1a18ca392d79f623ff9d338323431a5e6a45810d4b4fad9b2d309c37bb7",
+   "seededSha256": "bb35f484889cf05b177a7be4e33568aaec4e2ad6beb2db4afe7d9b114ab96b38",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/minimize.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/minimize.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/fullscreen.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/fullscreen.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/power.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/power.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/bookmark-plus.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/download.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/download.svg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/index.html",
+   "baselineSha256": "74d5679b1140f6cd41e4668bc29392507704520e0bb243d1e3b5597d7357dc50",
+   "seededSha256": "bdfbfb750e10e36870686d3a7498927eb8e1cfa20112f34dd165027fbc9086d3",
+   "rewrites": [
+    [
+     "../comparisons/decision-B2-018.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/decision-B2-018.html"
+    ],
+    [
+     "../REVIEW.md",
+     "../../../../baseline/review-batches/02-detail-pages/REVIEW.md"
+    ],
+    [
+     "../COVERAGE.csv",
+     "../../../../baseline/review-batches/02-detail-pages/COVERAGE.csv"
+    ],
+    [
+     "../FINDINGS.csv",
+     "../../../../baseline/review-batches/02-detail-pages/FINDINGS.csv"
+    ],
+    [
+     "../QML-PORTING-NOTES.md",
+     "../../../../baseline/review-batches/02-detail-pages/QML-PORTING-NOTES.md"
+    ],
+    [
+     "../contact-sheets/index.html",
+     "../../../../baseline/review-batches/02-detail-pages/contact-sheets/index.html"
+    ],
+    [
+     "../REPORT.json",
+     "../../../../baseline/review-batches/02-detail-pages/REPORT.json"
+    ],
+    [
+     "../../../outputs/06-biblio-book/biblio-book.html",
+     "../../../../baseline/outputs/06-biblio-book/biblio-book.html"
+    ],
+    [
+     "../comparisons/biblio.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/biblio.html"
+    ],
+    [
+     "../../../outputs/17-theatre-details/film-detail.html",
+     "../../../../baseline/outputs/17-theatre-details/film-detail.html"
+    ],
+    [
+     "../comparisons/film.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/film.html"
+    ],
+    [
+     "../../../outputs/17-theatre-details/series-detail.html",
+     "../../../../baseline/outputs/17-theatre-details/series-detail.html"
+    ],
+    [
+     "../comparisons/series.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/series.html"
+    ],
+    [
+     "../../../outputs/18-comic-details/comic-series.html",
+     "../../../../baseline/outputs/18-comic-details/comic-series.html"
+    ],
+    [
+     "../comparisons/comic-series.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/comic-series.html"
+    ],
+    [
+     "../../../outputs/18-comic-details/comic-edition.html",
+     "../../../../baseline/outputs/18-comic-details/comic-edition.html"
+    ],
+    [
+     "../comparisons/comic-edition.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/comic-edition.html"
+    ],
+    [
+     "../../../outputs/18-comic-details/comic-archive.html",
+     "../../../../baseline/outputs/18-comic-details/comic-archive.html"
+    ],
+    [
+     "../comparisons/comic-archive.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/comic-archive.html"
+    ],
+    [
+     "../../../outputs/19-generic-universes/saga-universe.html",
+     "../../../../baseline/outputs/19-generic-universes/saga-universe.html"
+    ],
+    [
+     "../comparisons/saga.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/saga.html"
+    ],
+    [
+     "../../../outputs/19-generic-universes/shelves-universe.html",
+     "../../../../baseline/outputs/19-generic-universes/shelves-universe.html"
+    ],
+    [
+     "../comparisons/shelves.html",
+     "../../../../baseline/review-batches/02-detail-pages/comparisons/shelves.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/shared/collections-picker.css",
+   "baselineSha256": "4838514ce98ef29defb907905ba46c7fea486d040ac9cfa4f20db32f18aa7ee3",
+   "seededSha256": "b867f8b72eb9c8c8cdc19d113dea6313452cca09f754a27d9726521c59765e27",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/18-comic-details/app.js",
+   "baselineSha256": "93c503a5314f5b13c312b28ff2dcf316ba81203e2675ee035f90a417d2808668",
+   "seededSha256": "c2ce284cbcba4f0930ec7d29806c9d506254da7259bdca0cf13d00ac22ee7b02",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ],
+    [
+     "../../QML-PORTING-NOTES.md",
+     "../../../../../baseline/review-batches/02-detail-pages/QML-PORTING-NOTES.md"
+    ],
+    [
+     "../../REPORT.json",
+     "../../../../../baseline/review-batches/02-detail-pages/REPORT.json"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/18-comic-details/style.css",
+   "baselineSha256": "a2dcb047eab8b55c4da76367a0590cb9c7e1c37118b4d9890370ed625bee0470",
+   "seededSha256": "c5e2e1646cd98c8550abcc1076fa4bd93b48ee110c9309212e02c3d9bd14c24a",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/18-comic-details/index.html",
+   "baselineSha256": "1de04e69f0111c450554ac2cad305e83f02006176d4b334248c84a8f1d614d6d",
+   "seededSha256": "c8555cef1fefe9dca5fe4b6576287ad08927645e2c2c0f49137a20e73188fda8",
+   "rewrites": [
+    [
+     "../../comparisons/comic-series.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/comic-series.html"
+    ],
+    [
+     "../../../../outputs/18-comic-details/comic-series.html",
+     "../../../../../baseline/outputs/18-comic-details/comic-series.html"
+    ],
+    [
+     "../../comparisons/comic-edition.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/comic-edition.html"
+    ],
+    [
+     "../../../../outputs/18-comic-details/comic-edition.html",
+     "../../../../../baseline/outputs/18-comic-details/comic-edition.html"
+    ],
+    [
+     "../../comparisons/comic-archive.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/comic-archive.html"
+    ],
+    [
+     "../../../../outputs/18-comic-details/comic-archive.html",
+     "../../../../../baseline/outputs/18-comic-details/comic-archive.html"
+    ],
+    [
+     "../../QML-PORTING-NOTES.md",
+     "../../../../../baseline/review-batches/02-detail-pages/QML-PORTING-NOTES.md"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/style.css",
+   "baselineSha256": "daf3163e5aaee98141e7ddd4831560f9674b4fb3eb748e94bf98c99fd2923609",
+   "seededSha256": "ac699ffcfa662743cf8d720dce0d8cde0c787ca086268cdd1b91de47e47ad0c2",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Italic.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Italic.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/index.html",
+   "baselineSha256": "c8a31b4bf81b81a492a2b78c4de80893f3e3c5faeda788f5c37ac49604095e54",
+   "seededSha256": "e47e0da5579680d43237249ee6e827bd7b347dc516e7c06a9f12b4f8c868075f",
+   "rewrites": [
+    [
+     "../../comparisons/biblio.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/biblio.html"
+    ],
+    [
+     "../../../../outputs/06-biblio-book/biblio-book.html",
+     "../../../../../baseline/outputs/06-biblio-book/biblio-book.html"
+    ],
+    [
+     "../../QML-PORTING-NOTES.md",
+     "../../../../../baseline/review-batches/02-detail-pages/QML-PORTING-NOTES.md"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html",
+   "baselineSha256": "1828594934a36e174f313f36ce6f51cdea13b4bf46ac01b312fc72fb8b2d1209",
+   "seededSha256": "eb60784b0a336cdc7f64a86f0115daa4f0635a101c857801d32c564d87a5efbc",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/extensions/house/cosmere.jpg",
+     "../../../../../baseline/reference/desktop/assets/extensions/house/cosmere.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/extensions/house/cosmere.jpg",
+     "../../../../../baseline/reference/desktop/assets/extensions/house/cosmere.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/app.js",
+   "baselineSha256": "258347b94af24c7190cbb97384c197f08bc7a42e115c04c72a89252aee708dee",
+   "seededSha256": "e77ea140833d3079977ec8fb8256d457c46e022c404d57a6756c6ac5d97baeb3",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/style.css",
+   "baselineSha256": "b1d86b045dead67762f5134f5d366e07783554e9cf4272af0c5f1ea270e0196f",
+   "seededSha256": "6965fcd54486529ff79efa4059a063c3dc7c65d76306ece5bd91c05769bb6a84",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/play.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/play.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/play.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/play.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/download.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/download.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/download.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/download.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/circle-check.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/circle-check.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/lucide/circle-check.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/lucide/circle-check.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/search.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/search.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/search.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/search.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/minimize.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/minimize.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/minimize.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/minimize.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/fullscreen.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/fullscreen.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/fullscreen.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/fullscreen.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/power.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/power.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/power.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/power.svg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/index.html",
+   "baselineSha256": "55ef52bd82ba795ed51d5eca913de97554034e6dd9aca0dcefce4a4a969f7ba5",
+   "seededSha256": "b4a3521dc9f0e1de4e31b3a359dd6dacf41b2f6c9a3809ffc144d49a85bca447",
+   "rewrites": [
+    [
+     "../../comparisons/film.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/film.html"
+    ],
+    [
+     "../../../../outputs/17-theatre-details/film-detail.html",
+     "../../../../../baseline/outputs/17-theatre-details/film-detail.html"
+    ],
+    [
+     "../../comparisons/series.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/series.html"
+    ],
+    [
+     "../../../../outputs/17-theatre-details/series-detail.html",
+     "../../../../../baseline/outputs/17-theatre-details/series-detail.html"
+    ],
+    [
+     "../../QML-PORTING-NOTES.md",
+     "../../../../../baseline/review-batches/02-detail-pages/QML-PORTING-NOTES.md"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/app.js",
+   "baselineSha256": "ac5702169ccb6cb0668afb7ddcd98a7c9aa0cd6822265fdaf677baccd2944554",
+   "seededSha256": "4bd3b1a0bfd2cec6c7ca661fa4af2e5409d7ea1380996c47611585b8a9e516e0",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/style.css",
+   "baselineSha256": "2da63085c7714aa9c338e14969299e55f4de21bb09b545132da3030af4eb5ba0",
+   "seededSha256": "213c3431c07fb09d282e388d62b64a4d21c3704898170a6ee4e9da0cd3ac90ef",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Switzer-Regular.otf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Switzer-Regular.otf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Switzer-Medium.otf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Switzer-Medium.otf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Switzer-Semibold.otf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Switzer-Semibold.otf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/index.html",
+   "baselineSha256": "136cf01413a34eaa4afbc10653e9adb0b6cd8755ff09cd8f5e7d198b22aee789",
+   "seededSha256": "3dadb358a329c14ae76fb951a158add4fe37122e284a2e83250403dd05d6e636",
+   "rewrites": [
+    [
+     "../../comparisons/saga.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/saga.html"
+    ],
+    [
+     "../../../../outputs/19-generic-universes/saga-universe.html",
+     "../../../../../baseline/outputs/19-generic-universes/saga-universe.html"
+    ],
+    [
+     "../../comparisons/shelves.html",
+     "../../../../../baseline/review-batches/02-detail-pages/comparisons/shelves.html"
+    ],
+    [
+     "../../../../outputs/19-generic-universes/shelves-universe.html",
+     "../../../../../baseline/outputs/19-generic-universes/shelves-universe.html"
+    ],
+    [
+     "../../QML-PORTING-NOTES.md",
+     "../../../../../baseline/review-batches/02-detail-pages/QML-PORTING-NOTES.md"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/index.html",
+   "baselineSha256": "db4d0f6eaac780eccf2ab6834fadbccc8fbce9e5f15e566f292157431213a5d7",
+   "seededSha256": "e89fd18c0044e1e2d9a72a0972cf6fc5df0352194df4b2dc9caf6c1a48544d94",
+   "rewrites": [
+    [
+     "../REVIEW.md",
+     "../../../../baseline/review-batches/03-browsing-libraries/REVIEW.md"
+    ],
+    [
+     "../QML-PORTING.md",
+     "../../../../baseline/review-batches/03-browsing-libraries/QML-PORTING.md"
+    ],
+    [
+     "../COVERAGE.csv",
+     "../../../../baseline/review-batches/03-browsing-libraries/COVERAGE.csv"
+    ],
+    [
+     "../FINDINGS.csv",
+     "../../../../baseline/review-batches/03-browsing-libraries/FINDINGS.csv"
+    ],
+    [
+     "../CHECKPOINT.md",
+     "../../../../baseline/review-batches/03-browsing-libraries/CHECKPOINT.md"
+    ],
+    [
+     "../REPORT.json",
+     "../../../../baseline/review-batches/03-browsing-libraries/REPORT.json"
+    ],
+    [
+     "../decisions.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/decisions.html"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/07-biblio-home/biblio-home.html",
+     "../../../../baseline/outputs/07-biblio-home/biblio-home.html"
+    ],
+    [
+     "../contact-sheets/biblio-home-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/biblio-home-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/biblio-home-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/biblio-home-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/08-theatre-discover/theatre-discover.html",
+     "../../../../baseline/outputs/08-theatre-discover/theatre-discover.html"
+    ],
+    [
+     "../contact-sheets/theatre-discover-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-discover-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/theatre-discover-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-discover-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/09-catalogue-index/theatre-catalogue.html",
+     "../../../../baseline/outputs/09-catalogue-index/theatre-catalogue.html"
+    ],
+    [
+     "../contact-sheets/theatre-catalogue-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-catalogue-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/theatre-catalogue-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-catalogue-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/09-catalogue-index/manga-catalogue.html",
+     "../../../../baseline/outputs/09-catalogue-index/manga-catalogue.html"
+    ],
+    [
+     "../contact-sheets/manga-catalogue-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/manga-catalogue-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/manga-catalogue-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/manga-catalogue-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/09-catalogue-index/comics-catalogue.html",
+     "../../../../baseline/outputs/09-catalogue-index/comics-catalogue.html"
+    ],
+    [
+     "../contact-sheets/comics-catalogue-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/comics-catalogue-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/comics-catalogue-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/comics-catalogue-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/15-world-home/theatre-home.html",
+     "../../../../baseline/outputs/15-world-home/theatre-home.html"
+    ],
+    [
+     "../contact-sheets/theatre-home-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-home-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/theatre-home-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-home-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/15-world-home/tankoban-home.html",
+     "../../../../baseline/outputs/15-world-home/tankoban-home.html"
+    ],
+    [
+     "../contact-sheets/tankoban-home-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/tankoban-home-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/tankoban-home-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/tankoban-home-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/15-world-home/universes-home.html",
+     "../../../../baseline/outputs/15-world-home/universes-home.html"
+    ],
+    [
+     "../contact-sheets/universes-home-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/universes-home-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/universes-home-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/universes-home-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/16-libraries/theatre-library.html",
+     "../../../../baseline/outputs/16-libraries/theatre-library.html"
+    ],
+    [
+     "../contact-sheets/theatre-library-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-library-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/theatre-library-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/theatre-library-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/16-libraries/tankoban-library.html",
+     "../../../../baseline/outputs/16-libraries/tankoban-library.html"
+    ],
+    [
+     "../contact-sheets/tankoban-library-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/tankoban-library-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/tankoban-library-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/tankoban-library-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/16-libraries/biblio-library.html",
+     "../../../../baseline/outputs/16-libraries/biblio-library.html"
+    ],
+    [
+     "../contact-sheets/biblio-library-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/biblio-library-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/biblio-library-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/biblio-library-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/20-search-browse/search.html",
+     "../../../../baseline/outputs/20-search-browse/search.html"
+    ],
+    [
+     "../contact-sheets/search-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/search-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/search-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/search-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/20-search-browse/biblio-explore.html",
+     "../../../../baseline/outputs/20-search-browse/biblio-explore.html"
+    ],
+    [
+     "../contact-sheets/biblio-explore-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/biblio-explore-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/biblio-explore-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/biblio-explore-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/20-search-browse/genre-index.html",
+     "../../../../baseline/outputs/20-search-browse/genre-index.html"
+    ],
+    [
+     "../contact-sheets/genre-index-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/genre-index-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/genre-index-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/genre-index-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/20-search-browse/genre-results.html",
+     "../../../../baseline/outputs/20-search-browse/genre-results.html"
+    ],
+    [
+     "../contact-sheets/genre-results-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/genre-results-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/genre-results-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/genre-results-stress.jpg"
+    ],
+    [
+     "../compare.html",
+     "../../../../baseline/review-batches/03-browsing-libraries/compare.html"
+    ],
+    [
+     "../../../outputs/20-search-browse/continue-see-all.html",
+     "../../../../baseline/outputs/20-search-browse/continue-see-all.html"
+    ],
+    [
+     "../contact-sheets/continue-see-all-comparison.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/continue-see-all-comparison.jpg"
+    ],
+    [
+     "../contact-sheets/continue-see-all-stress.jpg",
+     "../../../../baseline/review-batches/03-browsing-libraries/contact-sheets/continue-see-all-stress.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/07-biblio-home/app.js",
+   "baselineSha256": "5a5a3e66127cf9d283227cc87ae2409b38ac02f1f37971dab509670a44521ecf",
+   "seededSha256": "0b195dfb653478c45db975e8596cebbf82c2856cac6b25055453c8a47f14137f",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/07-biblio-home/style.css",
+   "baselineSha256": "d0e98535aaa8c2d91c6be4c3c6686bc0634d0731827ad72157fad3deb5163371",
+   "seededSha256": "d965c1ee61d8f5b057eec914f3e8c1c6e0eb0b5f045ec5a160f6a9f5aa4e5752",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Italic.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Italic.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/08-theatre-discover/app.js",
+   "baselineSha256": "8ebd5a440ecc2a4be38b37291d24b35fe577384dddc67b45db696e232a101e5f",
+   "seededSha256": "3c5b651886e288e5632debf4263c8f438d626548819730b5d4e90acf3efdbaca",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/08-theatre-discover/style.css",
+   "baselineSha256": "648dbc5f0ee7990fad109c192d957cd1e50c4e0a48a298d8d0fe6b188035affd",
+   "seededSha256": "056fe7d8eb3216b7dcfe729826daba55f79a0766c2103e107378f9e1a9256312",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/dune.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/dune.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/08-theatre-discover/theatre-discover.html",
+   "baselineSha256": "c424be8018f6d390d17e5276e96b31c371548a2958afb86a54c417e0aa3a338c",
+   "seededSha256": "0ca1bf9d10295d481657fdee7e447f81e52a1c9354d6e6715dd8a796e446bbb5",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/search.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/search.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/stremio-official.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/stremio-official.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/trackers.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/trackers.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/settings.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/settings.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/minimize.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/minimize.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/fullscreen-exit.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/fullscreen-exit.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/power.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/power.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/harry-potter.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/harry-potter.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/colosseum.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/colosseum.svg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/08-theatre-discover/world-context.js",
+   "baselineSha256": "e13cd5273d727a9f12c60e20898153d842fa7ed98165105218e1aacd09a51af6",
+   "seededSha256": "c43ed6724e54a1a51d1c77a0a22f7e7064c15ac4e48b234e6a1a959f45e9970a",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/app.js",
+   "baselineSha256": "175b0d07ba5d5b4bd3024f1591c37b2896139f0cb1ad9dbcc48d6c9ca37af0fb",
+   "seededSha256": "452940c65a391ee65f3e5c97dbfe894b335d7500c9fba40a31aa7b4fecb1658a",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+   "baselineSha256": "5c205b75e555f91136c00cc9fabd7d20cd105cbf4426242566bfc4c091a6f0e3",
+   "seededSha256": "fb998fe754f5d73e177d868825773ca03e169ee0b991921aab123c8291073067",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Italic.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Italic.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/captured-motion.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/captured-motion.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/app.js",
+   "baselineSha256": "7fa5a372a31a1fcb4786e0767f4bc0300c1bf35a8fb816463c06d0dd375af637",
+   "seededSha256": "60e462b811f03a4e724adec0bb5a4295fa623fdfddcc3c7f3b72589d21552a38",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/style.css",
+   "baselineSha256": "4af663a8ea1078fc0278eb66bb9850e419f64974f0c7535958a9f4d33f1ed218",
+   "seededSha256": "068fa8cca7618c9f75660acb059beb7353459998f50d57d9bb9ee13257b3cf4e",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/biblio-library.html",
+   "baselineSha256": "00a748d06af70906abdefafdd841cc8daf4bd45725a975e6999da782c66fcef3",
+   "seededSha256": "2b968791d58afde957a3695ca544fe8cc79be7158553988d098c26a383a0adf8",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/dune.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/dune.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/ice-and-fire.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/ice-and-fire.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/harry-potter.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/harry-potter.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/the-witcher.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/the-witcher.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/sherlock-holmes.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/sherlock-holmes.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/percy-jackson.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/percy-jackson.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/jurassic-park.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/jurassic-park.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/tankoban-library.html",
+   "baselineSha256": "8644ffa05ac4bdc4e4f4923da21da384f53c23f2ace222f9793c07a77f2cdd67",
+   "seededSha256": "a94ba3cb11bffb0e30e3b5e57789d65ff57859b793f33cd6a496a1c8f32e446d",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/new-world/banners/wano-country.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/new-world/banners/wano-country.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/new-world/banners/dressrosa.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/new-world/banners/dressrosa.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/skypiea.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/paradise/banners/skypiea.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/water-7.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/paradise/banners/water-7.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/marineford.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/paradise/banners/marineford.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/final-sea/banners/egghead.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/final-sea/banners/egghead.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+     "../../../../../baseline/reference/desktop/assets/universes/dcau/portals/gotham.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/16-libraries/theatre-library.html",
+   "baselineSha256": "e9c80b1ea306d876242bab4aa2e4501934ceaeca05b369b7c85a391c7083bfeb",
+   "seededSha256": "f67dde6848bc2fd48fd61a1aed4e8f9aac7c1568d0b78707e25b0918fda6e477",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/dune.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/dune.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/the-witcher.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/the-witcher.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/jurassic-park.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/jurassic-park.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+     "../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/extensions/house/starwars-banner.jpg",
+     "../../../../../baseline/reference/desktop/assets/extensions/house/starwars-banner.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/harry-potter.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/harry-potter.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+     "../../../../../baseline/reference/desktop/assets/universes/dcau/portals/gotham.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/universes/star-wars/nevarro.jpg",
+     "../../../../../baseline/reference/desktop/assets/universes/star-wars/nevarro.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/sagas/percy-jackson.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/sagas/percy-jackson.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/15-world-home/app.js",
+   "baselineSha256": "1f7d01a426a28f442da093c08bc1f5f700ec37711b3c1c0251b322690c2c7bcc",
+   "seededSha256": "b1a939d2d29637984aed44cdadc8659eb9e219dadbdfc4428d496ed6a299ee4a",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/15-world-home/style.css",
+   "baselineSha256": "43469a9604fbd8512f66430f1ebefd2fa25f16e49d035425d9209294d804faf5",
+   "seededSha256": "ccfbe65d26c9bc8fbf2ef470ed55bc4b55aee6e665a53e8df70341a0869f989f",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/09-catalogue-index/app.js",
+   "baselineSha256": "22588fcc59e96738dc44f6483bf5954db9e75bd9c08520a048820245212555dd",
+   "seededSha256": "d23d82af04e0d5802c52959359b6d11233c3d8a9e528755cf22e3ec12c7f21f3",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/03-browsing-libraries/finished-mocks/09-catalogue-index/style.css",
+   "baselineSha256": "f4692ecdbb16a420f4a2d825ce8d6097d30ee8beaa73c88a10ef8e390b92a1b7",
+   "seededSha256": "81d18aa385cbbf551a4e0b9fc557cd43280fc081b63d028be27bb118cbc8724c",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/keyboard-decision.html",
+   "baselineSha256": "f7c7ee4e9cc511886b0852db2047c1d4e4a08f8501cab209671f17f6c5106322",
+   "seededSha256": "188725df09cd7c45c1c23b862c75a881a347813d6d45564e185bf98d1a1d89b3",
+   "rewrites": [
+    [
+     "../evidence/proposals/account-keyboard/audit.json",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/audit.json"
+    ],
+    [
+     "../QML-PORTING-NOTES.md",
+     "../../../../baseline/review-batches/04-accounts-configuration/QML-PORTING-NOTES.md"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-profile-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-profile-original.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-profile-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-profile-original.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-profile.html",
+     "../../../../baseline/outputs/12-account-forms/account-profile.html"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-profile-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-profile-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-profile-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-profile-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-profile-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-profile-scroll-proposal.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-profile-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-profile-scroll-proposal.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-security-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-security-original.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-security-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-security-original.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-security.html",
+     "../../../../baseline/outputs/12-account-forms/account-security.html"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-security-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-security-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-security-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-security-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-security-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-security-scroll-proposal.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-security-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-security-scroll-proposal.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-recovery-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-recovery-original.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-recovery-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-recovery-original.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-recovery.html",
+     "../../../../baseline/outputs/12-account-forms/account-recovery.html"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-recovery-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-recovery-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-recovery-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-recovery-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-recovery-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-recovery-scroll-proposal.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-recovery-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-recovery-scroll-proposal.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-privacy-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-privacy-original.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-privacy-original.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-privacy-original.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-privacy.html",
+     "../../../../baseline/outputs/12-account-forms/account-privacy.html"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-privacy-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-privacy-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-privacy-bounded.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-privacy-bounded.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-privacy-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-privacy-scroll-proposal.png"
+    ],
+    [
+     "../evidence/proposals/account-keyboard/account-privacy-scroll-proposal.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/evidence/proposals/account-keyboard/account-privacy-scroll-proposal.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/index.html",
+   "baselineSha256": "d7ab1c6d5527a0fa814da91252a82bf859fe1647f101fc72f78e3a8f692a3e55",
+   "seededSha256": "1ed97dca4fe544962739e01656ecaa8cce6803b4eafd887d394b84fbb7c7e550",
+   "rewrites": [
+    [
+     "../REVIEW.md",
+     "../../../../baseline/review-batches/04-accounts-configuration/REVIEW.md"
+    ],
+    [
+     "../COVERAGE.csv",
+     "../../../../baseline/review-batches/04-accounts-configuration/COVERAGE.csv"
+    ],
+    [
+     "../FINDINGS.csv",
+     "../../../../baseline/review-batches/04-accounts-configuration/FINDINGS.csv"
+    ],
+    [
+     "../QML-PORTING-NOTES.md",
+     "../../../../baseline/review-batches/04-accounts-configuration/QML-PORTING-NOTES.md"
+    ],
+    [
+     "../../../outputs/10-profile/profile.html",
+     "../../../../baseline/outputs/10-profile/profile.html"
+    ],
+    [
+     "../contact-sheets/profile-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/profile-before-after.png"
+    ],
+    [
+     "../../../outputs/11-account-entry/account-welcome.html",
+     "../../../../baseline/outputs/11-account-entry/account-welcome.html"
+    ],
+    [
+     "../contact-sheets/account-welcome-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-welcome-before-after.png"
+    ],
+    [
+     "../../../outputs/11-account-entry/account-flyout.html",
+     "../../../../baseline/outputs/11-account-entry/account-flyout.html"
+    ],
+    [
+     "../contact-sheets/account-flyout-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-flyout-before-after.png"
+    ],
+    [
+     "../../../outputs/11-account-entry/account-centre.html",
+     "../../../../baseline/outputs/11-account-entry/account-centre.html"
+    ],
+    [
+     "../contact-sheets/account-centre-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-centre-before-after.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-profile.html",
+     "../../../../baseline/outputs/12-account-forms/account-profile.html"
+    ],
+    [
+     "../contact-sheets/account-profile-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-profile-before-after.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-security.html",
+     "../../../../baseline/outputs/12-account-forms/account-security.html"
+    ],
+    [
+     "../contact-sheets/account-security-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-security-before-after.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-recovery.html",
+     "../../../../baseline/outputs/12-account-forms/account-recovery.html"
+    ],
+    [
+     "../contact-sheets/account-recovery-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-recovery-before-after.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-privacy.html",
+     "../../../../baseline/outputs/12-account-forms/account-privacy.html"
+    ],
+    [
+     "../contact-sheets/account-privacy-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-privacy-before-after.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-devices.html",
+     "../../../../baseline/outputs/12-account-forms/account-devices.html"
+    ],
+    [
+     "../contact-sheets/account-devices-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-devices-before-after.png"
+    ],
+    [
+     "../../../outputs/12-account-forms/account-your-colosseum.html",
+     "../../../../baseline/outputs/12-account-forms/account-your-colosseum.html"
+    ],
+    [
+     "../contact-sheets/account-your-colosseum-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-your-colosseum-before-after.png"
+    ],
+    [
+     "../../../outputs/13-stremio-sync/stremio-sync.html",
+     "../../../../baseline/outputs/13-stremio-sync/stremio-sync.html"
+    ],
+    [
+     "../contact-sheets/stremio-sync-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/stremio-sync-before-after.png"
+    ],
+    [
+     "../../../outputs/14-extension-setup/extension-setup.html",
+     "../../../../baseline/outputs/14-extension-setup/extension-setup.html"
+    ],
+    [
+     "../contact-sheets/extension-setup-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/extension-setup-before-after.png"
+    ],
+    [
+     "../../../outputs/14-extension-setup/tankoyomi-configuration.html",
+     "../../../../baseline/outputs/14-extension-setup/tankoyomi-configuration.html"
+    ],
+    [
+     "../contact-sheets/tankoyomi-configuration-before-after.png",
+     "../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/tankoyomi-configuration-before-after.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/review.css",
+   "baselineSha256": "e5089e4f80d658d999d12b048ee2b80b711c6f085db24f337ad6b423234d41cc",
+   "seededSha256": "503ca1984ea31134ec30c567229db7126c4acff0c00cbe110b03bba86d376cc8",
+   "rewrites": [
+    [
+     "../../../reference/local-fonts/segoeui.ttf",
+     "../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/11-account-entry/app.js",
+   "baselineSha256": "73040ed07088a8317d5e2883e8b76761702a3a98aac12ede4f2dcbc5657a2fdd",
+   "seededSha256": "9008f455aa2ba9ca7082199f33f8e7c966656d257277fb4c66ff5e1389a66ef2",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/",
+     "../../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/11-account-entry/style.css",
+   "baselineSha256": "7e5176190aa56da904f02373e9298a17c7fb65c39ce68f72962874ada02b5d1c",
+   "seededSha256": "25db6eadc8ae6db30add8b9f176aec9b3a07197edb7d9a673b7b17818b5e6b94",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Inter-Regular.otf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Inter-Regular.otf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Inter-SemiBold.otf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Inter-SemiBold.otf"
+    ],
+    [
+     "../../../../reference/desktop/assets/wallpaper/captured-motion.jpg",
+     "../../../../../baseline/reference/desktop/assets/wallpaper/captured-motion.jpg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/11-account-entry/index.html",
+   "baselineSha256": "5c8bb19ea0b64d80d99d6b24a78bd04fb171a28f28cd5e32764453fa0a7da326",
+   "seededSha256": "b392516423ba1e63ad4d3dd3bc7960a421206eb46f613b8c0b5b29f9516be28f",
+   "rewrites": [
+    [
+     "../../../../outputs/11-account-entry/account-welcome.html",
+     "../../../../../baseline/outputs/11-account-entry/account-welcome.html"
+    ],
+    [
+     "../../../../outputs/11-account-entry/account-flyout.html",
+     "../../../../../baseline/outputs/11-account-entry/account-flyout.html"
+    ],
+    [
+     "../../../../outputs/11-account-entry/account-centre.html",
+     "../../../../../baseline/outputs/11-account-entry/account-centre.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/style.css",
+   "baselineSha256": "1fb7044b065519a70bc9fd88692b23fa2fa1317ad3ab2fe0e9fcdf53dab591c6",
+   "seededSha256": "628d642301fa1e9b8490ae1a38f6334416ff697f00c1a8bd156cb8879561c116",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/extensions/store-jolly-roger.jpg",
+     "../../../../../baseline/reference/desktop/assets/extensions/store-jolly-roger.jpg"
+    ],
+    [
+     "../../../../reference/desktop/assets/extensions/house/starwars-banner.jpg",
+     "../../../../../baseline/reference/desktop/assets/extensions/house/starwars-banner.jpg"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/tankoyomi-configuration.html",
+   "baselineSha256": "90774d7a4b92889d8dea0f191f8b7574111d4bbc4fbc3b47dd00581682c128c3",
+   "seededSha256": "b51a6411c384e8e3eb479505485d5d2fcbe8edbb97437c8126ff668277388c69",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/addon-logos/tankoyomi.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/tankoyomi.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/index.html",
+   "baselineSha256": "c162856864f163965a6665411fea32ea12a4720915e40b59fb937bb29c02ed29",
+   "seededSha256": "5392b3e32490da487f25ebba433da88ddce20600e7704ec877c9994787fddf32",
+   "rewrites": [
+    [
+     "../../../../outputs/14-extension-setup/extension-setup.html",
+     "../../../../../baseline/outputs/14-extension-setup/extension-setup.html"
+    ],
+    [
+     "../../../../outputs/14-extension-setup/tankoyomi-configuration.html",
+     "../../../../../baseline/outputs/14-extension-setup/tankoyomi-configuration.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/extension-setup.html",
+   "baselineSha256": "a1561ab1526e32c76ef2ba04160cc616b9a5c182233be880a0bf8bae32bad5c7",
+   "seededSha256": "c10529441edb0cfcfed7fcee12aed9d4828c974f85593519fe0964f68254b1c5",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/search.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/search.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/universes-atom.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/universes-atom.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/colosseum-grand-database.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/colosseum-grand-database.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/nyaa.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/nyaa.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/tankoyomi.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/tankoyomi.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/getcomics.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/getcomics.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/tankorent.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/tankorent.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/libgen.ico",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/libgen.ico"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/audiobookbay.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/audiobookbay.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/torrentio.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/torrentio.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/tankoyomi.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/tankoyomi.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/aiostreams.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/aiostreams.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/opensubtitles.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/opensubtitles.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/streaming-catalogs.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/streaming-catalogs.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/comet.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/comet.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/anime-kitsu.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/anime-kitsu.png"
+    ],
+    [
+     "../../../../reference/desktop/assets/addon-logos/torrentio.png",
+     "../../../../../baseline/reference/desktop/assets/addon-logos/torrentio.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/10-profile/style.css",
+   "baselineSha256": "317c742e6c76478d835240c04eba83c784ebfd79694a73d5697f045076e50738",
+   "seededSha256": "3ec800fbfe0cd6cec5aac264d69176232e8c75f8fbc6e3db8a9ad80285ea4b2b",
+   "rewrites": [
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/projector-theatre.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/projector-theatre.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/comic-book.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/comic-book.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/book-library.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/book-library.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/universes-atom.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/universes-atom.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/your-colosseum-laurel.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/your-colosseum-laurel.svg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/10-profile/index.html",
+   "baselineSha256": "0e4b8289769c1f6820fb5c52cbb8cfa1e8d50e01b8d5ea3898e9d27622b4b2ce",
+   "seededSha256": "287b05fe0f18d413254f742bcee59881dafbb498b4b0ca67a80eb34bd2fabd65",
+   "rewrites": [
+    [
+     "../../../../outputs/10-profile/profile.html",
+     "../../../../../baseline/outputs/10-profile/profile.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/app.js",
+   "baselineSha256": "1fc63d467f53577c00bc397a0bc7e0b8ce33292c4fecf0236a590b76b87786d9",
+   "seededSha256": "286de26e9f2c641a1baac0d85b7b968b41c8c097dceb9cb992ef87f9a098ece2",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/",
+     "../../../../../baseline/reference/desktop/assets/icons/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/style.css",
+   "baselineSha256": "0e5406b55c3b8fc830eade81f707ad727d2f239495251cef89243ef32a43582d",
+   "seededSha256": "9d89d2e7427346fa9ce911177d0b2510d04567937eb6a7f35b2aed841fe1333b",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Inter-Regular.otf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Inter-Regular.otf"
+    ],
+    [
+     "../../../../reference/desktop/assets/fonts/Inter-SemiBold.otf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Inter-SemiBold.otf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/12-account-forms/index.html",
+   "baselineSha256": "9061e808206a6847658c11534fa0da5cce2850e1a47b4a8dda7b1237ad5f901f",
+   "seededSha256": "36530b41110be1f388c680d868a10d37fc87b0c9bc50404f146203f9503337ca",
+   "rewrites": [
+    [
+     "../../../../outputs/12-account-forms/account-profile.html",
+     "../../../../../baseline/outputs/12-account-forms/account-profile.html"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-security.html",
+     "../../../../../baseline/outputs/12-account-forms/account-security.html"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-recovery.html",
+     "../../../../../baseline/outputs/12-account-forms/account-recovery.html"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-privacy.html",
+     "../../../../../baseline/outputs/12-account-forms/account-privacy.html"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-devices.html",
+     "../../../../../baseline/outputs/12-account-forms/account-devices.html"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-your-colosseum.html",
+     "../../../../../baseline/outputs/12-account-forms/account-your-colosseum.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/profile.html",
+   "baselineSha256": "ebc623ee7415845471fc609d48ef911da99f50a8062ae039303f5406260d8c40",
+   "seededSha256": "cb02fcdb9c5bb666a60c0f6a3025ec64352924204293e88d8db04936b429c085",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/PhoneProfilePage.qml",
+     "../../../../../baseline/reference/desktop/qml/PhoneProfilePage.qml"
+    ],
+    [
+     "../../contact-sheets/profile-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/profile-before-after.png"
+    ],
+    [
+     "../../../../outputs/10-profile/profile.html",
+     "../../../../../baseline/outputs/10-profile/profile.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-welcome.html",
+   "baselineSha256": "d0d6aced8dabc5803fcf4394875f956fd32eda560f93f5f2ff9212f4e8cec6b7",
+   "seededSha256": "558f81e9ae141bed5bb4c748fa2d41153670d0991a7a4ea207211eeca7f56f1a",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountWelcome.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountWelcome.qml"
+    ],
+    [
+     "../../contact-sheets/account-welcome-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-welcome-before-after.png"
+    ],
+    [
+     "../../../../outputs/11-account-entry/account-welcome.html",
+     "../../../../../baseline/outputs/11-account-entry/account-welcome.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-privacy.html",
+   "baselineSha256": "90c152f7a9d4962fd6dde69108e5d85af7f155b7778c8701885c9db7538ce85f",
+   "seededSha256": "bcd2a7b195a2a6bdf38fc9edeaf6a1008395a8d10a6df0df46cc9f3781ff36b4",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountDataPrivacyPage.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountDataPrivacyPage.qml"
+    ],
+    [
+     "../../contact-sheets/account-privacy-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-privacy-before-after.png"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-privacy.html",
+     "../../../../../baseline/outputs/12-account-forms/account-privacy.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-centre.html",
+   "baselineSha256": "cc8cde3f973a8d9aeef6d83200720e2d76fee938fafe0fc9c382b59f11f061b2",
+   "seededSha256": "4eec1e5823aeb113455c8edea667535152a5c430b73239648b8ad69ff96edae5",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountCenter.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountCenter.qml"
+    ],
+    [
+     "../../contact-sheets/account-centre-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-centre-before-after.png"
+    ],
+    [
+     "../../../../outputs/11-account-entry/account-centre.html",
+     "../../../../../baseline/outputs/11-account-entry/account-centre.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-security.html",
+   "baselineSha256": "d273e84f3d0a05c4fe0be467d04ad4561863187cf7aa656fd1f853b957e0339d",
+   "seededSha256": "e5bec39e0a9216df6e6764cb0a56ec1c55cb0ad8858308a03f590bce4cf0eb2b",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountSecurityPage.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountSecurityPage.qml"
+    ],
+    [
+     "../../contact-sheets/account-security-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-security-before-after.png"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-security.html",
+     "../../../../../baseline/outputs/12-account-forms/account-security.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/tankoyomi-configuration.html",
+   "baselineSha256": "025aad0bd7540818e41fcd078e26f3748434f805f5138534b99302ab1c1e43d6",
+   "seededSha256": "c4cdb7d81006cd448d6fd15d913eb746ba0c4b377114ce35b785b17544a57ca6",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/TankoyomiConfigurationPage.qml",
+     "../../../../../baseline/reference/desktop/qml/TankoyomiConfigurationPage.qml"
+    ],
+    [
+     "../../contact-sheets/tankoyomi-configuration-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/tankoyomi-configuration-before-after.png"
+    ],
+    [
+     "../../../../outputs/14-extension-setup/tankoyomi-configuration.html",
+     "../../../../../baseline/outputs/14-extension-setup/tankoyomi-configuration.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-devices.html",
+   "baselineSha256": "2ab074e3f97676bae9d8cabac4d92add18a02f36db94561fd9f51474bfe71cd7",
+   "seededSha256": "288a75a03a6244aa7c4428448f23e7ddb56210199be19d552712359aca62d683",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountDevicesPage.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountDevicesPage.qml"
+    ],
+    [
+     "../../contact-sheets/account-devices-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-devices-before-after.png"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-devices.html",
+     "../../../../../baseline/outputs/12-account-forms/account-devices.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/stremio-sync.html",
+   "baselineSha256": "ba3ffa13447e6b07a46f54261f384cc8d425793d6187b0d66d6ecbe54715b322",
+   "seededSha256": "dd62225a60069ba90fe73fd0f04cef2efe01bfe9843a6878dea95a000832e2a9",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/StremioSyncPanel.qml",
+     "../../../../../baseline/reference/desktop/qml/StremioSyncPanel.qml"
+    ],
+    [
+     "../../contact-sheets/stremio-sync-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/stremio-sync-before-after.png"
+    ],
+    [
+     "../../../../outputs/13-stremio-sync/stremio-sync.html",
+     "../../../../../baseline/outputs/13-stremio-sync/stremio-sync.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/extension-setup.html",
+   "baselineSha256": "cd7ba6edb21f9c57bd656a23e4858a8da5b6c9a0d51f2e80f3cdbae4afb58de9",
+   "seededSha256": "b2673de9102555ae2a6bf27bd5d9b56ac5ef82a2ca03d1ba5601042b3ceb1df7",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/ExtensionsSetupSheetAndroid.qml",
+     "../../../../../baseline/reference/desktop/qml/ExtensionsSetupSheetAndroid.qml"
+    ],
+    [
+     "../../contact-sheets/extension-setup-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/extension-setup-before-after.png"
+    ],
+    [
+     "../../../../outputs/14-extension-setup/extension-setup.html",
+     "../../../../../baseline/outputs/14-extension-setup/extension-setup.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-profile.html",
+   "baselineSha256": "70365a523307bbfd729c8699826cc90e0f635628497595fef965ecd0ec9058b5",
+   "seededSha256": "c9cf7ee14acc7ba3cfdf7a06f99e6e06a54cade1844ce8a5085c9d18bcb9f68c",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountProfilePage.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountProfilePage.qml"
+    ],
+    [
+     "../../contact-sheets/account-profile-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-profile-before-after.png"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-profile.html",
+     "../../../../../baseline/outputs/12-account-forms/account-profile.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-your-colosseum.html",
+   "baselineSha256": "c8990d3f2d7bad41fa0e8a6df2d7dc9e7fa79a450cfb8dab8f2981df08a53064",
+   "seededSha256": "7d34d8ad6aea19c1fd92207e342b9f95e28725e1e0d7878737e0f7a9933eb325",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountYourColosseumPage.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountYourColosseumPage.qml"
+    ],
+    [
+     "../../contact-sheets/account-your-colosseum-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-your-colosseum-before-after.png"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-your-colosseum.html",
+     "../../../../../baseline/outputs/12-account-forms/account-your-colosseum.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-flyout.html",
+   "baselineSha256": "4d77d817eb0e8a0555049ee3485dbaa798e82f92766a9652c69bac0f5fb91630",
+   "seededSha256": "f870fe7b46d15d50f81df7501a97a78bf4b4ea0d5465875e31cc186f1e6ce1ea",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountFlyout.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountFlyout.qml"
+    ],
+    [
+     "../../contact-sheets/account-flyout-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-flyout-before-after.png"
+    ],
+    [
+     "../../../../outputs/11-account-entry/account-flyout.html",
+     "../../../../../baseline/outputs/11-account-entry/account-flyout.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/comparisons/account-recovery.html",
+   "baselineSha256": "028114ec37e4f1452f5b186be492a1c36cc1bd91ede0cdb62f8de07b70b9cd37",
+   "seededSha256": "1b3c0ca4bd2059f99accc83cfcdd85fab8d33f2dcf77a960a984baff8eeed388",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/qml/account/AccountRecoveryPage.qml",
+     "../../../../../baseline/reference/desktop/qml/account/AccountRecoveryPage.qml"
+    ],
+    [
+     "../../contact-sheets/account-recovery-before-after.png",
+     "../../../../../baseline/review-batches/04-accounts-configuration/contact-sheets/account-recovery-before-after.png"
+    ],
+    [
+     "../../../../outputs/12-account-forms/account-recovery.html",
+     "../../../../../baseline/outputs/12-account-forms/account-recovery.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/13-stremio-sync/style.css",
+   "baselineSha256": "4c3fe76b0f82c22821a7292d50edf8df7bd83361b5c98311c11c8b38b4286565",
+   "seededSha256": "98a24db29ede338df91d2741c18dd1c0a13f057cf2725d695d99da4467d9f12f",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeui.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/seguisb.ttf",
+     "../../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/13-stremio-sync/index.html",
+   "baselineSha256": "b1119ae7c9d01db3e9c30fc057e1ac126916eec4978c817a32503dd06e95a99b",
+   "seededSha256": "8af9b05ae5661cd17bec47a7affc49e01b614ef06e581816079502477d4bad96",
+   "rewrites": [
+    [
+     "../../../../outputs/13-stremio-sync/stremio-sync.html",
+     "../../../../../baseline/outputs/13-stremio-sync/stremio-sync.html"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/04-accounts-configuration/finished-mocks/13-stremio-sync/stremio-sync.html",
+   "baselineSha256": "d163ad9bd411f00ed48f846d36168b914533a75c2a5d662a75fb00f64e72feb2",
+   "seededSha256": "35b20a2e6642032119e6b34fe0b191c90d21503e6ff65afeb55cc7f9cdf0b933",
+   "rewrites": [
+    [
+     "../../../../reference/desktop/assets/icons/preferences.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/preferences.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/sync.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/sync.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/colosseum.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/colosseum.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/trackers/myanimelist.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/trackers/myanimelist.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/trackers/anilist.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/trackers/anilist.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/trackers/trakt.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/trackers/trakt.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/trackers/simkl.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/trackers/simkl.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/stremio-official.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/stremio-official.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/colosseum.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/colosseum.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/download.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/download.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/extensions.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/extensions.svg"
+    ],
+    [
+     "../../../../reference/desktop/assets/icons/stremio-official.svg",
+     "../../../../../baseline/reference/desktop/assets/icons/stremio-official.svg"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+   "baselineSha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4",
+   "seededSha256": "f064f1eb4ffe578ea240b1b50fb70c44e9e844d8421a1dfec0d5e4e271124bd1",
+   "rewrites": [
+    [
+     "../../../reference/desktop/assets/",
+     "../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+   "baselineSha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4",
+   "seededSha256": "84bb5a016f5874c1d8459060967ac7c9fb4c597cdfacb56ad3d4bcd16d73ebc8",
+   "rewrites": [
+    [
+     "../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../reference/desktop/assets/wallpaper/cold-ripple.jpg",
+     "../../../../baseline/reference/desktop/assets/wallpaper/cold-ripple.jpg"
+    ],
+    [
+     "../../../reference/local-fonts/segoeui.ttf",
+     "../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../reference/local-fonts/seguisb.ttf",
+     "../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+   "baselineSha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf",
+   "seededSha256": "3f6b81f3b9c0e1947d061bf927f599e18aec31cebecaedb5c625c8b954d877fe",
+   "rewrites": [
+    [
+     "../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+     "../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf"
+    ],
+    [
+     "../../../reference/desktop/assets/fonts/Inter-Regular.otf",
+     "../../../../baseline/reference/desktop/assets/fonts/Inter-Regular.otf"
+    ],
+    [
+     "../../../reference/desktop/assets/fonts/Inter-SemiBold.otf",
+     "../../../../baseline/reference/desktop/assets/fonts/Inter-SemiBold.otf"
+    ],
+    [
+     "../../../reference/local-fonts/segoeui.ttf",
+     "../../../../baseline/reference/local-fonts/segoeui.ttf"
+    ],
+    [
+     "../../../reference/local-fonts/seguisb.ttf",
+     "../../../../baseline/reference/local-fonts/seguisb.ttf"
+    ],
+    [
+     "../../../reference/local-fonts/segoeuib.ttf",
+     "../../../../baseline/reference/local-fonts/segoeuib.ttf"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/05-tracker-utilities/finished-mocks/evidence.html",
+   "baselineSha256": "94bcb09fd1eca49db19c7f9ba25cf5e1d32354a0fda0243536c88550e47bfd5a",
+   "seededSha256": "b97a1466f23549db823f90f6f68a3d9fbcfbdda610f91df18ba5b302e7806782",
+   "rewrites": [
+    [
+     "../contact-sheets/index.html",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/index.html"
+    ],
+    [
+     "../REVIEW.md",
+     "../../../../baseline/review-batches/05-tracker-utilities/REVIEW.md"
+    ],
+    [
+     "../",
+     "../../../../baseline/review-batches/05-tracker-utilities/"
+    ],
+    [
+     "../",
+     "../../../../baseline/review-batches/05-tracker-utilities/"
+    ],
+    [
+     "../",
+     "../../../../baseline/review-batches/05-tracker-utilities/"
+    ],
+    [
+     "../evidence/final-matrix.json",
+     "../../../../baseline/review-batches/05-tracker-utilities/evidence/final-matrix.json"
+    ],
+    [
+     "../evidence/state-matrix.json",
+     "../../../../baseline/review-batches/05-tracker-utilities/evidence/state-matrix.json"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/05-tracker-utilities/finished-mocks/index.html",
+   "baselineSha256": "f8e9d332c17f89fee6b2a1e3a1c795de1e6f6aa517b6019115140194059a47e6",
+   "seededSha256": "5fcd03f12034e5a2ea438c51cc457cfa3055ac2f50caeb915ee5154adf0a03c7",
+   "rewrites": [
+    [
+     "../contact-sheets/index.html",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/index.html"
+    ],
+    [
+     "../REVIEW.md",
+     "../../../../baseline/review-batches/05-tracker-utilities/REVIEW.md"
+    ],
+    [
+     "../COVERAGE.csv",
+     "../../../../baseline/review-batches/05-tracker-utilities/COVERAGE.csv"
+    ],
+    [
+     "../FINDINGS.csv",
+     "../../../../baseline/review-batches/05-tracker-utilities/FINDINGS.csv"
+    ],
+    [
+     "../QML-PORTING.md",
+     "../../../../baseline/review-batches/05-tracker-utilities/QML-PORTING.md"
+    ],
+    [
+     "../REPORT.json",
+     "../../../../baseline/review-batches/05-tracker-utilities/REPORT.json"
+    ],
+    [
+     "../contact-sheets/00-overview.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/00-overview.png"
+    ],
+    [
+     "../../../outputs/21-tracker-connections/tracker-connections.html",
+     "../../../../baseline/outputs/21-tracker-connections/tracker-connections.html"
+    ],
+    [
+     "../contact-sheets/tracker-connections.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/tracker-connections.png"
+    ],
+    [
+     "../../../outputs/21-tracker-connections/tracker-dossier.html",
+     "../../../../baseline/outputs/21-tracker-connections/tracker-dossier.html"
+    ],
+    [
+     "../contact-sheets/tracker-dossier.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/tracker-dossier.png"
+    ],
+    [
+     "../../../outputs/21-tracker-connections/tracker-preferences.html",
+     "../../../../baseline/outputs/21-tracker-connections/tracker-preferences.html"
+    ],
+    [
+     "../contact-sheets/tracker-preferences.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/tracker-preferences.png"
+    ],
+    [
+     "../../../outputs/22-utilities-collections/wallpaper-search.html",
+     "../../../../baseline/outputs/22-utilities-collections/wallpaper-search.html"
+    ],
+    [
+     "../contact-sheets/wallpaper-search.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/wallpaper-search.png"
+    ],
+    [
+     "../../../outputs/22-utilities-collections/extensions-store.html",
+     "../../../../baseline/outputs/22-utilities-collections/extensions-store.html"
+    ],
+    [
+     "../contact-sheets/extensions-store.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/extensions-store.png"
+    ],
+    [
+     "../../../outputs/22-utilities-collections/update.html",
+     "../../../../baseline/outputs/22-utilities-collections/update.html"
+    ],
+    [
+     "../contact-sheets/update.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/update.png"
+    ],
+    [
+     "../../../outputs/22-utilities-collections/collections.html",
+     "../../../../baseline/outputs/22-utilities-collections/collections.html"
+    ],
+    [
+     "../contact-sheets/collections.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/collections.png"
+    ],
+    [
+     "../evidence/kde-assets.json",
+     "../../../../baseline/review-batches/05-tracker-utilities/evidence/kde-assets.json"
+    ],
+    [
+     "../contact-sheets/00-overview.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/00-overview.png"
+    ],
+    [
+     "../contact-sheets/00-overview.png",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/00-overview.png"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/05-tracker-utilities/finished-mocks/comparisons.html",
+   "baselineSha256": "f4b88ed9a6c9ef62e7dec93dc06d757f0b7f862ca69cd0e62e6ec47f926a3607",
+   "seededSha256": "efdd85704c3ce68681e6a6effc1c38e0993f0bf7721c47dca259357f8027440f",
+   "rewrites": [
+    [
+     "../../../outputs/",
+     "../../../../baseline/outputs/"
+    ],
+    [
+     "../contact-sheets/",
+     "../../../../baseline/review-batches/05-tracker-utilities/contact-sheets/"
+    ],
+    [
+     "../evidence/",
+     "../../../../baseline/review-batches/05-tracker-utilities/evidence/"
+    ],
+    [
+     "../evidence/",
+     "../../../../baseline/review-batches/05-tracker-utilities/evidence/"
+    ],
+    [
+     "../evidence/",
+     "../../../../baseline/review-batches/05-tracker-utilities/evidence/"
+    ]
+   ]
+  },
+  {
+   "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+   "baselineSha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93",
+   "seededSha256": "143d0d3b1c2b5889b752dcf2f9c9db204e6f792c53c6729fc3a57f88524b34a8",
+   "rewrites": [
+    [
+     "../../../reference/desktop/assets/",
+     "../../../../baseline/reference/desktop/assets/"
+    ]
+   ]
+  }
+ ]
+}
