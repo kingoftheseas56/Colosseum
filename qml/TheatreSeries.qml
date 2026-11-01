@@ -13,7 +13,7 @@ import "CollectionsReferences.js" as CollectionsReferences
 Item {
     id: page
     // The phone host uses the same width gate as the shared world tab bar.
-    readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost
+    readonly property bool phoneNarrow: !!(page.Window.window && page.Window.window.androidHost && page.Window.window.desktopPresentation !== true
                                             && page.Window.window.width < 840)
     readonly property int bodyInset: page.phoneNarrow ? 20 : theme.margin
     readonly property int phoneArtHeight: 216

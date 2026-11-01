@@ -38,9 +38,9 @@ Item {
                                            && PlatformRuntime
                                            && PlatformRuntime["androidTelevision"] === true
 
-    // Developer switch: `colosseum.exe qml/Main.qml --phone-shell` (or `--phone-shell=360x700`)
-    // draws the Android phone shell in a plain desktop window, so phone layout can be judged
-    // without an APK. Layout only: readers, the player and fonts still need a real device.
+    // Developer switch: `--phone-shell` (or `--phone-shell=360x700`) simulates an Android
+    // host in a plain desktop window. The shared presentation policy still selects the layout;
+    // Android readers, playback and IME behaviour require a real device.
     readonly property string phoneShellArg: {
         var args = Qt.application.arguments
         for (var i = 2; i < args.length; ++i)
@@ -48,13 +48,22 @@ Item {
         return ""
     }
     property bool androidHost: Qt.platform.os === "android" || phoneShellArg.length > 0
+    readonly property alias desktopPresentation: adaptive.desktopPresentation
+    readonly property bool phonePresentation: host.androidHost && !host.desktopPresentation
     AdaptiveLayout {
         id: adaptive
         viewportWidth: Math.max(0, (host.window ? host.window.width : 0) - host.wideWorldNavigationLeftInset)
     }
 
-    // Android shell (decision 19 / Slice S2): there is no Home on Android. The app opens in the
-    // world it was last in, Theatre the first time.
+    Binding {
+        target: adaptive
+        property: "desktopPresentation"
+        value: host.window ? host.window.desktopPresentation !== false : true
+        when: host.window !== null
+    }
+
+    // Legacy phone presentation resumes its last world, Theatre the first time.
+    // Desktop presentation starts on Home, including on an actual Android host.
     Settings {
         id: androidShellSettings
         category: "androidShell"
@@ -77,10 +86,10 @@ Item {
     readonly property bool profileActive: profileLayer.active
     readonly property bool phoneImeVisible: host.androidHost && Qt.inputMethod.visible
     readonly property bool phoneWorldNavigationVisible:
-        host.androidHost && host.window && host.window.width < 840
+        host.phonePresentation && host.window && host.window.width < 840
         && !host.window.immersiveSurfaceOpen && !host.phoneImeVisible && !host.fullWindowPageOpen
     readonly property bool wideWorldNavigationVisible:
-        host.androidHost && host.window && host.window.width >= 840
+        host.phonePresentation && host.window && host.window.width >= 840
         && !host.window.immersiveSurfaceOpen && !host.phoneImeVisible && !host.fullWindowPageOpen
     readonly property real wideWorldNavigationLeftInset:
         host.wideWorldNavigationVisible ? wideWorldRail.width : 0
@@ -120,7 +129,7 @@ Item {
         }
     }
     function enterAndroidStartWorld() {
-        if (!host.androidHost || host.worldStack.current !== "") return
+        if (!host.phonePresentation || host.worldStack.current !== "") return
         var want = androidShellSettings.lastWorld
         var known = false
         for (var i = 0; i < host.window.worldDefinitions.length; ++i)
@@ -165,90 +174,90 @@ Item {
         }
     }
 
-    // Responsive overrides applied when androidHost or televisionMode is active.
+    // Phone-only geometry overrides; Android platform behaviour is independent of these bindings.
     Binding {
         target: host.topbar
         property: "x"
         value: host.wideWorldNavigationLeftInset + adaptive.pageMargin
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.topbar
         property: "y"
         value: adaptive.topInset
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.topbar
         property: "width"
-        value: host.window.width - host.wideWorldNavigationLeftInset - adaptive.pageMargin * 2
-        when: host.androidHost
+        value: (host.window ? host.window.width : 0) - host.wideWorldNavigationLeftInset - adaptive.pageMargin * 2
+        when: host.phonePresentation
     }
     Binding {
         target: host.page
         property: "y"
         value: host.topbar.y + host.topbar.height + (host.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
-        when: host.androidHost || host.televisionMode
+        when: host.phonePresentation || (host.televisionMode && !host.desktopPresentation)
     }
     Binding {
         target: host.contentCol
         property: "x"
         value: adaptive.pageMargin
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.contentCol
         property: "width"
         value: host.page.width - adaptive.pageMargin * 2
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.contentCol
         property: "spacing"
         value: adaptive.homeSectionSpacing
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.hero
         property: "height"
         value: adaptive.heroHeight
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.hero
         property: "radius"
         value: adaptive.phone ? 16 : 20
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.hallDoor
         property: "visible"
         value: !adaptive.phone
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.homeBookshelfLoader
         property: "height"
         value: adaptive.phone ? 690 : 400
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.homeTheatreStripLoader
         property: "height"
         value: adaptive.phone ? 340 : 400
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.homeReadingDeskLoader
         property: "height"
         value: adaptive.phone ? 560 : 400
-        when: host.androidHost
+        when: host.phonePresentation
     }
     Binding {
         target: host.homeVaultWidgetLoader
         property: "height"
         value: adaptive.phone ? 440 : 520
-        when: host.androidHost
+        when: host.phonePresentation
     }
 
     // ---- Profile tab (Android shell, Slice S3): the list of doors. Its pages (z 56) open over it,
