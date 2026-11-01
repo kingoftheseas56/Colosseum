@@ -23,7 +23,7 @@ Item {
     objectName: "sourcesSheet"
     // The host owns the Android-width decision. Standalone/desktop sheets stay unchanged.
     readonly property bool phoneLayout: sheet.Window.window
-                                     && sheet.Window.window.androidHost
+                                     && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation !== true
                                      && sheet.Window.window.width < 840
 
     property Item backdrop

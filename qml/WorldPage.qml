@@ -151,7 +151,11 @@ Item {
     }
     // Host/layout seam shared by Tankoban, Biblio and Theatre. Writable for desktop viewport tests.
     property bool androidHost: Qt.platform.os === "android"
-    AdaptiveLayout { id: adaptive; viewportWidth: world.width }
+    AdaptiveLayout {
+        id: adaptive
+        viewportWidth: world.width
+        desktopPresentation: !world.Window.window || world.Window.window.desktopPresentation !== false
+    }
     readonly property real pageMargin: adaptive.pageMargin
     // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
     property real contentBottomInset: 0

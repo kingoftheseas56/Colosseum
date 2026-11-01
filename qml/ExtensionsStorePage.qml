@@ -31,7 +31,7 @@ Item {
     property int revision: 0                 // bumps on every Extensions change
     readonly property bool phoneLayout: {
         const w = root.Window.window
-        return !!(w && w.androidHost && w.width < 840)
+        return !!(w && w.androidHost && w.desktopPresentation !== true && w.width < 840)
     }
     property var busy: ({})                  // slug -> true while an install is in flight
     property string configuringExtensionId: ""   // a House source whose settings page is open

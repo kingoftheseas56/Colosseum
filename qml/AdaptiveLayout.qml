@@ -1,17 +1,18 @@
-// AdaptiveLayout - shared width policy for the Android phone/tablet presentation.
+// AdaptiveLayout - shared desktop and phone presentation policy.
 // Geometry only: content/models/navigation stay in the existing shared QML pages.
 import QtQml
 
 QtObject {
     id: metrics
 
+    property bool desktopPresentation: true
     property real viewportWidth: 0
 
-    readonly property bool compactPhone: viewportWidth >= 0 && viewportWidth <= 430
-    readonly property bool phone: viewportWidth < 600
-    readonly property bool tablet: viewportWidth >= 600 && viewportWidth < 840
-    readonly property bool largeTablet: viewportWidth >= 840
-    readonly property bool compactChrome: viewportWidth < 840
+    readonly property bool compactPhone: !desktopPresentation && viewportWidth >= 0 && viewportWidth <= 430
+    readonly property bool phone: !desktopPresentation && viewportWidth < 600
+    readonly property bool tablet: !desktopPresentation && viewportWidth >= 600 && viewportWidth < 840
+    readonly property bool largeTablet: desktopPresentation || viewportWidth >= 840
+    readonly property bool compactChrome: !desktopPresentation && viewportWidth < 840
 
     readonly property string layoutClass: compactPhone ? "compact-phone"
                                                 : phone ? "phone"

@@ -227,6 +227,8 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
+    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width }
+    readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -528,7 +530,7 @@ Window {
                        homeReadingDeskLoader, homeVaultWidgetLoader]
         var sources = ["Bookshelf.qml", "TheatreStrip.qml",
                        "ReadingDesk.qml", "VaultHomeWidget.qml"]
-        if (win.androidHost) {
+        if (win.androidHost && !win.desktopPresentation) {
             loaders.pop()
             sources.pop()
         }
@@ -545,7 +547,7 @@ Window {
     function homeIntroWidgetSettled(loader) {
         if (homeIntroPendingLoader !== loader) return
         homeIntroPendingLoader = null
-        if (homeIntroWidgetCursor >= (win.androidHost ? 3 : 4)) {
+        if (homeIntroWidgetCursor >= (win.androidHost && !win.desktopPresentation ? 3 : 4)) {
             homeIntroWidgetsLoaded = true
             return
         }
@@ -1333,7 +1335,13 @@ Window {
         win.pendingIdentityRoute = null
         identityCeremonyDialog.close()
     }
+    readonly property var shellInputMethod: Qt.inputMethod
     function handleEscape() {
+        var keyboard = win.shellInputMethod
+        if (win.androidHost && keyboard.visible) {
+            keyboard.hide()
+            return
+        }
         win.cancelCatalogueRoute();
         var action = ShellBackPolicy.actionFor(win.shellEscapeState())
         switch (action) {
@@ -1646,7 +1654,7 @@ Window {
     function closeWorld() {
         if (win.guardNamedCollectionsNavigation(function() { win.closeWorld() })) return
 
-        if (win.androidHost) return
+        if (win.androidHost && !win.desktopPresentation) return
         win.cancelCatalogueRoute();
         win.parkFeria(true)
         worldStack.current = ""                           // hide all worlds; none destroyed
@@ -4652,15 +4660,18 @@ Window {
         }
     }
 
-    // Android readiness is the presented initial world, not merely a live process
-    // or the native splash. Emit once after its real Loader has an item.
+    // Readiness describes the presented initial surface, not merely a live process.
+    // Keep Home and loaded-world markers distinct for fresh-launch smoke consumers.
+    property bool androidHomeReadyReported: false
     property bool androidWorldReadyReported: false
     property bool androidLocalOnboardingReported: false
     Timer {
+        id: androidInitialSurfaceReadiness
         interval: 100
         repeat: true
-        running: win.androidHost && !win.androidWorldReadyReported
+        running: win.androidHost && !win.androidHomeReadyReported && !win.androidWorldReadyReported
         onTriggered: {
+            if (win.androidHomeReadyReported || win.androidWorldReadyReported) return
             if (!win.visible || boot.visible) return
             if (accountHost.visible) {
                 if (!win.androidLocalOnboardingReported
@@ -4672,7 +4683,14 @@ Window {
                 }
                 return
             }
-            if (worldStack.current === "") return
+            if (worldStack.current === "") {
+                if (win.desktopPresentation && page.visible && topbar.visible && page.width > 0 && page.height > 0
+                        && topbar.width > 0 && topbar.height > 0) {
+                    win.androidHomeReadyReported = true
+                    console.info("[boot] android home ready")
+                }
+                return
+            }
             for (var i = 0; i < worldRepeater.count; ++i) {
                 var loader = worldRepeater.itemAt(i)
                 if (loader && loader.mode === worldStack.current && loader.visible
@@ -6163,6 +6181,7 @@ Window {
         onFeedbackClicked: win.openFeedback()
         visible: !win.immersiveSurfaceOpen
             && !win.vinylVideoFullscreen
+            && (!win.androidHost || win.desktopPresentation)
             && !(feriaLayer.open && feriaLayer.item && feriaLayer.item.hostFullScreenActive)
         enabled: visible
         onVisibleChanged: if (!visible) open = false
