@@ -1,0 +1,246 @@
+@font-face{font-family:SegoeLocal;src:url('../../../../../baseline/reference/local-fonts/segoeui.ttf')}@font-face{font-family:SegoeLocal;src:url('../../../../../baseline/reference/local-fonts/seguisb.ttf');font-weight:600}
+@font-face{font-family:SegoeLocal;src:url('../../../../../baseline/reference/local-fonts/segoeuib.ttf');font-weight:700}
+@font-face{font-family:Fraunces;src:url('../../../../../baseline/reference/desktop/assets/fonts/Fraunces-Regular.ttf')}
+@font-face{font-family:Inter;src:url('../../../../../baseline/reference/desktop/assets/fonts/Inter-Regular.otf')}
+@font-face{font-family:Inter;src:url('../../../../../baseline/reference/desktop/assets/fonts/Inter-SemiBold.otf');font-weight:600}
+*{box-sizing:border-box}body{margin:0;background:#151922;color:#efeee9;font:13px SegoeLocal,'Segoe UI',sans-serif}
+button,input,select{font:inherit}button{cursor:pointer}button:disabled{cursor:not-allowed;opacity:.5}button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f0c44a;outline-offset:2px}
+.review-header{padding:13px 24px;background:#1b2130;border-bottom:1px solid #343a44;display:flex;align-items:center;justify-content:space-between;gap:18px}
+.review-header a{color:#b5c9ff;text-decoration:none}.review-header strong{font-size:15px}
+.review-controls{padding:12px 24px;display:flex;gap:10px 18px;align-items:end;flex-wrap:wrap;background:#191d26;border-bottom:1px solid #323741}
+.review-controls label{display:flex;flex-direction:column;gap:4px;color:#aeb5c5;font-size:11px}
+.review-controls select,.review-controls input{background:#272e3b;border:1px solid #4a5060;color:#f6f4ee;border-radius:7px;height:33px;padding:3px 9px}
+.review-controls input[type=number]{width:78px}.review-controls input[type=text]{width:160px}
+.review-controls .fieldgroup{display:flex;gap:7px}.review-controls .state-names{gap:5px}
+.review-note{font-size:11px;line-height:1.4;color:#bac0c9;padding:8px 24px;background:#191d26}
+.preview-bay{overflow:auto;height:calc(100vh - 172px);min-height:300px;display:flex;align-items:flex-start;justify-content:center;padding:23px}
+.scaler{position:relative;flex:none}.frame{position:absolute;top:0;left:0;border:1px solid #5a6679;overflow:hidden;box-shadow:0 18px 42px rgba(0,0,0,.55);transform-origin:top left}
+.mock{--fs:1;--in-top:0px;--in-bottom:0px;--in-left:0px;--in-right:0px;position:relative;width:100%;height:100%;color:#f7f7f5;font-family:SegoeLocal,'Segoe UI',sans-serif;overflow:hidden;background:#07080c}
+.mock .wallpaper{position:absolute;inset:0;background:url('../../../../../baseline/reference/desktop/assets/wallpaper/captured-motion.jpg') center / cover no-repeat}
+.mock .wallpaper:after{content:'';position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,.35),rgba(0,0,0,.28),rgba(0,0,0,.46))}
+.mock .onboard-wallpaper:after{background:rgba(3,4,8,.78)}
+.mock h1,.mock h2,.mock h3,.mock p{margin:0}.mock .muted{color:#9a99a5}.mock .dim{color:#c9c8d0}.mock .gold{color:#f0c44a}
+.mock .serif{font-family:Fraunces,Georgia,serif;font-weight:400}.mock .caps{letter-spacing:2.5px;text-transform:uppercase;font-size:calc(11px * var(--fs));font-weight:600}
+.mock .hairline{height:1px;background:rgba(255,255,255,.18);width:100%}.mock .text-wrap{overflow-wrap:anywhere}
+.mock .glass{background:rgba(255,255,255,.09);border:1px solid rgba(255,255,255,.18);border-radius:18px;backdrop-filter:blur(24px);-webkit-backdrop-filter:blur(24px);box-shadow:inset 0 0 0 999px rgba(0,0,0,.2)}
+.mock .welcome-flow{position:absolute;inset:var(--in-top) var(--in-right) var(--in-bottom) var(--in-left);overflow:auto;overscroll-behavior:contain;scrollbar-width:thin;scrollbar-color:#444 transparent}
+.mock .welcome-content{min-height:100%;display:grid;grid-template-columns:minmax(0,1fr) minmax(350px,560px);align-items:center;gap:52px;padding:30px 54px}
+.mock .intro{min-width:0}.mock .intro .eyebrow{color:#9a99a5;font-size:calc(12px * var(--fs));letter-spacing:2.6px;font-weight:600;margin-bottom:12px}
+.mock .intro h1{font-size:calc(68px * var(--fs));letter-spacing:-1.2px;line-height:.99;max-width:660px;overflow-wrap:break-word}
+.mock .intro .rule{margin:26px 0 24px;width:34px;height:3px;border-radius:2px;background:#f0c44a}
+.mock .intro .detail{font-size:calc(14px * var(--fs));line-height:1.7;max-width:610px;color:#9a99a5}
+.mock .welcome-panel{padding:34px;width:100%;min-width:0}
+.mock .welcome-panel .kicker{color:#f0c44a;font-size:calc(10px * var(--fs));letter-spacing:2.4px;font-weight:700;margin:0 0 12px}
+.mock .welcome-panel h2{font-family:Fraunces,Georgia,serif;font-size:calc(29px * var(--fs));font-weight:400;line-height:1.17}
+.mock .welcome-panel .sub{font-size:calc(13px * var(--fs));line-height:1.45;color:#9a99a5;margin-top:10px;margin-bottom:26px}
+.mock .welcome-choice{width:100%;display:flex;align-items:center;text-align:left;min-height:76px;padding:15px 18px;border:1px solid rgba(255,255,255,.18);border-radius:14px;background:rgba(255,255,255,.045);color:#f7f7f5;margin-top:10px}
+.mock .welcome-choice:hover,.mock .welcome-choice:focus-visible{background:rgba(255,255,255,.09)}
+.mock .welcome-choice .title{font-size:calc(15px * var(--fs));font-weight:600;line-height:1.35}
+.mock .welcome-choice .description{font-size:calc(12px * var(--fs));line-height:1.4;color:#9a99a5;margin-top:5px}
+.mock .welcome-foot{margin-top:20px;color:#9a99a5;font-size:calc(11px * var(--fs));line-height:1.45}
+.mock.tablet .welcome-content{grid-template-columns:1fr;gap:44px;align-items:start;padding:42px 34px 52px}
+.mock.tablet .intro h1{font-size:calc(50px * var(--fs))}.mock.tablet .welcome-panel{max-width:560px;margin:auto}
+.mock.phone .welcome-content{display:block;min-height:0;padding:28px 20px 24px}
+.mock.phone .intro .eyebrow{font-size:calc(11px * var(--fs));letter-spacing:2.2px}
+.mock.phone .intro h1{font-size:calc(34px * var(--fs));line-height:1.05;letter-spacing:-.8px}
+.mock.phone.narrow .intro h1{font-size:calc(31px * var(--fs))}
+.mock.phone .intro .rule{margin:22px 0 20px}
+.mock.phone .intro .detail{line-height:1.55}
+.mock.phone .welcome-panel{margin-top:28px;padding:18px}
+.mock.phone .welcome-panel .sub{margin-bottom:22px}
+.mock.phone.landscape .welcome-content{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);align-items:start;gap:20px;padding:16px 20px 26px}
+.mock.phone.landscape .intro{padding-top:10px}
+.mock.phone.landscape .welcome-panel{margin:0}.mock.phone.landscape .intro .rule{margin:18px 0 14px}
+.mock.phone.landscape .intro .detail{font-size:calc(13px * var(--fs));line-height:1.48}
+.mock .profile-backdrop{position:absolute;inset:0;background:#07080c;color:#f7f7f5;overflow:hidden}
+.mock .profile-scroll{position:absolute;inset:var(--in-top) var(--in-right) calc(var(--in-bottom) + 72px) var(--in-left);overflow:auto;scrollbar-width:none}.mock .profile-scroll::-webkit-scrollbar{display:none}
+.mock .profile-column{width:min(640px,calc(100% - 40px));margin:36px 20px 48px}
+.mock .profile-column .eyebrow{color:#f0c44a;font-size:calc(11px * var(--fs));letter-spacing:2.5px}
+.mock .profile-column h1{font:600 calc(30px * var(--fs)) Fraunces,Georgia,serif;margin:8px 0 22px}
+.mock .profile-link{display:flex;justify-content:space-between;align-items:center;gap:12px;width:100%;min-height:60px;text-align:left;border:0;border-bottom:1px solid rgba(255,255,255,.08);background:transparent;padding:12px 15px;color:#f7f7f5}
+.mock .profile-link strong{display:block;font-size:calc(17px * var(--fs));font-weight:600}.mock .profile-link small{display:block;font-size:calc(13px * var(--fs));color:#c9c8d0;margin-top:3px;line-height:1.3}
+.mock .drawn-chevron{display:inline-block;width:10px;height:15px;position:relative;flex-shrink:0}
+.mock .drawn-chevron:before,.mock .drawn-chevron:after{content:'';position:absolute;left:2px;width:10px;height:2px;border-radius:1px;background:#c9c8d0;transform-origin:left}
+.mock .drawn-chevron:before{top:3px;left:0;transform:rotate(45deg)}.mock .drawn-chevron:after{top:10px;left:7px;transform:rotate(135deg)}
+.mock .world-tabs{position:absolute;bottom:var(--in-bottom);left:var(--in-left);right:var(--in-right);height:72px;background:#0a0b10;border-top:1px solid rgba(255,255,255,.18);display:flex}
+.mock .world-tab{flex:1;min-width:0;border:0;background:none;color:#9a99a5;padding:10px 1px 7px;display:flex;align-items:center;flex-direction:column;gap:4px;font-size:calc(11px * var(--fs))}
+.mock .world-tab img{width:22px;height:22px;filter:grayscale(1);opacity:.7}.mock .world-tab.active{color:#f0c44a;font-weight:600}.mock .world-tab.active img{filter:sepia(1) saturate(4);opacity:1}
+.mock .desktop-underlay{position:absolute;inset:0;pointer-events:none;padding:18px 54px}.mock .desktop-underlay .chrome{height:56px;display:flex;align-items:center;justify-content:space-between;gap:15px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.14);border-radius:18px;padding:0 17px;backdrop-filter:blur(16px)}
+.mock .desktop-underlay .worlds{display:flex;gap:9px;align-items:center}.mock .desktop-underlay .world-pill{border:1px solid #ffffff30;border-radius:18px;padding:8px 14px;font-size:12px}
+.mock .underlay-medallion{border:1.5px solid #ffffff60;border-radius:50%;width:22px;height:22px;display:grid;place-items:center}
+.mock .desktop-underlay .brand{color:#f7f7f5;letter-spacing:2.4px}
+.mock .flyout-layer{position:absolute;inset:0;z-index:5}.mock .flyout-dismiss{position:absolute;inset:0;background:transparent;border:0;cursor:default}
+.mock .flyout-card{position:absolute;width:296px;max-width:calc(100% - 32px);max-height:calc(100% - 32px - var(--in-top) - var(--in-bottom));overflow-y:auto;overflow-x:hidden;background:#15130f;border:1px solid rgba(240,196,74,.28);border-radius:16px;padding:22px 20px;box-shadow:0 18px 38px rgba(0,0,0,.48);font-family:Inter,Arial,sans-serif;scrollbar-width:thin;scrollbar-color:#4c4030 transparent}
+.mock .flyout-card .sheen{position:absolute;left:20px;right:20px;top:1px;height:1px;background:rgba(240,196,74,.55)}
+.mock .flyout-card .identity{display:flex;align-items:center;gap:12px;min-width:0}
+.mock .flyout-card .mini-medallion{width:40px;height:40px;flex:none;border-radius:50%;background:rgba(240,196,74,.14);border:1.5px solid rgba(240,196,74,.75);display:grid;place-items:center;color:#f0df9a;font-size:17px;font-weight:600}
+.mock .flyout-card .identity-text{min-width:0;overflow-wrap:anywhere}.mock .flyout-card .identity-name{font-size:calc(15px * var(--fs));font-weight:600;line-height:1.25;color:#f2f2ef}
+.mock .flyout-card .identity-sub{font-size:calc(11px * var(--fs));color:#8f8b80;margin-top:2px}
+.mock .flyout-card .sep{background:#26231d;height:1px;margin:14px 0}
+.mock .flyout-card .sync{display:flex;gap:8px;align-items:center;color:#b7b3a6;font-size:calc(12px * var(--fs));line-height:1.4}
+.mock .flyout-card .sync .dot{width:7px;height:7px;border-radius:50%;background:#7ec97e;flex:none}
+.mock .flyout-card .nav-row{width:100%;display:block;text-align:left;background:transparent;border:none;color:#b7b3a6;font:calc(12px * var(--fs)) Inter,Arial,sans-serif;height:32px;padding:0 2px;border-radius:8px}
+.mock .flyout-card .nav-row:hover{color:#f2f2ef}.mock .flyout-card .nav-row:focus-visible{outline:1px solid #f0df9a;background:rgba(240,196,74,.08)}
+.mock .flyout-card .session-btn{width:100%;height:38px;border-radius:10px;border:1px solid #2a2720;background:rgba(255,255,255,.04);font-size:calc(12px * var(--fs));font-weight:600;color:#d8d4c8}
+.mock .flyout-card .retry-btn{width:100%;height:34px;border-radius:9px;border:1px solid #f0c44a6b;background:rgba(240,196,74,.08);color:#f0df9a;font-size:12px;margin:14px 0}
+.mock .flyout-card .nav-wrap{margin:0 0 14px}
+.mock .flyout-trigger{position:absolute;z-index:3;right:132px;top:35px;min-width:22px;height:22px;border:1.5px solid rgba(240,196,74,.8);border-radius:12px;background:rgba(240,196,74,.16);color:#f0df9a;display:grid;place-items:center}
+.mock .flyout-trigger.local{min-width:58px;border-color:#ffffff60;background:#ffffff10;color:#c9c8d0;font-size:10px}
+.mock .close-hint{position:absolute;left:0;bottom:90px;color:#9a99a5}
+.mock .centre-shell{position:absolute;inset:var(--in-top) var(--in-right) var(--in-bottom) var(--in-left);display:flex;overflow:hidden;background:#0d0c09;font-family:Inter,Arial,sans-serif}
+.mock .centre-rail{width:232px;flex:none;min-width:0;background:#121009;border-right:1px solid #221f18;padding:74px 20px 18px;overflow:auto;scrollbar-width:none}
+.mock .rail-person{display:flex;align-items:center;gap:12px;margin-bottom:18px;min-width:0}
+.mock .rail-person .mini-medallion{width:38px;height:38px;border-radius:50%;border:1.5px solid rgba(240,196,74,.75);background:rgba(240,196,74,.14);display:grid;place-items:center;flex-shrink:0;color:#f0df9a;font-size:16px;font-weight:600}
+.mock .rail-person .rail-name{font:600 calc(14px * var(--fs)) Inter,Arial,sans-serif;overflow-wrap:anywhere;line-height:1.2}
+.mock .rail-person .rail-sub{color:#7d7a6f;font-size:calc(10px * var(--fs));margin-top:2px}
+.mock .rail-list{display:flex;flex-direction:column;gap:4px}
+.mock .rail-tab{min-height:38px;width:100%;border:0;border-radius:9px;background:transparent;color:#b7b3a6;display:flex;gap:10px;align-items:center;padding:7px 12px;text-align:left;font:calc(13px * var(--fs)) Inter,Arial,sans-serif;white-space:normal}
+.mock .rail-tab .rail-glyph{font-size:13px;color:#8f8b80;width:14px;flex-shrink:0;text-align:center}
+.mock .rail-tab.active{background:rgba(240,196,74,.12);font-weight:600;color:#f2f2ef}.mock .rail-tab.active .rail-glyph{color:#f0df9a}
+.mock .rail-sign{margin-top:14px;background:none;color:#8f8b80;border:0;font:calc(12px * var(--fs)) Inter,Arial,sans-serif;text-align:left;padding:5px 0}
+.mock .centre-main{flex:1;min-width:0;position:relative;overflow:hidden}
+.mock .centre-back{position:absolute;top:30px;left:34px;z-index:2;border:0;background:transparent;color:#8f8b80;font:calc(12px * var(--fs)) Inter,Arial,sans-serif;padding:3px 0}
+.mock .centre-content{position:absolute;inset:64px 34px 32px;overflow-y:auto;overflow-x:hidden;scrollbar-width:thin;scrollbar-color:#3a3528 transparent}
+.mock .centre-content h2{font-size:calc(26px * var(--fs));letter-spacing:-.4px;font-weight:600;margin:0 0 33px}
+.mock .section-line{height:1px;background:rgba(255,255,255,.18)}
+.mock .inner-row{border-bottom:1px solid rgba(255,255,255,.18);padding:25px 0;min-width:0}
+.mock .label-row{display:flex;align-items:flex-start;justify-content:space-between;gap:22px}.mock .label-row .copy{min-width:0;flex:1}
+.mock .row-left{display:flex;align-items:flex-start;gap:15px;min-width:0;flex:1}.mock .icon-box{height:38px;width:38px;flex:none;display:grid;place-items:center;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);border-radius:12px;color:#f0c44a;font-size:21px}
+.mock .row-head{font-size:calc(14px * var(--fs));font-weight:600;line-height:1.3}.mock .row-detail{font-size:calc(11px * var(--fs));line-height:1.55;color:#9a99a5;margin-top:5px}
+.mock .row-actions{display:flex;gap:9px;align-items:center;flex-wrap:wrap;justify-content:flex-end;flex:none}
+.mock .account-btn{border-radius:12px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.1);min-width:88px;height:34px;padding:0 13px;color:#f7f7f5;font:600 calc(12px * var(--fs)) SegoeLocal,'Segoe UI',sans-serif}
+.mock .account-btn.primary{background:#f0c44a;color:#141207;border-color:#e8c44a}
+.mock .account-btn.danger{color:#e0aaa7;border-color:rgba(216,107,102,.45);background:transparent}
+.mock .switch{height:26px;width:46px;padding:0 4px;border-radius:13px;border:1px solid rgba(255,255,255,.18);background:transparent;flex:none}
+.mock .switch:before{content:'';display:block;background:#9a99a5;width:18px;height:18px;border-radius:50%;transform:translateX(0);transition:transform .15s}
+.mock .switch.on{border-color:#f0c44a;background:#f0c44a1f}.mock .switch.on:before{background:#f0c44a;transform:translateX(20px)}
+.mock .inline-panel{margin:20px 0 0 53px;border:1px solid rgba(255,255,255,.18);border-radius:12px;padding:16px;background:rgba(255,255,255,.045)}
+.mock .inline-panel p{font-size:calc(12px * var(--fs));line-height:1.55;color:#c9c8d0;margin-bottom:12px}
+.mock .fields{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}.mock .fields label,.mock .single-field{display:flex;flex-direction:column;gap:5px;color:#c9c8d0;font-size:calc(11px * var(--fs))}
+.mock .fields input,.mock .single-field input{width:100%;height:40px;border-radius:10px;border:1px solid rgba(255,255,255,.18);background:rgba(255,255,255,.06);color:#f7f7f5;padding:0 12px}
+.mock .inline-actions{display:flex;justify-content:flex-end;gap:9px;margin-top:14px;flex-wrap:wrap}
+.mock .profile-hero{position:relative;display:flex;gap:48px;align-items:center;border-top:1px solid rgba(255,255,255,.18);border-bottom:1px solid rgba(255,255,255,.18);padding:32px 0}
+.mock .hero-medallion{height:126px;width:126px;flex:none;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);display:grid;place-items:center;position:relative;color:#f0c44a}
+.mock .hero-medallion:before{content:'';position:absolute;inset:8px;border:1px solid #f0c44a66;border-radius:50%}
+.mock .avatar-glyph{width:58px;height:58px;display:grid;place-items:center}.mock .avatar-glyph svg{width:100%;height:100%}
+.mock .hero-username{font-size:calc(31px * var(--fs));font-weight:600;overflow-wrap:anywhere}
+.mock .hero-account-type{margin-top:7px;font-size:calc(12px * var(--fs));color:#9a99a5}
+.mock .hero-check{font-size:calc(12px * var(--fs));color:#c9c8d0;margin-top:15px}.mock .hero-check i{color:#f0c44a;border:1px solid #f0c44a;border-radius:50%;font-style:normal;padding:1px 3px;margin-right:8px}
+.mock .avatar-header{display:flex;justify-content:space-between;align-items:center;padding-top:28px;color:#c9c8d0;font-size:14px;font-weight:600}
+.mock .builtin{font-weight:400;border:1px solid rgba(255,255,255,.18);border-radius:20px;padding:4px 8px;font-size:10px;letter-spacing:.8px;color:#9a99a5}
+.mock .avatar-grid{display:grid;grid-template-columns:repeat(auto-fit,74px);gap:14px;justify-content:start;margin-top:20px;padding-bottom:30px;border-bottom:1px solid rgba(255,255,255,.18)}
+.mock .avatar-choice{border:0;padding:0;background:none;color:#9a99a5;font-size:calc(10px * var(--fs));display:flex;align-items:center;flex-direction:column;gap:4px;min-width:0}
+.mock .avatar-choice .ring{width:62px;height:62px;border-radius:50%;background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.18);display:grid;place-items:center}
+.mock .avatar-choice.selected .ring{border-color:#f0c44a;background:rgba(240,196,74,.1);outline:1px solid #f0c44a77;outline-offset:4px}
+.mock .avatar-choice .avatar-glyph{width:30px;height:30px}.mock .avatar-choice:disabled{opacity:.48}
+.mock .username-edit{padding:28px 0;border-bottom:1px solid rgba(255,255,255,.18)}.mock .username-edit .field-block{display:flex;gap:12px;align-items:flex-end;margin-top:20px}
+.mock .username-edit label{display:flex;flex-direction:column;gap:5px;font-size:calc(11px * var(--fs));color:#c9c8d0;flex:1;min-width:0}
+.mock .username-edit input{background:#ffffff0c;color:#f7f7f5;border:1px solid #ffffff2e;border-radius:10px;height:42px;padding:0 13px;width:100%}
+.mock .username-edit .account-btn{height:42px;min-width:122px}
+.mock .section-kicker{color:#9a99a5;text-transform:uppercase;letter-spacing:1px;font-size:calc(10px * var(--fs));margin:22px 0 9px}
+.mock .summary-strip{border-block:1px solid rgba(255,255,255,.18);display:flex;justify-content:space-between;gap:36px;align-items:flex-start;padding:24px 0}
+.mock .summary-number{font-size:calc(42px * var(--fs));letter-spacing:-1.8px;font-weight:600}
+.mock .summary-note{max-width:440px;text-align:right;color:#9a99a5;font-size:calc(11px * var(--fs));line-height:1.55}
+.mock .trust-row{padding:16px 0;border-bottom:1px solid #ffffff2e;display:flex;justify-content:space-between;gap:18px;align-items:center}
+.mock .trust-row .device-name{font-size:calc(14px * var(--fs));font-weight:600}.mock .device-meta{font-size:calc(11px * var(--fs));color:#9a99a5;margin-top:5px}
+.mock .status-mark{font-size:calc(10px * var(--fs));letter-spacing:.8px;color:#f0c44a;font-weight:600}
+.mock .recovery-hero{display:flex;gap:34px;padding:30px 0 32px;border-block:1px solid #ffffff2e}
+.mock .key-mark{width:126px;height:126px;border-radius:50%;background:#ffffff09;border:1px solid #ffffff2e;display:grid;place-items:center;flex:none;color:#f0c44a;font-size:52px}
+.mock .recovery-hero h3{font-size:calc(27px * var(--fs));font-weight:600;letter-spacing:-.9px}
+.mock .recovery-hero p{font-size:calc(12px * var(--fs));line-height:1.65;color:#9a99a5;margin-top:12px}
+.mock .pill-note{margin-top:18px;color:#c9c8d0;font-size:calc(10px * var(--fs))}.mock .pill-note:before{content:'●';font-size:8px;color:#f0c44a;margin-right:9px}
+.mock .map-title{font-size:calc(16px * var(--fs));font-weight:600;margin-top:27px}
+.mock .privacy-map{display:grid;grid-template-columns:1fr 1fr;border-block:1px solid #ffffff2e;margin-top:18px}
+.mock .map-lane{min-width:0;padding:25px 26px 25px 0}.mock .map-lane+ .map-lane{border-left:1px solid #ffffff2e;padding-left:26px}
+.mock .map-lane strong{font-size:calc(13px * var(--fs));font-weight:600}.mock .map-lane p{font-size:calc(11px * var(--fs));color:#9a99a5;line-height:1.5;margin:6px 0 20px}
+.mock .fact{padding:10px 0 10px 15px;border-bottom:1px solid #ffffff17;position:relative;font-size:calc(11px * var(--fs));color:#c9c8d0}
+.mock .fact:before{content:'';position:absolute;left:0;top:17px;width:5px;height:5px;border-radius:50%;background:#f0c44a}
+.mock .fact small{display:block;color:#9a99a5;font-size:calc(10px * var(--fs));margin-top:2px;line-height:1.4}
+.mock .map-lane.local .fact:before{background:#9a99a5}
+.mock .secret-boundary{display:flex;gap:15px;align-items:flex-start;padding:22px 0;border-bottom:1px solid #ffffff2e}
+.mock .secret-boundary .row-detail{margin-top:5px}
+.mock .danger-zone{margin-top:31px;border-top:1px solid rgba(216,107,102,.28)}
+.mock .danger-zone .row-head{color:#f7f7f5}.mock .small{font-size:calc(11px * var(--fs));line-height:1.5;color:#9a99a5}
+.mock.phone.portrait .centre-shell{flex-direction:column}.mock.phone.portrait .centre-rail{width:100%;height:auto;max-height:240px;overflow:auto;padding:12px 14px 9px;border-right:0;border-bottom:1px solid #221f18;scrollbar-width:none}
+.mock.phone.portrait .rail-person{margin:0 0 6px;gap:10px}.mock.phone.portrait .rail-person .mini-medallion{width:32px;height:32px}
+.mock.phone.portrait .rail-list{flex-direction:row;flex-wrap:wrap;overflow:visible;gap:3px;padding:3px 0 4px}
+.mock.phone.portrait .rail-tab{width:auto;min-width:max-content;min-height:38px;white-space:nowrap;padding:8px 10px}
+.mock.phone.portrait .rail-sign{font-size:calc(11px * var(--fs));margin:3px 0 0;padding:2px 0}
+.mock.phone.portrait .centre-main{height:0;flex:1}.mock.phone.portrait .centre-back{top:14px;left:20px}
+.mock.phone.portrait .centre-content{inset:49px 20px 12px}.mock.phone.portrait .centre-content h2{margin-bottom:27px}
+.mock.phone.landscape .centre-rail{width:190px;padding:22px 12px 14px}.mock.phone.landscape .rail-tab{font-size:calc(12px * var(--fs));padding:7px 8px;gap:7px}
+.mock.phone.landscape .centre-back{top:13px;left:20px}.mock.phone.landscape .centre-content{inset:45px 20px 12px}
+.mock.phone .centre-content .label-row{flex-wrap:wrap}.mock.phone .centre-content .row-actions{justify-content:flex-start;margin-left:53px}
+.mock.phone .profile-hero{flex-direction:column;align-items:flex-start;gap:18px}
+.mock.phone.landscape .profile-hero{flex-direction:row;gap:24px}
+.mock.phone .inline-panel{margin-left:0}.mock.phone .fields{grid-template-columns:1fr}
+.mock.phone .recovery-hero{flex-direction:column;gap:18px}.mock.phone .key-mark{width:92px;height:92px;font-size:40px}
+.mock.phone .privacy-map{grid-template-columns:1fr}.mock.phone .map-lane+ .map-lane{border-left:0;border-top:1px solid #ffffff2e;padding-left:0}
+.mock.phone .summary-strip{flex-direction:column;gap:12px}.mock.phone .summary-note{text-align:left}
+.mock.phone .username-edit .field-block{flex-wrap:wrap}.mock.phone .username-edit .account-btn{width:122px}
+.mock.tablet .centre-rail{width:214px;padding-left:16px;padding-right:16px}
+.mock .mock-only-toast{display:none}
+body.capture{background:#000}body.capture .review-header,body.capture .review-controls,body.capture .review-note{display:none}
+body.capture .preview-bay{position:absolute;inset:0;padding:0;display:block;width:100vw;height:100vh;overflow:hidden}
+body.capture .frame{border:0;box-shadow:none}
+body.capture .scaler{width:100vw!important;height:100vh!important}
+@media(max-width:700px){.review-header{padding:8px 12px}.review-controls{padding:8px 12px}.review-note{padding:6px 12px}.preview-bay{height:calc(100vh - 220px)}}
+
+
+/* Approved QML inline vector glyphs and 800px tablet compact-page wrapping. */
+.mock .icon-box svg{width:18px;height:18px;display:block}
+.mock .key-mark svg{width:48px;height:48px;display:block}
+.mock .device-main{display:flex;align-items:center;gap:15px;min-width:0;flex:1}
+.mock .device-icon{width:42px;height:42px}
+.mock .device-icon svg{width:20px;height:20px}
+.mock .device-icon.current-device{background:rgba(240,196,74,.08);border-color:rgba(240,196,74,.45)}
+.mock.compact-tablet .centre-content .label-row{flex-wrap:wrap}
+.mock.compact-tablet .centre-content .row-actions{justify-content:flex-start;margin-left:53px}
+.mock.compact-tablet .profile-hero{flex-direction:column;align-items:flex-start;gap:18px}
+.mock.compact-tablet .recovery-hero{flex-direction:column;gap:18px}
+.mock.compact-tablet .key-mark{width:92px;height:92px}
+.mock.compact-tablet .summary-strip{flex-direction:column;gap:12px}
+.mock.compact-tablet .summary-note{text-align:left}
+.mock.compact-tablet .fields{grid-template-columns:1fr}
+.mock.compact-tablet .privacy-map{grid-template-columns:1fr}
+.mock.compact-tablet .map-lane + .map-lane{border-left:0;border-top:1px solid #ffffff2e;padding-left:0}
+.mock.compact-tablet .username-edit .field-block{flex-wrap:wrap}
+
+/* Preserve the source's compactRows split: control actions follow the copy, rather than shrinking it. */
+.mock.phone .centre-content .row-left,.mock.compact-tablet .centre-content .row-left{flex:0 0 100%;width:100%}
+.mock .desktop-underlay .chrome img{width:22px;height:22px;flex:none;object-fit:contain}
+
+/* Desktop TopBar and Account Centre verbs from the approved shell, not replacement mobile chrome. */
+.mock .desktop-underlay .chrome{border:0;background:transparent;backdrop-filter:none;-webkit-backdrop-filter:none;box-shadow:none;padding:0;gap:16px}
+.mock .desktop-underlay .desktop-clock{flex:none;min-width:162px;display:grid;grid-template-columns:max-content auto;column-gap:5px;align-items:end}
+.mock .desktop-underlay .desktop-hour{font:32px Fraunces,Georgia,serif;line-height:1}
+.mock .desktop-underlay .desktop-ampm{font:16px SegoeLocal,'Segoe UI',sans-serif;color:#c9c8d0;padding-bottom:3px}
+.mock .desktop-underlay .desktop-date{grid-column:1/3;color:#c9c8d0;font-size:13px;margin-top:2px}
+.mock .desktop-underlay .worlds{flex:none;display:flex;align-items:center;gap:4px;max-width:calc(100% - 490px);padding:6px 7px;min-height:46px;border-radius:999px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.18);backdrop-filter:blur(20px);-webkit-backdrop-filter:blur(20px)}
+.mock .desktop-underlay .world-pill{border:0;border-radius:999px;padding:7px 10px;min-height:34px;display:flex;align-items:center;gap:5px;font-size:14px;white-space:nowrap;color:#c9c8d0}
+.mock .desktop-underlay .world-pill.soon{opacity:.66}
+.mock .desktop-underlay .soon-chip{font-size:8px;letter-spacing:.8px;padding:2px 5px;border-radius:4px;background:#ffffff20}
+.mock .desktop-underlay .desktop-icons{display:flex;align-items:center;justify-content:flex-end;gap:16px;flex:none}
+.mock .desktop-underlay .desktop-sys,.mock .desktop-underlay .flyout-trigger{pointer-events:auto}
+.mock .desktop-sys{height:22px;width:22px;border:0;background:transparent;padding:0;display:inline-grid;place-items:center;color:#f7f7f5}
+.mock .desktop-sys img{width:22px;height:22px;display:block;opacity:.8}
+.mock .desktop-underlay .flyout-trigger{position:relative;right:auto;top:auto;flex:none}
+.mock .centre-window-controls{display:none;position:absolute;top:30px;right:32px;z-index:4;align-items:center;gap:20px}
+.mock.desktop .centre-window-controls{display:flex}
+
+/* Keep PhoneShellHost's original wide rail when the phone is >=840 logical px wide. */
+.mock.phone.wide-shell .profile-scroll{left:calc(var(--in-left) + 92px);bottom:var(--in-bottom)}
+.mock.phone.wide-shell .world-tabs{top:var(--in-top);bottom:var(--in-bottom);left:var(--in-left);right:auto;height:auto;width:92px;flex-direction:column;justify-content:center;border-top:0;border-right:1px solid rgba(255,255,255,.18)}
+.mock.phone.wide-shell .world-tab{flex:none;min-height:64px;padding:12px 4px}
+.mock .flyout-card{scroll-padding-top:8px;scroll-padding-bottom:8px;max-width:calc(100% - 32px - var(--in-left) - var(--in-right))}
+.mock .profile-link:active{background:rgba(255,255,255,.09);border-radius:14px}
+.mock .drawn-chevron{width:10px;height:18px}
+.mock .drawn-chevron:before,.mock .drawn-chevron:after{left:1px;width:9px;height:2px;transform-origin:center}
+.mock .drawn-chevron:before{top:3px;transform:rotate(45deg)}
+.mock .drawn-chevron:after{top:12px;transform:rotate(-45deg)}
+.mock.desktop .intro h1{font-size:calc(66.56px * var(--fs))}
+
+/* PhoneProfilePage uses Item.Left rotation origins for both original bars. */
+.mock .drawn-chevron{height:16px}.mock .drawn-chevron:before,.mock .drawn-chevron:after{transform-origin:left center}
+.mock .profile-link{position:relative;border-bottom:0;padding-left:14px;padding-right:16px}.mock .profile-link::after{content:"";position:absolute;left:14px;right:0;bottom:0;height:1px;background:rgba(255,255,255,.08)}
+.mock .world-tab img{filter:brightness(0) saturate(100%) invert(67%) sepia(6%) saturate(317%) hue-rotate(205deg) brightness(94%) contrast(91%);opacity:1}.mock .world-tab.active img{filter:brightness(0) saturate(100%) invert(81%) sepia(51%) saturate(776%) hue-rotate(347deg) brightness(98%) contrast(92%)}

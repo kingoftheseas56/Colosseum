@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Colosseum Profile · Fidelity mock</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="../mock-support.js"></script>
+<script defer src="app.js"></script>
+</head>
+<body>
+  <main class="studio" aria-label="Standalone profile fitting study">
+    <div class="stage" id="stage">
+      <!-- In capture mode this frame exactly fills the isolated headless viewport. -->
+      <div class="device" id="device" style="--safe-top:0px;--safe-bottom:0px;--font-scale:1">
+        <div class="app-screen" id="app-screen" aria-label="Colosseum Profile shell">
+          <div class="profile-layer" id="profile-layer">
+            <div class="profile-scroll" id="profile-scroll">
+              <div class="profile-column">
+                <div class="kicker">COLOSSEUM</div>
+                <div class="heading-gap"></div>
+                <h1 class="profile-title">Profile</h1>
+                <div class="list-gap"></div>
+                <div class="profile-rows" id="profile-rows">
+                  <button class="profile-row" data-key="collections" type="button">
+                    <span class="row-copy"><span class="row-title">Your Collections</span><span class="row-note">Titles you keep together</span></span>
+                    <span class="chevron" aria-hidden="true"><i></i><i></i></span>
+                  </button>
+                  <button class="profile-row" data-key="downloads" type="button">
+                    <span class="row-copy"><span class="row-title">Downloads</span><span class="row-note">Everything saved on this device</span></span>
+                    <span class="chevron" aria-hidden="true"><i></i><i></i></span>
+                  </button>
+                  <button class="profile-row" data-key="extensions" type="button">
+                    <span class="row-copy"><span class="row-title">Extensions</span><span class="row-note">Add-ons and sources for every world</span></span>
+                    <span class="chevron" aria-hidden="true"><i></i><i></i></span>
+                  </button>
+                  <button class="profile-row" data-key="colosseum" type="button">
+                    <span class="row-copy"><span class="row-title">Your Colosseum</span><span class="row-note">History, highlights and stats</span></span>
+                    <span class="chevron" aria-hidden="true"><i></i><i></i></span>
+                  </button>
+                  <button class="profile-row" data-key="trackers" type="button">
+                    <span class="row-copy"><span class="row-title">Trackers</span><span class="row-note">Connections to other libraries</span></span>
+                    <span class="chevron" aria-hidden="true"><i></i><i></i></span>
+                  </button>
+                  <button class="profile-row" data-key="stremio" type="button">
+                    <span class="row-copy"><span class="row-title">Stremio</span><span class="row-note">Bring your Stremio library across</span></span>
+                    <span class="chevron" aria-hidden="true"><i></i><i></i></span>
+                  </button>
+                  <button class="profile-row" data-key="account" type="button">
+                    <span class="row-copy"><span class="row-title">Account</span><span class="row-note">Sign in, devices and security</span></span>
+                    <span class="chevron" aria-hidden="true"><i></i><i></i></span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+          <nav class="nav-bottom" aria-label="Colosseum world tabs">
+            <button type="button" class="world-tab" data-world="Theatre"><span class="world-icon theatre"></span><span>Theatre</span></button>
+            <button type="button" class="world-tab" data-world="Tankoban"><span class="world-icon tankoban"></span><span>Tankoban</span></button>
+            <button type="button" class="world-tab" data-world="Biblio"><span class="world-icon biblio"></span><span>Biblio</span></button>
+            <button type="button" class="world-tab" data-world="Universes"><span class="world-icon universes"></span><span>Universes</span></button>
+            <button type="button" class="world-tab is-active" data-world="Profile" aria-current="page"><span class="world-icon profile"></span><span>Profile</span></button>
+          </nav>
+          <nav class="nav-rail" aria-label="Colosseum wide world rail">
+            <button type="button" class="world-tab" data-world="Theatre"><span class="world-icon theatre"></span><span>Theatre</span></button>
+            <button type="button" class="world-tab" data-world="Tankoban"><span class="world-icon tankoban"></span><span>Tankoban</span></button>
+            <button type="button" class="world-tab" data-world="Biblio"><span class="world-icon biblio"></span><span>Biblio</span></button>
+            <button type="button" class="world-tab" data-world="Universes"><span class="world-icon universes"></span><span>Universes</span></button>
+            <button type="button" class="world-tab is-active" data-world="Profile" aria-current="page"><span class="world-icon profile"></span><span>Profile</span></button>
+          </nav>
+        </div>
+      </div>
+    </div>
+    <aside class="inspector" aria-label="Controls outside the product mock">
+      <div class="inspector-top"><span class="eyebrow">FITTING STUDY 10 · REVIEW CONTROLS</span><h2>Profile</h2></div>
+      <p class="annotation">Every control here is outside Colosseum. The frame uses the approved Profile rows and navigation shell; device measurements are provisional.</p>
+      <div class="fieldset-label">Viewport presets</div>
+      <div class="preset-grid" id="presets">
+        <button class="preset is-selected" data-width="412" data-height="900" type="button">Phone portrait · 412×900</button>
+        <button class="preset" data-width="900" data-height="412" type="button">Phone landscape · 900×412</button>
+        <button class="preset" data-width="354" data-height="792" type="button">Narrow portrait · 354×792</button>
+        <button class="preset" data-width="792" data-height="354" type="button">Narrow landscape · 792×354</button>
+        <button class="preset" data-width="1280" data-height="700" type="button">Desktop comparison · 1280×700</button>
+        <button class="preset" data-width="800" data-height="1280" type="button">Tablet portrait · 800×1280</button>
+        <button class="preset" data-width="1280" data-height="800" type="button">Tablet landscape · 1280×800</button>
+      </div>
+      <div class="control-grid">
+        <label>Width (logical px)<input id="width-control" type="number" min="320" max="1920" step="1" value="412"></label>
+        <label>Height (logical px)<input id="height-control" type="number" min="300" max="1400" step="1" value="900"></label>
+        <label>Top inset (px)<input id="top-control" type="number" min="0" max="100" value="0"></label>
+        <label>Bottom inset (px)<input id="bottom-control" type="number" min="0" max="100" value="0"></label>
+      </div>
+      <label class="slider-label">Font scale <output id="scale-output">1.00×</output><input id="scale-control" type="range" min="1" max="1.5" step=".05" value="1"></label>
+      <div class="control-row"><button id="reset-control" type="button">Reset viewport &amp; insets</button><button id="stress-control" type="button">354px + 1.30× test</button></div>
+      <div class="fieldset-label">Interaction and fit diagnostics</div>
+      <p class="annotation">Click a Profile row to issue its original <code>rowRequested(key)</code> event locally. Destinations remain out of scope; this does not open a fabricated screen.</p>
+      <output class="event-output" id="event-output" aria-live="polite">No route requested.</output>
+      <output class="fit-output" id="fit-output" aria-live="polite"></output>
+      <p class="annotation">The 17px DemiBold baseline, 13px notes, two-bar chevrons, inset dividers and original seven labels are preserved. Only wrapping, scrolling and measured insets are adapted.</p>
+      <a class="return-link" href="index.html">Study index</a>
+    </aside>
+  </main>
+</body>
+</html>

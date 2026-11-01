@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Stremio Sync | Colosseum Phone Fitting Study</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="../mock-support.js"></script>
+<script defer src="app.js"></script>
+</head>
+<body>
+  <div class="workbench">
+    <aside class="controls" aria-label="Mock reviewer controls outside app">
+      <p class="eyebrow">13 · FITTING STUDY</p>
+      <h1>Stremio Sync</h1>
+      <p class="control-intro">Approved centred panel, fitted without substituting a sheet. All controls here are reviewer tools, not Colosseum UI.</p>
+      <label>Viewport preset
+        <select id="preset">
+          <option value="portrait">Phone · 412 × 900</option>
+          <option value="landscape">Phone landscape · 900 × 412</option>
+          <option value="smallPortrait">Small phone · 354 × 792</option>
+          <option value="smallLandscape">Small landscape · 792 × 354</option>
+          <option value="desktop">Desktop · 1280 × 700</option>
+          <option value="tabletPortrait">Tablet portrait · 800 × 1280</option>
+          <option value="tabletLandscape">Tablet landscape · 1280 × 800</option>
+          <option value="custom">Custom</option>
+        </select>
+      </label>
+      <div class="control-duo">
+        <label>Width (logical px)<input id="vw" type="number" min="320" max="2560" step="1" value="412"></label>
+        <label>Height (logical px)<input id="vh" type="number" min="240" max="1800" step="1" value="900"></label>
+      </div>
+      <label>Panel state
+        <select id="state">
+          <option value="synced">Synced — all actions shown</option>
+          <option value="notConnected">Not connected</option>
+          <option value="connecting">Connecting</option>
+          <option value="syncing">Syncing</option>
+          <option value="reconnectRequired">Reconnect required</option>
+          <option value="syncFailed">Sync failed</option>
+          <option value="paused">Paused</option>
+          <option value="unavailable">Unavailable</option>
+        </select>
+      </label>
+      <label>Confirmation state
+        <select id="confirm">
+          <option value="">None</option>
+          <option value="switch">Switch account</option>
+          <option value="disconnect">Disconnect</option>
+        </select>
+      </label>
+      <div class="control-duo">
+        <label>Font scale<input id="fontScale" type="number" min="0.8" max="2" step="0.1" value="1"></label>
+        <label>IME reserve (px)<input id="imeSize" type="number" min="40" max="500" step="10" value="260"></label>
+      </div>
+      <div class="control-duo">
+        <label>Top inset<input id="insetTop" type="number" min="0" max="120" value="0"></label>
+        <label>Bottom inset<input id="insetBottom" type="number" min="0" max="120" value="0"></label>
+        <label>Left inset<input id="insetLeft" type="number" min="0" max="120" value="0"></label>
+        <label>Right inset<input id="insetRight" type="number" min="0" max="120" value="0"></label>
+      </div>
+      <label class="check"><input type="checkbox" id="keyboardPreview"> Keyboard-open preview (manual; no auto keyboard)</label>
+      <label class="check"><input type="checkbox" id="longFixture"> Long sample account and result</label>
+      <label class="check"><input type="checkbox" id="panelOpen" checked> Panel visible</label>
+      <button class="reset" id="reset" type="button">Reset reviewer controls</button>
+      <div class="review-note" role="status" id="metrics" aria-live="polite"></div>
+      <p class="control-intro">Account and result strings are illustrative fixture data. The keyboard reserve is a measurement overlay, <strong>not</strong> OS chrome or a Colosseum control. No account/provider operations occur.</p>
+    </aside>
+    <main class="stage" aria-label="Standalone page preview">
+      <div class="stage-caption">LOCAL HTML PREVIEW · NO APP IMPLEMENTATION</div>
+      <div class="stage-scroll">
+        <div id="frame" class="frame" role="group" aria-label="Colosseum logical viewport">
+          <div class="connections-page">
+            <div class="connections-top">
+              <span class="back-visual">‹ Back</span>
+            </div>
+            <div class="connections-scroll">
+              <div class="connections-header">
+                <div><h2>Connections</h2><p>Your external library connections</p></div>
+                <div class="connections-header-actions">
+                  <span class="small-glass"><img src="../../../../../baseline/reference/desktop/assets/icons/preferences.svg" alt="">Preferences</span>
+                  <span class="small-glass muted"><img src="../../../../../baseline/reference/desktop/assets/icons/sync.svg" alt="">Sync all</span>
+                </div>
+              </div>
+              <p class="empty-summary">No third-party trackers connected</p>
+              <div class="native-card">
+                <img src="../../../../../baseline/reference/desktop/assets/icons/colosseum.svg" alt="">
+                <span class="native-divider"></span>
+                <div><p class="overline">NATIVE LIBRARY</p><h3>Colosseum</h3><strong>Works without trackers.</strong><p>Your native progress, History, and activity stay here.</p></div>
+              </div>
+              <section class="available-trackers">
+                <h3>Available trackers</h3>
+                <div class="tracker-grid">
+                  <div class="tracker-card"><img src="../../../../../baseline/reference/desktop/assets/icons/trackers/myanimelist.svg" alt=""><div><strong>MyAnimeList</strong><small>Anime and manga</small></div><span>Connect</span></div>
+                  <div class="tracker-card"><img src="../../../../../baseline/reference/desktop/assets/icons/trackers/anilist.svg" alt=""><div><strong>AniList</strong><small>Anime and manga</small></div><span>Connect</span></div>
+                  <div class="tracker-card"><img src="../../../../../baseline/reference/desktop/assets/icons/trackers/trakt.svg" alt=""><div><strong>Trakt</strong><small>Movies and series</small></div><span>Connect</span></div>
+                  <div class="tracker-card"><img src="../../../../../baseline/reference/desktop/assets/icons/trackers/simkl.svg" alt=""><div><strong>SIMKL</strong><small>Movies, series, and anime</small></div><span>Connect</span></div>
+                </div>
+              </section>
+              <section class="external-services"><h3>External services</h3><p>Manage connections to external libraries.</p>
+                <div class="stremio-card">
+                  <img src="../../../../../baseline/reference/desktop/assets/icons/stremio-official.svg" alt="">
+                  <div class="stremio-intro"><h4>Stremio</h4><p>Library, progress, and History</p><div class="tags"><span>Library</span><span>Progress</span><span>History</span></div></div>
+                  <div class="stremio-access"><span id="backdropStatus">Connected</span><button type="button" id="openSettings">Open settings ›</button></div>
+                </div>
+              </section>
+            </div>
+            <div class="taskbar-context" aria-hidden="true">
+              <img src="../../../../../baseline/reference/desktop/assets/icons/colosseum.svg" alt="">
+              <img src="../../../../../baseline/reference/desktop/assets/icons/download.svg" alt="">
+              <img src="../../../../../baseline/reference/desktop/assets/icons/extensions.svg" alt="">
+            </div>
+          </div>
+          <div class="stremio-overlay" id="overlay">
+            <div class="panel-stage">
+              <section id="panel" class="sync-panel" role="dialog" aria-modal="true" aria-labelledby="panelHeading" aria-describedby="panelDetail">
+                <div class="panel-inner" id="panelScroll">
+                  <div class="panel-heading-row">
+                    <img class="official-icon" src="../../../../../baseline/reference/desktop/assets/icons/stremio-official.svg" alt="">
+                    <div class="heading-copy"><h2 id="panelHeading">Stremio Sync</h2><p id="panelDetail"></p></div>
+                    <button class="panel-action heading-close" id="headerClose" type="button">Close</button>
+                  </div>
+                  <div class="divider"></div>
+                  <dl class="metadata">
+                    <dt>Account</dt><dd id="accountValue">Not connected</dd>
+                    <dt>Last sync</dt><dd id="lastSyncValue">Never</dd>
+                  </dl>
+                  <p class="sync-result" id="result"></p>
+                  <p class="confirmation" id="confirmationText"></p>
+                  <div class="panel-actions">
+                    <button id="primaryAction" class="panel-action primary" type="button">Sync now</button>
+                    <button id="switchAction" class="panel-action" type="button">Switch account</button>
+                    <button id="disconnectAction" class="panel-action" type="button">Disconnect</button>
+                    <button id="cancelAction" class="panel-action" type="button">Close</button>
+                  </div>
+                </div>
+              </section>
+            </div>
+          </div>
+          <div id="imeMask" class="ime-mask" aria-hidden="true"><span>SIMULATED IME OCCLUSION · NOT APP UI</span></div>
+        </div>
+      </div>
+    </main>
+  </div>
+</body>
+</html>
