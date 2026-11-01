@@ -19,9 +19,13 @@ on:
         default: ''
         type: string
   push:
-    branches: ['codex/120-linux-deb-*']
+    branches: ['codex/120-linux-deb-closure-20261101']
     paths:
       - '.github/workflows/release-linux-deb.yml'
+      - 'native/player/**'
+      - 'qml/PlayerPage.qml'
+      - 'qml/Main.qml'
+      - 'tests/continue_local_detail_routing_test.mjs'
       - 'tools/linux-release/**'
       - 'scripts/stage_api_content.py'
       - '.gitattributes'
@@ -61,6 +65,12 @@ jobs:
           python3 -m unittest -v tests.test_linux_release_policy tests.test_linux_installed_player_smoke tests.test_linux_installed_picker_smoke tests.test_stage_api_content tests.test_vinyl_release_gate
           python3 tools/linux-release/test_packaging.py
           python3 scripts/check_public_paths.py
+      - name: Continue local detail routing regressions
+        run: |
+          node tests/continue_local_detail_routing_test.mjs
+          node tests/continue_local_comic_routing_test.mjs
+          node tests/continue_manga_resume_routing_test.mjs
+          node tests/collections_routes_test.mjs
       - name: Install Qt 6.11.1
         uses: jurplel/install-qt-action@48d3ad6db93f3627c8ee7a0454bc6f3744f7e730 # v4.3.1
         with:

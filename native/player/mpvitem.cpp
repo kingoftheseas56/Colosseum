@@ -4,6 +4,7 @@
 #include <MpvController>
 #include <QCoreApplication>
 #include <QDateTime>
+#include <QDebug>
 #include <QDesktopServices>
 #include <QDir>
 #include <QFile>
@@ -264,6 +265,11 @@ void MpvItem::handlePlaybackEvent(const mpv_event &event)
         // EOF or error. It must never reset a newer stream's state.
         if (end.playlist_entry_id != state.expectedEntry || !state.started)
             return;
+        qInfo().nospace() << "[player-end-file] generation=" << generation
+                          << " entry=" << end.playlist_entry_id
+                          << " reason=" << int(end.reason)
+                          << " error=" << end.error
+                          << " errorText=" << mpv_error_string(end.error);
         state.acceptNextEntry = end.reason == MPV_END_FILE_REASON_REDIRECT
             || end.reason == MPV_END_FILE_REASON_EOF || end.reason == MPV_END_FILE_REASON_ERROR;
         state.started = false;
