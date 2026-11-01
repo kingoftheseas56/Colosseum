@@ -1,7 +1,12 @@
 "use strict";
 (() => {
  const A="../../../../../baseline/reference/desktop/assets/",p=new URLSearchParams(location.search);
- const sourceRoute=p.get("route")==="rebuilt"?"rebuilt":"reading-room";
+ const sourceRoute=p.get("route")==="reading-room"?"reading-room":"rebuilt";
+ // Cover-flow allocation under the chosen header: "scroll" = page scroll as in the Hemanth-viewed
+ // rebuilt preview; "fit" = source desktop allocation (masthead fixed, flow takes the rest, 190px floor kept).
+ const flowAlloc=(document.body.dataset.flow||p.get("flow"))==="fit"?"fit":"scroll";
+ const pageBase=document.body.dataset.base||"";
+ const hostParam=p.get("host");
  const page=document.body.dataset.page==="chapters"?"chapters":"series",capture=p.has("capture");
  const art=[
  ["universes/one-piece/east-blue/canon/romance-dawn.png","Romance Dawn"],
@@ -22,16 +27,12 @@
  const svgBack='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 L8 12 L14.5 18.5"/></svg>';
  const collectionIcon='<svg viewBox="0 0 24 24" aria-hidden="true"><rect x="6" y="7" width="15" height="14" rx="2"/><path d="M3 17V5a2 2 0 0 1 2-2h12M10 11h7m-7 5h5"/></svg>';
  const icon=n=>A+"icons/"+n;
- function viewLink(which){const q=new URLSearchParams(p);q.delete("state");q.delete("fixture");return (which==="chapters"?"manga-chapters.html":"manga-series.html")+"?"+q.toString();}
+ function viewLink(which){const q=new URLSearchParams(p);q.delete("state");q.delete("fixture");return pageBase+(which==="chapters"?"manga-chapters.html":"manga-series.html")+"?"+q.toString();}
  function masthead(){return `
- <header class="chrome">
+ ${sourceRoute==="rebuilt"?'<div class="title-bar" id="titleBar"></div>':`<header class="chrome">
  <button class="back-action" data-do="back" aria-label="Back">${svgBack}<span>Back</span></button>
  <div class="chrome-brand">COLOSSEUM · TANKOBAN</div>
- <div class="chrome-window">
- <button title="Minimize" data-do="window" aria-label="Minimize"><img src="${icon("minimize.svg")}" alt=""></button>
- <button title="Fullscreen" data-do="window" aria-label="Fullscreen"><img src="${icon("fullscreen.svg")}" alt=""></button>
- <button title="Close" data-do="window" aria-label="Close"><img src="${icon("power.svg")}" alt=""></button>
- </div></header>
+ <div class="chrome-window" id="chromeWindow"></div></header>`}
  <section class="hero"><div class="hero-content">
  <div class="poster-frame"><img src="${A+art[0][0]}" alt="Local One Piece Romance Dawn project art; illustrative, not an exact manga-volume cover"></div>
  <div class="hero-text">
@@ -65,7 +66,7 @@
  <button class="download-page" data-do="downloadPage">↓ &nbsp;Download page</button></div></div>
  <div class="chapter-list" id="chapterList" role="list"></div></section>`;}
  const app=document.getElementById("app");
- app.dataset.route=sourceRoute;app.dataset.page=page;
+ app.dataset.route=sourceRoute;app.dataset.page=page;app.dataset.flow=flowAlloc;
  app.innerHTML='<div class="app-scroll" id="appScroll">'+masthead()+'<div class="content-scroll" id="contentScroll">'+(page==="series"?volumeMarkup():chapterMarkup())+'</div></div><div class="popup-host" id="popupHost"><button class="popup-guard" id="popupGuard" aria-label="Dismiss dropdown" tabindex="-1"></button><div class="popup" id="menuPopup" role="listbox"><div class="popup-list" id="popupList"></div></div></div>';
  function say(msg){const el=document.getElementById("labStatus");if(el)el.textContent="Mock-only action: "+msg;}
  function focusVolume(n,center=true){
@@ -180,6 +181,7 @@
  const phone=Math.min(w,h)<600,landscape=w>h,desktop=!phone&&(controls.preset.value==="desktop"||(w>=1180&&h<=760)),tablet=!phone&&!desktop&&Math.min(w,h)<=900;
  device.classList.toggle("phone",phone);device.classList.toggle("landscape",landscape);device.classList.toggle("tablet",tablet);device.classList.toggle("desktop",desktop);
  device.classList.toggle("tight-chrome",phone&&w<390&&scale>1.15);
+ const android=hostParam==="android"?true:hostParam==="desktop"?false:(phone||tablet);device.classList.toggle("android-host",android);renderWindowChrome(android);
  fitHeader();
  if(page==="series")requestAnimationFrame(()=>{fitVolumeFlow();focusVolume(s.focusVol,true);});
  }
@@ -188,8 +190,75 @@
  [controls.w,controls.h,controls.top,controls.bottom,controls.left,controls.right,controls.scale].forEach(el=>el.addEventListener("input",()=>{if(el===controls.w||el===controls.h)controls.preset.value="custom";syncInputs();}));
 
  function fitHeader(){if(sourceRoute!=="reading-room")return;const hero=document.querySelector(".hero"),text=document.querySelector(".hero-text"),facts=document.querySelector(".facts"),identity=document.querySelector(".identity"),phone=document.getElementById("device").classList.contains("phone");document.querySelector(".eyebrow").textContent="MANGA";document.querySelector(".genre-row").hidden=true;if(phone){text.insertBefore(facts,document.querySelector(".genre-row"));hero.style.height="";}else{identity.insertBefore(facts,document.querySelector(".collection-btn"));hero.style.height=Math.max(205,text.scrollHeight+34)+"px";}}
- function fitVolumeFlow(){const flow=document.getElementById("volumeFlow");if(!flow)return;const h=Math.max(190,Math.min(276,Math.floor((flow.clientHeight-54-16)/1.1)));flow.style.setProperty("--coverH",h+"px");flow.style.setProperty("--coverW",Math.round(h*2/3)+"px");flow.tabIndex=0;focusVolume(s.focusVol,true);}
- function setupFinishedControls(){const box=document.querySelector(".labfields"),label=document.createElement("label");label.textContent="Source composition";const sel=document.createElement("select");sel.id="sourceRoute";sel.innerHTML='<option value="reading-room">Main.qml default · reading room</option><option value="rebuilt">Optional rebuilt components · comparison</option>';sel.value=sourceRoute;sel.addEventListener("change",()=>{const q=new URLSearchParams(location.search);q.set("route",sel.value);location.search=q.toString();});label.append(sel);box.append(label);const stateLabel=document.createElement("label");stateLabel.textContent="Fixture state";const st=document.createElement("select");st.id="fixtureState";st.innerHTML=(page==="chapters"?["populated","long","loading","empty","error","disabled","saved-unavailable"]:["populated","long"]).map(v=>'<option value="'+v+'">'+v+'</option>').join("");st.value=s.fixture;st.addEventListener("change",()=>{s.fixture=st.value;if(page==="chapters"){renderChapters();const unavailable=s.fixture==="saved-unavailable";document.querySelectorAll(".chapter-continuation").forEach(e=>e.hidden=unavailable);let msg=document.getElementById("savedUnavailable");if(!msg){msg=document.createElement("p");msg.id="savedUnavailable";msg.className="saved-unavailable";document.querySelector(".chapter-controls,.continuation-wrap")?.append(msg);}msg.hidden=!unavailable;msg.textContent="Saved chapter unavailable on this device · choose a source below";}else{document.querySelector(".synopsis-text").textContent=s.fixture==="long"?synopsis+" "+synopsis:synopsis;fitHeader();}});stateLabel.append(st);box.append(stateLabel);st.dispatchEvent(new Event("change"));const note=document.createElement("p");note.className="labnote";note.textContent=sourceRoute==="reading-room"?"Finished target: Main.qml → MangaSeries → shared header and MangaChapterSeriesView, with the brief’s explicit wordmark/progress/More restorations. Optional rebuilt controls remain separately selectable.":"Component comparison only: TankobanSeriesView masthead and TankobanChapterList. The required reading-room chrome is retained; this is not a full TitlePageBar replica or an approval to change routes.";document.querySelector(".lab").append(note);if(page==="series"){const flow=document.getElementById("volumeFlow");flow.addEventListener("keydown",e=>{let n=s.focusVol;if(e.key==="ArrowRight")n++;else if(e.key==="ArrowLeft")n--;else if(e.key==="PageDown")n+=10;else if(e.key==="PageUp")n-=10;else if(e.key==="Home")n=1;else if(e.key==="End")n=107;else if(["Enter"," "].includes(e.key)){e.preventDefault();document.querySelector('.volume-card[data-vol="'+s.focusVol+'"]').click();return;}else return;e.preventDefault();focusVolume(Math.max(1,Math.min(107,n)));});flow.addEventListener("wheel",e=>{if(e.deltaX||e.deltaY){e.preventDefault();focusVolume(Math.max(1,Math.min(107,s.focusVol+((e.deltaY||e.deltaX)>0?1:-1)*(e.shiftKey?10:1))));}},{passive:false});new ResizeObserver(()=>fitVolumeFlow()).observe(flow);}}
+ function fitVolumeFlow(){const flow=document.getElementById("volumeFlow");if(!flow)return;const unclamped=Math.floor((flow.clientHeight-54-16)/1.1),h=Math.max(190,Math.min(276,unclamped));flow.dataset.unclampedBookHeight=unclamped;flow.dataset.bookHeight=h;flow.style.setProperty("--coverH",h+"px");flow.style.setProperty("--coverW",Math.round(h*2/3)+"px");flow.tabIndex=0;focusVolume(s.focusVol,true);}
+ function setupFinishedControls(){const box=document.querySelector(".labfields"),label=document.createElement("label");label.textContent="Source composition";const sel=document.createElement("select");sel.id="sourceRoute";sel.innerHTML='<option value="rebuilt">Rebuilt title page · Hemanth-selected main (TankobanSeriesView + TitlePageBar)</option><option value="reading-room">Older reading room · comparison (MangaSeries shared header)</option>';sel.value=sourceRoute;sel.addEventListener("change",()=>{const q=new URLSearchParams(location.search);q.set("route",sel.value);location.search=q.toString();});label.append(sel);box.append(label);const stateLabel=document.createElement("label");stateLabel.textContent="Fixture state";const st=document.createElement("select");st.id="fixtureState";st.innerHTML=(page==="chapters"?["populated","long","loading","empty","error","disabled","saved-unavailable"]:["populated","long"]).map(v=>'<option value="'+v+'">'+v+'</option>').join("");st.value=s.fixture;st.addEventListener("change",()=>{s.fixture=st.value;if(page==="chapters"){renderChapters();const unavailable=s.fixture==="saved-unavailable";document.querySelectorAll(".chapter-continuation").forEach(e=>e.hidden=unavailable);let msg=document.getElementById("savedUnavailable");if(!msg){msg=document.createElement("p");msg.id="savedUnavailable";msg.className="saved-unavailable";document.querySelector(".chapter-controls,.continuation-wrap")?.append(msg);}msg.hidden=!unavailable;msg.textContent="Saved chapter unavailable on this device · choose a source below";}else{document.querySelector(".synopsis-text").textContent=s.fixture==="long"?synopsis+" "+synopsis:synopsis;fitHeader();}});stateLabel.append(st);box.append(stateLabel);st.dispatchEvent(new Event("change"));const note=document.createElement("p");note.className="labnote";note.textContent=sourceRoute==="reading-room"?"Comparison only: older Main.qml default route (MangaSeries → MangaSeriesSharedHeader / MangaChapterSeriesView). Hemanth selected the rebuilt route on 2026-11-01.":"Main mock (Hemanth-selected 2026-11-01): TankobanSeriesView masthead + TankobanChapterList under the real TitlePageBar — Back pill naming its destination, Search and the one system menu (desktop only; omitted on Android phones and tablets). Declared COLOSSEUM · TANKOBAN wordmark, device progress and synopsis More retained.";document.querySelector(".lab").append(note);if(page==="series"){const flow=document.getElementById("volumeFlow");flow.addEventListener("keydown",e=>{let n=s.focusVol;if(e.key==="ArrowRight")n++;else if(e.key==="ArrowLeft")n--;else if(e.key==="PageDown")n+=10;else if(e.key==="PageUp")n-=10;else if(e.key==="Home")n=1;else if(e.key==="End")n=107;else if(["Enter"," "].includes(e.key)){e.preventDefault();document.querySelector('.volume-card[data-vol="'+s.focusVol+'"]').click();return;}else return;e.preventDefault();focusVolume(Math.max(1,Math.min(107,n)));});flow.addEventListener("wheel",e=>{if(e.deltaX||e.deltaY){e.preventDefault();focusVolume(Math.max(1,Math.min(107,s.focusVol+((e.deltaY||e.deltaX)>0?1:-1)*(e.shiftKey?10:1))));}},{passive:false});new ResizeObserver(()=>fitVolumeFlow()).observe(flow);}}
+
+ // ---- TitlePageBar (qml/TitlePageBar.qml at the fixed pin) for the Hemanth-selected rebuilt route ----
+ // Left: Back pill naming its destination (Main.qml binds backLabel to the current world: "Tankoban").
+ // Right: Search and ONE system menu (Minimize / Fullscreen / Quit… with confirmation).
+ // Android phones AND tablets: the system-menu invoker and its panel are not rendered at all, so they have
+ // no pointer, keyboard or accessibility path (precedent: qml/+android/TopBar.qml desktopWindowControlsVisible:
+ // !androidHost). Back and Search remain; no replacement mobile menu. The declared COLOSSEUM · TANKOBAN
+ // wordmark (classification item 7) is retained as non-interactive centred text; it is not part of
+ // TitlePageBar.qml itself (see QML-PORTING.md, conflict C1).
+ const tb={menu:false,quitArmed:false,android:false};
+ const svgSearch=icon("search.svg");
+ function titleBarMarkup(){
+  const menuOpen=tb.menu&&!tb.android;
+  const menu=!menuOpen?"":`<div class="tb-menu" id="tbMenu" role="menu" aria-label="Window and app">${tb.quitArmed
+   ?`<div class="tb-quit-title">Quit Colosseum?</div><button role="menuitem" data-tb="keep">Keep watching</button><button role="menuitem" class="danger" data-tb="quit">Quit</button>`
+   :`<button role="menuitem" data-tb="minimize">Minimize</button><button role="menuitem" data-tb="fullscreen">${tb.windowed?"Fullscreen":"Exit fullscreen"}</button><hr><button role="menuitem" class="danger" data-tb="arm-quit">Quit Colosseum…</button>`}</div>`;
+  return `<div class="tb-row"><button class="back-action tb-back" id="tbBack" data-tb="back">${svgBack}<span>Tankoban</span></button>
+  <div class="tb-wordmark" id="tbWordmark">COLOSSEUM · TANKOBAN</div>
+  <div class="tb-right" id="tbRight"><button class="tb-round" id="tbSearch" data-tb="search" aria-label="Search"><img src="${svgSearch}" alt=""></button>${tb.android?"":`<button class="tb-round" id="tbMenuButton" data-tb="menu" aria-label="Window and app" aria-haspopup="menu" aria-expanded="${menuOpen}"><span class="tb-dots"><i></i><i></i><i></i></span></button>`}</div></div>${menu}`;
+ }
+ function renderTitleBar(focusId){
+  const bar=document.getElementById("titleBar");if(!bar)return;
+  bar.innerHTML=titleBarMarkup();
+  fitWordmark();
+  if(focusId)requestAnimationFrame(()=>document.getElementById(focusId)?.focus({preventScroll:true})||document.querySelector(focusId)?.focus({preventScroll:true}));
+ }
+ function fitWordmark(){
+  const bar=document.getElementById("titleBar");if(!bar)return;bar.classList.remove("tb-wrap");
+  const b=document.getElementById("tbBack").getBoundingClientRect(),r=document.getElementById("tbRight").getBoundingClientRect(),m=document.getElementById("tbWordmark").getBoundingClientRect();
+  if(m.left<b.right+12||m.right>r.left-12)bar.classList.add("tb-wrap");
+  app.style.setProperty("--tbH",bar.classList.contains("tb-wrap")?"98px":"76px");
+ }
+ function openTbMenu(){tb.menu=true;tb.quitArmed=false;renderTitleBar('[data-tb="minimize"]');}
+ function closeTbMenu(restore=true){tb.menu=false;tb.quitArmed=false;renderTitleBar(restore?"tbMenuButton":null);}
+ function renderWindowChrome(android){
+  tb.android=android;if(android){tb.menu=false;tb.quitArmed=false;}
+  if(sourceRoute==="rebuilt"){renderTitleBar();return;}
+  const box=document.getElementById("chromeWindow");if(!box)return;
+  box.innerHTML=android?"":`<button title="Minimize" data-chrome="window" aria-label="Minimize"><img src="${icon("minimize.svg")}" alt=""></button><button title="Fullscreen" data-chrome="window" aria-label="Fullscreen"><img src="${icon("fullscreen.svg")}" alt=""></button><button title="Close" data-chrome="window" aria-label="Close"><img src="${icon("power.svg")}" alt=""></button>`;
+ }
+ tb.windowed=false;
+ document.getElementById("chromeWindow")?.addEventListener("click",e=>{const b=e.target.closest("[data-chrome]");if(b)say(b.title+" requested; browser window unchanged.");});
+ document.getElementById("titleBar")?.addEventListener("click",e=>{
+  const b=e.target.closest("[data-tb]");if(!b)return;const a=b.dataset.tb;
+  if(a==="back"){if(!capture)location.href="index.html";else say("backRequested() → Main.qml closeSeries(); returns to Tankoban.");}
+  else if(a==="search")say("searchRequested() → Main.qml closes the series, opens Tankoban and its Search surface (not opened in this mock).");
+  else if(a==="menu"){tb.menu?closeTbMenu(true):openTbMenu();}
+  else if(a==="minimize"){closeTbMenu(false);say("minimizeRequested() → page.leave(\"minimize\"); browser window unchanged.");}
+  else if(a==="fullscreen"){closeTbMenu(false);tb.windowed=!tb.windowed;say("fullscreenRequested() → toggleFullscreenShell(); browser window unchanged.");}
+  else if(a==="arm-quit"){tb.quitArmed=true;renderTitleBar('[data-tb="keep"]');}
+  else if(a==="keep")closeTbMenu(true);
+  else if(a==="quit"){closeTbMenu(false);say("quitRequested() → page.leave(\"close\") → requestApplicationQuit(); nothing closed.");}
+ });
+ document.addEventListener("keydown",e=>{if(e.key==="Escape"&&tb.menu&&!s.popup){e.preventDefault();closeTbMenu(true);}});
+ document.getElementById("appScroll").addEventListener("scroll",e=>{document.getElementById("titleBar")?.classList.toggle("solid",e.currentTarget.scrollTop>4);},{passive:true});
+ // Geometry probe for the cover-flow allocation re-evaluation (read by candidate/tools/batch1-*.mjs).
+ window.__flowGeometry=()=>{const flow=document.getElementById("volumeFlow");if(!flow)return null;const stage=flow.getBoundingClientRect(),dev=document.getElementById("app").getBoundingClientRect();
+  const card=document.querySelector(".volume-card.active");const cover=card?.querySelector(".volume-cover").getBoundingClientRect();const cr=card?.getBoundingClientRect();
+  const scales=[...document.querySelectorAll(".volume-card")].map(c=>[Number(c.dataset.vol),Number(c.style.getPropertyValue("--item-scale"))]).filter(([n])=>Math.abs(n-s.focusVol)<=4).sort((a,b)=>a[0]-b[0]);
+  const scroller=document.getElementById("appScroll"),actions=document.querySelector(".volume-action").getBoundingClientRect();
+  return {flowAlloc,route:sourceRoute,appHeight:Math.round(dev.height),mastheadBottom:Math.round(document.querySelector(".hero").getBoundingClientRect().bottom-dev.top),
+   flowViewportHeight:Math.round(stage.height),unclampedBookHeight:Number(flow.dataset.unclampedBookHeight),bookHeight:Number(flow.dataset.bookHeight),
+   focusedDrawnCoverHeight:cover?Math.round(cover.height*10)/10:null,focusedScale:cover?Math.round(cover.height/Number(flow.dataset.bookHeight)*1000)/1000:null,neighbourScales:scales,
+   focusedCardFullyInsideFlow:cr?cr.top>=stage.top-0.5&&cr.bottom<=stage.bottom+0.5:false,
+   focusedCardFullyOnFirstScreen:cr?(cr.top-dev.top+scroller.scrollTop)>=0&&(cr.bottom-dev.top+scroller.scrollTop)<=dev.height:false,
+   scrollToSeeFocusedAndActions:Math.max(0,Math.round(Math.max(cr?cr.bottom:0,actions.bottom)-dev.top+scroller.scrollTop-dev.height)),
+   pageScrollable:scroller.scrollHeight>scroller.clientHeight+1};};
 
  setupFinishedControls();
  const starting=p.get("preset")&&preset[p.get("preset")]?p.get("preset"):"portrait";

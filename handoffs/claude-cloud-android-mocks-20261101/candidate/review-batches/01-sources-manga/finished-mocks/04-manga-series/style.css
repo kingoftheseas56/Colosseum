@@ -127,3 +127,40 @@ body.capture .lab,body.capture .small-note{display:none}body.capture .stage{disp
 
 /* Native default page-menu geometry; retain larger phone hit regions. */
 .app[data-route=reading-room] .popup[data-kind=page] .popup-option{border-radius:7px;padding-left:10px}.app[data-route=reading-room] .popup[data-kind=page] .popup-option.current{background:rgba(255,255,255,.14)}.app[data-route=reading-room] .popup[data-kind=page] .popup-option:hover:not(.current){background:rgba(255,255,255,.10)}.device:not(.phone) .app[data-route=reading-room] .popup[data-kind=page] .popup-option{min-height:36px;height:36px}
+/* ---- Claude Cloud candidate: real TitlePageBar for the Hemanth-selected rebuilt route ----
+   Source: qml/TitlePageBar.qml (76px; transparent scrim over the hero, solid once scrolled;
+   Back pill 15px; 40px round Search with 21px icon at .8 opacity; 3x4px dot system menu;
+   240px menu panel, radius 14, 40px rows, danger #f0b4a6, Fraunces 17 confirmation title). */
+.app[data-route=rebuilt]{--tbH:76px}
+.app[data-route=rebuilt] .title-bar{position:sticky;top:0;z-index:30;height:var(--tbH);margin-bottom:calc(-1 * var(--tbH));background:linear-gradient(rgba(0,0,0,.55),rgba(0,0,0,0));transition:background-color .16s ease-out}
+.app[data-route=rebuilt] .title-bar.solid{background:rgba(6,7,11,.985);box-shadow:inset 0 -1px 0 var(--edge)}
+.device:not(.phone) .app[data-route=rebuilt] .title-bar{flex:0 0 auto}
+.tb-row{position:absolute;left:0;right:0;top:0;height:76px;display:flex;align-items:center;justify-content:space-between;padding:0 var(--contentMargin)}
+.tb-back{position:relative;z-index:1}
+.tb-wordmark{position:absolute;left:50%;top:38px;transform:translate(-50%,-50%);font-size:calc(11px * var(--fontScale));letter-spacing:3px;color:var(--dimmer);white-space:nowrap;pointer-events:none}
+.title-bar.tb-wrap .tb-wordmark{top:80px}
+.tb-right{display:flex;align-items:center;gap:10px;position:relative;z-index:1}
+.tb-round{width:40px;height:40px;border:0;border-radius:20px;background:transparent;display:grid;place-items:center;padding:0;color:var(--ink)}
+.tb-round:hover,.tb-round:focus-visible,.tb-round[aria-expanded=true]{background:rgba(255,255,255,.12)}
+.tb-round:focus-visible{outline:2px solid var(--gold);outline-offset:0}
+.tb-round img{width:21px;height:21px;opacity:.8}.tb-round:hover img{opacity:1}
+.tb-dots{display:flex;gap:4px}.tb-dots i{display:block;width:4px;height:4px;border-radius:2px;background:var(--ink);opacity:.85}
+.tb-menu{position:absolute;right:var(--contentMargin);top:70px;width:240px;max-width:calc(100% - 2 * var(--contentMargin));border-radius:14px;background:rgba(11,13,19,.98);border:1px solid var(--edge);padding:8px 0;z-index:60;box-shadow:0 16px 50px rgba(0,0,0,.6)}
+.tb-menu button{display:flex;align-items:center;width:calc(100% - 12px);margin:0 6px;min-height:40px;border:0;background:transparent;color:var(--ink);text-align:left;padding:0 12px;border-radius:9px;font-size:calc(14px * var(--fontScale))}
+.tb-menu button:hover,.tb-menu button:focus-visible{background:rgba(255,255,255,.09)}
+.tb-menu button:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+.tb-menu .danger{color:#f0b4a6}
+.tb-menu hr{border:0;height:1px;background:var(--edge);margin:0 12px}
+.tb-quit-title{padding:4px 18px 6px;font:calc(17px * var(--fontScale)) Fraunces,Georgia,serif;color:var(--ink)}
+/* Masthead content begins under the bar, as in TankobanSeriesView (poster y = titleBar.height + 6). */
+.device .app[data-route=rebuilt] .hero .hero-content{padding-top:calc(var(--tbH) + 6px)}
+.device .app[data-route=rebuilt] .hero{min-height:calc(var(--tbH) + 192px)}
+/* Cover-flow allocation "fit": the source's non-scrolling composition on a phone. Masthead stays,
+   the library takes the remaining height, bookHeight keeps the 190px floor (overflow is clipped, as in QML). */
+.device.phone .app[data-flow=fit][data-page=series] .app-scroll{display:flex;flex-direction:column;overflow:hidden}
+.device.phone .app[data-flow=fit][data-page=series] .title-bar,.device.phone .app[data-flow=fit][data-page=series] .hero{flex:none}
+.device.phone .app[data-flow=fit][data-page=series] .content-scroll{flex:1;min-height:0;overflow:hidden;display:flex;flex-direction:column}
+.device.phone .app[data-flow=fit][data-page=series] .device-progress{flex:none}
+.device.phone .app[data-flow=fit][data-page=series] .volume-section{flex:1;min-height:0;display:flex;flex-direction:column}
+.device.phone .app[data-flow=fit][data-page=series] .volume-head,.device.phone .app[data-flow=fit][data-page=series] .volume-action{flex:none}
+.device.phone .app[data-flow=fit][data-page=series] .volume-stage{flex:1;min-height:0;height:auto}

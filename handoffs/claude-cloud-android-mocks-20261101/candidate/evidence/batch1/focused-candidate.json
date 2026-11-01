@@ -1,0 +1,2320 @@
+{
+ "tool": "candidate/tools/focused-b1.mjs",
+ "chromium": "153.0.8010.12",
+ "at": "2026-11-01T02:14:30.293Z",
+ "candidate": {
+  "appJs": "6ccee54b6dff6a039dfe71d00e544a013dc355b67ab2dc64e1fa998bf6e74235",
+  "styleCss": "fec093cbd84aa3fa6a0f7da35ec7cf5c39c028dac5affdd2f4c2de174770af21"
+ },
+ "cases": 19,
+ "passed": 19,
+ "external": [],
+ "results": [
+  {
+   "page": "manga-series",
+   "vp": "phone-portrait",
+   "w": 412,
+   "h": 900,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": true,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 900,
+    "mastheadBottom": 533,
+    "flowViewportHeight": 294,
+    "unclampedBookHeight": 203,
+    "bookHeight": 203,
+    "focusedDrawnCoverHeight": 223.3,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": false,
+    "scrollToSeeFocusedAndActions": 102,
+    "pageScrollable": true
+   },
+   "captures": [
+    {
+     "file": "captures/after-manga-series-phone-portrait.png",
+     "sha256": "1bb0da4c3f70461f848da1c1e61ad64420d337dfa4319cc03d7a7da9bfc6ab99"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series",
+   "vp": "phone-landscape",
+   "w": 900,
+   "h": 412,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 412,
+    "mastheadBottom": 348,
+    "flowViewportHeight": 294,
+    "unclampedBookHeight": 203,
+    "bookHeight": 203,
+    "focusedDrawnCoverHeight": 223.3,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": false,
+    "scrollToSeeFocusedAndActions": 405,
+    "pageScrollable": true
+   },
+   "captures": [
+    {
+     "file": "captures/after-manga-series-phone-landscape.png",
+     "sha256": "2ddf57dfb0a20e2b4adecfadbc8d89bd7835a4312cd8fd8bea48e5a951dfbdcc"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series",
+   "vp": "small-portrait-1.3-insets",
+   "w": 354,
+   "h": 792,
+   "scale": 1.3,
+   "inset": 24,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": true,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 744,
+    "mastheadBottom": 549,
+    "flowViewportHeight": 294,
+    "unclampedBookHeight": 203,
+    "bookHeight": 203,
+    "focusedDrawnCoverHeight": 223.3,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": false,
+    "scrollToSeeFocusedAndActions": 286,
+    "pageScrollable": true
+   },
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series",
+   "vp": "small-landscape-1.3-insets",
+   "w": 792,
+   "h": 354,
+   "scale": 1.3,
+   "inset": 24,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 306,
+    "mastheadBottom": 193,
+    "flowViewportHeight": 294,
+    "unclampedBookHeight": 203,
+    "bookHeight": 203,
+    "focusedDrawnCoverHeight": 223.3,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": false,
+    "scrollToSeeFocusedAndActions": 559,
+    "pageScrollable": true
+   },
+   "captures": [
+    {
+     "file": "captures/after-manga-series-small-landscape-1.3-insets.png",
+     "sha256": "c1345b8c543823bf3f9e66aa5ca6bed27a637d64cf39a0d8b99abc08f1aaf373"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series",
+   "vp": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 1280,
+    "mastheadBottom": 399,
+    "flowViewportHeight": 747,
+    "unclampedBookHeight": 563,
+    "bookHeight": 276,
+    "focusedDrawnCoverHeight": 303.6,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": true,
+    "scrollToSeeFocusedAndActions": 0,
+    "pageScrollable": false
+   },
+   "captures": [
+    {
+     "file": "captures/after-manga-series-tablet-portrait.png",
+     "sha256": "567ed3b470ea0275aa8d95305eb19fd4bc74507a4e0452780e5a9dff8446cd32"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series",
+   "vp": "tablet-landscape",
+   "w": 1280,
+   "h": 800,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 800,
+    "mastheadBottom": 399,
+    "flowViewportHeight": 278,
+    "unclampedBookHeight": 189,
+    "bookHeight": 190,
+    "focusedDrawnCoverHeight": 209,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": true,
+    "scrollToSeeFocusedAndActions": 11,
+    "pageScrollable": false
+   },
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series",
+   "vp": "desktop",
+   "w": 1280,
+   "h": 700,
+   "scale": 1,
+   "inset": 0,
+   "android": false,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "menuButtonPresent": true,
+    "menuKeepsActions": true,
+    "menuFocusesMinimize": true,
+    "menuInsideViewport": true,
+    "escapeClosesAndRestoresFocus": true,
+    "quitConfirmationFocusesKeepWatching": true,
+    "keepWatchingRestoresFocus": true,
+    "minimizeClosesMenuAsLocalIntent": true,
+    "openMenuClearedOnResizeToPhone": true,
+    "menuButtonReturnsOnDesktop": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [
+     "Window and app"
+    ],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": true,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "captures": [
+    {
+     "file": "captures/after-series-desktop-menu-open.png",
+     "sha256": "576e5e420915d0deccfab55aae43db4446564a851b2d3187d374eaabcd41b13e"
+    },
+    {
+     "file": "captures/after-manga-series-desktop.png",
+     "sha256": "f21bde2956bcc1d55e30fa6ce2cc856f9b0746354e1a3ec416a9719c992de28b"
+    }
+   ],
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 700,
+    "mastheadBottom": 333,
+    "flowViewportHeight": 278,
+    "unclampedBookHeight": 189,
+    "bookHeight": 190,
+    "focusedDrawnCoverHeight": 209,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": true,
+    "scrollToSeeFocusedAndActions": 45,
+    "pageScrollable": false
+   },
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series",
+   "vp": "desktop-1.3",
+   "w": 1280,
+   "h": 700,
+   "scale": 1.3,
+   "inset": 0,
+   "android": false,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "menuButtonPresent": true,
+    "menuKeepsActions": true,
+    "menuFocusesMinimize": true,
+    "menuInsideViewport": true,
+    "escapeClosesAndRestoresFocus": true,
+    "quitConfirmationFocusesKeepWatching": true,
+    "keepWatchingRestoresFocus": true,
+    "minimizeClosesMenuAsLocalIntent": true,
+    "openMenuClearedOnResizeToPhone": true,
+    "menuButtonReturnsOnDesktop": true,
+    "synopsisMoreExpands": true,
+    "coverFloor190": true,
+    "focusScale110": true,
+    "neighbourFalloff": true,
+    "focusedCentred": true,
+    "keyboardMovesFocus": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [
+     "Window and app"
+    ],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": true,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "flow": {
+    "flowAlloc": "scroll",
+    "route": "rebuilt",
+    "appHeight": 700,
+    "mastheadBottom": 366,
+    "flowViewportHeight": 278,
+    "unclampedBookHeight": 189,
+    "bookHeight": 190,
+    "focusedDrawnCoverHeight": 209,
+    "focusedScale": 1.1,
+    "neighbourScales": [
+     [
+      1,
+      0.95
+     ],
+     [
+      2,
+      1
+     ],
+     [
+      3,
+      1.1
+     ],
+     [
+      4,
+      1
+     ],
+     [
+      5,
+      0.95
+     ],
+     [
+      6,
+      0.9
+     ],
+     [
+      7,
+      0.86
+     ]
+    ],
+    "focusedCardFullyInsideFlow": true,
+    "focusedCardFullyOnFirstScreen": false,
+    "scrollToSeeFocusedAndActions": 83,
+    "pageScrollable": false
+   },
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "phone-portrait",
+   "w": 412,
+   "h": 900,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": true,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "captures": [
+    {
+     "file": "captures/after-manga-chapters-phone-portrait.png",
+     "sha256": "160153a283c7ac718c002ab7f2647326287b5a92e7d6cef0256045bcf320aa39"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "phone-landscape",
+   "w": 900,
+   "h": 412,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "captures": [
+    {
+     "file": "captures/after-manga-chapters-phone-landscape.png",
+     "sha256": "d492d3c7cd157316d46d83c5c2e61b556dcaa1ffeebde0ff6b473797334a12c5"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "small-portrait-1.3-insets",
+   "w": 354,
+   "h": 792,
+   "scale": 1.3,
+   "inset": 24,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": true,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "small-landscape-1.3-insets",
+   "w": 792,
+   "h": 354,
+   "scale": 1.3,
+   "inset": 24,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "captures": [
+    {
+     "file": "captures/after-manga-chapters-small-landscape-1.3-insets.png",
+     "sha256": "c227761727703ca0827eadab9d16c098cbef5b9689171429a353f8261af46f79"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "captures": [
+    {
+     "file": "captures/after-manga-chapters-tablet-portrait.png",
+     "sha256": "3dc544b863719a6e2bfab3f55c3c9ca124846d2a7bf235b28ccae8ad013f40d6"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "tablet-landscape",
+   "w": 1280,
+   "h": 800,
+   "scale": 1,
+   "inset": 0,
+   "android": true,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "noWindowActionsInDom": true,
+    "tabPathHasNoWindowActions": true,
+    "tabReachesSearch": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": false,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "tabs": [
+    "Tankoban",
+    "Search",
+    "Add to Library",
+    "Add to Collections",
+    "More"
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "desktop",
+   "w": 1280,
+   "h": 700,
+   "scale": 1,
+   "inset": 0,
+   "android": false,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "menuButtonPresent": true,
+    "menuKeepsActions": true,
+    "menuFocusesMinimize": true,
+    "menuInsideViewport": true,
+    "escapeClosesAndRestoresFocus": true,
+    "quitConfirmationFocusesKeepWatching": true,
+    "keepWatchingRestoresFocus": true,
+    "minimizeClosesMenuAsLocalIntent": true,
+    "openMenuClearedOnResizeToPhone": true,
+    "menuButtonReturnsOnDesktop": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [
+     "Window and app"
+    ],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": true,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "captures": [
+    {
+     "file": "captures/after-manga-chapters-desktop.png",
+     "sha256": "1c00086fad1ec7088ce3eef1c5d31488b705bbc209e89c1a3a9198fdd5124a2c"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-chapters",
+   "vp": "desktop-1.3",
+   "w": 1280,
+   "h": 700,
+   "scale": 1.3,
+   "inset": 0,
+   "android": false,
+   "checks": {
+    "routeIsRebuilt": true,
+    "backNamesDestination": true,
+    "searchPresent": true,
+    "noBrokenImages": true,
+    "noHorizontalOverflow": true,
+    "wordmarkClearOfControls": true,
+    "mastheadStartsBelowBar": true,
+    "menuButtonPresent": true,
+    "menuKeepsActions": true,
+    "menuFocusesMinimize": true,
+    "menuInsideViewport": true,
+    "escapeClosesAndRestoresFocus": true,
+    "quitConfirmationFocusesKeepWatching": true,
+    "keepWatchingRestoresFocus": true,
+    "minimizeClosesMenuAsLocalIntent": true,
+    "openMenuClearedOnResizeToPhone": true,
+    "menuButtonReturnsOnDesktop": true,
+    "languagePopupInsideApp": true,
+    "languageEscapeRestoresFocus": true,
+    "pageEscapeRestoresFocus": true,
+    "goToChapterLands": true
+   },
+   "dom": {
+    "windowActionNamesInDom": [
+     "Window and app"
+    ],
+    "back": "Tankoban",
+    "search": true,
+    "menuButton": true,
+    "brokenImages": [],
+    "docOverflow": false,
+    "appOverflowX": false
+   },
+   "wordmarkWrapped": false,
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series?route=reading-room",
+   "vp": "phone-portrait",
+   "w": 412,
+   "h": 900,
+   "checks": {
+    "noWindowButtonsInDom": true
+   },
+   "captures": [
+    {
+     "file": "captures/after-reading-room-comparison-phone-portrait.png",
+     "sha256": "febcbd66eaa173fbd7d63f4d6670715270aa3a9745c472fd2bec1f17137f66b6"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series?route=reading-room",
+   "vp": "tablet-landscape",
+   "w": 1280,
+   "h": 800,
+   "checks": {
+    "noWindowButtonsInDom": true
+   },
+   "errors": [],
+   "failed": [],
+   "pass": true
+  },
+  {
+   "page": "manga-series?route=reading-room",
+   "vp": "desktop",
+   "w": 1280,
+   "h": 700,
+   "checks": {
+    "desktopWindowButtonsRetained": true
+   },
+   "captures": [
+    {
+     "file": "captures/after-reading-room-comparison-desktop.png",
+     "sha256": "01cdb2a3c961495cb09b339efc6db913dd0f108ceec4947faddbabce23e08f88"
+    }
+   ],
+   "errors": [],
+   "failed": [],
+   "pass": true
+  }
+ ],
+ "flowAllocation": [
+  {
+   "mode": "A-fit",
+   "vp": "phone-portrait",
+   "w": 412,
+   "h": 900,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 900,
+   "mastheadBottom": 533,
+   "flowViewportHeight": 193,
+   "unclampedBookHeight": 111,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": false,
+   "focusedCardFullyOnFirstScreen": true,
+   "scrollToSeeFocusedAndActions": 0,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": false,
+   "capture": {
+    "file": "captures/flow-A-fit-phone-portrait.png",
+    "sha256": "61d45d44c9cd776b78b7a06b56e571deb67f55bae4b0321d51896dcba0090444"
+   },
+   "pinnedBarBottom": 98,
+   "libraryNeedsHeight": 284,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "phone-landscape",
+   "w": 900,
+   "h": 412,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 412,
+   "mastheadBottom": 348,
+   "flowViewportHeight": 0,
+   "unclampedBookHeight": -64,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": false,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 154,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": false,
+   "capture": {
+    "file": "captures/flow-A-fit-phone-landscape.png",
+    "sha256": "358dff78bc4873537fefc6d7a31ebc6030488836fcb9797f1d1e88d39d3bce5f"
+   },
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 91,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "small-portrait-1.3-insets",
+   "w": 354,
+   "h": 792,
+   "scale": 1.3,
+   "inset": 24,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 744,
+   "mastheadBottom": 549,
+   "flowViewportHeight": 8,
+   "unclampedBookHeight": -57,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": false,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 33,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": false,
+   "pinnedBarBottom": 98,
+   "libraryNeedsHeight": 105,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "small-landscape-1.3-insets",
+   "w": 792,
+   "h": 354,
+   "scale": 1.3,
+   "inset": 24,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 306,
+   "mastheadBottom": 385,
+   "flowViewportHeight": 0,
+   "unclampedBookHeight": -64,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": false,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 302,
+   "pageScrollable": true,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": false,
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 97,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "small-portrait",
+   "w": 354,
+   "h": 792,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 792,
+   "mastheadBottom": 533,
+   "flowViewportHeight": 85,
+   "unclampedBookHeight": 13,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": false,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 1,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": false,
+   "pinnedBarBottom": 98,
+   "libraryNeedsHeight": 176,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "small-landscape",
+   "w": 792,
+   "h": 354,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 354,
+   "mastheadBottom": 348,
+   "flowViewportHeight": 0,
+   "unclampedBookHeight": -64,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": false,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 212,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": false,
+   "capture": {
+    "file": "captures/flow-A-fit-small-landscape.png",
+    "sha256": "737e1f9a162c68d37151e54cca2b3b8b711bbbe81c88d52f93edf42a773dfbe3"
+   },
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 91,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 1280,
+   "mastheadBottom": 399,
+   "flowViewportHeight": 747,
+   "unclampedBookHeight": 615,
+   "bookHeight": 276,
+   "focusedDrawnCoverHeight": 303.6,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": true,
+   "scrollToSeeFocusedAndActions": 0,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 799,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "tablet-landscape",
+   "w": 1280,
+   "h": 800,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 800,
+   "mastheadBottom": 399,
+   "flowViewportHeight": 278,
+   "unclampedBookHeight": 189,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": true,
+   "scrollToSeeFocusedAndActions": 11,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 330,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "A-fit",
+   "vp": "desktop",
+   "w": 1280,
+   "h": 700,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "fit",
+   "route": "rebuilt",
+   "appHeight": 700,
+   "mastheadBottom": 333,
+   "flowViewportHeight": 278,
+   "unclampedBookHeight": 189,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": true,
+   "scrollToSeeFocusedAndActions": 45,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "capture": {
+    "file": "captures/flow-A-fit-desktop.png",
+    "sha256": "9eb667b7c2cc89aab74b7eaebcf6f88be29588dc2f5786b6b414ff45426d9b73"
+   },
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 330,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "phone-portrait",
+   "w": 412,
+   "h": 900,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 900,
+   "mastheadBottom": 533,
+   "flowViewportHeight": 294,
+   "unclampedBookHeight": 203,
+   "bookHeight": 203,
+   "focusedDrawnCoverHeight": 223.3,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 102,
+   "pageScrollable": true,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "capture": {
+    "file": "captures/flow-B-scroll-phone-portrait.png",
+    "sha256": "b08f048dd2d19436576fa33166ace6e340e30f345de8467bff1be4b45ed0dfa4"
+   },
+   "pinnedBarBottom": 98,
+   "libraryNeedsHeight": 385,
+   "libraryFitsBelowPinnedBar": true,
+   "captureScrolled": {
+    "file": "captures/flow-B-scroll-phone-portrait-scrolled-to-flow.png",
+    "sha256": "56fda3f49f2287c937d299b3735ea3f1c5d59674635dc695ecff00012c794edd"
+   }
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "phone-landscape",
+   "w": 900,
+   "h": 412,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 412,
+   "mastheadBottom": 348,
+   "flowViewportHeight": 294,
+   "unclampedBookHeight": 203,
+   "bookHeight": 203,
+   "focusedDrawnCoverHeight": 223.3,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 405,
+   "pageScrollable": true,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "capture": {
+    "file": "captures/flow-B-scroll-phone-landscape.png",
+    "sha256": "e0d7bb37b9fa4cfb1303afad7e0f41d90e84e7882129ed929b70d06c261db9ca"
+   },
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 385,
+   "libraryFitsBelowPinnedBar": false,
+   "captureScrolled": {
+    "file": "captures/flow-B-scroll-phone-landscape-scrolled-to-flow.png",
+    "sha256": "4056aa308e421975f1a91746a239379745ff2c2e43d4e0cd7edd09d15aabd282"
+   }
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "small-portrait-1.3-insets",
+   "w": 354,
+   "h": 792,
+   "scale": 1.3,
+   "inset": 24,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 744,
+   "mastheadBottom": 549,
+   "flowViewportHeight": 294,
+   "unclampedBookHeight": 203,
+   "bookHeight": 203,
+   "focusedDrawnCoverHeight": 223.3,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 286,
+   "pageScrollable": true,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "pinnedBarBottom": 98,
+   "libraryNeedsHeight": 391,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "small-landscape-1.3-insets",
+   "w": 792,
+   "h": 354,
+   "scale": 1.3,
+   "inset": 24,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 306,
+   "mastheadBottom": 385,
+   "flowViewportHeight": 294,
+   "unclampedBookHeight": 203,
+   "bookHeight": 203,
+   "focusedDrawnCoverHeight": 223.3,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 559,
+   "pageScrollable": true,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 391,
+   "libraryFitsBelowPinnedBar": false
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "small-portrait",
+   "w": 354,
+   "h": 792,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 792,
+   "mastheadBottom": 533,
+   "flowViewportHeight": 294,
+   "unclampedBookHeight": 203,
+   "bookHeight": 203,
+   "focusedDrawnCoverHeight": 223.3,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 210,
+   "pageScrollable": true,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "pinnedBarBottom": 98,
+   "libraryNeedsHeight": 385,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "small-landscape",
+   "w": 792,
+   "h": 354,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 354,
+   "mastheadBottom": 348,
+   "flowViewportHeight": 294,
+   "unclampedBookHeight": 203,
+   "bookHeight": 203,
+   "focusedDrawnCoverHeight": 223.3,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": false,
+   "scrollToSeeFocusedAndActions": 463,
+   "pageScrollable": true,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "capture": {
+    "file": "captures/flow-B-scroll-small-landscape.png",
+    "sha256": "9953be55f8b85d17456bd63551f7f535ad0aa0d84589fe3b0f82083875a66826"
+   },
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 385,
+   "libraryFitsBelowPinnedBar": false,
+   "captureScrolled": {
+    "file": "captures/flow-B-scroll-small-landscape-scrolled-to-flow.png",
+    "sha256": "fc92158edffc5960374083d7dc0013e96ee99bba5292922b07d78afbdc7a0a32"
+   }
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "tablet-portrait",
+   "w": 800,
+   "h": 1280,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 1280,
+   "mastheadBottom": 399,
+   "flowViewportHeight": 747,
+   "unclampedBookHeight": 615,
+   "bookHeight": 276,
+   "focusedDrawnCoverHeight": 303.6,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": true,
+   "scrollToSeeFocusedAndActions": 0,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 799,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "tablet-landscape",
+   "w": 1280,
+   "h": 800,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 800,
+   "mastheadBottom": 399,
+   "flowViewportHeight": 278,
+   "unclampedBookHeight": 189,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": true,
+   "scrollToSeeFocusedAndActions": 11,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 330,
+   "libraryFitsBelowPinnedBar": true
+  },
+  {
+   "mode": "B-scroll",
+   "vp": "desktop",
+   "w": 1280,
+   "h": 700,
+   "scale": 1,
+   "inset": 0,
+   "flowAlloc": "scroll",
+   "route": "rebuilt",
+   "appHeight": 700,
+   "mastheadBottom": 333,
+   "flowViewportHeight": 278,
+   "unclampedBookHeight": 189,
+   "bookHeight": 190,
+   "focusedDrawnCoverHeight": 209,
+   "focusedScale": 1.1,
+   "neighbourScales": [
+    [
+     1,
+     0.95
+    ],
+    [
+     2,
+     1
+    ],
+    [
+     3,
+     1.1
+    ],
+    [
+     4,
+     1
+    ],
+    [
+     5,
+     0.95
+    ],
+    [
+     6,
+     0.9
+    ],
+    [
+     7,
+     0.86
+    ]
+   ],
+   "focusedCardFullyInsideFlow": true,
+   "focusedCardFullyOnFirstScreen": true,
+   "scrollToSeeFocusedAndActions": 45,
+   "pageScrollable": false,
+   "errors": [],
+   "failed": [],
+   "noHorizontalOverflow": true,
+   "viable": true,
+   "capture": {
+    "file": "captures/flow-B-scroll-desktop.png",
+    "sha256": "9eb667b7c2cc89aab74b7eaebcf6f88be29588dc2f5786b6b414ff45426d9b73"
+   },
+   "pinnedBarBottom": 76,
+   "libraryNeedsHeight": 330,
+   "libraryFitsBelowPinnedBar": true
+  }
+ ]
+}

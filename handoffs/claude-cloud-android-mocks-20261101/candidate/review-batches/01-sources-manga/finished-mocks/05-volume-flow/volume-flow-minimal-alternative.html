@@ -1,78 +1,25 @@
 <!doctype html>
 <html lang="en">
-<head>
-<meta charset="utf-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Tankoban volume flow — Minimal alternative · scroll-reserved flow</title>
-<link rel="stylesheet" href="./style.css">
-<script defer src="./app.js"></script>
-</head>
-<body data-variant="alternative">
-<div class="review-banner">
-  <div><div class="eyebrow">COLOSSEUM / ANDROID PHONE FIT STUDY 05</div>
-  <h1>Minimal alternative · scroll-reserved flow</h1>
-  <p>Approved desktop component study, not an app build. Volume rows and artwork are <strong>illustrative</strong>: local One Piece arc/movie art stands in for unavailable dedicated manga-volume covers.</p></div>
-  <nav class="review-links"><a href="./index.html">Index</a><a href="./volume-flow-original-fit.html">Original fit</a><a href="./volume-flow-minimal-alternative.html">Minimal alternative</a></nav>
-</div>
-<div class="workbench">
-  <section class="preview" aria-label="Standalone Tankoban layout preview">
-    <div id="appFrame" class="app-frame" data-variant="alternative">
-      <div class="safe-inset safe-top"></div>
-      <div class="app-screen">
-        <header class="chrome">
-          <button class="back-action" id="backAction" type="button" aria-label="Back"><svg width="20" height="20" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M14.5 5.5L8 12l6.5 6.5" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span></button>
-          <strong class="chrome-title">COLOSSEUM · TANKOBAN</strong>
-          <div class="window-actions" aria-label="Desktop window controls">
-            <button type="button" aria-label="Minimize window" data-event="Minimize window"><img src="../../../../../baseline/reference/desktop/assets/icons/minimize.svg" alt=""></button>
-            <button type="button" aria-label="Enter full screen" data-event="Enter full screen"><img src="../../../../../baseline/reference/desktop/assets/icons/fullscreen.svg" alt=""></button>
-            <button type="button" aria-label="Close series view" data-event="Close series view"><img src="../../../../../baseline/reference/desktop/assets/icons/power.svg" alt=""></button>
-          </div>
-        </header>
-        <main class="series-scroll" id="seriesScroll">
-          <section class="hero" aria-label="Manga series header">
-            <div class="hero-background" aria-hidden="true"></div><div class="hero-wash" aria-hidden="true"></div>
-            <div class="phone-cover"><img src="../../../../../baseline/reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png" alt="One Piece local illustrated poster"></div>
-            <div class="identity">
-              <div class="publication">MANGA</div>
-              <div class="title-line"><h2>One Piece</h2><button class="bookmark-action" id="bookmark" title="Add to Library" aria-label="Add to Library"><img id="bookmarkIcon" src="../../../../../baseline/reference/desktop/assets/icons/lucide/bookmark-plus.svg" alt=""></button></div>
-              <p class="desktop-facts">Eiichiro Oda <span>·</span> Publishing <span>·</span> 1997 <span>·</span> ★ 9.20</p>
-              <button type="button" class="collections-action" id="collections"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="6" y="7" width="15" height="14" rx="2"/><path d="M3 17V5a2 2 0 0 1 2-2h12M10 11h7m-7 5h5"/></svg><span>Add to Collections</span></button>
-            </div>
-            <div class="hero-controls">
-              <div class="mode-switch"><button class="mode active" type="button" id="tankobanMode">Tankoban Mode</button><button class="mode" type="button" id="chapterMode">Chapter Mode</button></div>
-              <div class="language-selector"><span>Language</span><button disabled type="button" aria-label="English, available in Chapter Mode">English</button></div>
-            </div>
-            <div class="phone-facts">Eiichiro Oda <span>Publishing</span> <span>1997</span> <span>★ 9.20</span></div>
-            <div class="synopsis"><span id="synopsisText">Follow Monkey D. Luffy and his crew as they set sail in search of the legendary One Piece treasure, meeting allies and rivals across the Grand Line. Their journey carries them through the seas and toward the mysteries of the world.</span><button id="synopsisMore" class="synopsis-more" type="button" aria-expanded="false">more</button></div>
-          </section>
-          <section class="device-progress"><div><span>ON THIS DEVICE</span><strong>3 OF 48</strong></div><div class="progress-track"><i></i></div></section>
-          <section class="volume-library" aria-label="Tankoban volume continuum">
-            <div class="lane-head"><div class="lane-label"><span>VOLUMES</span><b id="volumeCount">48</b></div><div class="lane-actions"><button class="download-next" id="downloadNext" type="button">Download next 10</button><button type="button" id="selectToggle">Select</button></div></div>
-            <div class="flow-viewport" id="flowViewport" tabindex="0" role="group" aria-label="Volume cover-flow, arrow keys to navigate">
-              <div id="flowTrack" class="flow-track"></div>
-              <div class="flow-shade left" aria-hidden="true"></div><div class="flow-shade right" aria-hidden="true"></div>
-            </div>
-            <div class="action-bar"><div class="action-identity"><span id="currentVolume">Vol. 3</span><span id="currentName"></span></div><div class="action-buttons"><span id="progressLabel"></span><button class="download-action" id="downloadAction" type="button"><img src="../../../../../baseline/reference/desktop/assets/icons/download.svg" alt="">Download</button><button class="read-action" id="readAction" type="button">Read Vol. 3</button></div></div>
-            <div class="selected-float" id="selectionFloat" hidden><span id="selectedCount">0 selected</span><button id="downloadSelected" type="button">Download selected</button></div>
-          </section>
-        </main>
-      </div>
-      <div class="safe-inset safe-bottom"></div>
-    </div>
-  </section>
-  <aside class="review-panel" aria-label="Reviewer controls (outside the Colosseum mock)">
-    <h2>Review controls</h2>
-    <label>Viewport preset<select id="viewportPreset"><option value="portrait">Phone 412 × 900</option><option value="portrait-small">Phone 354 × 792</option><option value="landscape">Phone 900 × 412</option><option value="landscape-small">Phone 792 × 354</option><option value="desktop">Desktop 1280 × 700</option><option value="tablet-portrait">Tablet 800 × 1280</option><option value="tablet-landscape">Tablet 1280 × 800</option></select></label>
-    <div class="inputs-row"><label>Width <input type="number" id="customWidth" min="320" max="1920"></label><label>Height <input type="number" id="customHeight" min="240" max="1600"></label></div>
-    <label>Top inset <output id="topOutput">0</output>px<input type="range" id="topInset" min="0" max="48" step="4" value="0"></label>
-    <label>Bottom inset <output id="bottomOutput">0</output>px<input type="range" id="bottomInset" min="0" max="48" step="4" value="0"></label>
-    <label>Font scale<select id="fontScale"><option value="1">100%</option><option value="1.3">130%</option></select></label>
-    <label>State<select id="reviewState"><option value="default">Focus / action bar</option><option value="select">Selection open</option><option value="synopsis">Long synopsis stress case</option><option value="downloading">Downloading volume focus</option><option value="failed">Failed volume focus</option><option value="end">Long-series end</option><option value="no-cover">Native missing-cover state</option></select></label>
-    <p id="geometryStatus" class="geometry-status">Geometry checking after load…</p>
-    <div class="event-log"><b>Local mock action log</b><p id="eventOutput" aria-live="polite">Tap a neighbouring volume to centre it; tap the focused volume to request its existing action.</p></div>
-    <p class="review-note">No live catalogue, service, download, account or repository writes. Device sizes and safe insets remain provisional.</p>
-    <p class="review-note"><strong>PROPOSAL ? not approved for app implementation.</strong> Reserve the original 190px cover minimum, full scaled captions and existing actions wherever the measured space is insufficient. The same page scrolls vertically. At 792?354 with 24px insets and 1.3? text, its existing chrome also scrolls so the entire enlarged book can be seen. No flattening or new navigation. Compare the original attempt and gallery/action scroll captures.</p>
-  </aside>
-</div>
-</body>
-</html>
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Cover-flow allocation B · page scroll under the selected header (proposal, not approved)</title><link rel="stylesheet" href="../04-manga-series/style.css"></head>
+<body data-page="series" data-flow="scroll" data-base="../04-manga-series/">
+<section class="lab" aria-label="Mock laboratory controls outside Colosseum">
+ <div class="labtop"><div><h1>Cover-flow allocation B · page scroll under the selected header (proposal, not approved)</h1>
+ <p>Page-scroll allocation, as in the Hemanth-viewed rebuilt preview: the whole title page scrolls, and the flow keeps a fixed stage so the 190px floor and 1.10 focus scale always fit. The cost is vertical scrolling to reach the volumes. This remains a proposal awaiting Hemanth’s decision; the flow itself is unchanged.</p></div>
+ <nav class="page-links"><a href="index.html">Comparison index</a><a href="volume-flow-original-fit.html">A · original fit</a><a href="volume-flow-minimal-alternative.html">B · page scroll</a><a href="../04-manga-series/manga-series.html">Main series mock</a><a href="../../../../../baseline/review-batches/01-sources-manga/finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html">Previous Pro study (older header)</a></nav></div>
+ <div class="labfields">
+ <label>Viewport preset<select id="preset"><option value="portrait">Phone portrait · 412×900</option><option value="landscape">Phone landscape · 900×412</option><option value="compact">Narrow portrait · 354×792</option><option value="short">Short landscape · 792×354</option><option value="desktop">Desktop · 1280×700</option><option value="tablet">Tablet portrait · 800×1280</option><option value="tabletLandscape">Tablet landscape · 1280×800</option><option value="custom">Custom dimensions</option></select></label>
+ <label>Width <input type="number" id="width" min="320" max="1920" step="1" value="412"></label>
+ <label>Height <input type="number" id="height" min="240" max="1600" step="1" value="900"></label>
+ <label>Top inset <input type="number" id="insetTop" min="0" max="120" value="0"></label>
+ <label>Bottom inset <input type="number" id="insetBottom" min="0" max="120" value="0"></label>
+ <label>Left inset <input type="number" id="insetLeft" min="0" max="120" value="0"></label>
+ <label>Right inset <input type="number" id="insetRight" min="0" max="120" value="0"></label>
+ <label>Font scale <select id="fontScale"><option value="1">1.0</option><option value="1.3">1.3</option></select></label></div>
+ <p class="labnote">OnePlus measurements are provisional. All numbers, chapter/download states and reuse of titled One Piece project artwork are illustrative. Insets are blank padding, not invented OS chrome. Long content remains scrollable.</p>
+ <p class="labstatus" id="labStatus" role="status"></p>
+</section>
+<div class="stage"><div class="device phone" id="device"><div class="safe-pad"><main class="app" id="app" aria-label="Manga series · Reading Room — Colosseum mock"></main></div></div></div>
+<p class="small-note">No backend, provider, app account, device operation or publishing. Select the existing modes, original dropdowns and actions inside the frame.</p>
+<script src="../04-manga-series/app.js" defer></script>
+</body></html>
