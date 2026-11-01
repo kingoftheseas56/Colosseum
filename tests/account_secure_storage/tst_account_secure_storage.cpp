@@ -32,12 +32,13 @@ class MemorySecrets final : public AccountSecretBackend {
 public:
     bool available = true;
     bool failWrites = false;
+    bool discardWrites = false;
     QHash<QString, QByteArray> entries;
     bool isAvailable() const override { return available; }
     bool write(const QString &name, const QByteArray &blob) override {
         if (!available || failWrites)
             return false;
-        entries.insert(name, blob);
+        if (!discardWrites) entries.insert(name, blob);
         return true;
     }
     std::optional<QByteArray> read(const QString &name) const override {
@@ -74,6 +75,23 @@ bool nativeMode(const QString &mode) {
         return false;
     auto ownedStore = createAccountCredentialStore();
     AccountCredentialStore &store = *ownedStore;
+    if (mode.startsWith(QStringLiteral("--stremio-"))) {
+        if (!store.isAvailable()) return false;
+        bool passed = true;
+        for (const QString &profile : {QStringLiteral("legacy"), QStringLiteral("local"), kAccount}) {
+            const auto saved = store.loadStremio(profile, QStringLiteral("restart-fixture"));
+            if (mode == QLatin1String("--stremio-seed"))
+                passed = store.saveStremio({profile, QStringLiteral("restart-fixture"), kToken}) && passed;
+            else if (mode == QLatin1String("--stremio-verify"))
+                passed = saved && saved->authKey == kToken && passed;
+            else if (mode == QLatin1String("--stremio-clear"))
+                passed = store.clearStremio(profile) && passed;
+            else if (mode == QLatin1String("--stremio-empty"))
+                passed = !saved && passed;
+            else return false;
+        }
+        return passed;
+    }
     if (mode == QLatin1String("--unavailable"))
         return !store.isAvailable() && !store.saveActive(credential()) && !store.loadActive();
     if (mode == QLatin1String("--clear"))
@@ -310,6 +328,36 @@ private slots:
         QVERIFY(!store.loadStremio(kAccount, QStringLiteral("remote")));
         QCOMPARE(store.loadStremio(QStringLiteral("local"), QStringLiteral("remote"))->authKey, kToken);
     }
+    void stremioSaveRequiresCredentialReadback() {
+        auto backend = std::make_shared<MemorySecrets>();
+        backend->discardWrites = true;
+        PlatformAccountCredentialStore store(backend);
+        QVERIFY(!store.saveStremio({QStringLiteral("local"), QStringLiteral("remote"), kToken}));
+    }
+    void stremioGuestAndAccountCredentialsSurviveStoreRecreation() {
+        auto backend = std::make_shared<MemorySecrets>();
+        const QStringList profiles{QStringLiteral("legacy"), QStringLiteral("local"), kAccount};
+        for (const QString &profile : profiles) {
+            PlatformAccountCredentialStore writer(backend);
+            QVERIFY2(writer.saveStremio({profile, QStringLiteral("remote"), kToken}), qPrintable(profile));
+        }
+        QCOMPARE(backend->entries.size(), 3);
+        PlatformAccountCredentialStore reopened(backend);
+        for (const QString &profile : profiles) {
+            const auto saved = reopened.loadStremio(profile, QStringLiteral("remote"));
+            QVERIFY(saved);
+            QCOMPARE(saved->authKey, kToken);
+            QVERIFY(!reopened.loadStremio(profile, QStringLiteral("other")));
+            QVERIFY(reopened.clearStremio(profile));
+            QVERIFY(!reopened.loadStremio(profile, QStringLiteral("remote")));
+        }
+        for (const QString &invalid : {QStringLiteral("arbitrary"), QStringLiteral(" legacy "),
+                                      QStringLiteral(" local "), QStringLiteral("LEGACY")}) {
+            QVERIFY(PlatformAccountCredentialStore::stremioTargetName(invalid).isEmpty());
+            QVERIFY(!reopened.saveStremio({invalid, QStringLiteral("remote"), kToken}));
+            QVERIFY(!reopened.clearStremio(invalid));
+        }
+    }
     void taggedRunsCannotReadDailyCredentials() {
         const QByteArray previous = qgetenv("COLOSSEUM_APPDATA_TAG");
         auto backend = std::make_shared<MemorySecrets>();
@@ -338,7 +386,9 @@ int main(int argc, char **argv) {
 #endif
     if (argc == 2 && QString::fromLocal8Bit(argv[1]) == QLatin1String("--integration")) {
         bool success = true;
-        for (const QString &mode : {QStringLiteral("--seed"), QStringLiteral("--verify"), QStringLiteral("--clear"), QStringLiteral("--empty")}) {
+        for (const QString &mode : {QStringLiteral("--seed"), QStringLiteral("--verify"), QStringLiteral("--clear"), QStringLiteral("--empty"),
+                                    QStringLiteral("--stremio-seed"), QStringLiteral("--stremio-verify"),
+                                    QStringLiteral("--stremio-clear"), QStringLiteral("--stremio-empty")}) {
             QProcess process;
             process.start(app.applicationFilePath(), {mode});
             if (!process.waitForFinished(20000) || process.exitStatus() != QProcess::NormalExit || process.exitCode() != 0) {
@@ -350,7 +400,10 @@ int main(int argc, char **argv) {
         QProcess cleanup;
         cleanup.start(app.applicationFilePath(), {QStringLiteral("--clear")});
         const bool cleaned = cleanup.waitForFinished(20000) && cleanup.exitCode() == 0;
-        return success && cleaned ? 0 : 1;
+        QProcess stremioCleanup;
+        stremioCleanup.start(app.applicationFilePath(), {QStringLiteral("--stremio-clear")});
+        const bool stremioCleaned = stremioCleanup.waitForFinished(20000) && stremioCleanup.exitCode() == 0;
+        return success && cleaned && stremioCleaned ? 0 : 1;
     }
     if (argc == 2 && QString::fromLocal8Bit(argv[1]).startsWith(QStringLiteral("--"))) {
         const bool passed = nativeMode(QString::fromLocal8Bit(argv[1]));

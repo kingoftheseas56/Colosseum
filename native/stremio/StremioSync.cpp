@@ -320,12 +320,15 @@ bool addonCollectionSetAccepted(const QJsonValue &result) {
         && result.toObject().value(QStringLiteral("success")).toBool();
 }
 
-QByteArray successPage() {
-    return QByteArrayLiteral("HTTP/1.1 200 OK\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 92\r\nConnection: close\r\n\r\n<!doctype html><title>Colosseum</title><p>Sign-in complete. You can return to Colosseum.</p>");
-}
-
-QByteArray failurePage() {
-    return QByteArrayLiteral("HTTP/1.1 400 Bad Request\r\nContent-Type: text/html; charset=utf-8\r\nContent-Length: 89\r\nConnection: close\r\n\r\n<!doctype html><title>Colosseum</title><p>Sign-in could not be completed. Return to Colosseum.</p>");
+QByteArray authenticationPage(bool succeeded) {
+    const QByteArray body = succeeded
+        ? QByteArrayLiteral("<!doctype html><title>Colosseum</title><p>Sign-in complete. You can return to Colosseum.</p>")
+        : QByteArrayLiteral("<!doctype html><title>Colosseum</title><p>Sign-in could not be completed. Return to Colosseum for details and retry.</p>");
+    return (succeeded ? QByteArrayLiteral("HTTP/1.1 200 OK\r\n")
+                      : QByteArrayLiteral("HTTP/1.1 400 Bad Request\r\n"))
+        + QByteArrayLiteral("Content-Type: text/html; charset=utf-8\r\nCache-Control: no-store\r\nReferrer-Policy: no-referrer\r\nContent-Length: ")
+        + QByteArray::number(body.size())
+        + QByteArrayLiteral("\r\nConnection: close\r\n\r\n") + body;
 }
 
 std::optional<StremioProviderImportRedo> providerImportRedoFromJson(
@@ -388,9 +391,8 @@ StremioSync::StremioSync(const StremioSyncOptions &options, QObject *parent)
     connect(&m_callbackServer, &QTcpServer::newConnection,
             this, &StremioSync::handleIncomingConnection);
     connect(&m_authTimeout, &QTimer::timeout, this, [this] {
-        cancelAuthentication();
-        setStatus(QStringLiteral("notConnected"));
-        finishRun();
+        finishAuthentication(false, QStringLiteral(
+            "Stremio sign-in timed out. Complete sign-in and approve the connection in your browser, then try again."));
     });
     connect(&m_retryTimer, &QTimer::timeout, this, [this] {
         if (m_markerLinked)
@@ -683,6 +685,7 @@ bool StremioSync::startBrowserAuthentication(QString *error) {
     const QUrl callback(QStringLiteral("http://127.0.0.1:%1%2")
         .arg(m_callbackServer.serverPort()).arg(m_callbackPath));
     const QUrl login = StremioCodec::browserLoginUrl(callback);
+    m_lastResultSummary.clear();
     setStatus(QStringLiteral("connecting"));
     m_authTimeout.start(kAuthTimeoutMs);
     emit browserLoginRequested(login);
@@ -696,8 +699,10 @@ void StremioSync::cancelAuthentication() {
     ++m_authAttempt;
     m_authTimeout.stop();
     m_callbackServer.close();
-    if (m_callbackSocket)
+    if (m_callbackSocket) {
+        m_callbackSocket->write(authenticationPage(false));
         m_callbackSocket->disconnectFromHost();
+    }
     m_callbackSocket = nullptr;
     m_callbackBuffer.clear();
     m_callbackPath.clear();
@@ -707,6 +712,8 @@ void StremioSync::cancelAuthentication() {
     }
     m_identityResponse.clear();
     m_identityResponseTooLarge = false;
+    if (m_status == QStringLiteral("connecting"))
+        updateConnectionStatus();
 }
 
 bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
@@ -785,7 +792,12 @@ bool StremioSync::disconnectProfile(std::function<void(bool)> completion) {
 }
 
 bool StremioSync::connectAccount() {
-    return startBrowserAuthentication();
+    QString error;
+    if (startBrowserAuthentication(&error))
+        return true;
+    m_lastResultSummary = error;
+    finishRun();
+    return false;
 }
 
 bool StremioSync::disconnectCurrentProfile() {
@@ -887,10 +899,23 @@ void StremioSync::retireProvisionalCredential() {
 
     const ProvisionalCredential provisional = *m_provisionalCredential;
     m_provisionalCredential.reset();
-    if (m_options.clearCredential)
+    bool restored = false;
+    if (provisional.previousCredential && m_options.saveCredential) {
+        restored = m_options.saveCredential(provisional.binding.profileId,
+            provisional.previousState.accountId, *provisional.previousCredential);
+    } else if (m_options.clearCredential) {
         m_options.clearCredential(provisional.binding.profileId);
+    }
     if (!bindingCurrent(provisional.binding))
         return;
+    if (restored) {
+        m_state = provisional.previousState;
+        m_hasUsableCredential = true;
+        m_dispatchAllowed = !m_state.reconnectRequired;
+        persist();
+        updateConnectionStatus();
+        return;
+    }
 
     m_hasUsableCredential = false;
     m_dispatchAllowed = false;
@@ -1934,7 +1959,7 @@ void StremioSync::handleIncomingConnection() {
         if (!socket)
             return;
         if (m_callbackSocket) {
-            socket->write(failurePage());
+            socket->write(authenticationPage(false));
             socket->disconnectFromHost();
             socket->deleteLater();
             continue;
@@ -1950,7 +1975,7 @@ void StremioSync::handleCallbackSocket(QTcpSocket *socket) {
         return;
     m_callbackBuffer += socket->readAll();
     if (m_callbackBuffer.size() > kMaximumCallbackBytes) {
-        socket->write(failurePage());
+        socket->write(authenticationPage(false));
         socket->disconnectFromHost();
         m_callbackSocket = nullptr;
         m_callbackBuffer.clear();
@@ -1959,16 +1984,32 @@ void StremioSync::handleCallbackSocket(QTcpSocket *socket) {
     if (!m_callbackBuffer.contains("\r\n\r\n"))
         return;
     const StremioLoopbackCallback callback = StremioCodec::decodeLoopbackCallback(m_callbackBuffer, m_callbackPath);
-    socket->write(callback.accepted ? successPage() : failurePage());
-    socket->disconnectFromHost();
-    m_callbackSocket = nullptr;
     m_callbackBuffer.clear();
-    if (!callback.accepted)
+    if (!callback.accepted) {
+        socket->write(authenticationPage(false));
+        socket->disconnectFromHost();
+        m_callbackSocket = nullptr;
         return;
+    }
+    // Keep this browser request open until identity, vault, journal and the
+    // active profile's preferences have all committed. Ignore further bytes.
+    disconnect(socket, &QTcpSocket::readyRead, this, nullptr);
     const ProfileBinding binding{m_profileId, m_bindingGeneration};
     const quint64 attempt = m_authAttempt;
     m_callbackServer.close();
     validateAuthKey(callback.authKey, binding, attempt);
+}
+
+void StremioSync::finishAuthentication(bool succeeded, const QString &summary) {
+    if (m_callbackSocket) {
+        m_callbackSocket->write(authenticationPage(succeeded));
+        m_callbackSocket->disconnectFromHost();
+        m_callbackSocket = nullptr;
+    }
+    cancelAuthentication();
+    m_lastResultSummary = summary;
+    updateConnectionStatus();
+    finishRun();
 }
 
 void StremioSync::validateAuthKey(
@@ -1985,6 +2026,7 @@ void StremioSync::validateAuthKey(
     QNetworkRequest request(endpoint);
     request.setHeader(QNetworkRequest::ContentTypeHeader, QStringLiteral("application/json"));
     request.setAttribute(QNetworkRequest::RedirectPolicyAttribute, QNetworkRequest::ManualRedirectPolicy);
+    request.setTransferTimeout(20000);
     QJsonObject body;
     body.insert(QStringLiteral("authKey"), QString::fromUtf8(authKey));
     QNetworkReply *reply = m_network.post(request, QJsonDocument(body).toJson(QJsonDocument::Compact));
@@ -2030,27 +2072,27 @@ void StremioSync::validateAuthKey(
         if (networkError != QNetworkReply::NoError || redirected || m_identityResponseTooLarge
             || parseError.error != QJsonParseError::NoError
             || !response.isObject() || !StremioCodec::decodeGetUserResult(response.object(), &identity, &error)) {
-            cancelAuthentication();
-            setStatus(QStringLiteral("notConnected"));
-            finishRun();
+            finishAuthentication(false, QStringLiteral(
+                "Stremio could not validate this sign-in. Check your connection and try again."));
             return;
         }
         if (!m_state.accountId.isEmpty() && m_state.accountId != identity.accountId) {
-            m_hasUsableCredential = false;
-            m_dispatchAllowed = false;
-            m_retryTimer.stop();
-            m_authTimeout.stop();
-            setStatus(QStringLiteral("reconnectRequired"));
-            finishRun();
+            finishAuthentication(false, QStringLiteral(
+                "This profile is linked to a different Stremio account. Use Switch account to change it."));
             return;
         }
+        const auto previousCredential = m_options.loadCredential && !m_state.accountId.isEmpty()
+            ? m_options.loadCredential(binding.profileId, m_state.accountId) : std::nullopt;
+        const StremioPersistentState previousState = m_state;
         if (!m_options.saveCredential
             || !m_options.saveCredential(binding.profileId, identity.accountId, authKey)) {
             if (bindingCurrent(binding)) {
-                if (m_options.clearCredential)
+                if (previousCredential && m_options.saveCredential)
+                    m_options.saveCredential(binding.profileId, previousState.accountId, *previousCredential);
+                else if (m_options.clearCredential)
                     m_options.clearCredential(binding.profileId);
-                setStatus(QStringLiteral("notConnected"));
-                finishRun();
+                finishAuthentication(false, QStringLiteral(
+                    "Stremio could not save its credential securely. Check secure storage and try again."));
             }
             return;
         }
@@ -2059,7 +2101,7 @@ void StremioSync::validateAuthKey(
                 m_options.clearCredential(binding.profileId);
             return;
         }
-        m_provisionalCredential = ProvisionalCredential{binding, attempt};
+        m_provisionalCredential = ProvisionalCredential{binding, attempt, previousCredential, previousState};
         m_hasUsableCredential = false;
         m_dispatchAllowed = false;
         m_state.accountId = identity.accountId;
@@ -2076,12 +2118,21 @@ void StremioSync::validateAuthKey(
                 if (isProvisional)
                     retireProvisionalCredential();
                 if (current) {
-                    m_hasUsableCredential = false;
-                    m_dispatchAllowed = false;
-                    m_state.reconnectRequired = true;
-                    setStatus(QStringLiteral("notConnected"));
-                    finishRun();
+                    finishAuthentication(false, QStringLiteral(
+                        "Stremio could not save this profile. Check available storage and try again."));
                 }
+                return;
+            }
+            // This full, current authentication snapshot also repairs any
+            // earlier failed journal write once storage becomes writable again.
+            m_failedPersistencePaths.remove(m_statePath);
+            emit profileLinkValidated(binding.profileId);
+            // AccountRuntime synchronously confirms the durable preferences marker.
+            if (!bindingCurrent(binding) || attempt != m_authAttempt)
+                return;
+            if (!m_markerLinked) {
+                finishAuthentication(false, QStringLiteral(
+                    "Stremio could not save the connection setting. Check profile storage, restart Colosseum and try again."));
                 return;
             }
             m_provisionalCredential.reset();
@@ -2089,11 +2140,7 @@ void StremioSync::validateAuthKey(
             m_dispatchAllowed = true;
             m_traktLinkKnown = true;
             m_traktExpiresAtMs = identity.traktExpiresAtMs;
-            m_authTimeout.stop();
-            m_markerLinked = true;
-            emit profileLinkValidated(binding.profileId);
-            updateConnectionStatus();
-            finishRun();
+            finishAuthentication(true, QStringLiteral("Stremio connected securely to this profile."));
         });
     });
 }

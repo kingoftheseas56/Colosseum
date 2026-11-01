@@ -227,6 +227,8 @@ private:
     struct ProvisionalCredential {
         ProfileBinding binding;
         quint64 attempt = 0;
+        std::optional<QByteArray> previousCredential;
+        StremioPersistentState previousState;
     };
 
     struct EpisodeMetadataRequest {
@@ -244,6 +246,7 @@ private:
     bool endpointAllowed() const;
     void handleIncomingConnection();
     void handleCallbackSocket(QTcpSocket *socket);
+    void finishAuthentication(bool succeeded, const QString &summary);
     void validateAuthKey(
         const QByteArray &authKey,
         const ProfileBinding &binding,

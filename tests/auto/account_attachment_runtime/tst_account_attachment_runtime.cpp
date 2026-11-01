@@ -2,6 +2,7 @@
 
 #include "account/AccountAttachmentReceipt.h"
 #include "account/AccountRuntime.h"
+#include "account/PlatformAccountCredentialStore.h"
 #include "account/ActivityStore.h"
 #include "CollectionStore.h"
 #include "account/HistoryStore.h"
@@ -33,6 +34,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QUrlQuery>
 #include <QtTest>
 
 #include <algorithm>
@@ -640,6 +642,9 @@ public:
                         .left(buffer.left(headerEnd).indexOf("\r\n"));
                     m_requests.append(firstLine);
                     QJsonValue result = m_result;
+                    if (m_loginIdentity && firstLine.startsWith("POST /api/getUser "))
+                        result = QJsonObject{{QStringLiteral("_id"), QStringLiteral("login-fixture-account")},
+                                             {QStringLiteral("fullname"), QStringLiteral("Login Fixture")}};
                     if (firstLine.startsWith("POST /api/datastoreGet ")) {
                         const QJsonDocument request = QJsonDocument::fromJson(
                             buffer.mid(headerEnd + 4, contentLength));
@@ -691,6 +696,7 @@ public:
         return QUrl(QStringLiteral("http://127.0.0.1:%1/api").arg(m_server.serverPort()));
     }
     void setResult(const QJsonValue &result) { m_result = result; }
+    void enableLoginIdentity() { m_loginIdentity = true; }
     int putCount() const {
         return std::count_if(m_requests.cbegin(), m_requests.cend(), [](const QByteArray &line) {
             return line.startsWith("POST /api/datastorePut ");
@@ -707,6 +713,7 @@ private:
     QTcpServer m_server;
     QHash<QTcpSocket *, QByteArray> m_buffers;
     QJsonValue m_result;
+    bool m_loginIdentity = false;
     QList<QByteArray> m_requests;
     QStringList m_getIds;
 };
@@ -726,6 +733,9 @@ private slots:
     void ratingsReviewsAccountRuntimeCompositionContract();
     void activitySourceClearRemovesLedgerAfterAttachmentCompletion();
     void stremioLegacyAccountlessProfileCanConnect();
+    void stremioBrowserLoginPersistsAcrossRuntimeRestart_data();
+    void stremioBrowserLoginPersistsAcrossRuntimeRestart();
+    void stremioMarkerCommitCannotLinkReplacementProfile();
     void stremioMarkerChangeUpdatesActiveRuntimeState();
     void stremioLocalOnlyOwnerReceiptJournalsRelayWithoutNeonEngine();
     void stremioLateOwnerReceiptCannotCrossProfileIncarnation();
@@ -900,6 +910,128 @@ stremioLegacyAccountlessProfileCanConnect() {
     QVERIFY(QFileInfo::exists(privateExtensionIndex));
     QVERIFY(QDir::cleanPath(privateExtensionIndex)
             != QDir::cleanPath(globalExtensionIndex));
+}
+
+void tst_account_attachment_runtime::stremioBrowserLoginPersistsAcrossRuntimeRestart_data() {
+    QTest::addColumn<QString>("profileKind");
+    QTest::newRow("legacy-guest") << QStringLiteral("legacy");
+    QTest::newRow("local-guest") << QStringLiteral("local");
+    QTest::newRow("signed-in-account") << QStringLiteral("account");
+}
+
+void tst_account_attachment_runtime::stremioBrowserLoginPersistsAcrossRuntimeRestart() {
+    QFETCH(QString, profileKind);
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    ScopedEnvironmentVariable restoreEndpoint("COLOSSEUM_ACCOUNT_SERVICE_URL");
+    QStandardPaths::setTestModeEnabled(true);
+    const QByteArray tag = QByteArrayLiteral("stremio-login-restart-")
+        + QUuid::createUuid().toByteArray(QUuid::WithoutBraces);
+    qputenv("COLOSSEUM_APPDATA_TAG", tag);
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio-Test"));
+    QCoreApplication::setApplicationName(QString::fromLatin1(tag));
+    LoopbackAccountService accountService;
+    QString error;
+    QVERIFY2(accountService.listen(&error), qPrintable(error));
+    accountService.enableAttachmentCompletion();
+    qputenv("COLOSSEUM_ACCOUNT_SERVICE_URL", QStringLiteral("http://127.0.0.1:%1")
+        .arg(accountService.port()).toLatin1());
+    LoopbackStremioDatastore provider;
+    QVERIFY(provider.listen());
+    provider.enableLoginIdentity();
+    provider.setResult(QJsonArray{});
+    QUrl login;
+    StremioSyncOptions options;
+    options.apiEndpoint = provider.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.browserOpener = [&](const QUrl &url) { login = url; };
+    QString profileId;
+    {
+        AccountRuntime runtime(options);
+        QQmlApplicationEngine engine;
+        runtime.prepareForQml(&engine);
+        if (profileKind == QStringLiteral("legacy")) {
+            runtime.controller()->continueWithoutAccount();
+        } else if (profileKind == QStringLiteral("local")) {
+            QVERIFY2(runtime.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+        } else {
+            runtime.controller()->createAccount(QStringLiteral("f03-user"),
+                QStringLiteral("correct horse battery staple 884"));
+            QTRY_COMPARE(runtime.controller()->mode(), QStringLiteral("signedIn"));
+        }
+        profileId = runtime.profileStores()->activeProfile().profileId();
+        QCOMPARE(profileId, profileKind == QStringLiteral("account")
+            ? QString::fromLatin1(kAccountId) : profileKind);
+        auto *sync = qobject_cast<StremioSync *>(engine.rootContext()
+            ->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+        QVERIFY(sync);
+        QVERIFY(sync->connectAccount());
+        const QUrl callback(QUrlQuery(login).queryItemValue(QStringLiteral("appCallback")));
+        QTcpSocket browser;
+        QByteArray response;
+        connect(&browser, &QTcpSocket::readyRead, &browser, [&] { response += browser.readAll(); });
+        browser.connectToHost(callback.host(), quint16(callback.port()));
+        QVERIFY(browser.waitForConnected(2000));
+        browser.write("GET " + callback.path().toUtf8()
+            + "?key=runtime-fixture-auth-key HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+        QVERIFY(browser.waitForBytesWritten(2000));
+        QTRY_VERIFY(!response.isEmpty());
+        QVERIFY2(response.contains("Sign-in complete"), response.constData());
+        QVERIFY(sync->linkedAccount());
+        QCOMPARE(runtime.profileStores()->preferencesStore()->mainSyncProvider(), QStringLiteral("stremio"));
+        PlatformAccountCredentialStore vault;
+        const auto saved = vault.loadStremio(profileId, QStringLiteral("login-fixture-account"));
+        QVERIFY(saved && saved->authKey == QByteArrayLiteral("runtime-fixture-auth-key"));
+    }
+    {
+        AccountRuntime reopened(options);
+        QQmlApplicationEngine engine;
+        reopened.prepareForQml(&engine);
+        if (profileKind == QStringLiteral("legacy")) {
+            reopened.controller()->continueWithoutAccount();
+        } else if (profileKind == QStringLiteral("local")) {
+            QVERIFY2(reopened.profileStores()->activateLocalOnlyProfile(&error), qPrintable(error));
+        } else {
+            QVERIFY2(reopened.profileStores()->activateAccountProfile(profileId, &error), qPrintable(error));
+        }
+        auto *sync = qobject_cast<StremioSync *>(engine.rootContext()
+            ->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+        QVERIFY(sync);
+        QTRY_VERIFY(sync->linkedAccount());
+        QCOMPARE(sync->stremioUserId(), QStringLiteral("login-fixture-account"));
+        QVERIFY(sync->status() != QStringLiteral("reconnectRequired"));
+        QCOMPARE(reopened.profileStores()->preferencesStore()->mainSyncProvider(), QStringLiteral("stremio"));
+    }
+    PlatformAccountCredentialStore cleanup;
+    QVERIFY(cleanup.clearStremio(profileId));
+    if (profileKind == QStringLiteral("account")) QVERIFY(cleanup.clearActive());
+}
+
+void tst_account_attachment_runtime::stremioMarkerCommitCannotLinkReplacementProfile() {
+    ScopedEnvironmentVariable restoreTag("COLOSSEUM_APPDATA_TAG");
+    QStandardPaths::setTestModeEnabled(true);
+    qputenv("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-marker-switch-")
+        + QUuid::createUuid().toByteArray(QUuid::WithoutBraces));
+    QCoreApplication::setOrganizationName(QStringLiteral("Brotherhood-Stremio-Test"));
+    QCoreApplication::setApplicationName(QString::fromLatin1(qgetenv("COLOSSEUM_APPDATA_TAG")));
+    AccountRuntime runtime;
+    QQmlApplicationEngine engine;
+    runtime.prepareForQml(&engine);
+    runtime.controller()->continueWithoutAccount();
+    auto *sync = qobject_cast<StremioSync *>(engine.rootContext()
+        ->contextProperty(QStringLiteral("stremioSyncState")).value<QObject *>());
+    QVERIFY(sync);
+    auto *preferences = runtime.profileStores()->preferencesStore();
+    QVERIFY(preferences);
+    bool switched = false;
+    connect(preferences, &ProfilePreferencesStore::mainSyncProviderChanged, &runtime, [&] {
+        QString error;
+        switched = runtime.profileStores()->activateLocalOnlyProfile(&error);
+    });
+    sync->profileLinkValidated(QStringLiteral("legacy"));
+    QVERIFY(switched);
+    QCOMPARE(sync->activeProfileId(), QStringLiteral("local"));
+    QVERIFY(!sync->linkedAccount());
+    QCOMPARE(sync->status(), QStringLiteral("notConnected"));
 }
 
 void tst_account_attachment_runtime::extensionsOwnerFollowsTheActiveProfile()

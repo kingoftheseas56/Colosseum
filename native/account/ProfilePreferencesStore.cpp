@@ -7,6 +7,7 @@
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonObject>
+#include <QPointer>
 #include <QRegularExpression>
 #include <QJsonParseError>
 #include <QSet>
@@ -1071,11 +1072,17 @@ bool ProfilePreferencesStore::commitMainSyncProvider(
         return false;
     m_mainSyncProvider = normalized;
     ++m_revision;
+    // A profile switch from a notification can retire this store immediately.
+    const QPointer<ProfilePreferencesStore> alive(this);
     emit mainSyncProviderChanged();
+    if (!alive)
+        return false;
     emit changed();
+    if (!alive)
+        return false;
     if (localMutation)
         emit stremioLinkDirty();
-    return true;
+    return !alive.isNull();
 }
 
 void ProfilePreferencesStore::load() {

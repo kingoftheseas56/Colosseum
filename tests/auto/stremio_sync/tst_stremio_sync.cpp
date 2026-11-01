@@ -204,11 +204,16 @@ private slots:
     void traktPlayingAndPausedPostThroughBoundAuthKey();
     void callbackRejectsOversizedRequest();
     void productionEndpointsRequireHttps();
+    void connectFailureExplainsWhyBrowserDidNotOpen();
     void journalRejectsMalformedDataWithoutReseeding();
     void profileCredentialTargetsAreTagAndProfileIsolated();
     void intentRemainsPendingUntilRemoteAckAndLocalReceiptPersist();
     void profileReopenWithoutVaultCredentialRequiresReconnectAndSendsNothing();
     void browserCallbackValidatesIdentityAndPersistsVaultBeforeJournal();
+    void browserCompletionWaitsForDurableLink_data();
+    void browserCompletionWaitsForDurableLink();
+    void failedReauthenticationPreservesExistingLink_data();
+    void failedReauthenticationPreservesExistingLink();
     void intentDispatchWaitsForJournalAndReceipt();
     void taggedVaultCredentialRoundTripsOnlyForBoundProfile();
     void replayedAndCancelledCallbacksCannotValidateCredentials();
@@ -345,6 +350,9 @@ void tst_stremio_sync::traktPlayingAndPausedPostThroughBoundAuthKey() {
     options.loadCredential = [&storedKey](const QString &, const QString &)
         -> std::optional<QByteArray> { return storedKey; };
     StremioSync sync(options);
+    connect(&sync, &StremioSync::profileLinkValidated, &sync, [&sync](const QString &) {
+        sync.setMarkerLinked(true);
+    });
     QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
     QVERIFY(sync.startBrowserAuthentication());
     QVERIFY(sendLoopbackCallback(login, QByteArrayLiteral("fixture-auth-key")));
@@ -566,6 +574,9 @@ void tst_stremio_sync::browserCallbackValidatesIdentityAndPersistsVaultBeforeJou
     options.clearCredential = [](const QString &) { return true; };
 
     StremioSync sync(options);
+    connect(&sync, &StremioSync::profileLinkValidated, &sync, [&sync](const QString &) {
+        sync.setMarkerLinked(true);
+    });
     QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
     QVERIFY(sync.startBrowserAuthentication());
     QVERIFY(openedLogin.isValid());
@@ -587,6 +598,175 @@ void tst_stremio_sync::browserCallbackValidatesIdentityAndPersistsVaultBeforeJou
     QFile journal(path);
     QVERIFY(journal.open(QIODevice::ReadOnly));
     QVERIFY(!journal.readAll().contains(QByteArrayLiteral("fixture-auth-key")));
+}
+
+void tst_stremio_sync::browserCompletionWaitsForDurableLink_data() {
+    QTest::addColumn<bool>("vaultOk");
+    QTest::addColumn<bool>("markerOk");
+    QTest::addColumn<bool>("stateOk");
+    QTest::addColumn<bool>("identityOk");
+    QTest::newRow("connected") << true << true << true << true;
+    QTest::newRow("vault-failed") << false << true << true << true;
+    QTest::newRow("marker-failed") << true << false << true << true;
+    QTest::newRow("state-failed") << true << true << false << true;
+    QTest::newRow("identity-failed") << true << true << true << false;
+}
+
+void tst_stremio_sync::browserCompletionWaitsForDurableLink() {
+    QFETCH(bool, vaultOk);
+    QFETCH(bool, markerOk);
+    QFETCH(bool, stateOk);
+    QFETCH(bool, identityOk);
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-browser-completion"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    const QString path = QDir(temp.path()).filePath(QStringLiteral("stremio-sync.json"));
+    QUrl login;
+    QByteArray savedKey;
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.browserOpener = [&login](const QUrl &url) { login = url; };
+    options.saveCredential = [&](const QString &, const QString &, const QByteArray &key) {
+        if (vaultOk) savedKey = key;
+        return vaultOk;
+    };
+    options.clearCredential = [&](const QString &) { savedKey.clear(); return true; };
+    options.loadCredential = [&](const QString &, const QString &) -> std::optional<QByteArray> {
+        return savedKey.isEmpty() ? std::nullopt : std::optional<QByteArray>(savedKey);
+    };
+    StremioSync sync(options);
+    connect(&sync, &StremioSync::profileLinkValidated, &sync, [&](const QString &) {
+        sync.setMarkerLinked(markerOk);
+    });
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    QVERIFY(sync.startBrowserAuthentication());
+    const QUrl callback(QUrlQuery(login).queryItemValue(QStringLiteral("appCallback")));
+    QTcpSocket browser;
+    QByteArray page;
+    connect(&browser, &QTcpSocket::readyRead, &browser, [&] { page += browser.readAll(); });
+    browser.connectToHost(callback.host(), quint16(callback.port()));
+    QVERIFY(browser.waitForConnected(2000));
+    browser.write("GET " + callback.path().toUtf8()
+        + "?key=fixture-auth-key HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n");
+    QVERIFY(browser.waitForBytesWritten(2000));
+    QTRY_VERIFY(!api.request().isEmpty());
+    QVERIFY2(!page.contains("Sign-in complete"), "Browser claimed success before getUser or persistence");
+    QVERIFY(!sync.linkedAccount());
+    if (!stateOk) QVERIFY(QDir().mkpath(path));
+    if (identityOk) api.replyIdentity();
+    else api.replyRaw("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
+    QTRY_VERIFY(!page.isEmpty());
+    QTRY_VERIFY(sync.status() != QStringLiteral("connecting"));
+    QCOMPARE(page.contains("Sign-in complete"), vaultOk && markerOk && stateOk && identityOk);
+    QCOMPARE(sync.linkedAccount(), vaultOk && markerOk && stateOk && identityOk);
+    if (vaultOk && markerOk && stateOk && identityOk) {
+        QCOMPARE(sync.status(), QStringLiteral("synced"));
+        StremioState inspector;
+        const auto state = inspector.load(path);
+        QVERIFY(state && state->accountId == QStringLiteral("fixture-account"));
+        StremioSync reopened(options);
+        QVERIFY(reopened.activateProfile(QStringLiteral("local"), path, false));
+        reopened.setMarkerLinked(true);
+        QVERIFY(reopened.linkedAccount());
+        QCOMPARE(reopened.status(), QStringLiteral("synced"));
+    } else {
+        QVERIFY(savedKey.isEmpty());
+        QVERIFY(!sync.lastResultSummary().isEmpty());
+        if (!stateOk) {
+            auto *writer = sync.findChild<StremioState *>(QStringLiteral("stremioState"));
+            QVERIFY(writer);
+            writer->flush();
+            QVERIFY(QDir().rmdir(path));
+        }
+        vaultOk = markerOk = stateOk = identityOk = true;
+        const qsizetype priorRequests = api.request().size();
+        QVERIFY(sync.startBrowserAuthentication());
+        QVERIFY(sendLoopbackCallback(login, QByteArrayLiteral("fixture-auth-key")));
+        QTRY_VERIFY(api.request().size() > priorRequests);
+        api.replyIdentity();
+        QTRY_COMPARE(sync.status(), QStringLiteral("synced"));
+        QVERIFY(sync.linkedAccount());
+    }
+}
+
+void tst_stremio_sync::connectFailureExplainsWhyBrowserDidNotOpen() {
+    QTemporaryDir temp;
+    bool opened = false;
+    StremioSyncOptions options;
+    options.apiEndpoint = QUrl(QStringLiteral("https://unrelated.invalid/api"));
+    options.browserOpener = [&](const QUrl &) { opened = true; };
+    StremioSync sync(options);
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), temp.filePath("state.json"), false));
+    QVERIFY(!sync.connectAccount());
+    QVERIFY(!opened);
+    QVERIFY(!sync.lastResultSummary().isEmpty());
+    QCOMPARE(sync.status(), QStringLiteral("notConnected"));
+}
+
+void tst_stremio_sync::failedReauthenticationPreservesExistingLink_data() {
+    QTest::addColumn<QString>("failure");
+    QTest::newRow("identity") << QStringLiteral("identity");
+    QTest::newRow("different-account") << QStringLiteral("different-account");
+    QTest::newRow("vault") << QStringLiteral("vault");
+    QTest::newRow("cancel-after-vault-write") << QStringLiteral("cancel");
+}
+
+void tst_stremio_sync::failedReauthenticationPreservesExistingLink() {
+    QFETCH(QString, failure);
+    ScopedEnvironmentVariable tag("COLOSSEUM_APPDATA_TAG", QByteArrayLiteral("stremio-reauth-preservation"));
+    FixtureStremioApi api;
+    QVERIFY(api.listen());
+    QTemporaryDir temp;
+    const QString path = temp.filePath("state.json");
+    StremioPersistentState existing;
+    existing.profileId = QStringLiteral("local");
+    existing.accountId = QStringLiteral("fixture-account");
+    existing.displayName = QStringLiteral("Original connection");
+    {
+        StremioState writer;
+        QSignalSpy committed(&writer, &StremioState::persistenceCommitted);
+        writer.saveAsync(path, existing);
+        QTRY_COMPARE(committed.count(), 1);
+    }
+    QByteArray savedKey = QByteArrayLiteral("original-key");
+    QUrl login;
+    StremioSync *active = nullptr;
+    StremioSyncOptions options;
+    options.apiEndpoint = api.endpoint();
+    options.allowTaggedLoopbackFixture = true;
+    options.browserOpener = [&](const QUrl &url) { login = url; };
+    options.loadCredential = [&](const QString &, const QString &) -> std::optional<QByteArray> { return savedKey; };
+    options.saveCredential = [&](const QString &, const QString &, const QByteArray &key) {
+        if (failure == QStringLiteral("vault")) return false;
+        savedKey = key;
+        if (failure == QStringLiteral("cancel") && key == QByteArrayLiteral("replacement-key"))
+            QTimer::singleShot(0, active, [active] { active->cancelAuthentication(); });
+        return true;
+    };
+    options.clearCredential = [&](const QString &) { savedKey.clear(); return true; };
+    StremioSync sync(options);
+    active = &sync;
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    QVERIFY(sync.startBrowserAuthentication());
+    QVERIFY(sendLoopbackCallback(login, QByteArrayLiteral("replacement-key")));
+    QTRY_VERIFY(!api.request().isEmpty());
+    if (failure == QStringLiteral("identity"))
+        api.replyRaw("HTTP/1.1 200 OK\r\nContent-Length: 2\r\nConnection: close\r\n\r\n{}");
+    else
+        api.replyIdentity(failure == QStringLiteral("different-account")
+            ? QStringLiteral("other-account") : QStringLiteral("fixture-account"));
+    QTRY_VERIFY(sync.status() != QStringLiteral("connecting"));
+    QCOMPARE(savedKey, QByteArrayLiteral("original-key"));
+    QVERIFY(sync.linkedAccount());
+    QCOMPARE(sync.status(), QStringLiteral("synced"));
+    QCOMPARE(sync.accountDisplayName(), QStringLiteral("Original connection"));
+    sync.deactivateProfile();
+    QVERIFY(sync.activateProfile(QStringLiteral("local"), path, false));
+    sync.setMarkerLinked(true);
+    QCOMPARE(sync.status(), QStringLiteral("synced"));
 }
 
 void tst_stremio_sync::intentDispatchWaitsForJournalAndReceipt() {

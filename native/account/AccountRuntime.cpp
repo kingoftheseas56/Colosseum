@@ -695,11 +695,17 @@ AccountRuntime::AccountRuntime(
         &StremioSync::profileLinkValidated,
         this,
         [this](const QString &profileId) {
-            ProfilePreferencesStore *preferences = m_profileStores.preferencesStore();
+            const QPointer<ProfilePreferencesStore> preferences = m_profileStores.preferencesStore();
             const bool currentProfile = preferences
                 && m_profileStores.activeProfile().profileId() == profileId;
-            const bool persisted = currentProfile
-                && preferences->setMainSyncProvider(QStringLiteral("stremio"));
+            if (!currentProfile || m_stremioSync.activeProfileId() != profileId)
+                return;
+            const bool persisted = preferences->setMainSyncProvider(QStringLiteral("stremio"));
+            if (!preferences || preferences != m_profileStores.preferencesStore()
+                || m_profileStores.activeProfile().profileId() != profileId
+                || m_stremioSync.activeProfileId() != profileId) {
+                return;
+            }
             m_stremioSync.setMarkerLinked(
                 persisted && preferences->mainSyncProvider() == QStringLiteral("stremio"));
             if (persisted) {

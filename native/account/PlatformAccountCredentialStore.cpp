@@ -256,8 +256,20 @@ bool PlatformAccountCredentialStore::saveStremio(const StoredStremioCredential &
         || credential.authKey.isEmpty()) {
         return false;
     }
-    return writeGenericCredential(
-        stremioTargetName(credential.profileId), encodeStremioCredential(credential));
+    const QString target = stremioTargetName(credential.profileId);
+    const QByteArray blob = encodeStremioCredential(credential);
+    const auto previous = readGenericCredential(target);
+    if (!writeGenericCredential(target, blob))
+        return false;
+    if (readGenericCredential(target) == std::optional<QByteArray>(blob))
+        return true;
+    // A successful backend write is insufficient if the credential cannot be
+    // reopened. Retain the previous credential when reconnecting an account.
+    if (previous)
+        writeGenericCredential(target, *previous);
+    else
+        deleteGenericCredential(target);
+    return false;
 }
 
 bool PlatformAccountCredentialStore::clearStremio(const QString &profileId) {
@@ -319,9 +331,10 @@ QString PlatformAccountCredentialStore::deletionTargetName(const QString &reques
 bool PlatformAccountCredentialStore::validStremioProfileId(const QString &profileId) {
     const QString normalized = profileId.trimmed();
     const QUuid parsed(normalized);
-    return normalized == QStringLiteral("local")
-        || (!parsed.isNull()
-            && normalized == parsed.toString(QUuid::WithoutBraces).toLower());
+    return normalized == profileId
+        && (normalized == QStringLiteral("local") || normalized == QStringLiteral("legacy")
+            || (!parsed.isNull()
+                && normalized == parsed.toString(QUuid::WithoutBraces).toLower()));
 }
 
 bool PlatformAccountCredentialStore::validStremioAccountId(const QString &accountId) {
