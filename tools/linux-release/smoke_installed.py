@@ -125,15 +125,18 @@ def prove_gtk_picker(address, process, output, identity):
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 raise RuntimeError(f'Application exited before GTK picker: {process.returncode}')
-            matches = xdotool('search', '--onlyvisible', '--pid', process.pid,
+            matches = xdotool('search', '--all', '--onlyvisible', '--pid', process.pid,
                               '--name', '^Colosseum.*', allow_no_match=True).splitlines()
             for window in matches:
+                title = xdotool('getwindowname', window)
+                if not title.startswith('Colosseum'):
+                    continue
                 geometry = dict(line.split('=', 1) for line in
                                 xdotool('getwindowgeometry', '--shell', window).splitlines()
                                 if '=' in line)
                 if int(geometry.get('WIDTH', 0)) > 0 and int(geometry.get('HEIGHT', 0)) > 0:
                     main_window = window
-                    proof['main_window'] = {'window': window, 'geometry': geometry}
+                    proof['main_window'] = {'window': window, 'title': title, 'geometry': geometry}
                     break
             if main_window:
                 break
@@ -147,15 +150,20 @@ def prove_gtk_picker(address, process, output, identity):
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 raise RuntimeError(f'Application exited opening GTK picker: {process.returncode}')
-            matches = xdotool('search', '--onlyvisible', '--pid', process.pid,
+            matches = xdotool('search', '--all', '--onlyvisible', '--pid', process.pid,
                               '--name', '^Open Media$', allow_no_match=True).splitlines()
             for window in matches:
+                if window == main_window:
+                    continue
+                title = xdotool('getwindowname', window)
+                if title != 'Open Media':
+                    continue
                 geometry = dict(line.split('=', 1) for line in
                                 xdotool('getwindowgeometry', '--shell', window).splitlines()
                                 if '=' in line)
                 if int(geometry.get('WIDTH', 0)) > 0 and int(geometry.get('HEIGHT', 0)) > 0:
                     chooser = window
-                    proof['chooser'] = {'window': window, 'geometry': geometry}
+                    proof['chooser'] = {'window': window, 'title': title, 'geometry': geometry}
                     break
             if chooser:
                 proof['opened'] = True
@@ -172,7 +180,7 @@ def prove_gtk_picker(address, process, output, identity):
         while time.monotonic() < deadline:
             if process.poll() is not None:
                 raise RuntimeError(f'Application exited cancelling GTK picker: {process.returncode}')
-            visible = xdotool('search', '--onlyvisible', '--pid', process.pid,
+            visible = xdotool('search', '--all', '--onlyvisible', '--pid', process.pid,
                               '--name', '.*', allow_no_match=True).splitlines()
             if chooser not in visible:
                 proof['cancelled'] = True
@@ -180,6 +188,7 @@ def prove_gtk_picker(address, process, output, identity):
             time.sleep(0.2)
         else:
             raise RuntimeError('Native GTK chooser did not close on Escape')
+        xdotool('windowfocus', '--sync', main_window)
         state = command(address, 'get-state')
         if process.poll() is not None or not any(w.get('visible') for w in state.get('windows', [])):
             raise RuntimeError('Application unavailable after native picker cancellation')

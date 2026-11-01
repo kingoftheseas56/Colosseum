@@ -2,6 +2,22 @@ name: Linux Debian installer candidate
 
 on:
   workflow_dispatch:
+    inputs:
+      receive_run_id:
+        description: Existing Linux candidate run to qualify without rebuilding (empty builds normally)
+        required: false
+        default: ''
+        type: string
+      receive_source_sha:
+        description: Required exact application source commit in receive-only mode
+        required: false
+        default: ''
+        type: string
+      receive_sha256:
+        description: Required exact DEB SHA256 in receive-only mode
+        required: false
+        default: ''
+        type: string
   push:
     branches: ['codex/120-linux-deb-*']
     paths:
@@ -17,9 +33,11 @@ on:
 
 permissions:
   contents: read
+  actions: read
 
 jobs:
   build:
+    if: inputs.receive_run_id == ''
     runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
@@ -151,6 +169,7 @@ jobs:
 
   installed-smoke:
     needs: build
+    if: ${{ always() && (needs.build.result == 'success' || (needs.build.result == 'skipped' && inputs.receive_run_id != '')) }}
     runs-on: ubuntu-24.04
     name: Installed smoke (${{ matrix.label }})
     strategy:
@@ -169,12 +188,18 @@ jobs:
         with:
           name: Colosseum-1.2.0-linux-deb-candidate
           path: package
+          run-id: ${{ inputs.receive_run_id || github.run_id }}
+          github-token: ${{ github.token }}
       - name: Install on clean Linux without a Qt SDK
         env:
           DEBIAN_FRONTEND: noninteractive
+          RECEIVE_RUN_ID: ${{ inputs.receive_run_id }}
+          EXPECTED_SOURCE_SHA: ${{ inputs.receive_source_sha || github.sha }}
+          EXPECTED_DEB_SHA256: ${{ inputs.receive_sha256 }}
+          QUALIFICATION_SOURCE_SHA: ${{ github.sha }}
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends python3 xvfb xauth desktop-file-utils libgl1-mesa-dri libglx-mesa0 xdotool librsvg2-common adwaita-icon-theme
+          apt-get install -y --no-install-recommends python3 xvfb xauth desktop-file-utils libgl1-mesa-dri libglx-mesa0 xdotool librsvg2-common adwaita-icon-theme dbus
           # Trust-prerequisite probe: record whether the clean container has any
           # system CA store before the package installs, so the after-install
           # state proves the Debian dependency (not a recommendation) supplied it.
@@ -182,8 +207,28 @@ jobs:
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/ca-certificates-before.txt
           dpkg-query -W -f='${db:Status-Abbrev}' libgtk-3-common > /tmp/installed-receipts/gtk-schemas-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/gtk-schemas-before.txt
           cd package
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          expected = os.environ['EXPECTED_SOURCE_SHA']
+          received = os.environ.get('RECEIVE_RUN_ID', '')
+          if not re.fullmatch('[0-9a-f]{40}', expected):
+              raise SystemExit('Exact application source commit required')
+          if received and (not re.fullmatch('[0-9]+', received) or not re.fullmatch('[0-9a-f]{64}', os.environ.get('EXPECTED_DEB_SHA256', ''))):
+              raise SystemExit('Receive-only qualification requires exact run ID and DEB digest')
+          identity = json.loads(Path('BUILD-IDENTITY.json').read_text())
+          if identity['source_commit'] != expected:
+              raise SystemExit('Received candidate source does not match the requested pin')
+          receipt = {'application_source_commit': expected, 'qualification_source_commit': os.environ['QUALIFICATION_SOURCE_SHA'],
+                     'received_build_run': received or None, 'expected_deb_sha256': os.environ.get('EXPECTED_DEB_SHA256') or None}
+          Path('/tmp/installed-receipts/qualification-identity.json').write_text(json.dumps(receipt, indent=2) + '\n')
+          PY
           sha256sum --check --strict Colosseum-1.2.0-linux-amd64.deb.sha256
+          if [ -n "$RECEIVE_RUN_ID" ]; then
+            printf '%s  %s\n' "$EXPECTED_DEB_SHA256" 'Colosseum-1.2.0-linux-amd64.deb' | sha256sum --check --strict
+          fi
           apt-get install -y --no-install-recommends ./Colosseum-1.2.0-linux-amd64.deb
+          python3 -c 'import json,os; from pathlib import Path; assert json.loads(Path("/opt/colosseum/BUILD-IDENTITY.json").read_text())["source_commit"] == os.environ["EXPECTED_SOURCE_SHA"], "Installed source pin mismatch"'
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-after.txt
           test "$(cat /tmp/installed-receipts/ca-certificates-after.txt)" = 'ii '
           test -s /etc/ssl/certs/ca-certificates.crt
@@ -198,11 +243,11 @@ jobs:
           useradd --create-home --shell /bin/bash package-test
           mkdir -p /tmp/installed-receipts
           chown package-test:package-test /tmp/installed-receipts
-          runuser -u package-test -- xvfb-run -a -s '-screen 0 1920x1080x24' \
+          runuser -u package-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
             python3 tools/linux-release/smoke_installed.py --platform-theme gtk3 --output /tmp/installed-receipts
       - name: Play a checked-in local fixture through installed Player 1
         run: |
-          runuser -u package-test -- xvfb-run -a -s '-screen 0 1920x1080x24' \
+          runuser -u package-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' \
             python3 tools/linux-release/smoke_installed_player.py \
               --fixture "$GITHUB_WORKSPACE/tests/lanista_capture/assets/Colosseum.mp4" \
               --output /tmp/installed-receipts
