@@ -1564,7 +1564,36 @@ Item {
         root.maybeHydrateContext()
     }
 
+    // A failed local source is unloaded, not merely paused. Only an explicit
+    // Retry/Play or warm-session activation may re-admit it; never auto-loop it.
+    function retryFailedLocalPlayback(forcePlay) {
+        if (!root.errored || root.starting || !root.mediaLocalPath.length)
+            return false
+        if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
+            return false
+        root.prepareRecoveryResume()
+        root.requestAudioPlayback()
+        if (forcePlay) root.recoveryResumePaused = false
+        root.cancelUpNext()
+        root.autoPausedInactive = false
+        root.resumeChoiceOpen = false
+        root.resumeChoiceSec = -1
+        root.errored = false
+        root.starting = true
+        root.fileReady = false
+        root.statusMsg = "Opening..."
+        root.currentPlaybackUrl = root.mediaLocalPath
+        root.activeDirectHeaders = ({})
+        root.resetRecoveryWatch()
+        streamWatchdog.restart()
+        root.reloadActiveDirectSource()
+        root.wakeChrome()
+        return true
+    }
+
     function retryCurrentStream() {
+        if (root.errored && root.mediaLocalPath && root.retryFailedLocalPlayback())
+            return
         if (root.currentStreamIndex < 0 || root.currentStreamIndex >= root.streamCandidates.length)
             return
         var c = root.streamCandidates[root.currentStreamIndex] || ({})
@@ -1752,7 +1781,7 @@ Item {
             // A local file has no retry ladder or alternate candidates — fail honestly.
             root.errored = true
             root.starting = false
-            root.statusMsg = "Couldn't play this file. It may have been moved or deleted."
+            root.statusMsg = "Couldn't play this file. Check the file and audio output, then try again."
             root.wakeChrome()
             return
         }
@@ -2857,6 +2886,9 @@ Item {
         }
     }
     function resumeFromMinimize() {
+        if (root.errored && root.mediaLocalPath
+                && root.retryFailedLocalPlayback(root.autoPausedInactive || root.audioHandoffPaused))
+            return
         if (root.replayEndedPlayback())
             return
         if (root.audioHandoffPaused) {
@@ -3312,6 +3344,8 @@ Item {
         return true
     }
     function togglePlayPause() {
+        if (root.errored && root.mediaLocalPath && root.retryFailedLocalPlayback(true))
+            return
         if (!root.starting && !root.errored) {
             if (typeof WatchPartySync !== "undefined" && WatchPartySync.active) {
                 if (mpv.pause) root.requestAudioPlayback()
