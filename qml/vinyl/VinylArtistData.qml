@@ -29,6 +29,8 @@ QtObject {
     readonly property var releases: Catalogue.releases(record, filter, newestFirst)
     readonly property var releaseHistory: Catalogue.releaseHistory(record, singles, 4)
     readonly property var media: Catalogue.mediaForArtist(mediaCatalogue, record.name)
+    readonly property var popularSongs: Catalogue.sourcedPopularSongs(record, media.popularSongs)
+    readonly property string popularSource: popularSongs.length ? media.provider : ""
     readonly property var libraryReleases: Catalogue.libraryReleases(record, singles, libraryRecord)
     readonly property var albumCards: Catalogue.releaseCards(releases)
     readonly property var singleCards: Catalogue.releaseCards(singles)
@@ -40,18 +42,15 @@ QtObject {
             if (!seen[s.album.id]) { first.push(s); seen[s.album.id] = true; }
             else rest.push(s);
         });
-        if (name === "Eminem") {
-            var picks = ["Without Me", "Mockingbird", "Not Afraid", "Houdini", "Stan"];
-            var chosen = [];
-            picks.forEach(function(title) {
-                var match = record.songs.find(function(s) { return s.track.title === title || s.track.title.indexOf(title + " (") === 0; });
-                if (match) chosen.push(match);
-            });
-            return chosen.concat(first.concat(rest).filter(function(s) { return chosen.indexOf(s) < 0; }));
-        }
+        // Provider-sourced popular songs are projected separately; unranked
+        // catalogue songs use the same collection-first order for every artist.
         return first.concat(rest);
     }
     readonly property var songs: allSongs ? songOrder : songOrder.slice(0, 5)
+    readonly property var songCards: songOrder.map(function(song) {
+        return {title:song.track.title, subtitle:song.album.title,
+            cover:song.album.cover, song:song};
+    })
     // Only user-created session playlists belong here. Provider playlists have
     // their own sourced records and must not be synthesized from selected songs.
     readonly property var playlists: customPlaylists.filter(function(p) { return p.artist === root.record.name; })

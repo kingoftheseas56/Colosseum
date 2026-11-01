@@ -83,7 +83,7 @@ function releaseHistory(record, singles, limit) {
 function mediaForArtist(catalogue, name) {
     var source = (catalogue || {})[name];
     var result = {portrait:{cover:""}, videos:[], livePerformances:[],
-        featuredPlaylists:[], artistPlaylists:[], relatedArtists:[], provider:"", sourceUrl:""};
+        featuredPlaylists:[], artistPlaylists:[], relatedArtists:[], popularSongs:[], provider:"", sourceUrl:""};
     function sourced(value) {
         return value && typeof value.sourceUrl === "string" && /^https:\/\/[^\s/]+\//.test(value.sourceUrl);
     }
@@ -94,7 +94,7 @@ function mediaForArtist(catalogue, name) {
     result.sourceUrl = source.sourceUrl;
     if (sourced(source.portrait) && typeof source.portrait.cover === "string" && source.portrait.cover)
         result.portrait = {cover:source.portrait.cover, sourceUrl:source.portrait.sourceUrl};
-    ["videos", "livePerformances", "featuredPlaylists", "artistPlaylists", "relatedArtists"].forEach(function(key) {
+    ["videos", "livePerformances", "featuredPlaylists", "artistPlaylists", "relatedArtists", "popularSongs"].forEach(function(key) {
         var seen = Object.create(null);
         result[key] = (Array.isArray(source[key]) ? source[key] : []).filter(function(item) {
             if (!sourced(item) || typeof item.id !== "string" || !item.id.trim()
@@ -103,7 +103,8 @@ function mediaForArtist(catalogue, name) {
             return true;
         }).map(function(item) {
             return {id:item.id, title:item.title, cover:typeof item.cover === "string" ? item.cover : "",
-                subtitle:typeof item.subtitle === "string" && item.subtitle ? item.subtitle : source.provider, provider:source.provider,
+                subtitle:typeof item.subtitle === "string" && item.subtitle ? item.subtitle : source.provider,
+                provider:source.provider, albumTitle:typeof item.albumTitle === "string" ? item.albumTitle : "",
                 sourceUrl:item.sourceUrl, snapshotAt:source.snapshotAt || "", kind:key};
         });
     });
@@ -118,6 +119,26 @@ function releaseCards(records) {
         return {id:album.id, title:album.title, cover:album.cover || "", album:album,
             subtitle:[Number.isInteger(year) && year > 0 ? String(year) : "", type].filter(Boolean).join(" · ")};
     });
+}
+
+// A provider's ordered artist-song shelf is not a local popularity algorithm.
+// Only exact titles that also exist in the artist's credited catalogue are playable.
+function sourcedPopularSongs(record, providerSongs) {
+    var result = [], seen = Object.create(null);
+    (providerSongs || []).forEach(function(item) {
+        var title = item.title.trim().toLocaleLowerCase();
+        var matches = (record.songs || []).filter(function(song) {
+            return song.track && String(song.track.title || "").trim().toLocaleLowerCase() === title;
+        });
+        var preferred = matches.find(function(song) {
+            return item.albumTitle && String(song.album.title).trim().toLocaleLowerCase()
+                === item.albumTitle.trim().toLocaleLowerCase();
+        }) || matches[0];
+        if (!preferred || seen[title]) return;
+        seen[title] = true;
+        result.push(preferred);
+    });
+    return result;
 }
 
 function libraryReleases(record, singles, profile) {

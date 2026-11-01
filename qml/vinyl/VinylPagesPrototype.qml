@@ -35,6 +35,7 @@ Window {
         var trail = artistTrail.slice();
         trail.push({page: root.page, name: artistData.name, filter: artistData.filter,
             newestFirst: artistData.newestFirst, allSongs: artistData.allSongs,
+            category: artistPage.selectedCategory, sectionReturn: artistPage.sectionReturnY,
             y: artistPage.contentY, snapshot: pageData.snapshotEdition,
             edition: pageData.shownEditionId, disc: pageData.shownDisc,
             albumReturn: albumReturnPage, songReturn: songReturnPage,
@@ -52,6 +53,8 @@ Window {
         artistData.filter = previous.filter;
         artistData.newestFirst = previous.newestFirst;
         artistData.allSongs = previous.allSongs;
+        artistPage.selectedCategory = previous.category || "";
+        artistPage.sectionReturnY = previous.sectionReturn || 0;
         pageData.snapshotEdition = previous.snapshot;
         pageData.shownEditionId = previous.edition;
         pageData.shownDisc = previous.disc;
@@ -166,7 +169,14 @@ Window {
             objectName: "vinylAlbumBack"
             accessibleName: "Back"
             onTriggered: {
-                if (root.page === "artist") { root.artistBack(); return; }
+                if (root.page === "artist") {
+                    if (artistPage.selectedCategory.length > 0) {
+                        artistPage.closeCategory();
+                        return;
+                    }
+                    root.artistBack();
+                    return;
+                }
                 root.page=root.albumReturnPage;
                 Qt.callLater(function(){worldScroll.contentY=root.worldReturnY});
             }
@@ -244,6 +254,7 @@ Window {
         }
         artistData: artistData
         worldData: worldData
+        backdrop: backdrop
         visible: root.page === "artist"
         onArtistRequested: name => root.openArtist(name)
         onAlbumRequested: record => root.openArtistAlbum(record)

@@ -155,45 +155,41 @@ TestCase {
         host.artistData.open("S. P. Balasubrahmanyam");
         compare(host.artistData.context.history, "");
         verify(host.artistData.releaseHistory.length > 0);
-        verify(item("vinylArtistNav_4").visible);
-        var release = host.artistData.releaseHistory[0].album;
-        item("vinylArtistHistory_0").activate();
+        verify(item("vinylArtistHistory_0") === null);
+        verify(item("vinylArtistAbout") === null);
+        item("vinylArtistSeeAll_albums").activate();
+        compare(host.artistScroll.selectedCategory, "albums");
+        var selected = host.artistData.albumCards[0].album;
+        item("vinylArtistFullCategory_0").activate();
         compare(host.page, "album");
-        compare(host.pageData.shownEdition.name, release.title);
+        compare(host.pageData.shownEdition.name, selected.title);
     }
     function test_eminemSectionsPlaylistAndSingleRoundTrip() {
         host.artistData.open("Eminem");
-        compare(host.artistData.record.name, "Eminem");
         verify(host.artistData.releases.length >= 6);
         compare(host.artistData.singles.length, 3);
-        verify(host.artistData.context.history.length > 0);
         compare(host.artistData.releaseHistory.length, 4);
         compare(Number(host.artistData.releaseHistory[0].album.year), 2002);
-        compare(host.artistData.songs[0].track.title, "Without Me");
+        verify(item("vinylArtistHistory_0") === null);
         verify(!host.artistData.createPlaylist("   "));
         verify(host.artistData.createPlaylist("My Eminem mix"));
         compare(host.artistData.playlists.length, 1);
         compare(host.artistData.playlists[0].songs.length, 5);
-        item("vinylArtistPlaylist_0").activate();
-        tryVerify(function() { return item("vinylArtistPlaylistSong_0") !== null; });
-        var selected = host.artistData.playlists[0].songs[0];
-        mouseClick(item("vinylArtistPlaylistSong_0"));
-        compare(host.pageData.playingTrack.title, selected.track.title);
-        item("vinylArtistNav_4").activate();
-        verify(host.artistScroll.contentY > 0);
-        var oldY = host.artistScroll.contentY;
-        var firstHistory = host.artistData.releaseHistory[0].album;
-        item("vinylArtistHistory_0").activate();
-        compare(host.pageData.shownEdition.name, firstHistory.title);
-        item("vinylAlbumBack").activate();
-        compare(host.page, "artist");
-        compare(host.artistScroll.contentY, oldY);
-        item("vinylArtistSingle_0").activate();
+        verify(item("vinylArtistPlaylist_0") === null);
+        var playing = host.pageData.playingEditionId;
+        host.artistScroll.contentY = 180;
+        item("vinylArtistSeeAll_singles").activate();
+        compare(host.artistScroll.selectedCategory, "singles");
+        var first = host.artistData.singleCards[0].album;
+        item("vinylArtistFullCategory_0").activate();
         compare(host.page, "album");
-        compare(host.pageData.shownEdition.name, "Somebody Save Me");
+        compare(host.pageData.shownEdition.name, first.title);
         item("vinylAlbumBack").activate();
         compare(host.page, "artist");
-        compare(host.artistScroll.contentY, oldY);
+        compare(host.artistScroll.selectedCategory, "singles");
+        item("vinylArtistFullBack").activate();
+        tryCompare(host.artistScroll, "contentY", 180);
+        compare(host.pageData.playingEditionId, playing);
         host.artistData.open("Joni Mitchell");
         compare(host.artistData.playlists.length, 0);
         compare(host.artistData.releaseHistory.length, 1);
@@ -202,7 +198,6 @@ TestCase {
     }
     function test_referenceBreadthIsDataGated() {
         host.artistData.open("Eminem");
-        verify(host.artistData.media !== undefined, "Artist media projection must exist");
         verify(host.artistData.media.videos.length >= 3);
         verify(host.artistData.media.relatedArtists.length >= 3);
         verify(host.artistData.media.portrait.cover.length > 0);
@@ -210,13 +205,13 @@ TestCase {
         compare(host.artistData.media.featuredPlaylists.length, 0);
         compare(host.artistData.media.artistPlaylists.length, 0);
         compare(host.artistData.playlists.length, 0);
-        verify(!item("vinylArtistLiveSection").visible);
-        verify(!item("vinylArtistFeaturedSection").visible);
-        verify(!item("vinylArtistArtistPlaylistsSection").visible);
-        verify(!item("vinylArtistLibrarySection").visible);
+        verify(item("vinylArtistLiveSection") === null);
+        verify(item("vinylArtistFeaturedSection") === null);
+        verify(item("vinylArtistArtistPlaylistsSection") === null);
+        verify(item("vinylArtistLibrarySection") === null);
         var playing = host.pageData.playingEditionId;
         item("vinylArtistVideo_0").activate();
-        tryVerify(function() { return item("vinylArtistMediaSource").visible; });
+        tryVerify(function() { return item("vinylArtistMediaSource") !== null; });
         compare(item("vinylArtistMediaSource").accessibleDescription, host.artistData.media.videos[0].sourceUrl);
         compare(host.pageData.playingEditionId, playing);
         keyClick(Qt.Key_Escape);
@@ -233,31 +228,24 @@ TestCase {
             livePerformances:[null,{},record],featuredPlaylists:[record],artistPlaylists:[record],
             videos:[{id:"unsafe",title:"Unsafe",sourceUrl:"javascript:void(0)"}]
         }};
-        verify(host.artistData.media !== undefined);
         compare(host.artistData.media.livePerformances.length, 1);
         compare(host.artistData.media.videos.length, 0);
-        verify(item("vinylArtistLiveSection").visible);
-        verify(item("vinylArtistFeaturedSection").visible);
-        verify(item("vinylArtistArtistPlaylistsSection").visible);
-        item("vinylArtistLive_0").activate();
-        compare(item("vinylArtistMediaSource").accessibleDescription, record.sourceUrl);
-        keyClick(Qt.Key_Escape);
-        tryVerify(function() { var source = item("vinylArtistMediaSource"); return !source || !source.visible; });
+        verify(item("vinylArtistLiveSection") === null);
+        verify(item("vinylArtistFeaturedSection") === null);
+        verify(item("vinylArtistArtistPlaylistsSection") === null);
+        compare(item("vinylArtistRowIndexSidebar").automationRows, "");
         host.artistData.open("Uncatalogued artist");
         compare(host.artistData.media.livePerformances.length, 0);
-        verify(!item("vinylArtistLiveSection").visible);
+        verify(item("vinylArtistLiveSection") === null);
     }
     function test_libraryProjectsExistingProfileWithoutCrossArtistLeak() {
         var album = host.artistData.record.releases[0].album;
         var catalogue = Object.assign({}, host.worldData.catalogue);
         catalogue.profiles = {new:{saved:[album.id,"unknown-id"],history:[]}};
         host.worldData.catalogue = catalogue;
-        verify(host.artistData.libraryReleases !== undefined);
         compare(host.artistData.libraryReleases.length, 1);
         compare(host.artistData.libraryReleases[0].album.id, album.id);
-        verify(item("vinylArtistLibrarySection").visible);
-        item("vinylArtistLibrary_0").activate();
-        compare(host.pageData.shownEditionId, album.id);
+        verify(item("vinylArtistLibrarySection") === null);
         host.artistData.open("Uncatalogued artist");
         compare(host.artistData.libraryReleases.length, 0);
     }
@@ -265,16 +253,20 @@ TestCase {
         host.artistData.open("Eminem");
         host.width = 960;
         wait(50);
-        var shelf = item("vinylArtistAlbumsSection");
-        verify(shelf !== null);
-        compare(shelf.expanded, false);
-        item("vinylArtistAlbumMore").activate();
-        compare(shelf.expanded, true);
-        host.width = 960;
-        wait(50);
+        var sidebar = item("vinylArtistRowIndexSidebar");
+        var albums = item("vinylArtistAlbumsSection");
+        verify(albums !== null);
+        compare(albums.width, host.artistScroll.bodyWidth - sidebar.contentLeft);
+        var rail = item("vinylArtistAlbumRail");
+        verify(rail.contentWidth > rail.width);
         var songs = item("vinylArtistSongsSection");
-        verify(songs.width >= host.artistScroll.bodyWidth - 1);
+        compare(songs.width, albums.width);
         verify(item("vinylArtistSongAlbum_0").width > 150);
+        item("vinylArtistSeeAll_albums").activate();
+        compare(host.artistScroll.selectedCategory, "albums");
+        verify(item("vinylArtistFullCategory_0").width < host.artistScroll.bodyWidth);
+        item("vinylArtistFullBack").activate();
+        tryCompare(host.artistScroll, "selectedCategory", "");
     }
     function test_provenanceAndUnknownMetricsAreNotPromoted() {
         var source = {name:"Artist",provider:"Catalogue",sourceUrl:"https://example.test/artist",
@@ -317,22 +309,152 @@ TestCase {
         keyClick(Qt.Key_Escape);
         tryVerify(function() { var source = item("vinylArtistMediaSource"); return !source || !source.visible; });
     }
+    function test_classicSidebarHasOnlySourcedCategories() {
+        host.artistData.open("Eminem");
+        var sidebar = item("vinylArtistRowIndexSidebar");
+        verify(sidebar !== null, "Use Colosseum's existing RowIndexSidebar");
+        compare(sidebar.automationRows, ["Popular songs", "Albums", "Singles & EPs", "Videos", "Related artists"].join(String.fromCharCode(10)));
+        verify(sidebar.rows.every(function(row) {
+            return row.iconSource && row.iconSource.indexOf("data:image/svg+xml,") === 0;
+        }), "Each category uses Colosseum's sourced sidebar icon contract");
+        compare(sidebar.collapsed, true);
+        verify(item("vinylArtistRowIndexRow_songsAction") !== null);
+        verify(item("vinylArtistSeeAll_songs") !== null);
+        verify(item("vinylArtistSeeAll_albums") !== null);
+        verify(item("vinylArtistSeeAll_singles") !== null);
+        verify(item("vinylArtistSeeAll_videos") !== null);
+        verify(item("vinylArtistSeeAll_related") !== null);
+        verify(item("vinylArtistAbout") === null);
+        verify(item("vinylArtistHistory_0") === null);
+        host.artistData.open("Joni Mitchell");
+        compare(sidebar.automationRows, ["Songs", "Albums"].join(String.fromCharCode(10)));
+    }
+    function test_seeAllOpensFocusedCategoryAndRestoresScroll() {
+        host.artistData.open("Eminem");
+        var playing = host.pageData.playingEditionId;
+        host.artistScroll.contentY = 225;
+        item("vinylArtistSeeAll_albums").activate();
+        compare(host.artistScroll.selectedCategory, "albums");
+        verify(item("vinylArtistFullCategory_0") !== null);
+        verify(item("vinylArtistRowIndexSidebar").visible === false);
+        item("vinylArtistFullBack").activate();
+        compare(host.artistScroll.selectedCategory, "");
+        tryCompare(host.artistScroll, "contentY", 225);
+        compare(host.pageData.playingEditionId, playing);
+        item("vinylArtistSeeAll_songs").activate();
+        compare(host.artistScroll.selectedCategory, "songs");
+        compare(item("vinylArtistDetailTitle").text, "All songs");
+        item("vinylArtistFullBack").activate();
+        item("vinylArtistSeeAll_videos").activate();
+        compare(host.artistScroll.selectedCategory, "videos");
+        item("vinylArtistFullCategory_0").activate();
+        tryVerify(function() { return item("vinylArtistMediaSource") !== null; });
+        keyClick(Qt.Key_Escape);
+    }
+    function test_popularSongsRequireProviderRecords() {
+        host.artistData.open("Eminem");
+        compare(host.artistData.popularSource, "YouTube Music");
+        verify(host.artistData.popularSongs.length > 0);
+        compare(host.artistData.popularSongs[0].track.title, "Mockingbird");
+        compare(host.artistData.popularSongs[1].track.title, "Without Me");
+        compare(host.artistData.popularSongs.length,
+                host.artistData.popularSongs.filter(function(s) { return !!s.album && !!s.track; }).length);
+        host.artistData.open("Joni Mitchell");
+        compare(host.artistData.popularSongs.length, 0);
+        verify(!item("vinylArtistSongsSection").visible);
+        verify(item("vinylArtistUnrankedSongsSection").visible);
+        compare(item("vinylArtistUnrankedSongsSection").title, "Songs");
+        var expected = host.artistData.songOrder[0];
+        item("vinylArtistUnrankedSong_0").activate();
+        compare(host.pageData.playingTrack.title, expected.track.title);
+    }
+    function test_sidebarIsPinnedAndRailCanScrollIndependently() {
+        host.artistData.open("Eminem");
+        var sidebar = item("vinylArtistRowIndexSidebar");
+        var initialWidth = item("vinylArtistAlbumsSection").width;
+        item("vinylArtistRowIndexCollapseAction").activate();
+        compare(sidebar.collapsed, false);
+        tryVerify(function() { return item("vinylArtistAlbumsSection").width < initialWidth - 150; });
+        item("vinylArtistRowIndexRow_videosAction").activate();
+        verify(host.artistScroll.contentY > 0);
+        verify(item("vinylArtistVideosSection").visible);
+        var rail = item("vinylArtistAlbumRail");
+        verify(rail !== null);
+        verify(rail.contentWidth > rail.width);
+        var before = host.artistScroll.contentY;
+        rail.contentX = 80;
+        compare(host.artistScroll.contentY, before);
+    }
+    function test_eachSeeAllOpensItsOwnCategory() {
+        host.artistData.open("Eminem");
+        var cases = [
+            ["songs", "All songs"],
+            ["albums", "Albums"],
+            ["singles", "Singles & EPs"],
+            ["videos", "Videos"],
+            ["related", "Related artists"]
+        ];
+        for (var i = 0; i < cases.length; ++i) {
+            item("vinylArtistSeeAll_" + cases[i][0]).activate();
+            compare(host.artistScroll.selectedCategory, cases[i][0]);
+            compare(item("vinylArtistDetailTitle").text, cases[i][1]);
+            verify(item("vinylArtistFullCategory_0") !== null);
+            item("vinylArtistFullBack").activate();
+            tryCompare(host.artistScroll, "selectedCategory", "");
+        }
+    }
+    function test_relatedArtistDetailBackRestoresOriginalCategory() {
+        host.artistData.open("Eminem");
+        item("vinylArtistSeeAll_related").activate();
+        var original = host.artistData.record.name;
+        var next = host.artistData.media.relatedArtists[0].title;
+        item("vinylArtistFullCategory_0").activate();
+        compare(host.artistData.record.name, next);
+        compare(host.artistScroll.selectedCategory, "");
+        host.artistBack();
+        compare(host.artistData.record.name, original);
+        compare(host.artistScroll.selectedCategory, "related");
+        item("vinylArtistFullBack").activate();
+        tryCompare(host.artistScroll, "selectedCategory", "");
+    }
+    function test_seeAllSongsUsesColosseumCardsNotProviderRows() {
+        host.artistData.open("Eminem");
+        item("vinylArtistSeeAll_songs").activate();
+        compare(host.artistScroll.selectedCategory, "songs");
+        verify(item("vinylArtistFullSong_0") === null);
+        var tile = item("vinylArtistFullCategory_0");
+        verify(tile !== null, "All songs uses native Colosseum artwork cards");
+        var expected = host.artistData.songOrder[0];
+        tile.activate();
+        compare(host.pageData.playingTrack.title, expected.track.title);
+    }
+    function test_globalBackFromSeeAllReturnsOverview() {
+        host.artistData.open("Eminem");
+        item("vinylArtistSeeAll_videos").activate();
+        item("vinylAlbumBack").activate();
+        compare(host.page, "artist");
+        compare(host.artistScroll.selectedCategory, "");
+        verify(item("vinylArtistVideosSection").visible);
+    }
     function test_captureStates() {
         if (typeof VinylCaptureDirectory === "undefined" || !VinylCaptureDirectory)
             skip("Set VINYL_CAPTURE_DIR for visual captures");
         var cases = [
-            {name:"Eminem",width:1280,height:720,y:0,tag:"artist-1280"},
-            {name:"Eminem",width:1600,height:900,y:0,tag:"artist-1600"},
-            {name:"Eminem",width:1280,height:720,y:0,nav:1,tag:"artist-albums"},
-            {name:"Eminem",width:1280,height:720,y:0,nav:5,tag:"artist-videos"},
-            {name:"Eminem",width:1280,height:720,y:0,nav:10,tag:"artist-related"},
-            {name:"Eminem",width:960,height:720,y:0,tag:"artist-960"},
-            {name:"Eminem",width:960,height:720,y:0,nav:1,tag:"artist-albums-960"},
-            {name:"Eminem",width:960,height:720,y:0,nav:5,tag:"artist-videos-960"},
-            {name:"Ilaiyaraaja",width:960,height:720,y:0,tag:"artist-ilaiyaraaja-960"},
-            {name:"Eminem",width:1280,height:720,y:0,nav:4,tag:"artist-about"},
-            {name:"S. P. Balasubrahmanyam",width:1280,height:720,y:0,tag:"artist-credits"},
-            {name:"Joni Mitchell",width:960,height:720,y:0,tag:"artist-thin"}
+            {name:"Eminem",width:1280,height:720,tag:"artist-sidebar-1280"},
+            {name:"Eminem",width:1600,height:900,tag:"artist-sidebar-1600"},
+            {name:"Eminem",width:960,height:720,tag:"artist-sidebar-960"},
+            {name:"Eminem",width:1280,height:720,section:"songs",tag:"artist-sidebar-songs"},
+            {name:"Eminem",width:1280,height:720,section:"albums",tag:"artist-sidebar-albums"},
+            {name:"Eminem",width:1280,height:720,section:"singles",tag:"artist-sidebar-singles"},
+            {name:"Eminem",width:1280,height:720,section:"videos",tag:"artist-sidebar-videos"},
+            {name:"Eminem",width:1280,height:720,section:"related",tag:"artist-sidebar-related"},
+            {name:"Eminem",width:960,height:720,section:"albums",tag:"artist-sidebar-albums-960"},
+            {name:"Eminem",width:960,height:720,section:"videos",tag:"artist-sidebar-videos-960"},
+            {name:"Eminem",width:1280,height:720,detail:"albums",tag:"artist-sidebar-all-albums"},
+            {name:"Eminem",width:960,height:720,detail:"songs",tag:"artist-sidebar-all-songs-960"},
+            {name:"Ilaiyaraaja",width:960,height:720,tag:"artist-sidebar-ilaiyaraaja-960"},
+            {name:"S. P. Balasubrahmanyam",width:1280,height:720,tag:"artist-sidebar-credits"},
+            {name:"Joni Mitchell",width:960,height:720,tag:"artist-sidebar-thin"}
         ];
         for (var i = 0; i < cases.length; ++i) {
             var data = cases[i];
@@ -346,14 +468,21 @@ TestCase {
             tryCompare(host, "ready", true);
             tryCompare(host, "width", data.width);
             tryCompare(host, "height", data.height);
-            host.artistScroll.contentY = data.y;
-            if (data.nav !== undefined) item("vinylArtistNav_" + data.nav).activate();
+            host.artistScroll.contentY = 0;
+            if (data.section)
+                item("vinylArtistRowIndexRow_" + data.section + "Action").activate();
+            if (data.detail)
+                item("vinylArtistSeeAll_" + data.detail).activate();
             for (var cover = 0; cover < item("vinylArtistAlbumsSection").shownRecords.length; ++cover)
                 tryCompare(item("vinylArtistAlbumArt_" + cover), "ready", true);
             if (host.artistData.media.portrait.cover)
                 tryCompare(item("vinylArtistPortrait"), "status", Image.Ready);
             for (var mediaIndex = 0; mediaIndex < item("vinylArtistVideosSection").shownRecords.length; ++mediaIndex)
                 tryCompare(item("vinylArtistVideoArt_" + mediaIndex), "ready", true);
+            if (data.detail && data.detail !== "songs") {
+                for (var full = 0; full < host.artistData.albumCards.length && full < 3; ++full)
+                    tryCompare(item("vinylArtistFullArt_" + full), "ready", true);
+            }
             host.requestUpdate();
             wait(600); // Allow the shared poster primitive's 280 ms ready fade to finish.
             waitForRendering(host.contentItem);
