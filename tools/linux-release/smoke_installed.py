@@ -1,10 +1,11 @@
 #!/usr/bin/env python3
-"""Bounded installed-package check: startup, natural exit, and real production
-content over normally verified TLS. No provider or playback claims."""
+"""Bounded installed-package check: native GTK picker, startup, natural exit,
+and real production content over verified TLS. No provider or playback claims."""
 import argparse
 import json
 import os
-from pathlib import Path
+from pathlib import Path, PurePosixPath
+import re
 import socket
 import subprocess
 import tempfile
@@ -16,6 +17,7 @@ BANNER_OBJECT = 'homeUniverseBannerArt'
 UI_DEADLINE_SECONDS = 90
 BANNER_DEADLINE_SECONDS = 90
 CATALOGUE_DEADLINE_SECONDS = 120
+PICKER_DEADLINE_SECONDS = 15
 
 
 def command(address, name, payload=None):
@@ -71,9 +73,109 @@ def trust_snapshot():
             'ca_bundle_bytes': CA_BUNDLE.stat().st_size if CA_BUNDLE.is_file() else 0}
 
 
+def gtk_runtime_evidence(pid):
+    """Inspect the running packaged process, including AppRun's final environment."""
+    proc = Path('/proc') / str(pid)
+    environment = dict(entry.split('=', 1) for entry in
+                       proc.joinpath('environ').read_bytes().decode().split('\0')
+                       if '=' in entry)
+    loader_dir = PurePosixPath('/opt/colosseum/usr/lib/gdk-pixbuf-loaders')
+    module_dir = environment.get('GDK_PIXBUF_MODULEDIR', '')
+    cache_file = environment.get('GDK_PIXBUF_MODULE_FILE', '')
+    if module_dir != str(loader_dir) or not cache_file:
+        raise RuntimeError(f'Packaged GdkPixbuf environment missing: {module_dir!r}, {cache_file!r}')
+    modules = re.findall(r'^"(/[^"\n]+)"\s*$', Path(cache_file).read_text(), re.MULTILINE)
+    if not modules or any(PurePosixPath(module).parent != loader_dir for module in modules):
+        raise RuntimeError(f'Loader cache contains missing or nonpackaged modules: {modules}')
+    if any(not Path(module).is_file() for module in modules):
+        raise RuntimeError('Loader cache names a missing packaged module')
+    if not any(re.search(r'[_-]svg\.so$', module) for module in modules):
+        raise RuntimeError('Loader cache has no packaged SVG module')
+    maps = proc.joinpath('maps').read_text()
+    mapped = sorted(set(line.split(maxsplit=5)[5] for line in maps.splitlines()
+                        if len(line.split(maxsplit=5)) == 6))
+    theme = '/opt/colosseum/usr/plugins/platformthemes/libqgtk3.so'
+    if theme not in mapped:
+        raise RuntimeError('Forced gtk3 platform theme was not loaded from the package')
+    svg_modules = [path for path in mapped if re.search(r'libpixbufloader[_-]svg\.so', path)]
+    if any(PurePosixPath(module).parent != loader_dir for module in svg_modules):
+        raise RuntimeError(f'Host SVG loader mapped into packaged process: {svg_modules}')
+    return {'platform_theme': theme, 'module_dir': module_dir, 'cache_file': cache_file,
+            'cache_modules': modules, 'mapped_svg_modules': svg_modules}
+
+
+def xdotool(*arguments, allow_no_match=False):
+    result = subprocess.run(['xdotool', *map(str, arguments)], capture_output=True,
+                            text=True, timeout=5)
+    if result.returncode and not (allow_no_match and result.returncode == 1):
+        raise RuntimeError(f'xdotool {arguments!r} failed: {result.stderr.strip()}')
+    return result.stdout.strip() if result.returncode == 0 else ''
+
+
+def prove_gtk_picker(address, process, output, identity):
+    proof = {'status': 'FAIL', 'source_commit': identity['source_commit'],
+             'route': 'Ctrl+O', 'backend': 'native GTK',
+             'opened': False, 'cancelled': False, 'alive_after_cancel': False}
+    try:
+        proof['runtime_before'] = gtk_runtime_evidence(process.pid)
+        command(address, 'ui-keypress', {'key': 'Ctrl+O'})
+        deadline = time.monotonic() + PICKER_DEADLINE_SECONDS
+        chooser = None
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise RuntimeError(f'Application exited opening GTK picker: {process.returncode}')
+            matches = xdotool('search', '--onlyvisible', '--pid', process.pid,
+                              '--name', '^Open Media$', allow_no_match=True).splitlines()
+            for window in matches:
+                geometry = dict(line.split('=', 1) for line in
+                                xdotool('getwindowgeometry', '--shell', window).splitlines()
+                                if '=' in line)
+                if int(geometry.get('WIDTH', 0)) > 0 and int(geometry.get('HEIGHT', 0)) > 0:
+                    chooser = window
+                    proof['chooser'] = {'window': window, 'geometry': geometry}
+                    break
+            if chooser:
+                proof['opened'] = True
+                break
+            time.sleep(0.2)
+        else:
+            raise RuntimeError('Native GTK Open Media chooser never appeared')
+        proof['runtime_open'] = gtk_runtime_evidence(process.pid)
+        # XSetInputFocus works without a window manager; XTest sends Escape to
+        # the genuinely focused GTK window rather than Lanista's main window.
+        xdotool('windowfocus', '--sync', chooser)
+        xdotool('key', '--clearmodifiers', 'Escape')
+        deadline = time.monotonic() + PICKER_DEADLINE_SECONDS
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise RuntimeError(f'Application exited cancelling GTK picker: {process.returncode}')
+            visible = xdotool('search', '--onlyvisible', '--pid', process.pid,
+                              '--name', '.*', allow_no_match=True).splitlines()
+            if chooser not in visible:
+                proof['cancelled'] = True
+                break
+            time.sleep(0.2)
+        else:
+            raise RuntimeError('Native GTK chooser did not close on Escape')
+        state = command(address, 'get-state')
+        if process.poll() is not None or not any(w.get('visible') for w in state.get('windows', [])):
+            raise RuntimeError('Application unavailable after native picker cancellation')
+        proof['alive_after_cancel'] = True
+        proof['runtime_after'] = gtk_runtime_evidence(process.pid)
+        proof['status'] = 'PASS'
+        return proof
+    except Exception as error:
+        proof['error'] = str(error)
+        raise
+    finally:
+        (output / 'installed-picker-smoke.json').write_text(json.dumps(proof, indent=2) + '\n')
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--output', required=True, type=Path)
+    parser.add_argument('--platform-theme', choices=['gtk3'], default='gtk3',
+                        help='Require the packaged GTK native chooser in the picker regression')
     args = parser.parse_args()
     if os.getuid() == 0:
         parser.error('Run the installed application as a normal user')
@@ -91,7 +193,7 @@ def main():
         environment = os.environ.copy()
         # Test only packaged Qt, never the build job's SDK or a sandbox override.
         for key in list(environment):
-            if key.startswith(('QT_', 'QML_', 'QTWEBENGINE', 'COLOSSEUM_')) or key in ('LD_LIBRARY_PATH', 'LD_PRELOAD', 'QTDIR'):
+            if key.startswith(('QT_', 'QML_', 'QTWEBENGINE', 'COLOSSEUM_', 'GDK_PIXBUF_')) or key in ('LD_LIBRARY_PATH', 'LD_PRELOAD', 'QTDIR'):
                 environment.pop(key)
         environment.update({
             'XDG_CONFIG_HOME': str(profile / 'config'),
@@ -105,6 +207,8 @@ def main():
             'QT_FORCE_STDERR_LOGGING': '1',
             'LIBGL_ALWAYS_SOFTWARE': '1',
         })
+        if args.platform_theme:
+            environment['QT_QPA_PLATFORMTHEME'] = args.platform_theme
         log_path = args.output / 'installed-startup.log'
         with log_path.open('w') as log:
             process = subprocess.Popen(['/usr/bin/colosseum'], env=environment, stdout=log, stderr=subprocess.STDOUT)
@@ -128,6 +232,20 @@ def main():
                     raise RuntimeError(f'Installed UI failed to become ready: {last_error}; {state}')
                 if not Path(state['appDataRoot']).is_relative_to(profile / 'data'):
                     raise RuntimeError('Installed app escaped disposable data profile')
+                onboarding = command(address, 'qml-get',
+                                     {'object': 'accountHost', 'props': ['visible']})['props']
+                if onboarding.get('visible') is True:
+                    command(address, 'ui-click', {'target': 'accountWelcomeContinueLocal'})
+                    deadline = time.monotonic() + PICKER_DEADLINE_SECONDS
+                    while time.monotonic() < deadline:
+                        onboarding = command(address, 'qml-get',
+                                             {'object': 'accountHost', 'props': ['visible']})['props']
+                        if onboarding.get('visible') is False:
+                            break
+                        time.sleep(0.2)
+                    else:
+                        raise RuntimeError('Local-only onboarding did not close')
+                picker = prove_gtk_picker(address, process, args.output, identity)
                 # A representative online image must become Ready through the
                 # same normally verified HTTPS path the shelf artwork uses. The
                 # banner delegate records readySource exactly when its status
@@ -188,7 +306,7 @@ def main():
                     raise RuntimeError(f'Content bundle delivered no network bytes: {final_bundle}')
                 receipt = {'status': 'PASS', 'version': version, 'source_commit': identity['source_commit'],
                            'windows': state['windows'], 'exit_code': process.returncode,
-                           'trust': trust,
+                           'trust': trust, 'picker': picker,
                            'ssl_handshake_failures': ssl_errors,
                            'online': {
                                'banner_ready_url': banner_url,
@@ -198,7 +316,8 @@ def main():
                                'content_bundle': {key: final_bundle.get(key) for key in
                                                   ('dataset', 'method', 'outcome', 'networkFiles',
                                                    'networkBytes', 'diskFiles', 'elapsedMs')}},
-                           'scope': 'Installed X11 software-rendered startup and natural exit; production '
+                           'scope': 'Installed native GTK picker open/cancel; X11 software-rendered startup '
+                                    'and natural exit; production '
                                     'catalogue bundle and online banner verified over system-trusted TLS; '
                                     'playback, GPU and live providers unqualified'}
                 (args.output / 'installed-smoke.json').write_text(json.dumps(receipt, indent=2) + '\n')

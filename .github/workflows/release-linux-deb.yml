@@ -11,6 +11,7 @@ on:
       - '.gitattributes'
       - 'tests/test_linux_release_policy.py'
       - 'tests/test_linux_installed_player_smoke.py'
+      - 'tests/test_linux_installed_picker_smoke.py'
       - 'tests/test_vinyl_release_gate.py'
       - 'tests/test_stage_api_content.py'
 
@@ -35,10 +36,11 @@ jobs:
             build-essential ninja-build pkg-config patchelf binutils dpkg-dev \
             libmpv-dev libtorrent-rasterbar-dev libboost-all-dev libssl-dev libsecret-1-dev \
             libgl1-mesa-dev libegl1-mesa-dev libxkbcommon-dev libxcb-cursor0 ffmpeg \
+            libgdk-pixbuf-2.0-dev librsvg2-common \
             gnome-keyring dbus-daemon
       - name: Packaging regressions and public path guard
         run: |
-          python3 -m unittest -v tests.test_linux_release_policy tests.test_linux_installed_player_smoke tests.test_stage_api_content tests.test_vinyl_release_gate
+          python3 -m unittest -v tests.test_linux_release_policy tests.test_linux_installed_player_smoke tests.test_linux_installed_picker_smoke tests.test_stage_api_content tests.test_vinyl_release_gate
           python3 tools/linux-release/test_packaging.py
           python3 scripts/check_public_paths.py
       - name: Install Qt 6.11.1
@@ -122,6 +124,11 @@ jobs:
           tiff="$(find "$RUNNER_TEMP/qtimageformats-build" -name libqtiff.so -type f -print -quit)"
           test -n "$tiff"
           args+=(--plugin-override "imageformats/libqtiff.so=$tiff")
+          pixbuf_loaders="$(pkg-config --variable=gdk_pixbuf_moduledir gdk-pixbuf-2.0)"
+          pixbuf_query="$(pkg-config --variable=gdk_pixbuf_query_loaders gdk-pixbuf-2.0)"
+          test -d "$pixbuf_loaders"
+          test -x "$pixbuf_query"
+          args+=(--gdk-pixbuf-loaders-dir "$pixbuf_loaders" --gdk-pixbuf-query-loaders "$pixbuf_query")
           python3 tools/linux-release/assemble.py \
             --source "$GITHUB_WORKSPACE" --build "$RUNNER_TEMP/app-build" --qt "$QT_ROOT_DIR" \
             --stage "$RUNNER_TEMP/AppDir" --commit "$(git rev-parse HEAD)" --patchelf "$(command -v patchelf)" \
@@ -145,7 +152,16 @@ jobs:
   installed-smoke:
     needs: build
     runs-on: ubuntu-24.04
-    container: ubuntu:24.04
+    name: Installed smoke (${{ matrix.label }})
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: ubuntu-24.04
+            image: ubuntu:24.04
+          - label: debian-13
+            image: debian:13
+    container: ${{ matrix.image }}
     timeout-minutes: 15
     steps:
       - uses: actions/checkout@v7
@@ -153,12 +169,12 @@ jobs:
         with:
           name: Colosseum-1.2.0-linux-deb-candidate
           path: package
-      - name: Install on clean Ubuntu without a Qt SDK
+      - name: Install on clean Linux without a Qt SDK
         env:
           DEBIAN_FRONTEND: noninteractive
         run: |
           apt-get update
-          apt-get install -y --no-install-recommends python3 xvfb xauth desktop-file-utils libgl1-mesa-dri libglx-mesa0
+          apt-get install -y --no-install-recommends python3 xvfb xauth desktop-file-utils libgl1-mesa-dri libglx-mesa0 xdotool librsvg2-common adwaita-icon-theme
           # Trust-prerequisite probe: record whether the clean container has any
           # system CA store before the package installs, so the after-install
           # state proves the Debian dependency (not a recommendation) supplied it.
@@ -178,7 +194,7 @@ jobs:
           mkdir -p /tmp/installed-receipts
           chown package-test:package-test /tmp/installed-receipts
           runuser -u package-test -- xvfb-run -a -s '-screen 0 1920x1080x24' \
-            python3 tools/linux-release/smoke_installed.py --output /tmp/installed-receipts
+            python3 tools/linux-release/smoke_installed.py --platform-theme gtk3 --output /tmp/installed-receipts
       - name: Play a checked-in local fixture through installed Player 1
         run: |
           runuser -u package-test -- xvfb-run -a -s '-screen 0 1920x1080x24' \
@@ -196,7 +212,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: always()
         with:
-          name: Colosseum-1.2.0-linux-installed-smoke
+          name: Colosseum-1.2.0-linux-installed-smoke-${{ matrix.label }}
           path: /tmp/installed-receipts/
           if-no-files-found: warn
           retention-days: 7

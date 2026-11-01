@@ -3,6 +3,7 @@ set -eu
 HERE=$(CDPATH= cd -- "$(dirname -- "$0")" && pwd)
 # Use only packaged Qt; inherited development-kit paths must not select other plugins.
 unset QT_QPA_PLATFORM_PLUGIN_PATH QT_QPA_FONTDIR QTDIR QT_HOME LD_PRELOAD
+unset GDK_PIXBUF_MODULE_FILE GDK_PIXBUF_MODULEDIR
 export LD_LIBRARY_PATH="$HERE/usr/lib"
 export QT_PLUGIN_PATH="$HERE/usr/plugins"
 export QML_IMPORT_PATH="$HERE/usr/qml"
@@ -11,5 +12,48 @@ export QTWEBENGINEPROCESS_PATH="$HERE/usr/libexec/QtWebEngineProcess"
 export QTWEBENGINE_RESOURCES_PATH="$HERE/usr/resources"
 export QTWEBENGINE_LOCALES_PATH="$HERE/usr/translations/qtwebengine_locales"
 export PATH="$HERE/usr/bin:$PATH"
+pixbuf_dir="$HERE/usr/lib/gdk-pixbuf-loaders"
+pixbuf_query="$HERE/usr/bin/gdk-pixbuf-query-loaders"
+if [ -e "$HERE/usr/lib/libgdk_pixbuf-2.0.so.0" ] || [ -d "$pixbuf_dir" ] || [ -e "$pixbuf_query" ]; then
+    [ -d "$pixbuf_dir" ] && [ -x "$pixbuf_query" ] || { echo 'Matching packaged GdkPixbuf loaders/query tool missing' >&2; exit 1; }
+    pixbuf_svg=false
+    pixbuf_count=0
+    for pixbuf_module in "$pixbuf_dir"/*.so; do
+        [ -f "$pixbuf_module" ] || { echo 'Packaged GdkPixbuf module missing' >&2; exit 1; }
+        pixbuf_count=$((pixbuf_count + 1))
+    done
+    for pixbuf_module in "$pixbuf_dir"/*svg*.so; do
+        if [ -f "$pixbuf_module" ]; then pixbuf_svg=true; fi
+    done
+    "$pixbuf_svg" || { echo 'Packaged GdkPixbuf SVG loader missing' >&2; exit 1; }
+    pixbuf_key=$(printf '%s' "$HERE" | sha256sum)
+    pixbuf_key=${pixbuf_key%% *}
+    pixbuf_cache="${XDG_CACHE_HOME:-$HOME/.cache}/Colosseum/gdk-pixbuf/$pixbuf_key"
+    pixbuf_umask=$(umask)
+    umask 077
+    mkdir -p -- "$pixbuf_cache"
+    pixbuf_cache=$(CDPATH= cd -- "$pixbuf_cache" && pwd)
+    pixbuf_tmp=$(mktemp "$pixbuf_cache/loaders.cache.XXXXXX")
+    pixbuf_err=""
+    trap 'rm -f -- "$pixbuf_tmp"; [ -z "$pixbuf_err" ] || rm -f -- "$pixbuf_err"' 0
+    trap 'exit 1' 1 2 15
+    pixbuf_err=$(mktemp "$pixbuf_cache/query-errors.XXXXXX")
+    if ! "$pixbuf_query" "$pixbuf_dir"/*.so > "$pixbuf_tmp" 2> "$pixbuf_err"; then
+        cat "$pixbuf_err" >&2
+        exit 1
+    fi
+    pixbuf_registered=$(grep -c '^".*[.]so"$' "$pixbuf_tmp" || true)
+    if [ -s "$pixbuf_err" ] || [ "$pixbuf_registered" -ne "$pixbuf_count" ] || ! grep '^"svg"[[:space:]]' "$pixbuf_tmp" >/dev/null; then
+        cat "$pixbuf_err" >&2
+        echo 'Packaged GdkPixbuf cache did not initialize every module and SVG format' >&2
+        exit 1
+    fi
+    mv -f -- "$pixbuf_tmp" "$pixbuf_cache/loaders.cache"
+    rm -f -- "$pixbuf_err"
+    umask "$pixbuf_umask"
+    trap - 0 1 2 15
+    export GDK_PIXBUF_MODULE_FILE="$pixbuf_cache/loaders.cache"
+    export GDK_PIXBUF_MODULEDIR="$pixbuf_dir"
+fi
 cd "$HERE"
 exec "$HERE/usr/bin/colosseum" "$@"
