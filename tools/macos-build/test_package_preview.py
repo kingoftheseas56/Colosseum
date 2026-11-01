@@ -76,7 +76,7 @@ class PackagingBoundary(unittest.TestCase):
                 anchor = '@loader_path/' + os.path.relpath(library.parent, path.parent)
                 metadata[path.resolve()] = (['@rpath/libshared.dylib'] if path != library else [], [anchor], ['26.1'])
             def header(*args):
-                return 'EXECUTE' if Path(args[-1]) in (main, helper) else 'DYLIB'
+                return 'EXECUTE' if Path(args[-1]).resolve() in (main.resolve(), helper.resolve()) else 'DYLIB'
             with patch.object(package, 'inspect_macho', side_effect=lambda path: metadata[path.resolve()]), patch.object(package, 'run', side_effect=header):
                 report = package.audit(app)
                 self.assertEqual(report['executable_count'], 2)

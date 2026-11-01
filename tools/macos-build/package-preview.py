@@ -151,6 +151,7 @@ def normalize_rpaths(app, files):
 
 
 def audit(app, maximum='26.1'):
+    app = app.resolve()
     for path in app.rglob('*'):
         if path.is_symlink() and not within(path, app):
             raise RuntimeError(f'External bundle symlink: {path}')
