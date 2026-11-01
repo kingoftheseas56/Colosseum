@@ -29,6 +29,7 @@
 #include <QTcpServer>
 #include <QTcpSocket>
 #include <QTemporaryDir>
+#include <QUuid>
 #include <QtTest>
 
 #include <memory>
@@ -461,6 +462,11 @@ private slots:
     void syncBlockedAndDeletionPendingStatesAreSafe();
     void syncRetryActionReachesEngineRecoverySeam();
     void stableErrorCategoryMapsRateLimit();
+    void authenticationRejectsDuplicateSubmissions();
+    void localServiceRegistrationAndLogin();
+    void unattributableSourceIsTemporary();
+    void httpTransportRateLimitRetryAfter_data();
+    void httpTransportRateLimitRetryAfter();
     void deviceListUpdatesSafeCount();
 
     void profileRefreshExposesPersistedAvatar();
@@ -2688,6 +2694,110 @@ void tst_account_identity::stableErrorCategoryMapsRateLimit() {
     QCOMPARE(
         fixture.controller->lastErrorCode(),
         QStringLiteral("rate_limited"));
+}
+
+void tst_account_identity::authenticationRejectsDuplicateSubmissions() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    for (bool create : {false, true}) {
+        CapturingTransport transport;
+        AccountClient client(&transport);
+        Fixture fixture;
+        fixture.controller = std::make_unique<AccountController>(&client, &fixture.credentials, fixture.deviceIdentity.get(), fixture.bootstrapStore.get(), &fixture.secretSink);
+        auto submit = [&]() {
+            if (create)
+                fixture.controller->createAccount(QStringLiteral("NewTester"), QStringLiteral("Mango river lantern stone 773!"));
+            else
+                fixture.controller->signIn(QStringLiteral("NewTester"), QStringLiteral("Mango river lantern stone 773!"));
+        };
+        submit();
+        submit();
+        QCOMPARE(transport.sendCount, 1);
+    }
+}
+
+void tst_account_identity::unattributableSourceIsTemporary() {
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    Fixture fixture;
+    fixture.transport->enqueueReply("POST", QStringLiteral("/v1/accounts"),
+        errorReply(503, QStringLiteral("source_unavailable"), QStringLiteral("Please try again later.")));
+    fixture.controller->createAccount(QStringLiteral("NewTester"), QStringLiteral("Mango river lantern stone 773!"));
+    QTRY_COMPARE(fixture.controller->mode(), QStringLiteral("signedOut"));
+    QCOMPARE(fixture.controller->errorCategory(), QStringLiteral("unavailable"));
+    QVERIFY(!fixture.credentials.loadActive().has_value());
+}
+
+void tst_account_identity::localServiceRegistrationAndLogin() {
+    const QUrl url(qEnvironmentVariable("COLOSSEUM_ACCOUNT_429_TEST_SERVICE"));
+    if (url.isEmpty())
+        QSKIP("Set COLOSSEUM_ACCOUNT_429_TEST_SERVICE to the disposable local PostgreSQL-backed service.");
+    QVERIFY(url.scheme() == QLatin1String("http") && url.host() == QLatin1String("127.0.0.1"));
+    ScopedEnvironmentVariable restore("COLOSSEUM_APPDATA_TAG");
+    AccountHttpTransport transport(url);
+    AccountClient client(&transport);
+    Fixture fixture;
+    fixture.controller = std::make_unique<AccountController>(&client, &fixture.credentials,
+        fixture.deviceIdentity.get(), fixture.bootstrapStore.get(), &fixture.secretSink);
+    fixture.controller->setAutomaticPollingEnabled(false);
+    QSignalSpy completed(&client, &AccountClient::completed);
+    fixture.controller->continueWithoutAccount();
+    QCOMPARE(fixture.controller->mode(), QStringLiteral("localOnly"));
+    QCOMPARE(completed.count(), 0);
+    fixture.controller->returnToSignIn();
+
+    const QString username = QStringLiteral("RateProbe") + QUuid::createUuid().toString(QUuid::Id128).left(8);
+    const QString password = QStringLiteral("Mango river lantern stone 773!");
+    client.createAccount(username, password, fixture.deviceIdentity->installId(),
+        QStringLiteral("Local rate-limit probe"), QStringLiteral("Windows"));
+    QTRY_COMPARE_WITH_TIMEOUT(completed.count(), 1, 30000);
+    const auto created = completed.first().at(3).value<AccountTransportReply>();
+    QCOMPARE(created.statusCode, 201);
+    QVERIFY(!created.body.value(QStringLiteral("recovery_key")).toString().isEmpty());
+    fixture.controller->signIn(username, password);
+    QTRY_COMPARE_WITH_TIMEOUT(fixture.controller->mode(), QStringLiteral("signedIn"), 30000);
+    QCOMPARE(fixture.controller->username(), username);
+    QVERIFY(fixture.controller->lastErrorCode().isEmpty());
+}
+
+void tst_account_identity::httpTransportRateLimitRetryAfter_data() {
+    QTest::addColumn<QByteArray>("retryHeader");
+    QTest::addColumn<QString>("expectedTime");
+    QTest::newRow("seconds") << QByteArray("Retry-After: 120\r\n") << QStringLiteral("120 seconds");
+    QTest::newRow("missing") << QByteArray() << QString();
+    QTest::newRow("invalid") << QByteArray("Retry-After: -5\r\n") << QString();
+    QTest::newRow("overflow") << QByteArray("Retry-After: 999999999999999999999\r\n") << QString();
+}
+
+void tst_account_identity::httpTransportRateLimitRetryAfter() {
+    QFETCH(QByteArray, retryHeader);
+    QFETCH(QString, expectedTime);
+    QTcpServer server;
+    QVERIFY(server.listen(QHostAddress::LocalHost, 0));
+    int requestCount = 0;
+    connect(&server, &QTcpServer::newConnection, &server, [&]() {
+        auto *socket = server.nextPendingConnection();
+        connect(socket, &QTcpSocket::readyRead, socket, [&, socket]() {
+            socket->readAll();
+            ++requestCount;
+            socket->write("HTTP/1.1 429 Too Many Requests\r\n" + retryHeader
+                + "Content-Length: 0\r\nConnection: close\r\n\r\n");
+            socket->disconnectFromHost();
+        });
+    });
+    AccountHttpTransport transport(QUrl(QStringLiteral("http://127.0.0.1:%1/").arg(server.serverPort())));
+    QSignalSpy finished(&transport, &AccountTransport::finished);
+    AccountTransportRequest request;
+    request.method = "POST";
+    request.path = QStringLiteral("/v1/sessions");
+    transport.send(1, request);
+    QTRY_COMPARE(finished.count(), 1);
+    auto reply = finished.first().at(1).value<AccountTransportReply>();
+    QCOMPARE(reply.errorCode, QStringLiteral("rate_limited"));
+    QVERIFY(reply.errorMessage.contains(QStringLiteral("try again"), Qt::CaseInsensitive));
+    if (!expectedTime.isEmpty())
+        QVERIFY(reply.errorMessage.contains(expectedTime));
+    else
+        QVERIFY(!reply.errorMessage.contains(QStringLiteral("seconds")));
+    QCOMPARE(requestCount, 1);
 }
 
 void tst_account_identity::deviceListUpdatesSafeCount() {

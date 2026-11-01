@@ -119,6 +119,11 @@ type deviceResponse struct {
 }
 
 func (h *Handler) createAccount(w http.ResponseWriter, r *http.Request) {
+	sourceKey := clientNetworkKey(r, h.trustedProxies...)
+	if sourceKey == "" {
+		WriteAPIError(w, http.StatusServiceUnavailable, "source_unavailable", "The account service is temporarily unavailable. Try again later.")
+		return
+	}
 	var request createAccountRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The request body is invalid.")
@@ -131,7 +136,7 @@ func (h *Handler) createAccount(w http.ResponseWriter, r *http.Request) {
 		DeviceInstallID: request.DeviceInstallID,
 		DeviceLabel:     request.DeviceLabel,
 		Platform:        request.Platform,
-		SourceKey:       clientNetworkKey(r),
+		SourceKey:       sourceKey,
 	})
 	if err != nil {
 		h.writeAccountError(w, err)
@@ -145,6 +150,11 @@ func (h *Handler) createAccount(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) signIn(w http.ResponseWriter, r *http.Request) {
+	sourceKey := clientNetworkKey(r, h.trustedProxies...)
+	if sourceKey == "" {
+		WriteAPIError(w, http.StatusServiceUnavailable, "source_unavailable", "The account service is temporarily unavailable. Try again later.")
+		return
+	}
 	var request signInRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The request body is invalid.")
@@ -157,7 +167,7 @@ func (h *Handler) signIn(w http.ResponseWriter, r *http.Request) {
 		DeviceInstallID: request.DeviceInstallID,
 		DeviceLabel:     request.DeviceLabel,
 		Platform:        request.Platform,
-		SourceKey:       clientNetworkKey(r),
+		SourceKey:       sourceKey,
 	})
 	if err != nil {
 		h.writeAccountError(w, err)
@@ -209,6 +219,11 @@ func (h *Handler) revokeRefresh(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) recoverPassword(w http.ResponseWriter, r *http.Request) {
+	sourceKey := clientNetworkKey(r, h.trustedProxies...)
+	if sourceKey == "" {
+		WriteAPIError(w, http.StatusServiceUnavailable, "source_unavailable", "The account service is temporarily unavailable. Try again later.")
+		return
+	}
 	var request passwordRecoveryRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The request body is invalid.")
@@ -218,7 +233,7 @@ func (h *Handler) recoverPassword(w http.ResponseWriter, r *http.Request) {
 		Username:    request.Username,
 		RecoveryKey: request.RecoveryKey,
 		NewPassword: request.NewPassword,
-		SourceKey:   clientNetworkKey(r),
+		SourceKey:   sourceKey,
 	})
 	if err != nil {
 		h.writeAccountError(w, err)
@@ -230,6 +245,11 @@ func (h *Handler) recoverPassword(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) startTrustedRecovery(w http.ResponseWriter, r *http.Request) {
+	sourceKey := clientNetworkKey(r, h.trustedProxies...)
+	if sourceKey == "" {
+		WriteAPIError(w, http.StatusServiceUnavailable, "source_unavailable", "The account service is temporarily unavailable. Try again later.")
+		return
+	}
 	var request trustedRecoveryRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The request body is invalid.")
@@ -241,7 +261,7 @@ func (h *Handler) startTrustedRecovery(w http.ResponseWriter, r *http.Request) {
 		DeviceInstallID: request.DeviceInstallID,
 		DeviceLabel:     request.DeviceLabel,
 		Platform:        request.Platform,
-		SourceKey:       clientNetworkKey(r),
+		SourceKey:       sourceKey,
 	})
 	if err != nil {
 		h.writeAccountError(w, err)
@@ -297,6 +317,11 @@ func (h *Handler) pollDeviceChallenge(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *Handler) recoverDeviceChallengeWithKey(w http.ResponseWriter, r *http.Request) {
+	sourceKey := clientNetworkKey(r, h.trustedProxies...)
+	if sourceKey == "" {
+		WriteAPIError(w, http.StatusServiceUnavailable, "source_unavailable", "The account service is temporarily unavailable. Try again later.")
+		return
+	}
 	var request challengeRecoveryRequest
 	if err := decodeJSON(w, r, &request); err != nil {
 		WriteAPIError(w, http.StatusBadRequest, "invalid_request", "The request body is invalid.")
@@ -305,7 +330,7 @@ func (h *Handler) recoverDeviceChallengeWithKey(w http.ResponseWriter, r *http.R
 	result, err := h.accounts.RecoverDeviceSignInWithKey(r.Context(), account.ChallengeRecoveryInput{
 		ChallengeToken: request.ChallengeToken,
 		RecoveryKey:    request.RecoveryKey,
-		SourceKey:      clientNetworkKey(r),
+		SourceKey:      sourceKey,
 	})
 	if err != nil {
 		h.writeAccountError(w, err)
@@ -601,8 +626,8 @@ func (h *Handler) decideApproval(w http.ResponseWriter, r *http.Request) {
 
 func (h *Handler) writeAccountError(w http.ResponseWriter, err error) {
 	var rateLimit *account.RateLimitError
-	if errors.As(err, &rateLimit) && rateLimit.Scope == "create_success_global" {
-		h.logger.Warn("registration circuit breaker reached")
+	if errors.As(err, &rateLimit) {
+		h.logger.Warn("account rate limited", "scope", rateLimit.Scope, "retry_after_seconds", int64((rateLimit.RetryAfter+time.Second-1)/time.Second))
 	} else if !isExpectedAccountError(err) {
 		h.logger.Error("account request failed")
 	}

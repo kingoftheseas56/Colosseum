@@ -9,6 +9,8 @@
 #include <QPointer>
 #include <QTimer>
 
+#include <algorithm>
+
 namespace {
 constexpr auto kJsonContentType = "application/json";
 
@@ -221,6 +223,22 @@ AccountTransportReply AccountHttpTransport::decodeReply(
         result.errorCode = QStringLiteral("network_error");
         result.errorMessage = QStringLiteral(
             "The account service could not be reached.");
+    }
+
+    if (result.statusCode == 429) {
+        // A gateway may return 429 without the service's JSON envelope.
+        // Preserve the temporary category and never automatically resubmit.
+        result.errorCode = QStringLiteral("rate_limited");
+        result.errorMessage = QStringLiteral("Too many attempts. Please try again later.");
+        const QByteArray retry = reply->rawHeader("Retry-After").trimmed();
+        bool valid = false;
+        const int seconds = retry.toInt(&valid);
+        const bool digitsOnly = !retry.isEmpty()
+            && std::all_of(retry.cbegin(), retry.cend(), [](char c) { return c >= '0' && c <= '9'; });
+        if (valid && digitsOnly && seconds > 0) {
+            result.errorMessage = QStringLiteral("Too many attempts. Please try again in %1 seconds.")
+                .arg(seconds);
+        }
     }
 
     if (result.statusCode >= 400 && result.errorCode.isEmpty()) {

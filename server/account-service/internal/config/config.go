@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"net/netip"
 	"os"
 	"strconv"
 	"strings"
@@ -23,6 +24,7 @@ const (
 type Config struct {
 	Environment                string
 	HTTPAddr                   string
+	TrustedProxyCIDRs          []netip.Prefix
 	DatabaseURL                string
 	DatabaseMaxConnections     int32
 	ReadinessTimeout           time.Duration
@@ -77,6 +79,16 @@ func Load() (Config, error) {
 	httpAddr := strings.TrimSpace(os.Getenv("HTTP_ADDR"))
 	if httpAddr == "" {
 		httpAddr = defaultHTTPAddr
+	}
+	var trustedProxyCIDRs []netip.Prefix
+	if raw := strings.TrimSpace(os.Getenv("TRUSTED_PROXY_CIDRS")); raw != "" {
+		for _, entry := range strings.Split(raw, ",") {
+			prefix, err := netip.ParsePrefix(strings.TrimSpace(entry))
+			if err != nil || prefix.Bits() == 0 || prefix.Addr().Is4In6() {
+				return Config{}, errors.New("TRUSTED_PROXY_CIDRS must contain explicit IPv4/IPv6 CIDRs, never a catch-all")
+			}
+			trustedProxyCIDRs = append(trustedProxyCIDRs, prefix.Masked())
+		}
 	}
 
 	maxConnections, err := positiveInt32Env("DATABASE_MAX_CONNECTIONS", defaultDatabaseMaxConnections)
@@ -136,6 +148,7 @@ func Load() (Config, error) {
 	return Config{
 		Environment:                environment,
 		HTTPAddr:                   httpAddr,
+		TrustedProxyCIDRs:          trustedProxyCIDRs,
 		DatabaseURL:                databaseURL,
 		DatabaseMaxConnections:     maxConnections,
 		ReadinessTimeout:           defaultReadinessTimeout,

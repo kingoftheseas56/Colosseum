@@ -172,11 +172,12 @@ func run(logger *slog.Logger) error {
 
 	server := &http.Server{
 		Addr: cfg.HTTPAddr,
-		Handler: httpserver.New(
+		Handler: httpserver.NewWithTrustedProxies(
 			pool,
 			accounts,
 			cfg.ReadinessTimeout,
 			logger,
+			cfg.TrustedProxyCIDRs,
 			database.PoolSchemaChecker{Pool: pool}),
 		ReadHeaderTimeout: 5 * time.Second,
 		ReadTimeout:       30 * time.Second,

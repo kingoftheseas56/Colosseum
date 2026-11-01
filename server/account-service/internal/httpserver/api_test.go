@@ -7,9 +7,18 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/kingoftheseas56/Colosseum-Account-Service/internal/account"
 )
+
+func TestRateLimitRetryAfterNeverRoundsDown(t *testing.T) {
+	response := httptest.NewRecorder()
+	writeServiceError(response, &account.RateLimitError{Scope: "signin_source", RetryAfter: 1400 * time.Millisecond})
+	if response.Code != 429 || response.Header().Get("Retry-After") != "2" {
+		t.Fatalf("status=%d retry=%q, want 429 and 2 seconds", response.Code, response.Header().Get("Retry-After"))
+	}
+}
 
 func TestAPIContract(t *testing.T) {
 	if APIPrefix != "/v1" {

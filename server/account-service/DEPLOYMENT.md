@@ -1,8 +1,8 @@
 # Colosseum Account Service operations
 
-This document describes the checked-in release and operations contract. It does
-not claim that a provider account, database, bucket, scheduler, or deployed
-image exists.
+This document describes the checked-in release and operations contract. Dated
+read-only observations are distinguished from rollout instructions; they do not
+qualify production configuration, backups, or unobserved infrastructure.
 
 ## Current evidence boundary
 
@@ -13,16 +13,19 @@ https://colosseum-account-service.onrender.com
 ```
 
 That URL is a client fallback observed in source and during the account review.
-The repository contains no provider control-plane configuration, deployed image
-SHA, database/backup receipt, secret inventory, or scheduler receipt. Any future
-HTTP observation for `/healthz` or `/readyz` must be retained with its timestamp,
+The read-only provider/deployed-commit observation for the 2026-11-02
+authentication investigation is recorded below. There is still no checked-in
+provider ingress configuration, database/backup receipt, secret inventory, or
+scheduler receipt. Any future HTTP observation for `/healthz` or `/readyz` must
+be retained with its timestamp,
 URL, image, and schema receipts before it can support an availability claim;
-none is treated as a current deployment receipt here. No rollout is performed
-by these instructions.
+no health observation alone is treated as a deployment receipt. No rollout is
+performed by these instructions.
 
-`fly.toml` remains historical reference material. This repository does not name
-Cloud Run, Render, Fly, Neon, or another provider as a proven active hosting
-target. Use the selected provider's current official documentation for its
+`fly.toml` remains historical reference material. The observation below
+identifies Render as the active account-service host on that date, without
+establishing its ingress trust ranges. Use the selected provider's current
+official documentation for its
 container, secret, database, TLS, job, and monitoring setup.
 
 ## Release sequence
@@ -123,6 +126,59 @@ protocol/native slice. The maintenance command does not delete immutable
 Activity facts or claim to solve that work.
 
 ## Operational diagnostics
+
+### Authentication source attribution
+
+Read-only Render control-plane inspection on 2026-11-02 IST identified
+`colosseum-account-service` in Singapore, rooted at `server/account-service`,
+with commit `69e31a79b9a7e70017ce1fca5ed48fe0982b9176` live and automatic
+deployment from `master` enabled. That deployed revision uses the socket peer
+for non-Fly authentication limits. Render documents that its load balancers
+hide the client socket address and forward `X-Forwarded-For` instead:
+https://render.com/articles/how-render-handles-ddos-attacks
+https://render.com/docs/web-services
+
+The source repair adds optional `TRUSTED_PROXY_CIDRS` (comma-separated explicit
+CIDRs). Empty means direct socket attribution; no platform environment variable
+or forwarded header grants trust. Only a socket peer in an explicitly configured
+network can supply `X-Forwarded-For`. Walk the complete chain from the right,
+removing only configured trusted hops, and use the first untrusted public
+address. IPv4 remains per-address; IPv6 remains grouped at /64. Malformed peers,
+missing/malformed trusted-proxy headers, all-trusted chains, and ambiguous
+private hops return temporary `source_unavailable` (503) before consuming any
+authentication budget. Headers on untrusted public connections are ignored.
+With a proxy policy enabled, unexpected private/loopback peers also fail closed.
+The former ambient `FLY_APP_NAME` trust shortcut is removed; Fly deployments
+must explicitly configure and verify their forwarding boundary too.
+
+Before a separately authorized rollout, obtain the actual ingress socket and
+forwarded-chain contract from provider-controlled evidence, verify each trusted
+hop and direct/private-network reachability, and pin only those proxy CIDRs.
+Do not guess a private subnet, use a public catch-all, assume a hop count,
+or copy Render outbound ranges as ingress trust. The read-only investigation
+did not obtain those ingress ranges or a tester-correlated 429 bucket. Log
+retrieval initially returned 503 and subsequent filtered queries returned no
+matching records; neither result proves that no 429 occurred. Accordingly no
+Render-specific ranges are baked into this repair and no production config,
+rate rows, credentials, or deployment were changed. Merging/pushing this fix to
+`master` would trigger a rollout and requires that separate authorization.
+
+Keep the previous image and proxy configuration for rollback; both must match
+the verified topology. Do not clear rate tables or rotate the abuse HMAC key to
+reset limits. Existing attempt, username, success, and global limits are unchanged.
+Anonymous limiter logs now include only scope and rounded-up retry seconds,
+allowing operators to distinguish the registration breaker from source limits.
+Public 429 bodies do not disclose the internal bucket.
+
+For regression tests use an isolated PostgreSQL database with an `_test` suffix:
+`TEST_DATABASE_URL=<dedicated local test URL> go test -p 1 ./... -count=1`.
+Packages reset that database's schema, so serialize them with `-p 1` and never
+point the test URL at live data. The optional native
+`localServiceRegistrationAndLogin` test uses
+`COLOSSEUM_ACCOUNT_429_TEST_SERVICE=http://127.0.0.1:<local-port>` and a separate
+disposable database-backed service. It creates a disposable account and signs
+in through the real native transport/controller with in-memory credential
+storage; it must never target production.
 
 Each HTTP response carries a generated `X-Request-ID`. Structured request logs
 contain only a fixed operation label, status, latency in milliseconds, request

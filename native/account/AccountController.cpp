@@ -567,7 +567,7 @@ void AccountController::returnToSignIn() {
 void AccountController::createAccount(
     const QString &username,
     const QString &password) {
-    if (!m_refreshToken.isEmpty())
+    if (!m_refreshToken.isEmpty() || busy())
         return;
 
     advanceGeneration();
@@ -587,7 +587,7 @@ void AccountController::createAccount(
 void AccountController::signIn(
     const QString &username,
     const QString &password) {
-    if (!m_refreshToken.isEmpty())
+    if (!m_refreshToken.isEmpty() || busy())
         return;
 
     advanceGeneration();
@@ -2637,6 +2637,7 @@ AccountController::categoryForReply(
         return ErrorCategory::RateLimited;
 
     if (code == QLatin1String("avatar_unavailable")
+        || code == QLatin1String("source_unavailable")
         || code == QLatin1String("service_error")
         || code == QLatin1String("service_unavailable")) {
         return ErrorCategory::Unavailable;

@@ -8,6 +8,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"net/netip"
 	"strconv"
 	"strings"
 	"time"
@@ -29,6 +30,7 @@ type Handler struct {
 	accounts         *account.Service
 	readinessTimeout time.Duration
 	logger           *slog.Logger
+	trustedProxies   []netip.Prefix
 }
 
 func New(
@@ -36,6 +38,19 @@ func New(
 	accounts *account.Service,
 	readinessTimeout time.Duration,
 	logger *slog.Logger,
+	schemaCheckers ...SchemaChecker,
+) http.Handler {
+	return NewWithTrustedProxies(pinger, accounts, readinessTimeout, logger, nil, schemaCheckers...)
+}
+
+// NewWithTrustedProxies accepts only operator-verified proxy networks. The
+// deployment environment or a request header alone never establishes trust.
+func NewWithTrustedProxies(
+	pinger Pinger,
+	accounts *account.Service,
+	readinessTimeout time.Duration,
+	logger *slog.Logger,
+	trustedProxies []netip.Prefix,
 	schemaCheckers ...SchemaChecker,
 ) http.Handler {
 	if logger == nil {
@@ -46,6 +61,7 @@ func New(
 		accounts:         accounts,
 		readinessTimeout: readinessTimeout,
 		logger:           logger,
+		trustedProxies:   append([]netip.Prefix(nil), trustedProxies...),
 	}
 	if len(schemaCheckers) > 0 {
 		handler.schemaChecker = schemaCheckers[0]

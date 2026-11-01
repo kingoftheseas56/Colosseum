@@ -21,6 +21,30 @@ func setRequiredTestEnvironment(t *testing.T) {
 	t.Setenv("BUCKET_NAME", "")
 	t.Setenv("AWS_ENDPOINT_URL_S3", "")
 	t.Setenv("AVATAR_STORAGE", "")
+	t.Setenv("TRUSTED_PROXY_CIDRS", "")
+}
+
+func TestLoadTrustedProxyCIDRs(t *testing.T) {
+	for _, value := range []string{"invalid", "0.0.0.0/0", "::/0", "10.0.0.1", "10.0.0.5/32,", "::ffff:192.0.2.1/128"} {
+		t.Run(value, func(t *testing.T) {
+			setRequiredTestEnvironment(t)
+			t.Setenv("TRUSTED_PROXY_CIDRS", value)
+			if _, err := Load(); err == nil {
+				t.Fatal("accepted invalid or catch-all proxy trust")
+			}
+		})
+	}
+	setRequiredTestEnvironment(t)
+	t.Setenv("TRUSTED_PROXY_CIDRS", "10.20.0.5/32, 2001:db8:10::/48")
+	cfg, err := Load()
+	if err != nil || len(cfg.TrustedProxyCIDRs) != 2 {
+		t.Fatalf("explicit trust configuration: %v", err)
+	}
+	setRequiredTestEnvironment(t)
+	cfg, err = Load()
+	if err != nil || len(cfg.TrustedProxyCIDRs) != 0 {
+		t.Fatal("default unexpectedly trusts proxies")
+	}
 }
 
 func TestLoadRequiresSecurityKeys(t *testing.T) {

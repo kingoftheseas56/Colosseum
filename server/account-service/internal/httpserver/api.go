@@ -39,8 +39,12 @@ func WriteAPIError(w http.ResponseWriter, status int, code, message string) {
 }
 
 func writeServiceError(w http.ResponseWriter, err error) {
-	if rateLimit, ok := err.(*account.RateLimitError); ok {
-		retry := int(rateLimit.RetryAfter.Round(time.Second).Seconds())
+	var rateLimit *account.RateLimitError
+	if errors.As(err, &rateLimit) {
+		retry := int(rateLimit.RetryAfter / time.Second)
+		if rateLimit.RetryAfter%time.Second > 0 {
+			retry++
+		}
 		if retry < 1 {
 			retry = 1
 		}
