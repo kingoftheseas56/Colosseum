@@ -1,0 +1,63 @@
+name: Linux 1.2.0 exact DEB upgrade profile acceptance
+on:
+  push:
+    branches: ['codex/120-linux-receive-only-dots-20261101']
+    paths:
+      - '.github/workflows/linux120-upgrade-profile.yml'
+      - 'tools/linux-release/smoke_upgrade_profile.py'
+permissions:
+  contents: read
+  actions: read
+jobs:
+  upgrade:
+    runs-on: ubuntu-24.04
+    strategy:
+      fail-fast: false
+      matrix:
+        image: ['ubuntu:24.04', 'debian:13']
+    container: ${{ matrix.image }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.sha }}
+      - uses: actions/download-artifact@v4
+        with:
+          artifact-ids: '13067491733'
+          merge-multiple: true
+          path: package
+          run-id: '41265531087'
+          github-token: ${{ github.token }}
+      - name: Install exact official baseline in clean container
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get update
+          apt-get install -y --no-install-recommends python3 xvfb xauth curl ca-certificates libgl1-mesa-dri libglx-mesa0 xdotool dbus libgtk-3-common
+          curl --fail --location --retry 2 https://github.com/kingoftheseas56/Colosseum/releases/download/v1.1.10/Colosseum-1.1.10-linux-amd64-notices.deb -o /tmp/baseline.deb
+          echo 'bb6cca0f21c233cb8b8ff2c725828a6b6792245ebef73dc2b5dd090ced97f915  /tmp/baseline.deb' | sha256sum --check --strict
+          echo '62c82ac361ab2fa6da62d79c2fb80a19906b13adc5bddfcae5fa1b5287a47b7f  package/Colosseum-1.2.0-linux-amd64.deb' | sha256sum --check --strict
+          apt-get install -y --no-install-recommends /tmp/baseline.deb
+          useradd --create-home --shell /bin/bash upgrade-test
+          mkdir -p /tmp/upgrade-receipts /home/upgrade-test/isolated
+          chown -R upgrade-test:upgrade-test /tmp/upgrade-receipts /home/upgrade-test/isolated
+          dpkg-query -W colosseum > /tmp/upgrade-receipts/package-before.txt
+      - name: Create real baseline local-only choice through normal app UI
+        run: |
+          runuser -u upgrade-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' python3 tools/linux-release/smoke_upgrade_profile.py --phase baseline --profile /home/upgrade-test/isolated --output /tmp/upgrade-receipts
+      - name: Upgrade unchanged exact candidate without resetting profile
+        env:
+          DEBIAN_FRONTEND: noninteractive
+        run: |
+          apt-get install -y --no-install-recommends ./package/Colosseum-1.2.0-linux-amd64.deb
+          dpkg-query -W colosseum > /tmp/upgrade-receipts/package-after.txt
+          python3 -c 'import json; from pathlib import Path; assert json.loads(Path("/opt/colosseum/BUILD-IDENTITY.json").read_text())["source_commit"] == "74096d5baf629d55f3a58296c39be33b732f3d30"'
+      - name: Verify normal upgraded launch retains app-owned choice and settings
+        run: |
+          runuser -u upgrade-test -- dbus-run-session -- xvfb-run -a -s '-screen 0 1920x1080x24' python3 tools/linux-release/smoke_upgrade_profile.py --phase upgraded --profile /home/upgrade-test/isolated --output /tmp/upgrade-receipts
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: linux120-upgrade-profile-${{ strategy.job-index }}
+          path: /tmp/upgrade-receipts/
+          retention-days: 7
