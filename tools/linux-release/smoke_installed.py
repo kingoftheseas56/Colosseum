@@ -118,7 +118,30 @@ def prove_gtk_picker(address, process, output, identity):
              'opened': False, 'cancelled': False, 'alive_after_cancel': False}
     try:
         proof['runtime_before'] = gtk_runtime_evidence(process.pid)
-        command(address, 'ui-keypress', {'key': 'Ctrl+O'})
+        # GTK's modal chooser can nest/block the synchronous Lanista callback.
+        # Deliver the real shortcut through XTest and keep IPC idle until closed.
+        deadline = time.monotonic() + PICKER_DEADLINE_SECONDS
+        main_window = None
+        while time.monotonic() < deadline:
+            if process.poll() is not None:
+                raise RuntimeError(f'Application exited before GTK picker: {process.returncode}')
+            matches = xdotool('search', '--onlyvisible', '--pid', process.pid,
+                              '--name', '^Colosseum.*', allow_no_match=True).splitlines()
+            for window in matches:
+                geometry = dict(line.split('=', 1) for line in
+                                xdotool('getwindowgeometry', '--shell', window).splitlines()
+                                if '=' in line)
+                if int(geometry.get('WIDTH', 0)) > 0 and int(geometry.get('HEIGHT', 0)) > 0:
+                    main_window = window
+                    proof['main_window'] = {'window': window, 'geometry': geometry}
+                    break
+            if main_window:
+                break
+            time.sleep(0.2)
+        else:
+            raise RuntimeError('Visible Colosseum main window never appeared')
+        xdotool('windowfocus', '--sync', main_window)
+        xdotool('key', '--clearmodifiers', 'ctrl+o')
         deadline = time.monotonic() + PICKER_DEADLINE_SECONDS
         chooser = None
         while time.monotonic() < deadline:

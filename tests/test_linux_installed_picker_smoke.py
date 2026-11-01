@@ -14,12 +14,15 @@ SPEC.loader.exec_module(smoke)
 
 
 class InstalledGtkPickerSmokeTests(unittest.TestCase):
-    def run_proof(self, x_replies, ipc_replies, returncode=None, clock=None):
+    def run_proof(self, x_replies, ipc_replies, returncode=None, clock=None, poll_results=None):
+        x_replies = ['99', 'WIDTH=1280\nHEIGHT=720', '', ''] + x_replies
+        clock = [-2, -1] + clock
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory)
             process = Mock(pid=1234, returncode=returncode)
             process.poll.return_value = returncode
-            with patch.object(smoke, 'command', side_effect=ipc_replies), \
+            process.poll.side_effect = poll_results
+            with patch.object(smoke, 'command', side_effect=ipc_replies) as ipc, \
                     patch.object(smoke, 'gtk_runtime_evidence', return_value={'packaged': True}), \
                     patch.object(smoke, 'xdotool', side_effect=x_replies) as x11, \
                     patch.object(smoke.time, 'sleep'), \
@@ -30,23 +33,34 @@ class InstalledGtkPickerSmokeTests(unittest.TestCase):
                                            {'source_commit': 'candidate'})
                 except RuntimeError as caught:
                     error = caught
+            self.assertTrue(all(call.args[1] == 'get-state' for call in ipc.call_args_list))
             receipt = json.loads((output / 'installed-picker-smoke.json').read_text())
             return receipt, error, x11.call_args_list
 
     def test_native_window_opens_xtest_cancels_and_app_remains_alive(self):
         receipt, error, calls = self.run_proof(
             ['42', 'WIDTH=640\nHEIGHT=480', '', '', '99'],
-            [{}, {'windows': [{'visible': True}]}], clock=[0, 1, 2, 3])
+            [{'windows': [{'visible': True}]}], clock=[0, 1, 2, 3])
         self.assertIsNone(error)
         self.assertEqual(receipt['status'], 'PASS')
         self.assertEqual(receipt['backend'], 'native GTK')
-        self.assertEqual(calls[2].args, ('windowfocus', '--sync', '42'))
-        self.assertEqual(calls[3].args, ('key', '--clearmodifiers', 'Escape'))
-        self.assertEqual(calls[4].args[-1], '.*')
+        self.assertEqual(calls[0].args[-1], '^Colosseum.*')
+        self.assertEqual(calls[2].args, ('windowfocus', '--sync', '99'))
+        self.assertEqual(calls[3].args, ('key', '--clearmodifiers', 'ctrl+o'))
+        self.assertEqual(calls[6].args, ('windowfocus', '--sync', '42'))
+        self.assertEqual(calls[7].args, ('key', '--clearmodifiers', 'Escape'))
+        self.assertEqual(calls[8].args[-1], '.*')
 
     def test_no_visible_native_window_fails_with_receipt(self):
         receipt, error, _ = self.run_proof([''], [{}], clock=[0, 1, 16])
         self.assertIn('never appeared', str(error))
+        self.assertFalse(receipt['opened'])
+        self.assertEqual(receipt['status'], 'FAIL')
+
+    def test_process_abort_preserves_failure_receipt(self):
+        receipt, error, _ = self.run_proof([], [], returncode=-6, clock=[0, 1],
+                                           poll_results=[None, -6])
+        self.assertIn('Application exited opening GTK picker: -6', str(error))
         self.assertFalse(receipt['opened'])
         self.assertEqual(receipt['status'], 'FAIL')
 

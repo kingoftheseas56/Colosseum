@@ -180,12 +180,17 @@ jobs:
           # state proves the Debian dependency (not a recommendation) supplied it.
           mkdir -p /tmp/installed-receipts
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/ca-certificates-before.txt
+          dpkg-query -W -f='${db:Status-Abbrev}' libgtk-3-common > /tmp/installed-receipts/gtk-schemas-before.txt 2>/dev/null || echo 'absent' > /tmp/installed-receipts/gtk-schemas-before.txt
           cd package
           sha256sum --check --strict Colosseum-1.2.0-linux-amd64.deb.sha256
           apt-get install -y --no-install-recommends ./Colosseum-1.2.0-linux-amd64.deb
           dpkg-query -W -f='${db:Status-Abbrev}' ca-certificates > /tmp/installed-receipts/ca-certificates-after.txt
           test "$(cat /tmp/installed-receipts/ca-certificates-after.txt)" = 'ii '
           test -s /etc/ssl/certs/ca-certificates.crt
+          dpkg-query -W -f='${db:Status-Abbrev}' libgtk-3-common > /tmp/installed-receipts/gtk-schemas-after.txt
+          test "$(cat /tmp/installed-receipts/gtk-schemas-after.txt)" = 'ii '
+          test -f /usr/share/glib-2.0/schemas/org.gtk.Settings.FileChooser.gschema.xml
+          test -s /usr/share/glib-2.0/schemas/gschemas.compiled
           desktop-file-validate /usr/share/applications/colosseum.desktop
           test "$(/usr/bin/colosseum --version)" = 'Colosseum 1.2.0'
       - name: Start and quit installed UI as a normal user
