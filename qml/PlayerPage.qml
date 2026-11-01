@@ -336,6 +336,26 @@ Item {
     property double recoveryNoVideoSince: 0
     property double wakeReconnectLastTickAt: 0
     property real wakeReconnectPendingSeek: -1
+    // The Stream route currently loaded (onStreamReady). Android retires it when
+    // the app is backgrounded, so a foreground return must re-demand it.
+    property bool streamDemandActive: false
+    property int streamDemandEpoch: 0
+    property int streamRestoreEpoch: -1
+    property string streamRestoreMediaId: ""
+    property string streamRestoreSessionId: ""
+    property string streamRouteUrl: ""
+    property string streamRouteHash: ""
+    property int streamRouteFileIdx: 0
+    property bool streamRouteRestorePending: false
+    property bool streamRouteRestoreLoadPending: false
+    // Pre-background position for that re-demand. Kept apart from the
+    // wake-reconnect seek, which recovery retries reset.
+    property real streamRouteRestoreSec: -1
+    // Playback intent at that re-demand ("paused"/"playing", "" when none): a
+    // fresh source load autoplays, so the reopen re-applies it whether or not a
+    // position seek is needed.
+    property string streamRouteRestoreIntent: ""
+    property var streamRouteRestoreSubtitle: null
 
     property var deadStreamKeys: ({})
     property string stubCheckedKey: ""
@@ -567,6 +587,7 @@ Item {
     function addOnlineSubtitle(url, title, lang) {
         if (!url || !url.length)
             return
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         root.addedOnlineUrls[url] = true
         root.subModelRev++
@@ -576,6 +597,7 @@ Item {
     function loadSubtitleFile(fileUrl) {
         if (!fileUrl)
             return false
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         var raw = String(fileUrl)
         root.addedOnlineUrls[raw] = true
@@ -827,6 +849,7 @@ Item {
     }
 
     function resetTrackAutomation() {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedAudio = false
         root.trackAutoDoneKey = ""
         root.autoAudioTrackId = ""
@@ -911,6 +934,7 @@ Item {
     }
 
     function pickSubtitleTrack(trackId) {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         var row = null
         for (var i = 0; i < root.subRows.length; i++)
@@ -925,6 +949,7 @@ Item {
     }
 
     function turnSubtitlesOff() {
+        root.streamRouteRestoreSubtitle = null
         root.userTouchedSubs = true
         mpv.subtitleTrack = ""
         root.saveTrackPreference({ "subtitlesOff": true, "subDelay": mpv.subDelay })
@@ -941,6 +966,8 @@ Item {
         if (!root.supportsPlayerCapability("subtitleDelay"))
             return
         mpv.subDelay = root.round2(mpv.subDelay + delta)
+        if (root.streamRouteRestoreSubtitle)
+            root.streamRouteRestoreSubtitle.delay = mpv.subDelay
         root.saveTrackPreference({ "subDelay": mpv.subDelay })
     }
 
@@ -948,6 +975,8 @@ Item {
         if (!root.supportsPlayerCapability("subtitleDelay"))
             return
         mpv.subDelay = 0
+        if (root.streamRouteRestoreSubtitle)
+            root.streamRouteRestoreSubtitle.delay = 0
         root.saveTrackPreference({ "subDelay": 0 })
     }
 
@@ -1456,14 +1485,22 @@ Item {
             return
         }
         var c = root.streamCandidates[index] || ({})
+        // A fresh stream start is not a retired-route reopen.
+        var pendingSubtitle = root.streamRouteRestoreSubtitle
+        root.clearStreamRouteRestore()
         root.currentStreamIndex = index
         root.streamRetryCount = 0
         root.mediaResumeHash = c.infoHash || ""
         root.mediaResumeFileIdx = c.fileIdx || 0
         // Mid-play stream switch: carry the live position into the replacement stream.
         // No overlay mid-watch — you were just watching, so the seek is silent.
-        if (reason === "switch")
+        if (reason === "switch") {
+            // An alternate candidate still belongs to this item's pending
+            // recovery; preserve the latest sidecar choice, including Off.
+            if (root.recoveryResumePending)
+                root.streamRouteRestoreSubtitle = pendingSubtitle
             root.prepareRecoveryResume()
+        }
         root.errored = false
         root.starting = true
         root.fileReady = false
@@ -1481,6 +1518,15 @@ Item {
         // resume path carries only the hash). Extensions spec Phase 2, slice G.
         var directUrl = root.directStreamUrl(c)
         if (directUrl.length) {
+            // Leaving a torrent for a direct source ends the torrent's playing demand, as
+            // stop() does: its in-flight requests are cancelled and a late streamReady for it
+            // is fenced, so it can never load over the direct stream. Downloads and prefetch
+            // have their own owners and are untouched by stopDemand().
+            root.streamRouteUrl = ""
+            root.streamDemandActive = false
+            root.streamDemandEpoch++
+            if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+                Stream.stopDemand()
             root.mediaTransport = "Direct stream"
             root.updateMediaSubtitle()
             // HTTP hosts that gate on a Referer/Origin need those headers on every request,
@@ -1492,10 +1538,22 @@ Item {
         root.mediaTransport = "Torrent stream"
         root.updateMediaSubtitle()
         root.clearActiveDirectHeaders()
+        if (Qt.platform.os === "android") {
+            root.streamDemandActive = true
+            root.streamDemandEpoch++
+            if (root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                root.streamRestoreEpoch = root.streamDemandEpoch
+            root.streamRouteHash = String(c.infoHash || "")
+            root.streamRouteFileIdx = Number(c.fileIdx || 0)
+        }
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
     function playTorrent(infoHash, fileIdx, title, posterUrl, subType, subId, streamCandidates, playbackContext) {
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
         root.arrivingStreamUrl = ""
         root.arrivingStreamHeaders = ({})
@@ -1613,6 +1671,14 @@ Item {
             root.loadDirectStreamUrl(directUrl, c.headers)
             return
         }
+        if (Qt.platform.os === "android") {
+            root.streamDemandActive = true
+            root.streamDemandEpoch++
+            if (root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                root.streamRestoreEpoch = root.streamDemandEpoch
+            root.streamRouteHash = String(c.infoHash || "")
+            root.streamRouteFileIdx = Number(c.fileIdx || 0)
+        }
         Stream.play(c.infoHash, c.fileIdx || 0)
     }
 
@@ -1642,16 +1708,32 @@ Item {
         root.recoveryResumePaused = false
     }
 
+    function recoveryPauseIntent() {
+        if (typeof Qt !== "undefined" && Qt.platform.os === "android") {
+            // Media3 reports paused before emitting its typed error. That is
+            // playback truth, not necessarily the user's pre-error intent.
+            var beforeError = mpv.playbackStat("recovery-paused")
+            if (typeof beforeError === "boolean")
+                return beforeError
+        }
+        return mpv.pause
+    }
+
     function prepareRecoveryResume() {
         if (!root.recoveryResumePending) {
             var pos = Number(mpv.position)
             if (!root.starting && isFinite(pos) && pos > 0)
                 root.recoveryPositionSec = pos
-            // No playback yet: keep the initial Resume/Start over decision intact.
+            // No playback yet: keep the initial Resume/Start over decision.
             if (root.recoveryPositionSec < 0)
                 return
-            root.recoveryResumePaused = mpv.pause
+            root.recoveryResumePaused = root.recoveryPauseIntent()
             root.recoveryResumePending = true
+            // Share the pending sidecar with route recovery so user Off/sync
+            // edits also apply while a same-source retry is loading.
+            if (typeof Qt !== "undefined" && Qt.platform.os === "android"
+                    && !root.streamRouteRestorePending && !root.streamRouteRestoreLoadPending)
+                root.streamRouteRestoreSubtitle = root.captureSelectedSidecarSubtitle()
         }
         root.pendingSeekSec = root.recoveryPositionSec
         root.resumePromptConsumed = true
@@ -1737,6 +1819,88 @@ Item {
         }
     }
 
+    // Android background quiesce retires the Stream route, so restoring Media3
+    // on the old loopback URL could only fail. Re-demand the same source and
+    // reopen at the pre-background position (onStreamReady -> onFileLoaded).
+    function streamRouteRetired() {
+        if (typeof Qt === "undefined" || Qt.platform.os !== "android"
+                || !root.visible || !root.streamDemandActive) return false
+        if (typeof Stream === "undefined" || !root.streamRouteUrl.length || root.errored)
+            return false
+        if (root.currentPlaybackUrl !== root.streamRouteUrl)
+            return false
+        return Stream.streamUrl(root.streamRouteHash, root.streamRouteFileIdx) !== root.streamRouteUrl
+    }
+    function streamRestoreContextCurrent() {
+        return root.streamDemandActive && root.streamRestoreEpoch === root.streamDemandEpoch
+                && root.streamRestoreMediaId === root.mediaId
+                && root.streamRestoreSessionId === root.activitySessionId
+    }
+    function clearStreamRouteRestore() {
+        root.streamRestoreEpoch = -1
+        root.streamRestoreMediaId = ""
+        root.streamRestoreSessionId = ""
+        root.streamRouteRestorePending = false
+        root.streamRouteRestoreLoadPending = false
+        root.streamRouteRestoreSec = -1
+        root.streamRouteRestoreIntent = ""
+        root.streamRouteRestoreSubtitle = null
+    }
+    function restoreRetiredStreamRoute() {
+        if (!root.visible || !root.streamDemandActive) return false
+        if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
+            return false
+        if (!root.streamRouteRestorePending && !root.streamRouteRetired())
+            return false
+        if (root.streamRouteRestorePending)
+            return true
+        root.streamRestoreEpoch = root.streamDemandEpoch
+        root.streamRestoreMediaId = root.mediaId
+        root.streamRestoreSessionId = root.activitySessionId
+        root.streamRouteRestorePending = true
+        root.streamRouteRestoreLoadPending = false
+        root.streamRouteRestoreSec = mpv.position > 1 ? mpv.position
+                : (root.recoveryResumePending ? root.recoveryPositionSec : -1)
+        // Android foreground return reopens in a parked state. An explicit Play
+        // tap during recovery may replace this intent before the fresh load lands.
+        root.streamRouteRestoreIntent = "paused"
+        root.streamRouteRestoreSubtitle = root.captureSelectedSidecarSubtitle() || root.streamRouteRestoreSubtitle
+        root.resetRecoveryResume()
+        root.resetRecoveryWatch()
+        root.statusMsg = "Reconnecting stream..."
+        streamWatchdog.restart()
+        mpv.pause = true
+        Stream.play(root.streamRouteHash, root.streamRouteFileIdx)
+        return true
+    }
+
+    function captureSelectedSidecarSubtitle() {
+        var subtitle = root.selectedSubtitleRow()
+        return subtitle && subtitle.external && subtitle.url
+                ? { "url": subtitle.url, "title": subtitle.title || subtitle.label,
+                    "lang": subtitle.lang || "", "delay": mpv.subDelay } : null
+    }
+
+    function restoreSelectedSidecarSubtitle(subtitle) {
+        // Media3 clears all sidecars on loadSource. Re-add only the selected
+        // sidecar for this same-route reopen; other rows may be picked again.
+        root.addedOnlineUrls = ({})
+        root.subModelRev++
+        if (!subtitle)
+            return
+        root.userTouchedSubs = true
+        root.autoSubDone = true
+        mpv.subDelay = subtitle.delay
+        root.addedOnlineUrls[subtitle.url] = true
+        mpv.addSubtitle(subtitle.url, subtitle.title, subtitle.lang, true)
+    }
+
+    function restoreStreamRouteSubtitle() {
+        var subtitle = root.streamRouteRestoreSubtitle
+        root.streamRouteRestoreSubtitle = null
+        root.restoreSelectedSidecarSubtitle(subtitle)
+    }
+
     function tickWakeReconnect() {
         if (!root.visible || root.recoveryExcluded())
             return
@@ -1758,6 +1922,12 @@ Item {
             return
         if (mpv.duration <= 0 && mpv.position <= 0)
             return
+        // A Stream route retired in the background reopens through a fresh demand,
+        // never by reloading its dead loopback URL.
+        if (root.streamRouteRestorePending || root.streamRouteRetired()) {
+            root.restoreRetiredStreamRoute()
+            return
+        }
         var pos = mpv.position > 1 ? mpv.position : -1
         // Fresh recovery clocks for the reconnected load (this path bypasses playStreamAt).
         root.resetRecoveryWatch()
@@ -2537,6 +2707,12 @@ Item {
 
 
     function playUrl(url, title) {
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
         root.hydrateGen += 1   // identity reset: a late hydration callback must not land here
         root.playbackQueueOrderingMode = ""
@@ -2623,6 +2799,12 @@ Item {
     }
 
     function playLocalFile(target) {
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
         var t = target || ({})
         var localCtx = t.playbackContext || ({})
@@ -2692,6 +2874,12 @@ Item {
     // grade like playLocalFile: subtitles + progress key off the video id, so the
     // landed copy resumes where this live watch leaves off.
     function playRemoteUrl(target) {
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
         root.resetRecoveryResume()
         var t = target || ({})
         var remoteUrl = String(t.streamUrl || "")
@@ -2850,6 +3038,8 @@ Item {
     }
 
     function stop() {
+        root.streamDemandActive = false
+        root.streamDemandEpoch++
         root.resetRecoveryResume()
         root.playbackEnded = false
         root.hydrateGen += 1   // player closing: cancel any in-flight context hydration
@@ -2859,6 +3049,11 @@ Item {
         root.closeMenus()
         root.clearActiveDirectHeaders()
         mpv.stopPlayback()
+        root.streamRouteUrl = ""
+        root.clearStreamRouteRestore()
+        // A real close ends the stream's demand; minimize never reaches here.
+        if (Qt.platform.os === "android" && typeof Stream !== "undefined" && Stream.stopDemand)
+            Stream.stopDemand()
         root.starting = false
         root.errored = false
         root.statusMsg = ""
@@ -3321,6 +3516,10 @@ Item {
     // EOF unloads mpv but keeps this page/session alive. Only explicit Play or
     // activation of that warm session may re-admit it; visibility and handoff never do.
     function replayEndedPlayback() {
+        // Media3 keeps the ended item and re-arms it on explicit Play. Its
+        // loopback URL may already be retired; desktop mpv needs a new load.
+        if (typeof Qt !== "undefined" && Qt.platform.os === "android")
+            return false
         // Room-controlled play remains on its existing authoritative command path.
         if (typeof WatchPartySync !== "undefined" && WatchPartySync.active)
             return false
@@ -3351,8 +3550,12 @@ Item {
                 if (mpv.pause) root.requestAudioPlayback()
                 WatchPartySync.requestLocalPlayback(mpv.pause, mpv.position)
             } else if (!root.replayEndedPlayback()) {
-                if (mpv.pause) root.requestAudioPlayback()
-                mpv.pause = !mpv.pause
+                var nextPaused = !mpv.pause
+                if (!nextPaused)
+                    root.requestAudioPlayback()
+                if (root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                    root.streamRouteRestoreIntent = nextPaused ? "paused" : "playing"
+                mpv.pause = nextPaused
             }
         }
         root.wakeChrome()
@@ -3590,6 +3793,7 @@ Item {
     }
 
     Component.onCompleted: {
+        if (PlatformRuntime.android) PlatformRuntime.setPlayerLandscape(root.visible)
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
@@ -3597,10 +3801,15 @@ Item {
             mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: {
+        if (PlatformRuntime.android) PlatformRuntime.setPlayerLandscape(false)
         root.sendTraktPlayback(false)
         if (typeof Power !== "undefined") Power.release()
     }
     onVisibleChanged: {
+        if (PlatformRuntime.android) {
+            PlatformRuntime.setPlayerLandscape(visible)
+            if (visible) root.restoreRetiredStreamRoute()
+        }
         // Hidden retained players cannot render video. Stop their watchdogs and
         // discard the hidden interval before granting a fresh visible grace period.
         root.resetRecoveryWatch()
@@ -3799,6 +4008,8 @@ Item {
             target: PlatformRuntime
             enabled: PlatformRuntime.android
             function onApplicationStateChanged() {
+                if (root.restoreRetiredStreamRoute())
+                    return
                 mpv.setHostLifecycleState(PlatformRuntime.applicationState)
             }
             function onSurfaceAvailableChanged() {
@@ -3806,6 +4017,22 @@ Item {
                     mpv.restoreVideoSurface()
                 else
                     mpv.releaseVideoSurface()
+            }
+        }
+        Connections {
+            // Android Media3: a seek/play after a natural end re-arms the same file.
+            // Undo onEndFile's state only; startup/resume logic ran once at fileLoaded.
+            target: mpv
+            ignoreUnknownSignals: true
+            function onFileResumed() {
+                root.cancelUpNext()
+                root.playbackEnded = false
+                // A new playback segment: recovery clocks from the original load
+                // would read a replay at 0 s as "source did not start".
+                root.resetRecoveryWatch()
+                root.fileReady = true
+                root.syncPowerInhibit()
+                root.syncWatchPartyPlayerObservation()
             }
         }
         Component.onCompleted: {
@@ -3832,6 +4059,17 @@ Item {
             root.syncWatchPartyPlayerObservation()
         }
         onFileLoaded: {
+            if (root.streamRouteRestoreLoadPending && !root.streamRestoreContextCurrent()) {
+                root.clearStreamRouteRestore()
+                return
+            }
+            if (root.streamRouteRestorePending && !root.streamRouteRestoreLoadPending) {
+                // The retired generation can report READY late. It is not the
+                // replacement route, so leave the saved return state for it.
+                if (!mpv.pause)
+                    mpv.pause = true
+                return
+            }
             // fileLoaded means mpv OPENED the file (its track list + duration are now available) —
             // NOT that playback has started. fileReady is set here because the track/subtitle
             // automation below needs the track list, but the loading state (starting / statusMsg /
@@ -3844,14 +4082,33 @@ Item {
             root.seekPreview = mpv.position
             root.fileReady = true
             var startupOwnedByUi = root.audioHandoffPaused
-            if (root.recoveryResumePending) {
+            if (root.streamRouteRestoreLoadPending) {
+                // Re-demanded after the background quiesce: reopen where it was,
+                // parked unless the user explicitly pressed Play during recovery.
+                var restoreSec = root.streamRouteRestoreSec
+                var restorePaused = root.streamRouteRestoreIntent !== "playing" || root.audioHandoffPaused
+                        || !root.visible || root.windowMinimized
+                root.resetRecoveryResume()
+                root.pendingSeekSec = -1
+                root.streamRouteRestoreLoadPending = false
+                root.streamRouteRestoreSec = -1
+                root.streamRouteRestoreIntent = ""
+                root.wakeReconnectPendingSeek = -1
+                if (restoreSec > 1)
+                    mpv.seekExact(restoreSec)
+                mpv.pause = restorePaused
+                root.restoreStreamRouteSubtitle()
+                startupOwnedByUi = true
+            } else if (root.recoveryResumePending) {
                 var recoveryPaused = root.recoveryResumePaused || root.audioHandoffPaused
                 var recoverySeek = root.pendingSeekSec
+                root.recoveryResumePending = false
+                root.pendingSeekSec = -1
                 if (recoverySeek >= 0)
                     mpv.seekExact(recoverySeek)
-                root.pendingSeekSec = -1
-                root.recoveryResumePending = false
                 mpv.pause = recoveryPaused
+                if (typeof Qt !== "undefined" && Qt.platform.os === "android")
+                    root.restoreStreamRouteSubtitle()
                 startupOwnedByUi = startupOwnedByUi || recoveryPaused
             } else if (root.wakeReconnectPendingSeek > 1) {
                 // Reconnected after a system-wake gap — restore the pre-sleep position and honor
@@ -4087,9 +4344,24 @@ Item {
     Connections {
         target: Stream
         function onStreamReady(url, infoHash, fileIdx) {
+            if (Qt.platform.os === "android" && (!root.streamDemandActive
+                    || String(infoHash || "") !== root.streamRouteHash
+                    || Number(fileIdx || 0) !== root.streamRouteFileIdx)) return
+            if (root.streamRouteRestorePending && !root.streamRestoreContextCurrent()) return
+            var restoringRetiredRoute = root.streamRouteRestorePending
+                    && String(infoHash || "") === root.streamRouteHash
+                    && Number(fileIdx || 0) === root.streamRouteFileIdx
+            if ((root.streamRouteRestorePending || root.streamRouteRestoreLoadPending)
+                    && !restoringRetiredRoute)
+                root.clearStreamRouteRestore()
             root.statusMsg = "Buffering..."
             root.clearActiveDirectHeaders()
             root.currentPlaybackUrl = url || ""
+            root.streamRouteUrl = url || ""
+            root.streamRouteRestorePending = false
+            root.streamRouteRestoreLoadPending = restoringRetiredRoute
+            root.streamRouteHash = String(infoHash || "")
+            root.streamRouteFileIdx = Number(fileIdx || 0)
             streamWatchdog.restart()
             root.streamStatsSeen = false
             root.streamStatsPeers = 0
@@ -4097,6 +4369,9 @@ Item {
             root.streamStatsDownloaded = 0
             Stream.watchStats(infoHash, fileIdx)
             mpv.loadSource(url)
+            if (restoringRetiredRoute && (root.streamRouteRestoreIntent === "paused"
+                    || !root.visible || root.windowMinimized))
+                mpv.pause = true
         }
         function onStreamStats(infoHash, fileIdx, stats) {
             if (!root.starting)

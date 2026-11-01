@@ -2379,6 +2379,11 @@ Window {
     //      engine URL. Deferred while the player streams (one engine, playback wins). ----
     property var pendingResolves: []
     property var pendingFeeds: ({})   // "hash:idx" -> job id, answered by onFetchReady
+    property int downloadResolveEpoch: 0
+    Connections {
+        target: typeof PlatformDownloads !== "undefined" ? PlatformDownloads : null
+        function onOpenDownloadsRequested() { win.openDownloadsPage() }
+    }
     // torrent-choice pin (spec 2026-07-11): a hand-picked job carries infoHash/fileIdx
     // in its request; jobs() exposes them. Pinned -> prefetch exactly that torrent, no
     // source search, and Retry retries the SAME pick (the choice is durable — never
@@ -2396,6 +2401,7 @@ Window {
         return null
     }
     function resolveDownloadJob(id, streamId, mediaType) {
+        var resolveEpoch = win.downloadResolveEpoch
         var pin = pinnedPickFor(id)
         if (pin && pin.fileIdx >= 0) {
             var pkey = pin.infoHash.toLowerCase() + ":" + pin.fileIdx
@@ -2404,6 +2410,7 @@ Window {
             return
         }
         var onRows = function(rows) {
+            if (resolveEpoch !== win.downloadResolveEpoch) return
             if (!rows || !rows.length) {
                 Download.failJob(id, "No stream found for this episode.")
                 return
@@ -2447,6 +2454,7 @@ Window {
         var installed = (typeof Extensions !== "undefined") ? Extensions.installed() : []
         var exts = AddonClient.streamExtensions(installed, mediaType, streamId)
         var lastResort = function() {
+            if (resolveEpoch !== win.downloadResolveEpoch) return
             if (AddonClient.torrentioEnabled(installed))
                 Torrentio.loadStreams(mediaType, streamId, onRows)
             else
@@ -2469,7 +2477,7 @@ Window {
             if (id === undefined)
                 return
             delete win.pendingFeeds[key]
-            Download.feedUrl(id, url)
+            Download.feedTorrentUrl(id, url, infoHash, fileIdx)
         }
         function onStreamError(message) {
             // Engine went away mid-warmup: fail the waiting jobs honestly (Retry
@@ -2485,6 +2493,11 @@ Window {
     }
     Connections {
         target: typeof Download !== "undefined" ? Download : null
+        function onResolutionReset() {
+            win.downloadResolveEpoch++
+            win.pendingFeeds = ({})
+            win.pendingResolves = []
+        }
         function onNeedResolve(id, streamId, mediaType) {
             if (win.playerOpen) { win.pendingResolves.push({ id: id, sid: streamId, mt: mediaType }); return }
             win.resolveDownloadJob(id, streamId, mediaType)

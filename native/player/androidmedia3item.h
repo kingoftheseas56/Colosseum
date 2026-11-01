@@ -6,13 +6,18 @@
 #ifdef Q_OS_ANDROID
 
 #include <QJniObject>
+#include <QList>
 #include <QQuickItem>
 #include <QUrl>
 #include <QVariantList>
 #include <QVariantMap>
 
 #include "androidmedia3state.h"
+#include "subtitlesidecar.h"
 #include "playerbackendcontract.h"
+
+class QNetworkAccessManager;
+class QNetworkReply;
 
 class AndroidMedia3Item : public QQuickItem, public PlayerBackendContract
 {
@@ -44,6 +49,7 @@ class AndroidMedia3Item : public QQuickItem, public PlayerBackendContract
     Q_PROPERTY(double cacheTime READ cacheTime NOTIFY cacheTimeChanged)
     Q_PROPERTY(double cacheBufferingState READ cacheBufferingState NOTIFY cacheBufferingStateChanged)
     Q_PROPERTY(bool coreSeeking READ coreSeeking NOTIFY coreSeekingChanged)
+    Q_PROPERTY(bool seekable READ seekable NOTIFY seekableChanged)
     Q_PROPERTY(bool gifEncoding READ gifEncoding NOTIFY gifEncodingChanged)
 
 public:
@@ -89,6 +95,7 @@ public:
     double cacheTime() const;
     double cacheBufferingState() const;
     bool coreSeeking() const;
+    bool seekable() const { return m_seekable; }
     bool gifEncoding() const;
 
     Q_INVOKABLE void loadSource(const QString &url);
@@ -153,11 +160,15 @@ Q_SIGNALS:
     void cacheTimeChanged();
     void cacheBufferingStateChanged();
     void coreSeekingChanged();
+    void seekableChanged();
     void gifEncodingChanged();
     void gifSaved(QString path);
     void gifFailed();
     void fileStarted();
     void fileLoaded();
+    // A naturally ended source re-armed by seek/play is playable again. Unlike
+    // fileLoaded (once per load), it carries no startup/resume semantics.
+    void fileResumed();
     void endFile(QString reason);
     void playbackError(QString code, QString message);
     void videoReconfig();
@@ -170,10 +181,27 @@ private:
     void publishSnapshotChanges(const Colosseum::Player::AndroidMedia3Snapshot &before);
     void callHost(const char *method);
     void callHostSeek(qint64 positionMs);
+    bool rearmIfEnded(quint64 generation);
     void callHostTrack(const char *method, const QString &trackId);
     void updateControlSnapshot(int volume, bool muted, double speed);
     QString formatTime(double seconds) const;
     jlong nativeHandle() const;
+
+    // External (sidecar) subtitles: fetched and parsed in C++, drawn through the same
+    // subtitleCues overlay as embedded Media3 text; Media3 itself is never re-prepared.
+    struct ExternalSubtitle {
+        QString id;
+        QString title;
+        QString lang;
+        QString url;
+        QList<Colosseum::Player::SidecarCue> cues;
+    };
+    void finishExternalSubtitle(quint64 generation, const QString &source, const QString &title,
+                                const QString &lang, bool select, const QByteArray &bytes);
+    const ExternalSubtitle *findExternalSubtitle(const QString &id) const;
+    void clearExternalSubtitles();
+    void updateSidecarCues();
+    void clearPublishedCues();
 
     Colosseum::Player::AndroidMedia3State m_state;
     QJniObject m_host;
@@ -187,8 +215,16 @@ private:
     QString m_videoAspect = QStringLiteral("auto");
     QSize m_videoSize;
     bool m_fileLoadedEmitted = false;
+    bool m_seekable = false;
+    bool m_resumeAfterEnd = false;
     bool m_surfaceReleased = false;
     quint64 m_restoreLifecycleEpoch = 0;
+    QNetworkAccessManager *m_subtitleNam = nullptr;
+    QList<QNetworkReply *> m_subtitleReplies;
+    QList<ExternalSubtitle> m_externalSubtitles;
+    QString m_activeExternalId;
+    QList<int> m_activeSidecarCues;
+    int m_nextExternalSubtitle = 0;
 };
 
 #endif // Q_OS_ANDROID
