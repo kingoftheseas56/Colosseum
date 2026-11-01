@@ -1,0 +1,1549 @@
+{
+  "checked_at": "2026-10-31T23:45:30.930103+00:00",
+  "start_inventory": "evidence/input-versions-start.json",
+  "tracked_entries": 221,
+  "existing_files": 217,
+  "unchanged": true,
+  "changed": [],
+  "files": [
+    {
+      "path": "review-batches\\01-sources-manga\\README.md",
+      "exists": true,
+      "bytes": 6190,
+      "sha256": "5f8c15c18d3deacb1db4aaf501f7a72d4e2a143dd372c338b7a3b95df76c2a28",
+      "matches_start": true
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\INPUTS.json",
+      "exists": true,
+      "bytes": 3774,
+      "sha256": "7a17c88bd3dab5a3da2919af896b39e7959e2e3cef978e058a227eada285f2d7",
+      "matches_start": true
+    },
+    {
+      "path": "context\\ANDROID-PORT-CLASSIFICATION.md",
+      "exists": true,
+      "bytes": 11389,
+      "sha256": "cc5eb89284d095fd6e5efe91e3416818746756e7f9438fbcf8073d5da6ee829a",
+      "matches_start": true
+    },
+    {
+      "path": "context\\VIEWPORTS.json",
+      "exists": true,
+      "bytes": 705,
+      "sha256": "098eb7ca11d08966b6974082338a60d9d6534917d876070342c084e1f1d77552",
+      "matches_start": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-01-THEATRE-SOURCES.md",
+      "exists": true,
+      "bytes": 7540,
+      "sha256": "4e51f9519cd2ad072fe03a2bed9badc876b0a3bd8917a091a711d8003d361fcf",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\app.js",
+      "exists": true,
+      "bytes": 19929,
+      "sha256": "c56aebfee46556a811183b93c2f34cf61d2f8fe21e9a1b18c12a276404a3ca8f",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\capture.js",
+      "exists": true,
+      "bytes": 8180,
+      "sha256": "634d63d9d4d26c8d076f1a02602bdc9c7be08fba2f79fe7750ba71219cb9f0da",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\episode-sources.html",
+      "exists": true,
+      "bytes": 4898,
+      "sha256": "eda9322fdbe1fbf236ee5d149eca76a6173021fd25054648531b2ddf86587ace",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\FIDELITY.md",
+      "exists": true,
+      "bytes": 9636,
+      "sha256": "b166f3887cb9975c4153cefca9612b14f27689090e1147e05df38fe6c7e7e023",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\film-sources.html",
+      "exists": true,
+      "bytes": 4880,
+      "sha256": "cc2c3a07bd966ac5dc48c2ac4b1deee80e6e113d4b433d27de7e79c6c4ecf101",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\index.html",
+      "exists": true,
+      "bytes": 1845,
+      "sha256": "d8091dc700ba03f9c9df7f4f7a803a578b9d31b638eb4525e182dbebddb60a4e",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\REPORT.json",
+      "exists": true,
+      "bytes": 7268,
+      "sha256": "f09f816b62c731dca6f31644c5e6462d69a150570dc7a877f1194570bda84580",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\style.css",
+      "exists": true,
+      "bytes": 17082,
+      "sha256": "c438f02e5470c9dfb3aeacbac35fbcefd6f8861019f8372f8a98366b470eab5e",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-context-open.png",
+      "exists": true,
+      "bytes": 174183,
+      "sha256": "9d4df991ecd31b8923591851ba437e209e450bd25aef92984f03d721791a2495",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-desktop.png",
+      "exists": true,
+      "bytes": 606154,
+      "sha256": "427249f0bbe9974bcca7b8d0248656b0bb031390ad4ba6c1060b575dbd4fdb8b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-download.png",
+      "exists": true,
+      "bytes": 197873,
+      "sha256": "a0fc046defa9c1e5b696cb51c0259bfbb05caae54787ab2ba1fb88aa903a7fec",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-insets.png",
+      "exists": true,
+      "bytes": 196339,
+      "sha256": "0a94966e817b11021f8772f3c3967720eee1651c9f49e0d8829f7f68787176f7",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-landscape.png",
+      "exists": true,
+      "bytes": 198506,
+      "sha256": "4d32c3e9797fa5d0716d82c32ef80a1e6c0571bbb5195bccac269db9ae3ea148",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-large-font-landscape.png",
+      "exists": true,
+      "bytes": 164659,
+      "sha256": "9c125c3cf7bc2462e61900f9be830f20a9b90754ee94fd936eeef1f37b38b41b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-portrait.png",
+      "exists": true,
+      "bytes": 197478,
+      "sha256": "6bd5cb7fe14bc86eee1182df99e2abcb950c8c9595fa40043a771c5fb4f5a79c",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-quality-filter.png",
+      "exists": true,
+      "bytes": 162716,
+      "sha256": "b538c9751b91fc4fe97b61e04d8975b65674089b8e34ca3ab4d187284bfc753e",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-season.png",
+      "exists": true,
+      "bytes": 199303,
+      "sha256": "d6f5b09e8e0f72c06a4e7a8afaf389746b93ae9eaa813389d92fd1f13606f81f",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-small-landscape.png",
+      "exists": true,
+      "bytes": 159943,
+      "sha256": "0a3fd4cb853119862b4952e6fb9498525adc20512b5b7ffb36f43b401b345e46",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-small-portrait.png",
+      "exists": true,
+      "bytes": 165806,
+      "sha256": "0b3e82ae6a796abb26d513164d7df960f1375e2ab0ccce54e8dd42a5469e90ba",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-tablet-landscape.png",
+      "exists": true,
+      "bytes": 606147,
+      "sha256": "adc35e7b8e5f497e3d51bf6fbdafab75d2b582d844b6988b1d03f6b03c6ae1d2",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-closed.png",
+      "exists": true,
+      "bytes": 460078,
+      "sha256": "239c8325d6e81e4887444d0a91b9d2a92b83f1de3c87c12e3f3f6510e99932ca",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-desktop.png",
+      "exists": true,
+      "bytes": 771920,
+      "sha256": "df0a1373901ff8d0885c8e382bf8f1dac23b8e74daf00f6e215e249dfce202b1",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-landscape.png",
+      "exists": true,
+      "bytes": 242081,
+      "sha256": "db7fc369e6f2ac0d4f95be63877ce0ba903d12f05a472b06ff8a546baffabb50",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-large-font.png",
+      "exists": true,
+      "bytes": 206917,
+      "sha256": "53103ae191317bed3db1fc9b20adeedc2fc7ad74620d413c3269385e529982d9",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-portrait.png",
+      "exists": true,
+      "bytes": 243272,
+      "sha256": "0a068d2904071a33efa9912a6c8b103373763a9212740d2fa6123a6cb62e6ae9",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-provider-filter.png",
+      "exists": true,
+      "bytes": 234026,
+      "sha256": "197f9837fe10e9b4d7982fa4c72c71be58fa9f58aa30a43f33e4a5a3b17b3fa0",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-provider-open.png",
+      "exists": true,
+      "bytes": 224354,
+      "sha256": "5c267d6a4248267f852179ed7106ee7e12098b55b88accfe5719d055ba0173b7",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-small-landscape.png",
+      "exists": true,
+      "bytes": 193958,
+      "sha256": "df25e848c78d2f54aa83a04db1e2a97bb7c7cc8bde8d05742e56f2821377330f",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-small-portrait.png",
+      "exists": true,
+      "bytes": 203324,
+      "sha256": "734190e9121e7ab5aed147ada7a4c647f25e62bcc5f3af0a215c6184ad5dee28",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-tablet-portrait.png",
+      "exists": true,
+      "bytes": 606083,
+      "sha256": "0231fd0454318a60230c2851d5e331b9afd6dfd494fee0b289be79c3f0f484dc",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\verification.json",
+      "exists": true,
+      "bytes": 18449,
+      "sha256": "286de1a79da8e8e991bb1186cb1d5fd8181f22fbd8bf998761387552354e14ae",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\SourcesSheet.qml",
+      "exists": true,
+      "bytes": 60021,
+      "sha256": "54c08547e4315d3e246d47f1df5543e299d8a9babeb71da69f53169587d829b7",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\SourcePickerList.qml",
+      "exists": false,
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\SourceCard.qml",
+      "exists": false,
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\SourcesSheet.qml",
+      "exists": true,
+      "bytes": 63315,
+      "sha256": "ca256d5504b5abd278ac64e41f3adb60f568b62f3fa055e9b1c4795fb74e4ddb",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\SourcePickerList.qml",
+      "exists": false,
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\SourceCard.qml",
+      "exists": false,
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\SourcesSheet.qml",
+      "exists": true,
+      "bytes": 55660,
+      "sha256": "c9782ddc6a931c20a5da1f1090aa3a75baf34b7f01a270e87c7e9ebef98bc0e4",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\SourcePickerList.qml",
+      "exists": true,
+      "bytes": 102,
+      "sha256": "aaec8366085112e75bc59a98668a4777d35f217eaa8ca3d14d3ab0354136ce2e",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\SourceCard.qml",
+      "exists": true,
+      "bytes": 4844,
+      "sha256": "2effa18976a4865d55cbf69aff701ab64ae071c80e7ee7818ad74fc8bdaa46fb",
+      "matches_start": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-02-COMIC-SOURCES.md",
+      "exists": true,
+      "bytes": 7380,
+      "sha256": "c79a8ae6a13261ce03f3fa288280a17bf56ce674caaeec6209e330dce1190b75",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\app.js",
+      "exists": true,
+      "bytes": 16718,
+      "sha256": "b14f7917bf214468d8b20d8e38bf9cc69b3fdd7e17d0f1b2a0c07cb853db8c31",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\capture.ps1",
+      "exists": true,
+      "bytes": 429,
+      "sha256": "02be926937194591350bf414c0f39f3d6a6d8e7dd232991f3fa70f086f407dd1",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\comic-source-confirmation.html",
+      "exists": true,
+      "bytes": 364,
+      "sha256": "284a6da39c9f0d2ee5bb35de1f7c99d8e754f782cff1679eeeb4c36364d7b4c3",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\comic-sources.html",
+      "exists": true,
+      "bytes": 355,
+      "sha256": "f748355006000c64471f99e495dfbfabf5c1e3352bd33d3d19ca10d9ae3103dd",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\FIDELITY.md",
+      "exists": true,
+      "bytes": 9284,
+      "sha256": "41f1d8e7862b60df9d6b61598e9024f8d3527e957448ed966c915df29397ba1b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\index.html",
+      "exists": true,
+      "bytes": 1571,
+      "sha256": "7cd701b4007655710fc8f44f1b6672a3c5305efa4534e16a320aaa5bb4cd7e7b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\REPORT.json",
+      "exists": true,
+      "bytes": 7413,
+      "sha256": "f5814afdf8e79abc339d3ea8ffb410f01ab646dfb3ad806c11c6001480ae94c0",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\style.css",
+      "exists": true,
+      "bytes": 16348,
+      "sha256": "d11bddf996d2088a02c8d5e7e1ac2c0110e3b9d6dd0714bf1c435b31588a0a48",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\verify-mocks.cjs",
+      "exists": true,
+      "bytes": 10262,
+      "sha256": "290de9ff527fa3a52e747a54c75997c8f600863cd500c62a63b98b5413e4d9b8",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-ambiguous-portrait.png",
+      "exists": true,
+      "bytes": 90611,
+      "sha256": "852b767baea7f4fd4c6aab2ad376e491da0e7b4f0ae53d94ec4b8cf51af395b6",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-archive-landscape.png",
+      "exists": true,
+      "bytes": 88364,
+      "sha256": "1d4dacbb31dbd41ef3e183c95a97b29fb8ee7e957e6d254fa09e97e5b616afbc",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-combined-short-scale.png",
+      "exists": true,
+      "bytes": 83205,
+      "sha256": "97888f2e3f35f3ff2ed0e024fc385ea92062d50adac521a9ed1c0d9eceef93f3",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-combined-short.png",
+      "exists": true,
+      "bytes": 66879,
+      "sha256": "f9768dd7fbca3ef7fcac7c582a27a76dad7538b01c16e09a5ba46a37ab7a0f24",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-desktop.png",
+      "exists": true,
+      "bytes": 204277,
+      "sha256": "0140e62ef1018a78c8690444a417d4970b09f3f700280ec36f3a1770c089d397",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-incomplete-short-scale.png",
+      "exists": true,
+      "bytes": 78926,
+      "sha256": "e980f33d58019dfb5cf5d7717005e205236533af938bc8c3d65eb2e6d2ca0393",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-incomplete-short.png",
+      "exists": true,
+      "bytes": 65673,
+      "sha256": "4c41952c715a60f2eb5c490cac184c5827fc2ea70020babc77078fc0f18db149",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-landscape-scale-insets.png",
+      "exists": true,
+      "bytes": 98885,
+      "sha256": "d7fc15f1fc25073a6603d9323fb85459c90f280c971168458ebe57088ea55bf9",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-landscape.png",
+      "exists": true,
+      "bytes": 110061,
+      "sha256": "93985f3188ea3f625e9ee18afacfdd0f9b43c785d59547772b22112897e400f9",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-narrow.png",
+      "exists": true,
+      "bytes": 101365,
+      "sha256": "5905491fc8254d0a7d9e6973d39feed67e13b677988d5130cff9c25c9550e813",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-portrait.png",
+      "exists": true,
+      "bytes": 113162,
+      "sha256": "db00f0c2b970775882f7627cdb315ebb1c8e1b591acbfe93af801e70835ca33a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-desktop.png",
+      "exists": true,
+      "bytes": 199204,
+      "sha256": "3d966906d8d773b56245dc8fa06d9f19e356d4d91b6bbdd30db626e38be5323d",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-insets-scale.png",
+      "exists": true,
+      "bytes": 109063,
+      "sha256": "685a510f40ade80f6f39d52ac3a834d929f4f8d90115c905a8c57d61469e339e",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-landscape-scale-insets.png",
+      "exists": true,
+      "bytes": 92468,
+      "sha256": "4b9147adc356e2522c156b2c62188a4fb8c0f23a682dc871a56446ba6fbcc89b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-landscape.png",
+      "exists": true,
+      "bytes": 99147,
+      "sha256": "a11554500035f91c43469a118909523afb7a5f4753baa3410732b1a9d35d5d17",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-narrow-scale-insets.png",
+      "exists": true,
+      "bytes": 88043,
+      "sha256": "43014c2f21511c51416b563663d3230a8514b6dd0e0548768fafbdf3bfb7e4f6",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-narrow.png",
+      "exists": true,
+      "bytes": 91709,
+      "sha256": "2f0f1d8128031569a5c963cdc0997ee0221419d8198fca1f91a4a5313c00acb7",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-portrait.png",
+      "exists": true,
+      "bytes": 108810,
+      "sha256": "3d6641179e4a63292a9109ca30019357084b841014bf9b0448523712a1258924",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-short.png",
+      "exists": true,
+      "bytes": 91337,
+      "sha256": "995923352831a458675c89b3fe13e4f51a5b01fc5a09dd944ab739ec5f54db5c",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-tablet-landscape.png",
+      "exists": true,
+      "bytes": 202007,
+      "sha256": "828d6c884a5b256f2ef3e7fd75d1998a286d8ac353975758ac34da55359dad9e",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-tablet-portrait.png",
+      "exists": true,
+      "bytes": 181081,
+      "sha256": "9f6c139faf16d56a25d5f24cf840c988a3978158b59953792b067fd9ba3a3070",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\verification.json",
+      "exists": true,
+      "bytes": 22956,
+      "sha256": "ba4c30c1d4d2843428a7853de0d0dcfbe94743eac691ed1ec310dbfde246b541",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\ComicTorrentSourcesPage.qml",
+      "exists": true,
+      "bytes": 37702,
+      "sha256": "1010f1a29a59c221cc61883e3a8a587e64d56a306bc3da7ff1744f8fa75c9e70",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\ComicTorrentArchivePicker.qml",
+      "exists": true,
+      "bytes": 6264,
+      "sha256": "4bda78fe877a2394a18b8ccb5cfb86f565c5a15387d3584c18ec9dd830720877",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\ComicTorrentSourcesPage.qml",
+      "exists": true,
+      "bytes": 43019,
+      "sha256": "1c3f4e88d794a596c1791ff6b4f6ce8e2f29b2b7cb76d8efb48b5b601b2ce39b",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\ComicTorrentArchivePicker.qml",
+      "exists": true,
+      "bytes": 6113,
+      "sha256": "778649b122869f5cef4e82434e73828551565ebfa2615b49aec1f4aaf6852123",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\ComicTorrentSourcesPage.qml",
+      "exists": true,
+      "bytes": 44995,
+      "sha256": "901de7789d11862c733ccae1ab013cd84661719983d5cc8cc015255e1efac842",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\ComicTorrentArchivePicker.qml",
+      "exists": true,
+      "bytes": 6113,
+      "sha256": "778649b122869f5cef4e82434e73828551565ebfa2615b49aec1f4aaf6852123",
+      "matches_start": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-03-MANGA-SOURCES.md",
+      "exists": true,
+      "bytes": 7276,
+      "sha256": "e1abaaa995fc8341a463cbc98ae63c276e8eb11a7a17b06160858643e0ccad77",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\app.js",
+      "exists": true,
+      "bytes": 11632,
+      "sha256": "6a75d116b33afdfa9e4a75e5688a72d1c83387cc8d9b6fd6ed41e673e764f5fa",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\FIDELITY.md",
+      "exists": true,
+      "bytes": 11192,
+      "sha256": "1819f2b63e4fb8086aa182a7cc3cd662b0ae3675b583e3473f7539a709e4e53c",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\index.html",
+      "exists": true,
+      "bytes": 787,
+      "sha256": "5fd2542595ea6ed746519efaf4909d5871ad963208fa231123688c47b64371bd",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\manga-volume-sources.html",
+      "exists": true,
+      "bytes": 5058,
+      "sha256": "bc9a01569581e7b377325fd9064dc5ff594f0fdceeac950b836c2bc3f94ee7f1",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\REPORT.json",
+      "exists": true,
+      "bytes": 7132,
+      "sha256": "a4d6d8e8c0021a9e3be7ae09f2a13791ef60710dcb22c489538a181bfcb66dad",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\style.css",
+      "exists": true,
+      "bytes": 12811,
+      "sha256": "62c39a546839495c391aca37f60c87d12b3800778cf1402dc65e37ec3b6a5441",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\verify-layout.js",
+      "exists": true,
+      "bytes": 12120,
+      "sha256": "87daa4e1f63d37c1c30f5114ae9ca216be05fb0cafd5ec8892ecb925d793aaea",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\batch.png",
+      "exists": true,
+      "bytes": 112116,
+      "sha256": "95aee44adadbbdebaf34c182ed43af2fcef81d7666f43d626a247f456a04c92c",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\desktop.png",
+      "exists": true,
+      "bytes": 226552,
+      "sha256": "8398e6d5fa7edda8ea6cebef73478a63aa17e48cbb48a95beabe6a7c83572a81",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\disabled.png",
+      "exists": true,
+      "bytes": 86528,
+      "sha256": "d2a7adc9a6c67546077dbe01d75add5dc96531856a2d3b70073ad6c42382a0f3",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\geometry-audit.json",
+      "exists": true,
+      "bytes": 60400,
+      "sha256": "e2ba787d45bb103d471b638f60a8197dc2840ba641e1b4c73e59d8d110fc0814",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\landscape-long-130-scrolled.png",
+      "exists": true,
+      "bytes": 136414,
+      "sha256": "a631564acb4bf3f24cd5ad8a7902cf1e628e79f76332eb6189156f1bec778863",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\landscape-long-130.png",
+      "exists": true,
+      "bytes": 131887,
+      "sha256": "9c914d80b8bf51ec95ab62dd38c5370ccb0c079ae94f767d5bad34716c91588c",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\landscape.png",
+      "exists": true,
+      "bytes": 110663,
+      "sha256": "d79364d10e7fa165ad6254f77fb46e8109999c44df4ad0d62af04010a797db4b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\live.png",
+      "exists": true,
+      "bytes": 117588,
+      "sha256": "8091a677071db178ecc98bb2467cc1a62a719ee3f6a220b79be1f264c6fa7b90",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\long-130.png",
+      "exists": true,
+      "bytes": 119376,
+      "sha256": "d610bcd8542494bf1373656a3767107562a46c170accca03cd77c1ba63955671",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\portrait.png",
+      "exists": true,
+      "bytes": 113444,
+      "sha256": "b05e591976536898c35d748e00d487bf8c9d9ed944adfcc9ef84805b14a97a11",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\series.png",
+      "exists": true,
+      "bytes": 118470,
+      "sha256": "de8b1b0c97b90434300ad1493f9cf74a0239c0ab53635c09d164037c104f6d30",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\small-landscape.png",
+      "exists": true,
+      "bytes": 96380,
+      "sha256": "6cc6a3fd1dece5524a021a19c84d8b836fa3f06dc8a12d12305312989e409328",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\small-portrait.png",
+      "exists": true,
+      "bytes": 98825,
+      "sha256": "873b10f139c9066dc156403792cf61269900fcb692f114a87a6bf0e855f39721",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\tablet-landscape.png",
+      "exists": true,
+      "bytes": 235077,
+      "sha256": "c9644cafc8dc04c2ca1d75ffba60ec4ba97ad676d4b407c59d1a393060377bb9",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\tablet.png",
+      "exists": true,
+      "bytes": 196933,
+      "sha256": "59d44ef1b67981a55756c687943e9850aa05f7e5637ba742aa9e4cd5c3d7b8ae",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaTankobanSourcesPage.qml",
+      "exists": true,
+      "bytes": 46628,
+      "sha256": "7c11a629a311ed387d97c1f9ec9d48bcb5c03768a53623708b1e0b323574dbec",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaTankobanSourcesPage.qml",
+      "exists": true,
+      "bytes": 45969,
+      "sha256": "7aae433a5401e539e9c00ecb6d354f6fd7e592fe6b7bce3a3040ab45cb08060c",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaTankobanSourcesPage.qml",
+      "exists": true,
+      "bytes": 48244,
+      "sha256": "5e5a11f04863e89792130797d86795dff075f8e235d39da678926cf0535a9f84",
+      "matches_start": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-04-MANGA-SERIES.md",
+      "exists": true,
+      "bytes": 7521,
+      "sha256": "8f18e68e12c3e26be7e7e558795b63b02194fc762840a53ef129ec238c5d516d",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\app.js",
+      "exists": true,
+      "bytes": 21482,
+      "sha256": "82c389c8ce39c9fbc66bc5b472d2421af49693ed88dfc91e56cb6667239b9fbe",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\capture.cjs",
+      "exists": true,
+      "bytes": 4965,
+      "sha256": "91ecd747788f17d30c3e428a070f8ba7386bc4726cc8cdfbc22a1c5cfa1a8fda",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\FIDELITY.md",
+      "exists": true,
+      "bytes": 12030,
+      "sha256": "02c65fadeb342780bc5be165df09ea1820e5e1aa823b371aa3e51782033f1ada",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\index.html",
+      "exists": true,
+      "bytes": 2061,
+      "sha256": "2cc4aa4b4556c6d697cfe018447ef95ce633b81176542873a3b9d04d2501369a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\manga-chapters.html",
+      "exists": true,
+      "bytes": 2677,
+      "sha256": "6fc5193ff4b5603279b3a781f1db56e9622d98377230592407f4e62cece3b64b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\manga-series.html",
+      "exists": true,
+      "bytes": 2669,
+      "sha256": "c57421616e1f3c6e698a365482b8bddd76241a0f6a5e871c48c3859645971dfb",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\REPORT.json",
+      "exists": true,
+      "bytes": 11156,
+      "sha256": "96348bc7e054fa42e9a7d0d72b06e7c87b6b1cd842ef9c9a74291fa787dcd11f",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\style.css",
+      "exists": true,
+      "bytes": 21948,
+      "sha256": "b6502c3ec1e6111001033823d690897d3ed4f131d7a33821b5a7ba07a6325037",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\verify.cjs",
+      "exists": true,
+      "bytes": 8728,
+      "sha256": "3066ad1bf14791c36ae1f9ce519c3d65594d98f65eafc8619ba3840c261a172a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\checks.json",
+      "exists": true,
+      "bytes": 24736,
+      "sha256": "401b281b3763379230382b5d8f75d9f67985fb5a7b083e72b65983b6c8ee9dfa",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\interaction-checks.json",
+      "exists": true,
+      "bytes": 5721,
+      "sha256": "823defd89b38536c700122e9eeb34c0fd0d8b3a7eeba8b833137171da84db64b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-compact-page-popup.png",
+      "exists": true,
+      "bytes": 151543,
+      "sha256": "6bff27bf7e07b1431c576e78f881bbacb5929fe951714b79ac61c9df958491ff",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-compact-scale.png",
+      "exists": true,
+      "bytes": 166265,
+      "sha256": "f0a128ad20cb679366d54eb81f7d8f7da367b6c4b72bbad49b2512e576cf8e5b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-compact.png",
+      "exists": true,
+      "bytes": 155144,
+      "sha256": "9186bb7de6759450d7de4c1da9878f548e7fc630484b23f68e78bf75ed8d93ab",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-desktop.png",
+      "exists": true,
+      "bytes": 280722,
+      "sha256": "08f7bb2081863afa86c46f08c3031651b124b0d183b4eddf2da10d84560d8fa9",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-insetsScale.png",
+      "exists": true,
+      "bytes": 172633,
+      "sha256": "5a8e8a8d8f39699eaae6ec9257bf2b205bb564c492f458c5da5c320ab62bd21e",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-landscape.png",
+      "exists": true,
+      "bytes": 168452,
+      "sha256": "e85562404edb471ab16dce7b373c5ae2a01c7e1758984244d4e757b4f2513454",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-language-open.png",
+      "exists": true,
+      "bytes": 182002,
+      "sha256": "765e9687dd671a21fe3aa8e2917a1e721b311881b27ca9fe78504c0e3ffeaa86",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-page-open-landscape.png",
+      "exists": true,
+      "bytes": 158121,
+      "sha256": "c0097655d9851785b021506ff87b022cc916349bb67ad733184778eeb9639def",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-page-open.png",
+      "exists": true,
+      "bytes": 142292,
+      "sha256": "5d1d8aff58745c5273e2f02b0a5a9c7ec7f24d275e0cffc7227d219cfe684d55",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-portrait.png",
+      "exists": true,
+      "bytes": 182528,
+      "sha256": "8fd53cc4ca5d04049ab0e492cf66c0ded90d11c83bb84230fb0341e368eb1d22",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-rows-scrolled.png",
+      "exists": true,
+      "bytes": 94423,
+      "sha256": "e3f5bd11d3f6e568bc7466d1c8bb1b279dc6deb57e26b2e3ddbcdb359cf54268",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-short.png",
+      "exists": true,
+      "bytes": 150732,
+      "sha256": "e4fa6cde0eed94baf5f7b49dd7c9114aaffe76ebc6a84b54bb0eb6ed9dc53dae",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-tablet.png",
+      "exists": true,
+      "bytes": 335908,
+      "sha256": "c4c7fd278f6bc95128a24d56e00bfc0f4cbc2563f7a2b0fee4de0add798511c0",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-tabletLandscape.png",
+      "exists": true,
+      "bytes": 325327,
+      "sha256": "f83d19b3b842b184b3e08adbb945755508e7ced6354b911256df00138b14d69f",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-action-scrolled.png",
+      "exists": true,
+      "bytes": 245285,
+      "sha256": "f2d2fded7ea59ae6e1698b45f060887ed4507586ce2bba0b9de646d8d5bcaa01",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-compact.png",
+      "exists": true,
+      "bytes": 290486,
+      "sha256": "7ddf82c91d286779c231c9b5721d5503281b9a7b1832fb8f04b3278d03209367",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-desktop.png",
+      "exists": true,
+      "bytes": 784772,
+      "sha256": "443246799cb3a5f7e863d07e9327ac2cb3e1ddbc6ab6770270e7539659645927",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-expanded.png",
+      "exists": true,
+      "bytes": 244589,
+      "sha256": "7f8bdb3440dbd7af6610444a4d4a047e5fb65596171cceabd6909c2d0fa61a40",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-insetsScale.png",
+      "exists": true,
+      "bytes": 351740,
+      "sha256": "f413e155363c01feb6fa8a9706b25dc5bd807b2adb14ef01ea80a078bf7161d1",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-landscape.png",
+      "exists": true,
+      "bytes": 165386,
+      "sha256": "e1eb89bfb73829bf8f0f9ed226f5aee4a13fd7922c289097db6bf746a56ab38a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-portrait.png",
+      "exists": true,
+      "bytes": 338525,
+      "sha256": "57262a876a19f56a64f8912648bbd8fc5c0955aab2a2f38f8f3b27b78a947298",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-selected.png",
+      "exists": true,
+      "bytes": 340394,
+      "sha256": "b3580f0b8cc9584db678ab929a75312e5aa8e6d75f48de2e049f536f249e6bff",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-short.png",
+      "exists": true,
+      "bytes": 149990,
+      "sha256": "0265065ac9cf4f1ac39dad4ecc77061b5c3408d43fc77d86640abbf54966b447",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-synopsis-open-compact.png",
+      "exists": true,
+      "bytes": 244587,
+      "sha256": "6aff15e8fe9eeeaa7e4930c9ec9c139852078e5b5c7372d5a2a723262a994bdf",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-tablet.png",
+      "exists": true,
+      "bytes": 587733,
+      "sha256": "b63804bf1a564e1a106886e08736fc2750ab56e9772123c54b6a4816f1c47071",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-tabletLandscape.png",
+      "exists": true,
+      "bytes": 786711,
+      "sha256": "8ac8d2b64eaace362daa11d033a9530308698a10653d6c004d21704ab5d2489a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters\\desktop.png",
+      "exists": true,
+      "bytes": 280722,
+      "sha256": "08f7bb2081863afa86c46f08c3031651b124b0d183b4eddf2da10d84560d8fa9",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters\\landscape.png",
+      "exists": true,
+      "bytes": 168452,
+      "sha256": "e85562404edb471ab16dce7b373c5ae2a01c7e1758984244d4e757b4f2513454",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters\\portrait.png",
+      "exists": true,
+      "bytes": 182528,
+      "sha256": "8fd53cc4ca5d04049ab0e492cf66c0ded90d11c83bb84230fb0341e368eb1d22",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series\\desktop.png",
+      "exists": true,
+      "bytes": 784772,
+      "sha256": "443246799cb3a5f7e863d07e9327ac2cb3e1ddbc6ab6770270e7539659645927",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series\\landscape.png",
+      "exists": true,
+      "bytes": 165386,
+      "sha256": "e1eb89bfb73829bf8f0f9ed226f5aee4a13fd7922c289097db6bf746a56ab38a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series\\portrait.png",
+      "exists": true,
+      "bytes": 338525,
+      "sha256": "57262a876a19f56a64f8912648bbd8fc5c0955aab2a2f38f8f3b27b78a947298",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaSeries.qml",
+      "exists": true,
+      "bytes": 68089,
+      "sha256": "3172904cd5e2320bd65a293879aa48c444eb5f36cfd6aeea8f2ef54df533c1da",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaSeriesSharedHeader.qml",
+      "exists": true,
+      "bytes": 21380,
+      "sha256": "a557460923212a04655d65e125479d5fa200a12b5db40442de9e3f1fcb89c5b4",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaReadingRoom.qml",
+      "exists": true,
+      "bytes": 7955,
+      "sha256": "795e3e753e4fa80c5ebbb9563a7ce04286c5ff710c98bc03c75d5f86f38f9057",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaReadingRoomThumbnailMock.qml",
+      "exists": true,
+      "bytes": 15781,
+      "sha256": "c756770bbac216dfd9f50df28594b4177600d6a210d41dd0db8214d54e147594",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaChapterSeriesView.qml",
+      "exists": true,
+      "bytes": 31897,
+      "sha256": "952ef63b3dc13c84187d07760799d765e8ec757d411d3aa1dd88f187608a5230",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\TankobanChapterList.qml",
+      "exists": true,
+      "bytes": 32496,
+      "sha256": "76ecb3101fb147898945f414e5bc8b9b1ff6d62cd31ec2e1776891eac2d48a6b",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\TankobanSeriesView.qml",
+      "exists": true,
+      "bytes": 84807,
+      "sha256": "de2fc3681422d571c808e1b57741a6f5fd4ed3768c65bdb8b7f3b43f759a1290",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaSeries.qml",
+      "exists": true,
+      "bytes": 59164,
+      "sha256": "ed1ae5aec7d2b77bbe56657422b3e804ec40acdd6dbd9a8da5252c4f7580288c",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaSeriesSharedHeader.qml",
+      "exists": true,
+      "bytes": 19071,
+      "sha256": "527965e79fafb2b16568e2cf542b912048e627ca56a57e2b320977f4cc1fc9de",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaReadingRoom.qml",
+      "exists": true,
+      "bytes": 8658,
+      "sha256": "5790ba061bb6700df7f07df6b16fd36e95deb503d0e29c47640637c7ea16b515",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaReadingRoomThumbnailMock.qml",
+      "exists": true,
+      "bytes": 15258,
+      "sha256": "a595bf519314d574e1f0fb823c5065fd1aeb8188ad38a4f1c29584d4a75102a5",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaChapterSeriesView.qml",
+      "exists": true,
+      "bytes": 28113,
+      "sha256": "3c780eba3c7ebae311ebb7397a75a411a01197cb417792e4bb8bafdfcdc6292b",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\TankobanChapterList.qml",
+      "exists": true,
+      "bytes": 32092,
+      "sha256": "9203112890bf55cb462b95a941d732fa2a4b60988b42406576fa12bfb7abc64c",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\TankobanSeriesView.qml",
+      "exists": true,
+      "bytes": 72263,
+      "sha256": "21c5c929c3ada16f5f734ef1d17bda4182366053ba705d8db397ca3258b8e865",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaSeries.qml",
+      "exists": true,
+      "bytes": 59822,
+      "sha256": "52a057f6d833a4ee2a658e2b2056495f129cd23551aef426f66f9fb944649c37",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaSeriesSharedHeader.qml",
+      "exists": true,
+      "bytes": 20075,
+      "sha256": "d529c9ff675843e1db0726f8ccf4f00750192328f81de59de02d6bde004a62e9",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaReadingRoom.qml",
+      "exists": true,
+      "bytes": 8690,
+      "sha256": "e57d18a0144b0cc9e3e4553652bd3f100d3ce0a8327d2b0a490848c88711a02c",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaReadingRoomThumbnailMock.qml",
+      "exists": true,
+      "bytes": 18357,
+      "sha256": "aff8681a7a485a47cd5af28db64eb162095a85749cc26befec28d80270ae3c2d",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaChapterSeriesView.qml",
+      "exists": true,
+      "bytes": 29105,
+      "sha256": "1363e1456545149c1de84442a6c0e8f3e61a31ff2282c0ab2f3408f4c1a3e442",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\TankobanChapterList.qml",
+      "exists": true,
+      "bytes": 32694,
+      "sha256": "6de054115d8fff002af49b73fe95e8990cbfdd8b13f05c1d2cb24d50638bf1bc",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\TankobanSeriesView.qml",
+      "exists": true,
+      "bytes": 74504,
+      "sha256": "38ff203c5f10b813f4f87d944ae8872e3d95832a0bd24205d98a65c79c1cf91d",
+      "matches_start": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-05-VOLUME-FLOW.md",
+      "exists": true,
+      "bytes": 7544,
+      "sha256": "c9cd821acaec3f4fab56dba6ac1b3978648ce523fc05067749757dccccb3fdfd",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\app.js",
+      "exists": true,
+      "bytes": 14616,
+      "sha256": "a7c19088d869674433c2bb855afd85cbb1acec469df3ad614a17f89fe952276d",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\audit-summary.cjs",
+      "exists": true,
+      "bytes": 980,
+      "sha256": "bc0c5e176c35aee81ca2f5c4dc0339e10b8edd6ddd009c80b203dbd614e0f2c7",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\FIDELITY.md",
+      "exists": true,
+      "bytes": 8769,
+      "sha256": "d5f2bf1c80000f7b070b04ed03025e32224fd7972ccc6ca9b61fbf885482b9cd",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\index.html",
+      "exists": true,
+      "bytes": 2961,
+      "sha256": "cebe4110836f2c39677324bb6859281e14e9bbd31ef2f4106a5aae7cd0198165",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\run-review-captures.cjs",
+      "exists": true,
+      "bytes": 9746,
+      "sha256": "f01c4f69928d56a79262c4828d5ea74a8680421363eec3bdc3df5d4431a42450",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\style.css",
+      "exists": true,
+      "bytes": 18550,
+      "sha256": "5b0245d479fdc4d09829f07466b210c2be6c9710629932f532fb439d40b9e048",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\volume-flow-minimal-alternative.html",
+      "exists": true,
+      "bytes": 8127,
+      "sha256": "8268ee1123714e09616d3d165a10776d40e8bb07be2361d942e0781a25307525",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\volume-flow-original-fit.html",
+      "exists": true,
+      "bytes": 8047,
+      "sha256": "11491924bf3005bb078fb1d20540157f8504cc5bf883a11b28a7c28c585a5472",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\geometry-review.json",
+      "exists": true,
+      "bytes": 78640,
+      "sha256": "ccdcee8c9c6b3ceac10b193a544c198bbe700e1e5196e88a06eecd58bc4e2a40",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original-portrait.png",
+      "exists": true,
+      "bytes": 642461,
+      "sha256": "7e78946373cdabeb47de7a8c4d8203e4f449d75e717458f03317445362838b9b",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\probe-landscape.png",
+      "exists": true,
+      "bytes": 124627,
+      "sha256": "256847d703e458aa58cab78d4da39d7f0e46448f7531ab2b161641f1576d6165",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\desktop.png",
+      "exists": true,
+      "bytes": 542831,
+      "sha256": "2603dbb9a2fdcd13f0a22c2611ec70ce3e6ab04cf596217321ade55a73f598b7",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\expanded.png",
+      "exists": true,
+      "bytes": 319120,
+      "sha256": "1056b952757be4f49d218fd043bb9903c04a633b4ea9cb9cac53cf6c7ff8fb77",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\insets-font.png",
+      "exists": true,
+      "bytes": 228739,
+      "sha256": "10e00136022bc3e5be8b359360b58bcd32e65a386a0dc387328891722a90908a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\landscape-small-gallery.png",
+      "exists": true,
+      "bytes": 134669,
+      "sha256": "f189c18e2c9adcbe9559bcebea804c24efaad6b70e80c469c5c301b5c9478d3f",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\landscape-small.png",
+      "exists": true,
+      "bytes": 209146,
+      "sha256": "b7075cd315cd4c9f9db34a5252f9ae0b811aae901fed6c20c74d6258ff1af4e0",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\landscape.png",
+      "exists": true,
+      "bytes": 158510,
+      "sha256": "105b4f4b85787e7e225b44a5abf0646eae900dd40a8c5d135c76899a853b5122",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\portrait-small.png",
+      "exists": true,
+      "bytes": 234296,
+      "sha256": "bdc032b5ca05c9c29769807456fcb8780dadd71ef4cd18968516459b2ccc3e20",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\portrait.png",
+      "exists": true,
+      "bytes": 311739,
+      "sha256": "0de33a26b6f3c0760e13b5610095295bfd01d8507ffc14b343f44a247d07cb69",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\selection.png",
+      "exists": true,
+      "bytes": 314006,
+      "sha256": "814657fa855059e029b2f76b3083aae0ca39d8a01b597668fc8f3e071fa8b950",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\tablet-landscape.png",
+      "exists": true,
+      "bytes": 712245,
+      "sha256": "9fc432e3269835365c6781e56ae70ced2cc85d76cff5cfc009bf5af08496cb88",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\tablet-portrait.png",
+      "exists": true,
+      "bytes": 520206,
+      "sha256": "3b764dcfec79a3c795773e61ca6136832c30b8a18e9ce3c7ed75e7b8138b8ab8",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\desktop.png",
+      "exists": true,
+      "bytes": 542831,
+      "sha256": "2603dbb9a2fdcd13f0a22c2611ec70ce3e6ab04cf596217321ade55a73f598b7",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\expanded.png",
+      "exists": true,
+      "bytes": 319120,
+      "sha256": "1056b952757be4f49d218fd043bb9903c04a633b4ea9cb9cac53cf6c7ff8fb77",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\insets-font.png",
+      "exists": true,
+      "bytes": 228730,
+      "sha256": "88e48d48ff56737346a922da90535525f08babf35d71d41d4852d8d39ff44b5a",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\landscape-small.png",
+      "exists": true,
+      "bytes": 102380,
+      "sha256": "2ac517d1f069a4c512f6bb822046a01949a4db66e2116cb9e741bcf427cfa51f",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\landscape.png",
+      "exists": true,
+      "bytes": 158510,
+      "sha256": "105b4f4b85787e7e225b44a5abf0646eae900dd40a8c5d135c76899a853b5122",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\portrait-small.png",
+      "exists": true,
+      "bytes": 234296,
+      "sha256": "bdc032b5ca05c9c29769807456fcb8780dadd71ef4cd18968516459b2ccc3e20",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\portrait.png",
+      "exists": true,
+      "bytes": 311739,
+      "sha256": "0de33a26b6f3c0760e13b5610095295bfd01d8507ffc14b343f44a247d07cb69",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\selection.png",
+      "exists": true,
+      "bytes": 314006,
+      "sha256": "814657fa855059e029b2f76b3083aae0ca39d8a01b597668fc8f3e071fa8b950",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\tablet-landscape.png",
+      "exists": true,
+      "bytes": 712245,
+      "sha256": "9fc432e3269835365c6781e56ae70ced2cc85d76cff5cfc009bf5af08496cb88",
+      "matches_start": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\tablet-portrait.png",
+      "exists": true,
+      "bytes": 520217,
+      "sha256": "ae6fad0b9a5088cfc9bd64b8b7f5a67047fad37cb484d19861ecb36923972d35",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaTankobanLibrary.qml",
+      "exists": true,
+      "bytes": 49917,
+      "sha256": "13e65215237a40087ebc475b0190a8cb7e1a9aea785d14fa919698d20d664f8e",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaTankobanLibraryThumbnailMock.qml",
+      "exists": true,
+      "bytes": 63579,
+      "sha256": "499226cfdc3f49769e018b99463fbbfcc7a798ace5d6cafe42baeda1c428e790",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaTankobanLibrary.qml",
+      "exists": true,
+      "bytes": 48461,
+      "sha256": "76434c294ee8770ad38e0439e5057075b7628d972759d98a87f0009c72089857",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaTankobanLibraryThumbnailMock.qml",
+      "exists": true,
+      "bytes": 62633,
+      "sha256": "2f2f579175ae63bab7e1b9fcbc6c1009c9b0449486a5ebae6740d502e0ac27ff",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaTankobanLibrary.qml",
+      "exists": true,
+      "bytes": 48773,
+      "sha256": "c6de8dac62af9ff981a1eb13b68a927c60386f45f05b8b20ab88ff39a2acd1d5",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaTankobanLibraryThumbnailMock.qml",
+      "exists": true,
+      "bytes": 63751,
+      "sha256": "13b2eb95b9781737840cfc2ccb158bddab3e1297bb4237fadf7ee38305d62261",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\Theme.qml",
+      "exists": true,
+      "bytes": 1920,
+      "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\Main.qml",
+      "exists": true,
+      "bytes": 341875,
+      "sha256": "9baeea5bb4cd053d2a8eb310ccd847a9ddbf0b234b6b5c819277f41510d8fa54",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\Glass.qml",
+      "exists": true,
+      "bytes": 5889,
+      "sha256": "28d19c799fabeb7670af05cbcd4cc0873ffee0127253c154635b1c1959704fdd",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\BackAction.qml",
+      "exists": true,
+      "bytes": 7742,
+      "sha256": "e33aa23a915b09a152bf271cb36cae191bad2294f0ce8314eb731f4132dd1b69",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\TheatreSeriesView.qml",
+      "exists": true,
+      "bytes": 120331,
+      "sha256": "e144107503e61056152ba6093f529ab7606e02589653e9f1adf2edfcc040fc36",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\ComicSeriesPage.qml",
+      "exists": true,
+      "bytes": 45305,
+      "sha256": "024d7f59141637f00084416c6b458b48b6ea74172d21bf0f1213ffae7ac8fc90",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\KeyboardAction.qml",
+      "exists": true,
+      "bytes": 4839,
+      "sha256": "8863d856b53e80844ec0e5cfc546cd6f38192ea663bf20c267416e4757db8c99",
+      "matches_start": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\FocusRing.qml",
+      "exists": true,
+      "bytes": 1356,
+      "sha256": "42d9e0b89ea9385d3059fa6a03d8914bf31448e5b3a64941d969062c0747f28c",
+      "matches_start": true
+    }
+  ]
+}

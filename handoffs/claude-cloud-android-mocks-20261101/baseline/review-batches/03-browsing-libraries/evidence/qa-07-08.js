@@ -1,0 +1,31 @@
+(async()=>{
+const out=[];qaStart('07-biblio-home','biblio-home.html');
+await go(qaPage.job,qaPage.name,'after',354,792,{tab:'explore',scroll:650,index:'open'});
+await qaCheck('Expanded index toggle reachable',async()=>page.$eval('.rail-toggle',e=>{let r=e.getBoundingClientRect();return getComputedStyle(e).position==='absolute'&&document.elementFromPoint(r.x+14,r.y+14)===e&&r.bottom<720}));await qaShot('index-open');
+await qaCheck('Index retains expansion after row jump',async()=>{await qaClick('[data-action="jump-row"][data-row="popular"]');return page.$eval('.side-rail',e=>e.classList.contains('open'));});
+await qaCheck('Independent long index list scrolls',async()=>{return page.$eval('.sidebar-list',e=>{e.scrollTop=e.scrollHeight;return e.scrollTop>0;});});await qaShot('index-long');
+await go(qaPage.job,qaPage.name,'after',412,900,{tab:'explore',scroll:650});
+await qaCheck('Hidden shelves leave the index',async()=>{await qaClick('[data-action="customize"]');await qaClick('[data-action="toggle-hide"][data-row="popular"]');await qaClick('[data-action="customize"]');return await page.$('[data-action="jump-row"][data-row="popular"]')===null;});
+await qaCheck('Reorder updates shelf and index order',async()=>{await qaClick('[data-action="customize"]');await qaClick('[data-action="move-down"][data-row="top10"]');return page.$$eval('.rail-item[data-row]',es=>es[0].dataset.row==='popular');});
+await qaCheck('Ranked source reveal preserves rating suppression',async()=>{await page.$eval('.book-card.ranked',e=>e.focus());await delay(200);return page.$eval('.book-card.ranked',e=>getComputedStyle(e.querySelector('.cover-reveal')).opacity==='1'&&getComputedStyle(e.querySelector('.rating')).display==='none');});await qaShot('ranked-focus');
+await qaCheck('Long shelf content reaches final mosaic',()=>qaScrollBottom('#world-scroll'));await qaShot('long-content-bottom');
+await go(qaPage.job,qaPage.name,'after',792,354,{tab:'discover',scroll:650,font:'1.3',top:'24',bottom:'24'});
+await qaCheck('Filter popup fits short landscape with insets',async()=>{await qaClick('[data-action="toggle-filter"]');return qaBounds('.filter-menu');});await qaShot('filter-short-stress');
+await qaCheck('Selected filter reopens, Escape closes, clear resets',async()=>{await qaClick('[data-action="choose-filter"][data-name="Fantasy"]');let n=await page.$$eval('.wall-book',es=>es.length);await qaClick('[data-action="toggle-filter"]');await page.keyboard.press('Escape');await delay(100);let closed=await page.$eval('.filter-menu',e=>e.hidden);await qaClick('[data-action="clear-filter"]');return{pass:closed&&n===7&&await page.$eval('.filter-pill',e=>e.textContent.includes('Genre')),closed,filteredCount:n};});
+await qaCheck('Original empty-filter copy renders',async()=>{await qaClick('[data-action="toggle-filter"]');await qaClick('[data-action="choose-filter"][data-name="Romance"]');return page.$eval('.poster-wall',e=>e.textContent.includes('No books match this filter.'));});await qaShot('empty-filter');
+await qaCheck('Category popup keyboard works',async()=>{await qaClick('[data-action="toggle-category"]');await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');await delay(100);return page.$eval('.catalog-header .original-menu',e=>e.hidden);});
+await go(qaPage.job,qaPage.name,'after',412,900,{scene:'home'});await qaShot('reading-desk');await qaCheck('Reading Desk opens Biblio',async()=>{await qaClick('[data-action="open-biblio"]');return !!await page.$('#discover-content');});
+await qaCheck('Library route stays inside finished batch',async()=>{await qaClick('[data-action="tab"][data-tab="library"]');await delay(200);return page.url().includes('/finished-mocks/16-libraries/biblio-library.html');});
+out.push(qaSave());qaStart('08-theatre-discover','theatre-discover.html');
+await go(qaPage.job,qaPage.name,'after',412,900);
+await qaCheck('Five original Theatre world tabs',async()=>await page.$$eval('[data-theatre-tab]',es=>es.map(e=>e.textContent).join('|'))==='Discover|Movies|Shows|Anime|Library');
+await qaCheck('Source rail opens and provider list scrolls',async()=>{await qaClick('#source-toggle');return page.$eval('#source-list',e=>{e.scrollTop=e.scrollHeight;return{pass:e.scrollTop>0&&e.children.length>=10,providers:e.children.length,scroll:e.scrollTop};});});await qaShot('sources-long');
+await go(qaPage.job,qaPage.name,'after',792,354,{font:'1.3',top:'24',bottom:'24'});
+await qaCheck('Category popup fits short landscape',async()=>{await qaClick('#category-trigger');return qaBounds('#category-popup');});await qaShot('category-short-stress');
+await qaCheck('Category arrow/Enter selection closes popup',async()=>{await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');await delay(100);return page.$eval('#category-popup',e=>e.hidden);});
+await qaCheck('Filter popup fits and can clear selected value',async()=>{await qaClick('#filter-trigger');let fit=await qaBounds('#filter-popup');await qaShot('filter-short-stress');await page.keyboard.press('ArrowDown');await page.keyboard.press('Enter');await delay(100);let clear=await page.$eval('#filter-clear',e=>!e.hidden);if(clear)await qaClick('#filter-clear');return{pass:fit.pass&&clear&&await page.$eval('#filter-clear',e=>e.hidden),fit,clearWasVisible:clear};});
+await go(qaPage.job,qaPage.name,'after',900,412);await qaCheck('900px shell uses left rail',async()=>{let r=await qaRect('#tablet-world-rail');return r.visible&&r.w===92&&await page.$eval('#phone-world-tabs',e=>e.hidden);});await qaCheck('Long catalogue scrolls to end',()=>qaScrollBottom('#world-scroll'));await qaShot('long-content-bottom');
+await go(qaPage.job,qaPage.name,'after',800,1280);await qaCheck('800px shell retains bottom tabs',async()=>await page.$eval('#phone-world-tabs',e=>!e.hidden&&getComputedStyle(e).display!=='none'));
+await go(qaPage.job,qaPage.name,'after',412,900);await qaCheck('Shows tab reaches assigned catalogue',async()=>{await qaClick('[data-theatre-tab="Shows"]');await delay(200);return page.url().includes('theatre-catalogue.html')&&new URL(page.url()).searchParams.get('tab')==='shows';});
+out.push(qaSave());return out;
+})()

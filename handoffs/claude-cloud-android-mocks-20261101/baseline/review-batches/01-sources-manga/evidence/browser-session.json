@@ -1,0 +1,15 @@
+{
+  "started": "2026-10-31T22:42:10.847Z",
+  "browser": "Chrome/156.0.8078.74",
+  "pid": 47792,
+  "profile": "D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/01-sources-manga/browser-profile",
+  "origin": "http://127.0.0.1:5097",
+  "network": "No live external page requests allowed",
+  "cleanup": "verified closed",
+  "closed": "2026-10-31T23:43:44.363Z",
+  "closed_at": "2026-10-31T23:43:44.486Z",
+  "profile_cleanup": "removed owned temporary profile",
+  "owned_browser_process_absent": true,
+  "own_loopback_listener_closed": true,
+  "cleanup_verified_at": "2026-10-31T23:44:12.598258+00:00"
+}

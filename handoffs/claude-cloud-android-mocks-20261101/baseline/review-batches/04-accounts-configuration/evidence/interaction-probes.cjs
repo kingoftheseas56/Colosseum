@@ -1,0 +1,27 @@
+"use strict";
+const fs=require("fs"),path=require("path"),crypto=require("crypto"),{pathToFileURL}=require("url"),qa=require("./qa-core.cjs");
+exports.run=async(env,c)=>{
+ const variant=c.variant||"before",dest=path.join(env.out,variant,"interaction-probes");fs.mkdirSync(dest,{recursive:true});
+ const results=[];
+ async function test(id,name,kind,extra,fn){let p;try{
+ const task=qa.tasks[name],dir=variant==="before"?path.join(env.base,"outputs",task):path.join(env.batch,"finished-mocks",task);
+ const src=path.join(dir,name+".html"),url=pathToFileURL(src).href+"?"+qa.queryFor(task,kind,extra);
+ const inputs=[name+".html","app.js","style.css",...(variant==="after"?["../mock-support.js"]:[])].map(f=>({path:path.resolve(dir,f),sha256:crypto.createHash("sha256").update(fs.readFileSync(path.resolve(dir,f))).digest("hex")}));
+ const opened=await qa.prepare(env.browser,url,...qa.dimensions[kind]);p=opened.page;
+ const detail=await fn(p);const png=path.join(dest,id+".png");await p.screenshot({path:png,captureBeyondViewport:false});
+ results.push({id,page:name,kind,url,inputs,blockedRequests:opened.blocked,...detail,screenshot:path.relative(env.batch,png).replace(/\\/g,"/"),errors:opened.errors});
+ console.log(variant+" probe "+id+" "+(detail.pass?"PASS":"FAIL")+" "+JSON.stringify(detail.observed));
+ }catch(e){results.push({id,page:name,error:e.stack,pass:false});console.log("PROBE_ERROR "+id+" "+e.message);}finally{if(p)await p.close();}}
+ const active=p=>p.evaluate(()=>({action:document.activeElement.dataset.action||document.activeElement.dataset.act,id:document.activeElement.id,text:document.activeElement.textContent?.trim().slice(0,80),inFlyout:!!document.activeElement.closest(".flyout-card")}));
+ await test("F01-flyout-initial-focus","account-flyout","portrait",{},async p=>{const a=await active(p);return {pass:a.inFlyout&&a.action==="open-section",observed:a};});
+ await test("F02-flyout-tab-boundary","account-flyout","landscape",{},async p=>{await p.focus(".flyout-card .session-btn");await p.keyboard.press("Tab");const a=await active(p);return {pass:a.inFlyout,observed:a};});
+ await test("F03-flyout-escape-return","account-flyout","portrait",{open:0},async p=>{await p.evaluate(()=>document.querySelector('[data-action="toggle-flyout"]').scrollIntoView());await p.click('[data-action="toggle-flyout"]');await p.keyboard.press("Escape");const a=await active(p);return {pass:a.action==="toggle-flyout"&&await p.$(".flyout-card")===null,observed:a};});
+ await test("F04-account-route-context","account-profile","short",{top:24,bottom:24,font:1.3},async p=>{await Promise.all([p.waitForNavigation({waitUntil:"load"}),p.click('.compact-nav [data-page="security"]')]);const obs=await p.evaluate(()=>({query:location.search,width:document.querySelector("#app-frame").offsetWidth,height:document.querySelector("#app-frame").offsetHeight}));return {pass:obs.width===792&&obs.height===354&&obs.query.includes("font=1.3"),observed:obs};});
+ await test("F05-password-draft-rerender","account-security","portrait",{state:"password"},async p=>{await p.type("#security-current","LocalDemoCurrent");await p.type("#security-new","LocalDemoNext");await p.type("#security-confirm","LocalDemoNext");await p.click('[data-act="switch"]');const obs=await p.evaluate(()=>({current:document.querySelector("#security-current").value.length,newLength:document.querySelector("#security-new").value.length,confirmLength:document.querySelector("#security-confirm").value.length,saveDisabled:document.querySelector('[data-act="security-password-save"]').disabled,active:document.activeElement.dataset.act}));return {pass:obs.current===16&&obs.newLength===13&&!obs.saveDisabled&&obs.active==="switch",observed:obs};});
+ await test("F06-avatar-focus","account-profile","landscape",{},async p=>{await p.click('[data-avatar="book"]');const a=await active(p);return {pass:a.action==="avatar",observed:a};});
+ await test("F07-reset-preserves-enabled","tankoyomi-configuration","portrait",{},async p=>{await p.click('[data-toggle="zonatmo"]');await p.click('[data-move="zonatmo"][data-dir="1"]');await p.click("#reset-order");const obs=await p.evaluate(()=>({first:document.querySelector("[data-provider]").dataset.provider,enabled:document.querySelector('[data-toggle="zonatmo"]').getAttribute("aria-checked")}));return {pass:obs.first==="zonatmo"&&obs.enabled==="false",observed:obs};});
+ await test("F08-language-select-focus","tankoyomi-configuration","landscape",{menu:"open"},async p=>{await p.click('[data-default="en"]');const obs=await p.evaluate(()=>({active:document.activeElement.id,open:!document.querySelector("#default-options").hidden,default:document.querySelector("#default-name").textContent}));return {pass:obs.active==="default-selector"&&!obs.open&&obs.default==="English",observed:obs};});
+ await test("F09-month-layout-width","account-your-colosseum","landscape",{},async p=>{const obs=await p.evaluate(()=>({width:document.querySelector(".page-scroll").clientWidth,columns:getComputedStyle(document.querySelector(".portrait-grid")).gridTemplateColumns,metricColumns:getComputedStyle(document.querySelector(".metrics-grid")).gridTemplateColumns}));return {pass:obs.columns.split(" ").length===1&&obs.metricColumns.split(" ").length===4,observed:obs};});
+ fs.writeFileSync(path.join(dest,"results.json"),JSON.stringify({variant,utc:new Date().toISOString(),results},null,2)+"\n");
+ return {variant,total:results.length,passed:results.filter(r=>r.pass).length,failed:results.filter(r=>!r.pass).map(r=>r.id)};
+};

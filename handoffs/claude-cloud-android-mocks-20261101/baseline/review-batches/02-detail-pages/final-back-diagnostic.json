@@ -1,0 +1,67 @@
+{
+  "utc": "2026-10-31T23:20:04.328Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=episodes&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "rect": {
+          "x": 24,
+          "y": 52,
+          "width": 82,
+          "height": 44,
+          "top": 52,
+          "right": 106,
+          "bottom": 96,
+          "left": 24
+        },
+        "display": "flex",
+        "visibility": "visible",
+        "opacity": "1",
+        "color": "rgb(247, 247, 245)",
+        "zIndex": "auto",
+        "topElement": "<span>Back</span>",
+        "chrome": "<div id=\"chrome\"><button type=\"button\" class=\"back\" data-action=\"back\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M14.5 5.5 8 12l6.5 6.5\"></path></svg><span>Back</span></button><div class=\"window-controls\"><button data-action=\"minimize\" aria-label=\"Minimize\"><i aria-hidden=\"true\" class=\"glyph glyph-minimize\"></i></button><button data-action=\"fullscreen\" aria-label=\"Toggle fullscreen\"><i aria-hidden=\"true\" class=\"glyph glyph-fullscreen\"></i></button><button data-action=\"quit\" aria-label=\"Close\"><i aria-hidden=\"true\" class=\"glyph glyph-power\"></i></button></div></div>",
+        "chromeStyle": {
+          "z": "50",
+          "pointer": "none"
+        },
+        "before": {
+          "z": "auto",
+          "opacity": "0"
+        }
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-back-diagnostic",
+      "result": {
+        "name": "series-finished-back-diagnostic",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-back-diagnostic.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=episodes&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=episodes&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:20:04.313Z",
+        "sha256": "094cec3b76b2dc7c7a78d698034b181c8c277844ae1c10cda935b494e44377f0",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,582 @@
+[
+  {
+    "path": "captures\\biblio-collections.json",
+    "bytes": 777,
+    "sha256": "12ec90128b49228fce85cf5f80a3fb7726c1f76e259ab5fc5d9d0f0d2ff2e428"
+  },
+  {
+    "path": "captures\\biblio-collections.png",
+    "bytes": 56359,
+    "sha256": "2bd25cbb6e4b4d07a78d18befdd6b00d72586f0657e7d3386bdc6c315f1b8611"
+  },
+  {
+    "path": "captures\\biblio-desktop.json",
+    "bytes": 770,
+    "sha256": "0840adc9430fa5df13df767d748b338f8c4a93c3e1dfaa7c571d546f60ce9427"
+  },
+  {
+    "path": "captures\\biblio-desktop.png",
+    "bytes": 357307,
+    "sha256": "a4c45e19f33a1c778e55bc8d015f221a8108fd00c8cc3b6816d72d20c294224d"
+  },
+  {
+    "path": "captures\\biblio-landscape.json",
+    "bytes": 772,
+    "sha256": "04eaa2eda2c4a68d9c70a7172da1cf6333a3909438471623c3256ae4bd999b8c"
+  },
+  {
+    "path": "captures\\biblio-landscape.png",
+    "bytes": 133427,
+    "sha256": "3f4ab9c870b0ba9b75eee22f6f8e540f618a40e232d3ce1b63aa0444a1cda183"
+  },
+  {
+    "path": "captures\\biblio-portrait.json",
+    "bytes": 770,
+    "sha256": "8ae9847bbe8bcac0e9321e5049968a07a60cd212877994721afd1ac842d3a35d"
+  },
+  {
+    "path": "captures\\biblio-portrait.png",
+    "bytes": 175326,
+    "sha256": "158ac0ff7bb14a7f162ec4025d619786c6b516c0e3b8bf920e658dcf473141c9"
+  },
+  {
+    "path": "captures\\comic-archive-desktop.json",
+    "bytes": 785,
+    "sha256": "48546282a36d63d7ae165d3cd2d6298390f31c514cacc5f4fe7915bfa1ca04dc"
+  },
+  {
+    "path": "captures\\comic-archive-desktop.png",
+    "bytes": 389134,
+    "sha256": "500c96a7726cf5d21cc08bb3d97beb17d6781c4e12e78ec011bdbb4e700f155c"
+  },
+  {
+    "path": "captures\\comic-archive-focused-state.json",
+    "bytes": 757,
+    "sha256": "aafe439dc69f0cd6f82373fcf51db30f8b5550524e9caac5b2225bd35ac396d0"
+  },
+  {
+    "path": "captures\\comic-archive-focused-state.png",
+    "bytes": 107490,
+    "sha256": "5c715a6ed70f570475b9467e48df92d6a338b371eeca8ff3fd49da0ccbbafd26"
+  },
+  {
+    "path": "captures\\comic-archive-landscape.json",
+    "bytes": 802,
+    "sha256": "09a964df04573515ae4aa4898613aa0c1aa85195b607f3b3bfc85a5b7366ea5a"
+  },
+  {
+    "path": "captures\\comic-archive-landscape.png",
+    "bytes": 107490,
+    "sha256": "5c715a6ed70f570475b9467e48df92d6a338b371eeca8ff3fd49da0ccbbafd26"
+  },
+  {
+    "path": "captures\\comic-archive-portrait.json",
+    "bytes": 798,
+    "sha256": "67653126238b0356c01082ab00c19274f6a95a7a7207dfc36226c288f75b23f9"
+  },
+  {
+    "path": "captures\\comic-archive-portrait.png",
+    "bytes": 165849,
+    "sha256": "e2ac3894de9b8b987c55cb103c08c41810461c4f26c997388fac73107115f9a7"
+  },
+  {
+    "path": "captures\\comic-archive-raw.json",
+    "bytes": 736,
+    "sha256": "50fad8b0ca3e95f00328b7a26ae41d46b5eb8e529b461b991f656e8ab6426eed"
+  },
+  {
+    "path": "captures\\comic-archive-raw.png",
+    "bytes": 139096,
+    "sha256": "97a6b2aa91e34753530c984c1b94358e53ae42c21e7e2d908c054345761b3590"
+  },
+  {
+    "path": "captures\\comic-edition-desktop.json",
+    "bytes": 785,
+    "sha256": "e97048d7d4163e29c927d8fa012fd2dfd43fba0bafc402ad9d081a41e1249b46"
+  },
+  {
+    "path": "captures\\comic-edition-desktop.png",
+    "bytes": 305378,
+    "sha256": "a4f703164002d46dfcaed787ab118e35a88631bc12ed97b4fd9dfe007b597d76"
+  },
+  {
+    "path": "captures\\comic-edition-focused-state.json",
+    "bytes": 777,
+    "sha256": "0435d5b8fe0d014c077e37a541856d950fd05247c51e3b408347fb3a8ffeefde"
+  },
+  {
+    "path": "captures\\comic-edition-focused-state.png",
+    "bytes": 108513,
+    "sha256": "b54fb69c4b6faad1fe7058d44fc256ff35db91aa7e5880d270a2b6f6e41a9b86"
+  },
+  {
+    "path": "captures\\comic-edition-landscape.json",
+    "bytes": 802,
+    "sha256": "e9775985236ec5d41304790a397dd5a548273718c5e398bf4037fcfc839aa7a0"
+  },
+  {
+    "path": "captures\\comic-edition-landscape.png",
+    "bytes": 118258,
+    "sha256": "704d4e8318a3bfeffb31ca004b77f2519359c37d324d06b2f90cddffd894c1d3"
+  },
+  {
+    "path": "captures\\comic-edition-portrait.json",
+    "bytes": 798,
+    "sha256": "47936d455dd32030879938050c4a6eeb17bce64d8304481b39d3842cd8af28d2"
+  },
+  {
+    "path": "captures\\comic-edition-portrait.png",
+    "bytes": 124159,
+    "sha256": "09f708f43a80cb6d26d164164f6e4e114e1d941e5ed77bf4fffebc3046df1778"
+  },
+  {
+    "path": "captures\\comic-series-desktop.json",
+    "bytes": 781,
+    "sha256": "3b47d5605ab8ca8273737e558305151a85695123b6b8298355e8262948935de8"
+  },
+  {
+    "path": "captures\\comic-series-desktop.png",
+    "bytes": 316319,
+    "sha256": "0f6179627f8f23a8a886c2ee38cd0cc4d639a3a731749c47294fbd60955100ba"
+  },
+  {
+    "path": "captures\\comic-series-focused-state.json",
+    "bytes": 753,
+    "sha256": "52674e756f092c98ec7c78f32f0e380cfb20aaaf4deed34b7c52a7f3d6fd029e"
+  },
+  {
+    "path": "captures\\comic-series-focused-state.png",
+    "bytes": 124421,
+    "sha256": "72104118e039b1ac354020e590c93a53c3517dfd589862fb2621ff38a938bb8a"
+  },
+  {
+    "path": "captures\\comic-series-landscape.json",
+    "bytes": 798,
+    "sha256": "200da8e2ee8cbec278b23838ebe5fdfdd6b94f78216267706963dee666bf6526"
+  },
+  {
+    "path": "captures\\comic-series-landscape.png",
+    "bytes": 124421,
+    "sha256": "72104118e039b1ac354020e590c93a53c3517dfd589862fb2621ff38a938bb8a"
+  },
+  {
+    "path": "captures\\comic-series-portrait.json",
+    "bytes": 794,
+    "sha256": "ce77682b7c05bfd419554e5457f0d9cfd5eadef2fd8d5ebc7dce06a393d06fdd"
+  },
+  {
+    "path": "captures\\comic-series-portrait.png",
+    "bytes": 137071,
+    "sha256": "84fee2fea88cc0ee37c3361e0776b109097dfcfe377574269d0b4df30508ba77"
+  },
+  {
+    "path": "captures\\comic-weak-confirm.json",
+    "bytes": 758,
+    "sha256": "faea876e794d7c4c9ee2fd3e9d18f07a80a5038ba836caa63ca5ed4fbaaf85d1"
+  },
+  {
+    "path": "captures\\comic-weak-confirm.png",
+    "bytes": 75468,
+    "sha256": "ff72f011031cf2387533ae79842a6a76f0012bb1689bf3419e5285d6064b5f22"
+  },
+  {
+    "path": "captures\\film-desktop.json",
+    "bytes": 767,
+    "sha256": "b99b70326e4339ec6d8d9f6f18ecac8132ec81a3f5ade0fb7c303fcb10be3cfe"
+  },
+  {
+    "path": "captures\\film-desktop.png",
+    "bytes": 515979,
+    "sha256": "73e8a38b7b796186d2771d38aa9fed9ffcdb0307e771da616aa87807d47d4c5c"
+  },
+  {
+    "path": "captures\\film-landscape.json",
+    "bytes": 784,
+    "sha256": "4b5b2661a6202545e93cced7ec489f0e8e9708370c405247779abd917f40a9b0"
+  },
+  {
+    "path": "captures\\film-landscape.png",
+    "bytes": 232598,
+    "sha256": "26e454c85a5ec89afb32a85b062d2bc2b75628201f0681668dd140b1d2494e4a"
+  },
+  {
+    "path": "captures\\film-legacy-landscape.json",
+    "bytes": 779,
+    "sha256": "81b0ead6291af61bce6065c8954645fc540d9f7924395676941727adad14580b"
+  },
+  {
+    "path": "captures\\film-legacy-landscape.png",
+    "bytes": 232598,
+    "sha256": "26e454c85a5ec89afb32a85b062d2bc2b75628201f0681668dd140b1d2494e4a"
+  },
+  {
+    "path": "captures\\film-legacy-portrait.json",
+    "bytes": 777,
+    "sha256": "1f7789a498273ba0b1e5b309a6d65bf733b9ef4ba3375ffb1b23f13392529c0d"
+  },
+  {
+    "path": "captures\\film-legacy-portrait.png",
+    "bytes": 184498,
+    "sha256": "072a903864f0b9c26f94a25c420f360bccc7a3b1d5ce538efe4a0ba1c1ae1bba"
+  },
+  {
+    "path": "captures\\film-portrait.json",
+    "bytes": 780,
+    "sha256": "36400a447288322adde66b30909d283e276129e134f20ed05597b9b159d06532"
+  },
+  {
+    "path": "captures\\film-portrait.png",
+    "bytes": 184498,
+    "sha256": "072a903864f0b9c26f94a25c420f360bccc7a3b1d5ce538efe4a0ba1c1ae1bba"
+  },
+  {
+    "path": "captures\\film-rebuilt-android-window-menu.json",
+    "bytes": 802,
+    "sha256": "413ddefac12cf734b1d82032d3f26e1cc1c69ddc1f1b5ae2798d2597ea213273"
+  },
+  {
+    "path": "captures\\film-rebuilt-android-window-menu.png",
+    "bytes": 153869,
+    "sha256": "a8ed87ce8d1d8a8750294a4c8682ffab84c65e123f09992de7d03988cee81d19"
+  },
+  {
+    "path": "captures\\film-rebuilt-landscape.json",
+    "bytes": 783,
+    "sha256": "4f630b8b60614357f1e501750b496d1f083a13d99218898a9e8f718e8fc3bf98"
+  },
+  {
+    "path": "captures\\film-rebuilt-landscape.png",
+    "bytes": 232968,
+    "sha256": "5458d178303b72d78cedaebff60bdc9e2dce63b3b237ac736d3063595b45ec2c"
+  },
+  {
+    "path": "captures\\film-rebuilt-portrait.json",
+    "bytes": 781,
+    "sha256": "f3a1832c645f568af965d3a42eb09f646ca9a4b3227d278daea2479be4e03680"
+  },
+  {
+    "path": "captures\\film-rebuilt-portrait.png",
+    "bytes": 185639,
+    "sha256": "a6cdd5e0cdecf2b7ed5fe23f5d1f25b1bf844a353faf5fdbcdff1f544258eb72"
+  },
+  {
+    "path": "captures\\saga-desktop-docked.json",
+    "bytes": 772,
+    "sha256": "77699f0e260d0231a2eb4b86e6a88ec77ace901df9747a19ab65ff0e26d39246"
+  },
+  {
+    "path": "captures\\saga-desktop-docked.png",
+    "bytes": 333186,
+    "sha256": "a00b0be2f13855ae85a70c413f48d3d6e06ed5fca14727dfcb6b56ceb335a2d0"
+  },
+  {
+    "path": "captures\\saga-desktop-original.json",
+    "bytes": 776,
+    "sha256": "41493f60376f0a9a8722080c85e61c1ca5ccec97cf430d6bf49cd6dec94665c0"
+  },
+  {
+    "path": "captures\\saga-desktop-original.png",
+    "bytes": 333186,
+    "sha256": "a00b0be2f13855ae85a70c413f48d3d6e06ed5fca14727dfcb6b56ceb335a2d0"
+  },
+  {
+    "path": "captures\\saga-desktop.json",
+    "bytes": 758,
+    "sha256": "489fb3e195dba589dfc6d40cdf965c88f4dc9eb8f141d081570d3b769f06ecc4"
+  },
+  {
+    "path": "captures\\saga-desktop.png",
+    "bytes": 640893,
+    "sha256": "5b169d31712b3aaee82ab5f5d23d2ea82102fa1a0d7725e0e573c6ba3693eadd"
+  },
+  {
+    "path": "captures\\saga-landscape-docked.json",
+    "bytes": 783,
+    "sha256": "0f385dffcb0e15ded8f51f188ba1667c447559f0473cfa19a5afe02e63f92dc8"
+  },
+  {
+    "path": "captures\\saga-landscape-docked.png",
+    "bytes": 126889,
+    "sha256": "9b07b79bdcff77109751bb8b333f20904cfbc2d5845edf2abb5bdc9e9818f508"
+  },
+  {
+    "path": "captures\\saga-landscape-original.json",
+    "bytes": 787,
+    "sha256": "56ba379d1b88d83aae04f35809d989b5233ae306bcf9e26afc864e4f5a2542c8"
+  },
+  {
+    "path": "captures\\saga-landscape-original.png",
+    "bytes": 126889,
+    "sha256": "9b07b79bdcff77109751bb8b333f20904cfbc2d5845edf2abb5bdc9e9818f508"
+  },
+  {
+    "path": "captures\\saga-landscape.json",
+    "bytes": 769,
+    "sha256": "6a11a7e3c50a88f61742b9d20e38fa12bb31a50a74e77d8a7dc6e64acf188478"
+  },
+  {
+    "path": "captures\\saga-landscape.png",
+    "bytes": 223809,
+    "sha256": "ae11dfc3880d0cf0f9a699501f506feb91bca3e2eae68213750d84078506fe99"
+  },
+  {
+    "path": "captures\\saga-original-tabs.json",
+    "bytes": 782,
+    "sha256": "5483e99ea076293c9593e4a43390d95d642e8be871551970af7e28291a87d327"
+  },
+  {
+    "path": "captures\\saga-original-tabs.png",
+    "bytes": 409560,
+    "sha256": "a00284578347546390ce1619846bb6a12a246b4d23edb404b1b6f41c6521ee5e"
+  },
+  {
+    "path": "captures\\saga-portrait-docked.json",
+    "bytes": 771,
+    "sha256": "4c596050140fef8f4734ced46a5396be02d3bfa581a0dccee82a67bffbabb410"
+  },
+  {
+    "path": "captures\\saga-portrait-docked.png",
+    "bytes": 160421,
+    "sha256": "46e20d1196d3e5ad1676acc5224ca0e2392322198e3605d3a2cbe88dd233310e"
+  },
+  {
+    "path": "captures\\saga-portrait-original.json",
+    "bytes": 775,
+    "sha256": "e0a64617b393f3b7141ddd69a6714ff490f2aa5425c22dcac9c85305d7744052"
+  },
+  {
+    "path": "captures\\saga-portrait-original.png",
+    "bytes": 168876,
+    "sha256": "78aafaaed3f35d2c261ada6c0e0bcc8a1fbaf769a3f2a7525ff97c48f284e733"
+  },
+  {
+    "path": "captures\\saga-portrait.json",
+    "bytes": 757,
+    "sha256": "e59bb490780c501c282673c5a0a82d8ef20b4a7754b2843390cbf11d4d4df6a9"
+  },
+  {
+    "path": "captures\\saga-portrait.png",
+    "bytes": 212018,
+    "sha256": "d42de5ab9fa2ff2789e923b357284e5a8ae0517c1b3731bb07d4dcfd690921ba"
+  },
+  {
+    "path": "captures\\series-desktop.json",
+    "bytes": 775,
+    "sha256": "9fc917d0593f9cb4425be2dd12f76ff0dd3d99fccd8b7eb137280ee7f3dd57c8"
+  },
+  {
+    "path": "captures\\series-desktop.png",
+    "bytes": 796004,
+    "sha256": "1037fb8bdf3537a04ff331340cd25a62fdbbfabd54687f1e4ed68b700ab8b925"
+  },
+  {
+    "path": "captures\\series-landscape.json",
+    "bytes": 792,
+    "sha256": "69e0522765921f77bc9cea04765f12040363a6d2a1f48d61ef76180094e087de"
+  },
+  {
+    "path": "captures\\series-landscape.png",
+    "bytes": 425302,
+    "sha256": "9f152d557a1bc37556b2f25e7d485a8a5a6432c7ee6ed6589d16c7d4c8a87b46"
+  },
+  {
+    "path": "captures\\series-legacy-landscape.json",
+    "bytes": 787,
+    "sha256": "51eedd6cc3428489781555a167440c0bda8d294320133752ee97614aef436e34"
+  },
+  {
+    "path": "captures\\series-legacy-landscape.png",
+    "bytes": 425302,
+    "sha256": "9f152d557a1bc37556b2f25e7d485a8a5a6432c7ee6ed6589d16c7d4c8a87b46"
+  },
+  {
+    "path": "captures\\series-legacy-ledger-actual.json",
+    "bytes": 795,
+    "sha256": "e7ee37bedf137cee0df8c2de94803b4d4a05004f2d2b938e4393dac6f122b5d4"
+  },
+  {
+    "path": "captures\\series-legacy-ledger-actual.png",
+    "bytes": 82066,
+    "sha256": "6f197b9c083e7bee9b0cfa38b2356472197573f31873f4ca5b4216b89c713be9"
+  },
+  {
+    "path": "captures\\series-legacy-ledger.json",
+    "bytes": 780,
+    "sha256": "75408b7dd8e7a893b44862769d6460c9712a7cbad0ea17f928dc6e532050f2dd"
+  },
+  {
+    "path": "captures\\series-legacy-ledger.png",
+    "bytes": 121050,
+    "sha256": "5ad7981a348409f29147e0192bf1e2cc98945ddd6f05c0acb6811db8277b900c"
+  },
+  {
+    "path": "captures\\series-legacy-portrait.json",
+    "bytes": 785,
+    "sha256": "642d1097d5995ba8c04f5589be1f458958e9f80c0e293dbdbabae5e767c846b1"
+  },
+  {
+    "path": "captures\\series-legacy-portrait.png",
+    "bytes": 248191,
+    "sha256": "7ad3a572ff6927df686ed0825e23164de68e378b14323e3c39f8ee98d462eba0"
+  },
+  {
+    "path": "captures\\series-portrait.json",
+    "bytes": 788,
+    "sha256": "fe631aa9ebe48c761e3680c22dba32f9b06813f653cf541c78f9e258e5a1a5bf"
+  },
+  {
+    "path": "captures\\series-portrait.png",
+    "bytes": 248191,
+    "sha256": "7ad3a572ff6927df686ed0825e23164de68e378b14323e3c39f8ee98d462eba0"
+  },
+  {
+    "path": "captures\\series-rebuilt-android-window-menu.json",
+    "bytes": 810,
+    "sha256": "423089438837c1c7a0c46b38a5eeae6eb0673365edbff8cb1d16b80d7640bf4a"
+  },
+  {
+    "path": "captures\\series-rebuilt-android-window-menu.png",
+    "bytes": 195443,
+    "sha256": "d5890c3a5519612912222380b6ae3130f3d117f2a4539aee25a6093e9fb0b888"
+  },
+  {
+    "path": "captures\\series-rebuilt-landscape.json",
+    "bytes": 791,
+    "sha256": "5dbfd997aa3d47a5e70795d7f126fa54d3828f99e4a31ba4d4d52568dd497eba"
+  },
+  {
+    "path": "captures\\series-rebuilt-landscape.png",
+    "bytes": 428346,
+    "sha256": "8a38dd397aea4fe606a5de945a172ead1d66a5469a44cb608c084b9ad474d2da"
+  },
+  {
+    "path": "captures\\series-rebuilt-ledger-actual.json",
+    "bytes": 799,
+    "sha256": "55ef17cc3688f47e85b0895bacaa9a81f1455b0df90c15fd3e1b206d980a5a6b"
+  },
+  {
+    "path": "captures\\series-rebuilt-ledger-actual.png",
+    "bytes": 107221,
+    "sha256": "0d27e6c2696ecd520d8c6dddfdfced9eed95bb2841c09ee1e257f2b4d50cac46"
+  },
+  {
+    "path": "captures\\series-rebuilt-ledger.json",
+    "bytes": 784,
+    "sha256": "58c727b4fd8dc4328e1e7005a222c388efb1951d20f9682d5c1ec7b18dae597e"
+  },
+  {
+    "path": "captures\\series-rebuilt-ledger.png",
+    "bytes": 127356,
+    "sha256": "32da73b034cb94f4f29aefd4de479662073781ae092129132f46595fcf8bec29"
+  },
+  {
+    "path": "captures\\series-rebuilt-portrait.json",
+    "bytes": 789,
+    "sha256": "ee8e1932b79344512958d66af7e2ec18265aa6adf75db51f8ddb3359bc9ed2ec"
+  },
+  {
+    "path": "captures\\series-rebuilt-portrait.png",
+    "bytes": 248837,
+    "sha256": "a5779e928ead19b6e52a5b084411e83786e8fe4c360747136a567d74bb58eb4b"
+  },
+  {
+    "path": "captures\\shelves-desktop-docked.json",
+    "bytes": 784,
+    "sha256": "30501b4c1ece0d3e7fca182c2fe1b6f5d12f21d2aa4811c7bf9e258cb3055e82"
+  },
+  {
+    "path": "captures\\shelves-desktop-docked.png",
+    "bytes": 206800,
+    "sha256": "d8633bc95759f563f93aed247e221661ce6e9164370c7529d7d49ddcac708879"
+  },
+  {
+    "path": "captures\\shelves-desktop-original.json",
+    "bytes": 788,
+    "sha256": "2ddbe4c7d4b5f59012954343430a4e786989cf2217bc2c3a1fc33009a83495b2"
+  },
+  {
+    "path": "captures\\shelves-desktop-original.png",
+    "bytes": 206800,
+    "sha256": "d8633bc95759f563f93aed247e221661ce6e9164370c7529d7d49ddcac708879"
+  },
+  {
+    "path": "captures\\shelves-desktop.json",
+    "bytes": 770,
+    "sha256": "441a7be79917b957d734370c33cc86a4d9eeb237b96669ab8f403e77c224e36f"
+  },
+  {
+    "path": "captures\\shelves-desktop.png",
+    "bytes": 531262,
+    "sha256": "aaeee42559219e89c0e10b24f9b081a5e7440ee94a83634de1fd872f26846408"
+  },
+  {
+    "path": "captures\\shelves-landscape-docked.json",
+    "bytes": 795,
+    "sha256": "9574885c9969a81879a8aae102bdf943073a696d5b8fb958716438d42b319258"
+  },
+  {
+    "path": "captures\\shelves-landscape-docked.png",
+    "bytes": 72513,
+    "sha256": "9e49642e507d89e7a65f3b692bb45c68699a59867c781575f259083448ee7634"
+  },
+  {
+    "path": "captures\\shelves-landscape-original.json",
+    "bytes": 799,
+    "sha256": "3e4da248e30380ad7fe81d4c1a7d63fe0e3ee7e05b282b35122f050f8a76fbb7"
+  },
+  {
+    "path": "captures\\shelves-landscape-original.png",
+    "bytes": 72513,
+    "sha256": "9e49642e507d89e7a65f3b692bb45c68699a59867c781575f259083448ee7634"
+  },
+  {
+    "path": "captures\\shelves-landscape.json",
+    "bytes": 781,
+    "sha256": "3f07cbb749bb8efba1b8efcd9dc3480f31f124174c28075f85d1046925931a0c"
+  },
+  {
+    "path": "captures\\shelves-landscape.png",
+    "bytes": 189638,
+    "sha256": "2656f03029c6ed3d9d06dc609b2122b93b4f48f4cac84044251460cb817d9680"
+  },
+  {
+    "path": "captures\\shelves-original-tabs.json",
+    "bytes": 794,
+    "sha256": "624037594a013de71a175334356457bb43b813e3f76c03ae0d30147ccae540bc"
+  },
+  {
+    "path": "captures\\shelves-original-tabs.png",
+    "bytes": 316094,
+    "sha256": "feb7065d4b8fa42372cac8dda607fa27fb9ef74199cd3721e675fbe0fae06e6e"
+  },
+  {
+    "path": "captures\\shelves-portrait-docked.json",
+    "bytes": 783,
+    "sha256": "c70ebb3584a324594d2eb4335730adc7551a52a5b35e3712a43228b27f6e3e0e"
+  },
+  {
+    "path": "captures\\shelves-portrait-docked.png",
+    "bytes": 117345,
+    "sha256": "c7069eb3e6918249a8ea410e47f77e6192a2b5d2dbfb40335fa3310fb1a50472"
+  },
+  {
+    "path": "captures\\shelves-portrait-original.json",
+    "bytes": 787,
+    "sha256": "96879f6704f564cbc2e2d6028d32d1c36656ce45007fdd14313a142fe9d49c1a"
+  },
+  {
+    "path": "captures\\shelves-portrait-original.png",
+    "bytes": 120790,
+    "sha256": "96bfeef01c886d2c7d567612d90d898898f7026713a171822c22e587b24df75d"
+  },
+  {
+    "path": "captures\\shelves-portrait.json",
+    "bytes": 769,
+    "sha256": "6798c1bd384abaa60c530dc5a64103f2f4e78516d9712c3ba90e09d700b3c60a"
+  },
+  {
+    "path": "captures\\shelves-portrait.png",
+    "bytes": 176301,
+    "sha256": "ab49afe8b8b75e63ccb2d0232dcbb29837806cd1b420dcad768251727456e224"
+  }
+]

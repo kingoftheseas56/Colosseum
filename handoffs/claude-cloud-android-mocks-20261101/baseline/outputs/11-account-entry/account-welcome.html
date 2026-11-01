@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Colosseum · Account welcome · Android fitting study</title><link rel="stylesheet" href="./style.css"></head>
+<body data-page="account-welcome"><header class="review-header"><div><strong>Account welcome</strong> <span style="color:#9ba9bc">· Welcome / AccountPageFrame and AccountWelcomePhone</span></div><a href="./index.html">All account studies</a></header>
+<section class="review-controls" aria-label="Review controls — outside Colosseum mock">
+<label>Viewport <select id="preset"><option value="portrait">412 × 900 · portrait</option><option value="landscape">900 × 412 · landscape</option><option value="narrow">354 × 792 · narrow portrait</option><option value="narrow-landscape">792 × 354 · narrow landscape</option><option value="desktop">1280 × 700 · desktop</option><option value="tablet">800 × 1280 · tablet</option><option value="tablet-landscape">1280 × 800 · wide tablet</option></select></label>
+<div class="fieldgroup"><label>Width (px)<input type="number" id="vWidth" min="320" value="412"></label><label>Height (px)<input type="number" id="vHeight" min="240" value="900"></label></div>
+<div class="fieldgroup"><label>Top inset<input type="number" id="inTop" min="0" max="160" value="0"></label><label>Bottom inset<input type="number" id="inBottom" min="0" max="160" value="0"></label><label>Left inset<input type="number" id="inLeft" min="0" max="120" value="0"></label><label>Right inset<input type="number" id="inRight" min="0" max="120" value="0"></label></div>
+<label>Font scale <select id="fontScale"><option value="1">1.0</option><option value="1.3">1.3</option></select></label>
+<label>Illustrative session <select id="mode"><option value="local">Local / signed-out</option><option value="signed">Signed in</option><option value="offline">Offline account</option></select></label>
+<label>State <select id="scenario"><option value="normal">Normal</option><option value="retry">Sync needs attention</option><option value="pending">Changes pending</option><option value="approval">Pending device approval</option></select></label>
+<label>Flyout <select id="flyState"><option value="open">Open</option><option value="closed">Closed</option></select></label>
+<label>Centre section <select id="sectionControl"><option value="profile">Profile</option><option value="security">Security</option><option value="devices">Devices</option><option value="recovery">Recovery</option><option value="privacy">Data &amp; privacy</option></select></label>
+<label style="flex-direction:row;align-items:center;padding:0 0 7px"><input id="stress" type="checkbox">Long text</label>
+</section>
+<div class="review-note"><span>Provisional logical pixels; adjustable insets and typography are review controls, not app UI. Luffy and device rows are illustrative only. Local interactions never access a real account. </span><strong id="notice" aria-live="polite">No operation has been requested.</strong></div>
+<div class="preview-bay" id="previewBay"><div class="scaler" id="scaler"><div class="frame" id="frame"><div id="mock" class="mock" role="application" aria-label="Account welcome local HTML mock"></div></div></div></div>
+<script src="./app.js"></script></body></html>

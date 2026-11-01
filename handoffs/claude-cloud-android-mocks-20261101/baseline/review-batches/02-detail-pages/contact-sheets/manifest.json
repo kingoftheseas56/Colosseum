@@ -1,0 +1,291 @@
+{
+  "utc": "2026-11-01T00:08:33.054465+00:00",
+  "sheets": [
+    {
+      "file": "contact-sheets/biblio-before-after.png",
+      "title": "Biblio book \u2014 before / after",
+      "sources": [
+        "biblio-portrait",
+        "biblio-finished-verified-portrait",
+        "biblio-landscape",
+        "biblio-finished-verified-landscape",
+        "biblio-desktop-html",
+        "biblio-finished-verified-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/biblio-key-fixes.png",
+      "title": "Biblio book \u2014 key fixes",
+      "sources": [
+        "biblio-original-collections-portrait",
+        "biblio-finished-collections-portrait",
+        "biblio-original-tablet-landscape-controls",
+        "biblio-finished-verified-tablet-landscape"
+      ],
+      "dimensions": [
+        1280,
+        1648
+      ]
+    },
+    {
+      "file": "contact-sheets/film-before-after.png",
+      "title": "Theatre film \u2014 before / after",
+      "sources": [
+        "film-original-portrait",
+        "film-finished-handoff-portrait",
+        "film-original-landscape",
+        "film-finished-handoff-landscape",
+        "film-original-desktop-html",
+        "film-finished-handoff-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/film-key-fixes.png",
+      "title": "Theatre film \u2014 key fixes",
+      "sources": [
+        "film-original-synopsis-visible-portrait-small-stress",
+        "film-finished-synopsis-visible-portrait-small-stress"
+      ],
+      "dimensions": [
+        1280,
+        1043
+      ]
+    },
+    {
+      "file": "contact-sheets/series-before-after.png",
+      "title": "Theatre series \u2014 before / after",
+      "sources": [
+        "series-original-portrait",
+        "series-finished-handoff-portrait",
+        "series-original-landscape",
+        "series-finished-handoff-landscape",
+        "series-original-desktop-html",
+        "series-finished-handoff-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/series-key-fixes.png",
+      "title": "Theatre series \u2014 key fixes",
+      "sources": [
+        "series-original-synopsis-visible-portrait-small-stress",
+        "series-finished-synopsis-visible-portrait-small-stress",
+        "series-original-season-landscape-stress",
+        "series-finished-verified-season-landscape-stress",
+        "series-original-jump-misses-last-episode",
+        "series-finished-verified-last-episode-landscape-small-stress"
+      ],
+      "dimensions": [
+        1280,
+        1827
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-series-before-after.png",
+      "title": "Comic series \u2014 before / after",
+      "sources": [
+        "comic-series-original-portrait",
+        "comic-series-finished-handoff-portrait",
+        "comic-series-original-landscape",
+        "comic-series-finished-handoff-landscape",
+        "comic-series-original-desktop-html",
+        "comic-series-finished-handoff-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-series-key-fixes.png",
+      "title": "Comic series \u2014 key fixes",
+      "sources": [
+        "comic-series-original-collections",
+        "comic-series-finished-collections-portrait-stress"
+      ],
+      "dimensions": [
+        1280,
+        1151
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-edition-before-after.png",
+      "title": "Comic editions \u2014 before / after",
+      "sources": [
+        "comic-edition-original-portrait",
+        "comic-edition-finished-handoff-portrait",
+        "comic-edition-original-landscape",
+        "comic-edition-finished-handoff-landscape",
+        "comic-edition-original-desktop-html",
+        "comic-edition-finished-handoff-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-edition-key-fixes.png",
+      "title": "Comic editions \u2014 key fixes",
+      "sources": [
+        "comic-edition-original-alt-landscape-stress",
+        "comic-edition-verified-alt-landscape-stress"
+      ],
+      "dimensions": [
+        1280,
+        527
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-archive-before-after.png",
+      "title": "Comic archives \u2014 before / after",
+      "sources": [
+        "comic-archive-original-portrait",
+        "comic-archive-finished-handoff-portrait",
+        "comic-archive-original-landscape",
+        "comic-archive-finished-handoff-landscape",
+        "comic-archive-original-desktop-html",
+        "comic-archive-finished-handoff-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-archive-key-fixes.png",
+      "title": "Comic archives \u2014 key fixes",
+      "sources": [
+        "comic-archive-original-all-releases-wrong-route",
+        "comic-archive-finished-all-releases-portrait-small-stress"
+      ],
+      "dimensions": [
+        1280,
+        1043
+      ]
+    },
+    {
+      "file": "contact-sheets/saga-before-after.png",
+      "title": "Saga universe \u2014 before / after",
+      "sources": [
+        "saga-original-portrait",
+        "saga-finished-verified-portrait",
+        "saga-original-landscape",
+        "saga-finished-verified-landscape",
+        "saga-original-desktop-html",
+        "saga-finished-verified-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/saga-key-fixes.png",
+      "title": "Saga universe \u2014 key fixes",
+      "sources": [
+        "saga-original-continue-context-absent-portrait-small-stress",
+        "saga-finished-continue-context-portrait-small-stress",
+        "saga-original-tablet-portrait",
+        "saga-finished-verified-tablet-portrait"
+      ],
+      "dimensions": [
+        1280,
+        2128
+      ]
+    },
+    {
+      "file": "contact-sheets/shelves-before-after.png",
+      "title": "Shelves universe \u2014 before / after",
+      "sources": [
+        "shelves-original-portrait",
+        "shelves-finished-verified-portrait",
+        "shelves-original-landscape",
+        "shelves-finished-verified-landscape",
+        "shelves-original-desktop-html",
+        "shelves-finished-verified-desktop-html"
+      ],
+      "dimensions": [
+        1280,
+        1995
+      ]
+    },
+    {
+      "file": "contact-sheets/shelves-key-fixes.png",
+      "title": "Shelves universe \u2014 key fixes",
+      "sources": [
+        "shelves-original-continue-context-absent-portrait-small-stress",
+        "shelves-finished-continue-context-portrait-small-stress",
+        "shelves-original-jump-portrait-stress",
+        "shelves-finished-jump-portrait-small-stress",
+        "shelves-original-tablet-portrait",
+        "shelves-finished-verified-tablet-portrait"
+      ],
+      "dimensions": [
+        1280,
+        3039
+      ]
+    },
+    {
+      "file": "contact-sheets/saga-tab-decision.png",
+      "title": "Saga \u2014 B2-018 tab decision",
+      "sources": [
+        "saga-tabs-original-landing-portrait-stress",
+        "saga-tabs-proposed-landing-portrait-stress",
+        "saga-tabs-original-landing-portrait-small-stress",
+        "saga-tabs-proposed-landing-portrait-small-stress",
+        "saga-tabs-original-landing-landscape-stress",
+        "saga-tabs-proposed-landing-landscape-stress",
+        "saga-tabs-original-landing-landscape-small-stress",
+        "saga-tabs-proposed-landing-landscape-small-stress"
+      ],
+      "dimensions": [
+        1280,
+        2846
+      ]
+    },
+    {
+      "file": "contact-sheets/shelves-tab-decision.png",
+      "title": "Shelves \u2014 B2-018 tab decision",
+      "sources": [
+        "shelves-tabs-original-bond-landing-portrait-stress",
+        "shelves-tabs-proposed-bond-landing-portrait-stress",
+        "shelves-tabs-original-bond-landing-portrait-small-stress",
+        "shelves-tabs-proposed-bond-landing-portrait-small-stress",
+        "shelves-tabs-original-bond-landing-landscape-stress",
+        "shelves-tabs-proposed-bond-landing-landscape-stress",
+        "shelves-tabs-original-bond-landing-landscape-small-stress",
+        "shelves-tabs-proposed-bond-landing-landscape-small-stress"
+      ],
+      "dimensions": [
+        1280,
+        2846
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-source-outcomes.png",
+      "title": "Comic source inspection \u2014 completed states",
+      "sources": [
+        "comic-edition-verified-source-weak-portrait-small-stress",
+        "comic-edition-verified-source-incomplete-portrait-small-stress",
+        "comic-edition-verified-source-combined-landscape-small-stress",
+        "comic-edition-verified-source-ambiguous-landscape-small-stress"
+      ],
+      "dimensions": [
+        1280,
+        1432
+      ]
+    }
+  ]
+}

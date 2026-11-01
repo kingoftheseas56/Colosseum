@@ -1,0 +1,22 @@
+{
+  "finished-versions.json": {
+    "checked": 25,
+    "mismatches": []
+  },
+  "source-versions.json": {
+    "checked": 80,
+    "mismatches": []
+  },
+  "input-versions-start.json": {
+    "checked": 68,
+    "mismatches": []
+  },
+  "input-versions-end.json": {
+    "checked": 68,
+    "mismatches": []
+  },
+  "capture-pairs": {
+    "checked": 522,
+    "mismatches": []
+  }
+}

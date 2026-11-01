@@ -1,0 +1,267 @@
+{
+  "task": "18-comic-details",
+  "status": "ready-for-review",
+  "outputDirectory": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details",
+  "sourceCommit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+  "sourceRefs": [
+    {
+      "path": "reference/desktop/qml/ComicSeries.qml",
+      "role": "Active GetComics comic-series renderer and existing release controls"
+    },
+    {
+      "path": "reference/desktop/qml/ComicSeriesPage.qml",
+      "role": "Parked LOCG series path; source for approved DB-ledger composition"
+    },
+    {
+      "path": "reference/desktop/qml/ComicDbLedger.qml",
+      "role": "Approved format groups, edition rows, cover/spec/description/source and action glyphs"
+    },
+    {
+      "path": "reference/desktop/qml/ComicArchiveBoard.qml",
+      "role": "Approved GetComics publisher and franchise board"
+    },
+    {
+      "path": "reference/desktop/qml/ComicArchiveIndex.qml",
+      "role": "Approved per-publisher series index and all-releases control"
+    },
+    {
+      "path": "reference/desktop/qml/GenreMosaic.qml",
+      "role": "Original background-cover publisher/franchise mosaic treatment"
+    },
+    {
+      "path": "reference/desktop/qml/ComicTorrentSourcesPage.qml",
+      "role": "Original full-screen alternate sources picker"
+    },
+    {
+      "path": "reference/desktop/qml/BackAction.qml",
+      "role": "Original back chevron and label"
+    },
+    {
+      "path": "reference/desktop/qml/Glass.qml",
+      "role": "Original dark glass and border treatment"
+    },
+    {
+      "path": "reference/desktop/qml/LibraryButton.qml",
+      "role": "Original ghost Library toggle"
+    },
+    {
+      "path": "reference/desktop/qml/collections/AddToCollectionsButton.qml",
+      "role": "Original collection action"
+    },
+    {
+      "path": "reference/desktop/qml/collections/AddToCollectionsPopup.qml",
+      "role": "Approved collections popup shape"
+    },
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "role": "Fraunces, Segoe UI, ink, gold, margins, edge and glass tokens"
+    },
+    {
+      "path": "reference/desktop/qml/Main.qml",
+      "role": "Outer route layer, BackAction, window-control and backdrop context"
+    },
+    {
+      "path": "reference/desktop/resources/comics_db.json",
+      "role": "Frozen Batman and five real edition identities and bibliographic properties"
+    },
+    {
+      "path": "reference/alpha/qml/ComicSeries.qml",
+      "role": "Read-only legacy phone-check cross-reference"
+    },
+    {
+      "path": "context/ANDROID-PORT-CLASSIFICATION.md",
+      "role": "Task-level preservation and layout classification"
+    },
+    {
+      "path": "context/VIEWPORTS.json",
+      "role": "Provisional logical phone, tablet and desktop viewport contract"
+    }
+  ],
+  "pages": [
+    {
+      "file": "comic-series.html",
+      "title": "Batman — GetComics comic series / release shelf",
+      "states": [
+        "mixed collected-editions-and-issues",
+        "downloads",
+        "collections-popup",
+        "no-match",
+        "search-cleared",
+        "A–Z",
+        "Newest",
+        "Oldest"
+      ],
+      "viewports": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800"
+      ],
+      "captures": [
+        "captures/comic-series-portrait.png",
+        "captures/comic-series-landscape.png",
+        "captures/comic-series-desktop.png",
+        "captures/comic-series-compact.png",
+        "captures/comic-series-short.png",
+        "captures/comic-series-font130.png",
+        "captures/comic-series-collections-portrait.png",
+        "captures/comic-series-downloads-landscape.png"
+      ]
+    },
+    {
+      "file": "comic-edition.html",
+      "title": "Batman — approved LOCG ComicDbLedger edition display (parked route)",
+      "states": [
+        "ledger",
+        "illustrative-source-rail",
+        "original-alternate-sources-open",
+        "collections-popup",
+        "expanded-synopsis-external-review-state"
+      ],
+      "viewports": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800"
+      ],
+      "captures": [
+        "captures/comic-edition-portrait.png",
+        "captures/comic-edition-landscape.png",
+        "captures/comic-edition-desktop.png",
+        "captures/comic-edition-compact.png",
+        "captures/comic-edition-short.png",
+        "captures/comic-edition-font130.png",
+        "captures/comic-edition-alt-portrait.png",
+        "captures/comic-edition-alt-landscape.png"
+      ]
+    },
+    {
+      "file": "comic-archive.html",
+      "title": "GetComics Archives — publisher board and series index",
+      "states": [
+        "publisher-franchise-board",
+        "archive-index-open",
+        "all-releases-local-route",
+        "series-archive-local-route"
+      ],
+      "viewports": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800"
+      ],
+      "captures": [
+        "captures/comic-archive-portrait.png",
+        "captures/comic-archive-landscape.png",
+        "captures/comic-archive-desktop.png",
+        "captures/comic-archive-compact.png",
+        "captures/comic-archive-short.png",
+        "captures/comic-archive-font130.png",
+        "captures/comic-archive-index-portrait.png",
+        "captures/comic-archive-index-landscape.png"
+      ]
+    }
+  ],
+  "deliverables": [
+    "index.html",
+    "comic-series.html",
+    "comic-edition.html",
+    "comic-archive.html",
+    "style.css",
+    "app.js",
+    "FIDELITY.md",
+    "REPORT.json",
+    "captures/visual-audit.json",
+    "captures/interaction-audit.json",
+    "captures/.capture.cjs",
+    "captures/.verify.cjs"
+  ],
+  "preservedDesign": [
+    "Approved desktop dark world wallpaper, gold/ink palette, Fraunces/Segoe UI, glass border/radius",
+    "Original hero cover, title, facts and synopsis hierarchy where present in source",
+    "BackAction and all three original window glyphs; restored on phone with 44px invisible hitboxes",
+    "Original ghost Library and Add to Collections controls and collection popup",
+    "Original underlined release search, gold-underlined Newest/Oldest/A–Z sorting, collected edition/issue table",
+    "Original format-group edition ledger, large covers, edition creator/pages/year/description and round action glyphs",
+    "Original full-screen alternate-sources picker, not a replacement sheet",
+    "Original archive board mosaic and series archive index with all-releases control"
+  ],
+  "fittingChanges": [
+    "Phone portrait stacks cover above series/ledger identity; landscape places them side by side",
+    "Portrait release actions move below long title while icon/verb remain present",
+    "Edition action group moves below title and source rail can wrap under edition",
+    "Archive columns reduce from five/six on desktop to three landscape phone and two portrait phone",
+    "Text and metadata wrap instead of horizontal clipping; long-content examples remain scrollable",
+    "External editable width, height, safe-area inset, font-scale, and state reviewer controls",
+    "Narrow phone sorting controls receive larger invisible touch areas",
+    "Source data and cover placeholders are existing titled local project assets, with substitution documented outside the app"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "No exact Batman issue/edition cover image binary exists in frozen local assets; existing DCAU Gotham artwork is an explicitly declared nonmatching substitute, not source identity proof.",
+    "Illustrative GetComics release/status, source trust/result, archive counts and collection memberships have not been compared to live providers.",
+    "ComicSeriesPage.qml is parked; the ComicDbLedger mock represents an approved original visual layout, not a newly active route.",
+    "MediaDetailScaffold.qml is absent from approved desktop and alpha and exists only in rejected drift; original inline source components were used, no helper reconstructed.",
+    "OnePlus viewport/insets and device focus/keyboard behavior remain provisional and untested; no Qt build, APK/device or OS-window interaction.",
+    "Post-fix exact headless recapture of the restored phone minimize/fullscreen/power glyphs failed due navigation timeout. Previous PNGs, captured before the last glyph CSS change, are not evidence of final glyph placement or touch accessibility; HTML/CSS final version is statically inspected."
+  ],
+  "verification": {
+    "scope": "Standalone local HTML/CSS/JS only, not application integration",
+    "authored": [
+      "Three named full-page HTML mocks",
+      "Linked index",
+      "Shared local CSS and JS",
+      "Fidelity and evidence report",
+      "Browser automation scripts"
+    ],
+    "static": {
+      "outcome": "passed",
+      "checks": [
+        "node --check app.js",
+        "node --check captures/.capture.cjs",
+        "node --check captures/.verify.cjs",
+        "Named HTML/CSS/JS/FIDELITY files present",
+        "All 24 PNG captures present",
+        "24 visual audit records present",
+        "14 passed interactive checks and 0 failed"
+      ]
+    },
+    "browser": {
+      "tool": "Puppeteer headless Edge / Google Chrome via Brotherhood Desktop Commander isolated profile",
+      "renderCommand": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\captures\\.capture.cjs\"",
+      "interactionCommand": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\captures\\.verify.cjs\"",
+      "capturedFiles": 24,
+      "capturedViewportSet": [
+        "412x900",
+        "900x412",
+        "1280x700",
+        "354x792",
+        "792x354",
+        "354x792 at font=1.3 with 24px top/bottom insets"
+      ],
+      "additionalStates": [
+        "series collections",
+        "series downloading",
+        "edition alternate-source open",
+        "archive index"
+      ],
+      "oldAudit": "captures/visual-audit.json",
+      "oldAuditResult": "24 rendered screenshots, zero image failures, zero detected horizontal content overflow and zero page errors at audited earlier composition",
+      "interactionAudit": "captures/interaction-audit.json",
+      "interactionResult": "14 of 14 local interaction assertions passed",
+      "postEditVisualState": "unverified: last phone glyph-restoration CSS change was not successfully recaptured; full re-render navigation timed out",
+      "builtInRenderTool": "BDC render_html failed to emit PNG; isolated local Puppeteer used for earlier audit"
+    },
+    "forbiddenActionsObserved": "No project/reference edits, no commits/resets/stash, no APK/ADB, no actual account/provider call, no release/publishing or beta changes",
+    "completedBoundary": "HTML deliverables authored, syntax checked; earlier composition browser-checked; final top chrome glyph layout pending visual/device review"
+  }
+}

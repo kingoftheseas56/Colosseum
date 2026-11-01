@@ -1,0 +1,106 @@
+{
+  "job": "09-catalogue-index",
+  "name": "theatre-catalogue.html",
+  "checks": [
+    {
+      "name": "Collapsed rail chevron points towards content",
+      "pass": true,
+      "time": "2026-10-31T23:41:39.914Z"
+    },
+    {
+      "name": "Expanded rail reserves readable shelf space",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "rail": 152.625,
+        "content": 149.375,
+        "gap": 16
+      },
+      "time": "2026-10-31T23:41:40.518Z"
+    },
+    {
+      "name": "Last index item can be reached and activated",
+      "pass": true,
+      "time": "2026-10-31T23:41:41.243Z"
+    },
+    {
+      "name": "Long catalogue reaches its final section",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 7827,
+        "scrollHeight": 8471,
+        "clientHeight": 644
+      },
+      "time": "2026-10-31T23:41:41.840Z"
+    },
+    {
+      "name": "Short-landscape rail toggle remains within screen",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 257,
+        "y": 188,
+        "w": 28,
+        "h": 28,
+        "right": 285,
+        "bottom": 216,
+        "visible": true,
+        "client": 26,
+        "scroll": 32
+      },
+      "time": "2026-10-31T23:41:43.016Z"
+    },
+    {
+      "name": "Horizontal shelf can scroll",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "left": 432,
+        "width": 308,
+        "content": 2112
+      },
+      "time": "2026-10-31T23:41:44.502Z"
+    },
+    {
+      "name": "Shows tab has distinct catalogue rows",
+      "pass": true,
+      "time": "2026-10-31T23:41:45.196Z"
+    },
+    {
+      "name": "Custom row rename reflects in index",
+      "pass": true,
+      "time": "2026-10-31T23:41:45.892Z"
+    },
+    {
+      "name": "Hidden row is removed on leaving customize",
+      "pass": true,
+      "time": "2026-10-31T23:41:46.782Z"
+    },
+    {
+      "name": "Desktop retains all six world pills",
+      "pass": true,
+      "time": "2026-10-31T23:41:47.730Z"
+    },
+    {
+      "name": "Desktop shows original account silhouette",
+      "pass": true,
+      "time": "2026-10-31T23:41:47.740Z"
+    },
+    {
+      "name": "Library tab reaches matching finished library",
+      "pass": true,
+      "time": "2026-10-31T23:41:49.267Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\theatre-catalogue\\index-open.png",
+    "evidence\\after\\theatre-catalogue\\index-last-row.png",
+    "evidence\\after\\theatre-catalogue\\long-content-bottom.png",
+    "evidence\\after\\theatre-catalogue\\index-short-stress.png",
+    "evidence\\after\\theatre-catalogue\\horizontal-scroll.png",
+    "evidence\\after\\theatre-catalogue\\rename-long.png"
+  ],
+  "completedAt": "2026-10-31T23:41:49.267Z",
+  "pass": true
+}

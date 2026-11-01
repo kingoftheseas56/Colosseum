@@ -1,0 +1,151 @@
+// The second-stage picker: when a chosen torrent's manifest is ambiguous (a
+// multi-volume or otherwise unclear pack), the user picks exactly one eligible
+// comic archive here. Only backend-validated CBR/CBZ/CB7/CBT candidates appear;
+// each path + size is labelled so a split or wrong-volume release is obvious.
+import QtQuick
+import QtQuick.Controls
+
+Item {
+    id: picker
+    focus: true
+    activeFocusOnTab: true
+    Keys.onPressed: archivePickerKeys.handle(event)
+    Keys.onReleased: archivePickerKeys.handleRelease(event)
+
+    // Renders TWO candidate shapes: the legacy single-archive manifest
+    // {index, name, extension, sizeBytes, sizeText, exactTitle, tokenCoverage}
+    // and the edition pack transport's {index, path, bytes} (ComicTorrentDownloader.h,
+    // "Reused for the pack Ambiguous case too"). Missing name/extension/sizeText
+    // are derived from path/bytes below so both shapes render identically.
+    property var files: []
+    signal archiveChosen(int fileIndex)
+
+    Theme { id: t }
+
+    function baseName(path) {
+        if (!path) return ""
+        var s = String(path)
+        var i = s.lastIndexOf("/")
+        return i < 0 ? s : s.slice(i + 1)
+    }
+    function extOf(path) {
+        var b = picker.baseName(path)
+        var i = b.lastIndexOf(".")
+        return i < 0 ? "" : b.slice(i + 1).toUpperCase()
+    }
+    function nameOf(row) {
+        return String(row.name || picker.baseName(row.path) || "")
+    }
+    function extensionOf(row) {
+        return String(row.extension || picker.extOf(row.path) || "")
+    }
+    function sizeTextOf(row) {
+        if (row.sizeText) return String(row.sizeText)
+        var bytes = Number(row.bytes || row.sizeBytes || 0)
+        if (!bytes) return ""
+        var units = ["B", "KB", "MB", "GB", "TB"]
+        var i = 0
+        while (bytes >= 1024 && i < units.length - 1) { bytes /= 1024; i++ }
+        return (i === 0 ? bytes.toFixed(0) : bytes.toFixed(1)) + " " + units[i]
+    }
+
+    Item {
+        id: head
+        anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+        height: 52
+        Text {
+            anchors.left: parent.left; anchors.leftMargin: 26
+            anchors.verticalCenter: parent.verticalCenter
+            text: picker.files.length + (picker.files.length === 1 ? " comic archive" : " comic archives")
+            color: t.ink; font.family: t.display; font.pixelSize: 16; font.weight: Font.DemiBold
+        }
+        Text {
+            anchors.right: parent.right; anchors.rightMargin: 26
+            anchors.verticalCenter: parent.verticalCenter
+            text: "CHOOSE ONE"; color: t.gold; font.family: t.ui
+            font.pixelSize: 12; font.letterSpacing: 3
+        }
+        Rectangle { anchors.bottom: parent.bottom; width: parent.width; height: 1; color: t.edge }
+    }
+
+    ListView {
+        id: fileList
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.top: head.bottom; anchors.bottom: parent.bottom
+        anchors.topMargin: 4; anchors.bottomMargin: 8
+        clip: true
+        model: picker.files
+        boundsBehavior: Flickable.StopAtBounds
+        ScrollBar.vertical: HouseScrollBar { flick: fileList }
+
+        delegate: Item {
+            id: fileRow
+            required property var modelData
+            width: ListView.view.width
+            height: 92
+
+            Rectangle {
+                anchors.fill: parent
+                color: rowMa.containsMouse ? Qt.rgba(1, 1, 1, 0.05) : "transparent"
+            }
+
+            Rectangle {
+                id: extBadge
+                anchors.left: parent.left; anchors.leftMargin: 26
+                anchors.verticalCenter: parent.verticalCenter
+                width: 54; height: 54; radius: 12
+                color: Qt.rgba(1, 1, 1, 0.05); border.width: 1; border.color: t.edge
+                Text {
+                    anchors.centerIn: parent
+                    text: picker.extensionOf(fileRow.modelData)
+                    color: t.inkDim; font.family: t.ui; font.pixelSize: 12; font.weight: Font.DemiBold
+                }
+            }
+            Column {
+                anchors.left: extBadge.right; anchors.leftMargin: 24
+                anchors.right: pick.left; anchors.rightMargin: 20
+                anchors.verticalCenter: parent.verticalCenter
+                spacing: 6
+                Text {
+                    width: parent.width
+                    text: picker.nameOf(fileRow.modelData)
+                    color: t.ink; font.family: t.ui; font.pixelSize: 15; elide: Text.ElideMiddle
+                }
+                Text {
+                    text: picker.sizeTextOf(fileRow.modelData)
+                    color: t.inkDim; font.family: t.ui; font.pixelSize: 13
+                }
+            }
+            Rectangle {
+                id: pick
+                anchors.right: parent.right; anchors.rightMargin: 30
+                anchors.verticalCenter: parent.verticalCenter
+                width: 56; height: 56; radius: 28; color: t.gold
+                scale: rowMa.containsMouse ? 1.05 : 1.0
+                Behavior on scale { NumberAnimation { duration: 120; easing.type: Easing.OutCubic } }
+                Text {
+                    anchors.centerIn: parent; text: "↓"; color: "#1a1306"
+                    font.pixelSize: 18; font.weight: Font.DemiBold
+                }
+            }
+            MouseArea {
+                id: rowMa; anchors.fill: parent; hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: picker.archiveChosen(fileRow.modelData.index)
+            }
+            KeyboardAction {
+                id: fileKeyboard
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Choose " + picker.nameOf(fileRow.modelData)
+                onTriggered: picker.archiveChosen(fileRow.modelData.index)
+            }
+        }
+    }
+    ScrollGlide { id: archivePickerGlide; flick: fileList }
+    KeyboardScrollController {
+        id: archivePickerKeys
+        flick: fileList
+        glide: archivePickerGlide
+    }
+}

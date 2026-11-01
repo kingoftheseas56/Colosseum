@@ -1,0 +1,269 @@
+{
+  "time": "2026-10-31T23:42:02.926Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html?capture=1&w=792&h=354&platform=android&preset=portrait",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 792,
+    "h": 354,
+    "outerWidth": 792,
+    "outerHeight": 354,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "MAIN",
+        "class": "page-scroll",
+        "id": "pageScroll",
+        "box": {
+          "x": 0,
+          "y": 60,
+          "w": 792,
+          "h": 294,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollHeight": 1323,
+        "clientHeight": 294
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Back",
+        "action": "back",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 14,
+          "w": 69.625,
+          "h": 34,
+          "right": 109.21875,
+          "bottom": 48
+        }
+      },
+      {
+        "text": "Minimize",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Exit fullscreen",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Quit Colosseum",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Preferences",
+        "action": "preferences",
+        "disabled": false,
+        "box": {
+          "x": 519.765625,
+          "y": 91.71875,
+          "w": 123.40625,
+          "h": 44.453125,
+          "right": 643.171875,
+          "bottom": 136.171875
+        }
+      },
+      {
+        "text": "Sync all",
+        "action": "sync-all",
+        "disabled": false,
+        "box": {
+          "x": 653.171875,
+          "y": 91.71875,
+          "w": 99.234375,
+          "h": 44.453125,
+          "right": 752.40625,
+          "bottom": 136.171875
+        }
+      },
+      {
+        "text": "Simkl, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 397.03125,
+          "w": 712.8125,
+          "h": 140,
+          "right": 752.40625,
+          "bottom": 537.03125
+        }
+      },
+      {
+        "text": "MyAnimeList, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 551.03125,
+          "w": 712.8125,
+          "h": 140,
+          "right": 752.40625,
+          "bottom": 691.03125
+        }
+      },
+      {
+        "text": "Simkl, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 766.28125,
+          "w": 350.40625,
+          "h": 126,
+          "right": 390,
+          "bottom": 892.28125
+        }
+      },
+      {
+        "text": "MyAnimeList, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 402,
+          "y": 766.28125,
+          "w": 350.40625,
+          "h": 126,
+          "right": 752.40625,
+          "bottom": 892.28125
+        }
+      },
+      {
+        "text": "Trakt, Connect",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 904.28125,
+          "w": 350.40625,
+          "h": 126,
+          "right": 390,
+          "bottom": 1030.28125
+        }
+      },
+      {
+        "text": "AniList, Coming soon",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 402,
+          "y": 904.28125,
+          "w": 350.40625,
+          "h": 126,
+          "right": 752.40625,
+          "bottom": 1030.28125
+        }
+      },
+      {
+        "text": "Open settings ›",
+        "action": "open-stremio",
+        "disabled": false,
+        "box": {
+          "x": 591.40625,
+          "y": 1178.640625,
+          "w": 142,
+          "h": 40,
+          "right": 733.40625,
+          "bottom": 1218.640625
+        }
+      },
+      {
+        "text": "Colosseum taskbar",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html",
+      "sha256": "9bcb29731a7571beafe6af947d2226fa9bf88562fb5e709d40e4ae851d428a99"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+      "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+      "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+    }
+  ]
+}

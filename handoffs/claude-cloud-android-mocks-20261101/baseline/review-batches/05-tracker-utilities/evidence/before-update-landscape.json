@@ -1,0 +1,170 @@
+{
+  "time": "2026-10-31T22:46:33.250Z",
+  "url": "http://127.0.0.1:13213/outputs/22-utilities-collections/update.html?capture=1&preset=landscape&w=900&h=412",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 900,
+    "h": 412,
+    "outerWidth": 900,
+    "outerHeight": 412,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone landscape",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        }
+      },
+      {
+        "class": "app-surface update-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        }
+      }
+    ],
+    "scrolls": [],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Back",
+        "action": "updateBack",
+        "disabled": false,
+        "box": {
+          "x": 13,
+          "y": 12,
+          "w": 44,
+          "h": 44,
+          "right": 57,
+          "bottom": 56
+        }
+      },
+      {
+        "text": "Chapter 1: The latest chapter",
+        "action": "chapter",
+        "disabled": false,
+        "box": {
+          "x": 73.75,
+          "y": 338,
+          "w": 44,
+          "h": 44,
+          "right": 117.75,
+          "bottom": 382
+        }
+      },
+      {
+        "text": "Chapter 2: Your Collections",
+        "action": "chapter",
+        "disabled": false,
+        "box": {
+          "x": 117.75,
+          "y": 338,
+          "w": 44,
+          "h": 44,
+          "right": 161.75,
+          "bottom": 382
+        }
+      },
+      {
+        "text": "Chapter 3: Add-ons and sources for every world.",
+        "action": "chapter",
+        "disabled": false,
+        "box": {
+          "x": 161.75,
+          "y": 338,
+          "w": 44,
+          "h": 44,
+          "right": 205.75,
+          "bottom": 382
+        }
+      },
+      {
+        "text": "Next chapter",
+        "action": "chapterNext",
+        "disabled": false,
+        "box": {
+          "x": 205.75,
+          "y": 338,
+          "w": 44,
+          "h": 44,
+          "right": 249.75,
+          "bottom": 382
+        }
+      },
+      {
+        "text": "Download update",
+        "action": "updatePrimary",
+        "disabled": false,
+        "box": {
+          "x": 549,
+          "y": 146,
+          "w": 135.171875,
+          "h": 44,
+          "right": 684.171875,
+          "bottom": 190
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "outputs/22-utilities-collections/update.html",
+      "sha256": "f8a52982fb8917c40b140c227d5efba11d465bec320045fa93cadec329cf17a0"
+    },
+    {
+      "path": "outputs/22-utilities-collections/style.css",
+      "sha256": "a7fe372fa2b22f00e64d0b39fe1f6e12b588b732b3486fb9d159e7d7ac35d9ce"
+    },
+    {
+      "path": "outputs/22-utilities-collections/app.js",
+      "sha256": "1b765457dff74f11bf1b57b9fef3da663dc1f90bc8b39b60691f7ddceb818272"
+    }
+  ]
+}

@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Shelves universe — Colosseum layout study</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script></head>
+<body data-page="shelves">
+<header id="lab" class="lab">
+<div class="lab-title"><a href="index.html">← All studies</a><strong>Shelves universe</strong><span>Illustrative curated entries · logo stand-ins declared in FIDELITY.md</span></div>
+<div class="lab-controls">
+<label>Viewport <select id="preset"><option value="portrait">Phone · 412 × 900</option><option value="landscape">Phone · 900 × 412</option><option value="narrow">Phone · 354 × 792</option><option value="narrow-land">Phone · 792 × 354</option><option value="desktop">Desktop · 1280 × 700</option><option value="tablet">Tablet · 800 × 1280</option><option value="tablet-land">Tablet · 1280 × 800</option></select></label>
+<label>W <input id="viewportW" type="number" min="320" max="2200" value="412"></label><label>H <input id="viewportH" type="number" min="320" max="2000" value="900"></label>
+<label>Insets T/R/B/L <span class="insets"><input id="insetT" aria-label="Top inset" type="number" min="0" max="120" value="0"><input id="insetR" aria-label="Right inset" type="number" min="0" max="120" value="0"><input id="insetB" aria-label="Bottom inset" type="number" min="0" max="120" value="0"><input id="insetL" aria-label="Left inset" type="number" min="0" max="120" value="0"></span></label>
+<button id="illustrativeInsets" type="button">24px top/bottom</button><button id="zeroInsets" type="button">Zero insets</button>
+<label>Type scale <input id="fontScale" type="number" min="1" max="1.6" step=".1" value="1"></label>
+<label>Source fixture <select id="fixture"><option value="bond">James Bond · rails</option><option value="jump">Weekly Shōnen Jump · table</option></select></label>
+<label class="check"><input type="checkbox" id="progressFixture" checked> Sample progress</label>
+</div><div class="lab-sub"><span id="geometryNote"></span><output id="actionLog" aria-live="polite">Local interaction log (no app navigation)</output></div>
+</header>
+<div class="workspace"><div class="device" id="device"><div class="app" id="app"></div></div></div>
+</body></html>

@@ -1,0 +1,16 @@
+{
+  "name": "comic-archive-original-desktop-html",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-original-desktop-html.png",
+  "input": "outputs/18-comic-details/comic-archive.html?capture=1",
+  "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-archive.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 1280,
+    "height": 700,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:58:03.261Z",
+  "sha256": "6e6f5f2effd9be8b7990f316602dceb5c87e96274906b5c577febbfe27d71f62",
+  "errors": [],
+  "blocked": []
+}

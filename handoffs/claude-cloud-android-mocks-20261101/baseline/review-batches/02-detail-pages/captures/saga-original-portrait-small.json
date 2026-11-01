@@ -1,0 +1,16 @@
+{
+  "name": "saga-original-portrait-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-portrait-small.png",
+  "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+  "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:06:41.364Z",
+  "sha256": "1d5579327750be0c175ee736d9d5878e3117c4077014d05c8662fb7f5f9eb90b",
+  "errors": [],
+  "blocked": []
+}

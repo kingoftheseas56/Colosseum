@@ -1,0 +1,119 @@
+{
+  "job": "15-world-home",
+  "name": "tankoban-home.html",
+  "checks": [
+    {
+      "name": "Carousel dot changes title and active indicator",
+      "pass": true,
+      "time": "2026-10-31T23:42:26.221Z"
+    },
+    {
+      "name": "Carousel keyboard arrow changes slide",
+      "pass": true,
+      "time": "2026-10-31T23:42:26.720Z"
+    },
+    {
+      "name": "Hero actions stay inside hero with long text",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "hero": [
+          112,
+          372
+        ],
+        "actions": [
+          301,
+          349
+        ]
+      },
+      "time": "2026-10-31T23:42:29.104Z"
+    },
+    {
+      "name": "Continue context menu opens and Escape dismisses",
+      "pass": true,
+      "time": "2026-10-31T23:42:31.546Z"
+    },
+    {
+      "name": "Removing a fixture updates visible continue cards",
+      "pass": true,
+      "time": "2026-10-31T23:42:31.964Z"
+    },
+    {
+      "name": "Filter popup fits short landscape",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 32.265625,
+        "y": 32,
+        "w": 280,
+        "h": 218,
+        "right": 312.265625,
+        "bottom": 250,
+        "visible": true,
+        "client": 216,
+        "scroll": 306
+      },
+      "time": "2026-10-31T23:42:33.548Z"
+    },
+    {
+      "name": "Filter updates local poster wall and closes",
+      "pass": true,
+      "time": "2026-10-31T23:42:34.033Z"
+    },
+    {
+      "name": "Wide shell uses original 92px rail",
+      "pass": true,
+      "time": "2026-10-31T23:42:35.492Z"
+    },
+    {
+      "name": "World long content scrolls to end",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 1803,
+        "scrollHeight": 2139,
+        "clientHeight": 336
+      },
+      "time": "2026-10-31T23:42:35.821Z"
+    },
+    {
+      "name": "Desktop compact hero title follows 42px source branch",
+      "pass": true,
+      "time": "2026-10-31T23:42:38.822Z"
+    },
+    {
+      "name": "Tankoban poster slide uses native 0.66 aspect inset box",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 973.640625,
+        "y": 129,
+        "w": 195.359375,
+        "h": 294,
+        "right": 1169,
+        "bottom": 423,
+        "visible": true,
+        "client": 294,
+        "scroll": 294
+      },
+      "time": "2026-11-01T00:02:38.887Z"
+    },
+    {
+      "name": "Tankoban narrow poster follows approved hidden-inset branch",
+      "pass": true,
+      "time": "2026-11-01T00:02:41.214Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\tankoban-home\\carousel-second.png",
+    "evidence\\after\\tankoban-home\\long-title-stress.png",
+    "evidence\\after\\tankoban-home\\continue-context.png",
+    "evidence\\after\\tankoban-home\\filter-short-stress.png",
+    "evidence\\after\\tankoban-home\\filter-empty.png",
+    "evidence\\after\\tankoban-home\\long-content-bottom.png",
+    "evidence\\after\\tankoban-home\\poster-slide-desktop.png",
+    "evidence\\after\\tankoban-home\\poster-slide-phone-stress.png"
+  ],
+  "completedAt": "2026-11-01T00:02:41.644Z",
+  "pass": true
+}

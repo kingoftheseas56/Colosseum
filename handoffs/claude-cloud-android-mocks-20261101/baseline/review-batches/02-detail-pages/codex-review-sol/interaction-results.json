@@ -1,0 +1,3051 @@
+{
+  "utc": "2026-11-01T00:39:08.649Z",
+  "results": [
+    {
+      "name": "film-rebuilt-android-window-menu",
+      "url": "http://127.0.0.1:9860/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&scale=1.3&top=24&bottom=24&renderer=rebuilt",
+      "metrics": {
+        "app": {
+          "w": 354,
+          "h": 792
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action primary",
+            "text": "Watch",
+            "rect": {
+              "x": 20,
+              "y": 1054.859375,
+              "w": 117.953125,
+              "h": 44,
+              "right": 137.953125,
+              "bottom": 1098.859375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action library",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 147.953125,
+              "y": 1054.859375,
+              "w": 119.234375,
+              "h": 44,
+              "right": 267.1875,
+              "bottom": 1098.859375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 20,
+              "y": 1108.859375,
+              "w": 224.9375,
+              "h": 44,
+              "right": 244.9375,
+              "bottom": 1152.859375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "cast-person cast-more",
+            "text": "›\nAll cast",
+            "rect": {
+              "x": 20,
+              "y": 1974.609375,
+              "w": 96,
+              "h": 106.484375,
+              "right": 116,
+              "bottom": 2081.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "Dune",
+            "rect": {
+              "x": 20,
+              "y": 2162.09375,
+              "w": 120,
+              "h": 219.96875,
+              "right": 140,
+              "bottom": 2382.0625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "The Lord of the Rings",
+            "rect": {
+              "x": 158,
+              "y": 2162.09375,
+              "w": 120,
+              "h": 219.96875,
+              "right": 278,
+              "bottom": 2382.0625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "The Witcher",
+            "rect": {
+              "x": 296,
+              "y": 2162.09375,
+              "w": 120,
+              "h": 219.96875,
+              "right": 416,
+              "bottom": 2382.0625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "back",
+            "text": "Theatre",
+            "rect": {
+              "x": 20,
+              "y": 39,
+              "w": 99.96875,
+              "h": 44,
+              "right": 119.96875,
+              "bottom": 83
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-head",
+            "text": "Search",
+            "rect": {
+              "x": 244,
+              "y": 42,
+              "w": 40,
+              "h": 40,
+              "right": 284,
+              "bottom": 82
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-head",
+            "text": "Window and app",
+            "rect": {
+              "x": 294,
+              "y": 42,
+              "w": 40,
+              "h": 40,
+              "right": 334,
+              "bottom": 82
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Minimize",
+            "rect": {
+              "x": 101,
+              "y": 103,
+              "w": 226,
+              "h": 41,
+              "right": 327,
+              "bottom": 144
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Exit fullscreen",
+            "rect": {
+              "x": 101,
+              "y": 144,
+              "w": 226,
+              "h": 41,
+              "right": 327,
+              "bottom": 185
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "danger",
+            "text": "Quit Colosseum…",
+            "rect": {
+              "x": 101,
+              "y": 198,
+              "w": 226,
+              "h": 41,
+              "right": 327,
+              "bottom": 239
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/dune.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 20,
+              "y": 2162.09375,
+              "w": 120,
+              "h": 172,
+              "right": 140,
+              "bottom": 2334.09375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 158,
+              "y": 2162.09375,
+              "w": 120,
+              "h": 172,
+              "right": 278,
+              "bottom": 2334.09375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/the-witcher.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 296,
+              "y": 2162.09375,
+              "w": 120,
+              "h": 172,
+              "right": 416,
+              "bottom": 2334.09375
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "scrollWidth": 354,
+            "clientWidth": 354,
+            "scrollHeight": 2476,
+            "clientHeight": 792,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 354,
+              "h": 792,
+              "right": 354,
+              "bottom": 792
+            }
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "scrollWidth": 396,
+            "clientWidth": 314,
+            "scrollHeight": 220,
+            "clientHeight": 220,
+            "scrollTop": 0,
+            "rect": {
+              "x": 20,
+              "y": 2162.09375,
+              "w": 314,
+              "h": 219.96875,
+              "right": 334,
+              "bottom": 2382.0625
+            }
+          }
+        ],
+        "focus": "",
+        "text": "MOVIE · THEATRE\nHarry Potter and the Deathly Hallows: Part 2\n2011\nAdventure · Fantasy\nIMDb\n8.1\n2h 10m\nDirector\nDavid Yates\nWriters\nSteve Kloves\nCountry\nUnited Kingdom, United States\nAired\n2011\n\nHarry, Ron and Hermione return to Hogwarts to find and destroy Voldemort's remaining Horcruxes. As the wizarding world gathers for its final battle, Harry must confront the truth about his past and face the Dark Lord one last time.\n\nWatch\n+\nLibrary\nAdd to Collections\nCAST\nDR\nDaniel Radcliffe\nHarry Potter\nEW\nEmma Watson\nHermione Granger\nRG\nRupert Grint\nRon Weasley\nRF\nRalph Fiennes\nLord Voldemort\nAR\nAlan Rickman\nSeverus Snape\nMS\nMaggie Smith\nMinerva McGonagall\nMG\nMichael Gambon\nAlbus Dumbledore\nHC\nHelena Bonham Carter\nBellatrix Lestrange\n›\nAll cast\nMORE LIKE THIS\nDune\nThe Lord of the Rings\nThe Witcher\nTheatre\nMinimize\nExit fullscreen\nQuit Colosseum…"
+      }
+    },
+    {
+      "test": "android-window-menu",
+      "id": "film",
+      "text": "Theatre\nMinimize\nExit fullscreen\nQuit Colosseum…"
+    },
+    {
+      "test": "theatre-library",
+      "id": "film",
+      "text": "Remove from your library?\n\nHarry Potter and the Deathly Hallows: Part 2\n\nRemove from Colosseum\nCancel"
+    },
+    {
+      "name": "series-rebuilt-android-window-menu",
+      "url": "http://127.0.0.1:9860/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24&renderer=rebuilt",
+      "metrics": {
+        "app": {
+          "w": 354,
+          "h": 792
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action primary",
+            "text": "Watch S1 · E1",
+            "rect": {
+              "x": 20,
+              "y": 994.84375,
+              "w": 171.328125,
+              "h": 44,
+              "right": 191.328125,
+              "bottom": 1038.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action library",
+            "text": "✓\nIn Library",
+            "rect": {
+              "x": 20,
+              "y": 1048.84375,
+              "w": 142.71875,
+              "h": 44,
+              "right": 162.71875,
+              "bottom": 1092.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 20,
+              "y": 1102.84375,
+              "w": 224.9375,
+              "h": 44,
+              "right": 244.9375,
+              "bottom": 1146.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action",
+            "text": "Notifications on",
+            "rect": {
+              "x": 20,
+              "y": 1156.84375,
+              "w": 177.875,
+              "h": 44,
+              "right": 197.875,
+              "bottom": 1200.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Absolute",
+            "rect": {
+              "x": 24,
+              "y": 1260.84375,
+              "w": 94.140625,
+              "h": 28,
+              "right": 118.140625,
+              "bottom": 1288.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "selected",
+            "text": "Seasons",
+            "rect": {
+              "x": 120.140625,
+              "y": 1260.84375,
+              "w": 89.53125,
+              "h": 28,
+              "right": 209.671875,
+              "bottom": 1288.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "season-trigger",
+            "cls": "season-trigger",
+            "text": "Season 1\n▾",
+            "rect": {
+              "x": 20,
+              "y": 1302.84375,
+              "w": 132,
+              "h": 36,
+              "right": 152,
+              "bottom": 1338.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rebuilt-pill",
+            "text": "Download season",
+            "rect": {
+              "x": 20,
+              "y": 1348.84375,
+              "w": 177.75,
+              "h": 36,
+              "right": 197.75,
+              "bottom": 1384.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rebuilt-pill next-pill",
+            "text": "Next · E2",
+            "rect": {
+              "x": 207.75,
+              "y": 1348.84375,
+              "w": 92.78125,
+              "h": 36,
+              "right": 300.53125,
+              "bottom": 1384.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "INPUT",
+            "id": "inline-goto",
+            "cls": "",
+            "text": "Go to episode",
+            "rect": {
+              "x": 21,
+              "y": 1395.84375,
+              "w": 130,
+              "h": 34,
+              "right": 151,
+              "bottom": 1429.84375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row watched",
+            "text": "1\nS1\nI'm Luffy! The Man Who's Gonna Be King of the Pirates!\nWatched\nA young pirate begins his journe",
+            "rect": {
+              "x": 20,
+              "y": 1522.28125,
+              "w": 314,
+              "h": 278.921875,
+              "right": 334,
+              "bottom": 1801.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 1",
+            "rect": {
+              "x": 233,
+              "y": 1553.28125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 1597.28125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 1",
+            "rect": {
+              "x": 282,
+              "y": 1553.28125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 1597.28125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row next-up",
+            "text": "2\nS1\nEnter the Great Swordsman! Pirate Hunter Roronoa Zoro!\nNext up\nLuffy crosses paths with a sword",
+            "rect": {
+              "x": 20,
+              "y": 1801.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 2071.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 2",
+            "rect": {
+              "x": 233,
+              "y": 1832.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 1876.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 2",
+            "rect": {
+              "x": 282,
+              "y": 1832.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 1876.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "3\nS1\nMorgan vs. Luffy! Who's the Mysterious Pretty Girl?\n43% watched\nLuffy confronts a powerful Mari",
+            "rect": {
+              "x": 20,
+              "y": 2071.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 2341.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 3",
+            "rect": {
+              "x": 233,
+              "y": 2102.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 2146.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 3",
+            "rect": {
+              "x": 282,
+              "y": 2102.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 2146.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "4\nS1\nLuffy's Past! The Red-haired Shanks Appears!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 20,
+              "y": 2341.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 2611.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 4",
+            "rect": {
+              "x": 233,
+              "y": 2372.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 2416.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 4",
+            "rect": {
+              "x": 282,
+              "y": 2372.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 2416.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "5\nS1\nFear, Mysterious Power! Pirate Clown Captain Buggy!\nLuffy and his companions continue their jou",
+            "rect": {
+              "x": 20,
+              "y": 2611.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 2881.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 5",
+            "rect": {
+              "x": 233,
+              "y": 2642.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 2686.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 5",
+            "rect": {
+              "x": 282,
+              "y": 2642.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 2686.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "6\nS1\nDesperate Situation! Beast Tamer Mohji vs. Luffy!\nLuffy and his companions continue their journ",
+            "rect": {
+              "x": 20,
+              "y": 2881.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 3151.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 6",
+            "rect": {
+              "x": 233,
+              "y": 2912.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 2956.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 6",
+            "rect": {
+              "x": 282,
+              "y": 2912.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 2956.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "7\nS1\nEpic Showdown! Swordsman Zoro vs. Acrobat Cabaji!\nLuffy and his companions continue their journ",
+            "rect": {
+              "x": 20,
+              "y": 3151.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 3421.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 7",
+            "rect": {
+              "x": 233,
+              "y": 3182.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 3226.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 7",
+            "rect": {
+              "x": 282,
+              "y": 3182.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 3226.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "8\nS1\nWho is the Victor? Devil Fruit Power Showdown!\nLuffy and his companions continue their journey ",
+            "rect": {
+              "x": 20,
+              "y": 3421.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 3691.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 8",
+            "rect": {
+              "x": 233,
+              "y": 3452.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 3496.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 8",
+            "rect": {
+              "x": 282,
+              "y": 3452.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 3496.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "9\nS1\nThe Honorable Liar? Captain Usopp\nLuffy and his companions continue their journey toward the Gr",
+            "rect": {
+              "x": 20,
+              "y": 3691.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 3961.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 9",
+            "rect": {
+              "x": 233,
+              "y": 3722.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 3766.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 9",
+            "rect": {
+              "x": 282,
+              "y": 3722.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 3766.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "10\nS1\nThe Weirdest Guy Ever! Jango the Hypnotist!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 20,
+              "y": 3961.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 4231.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 10",
+            "rect": {
+              "x": 233,
+              "y": 3992.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 4036.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 10",
+            "rect": {
+              "x": 282,
+              "y": 3992.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 4036.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "11\nS1\nExpose the Plot! Pirate Butler, Captain Kuro!\nLuffy and his companions continue their journey ",
+            "rect": {
+              "x": 20,
+              "y": 4231.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 4501.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 11",
+            "rect": {
+              "x": 233,
+              "y": 4262.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 4306.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 11",
+            "rect": {
+              "x": 282,
+              "y": 4262.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 4306.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "12\nS1\nClash with the Black Cat Pirates! The Great Battle on the Slope!\nLuffy and his companions cont",
+            "rect": {
+              "x": 20,
+              "y": 4501.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 4771.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 12",
+            "rect": {
+              "x": 233,
+              "y": 4532.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 4576.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 12",
+            "rect": {
+              "x": 282,
+              "y": 4532.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 4576.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "13\nS1\nThe Terrifying Duo! Meowban Brothers vs. Zoro!\nLuffy and his companions continue their journey",
+            "rect": {
+              "x": 20,
+              "y": 4771.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 5041.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 13",
+            "rect": {
+              "x": 233,
+              "y": 4802.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 4846.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 13",
+            "rect": {
+              "x": 282,
+              "y": 4802.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 4846.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "14\nS1\nLuffy Back in Action! Miss Kaya's Desperate Resistance!\nLuffy and his companions continue thei",
+            "rect": {
+              "x": 20,
+              "y": 5041.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 5311.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 14",
+            "rect": {
+              "x": 233,
+              "y": 5072.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 5116.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 14",
+            "rect": {
+              "x": 282,
+              "y": 5072.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 5116.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "15\nS1\nBeat Kuro! Usopp the Man's Tearful Resolve!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 20,
+              "y": 5311.203125,
+              "w": 314,
+              "h": 270,
+              "right": 334,
+              "bottom": 5581.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 15",
+            "rect": {
+              "x": 233,
+              "y": 5342.203125,
+              "w": 44,
+              "h": 44,
+              "right": 277,
+              "bottom": 5386.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 15",
+            "rect": {
+              "x": 282,
+              "y": 5342.203125,
+              "w": 44,
+              "h": 44,
+              "right": 326,
+              "bottom": 5386.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "cast-person cast-more",
+            "text": "›\nAll cast",
+            "rect": {
+              "x": 20,
+              "y": 6321.75,
+              "w": 96,
+              "h": 106.484375,
+              "right": 116,
+              "bottom": 6428.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "The Witcher",
+            "rect": {
+              "x": 20,
+              "y": 6509.234375,
+              "w": 120,
+              "h": 205,
+              "right": 140,
+              "bottom": 6714.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "Dune",
+            "rect": {
+              "x": 158,
+              "y": 6509.234375,
+              "w": 120,
+              "h": 205,
+              "right": 278,
+              "bottom": 6714.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "Harry Potter",
+            "rect": {
+              "x": 296,
+              "y": 6509.234375,
+              "w": 120,
+              "h": 205,
+              "right": 416,
+              "bottom": 6714.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "back",
+            "text": "Theatre",
+            "rect": {
+              "x": 20,
+              "y": 39,
+              "w": 99.96875,
+              "h": 44,
+              "right": 119.96875,
+              "bottom": 83
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-head",
+            "text": "Search",
+            "rect": {
+              "x": 244,
+              "y": 42,
+              "w": 40,
+              "h": 40,
+              "right": 284,
+              "bottom": 82
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-head",
+            "text": "Window and app",
+            "rect": {
+              "x": 294,
+              "y": 42,
+              "w": 40,
+              "h": 40,
+              "right": 334,
+              "bottom": 82
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Minimize",
+            "rect": {
+              "x": 101,
+              "y": 103,
+              "w": 226,
+              "h": 41,
+              "right": 327,
+              "bottom": 144
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Exit fullscreen",
+            "rect": {
+              "x": 101,
+              "y": 144,
+              "w": 226,
+              "h": 41,
+              "right": 327,
+              "bottom": 185
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "danger",
+            "text": "Quit Colosseum…",
+            "rect": {
+              "x": 101,
+              "y": 198,
+              "w": 226,
+              "h": 41,
+              "right": 327,
+              "bottom": 239
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 90,
+              "y": 1532.28125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 1618.28125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 90,
+              "y": 1811.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 1897.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 90,
+              "y": 2081.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 2167.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 90,
+              "y": 2351.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 2437.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 90,
+              "y": 2621.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 2707.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 90,
+              "y": 2891.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 2977.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 90,
+              "y": 3161.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 3247.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 90,
+              "y": 3431.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 3517.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 90,
+              "y": 3701.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 3787.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 90,
+              "y": 3971.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 4057.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 90,
+              "y": 4241.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 4327.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 90,
+              "y": 4511.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 4597.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 90,
+              "y": 4781.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 4867.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 90,
+              "y": 5051.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 5137.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 90,
+              "y": 5321.203125,
+              "w": 130,
+              "h": 86,
+              "right": 220,
+              "bottom": 5407.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/the-witcher.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 20,
+              "y": 6509.234375,
+              "w": 120,
+              "h": 172,
+              "right": 140,
+              "bottom": 6681.234375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/dune.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 158,
+              "y": 6509.234375,
+              "w": 120,
+              "h": 172,
+              "right": 278,
+              "bottom": 6681.234375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/harry-potter.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 296,
+              "y": 6509.234375,
+              "w": 120,
+              "h": 172,
+              "right": 416,
+              "bottom": 6681.234375
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "scrollWidth": 354,
+            "clientWidth": 354,
+            "scrollHeight": 6808,
+            "clientHeight": 792,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 354,
+              "h": 792,
+              "right": 354,
+              "bottom": 792
+            }
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "scrollWidth": 396,
+            "clientWidth": 314,
+            "scrollHeight": 205,
+            "clientHeight": 205,
+            "scrollTop": 0,
+            "rect": {
+              "x": 20,
+              "y": 6509.234375,
+              "w": 314,
+              "h": 205,
+              "right": 334,
+              "bottom": 6714.234375
+            }
+          }
+        ],
+        "focus": "",
+        "text": "SERIES · THEATRE\nOne Piece\n1999\nAnimation · Action · Adventure\nIMDb\n9.0\n24 min\nStudio\nToei Animation\nNetwork\nFuji TV\nCountry\nJapan\nAired\n1999\nStatus\nOngoing\nSource\nManga\n\nMonkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.\n\nWatch S1 · E1\n✓\nIn Library\nAdd to Collections\nNotifications on\nAbsolute\nSeasons\nSeason 1\n▾\nDownload season\nNext · E2\nGo to episode number\nSeason 1\n15 episodes · 1 watched · 1 in progress\n1\nS1\nI'm Luffy! The Man Who's Gonna Be King of the Pirates!\nWatched\nA young pirate begins his journey across the seas in search of the One Piece.\n2\nS1\nEnter the Great Swordsman! Pirate Hunter Roronoa Zoro!\nNext up\nLuffy crosses paths with a swordsman who could become his first crewmate.\n3\nS1\nMorgan vs. Luffy! Who's the Mysterious Pretty Girl?\n43% watched\nLuffy confronts a powerful Marine captain in Shells Town.\n4\nS1\nLuffy's Past! The Red-haired Shanks Appears!\nLuffy and his companions continue their journey toward the Grand Line.\n5\nS1\nFear, Mysterious Power! Pirate Clown Captain Buggy!\nLuffy and his companions continue their journey toward the Grand Line.\n6\nS1\nDesperate Situation! Beast Tamer Mohji vs. Luffy!\nLuffy and his companions continue their journey toward the Grand Line.\n7\nS1\nEpic Showdown! Swordsman Zoro vs. Acrobat Cabaji!\nLuffy and his companions continue their journey toward the Grand Line.\n8\nS1\nWho is the Victor? Devil Fruit Power Showdown!\nLuffy and his companions continue their journey toward the Grand Line.\n9\nS1\nThe Honorable Liar? Captain Usopp\nLuffy and his companions continue their journey toward the Grand Line.\n10\nS1\nThe Weirdest Guy Ever! Jango the Hypnotist!\nLuffy and his companions continue their journey toward the Grand Line.\n11\nS1\nExpose the Plot! Pirate Butler, Captain Kuro!\nLuffy and his companions continue their journey toward the Grand Line.\n12\nS1\nClash with the Black Cat Pirates! The Great Battle on the Slope!\nLuffy and his companions continue their journey toward the Grand Line.\n13\nS1\nThe Terrifying Duo! Meowban Brothers vs. Zoro!\nLuffy and his companions continue their journey toward the Grand Line.\n14\nS1\nLuffy Back in Action! Miss Kaya's Desperate Resistance!\nLuffy and his companions continue their journey toward the Grand Line.\n15\nS1\nBeat Kuro! Usopp the Man's Tearful Resolve!\nLuffy and his companions continue their journey toward the Grand Line.\nCAST\nMT\nMayumi Tanaka\nMonkey D. Luffy\nKN\nKazuya Nakai\nRoronoa Zoro\nAO\nAkemi Okamura\nNami\nKY\nKappei Yamaguchi\nUsopp\nHH\nHiroaki Hirata\nSanji\nIO\nIkue Otani\nTony Tony Chopper\nYY\nYuriko Yamaguchi\nNico Robin\nKY\nKazuki Yao\nFranky\n›\nAll cast\nMORE LIKE THIS\nThe Witcher\nDune\nHarry Potter\nTheatre\nMinimize\nExit fullscreen\nQuit Colosseum…"
+      }
+    },
+    {
+      "test": "android-window-menu",
+      "id": "series",
+      "text": "Theatre\nMinimize\nExit fullscreen\nQuit Colosseum…"
+    },
+    {
+      "test": "theatre-library",
+      "id": "series",
+      "text": "Remove from your library?\n\nOne Piece\n\nRemove from Colosseum\nCancel"
+    },
+    {
+      "test": "comic-empty",
+      "text": "Back\nWESTERN COMICS · TANKOBAN\nBatman\n8\nreleases\n·\n5 collected editions\n·\nGetComics\n+\nLibrary\nAdd to Collections\n✕\n0 matches\nNewest\nOldest\nA–Z\n\nNo releases match “NO-SUCH-RELEASE”."
+    },
+    {
+      "test": "comic-clear",
+      "rows": 8
+    },
+    {
+      "name": "comic-weak-confirm",
+      "url": "http://127.0.0.1:9860/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+      "metrics": {
+        "app": {
+          "w": 792,
+          "h": 354
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "back-button",
+            "text": "Back",
+            "rect": {
+              "x": 20,
+              "y": 52,
+              "w": 72.8125,
+              "h": 44,
+              "right": 92.8125,
+              "bottom": 96
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "ghost-button ",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 156,
+              "y": 361.1875,
+              "w": 108.578125,
+              "h": 44,
+              "right": 264.578125,
+              "bottom": 405.1875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "ghost-button",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 273.578125,
+              "y": 361.1875,
+              "w": 203.21875,
+              "h": 44,
+              "right": 476.796875,
+              "bottom": 405.1875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "ARTICLE",
+            "id": "",
+            "cls": "edition-row",
+            "text": "Detective Comics: The Rebirth Deluxe Edition Book 1\nJames Tynion IV\n·\n388 Pages\n·\n2017\n\nSomeone is t",
+            "rect": {
+              "x": 20,
+              "y": 487.1875,
+              "w": 752,
+              "h": 193,
+              "right": 772,
+              "bottom": 680.1875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "alt-button",
+            "text": "Find alternate sources for Batman: Detective Comics: The Rebirth Deluxe Edition Book 1",
+            "rect": {
+              "x": 668,
+              "y": 560.375,
+              "w": 44,
+              "h": 44,
+              "right": 712,
+              "bottom": 604.375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "edition-act",
+            "text": "Download Batman: Detective Comics: The Rebirth Deluxe Edition Book 1",
+            "rect": {
+              "x": 724,
+              "y": 560.375,
+              "w": 40,
+              "h": 44,
+              "right": 764,
+              "bottom": 604.375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "ARTICLE",
+            "id": "",
+            "cls": "edition-row",
+            "text": "Vol. 1: I Am Gotham (2024 Edition)\nTom King\n·\n192 Pages\n·\n2024\n\nBatman must save Gotham from its new",
+            "rect": {
+              "x": 20,
+              "y": 735.1875,
+              "w": 752,
+              "h": 193,
+              "right": 772,
+              "bottom": 928.1875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "edition-act",
+            "text": "Read Batman Vol. 1: I Am Gotham (2024 Edition)",
+            "rect": {
+              "x": 724,
+              "y": 790.640625,
+              "w": 40,
+              "h": 44,
+              "right": 764,
+              "bottom": 834.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "alt-button",
+            "text": "Find alternate sources for Batman Vol. 2: I Am Suicide (2024 Edition)",
+            "rect": {
+              "x": 668,
+              "y": 983.640625,
+              "w": 44,
+              "h": 44,
+              "right": 712,
+              "bottom": 1027.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "edition-act",
+            "text": "Download Batman Vol. 2: I Am Suicide (2024 Edition)",
+            "rect": {
+              "x": 724,
+              "y": 983.640625,
+              "w": 40,
+              "h": 44,
+              "right": 764,
+              "bottom": 1027.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "alt-button",
+            "text": "Find alternate sources for Batman Vol. 3: I Am Bane (2024 Edition)",
+            "rect": {
+              "x": 668,
+              "y": 1176.640625,
+              "w": 44,
+              "h": 44,
+              "right": 712,
+              "bottom": 1220.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "edition-act",
+            "text": "Download Batman Vol. 3: I Am Bane (2024 Edition)",
+            "rect": {
+              "x": 724,
+              "y": 1176.640625,
+              "w": 40,
+              "h": 44,
+              "right": 764,
+              "bottom": 1220.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "alt-button",
+            "text": "Find alternate sources for Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)",
+            "rect": {
+              "x": 668,
+              "y": 1387.375,
+              "w": 44,
+              "h": 44,
+              "right": 712,
+              "bottom": 1431.375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "edition-act",
+            "text": "Download Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)",
+            "rect": {
+              "x": 724,
+              "y": 1387.375,
+              "w": 40,
+              "h": 44,
+              "right": 764,
+              "bottom": 1431.375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "back-button",
+            "text": "Back",
+            "rect": {
+              "x": 20,
+              "y": 52,
+              "w": 72.8125,
+              "h": 44,
+              "right": 92.8125,
+              "bottom": 96
+            },
+            "tab": 0
+          },
+          {
+            "tag": "INPUT",
+            "id": "source-query",
+            "cls": "",
+            "text": "Search another title or ISBN",
+            "rect": {
+              "x": 20,
+              "y": 501,
+              "w": 618,
+              "h": 56,
+              "right": 638,
+              "bottom": 557
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button",
+            "text": "Search",
+            "rect": {
+              "x": 652,
+              "y": 507,
+              "w": 120,
+              "h": 44,
+              "right": 772,
+              "bottom": 551
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "source-result",
+            "text": "P\nPirate BaySTRONG MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 TPB\n\nFORMAT RA",
+            "rect": {
+              "x": 21,
+              "y": 628,
+              "w": 750,
+              "h": 150,
+              "right": 771,
+              "bottom": 778
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-choose",
+            "text": "↓",
+            "rect": {
+              "x": 689,
+              "y": 675.5,
+              "w": 56,
+              "h": 56,
+              "right": 745,
+              "bottom": 731.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "source-result",
+            "text": "E\nExtraTorrentsPOSSIBLE MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 (CBZ)\n\nIS",
+            "rect": {
+              "x": 21,
+              "y": 778,
+              "w": 750,
+              "h": 150,
+              "right": 771,
+              "bottom": 928
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-choose",
+            "text": "↓",
+            "rect": {
+              "x": 689,
+              "y": 825.5,
+              "w": 56,
+              "h": 56,
+              "right": 745,
+              "bottom": 881.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "source-result",
+            "text": "T\nTorrents-CSVWEAK MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 Collection\n\n↓",
+            "rect": {
+              "x": 21,
+              "y": 928,
+              "w": 750,
+              "h": 150,
+              "right": 771,
+              "bottom": 1078
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-choose",
+            "text": "↓",
+            "rect": {
+              "x": 689,
+              "y": 975.5,
+              "w": 56,
+              "h": 56,
+              "right": 745,
+              "bottom": 1031.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Go back",
+            "rect": {
+              "x": 145,
+              "y": 226.078125,
+              "w": 107.5625,
+              "h": 47,
+              "right": 252.5625,
+              "bottom": 273.078125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button",
+            "text": "Choose anyway",
+            "rect": {
+              "x": 266.5625,
+              "y": 226.078125,
+              "w": 172.140625,
+              "h": 47,
+              "right": 438.703125,
+              "bottom": 273.078125
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../../../reference/desktop/assets/icons/minimize.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 0,
+              "h": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 0,
+              "h": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/power.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 0,
+              "h": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+            "complete": true,
+            "natural": [
+              300,
+              225
+            ],
+            "rect": {
+              "x": 21,
+              "y": 175.59375,
+              "w": 108,
+              "h": 163,
+              "right": 129,
+              "bottom": 338.59375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/watchtower.jpg",
+            "complete": true,
+            "natural": [
+              500,
+              375
+            ],
+            "rect": {
+              "x": 25,
+              "y": 506.1875,
+              "w": 102,
+              "h": 154,
+              "right": 127,
+              "bottom": 660.1875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/search.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 681.5,
+              "y": 573.875,
+              "w": 17,
+              "h": 17,
+              "right": 698.5,
+              "bottom": 590.875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/download.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 732,
+              "y": 570.375,
+              "w": 24,
+              "h": 24,
+              "right": 756,
+              "bottom": 594.375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+            "complete": true,
+            "natural": [
+              300,
+              225
+            ],
+            "rect": {
+              "x": 25,
+              "y": 754.1875,
+              "w": 102,
+              "h": 154,
+              "right": 127,
+              "bottom": 908.1875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/books.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 732,
+              "y": 800.640625,
+              "w": 24,
+              "h": 24,
+              "right": 756,
+              "bottom": 824.640625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/future-gotham.jpg",
+            "complete": true,
+            "natural": [
+              400,
+              234
+            ],
+            "rect": {
+              "x": 25,
+              "y": 947.1875,
+              "w": 102,
+              "h": 154,
+              "right": 127,
+              "bottom": 1101.1875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/search.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 681.5,
+              "y": 997.140625,
+              "w": 17,
+              "h": 17,
+              "right": 698.5,
+              "bottom": 1014.140625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/metropolis.jpg",
+            "complete": true,
+            "natural": [
+              631,
+              480
+            ],
+            "rect": {
+              "x": 25,
+              "y": 1140.1875,
+              "w": 102,
+              "h": 154,
+              "right": 127,
+              "bottom": 1294.1875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/search.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 681.5,
+              "y": 1190.140625,
+              "w": 17,
+              "h": 17,
+              "right": 698.5,
+              "bottom": 1207.140625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/environments/gotham-v11-bg.png",
+            "complete": true,
+            "natural": [
+              1600,
+              900
+            ],
+            "rect": {
+              "x": 25,
+              "y": 1333.1875,
+              "w": 102,
+              "h": 154,
+              "right": 127,
+              "bottom": 1487.1875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/search.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 681.5,
+              "y": 1400.875,
+              "w": 17,
+              "h": 17,
+              "right": 698.5,
+              "bottom": 1417.875
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "scrollWidth": 792,
+            "clientWidth": 792,
+            "scrollHeight": 1553,
+            "clientHeight": 306,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "w": 792,
+              "h": 306,
+              "right": 792,
+              "bottom": 330
+            }
+          },
+          {
+            "id": "",
+            "cls": "source-scroll",
+            "scrollWidth": 792,
+            "clientWidth": 792,
+            "scrollHeight": 1001,
+            "clientHeight": 226,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 104,
+              "w": 792,
+              "h": 226,
+              "right": 792,
+              "bottom": 330
+            }
+          },
+          {
+            "id": "",
+            "cls": "weak-dialog",
+            "scrollWidth": 558,
+            "clientWidth": 558,
+            "scrollHeight": 248,
+            "clientHeight": 248,
+            "scrollTop": 0,
+            "rect": {
+              "x": 116,
+              "y": 51.921875,
+              "w": 560,
+              "h": 250.15625,
+              "right": 676,
+              "bottom": 302.078125
+            }
+          }
+        ],
+        "focus": "",
+        "text": "Back\nCOMICS\nBatman\nby Tom King, James Tynion IV\n#4 Most-Read   ·   DC Comics   ·   5 collected editions\n\nBatman must save Gotham from its newest threat... another vigilante hero! Batman is Gotham City's greatest protector. But now he's not alone. There are two ...\n\n+\nLibrary\nAdd to Collections\nDELUXE\n1\nDetective Comics: The Rebirth Deluxe Edition Book 1\nJames Tynion IV\n·\n388 Pages\n·\n2017\n\nSomeone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...\n\nTRADE PAPERBACK\n4\nVol. 1: I Am Gotham (2024 Edition)\nTom King\n·\n192 Pages\n·\n2024\n\nBatman must save Gotham from its newest threat... another vigilante hero! Batman is Gotham City's greatest protector. But now he's not alone. There are two ...\n\nVol. 2: I Am Suicide (2024 Edition)\nTom King\n·\n168 Pages\n·\n2024\n\nStill reeling from a cataclysmic battle, Batman finds himself up against some of the biggest (literally) threats he's ever faced within the city limits of Go...\n\nVol. 3: I Am Bane (2024 Edition)\nTom King\n·\n176 Pages\n·\n2024\n\nHe is not a joke. He is not a riddle. He is not a bird or a cat or a penguin, not a scarecrow or a plant or a puppet. He is not a fairy tale or a circus act...\n\nVol. 4: The War of Jokes and Riddles (2025 Edition)\nTom King\n·\n200 Pages\n·\n2025\n\nEarly in Batman’s career, the Joker and the Riddler would seemingly be natural allies. But each man determined that he and he alone must be the one t...\n\nBack\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 · ISBN 9781401276089 · Collects the first two volumes of the critically acclaimed series, issues #934-949.\nSearch\n3 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate BaySTRONG MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 TPB\n\nFORMAT RANGE\n↓\nE\nExtraTorrentsPOSSIBLE MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 (CBZ)\n\nISSUES\n↓\nT\nTorrents-CSVWEAK MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 Collection\n\n↓\n\nThis release does not closely match the collected edition.\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 Collection\nGo back\nChoose anyway"
+      }
+    },
+    {
+      "test": "weak-confirm-gate",
+      "text": "Back\nCOMICS\nBatman\nby Tom King, James Tynion IV\n#4 Most-Read   ·   DC Comics   ·   5 collected editions\n\nBatman must save Gotham from its newest threat... another vigilante hero! Batman is Gotham City's greatest protector. But now he's not alone. There are two ...\n\n+\nLibrary\nAdd to Collections\nDELUXE\n1\nDetective Comics: The Rebirth Deluxe Edition Book 1\nJames Tynion IV\n·\n388 Pages\n·\n2017\n\nSomeone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...\n\nTRADE PAPERBACK\n4\nVol. 1: I Am Gotham (2024 Edition)\nTom King\n·\n192 Pages\n·\n2024\n\nBatman must save Gotham from its newest threat... another vigilante hero! Batman is Gotham City's greatest protector. But now he's not alone. There are two ...\n\nVol. 2: I Am Suicide (2024 Edition)\nTom King\n·\n168 Pages\n·\n2024\n\nStill reeling from a cataclysmic battle, Batman finds himself up against some of the biggest (literally) threats he's ever faced within the city limits of Go...\n\nVol. 3: I Am Bane (2024 Edition)\nTom King\n·\n176 Pages\n·\n2024\n\nHe is not a joke. He is not a riddle. He is not a bird or a cat or a penguin, not a scarecrow or a plant or a puppet. He is not a fairy tale or a circus act...\n\nVol. 4: The War of Jokes and Riddles (2025 Edition)\nTom King\n·\n200 Pages\n·\n2025\n\nEarly in Batman’s career, the Joker and the Riddler would seemingly be natural allies. But each man determined that he and he alone must be the one t...\n\nBack\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 · ISBN 9781401276089 · Collects the first two volumes of the critically acclaimed series, issues #934-949.\nSearch\n3 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate BaySTRONG MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 TPB\n\nFORMAT RANGE\n↓\nE\nExtraTorrentsPOSSIBLE MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 (CBZ)\n\nISSUES\n↓\nT\nTorrents-CSVWEAK MATCH\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 Collection\n\n↓\n\nThis release does not closely match the collected edition.\n\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1 Collection\nGo back\nChoose anyway"
+    },
+    {
+      "test": "source-return",
+      "focus": "<body data-page=\"edition\" class=\"capture\">\n  <div id=\"review-root\"><div class=\"review-layout\"><main id=\"stage\" class=\"review-stage\"><div id=\"frame-space\" class=\"frame-space\" style=\"width: 792px; height: 354px;\"><div id=\"frame\" class=\"app-frame\" style=\"width: 792px; height: 354px; transform: none;\"><div id=\"app\" class=\"app phone android-host landscape \" style=\"--inset-top: 24px; --inset-bottom: 24px; --font-scale: 1.3; --margin: 20px;\"><div class=\"app-wall\"></div><header class=\"chrome\"><button class=\"back-button\" type=\"button\" data-action=\"back\" aria-label=\"Back\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><path d=\"M14.5 5.5 L8 12 L14.5 18.5\"></path></svg><span>Back</span></button><div class=\"window-controls\" aria-label=\"Desktop window controls\"><button aria-label=\"Minimize window\" title=\"Minimize window\" data-action=\"window\"><img src=\"../../../../reference/desktop/assets/icons/minimize.svg\" alt=\"\"></button><button aria-label=\"Toggle fullscreen\" title=\"Toggle fullscreen\" data-action=\"window\"><img src=\"../../../../reference/desktop/assets/icons/fullscreen.svg\" alt=\"\"></button><button aria-label=\"Close window\" title=\"Close window\" data-action=\"window\"><img src=\"../../../../reference/desktop/assets/icons/power.svg\" alt=\"\"></button></div></header><div id=\"app-scroll\" class=\"app-scroll\"><div class=\"page-content edition-page page-inset\"><div class=\"edition-ledger-hero\"><div class=\"poster series-poster\"><img src=\"../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg\" alt=\"\"></div><div class=\"edition-hero-copy\"><div class=\"gold-eyebrow\">Comics</div><h1 class=\"display\">Batman</h1><div class=\"creator-line\">by Tom King, James Tynion IV</div><div class=\"edition-meta\">#4 Most-Read&nbsp;&nbsp; · &nbsp;&nbsp;DC Comics&nbsp;&nbsp; · &nbsp;&nbsp;5 collected editions</div><p class=\"synopsis\">Batman must save Gotham from its newest threat... another vigilante hero! Batman is Gotham City's greatest protector. But now he's not alone. There are two ...</p><div class=\"hero-actions\"><button class=\"ghost-button \" data-action=\"library\"><span class=\"glyph\">+</span>Library</button><button class=\"ghost-button\" data-action=\"collections\" aria-haspopup=\"dialog\"><svg class=\"collection-ico\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\"><rect x=\"6\" y=\"7\" width=\"15\" height=\"14\" rx=\"2\"></rect><path d=\"M3 17V5a2 2 0 0 1 2-2h12M10 11h7m-7 5h5\"></path></svg>Add to Collections</button></div></div></div><section class=\"edition-group\"><div class=\"edition-group-head\"><h2>Deluxe</h2><span class=\"count\">1</span><span class=\"rule\"></span></div><article class=\"edition-row\" data-edition=\"3603805\" tabindex=\"0\" role=\"button\" aria-label=\"Download Batman: Detective Comics: The Rebirth Deluxe Edition Book 1\"><div class=\"poster edition-poster\"><img src=\"../../../../reference/desktop/assets/universes/dcau/portals/watchtower.jpg\" alt=\"\"></div><div class=\"edition-copy available\"><h3 title=\"Batman: Detective Comics: The Rebirth Deluxe Edition Book 1\">Detective Comics: The Rebirth Deluxe Edition Book 1</h3><div class=\"edition-spec\"><span>James Tynion IV</span><span>·</span><span>388 Pages</span><span>·</span><span>2017</span></div><p class=\"edition-description\">Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...</p></div><div class=\"edition-actions\"><button class=\"alt-button\" data-action=\"alt\" data-id=\"3603805\" aria-label=\"Find alternate sources for Batman: Detective Comics: The Rebirth Deluxe Edition Book 1\" title=\"Find alternate sources\"><img src=\"../../../../reference/desktop/assets/icons/search.svg\" alt=\"\"></button><button class=\"edition-act\" data-action=\"edition-open\" data-id=\"3603805\" aria-label=\"Download Batman: Detective Comics: The Rebirth Deluxe Edition Book 1\"><img src=\"../../../../reference/desktop/assets/icons/download.svg\" alt=\"Download verified GetComics release\"></button></div></article></section><section class=\"edition-group\"><div class=\"edition-group-head\"><h2>Trade Paperback</h2><span class=\"count\">4</span><span class=\"rule\"></span></div><article class=\"edition-row\" data-edition=\"7579956\" tabindex=\"0\" role=\"button\" aria-label=\"Read Batman Vol. 1: I Am Gotham (2024 Edition)\"><div class=\"poster edition-poster\"><img src=\"../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg\" alt=\"\"></div><div class=\"edition-copy available\"><h3 title=\"Batman Vol. 1: I Am Gotham (2024 Edition)\">Vol. 1: I Am Gotham (2024 Edition)</h3><div class=\"edition-spec\"><span>Tom King</span><span>·</span><span>192 Pages</span><span>·</span><span>2024</span></div><p class=\"edition-description\">Batman must save Gotham from its newest threat... another vigilante hero! Batman is Gotham City's greatest protector. But now he's not alone. There are two ...</p></div><div class=\"edition-actions\"><button class=\"edition-act\" data-action=\"edition-open\" data-id=\"7579956\" aria-label=\"Read Batman Vol. 1: I Am Gotham (2024 Edition)\"><img src=\"../../../../reference/desktop/assets/icons/books.svg\" alt=\"Read downloaded edition\"></button></div></article><article class=\"edition-row\" data-edition=\"5099415\"><div class=\"poster edition-poster\"><img src=\"../../../../reference/desktop/assets/universes/dcau/portals/future-gotham.jpg\" alt=\"\"></div><div class=\"edition-copy \"><h3 title=\"Batman Vol. 2: I Am Suicide (2024 Edition)\">Vol. 2: I Am Suicide (2024 Edition)</h3><div class=\"edition-spec\"><span>Tom King</span><span>·</span><span>168 Pages</span><span>·</span><span>2024</span></div><p class=\"edition-description\">Still reeling from a cataclysmic battle, Batman finds himself up against some of the biggest (literally) threats he's ever faced within the city limits of Go...</p></div><div class=\"edition-actions\"><button class=\"alt-button\" data-action=\"alt\" data-id=\"5099415\" aria-label=\"Find alternate sources for Batman Vol. 2: I Am Suicide (2024 Edition)\" title=\"Find alternate sources\"><img src=\"../../../../reference/desktop/assets/icons/search.svg\" alt=\"\"></button><button class=\"edition-act\" data-action=\"edition-open\" data-id=\"5099415\" disabled=\"\" aria-label=\"Download Batman Vol. 2: I Am Suicide (2024 Edition)\"></button></div></article><article class=\"edition-row\" data-edition=\"2065135\"><div class=\"poster edition-poster\"><img src=\"../../../../reference/desktop/assets/universes/dcau/portals/metropolis.jpg\" alt=\"\"></div><div class=\"edition-copy \"><h3 title=\"Batman Vol. 3: I Am Bane (2024 Edition)\">Vol. 3: I Am Bane (2024 Edition)</h3><div class=\"edition-spec\"><span>Tom King</span><span>·</span><span>176 Pages</span><span>·</span><span>2024</span></div><p class=\"edition-description\">He is not a joke. He is not a riddle. He is not a bird or a cat or a penguin, not a scarecrow or a plant or a puppet. He is not a fairy tale or a circus act...</p></div><div class=\"edition-actions\"><button class=\"alt-button\" data-action=\"alt\" data-id=\"2065135\" aria-label=\"Find alternate sources for Batman Vol. 3: I Am Bane (2024 Edition)\" title=\"Find alternate sources\"><img src=\"../../../../reference/desktop/assets/icons/search.svg\" alt=\"\"></button><button class=\"edition-act\" data-action=\"edition-open\" data-id=\"2065135\" disabled=\"\" aria-label=\"Download Batman Vol. 3: I Am Bane (2024 Edition)\"></button></div></article><article class=\"edition-row\" data-edition=\"4696839\"><div class=\"poster edition-poster\"><img src=\"../../../../reference/desktop/assets/universes/dcau/environments/gotham-v11-bg.png\" alt=\"\"></div><div class=\"edition-copy \"><h3 title=\"Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)\">Vol. 4: The War of Jokes and Riddles (2025 Edition)</h3><div class=\"edition-spec\"><span>Tom King</span><span>·</span><span>200 Pages</span><span>·</span><span>2025</span></div><p class=\"edition-description\">Early in Batman’s career, the Joker and the Riddler would seemingly be natural allies. But each man determined that he and he alone must be the one t...</p></div><div class=\"edition-actions\"><button class=\"alt-button\" data-action=\"alt\" data-id=\"4696839\" aria-label=\"Find alternate sources for Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)\" title=\"Find alternate sources\"><img src=\"../../../../reference/desktop/assets/icons/search.svg\" alt=\"\"></button><button class=\"edition-act\" data-action=\"edition-open\" data-id=\"4696839\" disabled=\"\" aria-label=\"Download Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)\"></button></div></article></section></div></div></div></div></div></main><aside class=\"review-panel\" aria-label=\"External mock review controls\"><div class=\"review-eyebrow\">Standalone study · task 18</div><h1>Editions — phone fit</h1><p class=\"review-desc\">Adjust layout measurements here, outside the product viewport. No backend calls or changes to Colosseum.</p><nav class=\"review-pages\" aria-label=\"Study navigation\"><a href=\"comic-series.html\" class=\"\">Series</a><a href=\"comic-edition.html\" class=\"current\">Editions</a><a href=\"comic-archive.html\" class=\"\">Archives</a></nav><label class=\"review-label\">Viewport presets · logical CSS px</label><div class=\"preset-grid\"><button class=\"review-preset selected\" data-preset=\"portrait\">412 × 900</button><button class=\"review-preset \" data-preset=\"compact\">354 × 792</button><button class=\"review-preset \" data-preset=\"landscape\">900 × 412</button><button class=\"review-preset \" data-preset=\"short\">792 × 354</button><button class=\"review-preset \" data-preset=\"desktop\">1280 × 700</button><button class=\"review-preset \" data-preset=\"tablet\">800 × 1280</button><button class=\"review-preset \" data-preset=\"tabletWide\">1280 × 800</button></div><div class=\"review-input-row\"><label>Width<input id=\"review-width\" class=\"review-input\" type=\"number\" min=\"320\" max=\"2000\" value=\"792\"></label><label>Height<input id=\"review-height\" class=\"review-input\" type=\"number\" min=\"240\" max=\"2200\" value=\"354\"></label></div><label class=\"review-label\">Illustrative safe-area inset (not device measured)</label><div class=\"review-input-row\"><label>Top<input id=\"review-top\" class=\"review-input\" type=\"number\" min=\"0\" max=\"90\" value=\"24\"></label><label>Bottom<input id=\"review-bottom\" class=\"review-input\" type=\"number\" min=\"0\" max=\"90\" value=\"24\"></label></div><label class=\"review-label\" for=\"review-font\">Font scale</label><select class=\"review-input\" id=\"review-font\"><option value=\"1\">1.0 ×</option><option value=\"1.3\" selected=\"\">1.3 ×</option></select><label class=\"review-label\" for=\"review-state\">Example state</label><select class=\"review-input\" id=\"review-state\"><option value=\"ledger\">Edition ledger</option><option value=\"sources\">Verified source rows</option><option value=\"alt\" selected=\"\">Alternate sources open</option><option value=\"collections\">Collections popup</option><option value=\"long\">Expanded synopsis stress</option><option value=\"source-inspecting\">Pack: inspecting</option><option value=\"source-incomplete\">Pack: missing issues</option><option value=\"source-combined\">Pack: combined archive</option><option value=\"source-ambiguous\">Pack: choose archive</option><option value=\"source-weak\">Weak match confirmation</option></select><div class=\"review-status\" id=\"review-status\" role=\"status\">Returned to the edition ledger.</div><p class=\"review-note\">Batman edition names, creators, years and descriptions are drawn from local comics_db.json. Covers are local DCAU artwork stand-ins, not actual cover reproductions. Pack fixtures: Pirate Bay shows combined; ExtraTorrents shows incomplete; Torrents-CSV asks for weak-match confirmation then shows archive choices. The active source page is parked in current routing. Provisional OnePlus measurements; no physical handset, reader implementation or running Qt application was tested.</p><div class=\"review-links\"><a href=\"index.html\">Study index</a><a href=\"../../QML-PORTING-NOTES.md\">QML porting notes</a><a href=\"../../REPORT.json\">Batch completion evidence</a></div></aside></div></div>\n  <script defer=\"\" src=\"app.js\"></script>\n\n\n</body>"
+    },
+    {
+      "test": "archive-raw-shelf",
+      "text": "Back\nWESTERN COMICS · TANKOBAN\nDC Comics\n8\nreleases\n·\n5 collected editions\n·\nGetComics\n+\nLibrary\nAdd to Collections\nNewest\nOldest\nA–Z\nCOLLECTED EDITIONS\n5\nBatman Vol. 4: The War of Jokes and Riddles (2025 Edition)\n2025\nRead\n↓\nBatman Vol. 3: I Am Bane (2024 Edition)\n2024\nRead\n↓\nBatman Vol. 2: I Am Suicide (2024 Edition)\n2024\nRead\n↓\nBatman Vol. 1: I Am Gotham (2024 Edition)\n37% read\nContinue · 37%\n✓\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1\n2017\nRead\n↓\nISSUES\n3\nBatman #3\n2016\nRead\n↓\nBatman #2\nDownloading 51%\nRead when ready\n✕\nBatman #1\n2016\nRead\n↓"
+    },
+    {
+      "name": "comic-archive-raw",
+      "url": "http://127.0.0.1:9860/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+      "metrics": {
+        "app": {
+          "w": 354,
+          "h": 792
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "back-button",
+            "text": "Back",
+            "rect": {
+              "x": 20,
+              "y": 52,
+              "w": 72.8125,
+              "h": 44,
+              "right": 92.8125,
+              "bottom": 96
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "ghost-button ",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 20,
+              "y": 420.203125,
+              "w": 116.796875,
+              "h": 42,
+              "right": 136.796875,
+              "bottom": 462.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "ghost-button",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 20,
+              "y": 471.203125,
+              "w": 224.9375,
+              "h": 42,
+              "right": 244.9375,
+              "bottom": 513.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "INPUT",
+            "id": "release-filter",
+            "cls": "",
+            "text": "Search releases",
+            "rect": {
+              "x": 20,
+              "y": 553.203125,
+              "w": 314,
+              "h": 36,
+              "right": 334,
+              "bottom": 589.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "active",
+            "text": "Newest",
+            "rect": {
+              "x": 20,
+              "y": 597.203125,
+              "w": 73.015625,
+              "h": 44,
+              "right": 93.015625,
+              "bottom": 641.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Oldest",
+            "rect": {
+              "x": 117.015625,
+              "y": 597.203125,
+              "w": 64.53125,
+              "h": 44,
+              "right": 181.546875,
+              "bottom": 641.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "A–Z",
+            "rect": {
+              "x": 205.546875,
+              "y": 597.203125,
+              "w": 45,
+              "h": 44,
+              "right": 250.546875,
+              "bottom": 641.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)\n2025\nRead\n↓",
+            "rect": {
+              "x": 21,
+              "y": 708.203125,
+              "w": 312,
+              "h": 178.859375,
+              "right": 333,
+              "bottom": 887.0625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action ",
+            "text": "Read",
+            "rect": {
+              "x": 98,
+              "y": 830.0625,
+              "w": 86,
+              "h": 44,
+              "right": 184,
+              "bottom": 874.0625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "↓",
+            "rect": {
+              "x": 280,
+              "y": 830.0625,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 874.0625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman Vol. 3: I Am Bane (2024 Edition)\n2024\nRead\n↓",
+            "rect": {
+              "x": 21,
+              "y": 887.0625,
+              "w": 312,
+              "h": 153.515625,
+              "right": 333,
+              "bottom": 1040.578125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action ",
+            "text": "Read",
+            "rect": {
+              "x": 98,
+              "y": 983.578125,
+              "w": 86,
+              "h": 44,
+              "right": 184,
+              "bottom": 1027.578125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "↓",
+            "rect": {
+              "x": 280,
+              "y": 983.578125,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 1027.578125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman Vol. 2: I Am Suicide (2024 Edition)\n2024\nRead\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1040.578125,
+              "w": 312,
+              "h": 153.515625,
+              "right": 333,
+              "bottom": 1194.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action ",
+            "text": "Read",
+            "rect": {
+              "x": 98,
+              "y": 1137.09375,
+              "w": 86,
+              "h": 44,
+              "right": 184,
+              "bottom": 1181.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "↓",
+            "rect": {
+              "x": 280,
+              "y": 1137.09375,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 1181.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman Vol. 1: I Am Gotham (2024 Edition)\n37% read\nContinue · 37%\n✓",
+            "rect": {
+              "x": 21,
+              "y": 1194.09375,
+              "w": 312,
+              "h": 153.515625,
+              "right": 333,
+              "bottom": 1347.609375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action ",
+            "text": "Continue · 37%",
+            "rect": {
+              "x": 98,
+              "y": 1290.609375,
+              "w": 129.609375,
+              "h": 44,
+              "right": 227.609375,
+              "bottom": 1334.609375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "✓",
+            "rect": {
+              "x": 280,
+              "y": 1290.609375,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 1334.609375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman: Detective Comics: The Rebirth Deluxe Edition Book 1\n2017\nRead\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1347.609375,
+              "w": 312,
+              "h": 178.859375,
+              "right": 333,
+              "bottom": 1526.46875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action ",
+            "text": "Read",
+            "rect": {
+              "x": 98,
+              "y": 1469.46875,
+              "w": 86,
+              "h": 44,
+              "right": 184,
+              "bottom": 1513.46875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "↓",
+            "rect": {
+              "x": 280,
+              "y": 1469.46875,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 1513.46875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman #3\n2016\nRead\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1578.46875,
+              "w": 312,
+              "h": 128.171875,
+              "right": 333,
+              "bottom": 1706.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action ",
+            "text": "Read",
+            "rect": {
+              "x": 98,
+              "y": 1649.640625,
+              "w": 86,
+              "h": 44,
+              "right": 184,
+              "bottom": 1693.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "↓",
+            "rect": {
+              "x": 280,
+              "y": 1649.640625,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 1693.640625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman #2\nDownloading 51%\nRead when ready\n✕",
+            "rect": {
+              "x": 21,
+              "y": 1706.640625,
+              "w": 312,
+              "h": 128.171875,
+              "right": 333,
+              "bottom": 1834.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action pending",
+            "text": "Read when ready",
+            "rect": {
+              "x": 98,
+              "y": 1777.8125,
+              "w": 145.171875,
+              "h": 44,
+              "right": 243.171875,
+              "bottom": 1821.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "✕",
+            "rect": {
+              "x": 280,
+              "y": 1777.8125,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 1821.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "release-row",
+            "text": "Batman #1\n2016\nRead\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1834.8125,
+              "w": 312,
+              "h": 128.171875,
+              "right": 333,
+              "bottom": 1962.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "gold-button read-action ",
+            "text": "Read",
+            "rect": {
+              "x": 98,
+              "y": 1905.984375,
+              "w": 86,
+              "h": 44,
+              "right": 184,
+              "bottom": 1949.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-action",
+            "text": "↓",
+            "rect": {
+              "x": 280,
+              "y": 1905.984375,
+              "w": 44,
+              "h": 44,
+              "right": 324,
+              "bottom": 1949.984375
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../../../reference/desktop/assets/icons/minimize.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 0,
+              "h": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 0,
+              "h": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/icons/power.svg",
+            "complete": true,
+            "natural": [
+              150,
+              150
+            ],
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 0,
+              "h": 0,
+              "right": 0,
+              "bottom": 0
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+            "complete": true,
+            "natural": [
+              300,
+              225
+            ],
+            "rect": {
+              "x": 21,
+              "y": 99,
+              "w": 100,
+              "h": 150,
+              "right": 121,
+              "bottom": 249
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/environments/gotham-v11-bg.png",
+            "complete": true,
+            "natural": [
+              1600,
+              900
+            ],
+            "rect": {
+              "x": 35,
+              "y": 760.625,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 833.625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/metropolis.jpg",
+            "complete": true,
+            "natural": [
+              631,
+              480
+            ],
+            "rect": {
+              "x": 35,
+              "y": 926.8125,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 999.8125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/future-gotham.jpg",
+            "complete": true,
+            "natural": [
+              400,
+              234
+            ],
+            "rect": {
+              "x": 35,
+              "y": 1080.328125,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 1153.328125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+            "complete": true,
+            "natural": [
+              300,
+              225
+            ],
+            "rect": {
+              "x": 35,
+              "y": 1233.84375,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 1306.84375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/watchtower.jpg",
+            "complete": true,
+            "natural": [
+              500,
+              375
+            ],
+            "rect": {
+              "x": 35,
+              "y": 1400.03125,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 1473.03125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+            "complete": true,
+            "natural": [
+              300,
+              225
+            ],
+            "rect": {
+              "x": 35,
+              "y": 1605.546875,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 1678.546875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/future-gotham.jpg",
+            "complete": true,
+            "natural": [
+              400,
+              234
+            ],
+            "rect": {
+              "x": 35,
+              "y": 1733.71875,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 1806.71875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/dcau/portals/metropolis.jpg",
+            "complete": true,
+            "natural": [
+              631,
+              480
+            ],
+            "rect": {
+              "x": 35,
+              "y": 1861.890625,
+              "w": 50,
+              "h": 73,
+              "right": 85,
+              "bottom": 1934.890625
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "scrollWidth": 354,
+            "clientWidth": 354,
+            "scrollHeight": 2010,
+            "clientHeight": 744,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "w": 354,
+              "h": 744,
+              "right": 354,
+              "bottom": 768
+            }
+          }
+        ],
+        "focus": "",
+        "text": "Back\nWESTERN COMICS · TANKOBAN\nDC Comics\n8\nreleases\n·\n5 collected editions\n·\nGetComics\n+\nLibrary\nAdd to Collections\nNewest\nOldest\nA–Z\nCOLLECTED EDITIONS\n5\nBatman Vol. 4: The War of Jokes and Riddles (2025 Edition)\n2025\nRead\n↓\nBatman Vol. 3: I Am Bane (2024 Edition)\n2024\nRead\n↓\nBatman Vol. 2: I Am Suicide (2024 Edition)\n2024\nRead\n↓\nBatman Vol. 1: I Am Gotham (2024 Edition)\n37% read\nContinue · 37%\n✓\nBatman: Detective Comics: The Rebirth Deluxe Edition Book 1\n2017\nRead\n↓\nISSUES\n3\nBatman #3\n2016\nRead\n↓\nBatman #2\nDownloading 51%\nRead when ready\n✕\nBatman #1\n2016\nRead\n↓"
+      }
+    },
+    {
+      "test": "archive-back",
+      "text": "Back\nWESTERN COMICS · TANKOBAN\nDC Comics\n8\nseries archives in the latest releases\n·\nAll 3902 releases ›\nBatman\n231 releases\nThe Boys\n82 releases\nSuperman\n157 releases\nJustice League\n73 releases\nDetective Comics\n198 releases\nWonder Woman\n92 releases\nThe Flash\n119 releases\nAction Comics\n131 releases"
+    },
+    {
+      "test": "continue-remove-signal",
+      "id": "saga",
+      "before": 1,
+      "after": 1,
+      "status": "Mock only: Remove Harry Potter and the Sorcerer's Stone requested (source parent has no removal binding; fixture unchanged)"
+    },
+    {
+      "test": "continue-remove-signal",
+      "id": "shelves",
+      "before": 1,
+      "after": 1,
+      "status": "Mock only: Remove Dr. No requested (source parent has no removal binding; fixture unchanged)"
+    }
+  ],
+  "errors": [],
+  "blocked": []
+}

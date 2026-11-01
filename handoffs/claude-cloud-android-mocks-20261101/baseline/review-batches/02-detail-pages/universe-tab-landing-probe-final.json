@@ -1,0 +1,63 @@
+{
+  "utc": "2026-11-01T00:03:28.803Z",
+  "result": [
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-tab=\"saga-main\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tab": {
+          "x": 24,
+          "y": 98,
+          "width": 364,
+          "height": 46,
+          "top": 98,
+          "right": 388,
+          "bottom": 144,
+          "left": 24
+        },
+        "heading": {
+          "x": 24,
+          "y": 194.3125,
+          "width": 364,
+          "height": 34.3125,
+          "top": 194.3125,
+          "right": 388,
+          "bottom": 228.625,
+          "left": 24
+        },
+        "title": "The saga",
+        "scroll": 574
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-proposed-actual-landing-portrait-stress",
+      "result": {
+        "name": "saga-tabs-proposed-actual-landing-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-proposed-actual-landing-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:03:28.799Z",
+        "sha256": "9571a91a56ba3642baff9b208d6173e37d2e7647d85606dd59471f37276c22d9",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

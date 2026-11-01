@@ -1,0 +1,156 @@
+[
+  {
+    "label": "after-tracker-connections-portrait",
+    "errors": [],
+    "missing": 0,
+    "outer": [
+      412,
+      900
+    ],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        }
+      }
+    ]
+  },
+  {
+    "label": "after-tracker-connections-landscape",
+    "errors": [],
+    "missing": 0,
+    "outer": [
+      900,
+      412
+    ],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        }
+      }
+    ]
+  },
+  {
+    "label": "after-tracker-connections-compact",
+    "errors": [],
+    "missing": 0,
+    "outer": [
+      354,
+      792
+    ],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      }
+    ]
+  },
+  {
+    "label": "after-tracker-connections-compactland",
+    "errors": [],
+    "missing": 0,
+    "outer": [
+      792,
+      354
+    ],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      }
+    ]
+  },
+  {
+    "label": "after-tracker-connections-desktop",
+    "errors": [],
+    "missing": 0,
+    "outer": [
+      1280,
+      700
+    ],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        }
+      }
+    ]
+  },
+  {
+    "label": "after-tracker-connections-tablet",
+    "errors": [],
+    "missing": 0,
+    "outer": [
+      800,
+      1280
+    ],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        }
+      }
+    ]
+  },
+  {
+    "label": "after-tracker-connections-tabletland",
+    "errors": [],
+    "missing": 0,
+    "outer": [
+      1280,
+      800
+    ],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        }
+      }
+    ]
+  }
+]

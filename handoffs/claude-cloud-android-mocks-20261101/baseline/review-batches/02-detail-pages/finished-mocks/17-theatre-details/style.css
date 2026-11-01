@@ -1,0 +1,321 @@
+@font-face { font-family: "Segoe Review"; src: url("../../../../reference/local-fonts/segoeui.ttf"); font-weight: 400; }
+@font-face { font-family: "Segoe Review"; src: url("../../../../reference/local-fonts/seguisb.ttf"); font-weight: 600; }
+@font-face { font-family: "Segoe Review"; src: url("../../../../reference/local-fonts/segoeuib.ttf"); font-weight: 700; }
+@font-face { font-family: "Fraunces Review"; src: url("../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf"); font-weight: 400 700; }
+* { box-sizing: border-box; }
+html, body { margin: 0; min-height: 100%; background: #11131b; color: #f7f7f5; font-family: "Segoe Review","Segoe UI",sans-serif; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+:root { --gold: #f0c44a; --ink: #f7f7f5; --muted: #c9c8d0; --dimmer: #9a99a5; --edge: rgba(255,255,255,.18); --screen-w: 412px; --screen-h: 900px; --font-scale: 1; --safe-top: 0px; --safe-bottom: 0px; }
+#review-tools { position: relative; z-index: 100; max-width: 1320px; padding: 15px 22px 16px; margin: auto; color: #e4e4e7; background: #1a1c25; border-bottom: 1px solid #3b3d46; border-radius: 0 0 16px 16px; }
+.review-heading { font-size: 16px; font-weight: 600; letter-spacing: .02em; }
+.review-links { display: flex; gap: 16px; padding: 9px 0; font-size: 13px; }
+.review-links a { color: #f0c44a; }
+.review-fields { display: flex; flex-wrap: wrap; gap: 9px 13px; align-items: end; }
+.review-fields label { display: flex; flex-direction: column; gap: 4px; color: #c5c6d1; font-size: 12px; }
+.review-fields select, .review-fields input { color: #f7f7f5; background: #2a2d38; border: 1px solid #5e6071; border-radius: 6px; padding: 6px 8px; height: 34px; max-width: 230px; }
+.review-fields input { width: 78px; }
+.review-actions { display: flex; flex-wrap: wrap; gap: 8px; padding: 11px 0; }
+.review-actions button { font-size: 12px; color: #f7f7f5; background: #30313f; border: 1px solid #676878; border-radius: 8px; padding: 7px 11px; min-height: 34px; }
+.review-actions button:hover { border-color: var(--gold); }
+.fixture-warning { max-width: 1010px; color: #b4b5c3; font-size: 12px; margin: 2px 0 6px; }
+#review-status { color: #f0c44a; font-size: 12px; margin: 0; min-height: 14px; }
+#stage { width: var(--screen-w); height: var(--screen-h); margin: 20px auto 36px; background: #06070b; box-shadow: 0 20px 72px #0009; }
+#app { position: relative; width: 100%; height: 100%; overflow: hidden; isolation: isolate; background: #06070b; font-size: calc(14px * var(--font-scale)); color: var(--ink); --inset: 54px; }
+#app.phone-portrait { --inset: 20px; }
+#app.phone-landscape { --inset: 24px; }
+#app.tablet { --inset: 32px; }
+#page-scroll { position: absolute; inset: 0; overflow-y: auto; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: #54565f transparent; }
+#page-content { position: relative; min-height: 100%; padding-top: var(--safe-top); padding-bottom: calc(70px + var(--safe-bottom)); background: linear-gradient(120deg,#06070b,#090b13 50%,#06070b); }
+#chrome, #overlay { position: absolute; inset: 0; pointer-events: none; }
+#chrome { z-index: 50; }
+#overlay { z-index: 70; }
+#overlay .popup, #chrome button, #chrome .system-menu { pointer-events: auto; }
+#app button { color: inherit; background: none; border: 0; -webkit-tap-highlight-color: transparent; }
+#app button:focus-visible, #app input:focus-visible { outline: 2px solid var(--gold); outline-offset: 3px; }
+#app .glyph { display: inline-block; width: 18px; height: 18px; vertical-align: middle; color: inherit; background: currentColor; -webkit-mask-size: contain; mask-size: contain; -webkit-mask-position: center; mask-position: center; -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat; }
+#app .glyph-play { -webkit-mask-image: url("../../../../reference/desktop/assets/icons/lucide/play.svg"); mask-image: url("../../../../reference/desktop/assets/icons/lucide/play.svg"); }
+#app .glyph-download { -webkit-mask-image: url("../../../../reference/desktop/assets/icons/lucide/download.svg"); mask-image: url("../../../../reference/desktop/assets/icons/lucide/download.svg"); }
+#app .glyph-check { -webkit-mask-image: url("../../../../reference/desktop/assets/icons/lucide/circle-check.svg"); mask-image: url("../../../../reference/desktop/assets/icons/lucide/circle-check.svg"); }
+#app .glyph-search { -webkit-mask-image: url("../../../../reference/desktop/assets/icons/search.svg"); mask-image: url("../../../../reference/desktop/assets/icons/search.svg"); }
+#app .glyph-minimize { -webkit-mask-image: url("../../../../reference/desktop/assets/icons/minimize.svg"); mask-image: url("../../../../reference/desktop/assets/icons/minimize.svg"); }
+#app .glyph-fullscreen { -webkit-mask-image: url("../../../../reference/desktop/assets/icons/fullscreen.svg"); mask-image: url("../../../../reference/desktop/assets/icons/fullscreen.svg"); }
+#app .glyph-power { -webkit-mask-image: url("../../../../reference/desktop/assets/icons/power.svg"); mask-image: url("../../../../reference/desktop/assets/icons/power.svg"); }
+#app .back { position: absolute; top: calc(28px + var(--safe-top)); left: var(--inset); height: 44px; display: flex; gap: 9px; align-items: center; font-size: calc(15px * var(--font-scale)); color: var(--ink); min-width: 82px; padding: 0 5px 0 1px; text-shadow: 0 1px 7px #0008; }
+#app .back:hover { color: var(--gold); }
+#app .back svg { width: 20px; height: 20px; fill: none; stroke: currentColor; stroke-width: 2.15; stroke-linejoin: round; stroke-linecap: round; flex: none; }
+#app .window-controls { position: absolute; top: calc(34px + var(--safe-top)); right: var(--inset); display: flex; gap: 20px; align-items: center; }
+#app .window-controls button { display: flex; align-items: center; justify-content: center; width: 22px; height: 28px; padding: 0; opacity: .76; }
+#app .window-controls button:hover { opacity: 1; }
+#app .window-controls .glyph { width: 22px; height: 22px; }
+#app.is-handset .window-controls { display: none; }
+#app.rebuilt .bar-chrome { position: absolute; top: var(--safe-top); left: 0; right: 0; height: 76px; background: linear-gradient(#0009,#0000); }
+#app.rebuilt .bar-chrome.solid { background: rgba(6,7,11,.985); border-bottom: 1px solid var(--edge); }
+#app.rebuilt .bar-chrome .back { top: 15px; }
+#app .bar-right { position: absolute; right: var(--inset); top: 18px; display: flex; gap: 10px; align-items: center; }
+#app .round-head { display: grid; place-items: center; width: 40px; height: 40px; border-radius: 50%; }
+#app .round-head:hover, #app .round-head[aria-expanded=true] { background: #ffffff20; }
+#app .round-head .glyph { height: 21px; width: 21px; }
+#app .three-dots { display: flex; gap: 4px; align-items: center; }
+#app .three-dots i { width: 4px; height: 4px; background: currentColor; border-radius: 50%; }
+#app .system-menu { position: absolute; top: 70px; right: var(--inset); width: min(240px,calc(100% - 40px)); border-radius: 14px; background: rgba(11,13,19,.98); border: 1px solid var(--edge); padding: 8px 6px; box-shadow: 0 16px 50px #000a; }
+#app .system-menu button { display: block; width: 100%; min-height: 40px; padding: 8px 12px; text-align: left; font-size: calc(14px * var(--font-scale)); border-radius: 8px; }
+#app .system-menu button:hover { background: #ffffff17; }
+#app .system-menu .danger { color: #f0b4a6; }
+#app .system-menu hr { border: 0; border-top: 1px solid var(--edge); margin: 6px 12px; }
+#app .system-menu strong { padding: 12px; font-family: "Fraunces Review",serif; font-size: 17px; }
+#app .hero { position: relative; min-height: 360px; isolation: isolate; }
+#app .hero-art { position: absolute; inset: 0; background-position: center top; background-size: cover; opacity: .95; z-index: -2; }
+#app .hero-wash { position: absolute; inset: 0; z-index: -1; background: linear-gradient(90deg,rgba(6,7,11,.95) 0%,rgba(6,7,11,.54) 52%,rgba(6,7,11,.15)),linear-gradient(0deg,#06070b 0%,rgba(6,7,11,.26) 43%,transparent 75%); }
+#app .hero-copy { position: relative; width: min(840px,calc(100% - 2 * var(--inset))); margin-left: var(--inset); padding: 88px 0 30px; }
+#app.desktop .hero-copy, #app.tablet .hero-copy { padding-top: 145px; }
+#app .type-kicker { display: block; color: var(--gold); font-size: calc(11px * var(--font-scale)); letter-spacing: 3px; text-transform: uppercase; font-weight: 400; margin-bottom: 10px; }
+#app .hero-title { margin: 0 0 10px; font: 600 calc(64px * var(--font-scale))/.98 "Fraunces Review",Georgia,serif; letter-spacing: -.02em; overflow-wrap: anywhere; text-shadow: 0 2px 8px #0007; }
+#app.rebuilt .hero-title { font-size: calc(60px * var(--font-scale)); }
+#app.desktop .hero-title, #app.tablet .hero-title { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; }
+#app .meta { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 11px; color: var(--muted); font-size: calc(14px * var(--font-scale)); line-height: 1.35; margin-bottom: 14px; }
+#app .meta strong { color: var(--ink); font-weight: 600; }
+#app .imdb { display: inline-flex; align-items: center; gap: 7px; color: var(--ink); font-weight: 600; white-space: nowrap; }
+#app .imdb-badge { display: inline-flex; align-items: center; justify-content: center; width: 34px; height: 18px; background: #F5C518; border-radius: 3px; color: #111; font-size: 10px; letter-spacing: -.45px; font-weight: 700; }
+#app .meta-dot { color: var(--dimmer); }
+#app .synopsis { color: var(--muted); font-size: calc(15px * var(--font-scale)); line-height: 1.48; max-width: 720px; }
+#app .synopsis p { margin: 0; }
+#app .synopsis .more { margin: 4px 0 0; min-height: 26px; padding: 2px 4px; color: var(--ink); font-size: calc(13px * var(--font-scale)); font-weight: 600; }
+#app .synopsis .more:hover { color: var(--gold); }
+#app .synopsis.clamped p { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; overflow: hidden; }
+#app .actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding-top: 8px; }
+#app .action { display: inline-flex; gap: 8px; justify-content: center; align-items: center; min-height: 42px; padding: 0 17px; border-radius: 11px; border: 1px solid var(--edge); background: rgba(255,255,255,.05); color: var(--ink); font-size: calc(15px * var(--font-scale)); font-weight: 600; white-space: normal; }
+#app .action:hover { background: rgba(255,255,255,.1); }
+#app .action.primary { background: var(--gold); color: #1a1306; border-color: var(--gold); padding: 0 20px; font-size: calc(14px * var(--font-scale)); }
+#app .action.primary:hover { background: #f5d571; }
+#app .action.primary .glyph { width: 16px; height: 16px; }
+#app .action.library .saved-mark { color: var(--gold); }
+#app .action .collection-mark { font-size: 19px; line-height: 1; }
+#app .desktop-facts { margin: 0 var(--inset) 18px; padding-top: 8px; display: flex; flex-wrap: wrap; gap: 30px 56px; }
+#app .desktop-facts .standalone-synopsis { max-width: 580px; flex: 1 1 520px; padding-top: 13px; }
+#app .facts { display: grid; gap: 11px 30px; min-width: 0; flex: 1 1 360px; }
+#app .fact { display: grid; grid-template-columns: 104px 1fr; gap: 18px; min-width: 0; font-size: calc(13px * var(--font-scale)); line-height: 1.3; }
+#app .fact .key { color: var(--dimmer); }
+#app .fact .value { color: var(--ink); overflow-wrap: anywhere; }
+#app .mobile-facts { display: none; margin-bottom: 14px; }
+#app .mobile-facts .fact { display: block; }
+#app .mobile-facts .key { display: block; margin-bottom: 3px; font-size: calc(12px * var(--font-scale)); }
+#app .hero-copy .synopsis { margin-bottom: 13px; }
+#app.legacy:not(.is-handset) .hero-copy .synopsis { display: none; }
+#app.legacy:not(.is-handset) .desktop-facts .standalone-synopsis { display: block; }
+#app.rebuilt:not(.is-handset) .desktop-facts .standalone-synopsis { display: none; }
+#app.rebuilt:not(.is-handset) .desktop-facts { margin-top: 4px; padding-bottom: 18px; }
+#app.legacy.is-handset .desktop-facts, #app.rebuilt.is-handset .desktop-facts { display: none; }
+#app.is-handset .mobile-facts { display: grid; }
+#app.phone-portrait .hero { min-height: 0; }
+#app.phone-portrait .hero-art { inset: 0 0 auto; height: 216px; background-position: center top; }
+#app.phone-portrait .hero-wash { background: linear-gradient(0deg,#06070b 0,rgba(6,7,11,.05) 145px,rgba(6,7,11,.25) 216px,transparent 240px); }
+#app.phone-portrait .hero-copy { padding: 236px 0 26px; width: calc(100% - 2 * var(--inset)); }
+#app.phone-portrait .hero-title { font-size: calc(36px * var(--font-scale)); line-height: 1.03; margin-bottom: 12px; }
+#app.phone-portrait .actions { gap: 10px; }
+#app.phone-portrait .action { min-height: 44px; }
+#app.phone-portrait .synopsis { line-height: 1.45; }
+#app.is-handset .synopsis .more { display: none; }
+#app.phone-landscape .hero { min-height: 360px; }
+#app.phone-landscape .hero-copy { width: min(580px,calc(100% - 2 * var(--inset))); padding-top: max(96px,calc(var(--safe-top) + 90px)); padding-bottom: 32px; }
+#app.phone-landscape .hero-title { font-size: calc(43px * var(--font-scale)); }
+#app.phone-landscape .hero-art { background-position: right center; }
+#app.phone-landscape .hero-wash { background: linear-gradient(90deg,rgba(6,7,11,.97),rgba(6,7,11,.80) 45%,rgba(6,7,11,.15)),linear-gradient(0deg,#06070b,transparent 58%); }
+#app.is-handset .mobile-facts .fact { margin-bottom: 7px; }
+#app .content-section { margin: 0 var(--inset); }
+#app .section-label { color: var(--muted); letter-spacing: 2.5px; font-size: calc(12px * var(--font-scale)); font-weight: 400; }
+#app .cast-section { margin-top: 28px; }
+#app .cast-flow { display: flex; flex-wrap: wrap; gap: 22px 28px; margin-top: 16px; }
+#app .cast-person { width: 96px; display: flex; align-items: center; flex-direction: column; gap: 7px; text-align: center; }
+#app .cast-face { display: grid; place-items: center; width: 78px; height: 78px; border-radius: 50%; background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.13); color: var(--muted); font-size: calc(22px * var(--font-scale)); font-weight: 600; }
+#app .cast-name { font-size: calc(12px * var(--font-scale)); line-height: 1.25; overflow-wrap: anywhere; }
+#app .cast-role { font-size: calc(11px * var(--font-scale)); line-height: 1.25; color: var(--muted); overflow-wrap: anywhere; }
+#app .cast-more { border: none; }
+#app .cast-more .cast-face { font-size: 27px; }
+#app .recommend-section { margin-top: 44px; }
+#app .rec-rail { display: flex; overflow-x: auto; gap: 18px; margin-top: 16px; scrollbar-width: thin; }
+#app .rec-card { display: flex; flex-direction: column; gap: 9px; align-items: flex-start; flex: 0 0 120px; width: 120px; min-height: 205px; padding: 0; text-align: left; }
+#app .rec-card img { width: 120px; height: 172px; object-fit: cover; border-radius: 8px; border: 1px solid rgba(255,255,255,.1); }
+#app .rec-card .rec-title { font-size: calc(12px * var(--font-scale)); line-height: 1.25; overflow-wrap: anywhere; }
+#app .episode-section { position: relative; margin: 18px 0 0; }
+#app .season-chrome { position: sticky; top: calc(72px + var(--safe-top)); z-index: 30; background: rgba(8,9,13,.97); border-bottom: 1px solid var(--edge); padding: 0 var(--inset); }
+#app.rebuilt .season-chrome { top: calc(76px + var(--safe-top)); }
+#app .order-row { display: flex; gap: 24px; align-items: flex-start; min-height: 47px; padding-top: 17px; }
+#app .order-btn { display: flex; align-items: flex-start; flex-direction: column; gap: 5px; color: var(--muted); font-size: calc(15px * var(--font-scale)); min-height: 32px; padding: 0; }
+#app .order-btn.selected { color: var(--gold); font-weight: 600; }
+#app .order-btn.selected::after { content: ""; display: block; background: var(--gold); width: 26px; height: 2px; border-radius: 2px; }
+#app .season-pick-row { display: flex; align-items: center; min-height: 56px; }
+#app .season-trigger { border: 1px solid var(--edge); display: inline-flex; align-items: center; justify-content: space-between; gap: 22px; padding: 0 15px; min-height: 38px; min-width: 132px; border-radius: 19px; font-size: calc(14px * var(--font-scale)); font-weight: 600; background: rgba(255,255,255,.06); }
+#app .season-trigger[aria-expanded=true] { border-color: var(--gold); background: rgba(255,255,255,.10); }
+#app .season-trigger .down { font-size: 12px; color: var(--muted); }
+#app .season-strip { display: flex; gap: 22px; overflow-x: auto; min-height: 48px; padding-top: 17px; scrollbar-width: none; }
+#app .season-tab { display: flex; flex-direction: column; gap: 5px; flex: none; white-space: nowrap; color: var(--muted); font-size: calc(15px * var(--font-scale)); }
+#app .season-tab.selected { color: var(--gold); font-weight: 600; }
+#app .season-tab.selected::after { content: ""; width: 26px; height: 2px; background: var(--gold); }
+#app .ledger-head { min-height: 86px; display: flex; flex-wrap: wrap; gap: 12px 14px; align-items: center; justify-content: space-between; padding: 13px 0 10px; }
+#app .ledger-heading { font: 600 calc(25px * var(--font-scale))/1.15 "Fraunces Review",Georgia,serif; }
+#app .ledger-subline { color: var(--dimmer); font-size: calc(12px * var(--font-scale)); margin-top: 7px; line-height: 1.35; overflow-wrap: anywhere; }
+#app .ledger-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+#app .ledger-action { border: 1px solid var(--edge); background: rgba(255,255,255,.06); border-radius: 9px; display: flex; gap: 8px; align-items: center; justify-content: center; padding: 0 12px; height: 40px; min-width: 102px; font-size: calc(12px * var(--font-scale)); font-weight: 600; }
+#app .ledger-action.download-season { min-width: 176px; }
+#app .ledger-action .glyph { width: 16px; height: 16px; color: var(--muted); }
+#app .ledger-columns { display: flex; gap: 50px; height: 30px; align-items: center; border-bottom: 1px solid var(--edge); color: var(--dimmer); font-size: calc(10px * var(--font-scale)); font-weight: 600; letter-spacing: 1.3px; }
+#app .ledger-columns .status-label { margin-left: auto; margin-right: 95px; }
+#app .episode-list { margin: 0 var(--inset); }
+#app .episode-row { position: relative; display: flex; align-items: center; gap: 15px; width: 100%; min-height: 104px; border-bottom: 1px solid var(--edge); padding: 8px 10px; cursor: pointer; }
+#app .episode-row.next-up { background: rgba(240,196,74,.035); }
+#app .episode-row.next-up::before { content: ""; position: absolute; left: 0; top: 0; height: 100%; width: 2px; background: var(--gold); }
+#app .episode-num { width: 58px; flex: 0 0 58px; text-align: center; border-right: 1px solid var(--edge); padding-right: 10px; }
+#app .episode-num .num { font: 600 calc(22px * var(--font-scale))/.99 "Fraunces Review",Georgia,serif; }
+#app .episode-num small { display: block; color: var(--dimmer); font-size: calc(9px * var(--font-scale)); font-weight: 600; letter-spacing: 1.1px; margin-top: 4px; }
+#app .episode-row.next-up .episode-num .num { color: var(--gold); }
+#app .episode-still { width: 128px; height: 72px; flex: 0 0 128px; overflow: hidden; border-radius: 6px; background: #15171f; position: relative; }
+#app .episode-still img { display: block; width: 100%; height: 100%; object-fit: cover; }
+#app .still-progress { position: absolute; bottom: 0; left: 0; height: 3px; background: var(--gold); }
+#app .episode-copy { flex: 1 1 200px; min-width: 0; display: flex; flex-direction: column; gap: 5px; }
+#app .episode-name { font-size: calc(15px * var(--font-scale)); line-height: 1.28; font-weight: 600; overflow-wrap: anywhere; }
+#app:not(.phone-portrait) .episode-name { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#app .episode-subline { font-size: calc(12px * var(--font-scale)); color: var(--dimmer); font-weight: 600; line-height: 1.3; }
+#app .episode-row.next-up .episode-subline { color: var(--gold); }
+#app .episode-description { font-size: calc(13px * var(--font-scale)); line-height: 1.35; color: var(--dimmer); display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; overflow-wrap: anywhere; }
+#app .row-status { font-size: calc(10px * var(--font-scale)); font-weight: 600; letter-spacing: 1.1px; color: var(--dimmer); flex: 0 0 84px; white-space: nowrap; }
+#app .episode-row.next-up .row-status { color: var(--gold); }
+#app .episode-row .episode-buttons { display: flex; gap: 8px; align-items: center; flex: 0 0 auto; margin-left: 3px; }
+#app .circle-action { width: 38px; height: 38px; display: inline-grid; place-items: center; border-radius: 50%; background: rgba(255,255,255,.06); border: 1px solid var(--edge); position: relative; }
+#app .circle-action::after { content: ""; position: absolute; inset: -4px; border-radius: 50%; }
+#app .circle-action:hover { background: rgba(255,255,255,.13); }
+#app .circle-action .glyph { height: 17px; width: 17px; }
+#app .episode-row.next-up .circle-action:first-child { border-color: var(--gold); color: var(--gold); }
+#app .episode-row .watched-mark { position: absolute; top: 4px; right: 4px; width: 20px; height: 20px; border-radius: 50%; background: #000a; display: grid; place-items: center; color: #76b8aa; }
+#app .episode-row .watched-mark .glyph { width: 14px; height: 14px; }
+#app .episode-row.watched .episode-subline { color: #76b8aa; }
+#app .episode-row.watched .row-status { color: #76b8aa; }
+#app .popup { position: absolute; border: 1px solid var(--edge); background: rgba(11,13,19,.98); border-radius: 14px; box-shadow: 0 22px 55px #0009; overflow: hidden; }
+#app .popup-season { width: 236px; padding: 6px; max-height: 304px; overflow-y: auto; scrollbar-width: thin; }
+#app .popup-season button { display: block; width: 100%; min-height: 36px; padding: 8px 12px; text-align: left; font-size: calc(13px * var(--font-scale)); color: var(--muted); border-radius: 9px; }
+#app .popup-season button[aria-selected=true] { color: var(--gold); font-weight: 600; }
+#app .popup-season button:hover { background: rgba(255,255,255,.08); }
+#app .popup-jump { width: min(292px,calc(100% - 28px)); padding: 12px; }
+#app .jump-input-row { display: flex; gap: 8px; }
+#app .popup-jump input { width: 100%; min-width: 0; background: rgba(255,255,255,.06); border: 1px solid var(--edge); color: var(--ink); border-radius: 8px; padding: 6px 10px; font-size: calc(13px * var(--font-scale)); }
+#app .popup-jump .jump-submit { flex: 0 0 72px; height: 34px; border-radius: 8px; background: var(--ink); color: #111; font-weight: 600; font-size: calc(12px * var(--font-scale)); }
+#app .jump-ranges { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+#app .jump-ranges button { min-height: 26px; padding: 4px 9px; border-radius: 6px; border: 1px solid var(--edge); background: rgba(255,255,255,.06); font-size: calc(11px * var(--font-scale)); color: var(--muted); }
+#app .context-menu { width: min(210px,calc(100% - 30px)); padding: 6px; }
+#app .context-menu button { width: 100%; min-height: 36px; border-radius: 8px; color: var(--ink); text-align: center; font-size: calc(13px * var(--font-scale)); }
+#app .context-menu button:hover { background: #ffffff16; }
+#app.phone-portrait .season-chrome { top: calc(72px + var(--safe-top)); }
+#app.phone-portrait .ledger-head { display: block; min-height: 0; padding: 12px 0 13px; }
+#app.phone-portrait .ledger-actions { margin-top: 15px; gap: 10px; }
+#app.phone-portrait .ledger-action { min-height: 40px; }
+#app.phone-portrait .ledger-columns, #app.phone-landscape .ledger-columns { display: none; }
+#app.phone-portrait .episode-row { display: grid; grid-template-columns: 58px minmax(88px,1fr) 84px; gap: 8px 8px; min-height: 270px; padding: 10px 8px 18px; align-items: start; }
+#app.phone-portrait .episode-num { grid-column: 1; grid-row: 1; height: 86px; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+#app.phone-portrait .episode-still { grid-column: 2; grid-row: 1; width: min(100%,152px); height: 86px; flex: none; }
+#app.phone-portrait .episode-buttons { grid-column: 3; grid-row: 1; justify-content: flex-end; margin: 21px 0 0; gap: 7px; }
+#app.phone-portrait .episode-copy { grid-column: 1/4; grid-row: 2; padding: 0 4px; gap: 7px; min-width: 0; }
+#app.phone-portrait .episode-name { font-size: calc(16px * var(--font-scale)); }
+#app.phone-portrait .episode-description { -webkit-line-clamp: 3; }
+#app.phone-portrait .row-status { display: none; }
+#app.phone-portrait .cast-flow { gap: 16px; }
+#app.phone-portrait .cast-person { width: 96px; }
+#app.phone-landscape .episode-row { min-height: 104px; }
+#app.phone-landscape .row-status { display: none; }
+#app.phone-landscape .episode-still { width: 120px; height: 68px; flex-basis: 120px; }
+#app.phone-landscape .episode-copy { flex-basis: 120px; }
+#app.phone-landscape .ledger-head { min-height: 85px; }
+#app.tablet .episode-row .row-status { display: none; }
+#app.tablet .episode-row .episode-still { width: 116px; flex-basis: 116px; }
+body.capture { overflow: hidden; background: #06070b; }
+body.capture #review-tools { display: none; }
+body.capture #stage { margin: 0; width: 100vw; height: 100vh; box-shadow: none; }
+body.capture #app { --inset: 20px; }
+
+/* Faithful invisible 44px episode hit areas around the 38px round glyph recipe. */
+#app .episode-row .circle-action { height: 44px; width: 44px; background: transparent; border: none; flex: 0 0 44px; }
+#app .episode-row .circle-action .circle-visible { display: grid; place-items: center; width: 38px; height: 38px; border-radius: 19px; border: 1px solid var(--edge); background: rgba(255,255,255,.06); }
+#app .episode-row .circle-action:hover .circle-visible { background: rgba(255,255,255,.12); }
+#app .episode-row.next-up .circle-action:first-child { border: none; }
+#app .episode-row.next-up .circle-action:first-child .circle-visible { border-color: var(--gold); color: var(--gold); }
+#app.phone-portrait .episode-row { grid-template-columns: 54px minmax(80px,1fr) 98px; }
+#app.phone-portrait .episode-num { width: 54px; flex-basis: 54px; padding-right: 6px; }
+#app.phone-portrait .episode-row .episode-buttons { gap: 5px; }
+#app.phone-portrait .episode-row .circle-action { width: 44px; }
+#app .episode-row .still-progress { z-index: 1; }
+#app .episode-row .watched-mark { z-index: 1; }
+#app .episode-copy { padding-right: 2px; }
+#app .visually-hidden { position: absolute !important; width: 1px; height: 1px; padding: 0; border: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+body.capture #app.desktop { --inset: 54px; }
+body.capture #app.tablet { --inset: 32px; }
+body.capture #app.phone-landscape { --inset: 24px; }
+body.capture #app.phone-portrait { --inset: 20px; }
+/* The opt-in rebuilt page carries its existing single-line ledger chrome, not the older stacked bar. */
+#app.rebuilt .rebuilt-ledger { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; justify-content: space-between; min-height: 76px; padding: 10px 0; }
+#app.rebuilt .rebuilt-ledger-left { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+#app.rebuilt .rebuilt-ledger-right { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-left: auto; }
+#app.rebuilt .order-segment { display: flex; align-items: center; gap: 2px; padding: 3px; border-radius: 18px; border: 1px solid var(--edge); background: rgba(255,255,255,.06); }
+#app.rebuilt .order-segment button { border-radius: 14px; height: 28px; padding: 0 14px; font-size: calc(13px * var(--font-scale)); color: var(--muted); }
+#app.rebuilt .order-segment button.selected { color: var(--gold); font-weight: 600; background: rgba(255,255,255,.14); }
+#app.rebuilt .season-pick-row { min-height: 36px; }
+#app.rebuilt .season-trigger { min-height: 36px; border-radius: 18px; font-size: calc(13px * var(--font-scale)); }
+#app.rebuilt .rebuilt-pill { height: 36px; min-height: 36px; display: inline-flex; align-items: center; gap: 8px; border-radius: 18px; border: 1px solid var(--edge); background: rgba(255,255,255,.06); padding: 0 14px; color: var(--muted); font-size: calc(12px * var(--font-scale)); font-weight: 600; }
+#app.rebuilt .rebuilt-pill.next-pill { color: var(--gold); border-color: rgba(240,196,74,.45); background: rgba(240,196,74,.08); }
+#app.rebuilt .rebuilt-pill .glyph { width: 15px; height: 15px; }
+#app.rebuilt .inline-goto { height: 36px; width: 132px; border: 1px solid var(--edge); border-radius: 18px; background: rgba(255,255,255,.06); display: flex; }
+#app.rebuilt .inline-goto:focus-within { border-color: var(--gold); }
+#app.rebuilt .inline-goto input { width: 100%; background: none; outline: none; border: 0; border-radius: 18px; color: var(--ink); padding: 0 13px; font-size: calc(13px * var(--font-scale)); }
+#app.rebuilt .inline-goto input::placeholder { color: var(--dimmer); opacity: 1; }
+#app.rebuilt .rebuilt-ledger-caption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; flex: 1 0 100%; border-top: 1px solid rgba(255,255,255,.08); padding-top: 9px; }
+#app.rebuilt .rebuilt-ledger-caption .ledger-heading { font-size: calc(21px * var(--font-scale)); }
+#app.rebuilt .rebuilt-ledger-caption .ledger-subline { margin: 0; }
+#app.rebuilt.phone-portrait .rebuilt-ledger { align-items: flex-start; padding: 12px 0; gap: 10px; }
+#app.rebuilt.phone-portrait .rebuilt-ledger-left, #app.rebuilt.phone-portrait .rebuilt-ledger-right { width: 100%; gap: 10px; margin: 0; }
+#app.rebuilt.phone-landscape .rebuilt-ledger { justify-content: flex-start; }
+#app.rebuilt.phone-landscape .rebuilt-ledger-right { margin-left: 0; }
+#app.rebuilt .episode-row { min-height: 96px; }
+#app.rebuilt.phone-portrait .episode-row { min-height: 270px; }
+#app.rebuilt.phone-landscape .episode-row { min-height: 104px; }
+@media (max-width: 650px) {
+  .review-fields { gap: 8px; }
+  #review-tools { padding: 12px; }
+}
+
+
+/* Desktop legacy hero is a 360px QML item with bottom-anchored copy, not content-grown. */
+#app.legacy.desktop .hero,
+#app.legacy.tablet:not(.phone-portrait) .hero { height: 360px; min-height: 360px; }
+#app.legacy.desktop .hero-copy,
+#app.legacy.tablet:not(.phone-portrait) .hero-copy { position: absolute; left: 0; bottom: 30px; padding: 0; }
+#app.android-host .window-controls { display: none; }
+/* 800x1280 Android portrait hits the source's <840px phoneNarrow gate, with wider breathing room. */
+#app.phone-portrait.tablet .hero-title { font-size: calc(36px * var(--font-scale)); }
+#app.phone-portrait.tablet .episode-row .episode-still { width: min(100%,152px); }
+#app.phone-portrait.tablet .hero-copy { padding-top: 236px; }
+
+
+/* Original seasonChromeFloat fills upward to hide scrolled hero controls behind Back. */
+/* Approved ChromeScrim.qml plus TheatreSeries.qml narrow-phone and pinned-ledger shading. */
+#app.legacy #chrome::before{content:"";position:absolute;top:0;left:0;right:0;height:calc(120px + var(--safe-top));background:linear-gradient(rgba(0,0,0,.55),transparent);pointer-events:none;z-index:-2}
+#app.legacy #chrome::after{content:"";position:absolute;top:0;left:0;right:0;height:calc(86px + var(--safe-top));background:#08090d;opacity:var(--phone-scrim-opacity,0);pointer-events:none;z-index:-1}
+#app.legacy .season-chrome{background:transparent}
+#app.legacy.sticky-scrim #chrome::after{height:calc(72px + var(--safe-top));opacity:1;background:var(--sticky-chrome-color)}
+#app.legacy.sticky-scrim .season-chrome{background:var(--sticky-chrome-color)}
+
+/* Source TheatreSeriesView: phone synopsis is complete, not clamped behind a hidden More. */
+#app.is-handset .synopsis.clamped p{display:block;-webkit-line-clamp:unset;overflow:visible}
+#app .popup{overflow:auto;overscroll-behavior:contain}
+#app .popup button:focus-visible{outline:2px solid var(--gold);outline-offset:-2px}
+#app #overlay.modal-open{background:rgba(3,4,6,.78);pointer-events:auto}
+#app .popup-removal{width:520px;min-height:278px;padding:30px;border-radius:20px;background:#171a22;display:flex;flex-direction:column;gap:16px}
+#app .popup-removal>*{flex-shrink:0;margin:0}
+#app .popup-removal h2{font:calc(28px * var(--font-scale))/1.15 "Fraunces Review",serif;overflow-wrap:anywhere}
+#app .popup-removal p{font-size:calc(14px * var(--font-scale));color:var(--muted);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+#app .popup-removal button{width:100%;min-height:42px;padding:10px;border-radius:10px;border:1px solid var(--edge);background:#ffffff0f;color:var(--ink);font-size:calc(14px * var(--font-scale));font-weight:600}
+#app .popup-removal button.quiet{border:0;background:transparent;color:var(--muted)}
+
+/* Fit the existing legacy ledger controls in two rows on short phone landscapes. */
+#app.legacy.phone-landscape .season-chrome{display:grid;grid-template-columns:max-content minmax(0,1fr);column-gap:22px;align-items:center}
+#app.legacy.phone-landscape .order-row{grid-column:1;min-height:44px;padding-top:6px}
+#app.legacy.phone-landscape .season-pick-row{grid-column:2;min-height:44px}
+#app.legacy.phone-landscape .ledger-head{grid-column:1/-1;min-height:0;padding:4px 0 8px}
+#app.phone-landscape .episode-name{white-space:normal;overflow:visible;text-overflow:clip}

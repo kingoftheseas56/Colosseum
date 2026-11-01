@@ -1,0 +1,21 @@
+{
+  "name": "biblio-finished-verified-portrait",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-portrait.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 1450,
+    "height": 1500,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:26:44.185Z",
+  "sha256": "083d5a7bc926f400d00261d6551a3f1f8e59b8bdd2ecf4b487681e1d864d4229",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

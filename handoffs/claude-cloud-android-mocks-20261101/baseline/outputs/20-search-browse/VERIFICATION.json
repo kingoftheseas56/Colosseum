@@ -1,0 +1,780 @@
+{
+  "timestamp": "2026-10-31T22:09:00.822Z",
+  "browser": "installed Chrome via isolated Puppeteer headless session",
+  "command": "node verify-captures.cjs",
+  "cases": [
+    {
+      "name": "search-portrait",
+      "source": "capture-search.html",
+      "screenshot": "captures\\search-portrait.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 9,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 11,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 148,
+      "visibleCardCount": 2,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 91007,
+      "pass": true
+    },
+    {
+      "name": "search-landscape",
+      "source": "capture-search-landscape.html",
+      "screenshot": "captures\\search-landscape.png",
+      "viewport": "900x412",
+      "frame": "900x412",
+      "frameRight": 900,
+      "images": 22,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 19,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 120,
+      "visibleCardCount": 11,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 48976,
+      "pass": true
+    },
+    {
+      "name": "search-desktop",
+      "source": "capture-search-desktop.html",
+      "screenshot": "captures\\search-desktop.png",
+      "viewport": "1280x700",
+      "frame": "1280x700",
+      "frameRight": 1280,
+      "images": 22,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 19,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 145,
+      "visibleCardCount": 11,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 556299,
+      "pass": true
+    },
+    {
+      "name": "biblio-explore-portrait",
+      "source": "capture-biblio-explore.html",
+      "screenshot": "captures\\biblio-explore-portrait.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 79,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 85,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 103,
+      "visibleCardCount": 56,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 320512,
+      "pass": true
+    },
+    {
+      "name": "biblio-explore-landscape",
+      "source": "capture-biblio-explore-landscape.html",
+      "screenshot": "captures\\biblio-explore-landscape.png",
+      "viewport": "900x412",
+      "frame": "900x412",
+      "frameRight": 900,
+      "images": 79,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 85,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 103,
+      "visibleCardCount": 56,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 335291,
+      "pass": true
+    },
+    {
+      "name": "biblio-explore-desktop",
+      "source": "capture-biblio-explore-desktop.html",
+      "screenshot": "captures\\biblio-explore-desktop.png",
+      "viewport": "1280x700",
+      "frame": "1280x700",
+      "frameRight": 1280,
+      "images": 79,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 85,
+      "smallTouchTargets": [
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        }
+      ],
+      "hasRoot": true,
+      "scrollTop": 116,
+      "visibleCardCount": 56,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 938043,
+      "pass": true
+    },
+    {
+      "name": "genre-index-portrait",
+      "source": "capture-genre-index.html",
+      "screenshot": "captures\\genre-index-portrait.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 39,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 40,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 35,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 427275,
+      "pass": true
+    },
+    {
+      "name": "genre-index-landscape",
+      "source": "capture-genre-index-landscape.html",
+      "screenshot": "captures\\genre-index-landscape.png",
+      "viewport": "900x412",
+      "frame": "900x412",
+      "frameRight": 900,
+      "images": 39,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 40,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 35,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 303166,
+      "pass": true
+    },
+    {
+      "name": "genre-index-desktop",
+      "source": "capture-genre-index-desktop.html",
+      "screenshot": "captures\\genre-index-desktop.png",
+      "viewport": "1280x700",
+      "frame": "1280x700",
+      "frameRight": 1280,
+      "images": 39,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 40,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 35,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 904329,
+      "pass": true
+    },
+    {
+      "name": "genre-results-portrait",
+      "source": "capture-genre-results.html",
+      "screenshot": "captures\\genre-results-portrait.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 16,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 43,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 353763,
+      "pass": true
+    },
+    {
+      "name": "genre-results-landscape",
+      "source": "capture-genre-results-landscape.html",
+      "screenshot": "captures\\genre-results-landscape.png",
+      "viewport": "900x412",
+      "frame": "900x412",
+      "frameRight": 900,
+      "images": 16,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 43,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 433510,
+      "pass": true
+    },
+    {
+      "name": "genre-results-desktop",
+      "source": "capture-genre-results-desktop.html",
+      "screenshot": "captures\\genre-results-desktop.png",
+      "viewport": "1280x700",
+      "frame": "1280x700",
+      "frameRight": 1280,
+      "images": 16,
+      "missingImages": [],
+      "overflow": [
+        {
+          "selector": "back-action vs genre-kicker",
+          "type": "overlap",
+          "intersection": [
+            6,
+            3
+          ]
+        }
+      ],
+      "buttonCount": 43,
+      "smallTouchTargets": [
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        },
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        },
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        },
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        },
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        },
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        },
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        },
+        {
+          "name": "+ Library",
+          "h": 32,
+          "w": 73
+        }
+      ],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 935495,
+      "pass": false
+    },
+    {
+      "name": "continue-see-all-portrait",
+      "source": "capture-continue-see-all.html",
+      "screenshot": "captures\\continue-see-all-portrait.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 11,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 30,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 298009,
+      "pass": true
+    },
+    {
+      "name": "continue-see-all-landscape",
+      "source": "capture-continue-see-all-landscape.html",
+      "screenshot": "captures\\continue-see-all-landscape.png",
+      "viewport": "900x412",
+      "frame": "900x412",
+      "frameRight": 900,
+      "images": 11,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 30,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 209854,
+      "pass": true
+    },
+    {
+      "name": "continue-see-all-desktop",
+      "source": "capture-continue-see-all-desktop.html",
+      "screenshot": "captures\\continue-see-all-desktop.png",
+      "viewport": "1280x700",
+      "frame": "1280x700",
+      "frameRight": 1280,
+      "images": 11,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 30,
+      "smallTouchTargets": [
+        {
+          "name": "Last Watched",
+          "h": 30,
+          "w": 107
+        },
+        {
+          "name": "A–Z",
+          "h": 30,
+          "w": 50
+        },
+        {
+          "name": "Z–A",
+          "h": 30,
+          "w": 50
+        },
+        {
+          "name": "Watched",
+          "h": 30,
+          "w": 78
+        },
+        {
+          "name": "Not Watched",
+          "h": 30,
+          "w": 104
+        }
+      ],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 653854,
+      "pass": true
+    },
+    {
+      "name": "continue-see-all-context",
+      "source": "capture-continue-see-all-context.html",
+      "screenshot": "captures\\continue-see-all-context.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 11,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 33,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 279449,
+      "pass": true
+    },
+    {
+      "name": "search-keyboard",
+      "source": "capture-search-keyboard.html",
+      "screenshot": "captures\\search-keyboard.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 9,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 11,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 148,
+      "visibleCardCount": 2,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 70063,
+      "pass": true
+    },
+    {
+      "name": "search-empty",
+      "source": "capture-search-empty.html",
+      "screenshot": "captures\\search-empty.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 4,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 19,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 148,
+      "visibleCardCount": 0,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 42813,
+      "pass": true
+    },
+    {
+      "name": "search-browse",
+      "source": "capture-search-browse.html",
+      "screenshot": "captures\\search-browse.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 12,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 14,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 148,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 118133,
+      "pass": true
+    },
+    {
+      "name": "biblio-explore-rail",
+      "source": "capture-biblio-explore-rail.html",
+      "screenshot": "captures\\biblio-explore-rail.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 79,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 85,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 103,
+      "visibleCardCount": 56,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 244890,
+      "pass": true
+    },
+    {
+      "name": "biblio-explore-filter-open",
+      "source": "capture-biblio-explore-filter-open.html",
+      "screenshot": "captures\\biblio-explore-filter-open.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 12,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 32,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 103,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 277480,
+      "pass": true
+    },
+    {
+      "name": "biblio-explore-tablet-portrait",
+      "source": "capture-biblio-explore-tablet-portrait.html",
+      "screenshot": "captures\\biblio-explore-tablet-portrait.png",
+      "viewport": "800x1280",
+      "frame": "800x1280",
+      "frameRight": 800,
+      "images": 79,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 85,
+      "smallTouchTargets": [
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        },
+        {
+          "name": "See All",
+          "h": 31,
+          "w": 54
+        }
+      ],
+      "hasRoot": true,
+      "scrollTop": 116,
+      "visibleCardCount": 56,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 1105741,
+      "pass": true
+    },
+    {
+      "name": "genre-results-covers",
+      "source": "capture-genre-results-covers.html",
+      "screenshot": "captures\\genre-results-covers.png",
+      "viewport": "412x900",
+      "frame": "412x900",
+      "frameRight": 412,
+      "images": 16,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 35,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 0,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 465832,
+      "pass": true
+    },
+    {
+      "name": "genre-results-biblio-long",
+      "source": "capture-genre-results-biblio-long.html",
+      "screenshot": "captures\\genre-results-biblio-long.png",
+      "viewport": "354x792",
+      "frame": "354x792",
+      "frameRight": 354,
+      "images": 16,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 35,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 250438,
+      "pass": true
+    },
+    {
+      "name": "genre-index-small-portrait",
+      "source": "capture-genre-index-small-portrait.html",
+      "screenshot": "captures\\genre-index-small-portrait.png",
+      "viewport": "354x792",
+      "frame": "354x792",
+      "frameRight": 354,
+      "images": 14,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 15,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 10,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 279671,
+      "pass": true
+    },
+    {
+      "name": "genre-index-small-landscape",
+      "source": "capture-genre-index-small-landscape.html",
+      "screenshot": "captures\\genre-index-small-landscape.png",
+      "viewport": "792x354",
+      "frame": "792x354",
+      "frameRight": 792,
+      "images": 14,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 15,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 10,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 205499,
+      "pass": true
+    },
+    {
+      "name": "search-small-landscape-keyboard",
+      "source": "capture-search-small-landscape-keyboard.html",
+      "screenshot": "captures\\search-small-landscape-keyboard.png",
+      "viewport": "792x354",
+      "frame": "792x354",
+      "frameRight": 792,
+      "images": 22,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 19,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 120,
+      "visibleCardCount": 11,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 11731,
+      "pass": true
+    },
+    {
+      "name": "continue-see-all-small-landscape",
+      "source": "capture-continue-see-all-small-landscape.html",
+      "screenshot": "captures\\continue-see-all-small-landscape.png",
+      "viewport": "792x354",
+      "frame": "792x354",
+      "frameRight": 792,
+      "images": 11,
+      "missingImages": [],
+      "overflow": [],
+      "buttonCount": 30,
+      "smallTouchTargets": [],
+      "hasRoot": true,
+      "scrollTop": 0,
+      "visibleCardCount": 8,
+      "pageErrors": [],
+      "resourceErrors": [],
+      "fileBytes": 161470,
+      "pass": true
+    }
+  ],
+  "interactions": [
+    {
+      "name": "search-empty-to-query",
+      "checks": {
+        "before": "",
+        "after": "fiction",
+        "top": "TOP MATCH"
+      },
+      "errors": []
+    },
+    {
+      "name": "biblio-explore-row-index",
+      "checks": {
+        "before": 52,
+        "after": 220,
+        "editActions": 7
+      },
+      "errors": []
+    },
+    {
+      "name": "biblio-see-all-and-popup",
+      "checks": {
+        "pinned": "Top 10",
+        "options": 11,
+        "selected": "5 books",
+        "back": "Explore"
+      },
+      "errors": []
+    },
+    {
+      "name": "genre-details-view-and-library",
+      "checks": {
+        "compact": true,
+        "sorted": "Sorted by Score ⇅",
+        "selected": true
+      },
+      "errors": []
+    },
+    {
+      "name": "continue-context-menu",
+      "checks": {
+        "menuCount": 3,
+        "removedCount": 7
+      },
+      "errors": []
+    },
+    {
+      "name": "continue-medium-and-status",
+      "checks": {
+        "watched": 2,
+        "books": 3
+      },
+      "errors": []
+    }
+  ],
+  "unresolved": [],
+  "summary": {
+    "captureCount": 28,
+    "passCount": 27,
+    "flagged": [
+      "genre-results-desktop"
+    ],
+    "interactiveScenarios": 6,
+    "unresolved": 0
+  }
+}

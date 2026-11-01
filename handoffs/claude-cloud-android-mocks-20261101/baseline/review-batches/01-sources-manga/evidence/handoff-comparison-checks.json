@@ -1,0 +1,281 @@
+{
+  "tested_at": "2026-10-31T23:34:38.536Z",
+  "tests": [
+    {
+      "name": "page 0 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/01-theatre-sources/film-sources.html?render=1&w=412&h=900&scale=1&insetTop=0&insetBottom=0",
+          "w": 412,
+          "h": 900,
+          "body": "Back\n1977 - SCIENCE FICTION, ADVENTURE\nStar Wars: A New Hope\nAll\n▾\nAll\n8\n4K\n2\n1080p\n3\n720p\n2\nSD\n1\n8 sources\nvia 4 extensions\nT\nTorrentio\n4K · HDR\nStar.Wars.Episode.IV.A.New.Hope.1977.REMASTERED.2160p.UHD.BluRay.REMUX.HEVC.TrueHD.Atmos.7.1\n744 seeders",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/01-theatre-sources/film-sources.html?render=1&w=412&h=900&scale=1&insetTop=0&insetBottom=0",
+          "w": 412,
+          "h": 900,
+          "body": "Back\n1977 - SCIENCE FICTION, ADVENTURE\nStar Wars: A New Hope\nAll\n▾\nAll\n8\n4K\n2\n1080p\n3\n720p\n2\nSD\n1\n8 sources\nvia 4 extensions\nT\nTorrentio\n4K · HDR\nStar.Wars.Episode.IV.A.New.Hope.1977.REMASTERED.2160p.UHD.BluRay.REMUX.HEVC.TrueHD.Atmos.7.1\n744 seeders",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 1 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/01-theatre-sources/episode-sources.html?render=1&w=412&h=900&scale=1&insetTop=0&insetBottom=0",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nS1E1 - CHAPTER 1: THE MANDALORIAN\nThe Mandalorian\nAll\n▾\nAll\n9\n4K\n3\n1080p\n3\n720p\n2\nSD\n1\n9 sources\nvia 4 extensions\nT\nTorrentio\n4K · HDR\nThe.Mandalorian.S01E01.Chapter.One.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC.MULTi\n587 seeders\n9.7 GB\nTorrentG",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/01-theatre-sources/episode-sources.html?render=1&w=412&h=900&scale=1&insetTop=0&insetBottom=0",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nS1E1 - CHAPTER 1: THE MANDALORIAN\nThe Mandalorian\nAll\n▾\nAll\n9\n4K\n3\n1080p\n3\n720p\n2\nSD\n1\n9 sources\nvia 4 extensions\nT\nTorrentio\n4K · HDR\nThe.Mandalorian.S01E01.Chapter.One.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC.MULTi\n587 seeders\n9.7 GB\nTorrentG",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 2 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/02-comic-sources/comic-sources.html?capture=1&top=0&bottom=0&scale=1&vw=412&vh=900",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\nSearch\n4 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate Bay\nSTRONG MATCH\nBatma",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/02-comic-sources/comic-sources.html?capture=1&top=0&bottom=0&scale=1&vw=412&vh=900",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\nSearch\n4 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate Bay\nSTRONG MATCH\nBatma",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 3 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/02-comic-sources/comic-source-confirmation.html?capture=1&top=0&bottom=0&scale=1&vw=412&vh=900",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\nSearch\n4 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate Bay\nSTRONG MATCH\nBatma",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/02-comic-sources/comic-source-confirmation.html?capture=1&top=0&bottom=0&scale=1&vw=412&vh=900",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\nSearch\n4 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate Bay\nSTRONG MATCH\nBatma",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 4 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/03-manga-sources/manga-volume-sources.html?capture=1&top=0&bottom=0&scale=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\n\nSOURCES · TANKOBAN VOLUME\n\nVol. 1\nOne Piece\n·\nVol. 1\n\nNo synopsis for this volume yet.\n\n4 sources\nNyaa\nF\nFixture Archive\nSTRONG\nOne Piece — Vol. 01: Romance Dawn — Complete Digital Edition (English)\nDIGITAL\nSINGLE VOLUME\nTRUSTED\n114 MB\n·\n👤 24\n",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/03-manga-sources/manga-volume-sources.html?capture=1&top=0&bottom=0&scale=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\n\nSOURCES · TANKOBAN VOLUME\n\nVol. 1\nOne Piece\n·\nVol. 1\n\nNo synopsis for this volume yet.\n\n4 sources\nNyaa\nF\nFixture Archive\nSTRONG\nOne Piece — Vol. 01: Romance Dawn — Complete Digital Edition (English)\nDIGITAL\nSINGLE VOLUME\nTRUSTED\n114 MB\n·\n👤 24\n",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 5 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/04-manga-series/manga-series.html?capture=1&top=0&bottom=0&scale=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nCOLOSSEUM · TANKOBAN\nMANGA  ·  TANKOBAN\nOne Piece\nAdd to Collections\nEiichiro Oda\nPublishing\n1997\n★ 9.22\n107 volumes · 3 on this device\nAction\nAdventure\nFantasy\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. ",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-series.html?capture=1&top=0&bottom=0&scale=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\nAdd to Collections\nEiichiro Oda\nPublishing\n1997\n★ 9.22\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. With the Straw Hat Pirates, he crosses treacherous seas, meets unlike",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 6 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/04-manga-series/manga-chapters.html?capture=1&top=0&bottom=0&scale=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nCOLOSSEUM · TANKOBAN\nMANGA  ·  TANKOBAN\nOne Piece\nAdd to Collections\nEiichiro Oda\nPublishing\n1997\n★ 9.22\n107 volumes\nAction\nAdventure\nFantasy\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. With the Straw Hat ",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/04-manga-series/manga-chapters.html?capture=1&top=0&bottom=0&scale=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\nAdd to Collections\nEiichiro Oda\nPublishing\n1997\n★ 9.22\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. With the Straw Hat Pirates, he crosses treacherous seas, meets unlike",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 7 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/05-volume-flow/volume-flow-original-fit.html?capture=1&top=0&bottom=0&preset=portrait&font=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nTankoban\nMANGA\nOne Piece\nAdd to Collections\nTankoban Mode\nChapter Mode\nLanguage\nEnglish\nEiichiro Oda\nPublishing\n1997\n★ 9.20\nFollow Monkey D. Luffy and his crew as they set sail in search of the legendary One Piece treasure, meeting allies and ri",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/05-volume-flow/volume-flow-original-fit.html?capture=1&top=0&bottom=0&preset=portrait&font=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\nAdd to Collections\nTankoban Mode\nChapter Mode\nLanguage\nEnglish\nEiichiro Oda\nPublishing\n1997\n★ 9.20\nFollow Monkey D. Luffy and his crew as they set sail in search of the legendary One Piece treasure, meeting a",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "page 8 original and finished comparison renders",
+      "pass": true,
+      "details": [
+        {
+          "url": "http://127.0.0.1:5097/outputs/05-volume-flow/volume-flow-minimal-alternative.html?capture=1&top=0&bottom=0&preset=portrait&font=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nTankoban\nMANGA\nOne Piece\nAdd to Collections\nTankoban Mode\nChapter Mode\nLanguage\nEnglish\nEiichiro Oda\nPublishing\n1997\n★ 9.20\nFollow Monkey D. Luffy and his crew as they set sail in search of the legendary One Piece treasure, meeting allies and ri",
+          "scripts": 1,
+          "images": []
+        },
+        {
+          "url": "http://127.0.0.1:5097/review-batches/01-sources-manga/finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html?capture=1&top=0&bottom=0&preset=portrait&font=1",
+          "w": 412,
+          "h": 900,
+          "body": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\nAdd to Collections\nTankoban Mode\nChapter Mode\nLanguage\nEnglish\nEiichiro Oda\nPublishing\n1997\n★ 9.20\nFollow Monkey D. Luffy and his crew as they set sail in search of the legendary One Piece treasure, meeting a",
+          "scripts": 1,
+          "images": []
+        }
+      ]
+    },
+    {
+      "name": "theatre comparison propagates scale insets and open menu",
+      "pass": true,
+      "details": [
+        {
+          "menu": true,
+          "scale": "1.3",
+          "inset": "24",
+          "w": 792,
+          "h": 354
+        },
+        {
+          "menu": true,
+          "scale": "1.3",
+          "inset": "24",
+          "w": 792,
+          "h": 354
+        }
+      ]
+    },
+    {
+      "name": "flow pair opens original and proposal with flow states",
+      "pass": true,
+      "details": {
+        "states": [
+          "default",
+          "select",
+          "synopsis",
+          "downloading",
+          "failed",
+          "end",
+          "no-cover"
+        ],
+        "labels": [
+          "Original constrained attempt",
+          "Proposed readable flow · unapproved"
+        ]
+      }
+    },
+    {
+      "name": "flow stress comparison reaches full proposed cover",
+      "pass": true,
+      "details": {
+        "w": 792,
+        "h": 354,
+        "card": {
+          "x": 316.25,
+          "y": 32.431243896484375,
+          "width": 159.5,
+          "height": 287.1000061035156,
+          "top": 32.431243896484375,
+          "right": 475.75,
+          "bottom": 319.53125,
+          "left": 316.25
+        },
+        "flow": {
+          "x": 0,
+          "y": 23.984375,
+          "width": 792,
+          "height": 304,
+          "top": 23.984375,
+          "right": 792,
+          "bottom": 327.984375,
+          "left": 0
+        },
+        "visible": true
+      }
+    },
+    {
+      "name": "chapter comparison opens page menu",
+      "pass": true,
+      "details": {
+        "popup": true,
+        "expanded": "true"
+      }
+    }
+  ],
+  "passed": 13,
+  "total": 13
+}

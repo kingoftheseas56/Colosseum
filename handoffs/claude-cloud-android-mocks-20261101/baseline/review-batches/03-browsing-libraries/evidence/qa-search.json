@@ -1,0 +1,132 @@
+{
+  "job": "20-search-browse",
+  "name": "search.html",
+  "checks": [
+    {
+      "name": "Biblio query filters local titles",
+      "pass": true,
+      "time": "2026-10-31T23:43:45.544Z"
+    },
+    {
+      "name": "Biblio no-results and clear path",
+      "pass": true,
+      "time": "2026-10-31T23:43:46.654Z"
+    },
+    {
+      "name": "Theatre query filters local titles",
+      "pass": true,
+      "time": "2026-10-31T23:43:48.010Z"
+    },
+    {
+      "name": "Theatre no-results and clear path",
+      "pass": true,
+      "time": "2026-10-31T23:43:49.108Z"
+    },
+    {
+      "name": "Tankoban query filters local titles",
+      "pass": true,
+      "time": "2026-10-31T23:43:50.440Z"
+    },
+    {
+      "name": "Tankoban no-results and clear path",
+      "pass": true,
+      "time": "2026-10-31T23:43:51.616Z"
+    },
+    {
+      "name": "Recent search can be removed",
+      "pass": true,
+      "time": "2026-10-31T23:43:52.439Z"
+    },
+    {
+      "name": "Submitted query joins recent history",
+      "pass": true,
+      "time": "2026-10-31T23:43:53.400Z"
+    },
+    {
+      "name": "See more expands and collapses matching rows",
+      "pass": true,
+      "time": "2026-10-31T23:43:54.411Z"
+    },
+    {
+      "name": "Keyboard reservation retains a scrollable result area",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 0,
+        "y": 100,
+        "w": 792,
+        "h": 110,
+        "right": 792,
+        "bottom": 210,
+        "visible": true,
+        "client": 110,
+        "scroll": 568
+      },
+      "time": "2026-10-31T23:43:55.353Z"
+    },
+    {
+      "name": "Keyboard results reach the final row",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 458,
+        "scrollHeight": 568,
+        "clientHeight": 110
+      },
+      "time": "2026-10-31T23:43:55.656Z"
+    },
+    {
+      "name": "900px Android search uses desktop search composition",
+      "pass": true,
+      "time": "2026-10-31T23:43:56.317Z"
+    },
+    {
+      "name": "Inline genre browse changes its fixture subset",
+      "pass": true,
+      "time": "2026-10-31T23:43:58.285Z"
+    },
+    {
+      "name": "Plain Search Back retains label and clears keyboard search field",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "a": {
+          "x": 16,
+          "y": 40,
+          "w": 80,
+          "h": 34,
+          "right": 96,
+          "bottom": 74,
+          "visible": true,
+          "client": 34,
+          "scroll": 34
+        },
+        "b": {
+          "x": 112,
+          "y": 36,
+          "w": 664,
+          "h": 48,
+          "right": 776,
+          "bottom": 84,
+          "visible": true,
+          "client": 46,
+          "scroll": 46
+        }
+      },
+      "time": "2026-11-01T00:02:54.160Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\search\\search-biblio.png",
+    "evidence\\after\\search\\search-theatre.png",
+    "evidence\\after\\search\\search-tankoban.png",
+    "evidence\\after\\search\\recent-short-portrait.png",
+    "evidence\\after\\search\\populated-long-titles.png",
+    "evidence\\after\\search\\keyboard-short-stress.png",
+    "evidence\\after\\search\\keyboard-short-bottom.png",
+    "evidence\\after\\search\\wide-search.png",
+    "evidence\\after\\search\\inline-genre-empty.png"
+  ],
+  "completedAt": "2026-11-01T00:02:54.319Z",
+  "pass": true
+}

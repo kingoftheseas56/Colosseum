@@ -1,0 +1,2802 @@
+{
+  "captured_at": "2026-10-31T23:31:26.114Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks/04-manga-series",
+  "file": "manga-series.html",
+  "viewport": {
+    "width": 800,
+    "height": 1280
+  },
+  "params": {
+    "capture": 1
+  },
+  "png": "captures/finished-series-tablet-portrait-flow.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 800,
+      "height": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "bodyOverflowX": 0,
+    "images": [
+      {
+        "src": "../../../../reference/desktop/assets/icons/minimize.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/power.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 34,
+          "y": 6.5,
+          "width": 69.625,
+          "height": 44,
+          "right": 103.625,
+          "bottom": 50.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "bookmark",
+        "class": "bookmark",
+        "text": "",
+        "label": "Add to Library",
+        "disabled": false,
+        "rect": {
+          "x": 193.625,
+          "y": 101.6875,
+          "width": 36,
+          "height": 36,
+          "right": 229.625,
+          "bottom": 137.6875
+        },
+        "radius": "9px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px",
+        "hit": "<img id=\"bookmarkImg\" src=\"../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg\" alt=\"\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "collection-btn",
+        "text": "Add to Collections",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 34,
+          "y": 167.890625,
+          "width": 187.34375,
+          "height": 42,
+          "right": 221.34375,
+          "bottom": 209.890625
+        },
+        "radius": "11px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<button class=\"collection-btn\" data-do=\"collections\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"6\" y=\"7\" width=\"15\" height=\"14\" rx=\"2\"></rect><path d=\"M3 17V5a2 2 0 0 1 2-2h12M10 11h7m-7 5h5"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "synopsisMore",
+        "class": "synopsis-more",
+        "text": "More",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 426,
+          "y": 225.578125,
+          "width": 40,
+          "height": 32,
+          "right": 466,
+          "bottom": 257.578125
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<button class=\"synopsis-more\" id=\"synopsisMore\" data-do=\"synopsis\" aria-expanded=\"false\">More</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "languageSelector",
+        "class": "combo-button",
+        "text": "English",
+        "label": null,
+        "disabled": true,
+        "rect": {
+          "x": 594,
+          "y": 141,
+          "width": 166,
+          "height": 28,
+          "right": 760,
+          "bottom": 169
+        },
+        "radius": "7px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<button id=\"languageSelector\" class=\"combo-button\" aria-haspopup=\"listbox\" aria-expanded=\"false\" disabled=\"\" title=\"Available in Chapter Mode\"><span id=\"languageText\">English</span><span class=\"chevro"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "selectToggle",
+        "class": "text-action",
+        "text": "Select",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 730.171875,
+          "y": 309,
+          "width": 35.828125,
+          "height": 40,
+          "right": 766,
+          "bottom": 349
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "11px",
+        "hit": "<button class=\"text-action\" id=\"selectToggle\" data-do=\"select\">Select</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 1\nRomance Dawn",
+        "label": "Volume 1, Romance Dawn, downloaded",
+        "disabled": false,
+        "rect": {
+          "x": -135.9499969482422,
+          "y": 633.25,
+          "width": 191.89999389648438,
+          "height": 313.5,
+          "right": 55.94999694824219,
+          "bottom": 946.75
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 2\nBuggy the Clown",
+        "label": "Volume 2, Buggy the Clown, downloaded",
+        "disabled": false,
+        "rect": {
+          "x": 79,
+          "y": 625,
+          "width": 202,
+          "height": 330,
+          "right": 281,
+          "bottom": 955
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png\" alt=\"Illustrative local One Piece Orange Town project art\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card active",
+        "text": "VOL 3\nDon't Get Fooled Again",
+        "label": "Volume 3, Don't Get Fooled Again, downloaded",
+        "disabled": false,
+        "rect": {
+          "x": 288.8999938964844,
+          "y": 608.5,
+          "width": 222.20001220703125,
+          "height": 363,
+          "right": 511.1000061035156,
+          "bottom": 971.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png\" alt=\"Illustrative local One Piece Syrup Village project art\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 4\nThe Black Cat Pirates",
+        "label": "Volume 4, The Black Cat Pirates, available",
+        "disabled": false,
+        "rect": {
+          "x": 519,
+          "y": 625,
+          "width": 202,
+          "height": 330,
+          "right": 721,
+          "bottom": 955
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png\" alt=\"Illustrative local One Piece Baratie project art\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 5\nFor Whom the Bell Tolls",
+        "label": "Volume 5, For Whom the Bell Tolls, available",
+        "disabled": false,
+        "rect": {
+          "x": 744.0499877929688,
+          "y": 633.25,
+          "width": 191.89996337890625,
+          "height": 313.5,
+          "right": 935.949951171875,
+          "bottom": 946.75
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 6\nThe Oath",
+        "label": "Volume 6, The Oath, available",
+        "disabled": false,
+        "rect": {
+          "x": 969.0999755859375,
+          "y": 641.5,
+          "width": 181.7999267578125,
+          "height": 297,
+          "right": 1150.89990234375,
+          "bottom": 938.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 7\nThe Crap-Geezer",
+        "label": "Volume 7, The Crap-Geezer, available",
+        "disabled": false,
+        "rect": {
+          "x": 1193.1400146484375,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 1366.8599853515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 8\nI Won't Die",
+        "label": "Volume 8, I Won't Die, available",
+        "disabled": false,
+        "rect": {
+          "x": 1413.1400146484375,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 1586.8599853515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 9\nTears",
+        "label": "Volume 9, Tears, available",
+        "disabled": false,
+        "rect": {
+          "x": 1633.1400146484375,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 1806.8599853515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 10\nOK, Let's Stand Up!",
+        "label": "Volume 10, OK, Let's Stand Up!, available",
+        "disabled": false,
+        "rect": {
+          "x": 1853.1400146484375,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 2026.8599853515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 11",
+        "label": "Volume 11, , available",
+        "disabled": false,
+        "rect": {
+          "x": 2073.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 2246.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 12",
+        "label": "Volume 12, , available",
+        "disabled": false,
+        "rect": {
+          "x": 2293.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 2466.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 13",
+        "label": "Volume 13, , available",
+        "disabled": false,
+        "rect": {
+          "x": 2513.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 2686.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 14",
+        "label": "Volume 14, , available",
+        "disabled": false,
+        "rect": {
+          "x": 2733.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 2906.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 15",
+        "label": "Volume 15, , available",
+        "disabled": false,
+        "rect": {
+          "x": 2953.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 3126.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 16",
+        "label": "Volume 16, , available",
+        "disabled": false,
+        "rect": {
+          "x": 3173.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 3346.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 17",
+        "label": "Volume 17, , available",
+        "disabled": false,
+        "rect": {
+          "x": 3393.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 3566.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 18",
+        "label": "Volume 18, , available",
+        "disabled": false,
+        "rect": {
+          "x": 3613.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 3786.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 19",
+        "label": "Volume 19, , available",
+        "disabled": false,
+        "rect": {
+          "x": 3833.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 4006.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 20",
+        "label": "Volume 20, , available",
+        "disabled": false,
+        "rect": {
+          "x": 4053.139892578125,
+          "y": 648.0999755859375,
+          "width": 173.719970703125,
+          "height": 283.800048828125,
+          "right": 4226.85986328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 21",
+        "label": "Volume 21, , available",
+        "disabled": false,
+        "rect": {
+          "x": 4273.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 4446.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 22",
+        "label": "Volume 22, , available",
+        "disabled": false,
+        "rect": {
+          "x": 4493.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 4666.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 23",
+        "label": "Volume 23, , available",
+        "disabled": false,
+        "rect": {
+          "x": 4713.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 4886.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 24",
+        "label": "Volume 24, , available",
+        "disabled": false,
+        "rect": {
+          "x": 4933.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 5106.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 25",
+        "label": "Volume 25, , available",
+        "disabled": false,
+        "rect": {
+          "x": 5153.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 5326.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 26",
+        "label": "Volume 26, , available",
+        "disabled": false,
+        "rect": {
+          "x": 5373.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 5546.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 27",
+        "label": "Volume 27, , available",
+        "disabled": false,
+        "rect": {
+          "x": 5593.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 5766.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 28",
+        "label": "Volume 28, , available",
+        "disabled": false,
+        "rect": {
+          "x": 5813.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 5986.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 29",
+        "label": "Volume 29, , available",
+        "disabled": false,
+        "rect": {
+          "x": 6033.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 6206.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 30",
+        "label": "Volume 30, , available",
+        "disabled": false,
+        "rect": {
+          "x": 6253.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 6426.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 31",
+        "label": "Volume 31, , available",
+        "disabled": false,
+        "rect": {
+          "x": 6473.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 6646.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 32",
+        "label": "Volume 32, , available",
+        "disabled": false,
+        "rect": {
+          "x": 6693.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 6866.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 33",
+        "label": "Volume 33, , available",
+        "disabled": false,
+        "rect": {
+          "x": 6913.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 7086.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 34",
+        "label": "Volume 34, , available",
+        "disabled": false,
+        "rect": {
+          "x": 7133.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 7306.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 35",
+        "label": "Volume 35, , available",
+        "disabled": false,
+        "rect": {
+          "x": 7353.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 7526.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 36",
+        "label": "Volume 36, , available",
+        "disabled": false,
+        "rect": {
+          "x": 7573.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 7746.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 37",
+        "label": "Volume 37, , available",
+        "disabled": false,
+        "rect": {
+          "x": 7793.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 7966.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 38",
+        "label": "Volume 38, , available",
+        "disabled": false,
+        "rect": {
+          "x": 8013.14013671875,
+          "y": 648.0999755859375,
+          "width": 173.72021484375,
+          "height": 283.800048828125,
+          "right": 8186.8603515625,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 39",
+        "label": "Volume 39, , available",
+        "disabled": false,
+        "rect": {
+          "x": 8233.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 8406.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 40",
+        "label": "Volume 40, , available",
+        "disabled": false,
+        "rect": {
+          "x": 8453.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 8626.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 41",
+        "label": "Volume 41, , available",
+        "disabled": false,
+        "rect": {
+          "x": 8673.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 8846.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 42",
+        "label": "Volume 42, , available",
+        "disabled": false,
+        "rect": {
+          "x": 8893.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 9066.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 43",
+        "label": "Volume 43, , available",
+        "disabled": false,
+        "rect": {
+          "x": 9113.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 9286.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 44",
+        "label": "Volume 44, , available",
+        "disabled": false,
+        "rect": {
+          "x": 9333.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 9506.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 45",
+        "label": "Volume 45, , available",
+        "disabled": false,
+        "rect": {
+          "x": 9553.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 9726.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 46",
+        "label": "Volume 46, , available",
+        "disabled": false,
+        "rect": {
+          "x": 9773.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 9946.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 47",
+        "label": "Volume 47, , available",
+        "disabled": false,
+        "rect": {
+          "x": 9993.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 10166.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 48",
+        "label": "Volume 48, , available",
+        "disabled": false,
+        "rect": {
+          "x": 10213.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 10386.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 49",
+        "label": "Volume 49, , available",
+        "disabled": false,
+        "rect": {
+          "x": 10433.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 10606.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 50",
+        "label": "Volume 50, , available",
+        "disabled": false,
+        "rect": {
+          "x": 10653.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 10826.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 51",
+        "label": "Volume 51, , available",
+        "disabled": false,
+        "rect": {
+          "x": 10873.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 11046.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 52",
+        "label": "Volume 52, , available",
+        "disabled": false,
+        "rect": {
+          "x": 11093.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 11266.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 53",
+        "label": "Volume 53, , available",
+        "disabled": false,
+        "rect": {
+          "x": 11313.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 11486.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 54",
+        "label": "Volume 54, , available",
+        "disabled": false,
+        "rect": {
+          "x": 11533.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 11706.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 55",
+        "label": "Volume 55, , available",
+        "disabled": false,
+        "rect": {
+          "x": 11753.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 11926.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 56",
+        "label": "Volume 56, , available",
+        "disabled": false,
+        "rect": {
+          "x": 11973.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 12146.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 57",
+        "label": "Volume 57, , available",
+        "disabled": false,
+        "rect": {
+          "x": 12193.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 12366.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 58",
+        "label": "Volume 58, , available",
+        "disabled": false,
+        "rect": {
+          "x": 12413.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 12586.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 59",
+        "label": "Volume 59, , available",
+        "disabled": false,
+        "rect": {
+          "x": 12633.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 12806.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 60",
+        "label": "Volume 60, , available",
+        "disabled": false,
+        "rect": {
+          "x": 12853.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 13026.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 61",
+        "label": "Volume 61, , available",
+        "disabled": false,
+        "rect": {
+          "x": 13073.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 13246.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 62",
+        "label": "Volume 62, , available",
+        "disabled": false,
+        "rect": {
+          "x": 13293.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 13466.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 63",
+        "label": "Volume 63, , available",
+        "disabled": false,
+        "rect": {
+          "x": 13513.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 13686.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 64",
+        "label": "Volume 64, , available",
+        "disabled": false,
+        "rect": {
+          "x": 13733.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 13906.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 65",
+        "label": "Volume 65, , available",
+        "disabled": false,
+        "rect": {
+          "x": 13953.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 14126.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 66",
+        "label": "Volume 66, , available",
+        "disabled": false,
+        "rect": {
+          "x": 14173.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 14346.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 67",
+        "label": "Volume 67, , available",
+        "disabled": false,
+        "rect": {
+          "x": 14393.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 14566.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 68",
+        "label": "Volume 68, , available",
+        "disabled": false,
+        "rect": {
+          "x": 14613.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 14786.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 69",
+        "label": "Volume 69, , available",
+        "disabled": false,
+        "rect": {
+          "x": 14833.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 15006.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 70",
+        "label": "Volume 70, , available",
+        "disabled": false,
+        "rect": {
+          "x": 15053.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 15226.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 71",
+        "label": "Volume 71, , available",
+        "disabled": false,
+        "rect": {
+          "x": 15273.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 15446.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 72",
+        "label": "Volume 72, , available",
+        "disabled": false,
+        "rect": {
+          "x": 15493.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 15666.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 73",
+        "label": "Volume 73, , available",
+        "disabled": false,
+        "rect": {
+          "x": 15713.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 15886.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 74",
+        "label": "Volume 74, , available",
+        "disabled": false,
+        "rect": {
+          "x": 15933.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 16106.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 75",
+        "label": "Volume 75, , available",
+        "disabled": false,
+        "rect": {
+          "x": 16153.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 16326.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 76",
+        "label": "Volume 76, , available",
+        "disabled": false,
+        "rect": {
+          "x": 16373.1396484375,
+          "y": 648.0999755859375,
+          "width": 173.7197265625,
+          "height": 283.800048828125,
+          "right": 16546.859375,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 77",
+        "label": "Volume 77, , available",
+        "disabled": false,
+        "rect": {
+          "x": 16593.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 16766.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 78",
+        "label": "Volume 78, , available",
+        "disabled": false,
+        "rect": {
+          "x": 16813.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 16986.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 79",
+        "label": "Volume 79, , available",
+        "disabled": false,
+        "rect": {
+          "x": 17033.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 17206.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 80",
+        "label": "Volume 80, , available",
+        "disabled": false,
+        "rect": {
+          "x": 17253.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 17426.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 81",
+        "label": "Volume 81, , available",
+        "disabled": false,
+        "rect": {
+          "x": 17473.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 17646.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 82",
+        "label": "Volume 82, , available",
+        "disabled": false,
+        "rect": {
+          "x": 17693.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 17866.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 83",
+        "label": "Volume 83, , available",
+        "disabled": false,
+        "rect": {
+          "x": 17913.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 18086.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 84",
+        "label": "Volume 84, , available",
+        "disabled": false,
+        "rect": {
+          "x": 18133.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 18306.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 85",
+        "label": "Volume 85, , available",
+        "disabled": false,
+        "rect": {
+          "x": 18353.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 18526.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 86",
+        "label": "Volume 86, , available",
+        "disabled": false,
+        "rect": {
+          "x": 18573.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 18746.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 87",
+        "label": "Volume 87, , available",
+        "disabled": false,
+        "rect": {
+          "x": 18793.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 18966.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 88",
+        "label": "Volume 88, , available",
+        "disabled": false,
+        "rect": {
+          "x": 19013.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 19186.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 89",
+        "label": "Volume 89, , available",
+        "disabled": false,
+        "rect": {
+          "x": 19233.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 19406.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 90",
+        "label": "Volume 90, , available",
+        "disabled": false,
+        "rect": {
+          "x": 19453.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 19626.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 91",
+        "label": "Volume 91, , available",
+        "disabled": false,
+        "rect": {
+          "x": 19673.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 19846.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 92",
+        "label": "Volume 92, , available",
+        "disabled": false,
+        "rect": {
+          "x": 19893.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 20066.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 93",
+        "label": "Volume 93, , available",
+        "disabled": false,
+        "rect": {
+          "x": 20113.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 20286.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 94",
+        "label": "Volume 94, , available",
+        "disabled": false,
+        "rect": {
+          "x": 20333.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 20506.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 95",
+        "label": "Volume 95, , available",
+        "disabled": false,
+        "rect": {
+          "x": 20553.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 20726.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 96",
+        "label": "Volume 96, , available",
+        "disabled": false,
+        "rect": {
+          "x": 20773.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 20946.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 97",
+        "label": "Volume 97, , available",
+        "disabled": false,
+        "rect": {
+          "x": 20993.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 21166.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 98",
+        "label": "Volume 98, , available",
+        "disabled": false,
+        "rect": {
+          "x": 21213.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 21386.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 99",
+        "label": "Volume 99, , available",
+        "disabled": false,
+        "rect": {
+          "x": 21433.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 21606.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 100",
+        "label": "Volume 100, , available",
+        "disabled": false,
+        "rect": {
+          "x": 21653.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 21826.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 101",
+        "label": "Volume 101, , available",
+        "disabled": false,
+        "rect": {
+          "x": 21873.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 22046.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 102",
+        "label": "Volume 102, , available",
+        "disabled": false,
+        "rect": {
+          "x": 22093.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 22266.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 103",
+        "label": "Volume 103, , available",
+        "disabled": false,
+        "rect": {
+          "x": 22313.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 22486.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 104",
+        "label": "Volume 104, , available",
+        "disabled": false,
+        "rect": {
+          "x": 22533.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 22706.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 105",
+        "label": "Volume 105, , available",
+        "disabled": false,
+        "rect": {
+          "x": 22753.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 22926.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 106",
+        "label": "Volume 106, , available",
+        "disabled": false,
+        "rect": {
+          "x": 22973.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 23146.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 107",
+        "label": "Volume 107, , available",
+        "disabled": false,
+        "rect": {
+          "x": 23193.140625,
+          "y": 648.0999755859375,
+          "width": 173.720703125,
+          "height": 283.800048828125,
+          "right": 23366.861328125,
+          "bottom": 931.9000244140625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "btn-outline",
+        "text": "↓  Download",
+        "label": null,
+        "disabled": true,
+        "rect": {
+          "x": 550.921875,
+          "y": 1236,
+          "width": 96.125,
+          "height": 36,
+          "right": 647.046875,
+          "bottom": 1272
+        },
+        "radius": "9px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "11px",
+        "hit": "<button class=\"btn-outline\" data-do=\"downloadVol\" disabled=\"\">↓ &nbsp;Download</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "readVolume",
+        "class": "btn-gold",
+        "text": "Continue Vol. 3",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 656.046875,
+          "y": 1236,
+          "width": 109.953125,
+          "height": 36,
+          "right": 766,
+          "bottom": 1272
+        },
+        "radius": "9px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "11px",
+        "hit": "<button class=\"btn-gold\" id=\"readVolume\" data-do=\"readVolume\">Continue Vol. 3</button>"
+      }
+    ],
+    "scrollers": [],
+    "text": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\nEiichiro Oda\nPublishing\n1997\n★ 9.22\nAdd to Collections\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. With the Straw Hat Pirates, he crosses treacherous seas, meets unlikely allies, and challenges powerful enemies on the way to becoming King of the Pirates. Along the Grand Line and into the New World, every island brings new friendships and an adventure of its own.\n\nMore\nTankoban Mode\nChapter Mode\nLanguage\nEnglish\nON THIS DEVICE\n3 OF 107\nVOLUMES\n107\nSelect\nVOL 1\nRomance Dawn\nVOL 2\nBuggy the Clown\nVOL 3\nDon't Get Fooled Again\nVOL 4\nThe Black Cat Pirates\nVOL 5\nFor Whom the Bell Tolls\nVOL 6\nThe Oath\nVOL 7\nThe Crap-Geezer\nVOL 8\nI Won't Die\nVOL 9\nTears\nVOL 10\nOK, Let's Stand Up!\nVOL 11\nVOL 12\nVOL 13\nVOL 14\nVOL 15\nVOL 16\nVOL 17\nVOL 18\nVOL 19\nVOL 20\nVOL 21\nVOL 22\nVOL 23\nVOL 24\nVOL 25\nVOL 26\nVOL 27\nVOL 28\nVOL 29\nVOL 30\nVOL 31\nVOL 32\nVOL 33\nVOL 34\nVOL 35\nVOL 36\nVOL 37\nVOL 38\nVOL 39\nVOL 40\nVOL 41\nVOL 42\nVOL 43\nVOL 44\nVOL 45\nVOL 46\nVOL 47\nVOL 48\nVOL 49\nVOL 50\nVOL 51\nVOL 52\nVOL 53\nVOL 54\nVOL 55\nVOL 56\nVOL 57\nVOL 58\nVOL 59\nVOL 60\nVOL 61\nVOL 62\nVOL 63\nVOL 64\nVOL 65\nVOL 66\nVOL 67\nVOL 68\nVOL 69\nVOL 70\nVOL 71\nVOL 72\nVOL 73\nVOL 74\nVOL 75\nVOL 76\nVOL 77\nVOL 78\nVOL 79\nVOL 80\nVOL 81\nVOL 82\nVOL 83\nVOL 84\nVOL 85\nVOL 86\nVOL 87\nVOL 88\nVOL 89\nVOL 90\nVOL 91\nVOL 92\nVOL 93\nVOL 94\nVOL 95\nVOL 96\nVOL 97\nVOL 98\nVOL 99\nVOL 100\nVOL 101\nVOL 102\nVOL 103\nVOL 104\nVOL 105\nVOL 106\nVOL 107\nVol. 3\nDon't Get Fooled Again\n↓  Download\nContinue Vol. 3",
+    "fonts": [
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "unloaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\manga-series.html",
+      "bytes": 2669,
+      "sha256": "c57421616e1f3c6e698a365482b8bddd76241a0f6a5e871c48c3859645971dfb"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\style.css",
+      "bytes": 31249,
+      "sha256": "2399d6187308779b7cc9b63d4b930c39f6eaf2e17261df6a02267cf83d770ceb"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\app.js",
+      "bytes": 31525,
+      "sha256": "cb42793d73d22243e11a7d75d5587c4956783f7a77baeb2000f630bc80e00656"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\banners\\romance.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\minimize.svg",
+      "bytes": 183,
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\fullscreen.svg",
+      "bytes": 305,
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\power.svg",
+      "bytes": 215,
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\romance-dawn.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\lucide\\bookmark-plus.svg",
+      "bytes": 456,
+      "sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\orange-town.png",
+      "bytes": 1469896,
+      "sha256": "d87f36ce8e6c303a8970e44f48b248d8e5323727285bd11822bdadcb5f2a8cae"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\syrup-village.png",
+      "bytes": 4604348,
+      "sha256": "547e46629d6a38f4f4532b31b493c3a9715b933072eaef7f3860da978a558169"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\baratie.png",
+      "bytes": 3362230,
+      "sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\arlong-park.png",
+      "bytes": 3298285,
+      "sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\loguetown.png",
+      "bytes": 3525891,
+      "sha256": "28fc9ccefdab2444b54fc6d55c854cf7c1671280878129527c0698be71837dde"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\01-ganzack.png",
+      "bytes": 3726579,
+      "sha256": "024920fec9db49e162c66ccab008e4f125a73a6f67882c27f5e01f2b8cec3f1d"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\02-one-piece-movie.png",
+      "bytes": 982829,
+      "sha256": "0ed1620094d23dfb4b4f5326ccff5bc464227d66d2fdc6690ba4011d393c377b"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\05-clockwork-island.png",
+      "bytes": 1992330,
+      "sha256": "ccb9eb602ed4f251a4e114c219931425b956df94d88fb79e8aba9f15eb927575"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\04-jangos-dance-carnival.png",
+      "bytes": 1307186,
+      "sha256": "37d2f6996d7eabdc26c7f844ac126aceaa9dc4e80c64c3e01a16b2b624a324a4"
+    }
+  ],
+  "extra": {}
+}

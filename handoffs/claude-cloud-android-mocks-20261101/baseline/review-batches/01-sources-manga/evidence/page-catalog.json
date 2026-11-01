@@ -1,0 +1,47 @@
+[
+  {
+    "job": "01-theatre-sources",
+    "file": "film-sources.html",
+    "title": "Film Sources"
+  },
+  {
+    "job": "01-theatre-sources",
+    "file": "episode-sources.html",
+    "title": "Episode Sources"
+  },
+  {
+    "job": "02-comic-sources",
+    "file": "comic-sources.html",
+    "title": "Comic Sources"
+  },
+  {
+    "job": "02-comic-sources",
+    "file": "comic-source-confirmation.html",
+    "title": "Comic Source Confirmation"
+  },
+  {
+    "job": "03-manga-sources",
+    "file": "manga-volume-sources.html",
+    "title": "Manga Volume Sources"
+  },
+  {
+    "job": "04-manga-series",
+    "file": "manga-series.html",
+    "title": "Manga Series"
+  },
+  {
+    "job": "04-manga-series",
+    "file": "manga-chapters.html",
+    "title": "Manga Chapters"
+  },
+  {
+    "job": "05-volume-flow",
+    "file": "volume-flow-original-fit.html",
+    "title": "Volume Flow Original Fit"
+  },
+  {
+    "job": "05-volume-flow",
+    "file": "volume-flow-minimal-alternative.html",
+    "title": "Volume Flow Minimal Alternative"
+  }
+]

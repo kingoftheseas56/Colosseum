@@ -1,0 +1,155 @@
+{
+  "at": "2026-10-31T23:54:45.205Z",
+  "files": [
+    {
+      "path": "finished-mocks/assets/ATTRIBUTION.md",
+      "bytes": 1873,
+      "sha256": "239bb37e6adc7647ed6cb134180bac3a7020f9260a0d1e5185a94e3b035ec9cd"
+    },
+    {
+      "path": "finished-mocks/assets/kde/cascade.png",
+      "bytes": 2128862,
+      "sha256": "ca176e561873f3f2c58857f7b0e61c6f6f79add28ad24a4622fa45129551856a"
+    },
+    {
+      "path": "finished-mocks/assets/kde/elarun.png",
+      "bytes": 1048284,
+      "sha256": "53d17a4af75286df12578fcb65f2dbf2e8f4dd4de4a0b988a3a70ef16a779f60"
+    },
+    {
+      "path": "finished-mocks/assets/kde/flow.jpg",
+      "bytes": 3907925,
+      "sha256": "b2f1fbe9ebf772fed224de83ee4159cc3735c633a88cc42f8f45d49ccd12efc3"
+    },
+    {
+      "path": "finished-mocks/assets/kde/honeywave.jpg",
+      "bytes": 1614593,
+      "sha256": "e75adbd953e9b7dc8946223e7f1f2c4a9378496e7597198f65b095356995c7ad"
+    },
+    {
+      "path": "finished-mocks/assets/kde/icecold.png",
+      "bytes": 2074968,
+      "sha256": "4afa1ad1b249381c02d80602e005063371f2f18bc46b3b4ef3f37e06ee4ede50"
+    },
+    {
+      "path": "finished-mocks/assets/kde/kay.png",
+      "bytes": 4198180,
+      "sha256": "a1548937191bc0c9b13c07a85d64988d1f391cbc16d02ad7709aff446a39ff5e"
+    },
+    {
+      "path": "finished-mocks/assets/kde/kokkini.png",
+      "bytes": 3796675,
+      "sha256": "685c96addd540da6b51a57887e4dcf53b216e139654528c1b27bb47a359439a4"
+    },
+    {
+      "path": "finished-mocks/assets/kde/nexus.png",
+      "bytes": 8694691,
+      "sha256": "ec1bfef659d7e7e46ffc23b13fbf0105e577159aae6c6be6686eee785324c51a"
+    },
+    {
+      "path": "finished-mocks/assets/kde/opal.png",
+      "bytes": 2781051,
+      "sha256": "d5f9873fe6398260025c8a55e6a394ffa82258404dbd3c759fed815fc685edc7"
+    },
+    {
+      "path": "finished-mocks/assets/kde/pastelhills.jpg",
+      "bytes": 298654,
+      "sha256": "8a5f3dc3ddc75687b5cc83833acb1ec9ce0b03d6529b2dace584707485447506"
+    },
+    {
+      "path": "finished-mocks/assets/kde/shell.jpg",
+      "bytes": 1944799,
+      "sha256": "220d5fe725453dba2329b6733cb7094d8615f2e0bbbb8a150e9f113101c02213"
+    },
+    {
+      "path": "finished-mocks/assets/kde/volna.jpg",
+      "bytes": 4628417,
+      "sha256": "abc30b4fc6f6a83b6156e6b59ac283c067de40af820aafac8ac7c4fd83a9607c"
+    },
+    {
+      "path": "finished-mocks/collections.html",
+      "bytes": 622,
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "finished-mocks/comparisons.html",
+      "bytes": 4012,
+      "sha256": "f4b88ed9a6c9ef62e7dec93dc06d757f0b7f862ca69cd0e62e6ec47f926a3607"
+    },
+    {
+      "path": "finished-mocks/evidence.html",
+      "bytes": 3687,
+      "sha256": "94bcb09fd1eca49db19c7f9ba25cf5e1d32354a0fda0243536c88550e47bfd5a"
+    },
+    {
+      "path": "finished-mocks/extensions-store.html",
+      "bytes": 621,
+      "sha256": "09ebe7894a382e74ca4948ef68e054639055e46b046eeb14b3ef74f29fcdfd81"
+    },
+    {
+      "path": "finished-mocks/index.html",
+      "bytes": 7137,
+      "sha256": "f8e9d332c17f89fee6b2a1e3a1c795de1e6f6aa517b6019115140194059a47e6"
+    },
+    {
+      "path": "finished-mocks/native-wallpapers.js",
+      "bytes": 8853,
+      "sha256": "cc5d04ad266f2df9788509f52a860b096d040f4dc403c1913f16ea0d60b615d3"
+    },
+    {
+      "path": "finished-mocks/README.md",
+      "bytes": 3843,
+      "sha256": "5ca2d4b98e26c34b0f6c056498bb468013243b8c6e34942f01f738bd2dfc9e8a"
+    },
+    {
+      "path": "finished-mocks/review.css",
+      "bytes": 1569,
+      "sha256": "15d09acb69954c65f97f069405925fcca6e3170d3877f3772b56455dfa10b9d9"
+    },
+    {
+      "path": "finished-mocks/tracker-connections.html",
+      "bytes": 2789,
+      "sha256": "9bcb29731a7571beafe6af947d2226fa9bf88562fb5e709d40e4ae851d428a99"
+    },
+    {
+      "path": "finished-mocks/tracker-dossier.html",
+      "bytes": 2789,
+      "sha256": "490fb73920546a08b9e8e8cefa8cfc870145cd968a7facb6e1ab9337dffd0149"
+    },
+    {
+      "path": "finished-mocks/tracker-preferences.html",
+      "bytes": 2797,
+      "sha256": "f1e3e276db711fa4bf8491e0c94e1d70032e68efa0064e75be555dd754b3f5cf"
+    },
+    {
+      "path": "finished-mocks/tracker.css",
+      "bytes": 28628,
+      "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+    },
+    {
+      "path": "finished-mocks/tracker.js",
+      "bytes": 38513,
+      "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+    },
+    {
+      "path": "finished-mocks/update.html",
+      "bytes": 617,
+      "sha256": "e242bc8d992c3ccf7d79457b9f54de16494be67ffc8b0aa8d3c022545c4ce09a"
+    },
+    {
+      "path": "finished-mocks/utilities.css",
+      "bytes": 50674,
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "finished-mocks/utilities.js",
+      "bytes": 70826,
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    },
+    {
+      "path": "finished-mocks/wallpaper-search.html",
+      "bytes": 664,
+      "sha256": "e3591498c08654d143421194f5caeef34c808cae28f19c26afac3e68deda598e"
+    }
+  ]
+}

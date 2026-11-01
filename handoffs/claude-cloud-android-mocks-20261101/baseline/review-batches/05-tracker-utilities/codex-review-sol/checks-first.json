@@ -1,0 +1,2545 @@
+{
+  "at": "2026-11-01T00:43:00.056Z",
+  "integrity": {
+    "inputs": [
+      {
+        "path": "outputs/21-tracker-connections/app.js",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/FIDELITY.md",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/index.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/render-captures.py",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/style.css",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-connections.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-dossier.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-preferences.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-connections.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-dossier.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-preferences.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/app.js",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/capture-audit.cjs",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/collections.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/extensions-store.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/FIDELITY.md",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/index.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/REPORT.json",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/style.css",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/update.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/wallpaper-search.html",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/TrackerSyncCenterPage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/Theme.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/WallpaperSearch.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/ExtensionsStorePage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/ExtensionsInstalledPage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/UpdatePage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/collections/CollectionsPanel.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/collections/YourCollectionsPage.qml",
+        "match": true
+      }
+    ],
+    "captures": [
+      {
+        "receipt": "evidence/after-tracker-connections-portrait.json",
+        "image": "evidence/after-tracker-connections-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-landscape.json",
+        "image": "evidence/after-tracker-connections-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-compact.json",
+        "image": "evidence/after-tracker-connections-compact.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-compactland.json",
+        "image": "evidence/after-tracker-connections-compactland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-desktop.json",
+        "image": "evidence/after-tracker-connections-desktop.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-tablet.json",
+        "image": "evidence/after-tracker-connections-tablet.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-tabletland.json",
+        "image": "evidence/after-tracker-connections-tabletland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-compact-stress.json",
+        "image": "evidence/after-tracker-connections-compact-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-connections-compactland-stress.json",
+        "image": "evidence/after-tracker-connections-compactland-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-portrait.json",
+        "image": "evidence/after-tracker-dossier-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-landscape.json",
+        "image": "evidence/after-tracker-dossier-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-compact.json",
+        "image": "evidence/after-tracker-dossier-compact.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-compactland.json",
+        "image": "evidence/after-tracker-dossier-compactland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-desktop.json",
+        "image": "evidence/after-tracker-dossier-desktop.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-tablet.json",
+        "image": "evidence/after-tracker-dossier-tablet.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-tabletland.json",
+        "image": "evidence/after-tracker-dossier-tabletland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-compact-stress.json",
+        "image": "evidence/after-tracker-dossier-compact-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-dossier-compactland-stress.json",
+        "image": "evidence/after-tracker-dossier-compactland-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-portrait.json",
+        "image": "evidence/after-tracker-preferences-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-landscape.json",
+        "image": "evidence/after-tracker-preferences-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-compact.json",
+        "image": "evidence/after-tracker-preferences-compact.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-compactland.json",
+        "image": "evidence/after-tracker-preferences-compactland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-desktop.json",
+        "image": "evidence/after-tracker-preferences-desktop.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-tablet.json",
+        "image": "evidence/after-tracker-preferences-tablet.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-tabletland.json",
+        "image": "evidence/after-tracker-preferences-tabletland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-compact-stress.json",
+        "image": "evidence/after-tracker-preferences-compact-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-tracker-preferences-compactland-stress.json",
+        "image": "evidence/after-tracker-preferences-compactland-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-portrait.json",
+        "image": "evidence/after-wallpaper-search-portrait.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-landscape.json",
+        "image": "evidence/after-wallpaper-search-landscape.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-compact.json",
+        "image": "evidence/after-wallpaper-search-compact.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-compactland.json",
+        "image": "evidence/after-wallpaper-search-compactland.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-desktop.json",
+        "image": "evidence/after-wallpaper-search-desktop.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-tablet.json",
+        "image": "evidence/after-wallpaper-search-tablet.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-tabletland.json",
+        "image": "evidence/after-wallpaper-search-tabletland.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-compact-stress.json",
+        "image": "evidence/after-wallpaper-search-compact-stress.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-wallpaper-search-compactland-stress.json",
+        "image": "evidence/after-wallpaper-search-compactland-stress.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-portrait.json",
+        "image": "evidence/after-extensions-store-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-landscape.json",
+        "image": "evidence/after-extensions-store-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-compact.json",
+        "image": "evidence/after-extensions-store-compact.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-compactland.json",
+        "image": "evidence/after-extensions-store-compactland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-desktop.json",
+        "image": "evidence/after-extensions-store-desktop.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-tablet.json",
+        "image": "evidence/after-extensions-store-tablet.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-tabletland.json",
+        "image": "evidence/after-extensions-store-tabletland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-compact-stress.json",
+        "image": "evidence/after-extensions-store-compact-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-extensions-store-compactland-stress.json",
+        "image": "evidence/after-extensions-store-compactland-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-portrait.json",
+        "image": "evidence/after-update-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-landscape.json",
+        "image": "evidence/after-update-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-compact.json",
+        "image": "evidence/after-update-compact.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-compactland.json",
+        "image": "evidence/after-update-compactland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-desktop.json",
+        "image": "evidence/after-update-desktop.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-tablet.json",
+        "image": "evidence/after-update-tablet.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-tabletland.json",
+        "image": "evidence/after-update-tabletland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-compact-stress.json",
+        "image": "evidence/after-update-compact-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-update-compactland-stress.json",
+        "image": "evidence/after-update-compactland-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-portrait.json",
+        "image": "evidence/after-collections-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-landscape.json",
+        "image": "evidence/after-collections-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-compact.json",
+        "image": "evidence/after-collections-compact.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-compactland.json",
+        "image": "evidence/after-collections-compactland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-desktop.json",
+        "image": "evidence/after-collections-desktop.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-tablet.json",
+        "image": "evidence/after-collections-tablet.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-tabletland.json",
+        "image": "evidence/after-collections-tabletland.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-compact-stress.json",
+        "image": "evidence/after-collections-compact-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/after-collections-compactland-stress.json",
+        "image": "evidence/after-collections-compactland-stress.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-connections-disconnected-portrait.json",
+        "image": "evidence/state-tracker-connections-disconnected-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-connections-disconnected-landscape.json",
+        "image": "evidence/state-tracker-connections-disconnected-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-connections-attention-portrait.json",
+        "image": "evidence/state-tracker-connections-attention-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-connections-attention-landscape.json",
+        "image": "evidence/state-tracker-connections-attention-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-mal-portrait.json",
+        "image": "evidence/state-tracker-dossier-mal-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-mal-landscape.json",
+        "image": "evidence/state-tracker-dossier-mal-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-trakt-portrait.json",
+        "image": "evidence/state-tracker-dossier-trakt-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-trakt-landscape.json",
+        "image": "evidence/state-tracker-dossier-trakt-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-anilist-portrait.json",
+        "image": "evidence/state-tracker-dossier-anilist-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-anilist-landscape.json",
+        "image": "evidence/state-tracker-dossier-anilist-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-import-portrait.json",
+        "image": "evidence/state-tracker-dossier-import-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-import-landscape.json",
+        "image": "evidence/state-tracker-dossier-import-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-export-portrait.json",
+        "image": "evidence/state-tracker-dossier-export-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-export-landscape.json",
+        "image": "evidence/state-tracker-dossier-export-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-disconnect-portrait.json",
+        "image": "evidence/state-tracker-dossier-disconnect-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-disconnect-landscape.json",
+        "image": "evidence/state-tracker-dossier-disconnect-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-remove-portrait.json",
+        "image": "evidence/state-tracker-dossier-remove-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-remove-landscape.json",
+        "image": "evidence/state-tracker-dossier-remove-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-bulk-portrait.json",
+        "image": "evidence/state-tracker-dossier-bulk-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-bulk-landscape.json",
+        "image": "evidence/state-tracker-dossier-bulk-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-match-portrait.json",
+        "image": "evidence/state-tracker-dossier-match-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-tracker-dossier-match-landscape.json",
+        "image": "evidence/state-tracker-dossier-match-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-wallpaper-search-selected-keyboard-portrait.json",
+        "image": "evidence/state-wallpaper-search-selected-keyboard-portrait.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-wallpaper-search-selected-keyboard-landscape.json",
+        "image": "evidence/state-wallpaper-search-selected-keyboard-landscape.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-wallpaper-search-search-portrait.json",
+        "image": "evidence/state-wallpaper-search-search-portrait.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-wallpaper-search-search-landscape.json",
+        "image": "evidence/state-wallpaper-search-search-landscape.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-search-portrait.json",
+        "image": "evidence/state-extensions-store-search-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-search-landscape.json",
+        "image": "evidence/state-extensions-store-search-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-your-add-ons-portrait.json",
+        "image": "evidence/state-extensions-store-your-add-ons-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-your-add-ons-landscape.json",
+        "image": "evidence/state-extensions-store-your-add-ons-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-dialog-portrait.json",
+        "image": "evidence/state-extensions-store-url-dialog-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-dialog-landscape.json",
+        "image": "evidence/state-extensions-store-url-dialog-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-ready-portrait.json",
+        "image": "evidence/state-extensions-store-url-ready-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-ready-landscape.json",
+        "image": "evidence/state-extensions-store-url-ready-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-preview-portrait.json",
+        "image": "evidence/state-extensions-store-url-preview-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-preview-landscape.json",
+        "image": "evidence/state-extensions-store-url-preview-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-complete-portrait.json",
+        "image": "evidence/state-extensions-store-url-complete-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-complete-landscape.json",
+        "image": "evidence/state-extensions-store-url-complete-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-setup-portrait.json",
+        "image": "evidence/state-extensions-store-setup-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-setup-landscape.json",
+        "image": "evidence/state-extensions-store-setup-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-remove-confirmation-portrait.json",
+        "image": "evidence/state-extensions-store-remove-confirmation-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-remove-confirmation-landscape.json",
+        "image": "evidence/state-extensions-store-remove-confirmation-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-see-all-portrait.json",
+        "image": "evidence/state-extensions-store-see-all-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-see-all-landscape.json",
+        "image": "evidence/state-extensions-store-see-all-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-ready-keyboard-portrait.json",
+        "image": "evidence/state-extensions-store-url-ready-keyboard-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-url-ready-keyboard-landscape.json",
+        "image": "evidence/state-extensions-store-url-ready-keyboard-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-setup-keyboard-portrait.json",
+        "image": "evidence/state-extensions-store-setup-keyboard-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-store-setup-keyboard-landscape.json",
+        "image": "evidence/state-extensions-store-setup-keyboard-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-idle-portrait.json",
+        "image": "evidence/state-update-idle-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-idle-landscape.json",
+        "image": "evidence/state-update-idle-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-checking-portrait.json",
+        "image": "evidence/state-update-checking-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-checking-landscape.json",
+        "image": "evidence/state-update-checking-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-uptodate-portrait.json",
+        "image": "evidence/state-update-uptodate-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-uptodate-landscape.json",
+        "image": "evidence/state-update-uptodate-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-available-portrait.json",
+        "image": "evidence/state-update-available-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-available-landscape.json",
+        "image": "evidence/state-update-available-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-downloading-portrait.json",
+        "image": "evidence/state-update-downloading-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-downloading-landscape.json",
+        "image": "evidence/state-update-downloading-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-paused-portrait.json",
+        "image": "evidence/state-update-paused-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-paused-landscape.json",
+        "image": "evidence/state-update-paused-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-verifying-portrait.json",
+        "image": "evidence/state-update-verifying-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-verifying-landscape.json",
+        "image": "evidence/state-update-verifying-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-ready-portrait.json",
+        "image": "evidence/state-update-ready-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-ready-landscape.json",
+        "image": "evidence/state-update-ready-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-installing-portrait.json",
+        "image": "evidence/state-update-installing-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-installing-landscape.json",
+        "image": "evidence/state-update-installing-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-recoverableerror-portrait.json",
+        "image": "evidence/state-update-recoverableerror-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-recoverableerror-landscape.json",
+        "image": "evidence/state-update-recoverableerror-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-verificationfailure-portrait.json",
+        "image": "evidence/state-update-verificationfailure-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-verificationfailure-landscape.json",
+        "image": "evidence/state-update-verificationfailure-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-manualupdaterequired-portrait.json",
+        "image": "evidence/state-update-manualupdaterequired-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-update-manualupdaterequired-landscape.json",
+        "image": "evidence/state-update-manualupdaterequired-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-detail-portrait.json",
+        "image": "evidence/state-collections-detail-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-detail-landscape.json",
+        "image": "evidence/state-collections-detail-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-editing-portrait.json",
+        "image": "evidence/state-collections-editing-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-editing-landscape.json",
+        "image": "evidence/state-collections-editing-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-new-collection-portrait.json",
+        "image": "evidence/state-collections-new-collection-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-new-collection-landscape.json",
+        "image": "evidence/state-collections-new-collection-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-add-to-collections-portrait.json",
+        "image": "evidence/state-collections-add-to-collections-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-add-to-collections-landscape.json",
+        "image": "evidence/state-collections-add-to-collections-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-delete-collection-portrait.json",
+        "image": "evidence/state-collections-delete-collection-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-delete-collection-landscape.json",
+        "image": "evidence/state-collections-delete-collection-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-discard-edits-portrait.json",
+        "image": "evidence/state-collections-discard-edits-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-discard-edits-landscape.json",
+        "image": "evidence/state-collections-discard-edits-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-empty-collection-portrait.json",
+        "image": "evidence/state-collections-empty-collection-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-empty-collection-landscape.json",
+        "image": "evidence/state-collections-empty-collection-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-empty-overview-portrait.json",
+        "image": "evidence/state-collections-empty-overview-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-empty-overview-landscape.json",
+        "image": "evidence/state-collections-empty-overview-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-editing-keyboard-portrait.json",
+        "image": "evidence/state-collections-editing-keyboard-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-editing-keyboard-landscape.json",
+        "image": "evidence/state-collections-editing-keyboard-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-new-collection-keyboard-portrait.json",
+        "image": "evidence/state-collections-new-collection-keyboard-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-new-collection-keyboard-landscape.json",
+        "image": "evidence/state-collections-new-collection-keyboard-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-add-to-collections-keyboard-portrait.json",
+        "image": "evidence/state-collections-add-to-collections-keyboard-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-collections-add-to-collections-keyboard-landscape.json",
+        "image": "evidence/state-collections-add-to-collections-keyboard-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-tracker-connections-portrait.json",
+        "image": "evidence/scroll-tracker-connections-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-tracker-dossier-portrait.json",
+        "image": "evidence/scroll-tracker-dossier-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-wallpaper-search-portrait.json",
+        "image": "evidence/scroll-wallpaper-search-portrait.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-collections-portrait.json",
+        "image": "evidence/scroll-collections-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-extensions-store-portrait.json",
+        "image": "evidence/scroll-extensions-store-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-update-portrait.json",
+        "image": "evidence/scroll-update-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-tracker-connections-landscape.json",
+        "image": "evidence/scroll-tracker-connections-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-tracker-dossier-landscape.json",
+        "image": "evidence/scroll-tracker-dossier-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-wallpaper-search-landscape.json",
+        "image": "evidence/scroll-wallpaper-search-landscape.png",
+        "hashes": 4,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-collections-landscape.json",
+        "image": "evidence/scroll-collections-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-extensions-store-landscape.json",
+        "image": "evidence/scroll-extensions-store-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/scroll-update-landscape.json",
+        "image": "evidence/scroll-update-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-text-menu-portrait.json",
+        "image": "evidence/state-extensions-text-menu-portrait.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      },
+      {
+        "receipt": "evidence/state-extensions-text-menu-landscape.json",
+        "image": "evidence/state-extensions-text-menu-landscape.png",
+        "hashes": 3,
+        "mismatches": [],
+        "errors": [],
+        "blocked": [],
+        "missing": []
+      }
+    ],
+    "artifacts": [
+      {
+        "path": "README.md",
+        "match": true
+      },
+      {
+        "path": "REVIEW.md",
+        "match": true
+      },
+      {
+        "path": "COVERAGE.csv",
+        "match": true
+      },
+      {
+        "path": "FINDINGS.csv",
+        "match": true
+      },
+      {
+        "path": "QML-PORTING.md",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/index.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/README.md",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/comparisons.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/evidence.html",
+        "match": true
+      },
+      {
+        "path": "contact-sheets/index.html",
+        "match": true
+      },
+      {
+        "path": "contact-sheets/00-overview.png",
+        "match": true
+      },
+      {
+        "path": "contact-sheets/01-stress.png",
+        "match": true
+      },
+      {
+        "path": "contact-sheets/02-keyboard.png",
+        "match": true
+      },
+      {
+        "path": "contact-sheets/provenance.json",
+        "match": true
+      },
+      {
+        "path": "evidence/input-versions.json",
+        "match": true
+      },
+      {
+        "path": "evidence/input-preservation.json",
+        "match": true
+      },
+      {
+        "path": "evidence/reviewed-sources.json",
+        "match": true
+      },
+      {
+        "path": "evidence/reference-assets.json",
+        "match": true
+      },
+      {
+        "path": "evidence/kde-assets.json",
+        "match": true
+      },
+      {
+        "path": "evidence/finished-versions.json",
+        "match": true
+      },
+      {
+        "path": "evidence/final-evidence-manifest.json",
+        "match": true
+      },
+      {
+        "path": "evidence/final-capture-version-check.json",
+        "match": true
+      },
+      {
+        "path": "evidence/tracker-actions.json",
+        "match": true
+      },
+      {
+        "path": "evidence/utility-actions.json",
+        "match": true
+      },
+      {
+        "path": "evidence/final-keyboard-and-source-actions.json",
+        "match": true
+      },
+      {
+        "path": "evidence/browser-session.json",
+        "match": true
+      },
+      {
+        "path": "evidence/browser-closed.json",
+        "match": true
+      },
+      {
+        "path": "evidence/standalone-server-check.json",
+        "match": true
+      },
+      {
+        "path": "evidence/handoff-links.json",
+        "match": true
+      },
+      {
+        "path": "evidence/visual-review.md",
+        "match": true
+      },
+      {
+        "path": "tools/serve-mocks.mjs",
+        "match": true
+      }
+    ]
+  },
+  "captures": [
+    {
+      "slug": "tracker-connections",
+      "preset": "portrait",
+      "w": 354,
+      "h": 792,
+      "metrics": {
+        "outerWidth": 354,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nNot connected\nOpen settings ›",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 732,
+            "scroll": 1801
+          }
+        ]
+      },
+      "errors": [
+        "404 http://127.0.0.1:11427/favicon.ico"
+      ],
+      "blocked": [],
+      "image": "tracker-connections-portrait.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-connections",
+      "preset": "landscape",
+      "w": 792,
+      "h": 354,
+      "metrics": {
+        "outerWidth": 792,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nThis profile\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nLibrary\nProgress\nHistory\nNot connected\nOpen settings ›",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 294,
+            "scroll": 1323
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-connections-landscape.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-connections",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "metrics": {
+        "outerWidth": 1280,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nThis profile\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nCapabilities are verified per provider\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nLibrary\nProgress\nHistory\nNot connected\nOpen settings ›",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 560,
+            "scroll": 1169
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-connections-desktop.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-dossier",
+      "preset": "portrait",
+      "w": 354,
+      "h": 792,
+      "metrics": {
+        "outerWidth": 354,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nNot connected\nOpen settings ›\nCONNECTED TRACKER\nSimkl\n×\nConfirmed\nTHIS PROFILE\n\nProvider status and actions follow the verified capability snapshot.\n\nAccount and profile\nConnected to this profile\nOnly this Colosseum profile can use this connection\nDisconnect from this profile\nRemove imported data\nCapabilities\nHistory import\nProgress import\nProgress export\nCompletion export\nPlayback tracking\nImport review\nInitial import\n2 items need a decision · 1 item left unchanged\nReview import\nDelivery status\nOne Piece\nChecking delivery\n\nThe provider may have received this. Colosseum is checking before any retry.\n\nAttack on Titan\nWaiting to sync\n\nSaved in Colosseum. Waiting for the tracker to sync.\n\nAutomatic sync\nPull changes automatically\nSend Colosseum progress\nReview Colosseum updates before sending\nLive playback tracking",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 732,
+            "scroll": 1801
+          },
+          {
+            "class": "dossier-scroll",
+            "h": 670,
+            "scroll": 1177
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-dossier-portrait.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-dossier",
+      "preset": "landscape",
+      "w": 792,
+      "h": 354,
+      "metrics": {
+        "outerWidth": 792,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nThis profile\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nLibrary\nProgress\nHistory\nNot connected\nOpen settings ›\nCONNECTED TRACKER\nSimkl\n×\nConfirmed\nTHIS PROFILE\n\nProvider status and actions follow the verified capability snapshot.\n\nAccount and profile\nConnected to this profile\nOnly this Colosseum profile can use this connection\nDisconnect from this profile\nRemove imported data\nCapabilities\nHistory import\nProgress import\nProgress export\nCompletion export\nPlayback tracking\nImport review\nInitial import\n2 items need a decision · 1 item left unchanged\nReview import\nDelivery status\nOne Piece\nChecking delivery\n\nThe provider may have received this. Colosseum is checking before any retry.\n\nAttack on Titan\nWaiting to sync\n\nSaved in Colosseum. Waiting for the tracker to sync.\n\nAutomatic sync\nPull changes automatically\nSend Colosseum progress\nReview Colosseum updates before sending\nLive playback tracking",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 294,
+            "scroll": 1323
+          },
+          {
+            "class": "dossier-scroll",
+            "h": 227,
+            "scroll": 1068
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-dossier-landscape.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-dossier",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "metrics": {
+        "outerWidth": 1280,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nThis profile\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nCapabilities are verified per provider\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nLibrary\nProgress\nHistory\nNot connected\nOpen settings ›\nCONNECTED TRACKER\nSimkl\n×\nConfirmed\nTHIS PROFILE\n\nProvider status and actions follow the verified capability snapshot.\n\nAccount and profile\nConnected to this profile\nOnly this Colosseum profile can use this connection\nDisconnect from this profile\nRemove imported data\nCapabilities\nHistory import\nProgress import\nProgress export\nCompletion export\nPlayback tracking\nImport review\nInitial import\n2 items need a decision · 1 item left unchanged\nReview import\nDelivery status\nOne Piece\nChecking delivery\n\nThe provider may have received this. Colosseum is checking before any retry.\n\nAttack on Titan\nWaiting to sync\n\nSaved in Colosseum. Waiting for the tracker to sync.\n\nAutomatic sync\nPull changes automatically\nSend Colosseum progress\nReview Colosseum updates before sending\nLive playback tracking",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 560,
+            "scroll": 1169
+          },
+          {
+            "class": "dossier-scroll",
+            "h": 553,
+            "scroll": 1076
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-dossier-desktop.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-preferences",
+      "preset": "portrait",
+      "w": 354,
+      "h": 792,
+      "metrics": {
+        "outerWidth": 354,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nNot connected\nOpen settings ›\nALL TRACKERS\nPreferences\n×\nConfirmed\nCAPABILITY GATE\n\nTrackers are optional. Colosseum saves local changes first.\n\nCurrent preferences\nTracker sync\nCheck connected trackers on launch\nDeliver in the background\nShow completion messages",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 732,
+            "scroll": 1801
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-preferences-portrait.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-preferences",
+      "preset": "landscape",
+      "w": 792,
+      "h": 354,
+      "metrics": {
+        "outerWidth": 792,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nThis profile\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nLibrary\nProgress\nHistory\nNot connected\nOpen settings ›\nALL TRACKERS\nPreferences\n×\nConfirmed\nCAPABILITY GATE\n\nTrackers are optional. Colosseum saves local changes first.\n\nCurrent preferences\nTracker sync\nCheck connected trackers on launch\nDeliver in the background\nShow completion messages",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 294,
+            "scroll": 1323
+          },
+          {
+            "class": "dossier-scroll",
+            "h": 227,
+            "scroll": 443
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-preferences-landscape.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "tracker-preferences",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "metrics": {
+        "outerWidth": 1280,
+        "missing": [],
+        "text": "Back\nConnections\n\nYour external library connections\n\nPreferences\nSync all\nYour library stays in Colosseum\n\nTrackers connect to your native progress and History.\n\n2 connected · 2 waiting · 2 need review\n\n!\n2 tracker items need review\nNative History is unchanged.\nConnected trackers\nThis profile\nSimkl\nConnected to this profile\nConfirmed\n2 h ago\nLAST SYNC\n3\nWAITING / REVIEW\nOpen ›\nMyAnimeList\nConnected to this profile\nConfirmed\nNever\nLAST SYNC\n1\nWAITING / REVIEW\nOpen ›\nAvailable trackers\nCapabilities are verified per provider\nSimkl\nMovies, series, and anime\nConnected\nMyAnimeList\nAnime and manga\nConnected\nTrakt\nMovies and series\nConnect\nAniList\nAnime and manga\nComing soon\nExternal services\n\nManage connections to external libraries.\n\nStremio\n\nLibrary, progress, and History\n\nLibrary\nProgress\nHistory\nNot connected\nOpen settings ›\nALL TRACKERS\nPreferences\n×\nConfirmed\nCAPABILITY GATE\n\nTrackers are optional. Colosseum saves local changes first.\n\nCurrent preferences\nTracker sync\nCheck connected trackers on launch\nDeliver in the background\nShow completion messages",
+        "scrolls": [
+          {
+            "class": "page-scroll",
+            "h": 560,
+            "scroll": 1169
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "tracker-preferences-desktop.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+          "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+          "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+        }
+      ]
+    },
+    {
+      "slug": "wallpaper-search",
+      "preset": "portrait",
+      "w": 354,
+      "h": 792,
+      "metrics": {
+        "outerWidth": 354,
+        "missing": [],
+        "text": "Wallpapers\nx\nSearch\nRelevance\nTop\nRandom\n6 wallpapers · more available\nColosseum Animated\nNoir Flow\nAurora Flow\nLow Poly\nColosseum Native\nTwilight\nEmber\nMint\nKDE Plasma\nCascade\nKen Vermette\nFlow\nSandra Smukaste\nKay\nruvkr\nShell\nLucas Andrade\nVolna\nNikita Babin\nNexus\nKrystian Zajdel\nOpal\nKen Vermette\nCold Ripple\nRisto Saukonpää\nElarun\nNuno Pinheiro\nIce Cold\nSantiago Cézar\nPastel Hills\nLionel\nHoneywave\nKen Vermette\nKokkini\nKen Vermette\nDune\nLord of the Rings\nThe Witcher\nPercy Jackson\nSherlock Holmes\nHarry Potter\nLoad more",
+        "scrolls": [
+          {
+            "class": "wall-body scroll-y",
+            "h": 542,
+            "scroll": 823
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "wallpaper-search-portrait.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/native-wallpapers.js",
+          "sha256": "cc5d04ad266f2df9788509f52a860b096d040f4dc403c1913f16ea0d60b615d3"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "wallpaper-search",
+      "preset": "landscape",
+      "w": 792,
+      "h": 354,
+      "metrics": {
+        "outerWidth": 792,
+        "missing": [],
+        "text": "Wallpapers\nx\nSearch\nRelevance\nTop\nRandom\n6 wallpapers · more available\nColosseum Animated\nNoir Flow\nAurora Flow\nLow Poly\nColosseum Native\nTwilight\nEmber\nMint\nKDE Plasma\nCascade\nKen Vermette\nFlow\nSandra Smukaste\nKay\nruvkr\nShell\nLucas Andrade\nVolna\nNikita Babin\nNexus\nKrystian Zajdel\nOpal\nKen Vermette\nCold Ripple\nRisto Saukonpää\nElarun\nNuno Pinheiro\nIce Cold\nSantiago Cézar\nPastel Hills\nLionel\nHoneywave\nKen Vermette\nKokkini\nKen Vermette\nDune\nLord of the Rings\nThe Witcher\nPercy Jackson\nSherlock Holmes\nHarry Potter\nLoad more",
+        "scrolls": [
+          {
+            "class": "wall-body scroll-y",
+            "h": 132,
+            "scroll": 719
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "wallpaper-search-landscape.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/native-wallpapers.js",
+          "sha256": "cc5d04ad266f2df9788509f52a860b096d040f4dc403c1913f16ea0d60b615d3"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "wallpaper-search",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "metrics": {
+        "outerWidth": 1280,
+        "missing": [],
+        "text": "Wallpapers\nx\nSearch\nRelevance\nTop\nRandom\n6 wallpapers · more available\nColosseum Animated\nNoir Flow\nAurora Flow\nLow Poly\nColosseum Native\nTwilight\nEmber\nMint\nKDE Plasma\nCascade\nKen Vermette\nFlow\nSandra Smukaste\nKay\nruvkr\nShell\nLucas Andrade\nVolna\nNikita Babin\nNexus\nKrystian Zajdel\nOpal\nKen Vermette\nCold Ripple\nRisto Saukonpää\nElarun\nNuno Pinheiro\nIce Cold\nSantiago Cézar\nPastel Hills\nLionel\nHoneywave\nKen Vermette\nKokkini\nKen Vermette\nDune\nLord of the Rings\nThe Witcher\nPercy Jackson\nSherlock Holmes\nHarry Potter\nLoad more",
+        "scrolls": [
+          {
+            "class": "wall-body scroll-y",
+            "h": 348,
+            "scroll": 720
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "wallpaper-search-desktop.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/native-wallpapers.js",
+          "sha256": "cc5d04ad266f2df9788509f52a860b096d040f4dc403c1913f16ea0d60b615d3"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "extensions-store",
+      "preset": "portrait",
+      "w": 354,
+      "h": 792,
+      "metrics": {
+        "outerWidth": 354,
+        "missing": [],
+        "text": "Extensions\n\nAdd-ons and sources for every world.\n\n+\nInstall from URL\nSearch\nTributes\nGrand Database\nNyaa\n✓\nTankoyomi\n✓\nGetComics\n✓\nTankorent\n✓\nLibGen\n✓\nAudioBookBay\n✓\nYour Add-ons\n\n6 installed · Manage what powers your worlds.\n\nSee all ›\nAnime Kitsu\nCore · Always on\nCatalogs · Details\nTorrentio\nEnabled\nStreams\nOpenSubtitles v3\nCore · Always on\nSubtitles\nTankoyomi\nCore · Always on\nCatalogs · Details\nNyaa\nEnabled\nStreams\nMediaFusion\nEnabled\nStreams\nEssentials\n\nThe five a fresh Colosseum needs.\n\nOpenSubtitles v3\n\nSubtitles in every language, matched to the exact episode playing.\n\nInstalled\nStreaming Catalogs\n\nNew streaming catalogues and recommendations for Theatre.\n\nInstall\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\nSet up\nAnime Kitsu\n\nThe anime shelf’s brain — proper seasons, splits and episode orders.\n\nInstalled\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nMost popular\n\nThe most starred add-ons on stremio-addons.net.\n\nSee all ›\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\nSet up\nMediaFusion\n\nA wide net — torrents, usenet and live feeds under one roof.\n\nSet up\nAIOStreams\n\nMany source addons wrapped into one, with your own ranking rules.\n\nSet up\nNetflix Catalog\n\nWhat’s new and leaving on Netflix, as browsable rows.\n\nInstall\nPlay sources\n\nWhere your movies and shows actually stream from.\n\nSee all ›\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\nSet up\nMediaFusion\n\nA wide net — torrents, usenet and live feeds under one roof.\n\nSet up\nAIOStreams\n\nMany source addons wrapped into one, with your own ranking rules.\n\nSet up\nSomething to watch\n\nNew rows and catalogues for Theatre.\n\nSee all ›\nStreaming Catalogs\n\nNew streaming catalogues and recommendations for Theatre.\n\nInstall\nNetflix Catalog\n\nWhat’s new and leaving on Netflix, as browsable rows.\n\nInstall\nAnime\n\nSeasons, catalogues and sources for anime.\n\nSee all ›\nAnime Kitsu\n\nThe anime shelf’s brain — proper seasons, splits and episode orders.\n\nInstalled\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nSubtitles\n\nEvery language, matched to what is playing.\n\nSee all ›\nOpenSubtitles v3\n\nSubtitles in every language, matched to the exact episode playing.\n\nInstalled\nSubDL\n\nCommunity subtitles with strong regional coverage.\n\nInstall\nOpenSubtitles\n\nSubtitles in multiple languages.\n\nInstall\n\nCommunity add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum.",
+        "scrolls": [
+          {
+            "class": "ext-scroll scroll-y",
+            "h": 711,
+            "scroll": 7385
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "extensions-store-portrait.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "extensions-store",
+      "preset": "landscape",
+      "w": 792,
+      "h": 354,
+      "metrics": {
+        "outerWidth": 792,
+        "missing": [],
+        "text": "Extensions\n\nAdd-ons and sources for every world.\n\n+\nInstall from URL\nSearch\nTributes\nGrand Database\nNyaa\n✓\nTankoyomi\n✓\nGetComics\n✓\nTankorent\n✓\nLibGen\n✓\nAudioBookBay\n✓\nYour Add-ons\n\n6 installed · Manage what powers your worlds.\n\nSee all ›\nAnime Kitsu\nCore · Always on\nCatalogs · Details\nTorrentio\nEnabled\nStreams\nOpenSubtitles v3\nCore · Always on\nSubtitles\nTankoyomi\nCore · Always on\nCatalogs · Details\nNyaa\nEnabled\nStreams\nMediaFusion\nEnabled\nStreams\nEssentials\n\nThe five a fresh Colosseum needs.\n\nOpenSubtitles v3\n\nSubtitles in every language, matched to the exact episode playing.\n\nInstalled\nStreaming Catalogs\n\nNew streaming catalogues and recommendations for Theatre.\n\nInstall\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\nSet up\nAnime Kitsu\n\nThe anime shelf’s brain — proper seasons, splits and episode orders.\n\nInstalled\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nMost popular\n\nThe most starred add-ons on stremio-addons.net.\n\nSee all ›\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\nSet up\nMediaFusion\n\nA wide net — torrents, usenet and live feeds under one roof.\n\nSet up\nAIOStreams\n\nMany source addons wrapped into one, with your own ranking rules.\n\nSet up\nNetflix Catalog\n\nWhat’s new and leaving on Netflix, as browsable rows.\n\nInstall\nPlay sources\n\nWhere your movies and shows actually stream from.\n\nSee all ›\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\nSet up\nMediaFusion\n\nA wide net — torrents, usenet and live feeds under one roof.\n\nSet up\nAIOStreams\n\nMany source addons wrapped into one, with your own ranking rules.\n\nSet up\nSomething to watch\n\nNew rows and catalogues for Theatre.\n\nSee all ›\nStreaming Catalogs\n\nNew streaming catalogues and recommendations for Theatre.\n\nInstall\nNetflix Catalog\n\nWhat’s new and leaving on Netflix, as browsable rows.\n\nInstall\nAnime\n\nSeasons, catalogues and sources for anime.\n\nSee all ›\nAnime Kitsu\n\nThe anime shelf’s brain — proper seasons, splits and episode orders.\n\nInstalled\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSet up\nSubtitles\n\nEvery language, matched to what is playing.\n\nSee all ›\nOpenSubtitles v3\n\nSubtitles in every language, matched to the exact episode playing.\n\nInstalled\nSubDL\n\nCommunity subtitles with strong regional coverage.\n\nInstall\nOpenSubtitles\n\nSubtitles in multiple languages.\n\nInstall\n\nCommunity add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum.",
+        "scrolls": [
+          {
+            "class": "ext-scroll scroll-y",
+            "h": 286,
+            "scroll": 6790
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "extensions-store-landscape.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "extensions-store",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "metrics": {
+        "outerWidth": 1280,
+        "missing": [],
+        "text": "Extensions\n\nAdd-ons and sources for every world.\n\n+\nInstall from URL\nSearch\nTributes\nGrand Database\nNyaa\n✓\nTankoyomi\n✓\nGetComics\n✓\nTankorent\n✓\nLibGen\n✓\nAudioBookBay\n✓\nYour Add-ons\n\n6 installed · Manage what powers your worlds.\n\nSee all ›\nAnime Kitsu\nCore · Always on\nCatalogs · Details\nTorrentio\nEnabled\nStreams\nOpenSubtitles v3\nCore · Always on\nSubtitles\nTankoyomi\nCore · Always on\nCatalogs · Details\nNyaa\nEnabled\nStreams\nMediaFusion\nEnabled\nStreams\nEssentials\n\nThe five a fresh Colosseum needs.\n\n✓ Installed\nOpenSubtitles v3\n\nSubtitles in every language, matched to the exact episode playing.\n\nStreaming Catalogs\n\nNew streaming catalogues and recommendations for Theatre.\n\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\n✓ Installed\nAnime Kitsu\n\nThe anime shelf’s brain — proper seasons, splits and episode orders.\n\n✓ Installed\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nMost popular\n\nThe most starred add-ons on stremio-addons.net.\n\nSee all ›\n✓ Installed\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\n✓ Installed\nMediaFusion\n\nA wide net — torrents, usenet and live feeds under one roof.\n\nAIOStreams\n\nMany source addons wrapped into one, with your own ranking rules.\n\nNetflix Catalog\n\nWhat’s new and leaving on Netflix, as browsable rows.\n\nPlay sources\n\nWhere your movies and shows actually stream from.\n\nSee all ›\n✓ Installed\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nComet\n\nFast, filterable torrent sources with clean quality labels.\n\n✓ Installed\nMediaFusion\n\nA wide net — torrents, usenet and live feeds under one roof.\n\nAIOStreams\n\nMany source addons wrapped into one, with your own ranking rules.\n\nSomething to watch\n\nNew rows and catalogues for Theatre.\n\nSee all ›\nStreaming Catalogs\n\nNew streaming catalogues and recommendations for Theatre.\n\nNetflix Catalog\n\nWhat’s new and leaving on Netflix, as browsable rows.\n\nAnime\n\nSeasons, catalogues and sources for anime.\n\nSee all ›\n✓ Installed\nAnime Kitsu\n\nThe anime shelf’s brain — proper seasons, splits and episode orders.\n\n✓ Installed\nTorrentio\n\nPlay sources from twelve indexers, sorted by quality and health.\n\nSubtitles\n\nEvery language, matched to what is playing.\n\nSee all ›\n✓ Installed\nOpenSubtitles v3\n\nSubtitles in every language, matched to the exact episode playing.\n\nSubDL\n\nCommunity subtitles with strong regional coverage.\n\nOpenSubtitles\n\nSubtitles in multiple languages.\n\nCommunity add-ons and stars from stremio-addons.net. Their authors run them, not Colosseum.",
+        "scrolls": [
+          {
+            "class": "ext-scroll scroll-y",
+            "h": 590,
+            "scroll": 3162
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "extensions-store-desktop.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "update",
+      "preset": "portrait",
+      "w": 354,
+      "h": 792,
+      "metrics": {
+        "outerWidth": 354,
+        "missing": [],
+        "text": "COLOSSEUM UPDATE\n1.2.0\nRELEASE\nThe latest chapter\n\nThe latest Colosseum chronicle lives here.\n\n01 / 03\n01\n02\n03\nNext\nColosseum 1.2.0 is ready\nTarget 1.2.0\nDownload update",
+        "scrolls": []
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "update-portrait.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "update",
+      "preset": "landscape",
+      "w": 792,
+      "h": 354,
+      "metrics": {
+        "outerWidth": 792,
+        "missing": [],
+        "text": "COLOSSEUM UPDATE\n1.2.0\nRELEASE\nThe latest chapter\n\nThe latest Colosseum chronicle lives here.\n\n01 / 03\n01\n02\n03\nNext\nColosseum 1.2.0 is ready\nTarget 1.2.0\nDownload update",
+        "scrolls": []
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "update-landscape.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "update",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "metrics": {
+        "outerWidth": 1280,
+        "missing": [],
+        "text": "COLOSSEUM UPDATE\n1.2.0\nRELEASE\nThe latest chapter\n\nThe latest Colosseum chronicle lives here.\n\n01 / 03\nRELEASE\n01\n02\n03\nNext\nColosseum 1.2.0 is ready\nTarget 1.2.0\nDownload update",
+        "scrolls": []
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "update-desktop.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "collections",
+      "preset": "portrait",
+      "w": 354,
+      "h": 792,
+      "metrics": {
+        "outerWidth": 354,
+        "missing": [],
+        "text": "Back\nYour Collections\n\nThe things you want to keep together.\n\nNew collection\nWorlds worth returning to\n6 titles · Book · Series\nStories worth revisiting\n4 titles · Book · Movie · Series\nMysteries and detectives\n3 titles · Book · Movie\nThe worlds I keep coming back to, even after the last chapter\n3 titles · Book",
+        "scrolls": [
+          {
+            "class": "collections-scroll scroll-y",
+            "h": 739,
+            "scroll": 1557
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "collections-portrait.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "collections",
+      "preset": "landscape",
+      "w": 792,
+      "h": 354,
+      "metrics": {
+        "outerWidth": 792,
+        "missing": [],
+        "text": "Back\nYour Collections\n\nThe things you want to keep together.\n\nNew collection\nWorlds worth returning to\n6 titles · Book · Series\nStories worth revisiting\n4 titles · Book · Movie · Series\nMysteries and detectives\n3 titles · Book · Movie\nThe worlds I keep coming back to, even after the last chapter\n3 titles · Book",
+        "scrolls": [
+          {
+            "class": "collections-scroll scroll-y",
+            "h": 330,
+            "scroll": 820
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "collections-landscape.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    },
+    {
+      "slug": "collections",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "metrics": {
+        "outerWidth": 1280,
+        "missing": [],
+        "text": "Back\nYour Collections\n\nThe things you want to keep together.\n\nNew collection\nWorlds worth returning to\n6 titles · Book · Series\nStories worth revisiting\n4 titles · Book · Movie · Series\nMysteries and detectives\n3 titles · Book · Movie\nThe worlds I keep coming back to, even after the last chapter\n3 titles · Book",
+        "scrolls": [
+          {
+            "class": "collections-scroll scroll-y",
+            "h": 548,
+            "scroll": 876
+          }
+        ]
+      },
+      "errors": [],
+      "blocked": [],
+      "image": "collections-desktop.png",
+      "inputHashes": [
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+          "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+        },
+        {
+          "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+          "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+        }
+      ]
+    }
+  ],
+  "actions": [
+    {
+      "name": "Tracker dossier ordinary body click stays open",
+      "pass": true
+    },
+    {
+      "name": "Tracker restores exact provider opener after Escape",
+      "pass": false,
+      "error": "Expected MAL opener; actual {\"action\":\"preferences\"}",
+      "evidence": "failure-1.png"
+    },
+    {
+      "name": "Tracker slow title match keeps entered text and separate decision",
+      "pass": true
+    },
+    {
+      "name": "Preferences all four switches and Escape",
+      "pass": true,
+      "detail": [
+        "trackerSyncEnabled",
+        "checkOnLaunch",
+        "backgroundDelivery",
+        "completionMessages"
+      ]
+    },
+    {
+      "name": "Wallpaper zero search, native scenes and KDE identity",
+      "pass": true,
+      "detail": [
+        {
+          "id": "noir",
+          "rendered": "true"
+        },
+        {
+          "id": "aurora",
+          "rendered": "true"
+        },
+        {
+          "id": "poly",
+          "rendered": "true"
+        },
+        {
+          "id": "twilight",
+          "rendered": "true"
+        },
+        {
+          "id": "ember",
+          "rendered": "true"
+        },
+        {
+          "id": "mint",
+          "rendered": "true"
+        }
+      ]
+    },
+    {
+      "name": "Extension slow URL and preview/install/Done",
+      "pass": true
+    },
+    {
+      "name": "Update unknown size and pause/resume",
+      "pass": true
+    },
+    {
+      "name": "Collection remove/cancel rollback",
+      "pass": true
+    },
+    {
+      "name": "Collection slow search",
+      "pass": false,
+      "error": "Search did not filter",
+      "evidence": "failure-8.png"
+    },
+    {
+      "name": "Collection nested create Escape returns to membership picker",
+      "pass": false,
+      "error": "No element found for selector: #collectionNewInput",
+      "evidence": "failure-9.png"
+    }
+  ],
+  "browser": {
+    "version": "Edg/156.0.4314.50",
+    "pid": 26084,
+    "base": "http://127.0.0.1:11427"
+  },
+  "closed": true
+}

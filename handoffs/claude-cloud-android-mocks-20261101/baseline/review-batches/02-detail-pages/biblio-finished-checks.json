@@ -1,0 +1,405 @@
+{
+  "utc": "2026-10-31T22:46:32.693Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-portrait",
+      "result": {
+        "name": "biblio-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:16.438Z",
+        "sha256": "48e7a115026d8e1e852ed4efe829a1941b7f408dbd1a4884ddce5f7295adec76",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-portrait-small",
+      "result": {
+        "name": "biblio-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:18.488Z",
+        "sha256": "ee40f0e3f4523b23edef20f62ff4f742261c8608dd6c52323dfb7d73e24038e7",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-landscape",
+      "result": {
+        "name": "biblio-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:20.477Z",
+        "sha256": "c7490204176befcd5d4f2286d75e87c58f3116b9fbffd1599c7af4642101db4b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-landscape-small",
+      "result": {
+        "name": "biblio-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:23.292Z",
+        "sha256": "63fb694f6ddc860b6c715d1ecd5d36590d72550cacbf1816c58b35d5428ae0b4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=desktop",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-desktop-html",
+      "result": {
+        "name": "biblio-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=desktop",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:26.793Z",
+        "sha256": "cb248d36f890447f3109a6de47f518d02459575fe964ef78658e87180306c3ff",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-collections-portrait",
+      "result": {
+        "name": "biblio-finished-collections-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-collections-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:29.986Z",
+        "sha256": "dfd3fc8021fa66fde0a406ec84718ed7dde8e91d77f5c7ef196cea674d49b07a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-cp-id=\"favorites\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-cancel"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelDiscarded": true,
+        "saveLabel": "Save",
+        "counts": [
+          "3 titles",
+          "0 titles",
+          "5 titles"
+        ]
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-cp-id=\"favorites\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-save"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "savePersisted": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-new"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-save"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-collections-validation",
+      "result": {
+        "name": "biblio-finished-collections-validation",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-collections-validation.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:31.011Z",
+        "sha256": "dac8cd8f0988a3104458abeda470ac68e45d713077a7fb0bdaac49099ca45c0b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "createLabel": "Create & add",
+        "emptyName": "Give your collection a name.",
+        "memberRowsHidden": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-cancel"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "createCancelStaysOpen": true,
+        "backToPicker": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "closed": true,
+        "focusRestored": "collections-button"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#read-button"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "readArrowMoved": "e1"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-read-end",
+      "result": {
+        "name": "biblio-finished-read-end",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-read-end.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:31.537Z",
+        "sha256": "235175f59051648990bf960418203c3395d50022a4f69984cb777c8aa8bfa053",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "interrupted": false
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#torrent-more"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "expandedRows": 7
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-expanded-torrents",
+      "result": {
+        "name": "biblio-finished-expanded-torrents",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-expanded-torrents.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:32.118Z",
+        "sha256": "f7e219fe48381015e122b6f257eb8e40c9ba734740a57011cd4cd4fea7d60830",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": 2275
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-last-sources",
+      "result": {
+        "name": "biblio-finished-last-sources",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-last-sources.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:46:32.682Z",
+        "sha256": "5136d7d6151094a58b419fa650acfcc92afeab71e1d83da12bc390fc19cace8d",
+        "errors": [],
+        "blocked": []
+      }
+    }
+  ]
+}

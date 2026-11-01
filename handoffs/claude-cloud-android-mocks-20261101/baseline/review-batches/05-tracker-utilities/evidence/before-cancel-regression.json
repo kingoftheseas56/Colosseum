@@ -1,0 +1,6 @@
+{
+  "before": 6,
+  "afterCancel": 5,
+  "expected": 6,
+  "observedDefect": true
+}

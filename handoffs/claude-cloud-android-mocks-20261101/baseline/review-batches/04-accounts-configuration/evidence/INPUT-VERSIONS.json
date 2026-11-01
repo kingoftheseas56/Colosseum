@@ -1,0 +1,2452 @@
+{
+  "batch": "04-accounts-configuration",
+  "startedUtc": "2026-10-31T22:43:15.088Z",
+  "root": "D:\\Colosseum-Android-Phone-Mocks-20261101",
+  "approvedSource": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  },
+  "scope": "Batch 4 only; inputs read-only; no app/runtime/device/service qualification",
+  "jobs": [
+    {
+      "task": "10-profile",
+      "pages": [
+        "profile.html"
+      ],
+      "mockFiles": [
+        {
+          "path": "outputs/10-profile/app.js",
+          "exists": true,
+          "bytes": 6484,
+          "modifiedUtc": "2026-10-31T21:18:02.399Z",
+          "sha256": "43756ecc4a53fcd16dba9b044ed05a48df01b782e0e08722ce17eca01f1eb456"
+        },
+        {
+          "path": "outputs/10-profile/index.html",
+          "exists": true,
+          "bytes": 726,
+          "modifiedUtc": "2026-10-31T21:06:17.232Z",
+          "sha256": "f4b0bfd3d83664f2ef5fdb1b7a16a5a7e9a7aed61da6eaaa0f2cea51df8bc9dd"
+        },
+        {
+          "path": "outputs/10-profile/profile.html",
+          "exists": true,
+          "bytes": 8236,
+          "modifiedUtc": "2026-10-31T21:06:39.683Z",
+          "sha256": "4779b81be52dc1a0a82b24838e3d0c8b2383b183cb6f594c3a56386c8d887580"
+        },
+        {
+          "path": "outputs/10-profile/style.css",
+          "exists": true,
+          "bytes": 9023,
+          "modifiedUtc": "2026-10-31T21:16:26.302Z",
+          "sha256": "a0c7b3881760f1cb22a4475b5ce9d65fe49c33f0d4a1f55ffebd34e66a76b359"
+        }
+      ],
+      "reports": [
+        {
+          "path": "outputs/10-profile/REPORT.json",
+          "exists": true,
+          "bytes": 6995,
+          "modifiedUtc": "2026-10-31T21:23:38.978Z",
+          "sha256": "e35a6d9d9a361e9cdc5d66e89cbc7dd01fdf1cb12147823ed8ce940851b85a11",
+          "validJson": true
+        },
+        {
+          "path": "outputs/10-profile/FIDELITY.md",
+          "exists": true,
+          "bytes": 8716,
+          "modifiedUtc": "2026-10-31T21:22:25.823Z",
+          "sha256": "88816ecd1bd518bb89057f2532eac5fe7ed53bc7e34caaa562e74b71585fa452"
+        }
+      ],
+      "existingCaptures": [
+        {
+          "path": "outputs/10-profile/captures/desktop.png",
+          "exists": true,
+          "bytes": 34869,
+          "modifiedUtc": "2026-10-31T21:21:37.043Z",
+          "sha256": "9a53ba6c65dd1c105b451358a57b665cb0cfcb182e238d11b6186a355c979f70",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/10-profile/captures/inset-font-stress.png",
+          "exists": true,
+          "bytes": 36202,
+          "modifiedUtc": "2026-10-31T21:21:39.879Z",
+          "sha256": "24dab48b4dad09bfab052d991c813c52e855c6811b1586015643532d25cbb6a3",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/10-profile/captures/landscape.png",
+          "exists": true,
+          "bytes": 26062,
+          "modifiedUtc": "2026-10-31T21:21:36.188Z",
+          "sha256": "83ceb3d1d2254a1a0619b9b83a55dedfbc25cd4ff6304ecdc3beb797b4d77dfc",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/10-profile/captures/narrow-landscape.png",
+          "exists": true,
+          "bytes": 17570,
+          "modifiedUtc": "2026-10-31T21:21:38.496Z",
+          "sha256": "671202f77a438aec730d1e7505bc716d002fba626f76e0c2a38c25f1b862e1a5",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/10-profile/captures/narrow-portrait.png",
+          "exists": true,
+          "bytes": 30696,
+          "modifiedUtc": "2026-10-31T21:21:37.899Z",
+          "sha256": "656855e6b6e6da8f36758f8ffe5ea1fc55630237572aaf916ad5d0c77f367c93",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/10-profile/captures/portrait.png",
+          "exists": true,
+          "bytes": 31558,
+          "modifiedUtc": "2026-10-31T21:21:34.521Z",
+          "sha256": "50bdc868db30ec63444cd54d9e72c01d3010bfb5084a899712f417bb9309b948",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/10-profile/captures/pressed.png",
+          "exists": true,
+          "bytes": 32177,
+          "modifiedUtc": "2026-10-31T21:21:35.087Z",
+          "sha256": "79d09fc8a996b37b391c10b1f352ff11584682d3f5e7419fdd03d5ffc061d0c3",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/10-profile/captures/studio.png",
+          "exists": true,
+          "bytes": 433760,
+          "modifiedUtc": "2026-10-31T21:21:40.745Z",
+          "sha256": "e49fc02114a7546bf27c6e82acc367b3a40fe830686e33a95ae07851a4dde747",
+          "pngWidth": 1600,
+          "pngHeight": 1000
+        },
+        {
+          "path": "outputs/10-profile/captures/tablet-landscape.png",
+          "exists": true,
+          "bytes": 35329,
+          "modifiedUtc": "2026-10-31T21:21:39.483Z",
+          "sha256": "5cd4d7a40192f88fd6322400de6f0259533032671be95594af48aa95db2159ab",
+          "pngWidth": 1280,
+          "pngHeight": 800
+        },
+        {
+          "path": "outputs/10-profile/captures/tablet-portrait.png",
+          "exists": true,
+          "bytes": 35844,
+          "modifiedUtc": "2026-10-31T21:21:39.054Z",
+          "sha256": "b53d721bb1d9b4ec2e498fcace646a7fbdac04f314e0d5e01f99b6967249b37d",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        }
+      ],
+      "captureAudits": [
+        {
+          "path": "outputs/10-profile/captures/audit.json",
+          "exists": true,
+          "bytes": 22708,
+          "modifiedUtc": "2026-10-31T21:21:44.011Z",
+          "sha256": "d61a1e1a3b7c995085a91dd11c094be32aa6dd1d87270e181ab89398e21e204f",
+          "topLevelKeys": [
+            "tool",
+            "command",
+            "chrome",
+            "source",
+            "generatedAt",
+            "cases",
+            "networkRequests",
+            "failures",
+            "sourceDataMatch",
+            "editorChecks"
+          ],
+          "hasHashBinding": false
+        }
+      ]
+    },
+    {
+      "task": "11-account-entry",
+      "pages": [
+        "account-welcome.html",
+        "account-flyout.html",
+        "account-centre.html"
+      ],
+      "mockFiles": [
+        {
+          "path": "outputs/11-account-entry/account-centre.html",
+          "exists": true,
+          "bytes": 3324,
+          "modifiedUtc": "2026-10-31T21:16:09.850Z",
+          "sha256": "56388e2361864143509ad895793ae204797edfcd93bd91e1f782f2280d35ccdf"
+        },
+        {
+          "path": "outputs/11-account-entry/account-flyout.html",
+          "exists": true,
+          "bytes": 3315,
+          "modifiedUtc": "2026-10-31T21:16:05.874Z",
+          "sha256": "4438c6e399b5deeb441b7ecf3a13df52cc83ff8be2ba426991a645e08c872f76"
+        },
+        {
+          "path": "outputs/11-account-entry/account-welcome.html",
+          "exists": true,
+          "bytes": 3326,
+          "modifiedUtc": "2026-10-31T21:16:01.381Z",
+          "sha256": "1aa42868518d012d418f1cb9ce0f33f0b9b59469d75a1b787b57d25365fa6daa"
+        },
+        {
+          "path": "outputs/11-account-entry/app.js",
+          "exists": true,
+          "bytes": 33023,
+          "modifiedUtc": "2026-10-31T21:40:59.866Z",
+          "sha256": "a163201df233b89dc943e82f0cc7c6d0e4d0b54818261c1272e1e71f80141b9d"
+        },
+        {
+          "path": "outputs/11-account-entry/index.html",
+          "exists": true,
+          "bytes": 2410,
+          "modifiedUtc": "2026-10-31T21:16:14.235Z",
+          "sha256": "b682929a1a9efcc8e97aca838b8513ed3de658157979fcb6927c6ec6500c30e5"
+        },
+        {
+          "path": "outputs/11-account-entry/style.css",
+          "exists": true,
+          "bytes": 28223,
+          "modifiedUtc": "2026-10-31T21:53:11.729Z",
+          "sha256": "cf88682254c0ca8ce16b20ae38bea34d37265f3e7ec6422add78d533307429ff"
+        },
+        {
+          "path": "outputs/11-account-entry/verify-mocks.js",
+          "exists": true,
+          "bytes": 8155,
+          "modifiedUtc": "2026-10-31T21:48:37.388Z",
+          "sha256": "873ba69705379ee499dc0dfa87355264e1b609171d09eeadc5c445a9b0460d97"
+        }
+      ],
+      "reports": [
+        {
+          "path": "outputs/11-account-entry/REPORT.json",
+          "exists": true,
+          "bytes": 2392,
+          "modifiedUtc": "2026-10-31T21:57:12.797Z",
+          "sha256": "006988ca2b0db44f8bc80602eb47441ceee78f2c5e32a763eea9dc3fb4a74a32",
+          "validJson": false,
+          "parseError": "Unexpected end of JSON input"
+        },
+        {
+          "path": "outputs/11-account-entry/FIDELITY.md",
+          "exists": true,
+          "bytes": 9532,
+          "modifiedUtc": "2026-10-31T21:51:50.103Z",
+          "sha256": "8a262c552654f38070568dd1733958bec4ccdab500ba41f131942a6067c50329"
+        }
+      ],
+      "existingCaptures": [
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-desktop-final.png",
+          "exists": true,
+          "bytes": 48685,
+          "modifiedUtc": "2026-10-31T21:50:06.829Z",
+          "sha256": "dc4d325dc529f7276ae8a4ccc78aac106f3e993b4537a0872707a74861ea8997",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-desktop-verified.png",
+          "exists": true,
+          "bytes": 48712,
+          "modifiedUtc": "2026-10-31T21:54:43.296Z",
+          "sha256": "98801f78a7d7ff871ab4b71a2244a3290d2f8947f856426cb49ea1747902f359",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-desktop.png",
+          "exists": true,
+          "bytes": 48712,
+          "modifiedUtc": "2026-10-31T21:35:13.217Z",
+          "sha256": "98801f78a7d7ff871ab4b71a2244a3290d2f8947f856426cb49ea1747902f359",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-landscape.png",
+          "exists": true,
+          "bytes": 31729,
+          "modifiedUtc": "2026-10-31T21:35:10.316Z",
+          "sha256": "a7a5eb55c24b7cabf223bdb3810f37e8b38f9635b6e2c23eb59f2bd52c097965",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-local.png",
+          "exists": true,
+          "bytes": 41549,
+          "modifiedUtc": "2026-10-31T21:35:23.050Z",
+          "sha256": "b5db4268ff4daf62af38fc4f473c9024dd4ff937130a8fb888aab81bf6546c0b",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-narrow.png",
+          "exists": true,
+          "bytes": 45033,
+          "modifiedUtc": "2026-10-31T21:35:14.907Z",
+          "sha256": "4172ed2012b49e94b75c6349d749c473c86521844106566171712546bd152237",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-portrait-verified.png",
+          "exists": true,
+          "bytes": 41959,
+          "modifiedUtc": "2026-10-31T21:54:30.011Z",
+          "sha256": "1984724704f97ecb02a068295252a0fad92335ccd3cc9061b437d310448d53f8",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-portrait.png",
+          "exists": true,
+          "bytes": 41330,
+          "modifiedUtc": "2026-10-31T21:35:08.548Z",
+          "sha256": "38300a1e38d211f9a9c334559fe0ca99d5b2157ad7cc345f320910757dac0e09",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-security-password-final.png",
+          "exists": true,
+          "bytes": 43988,
+          "modifiedUtc": "2026-10-31T21:51:02.218Z",
+          "sha256": "82b64eb629ad42e6643669ff98b2da991f8466596fbc1388dd085000ca73665b",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-security-password-verified.png",
+          "exists": true,
+          "bytes": 43251,
+          "modifiedUtc": "2026-10-31T21:54:43.296Z",
+          "sha256": "e49631aca5e9c24133e5a872c263dc492abbb6cbf0744788e0fcb065b684374f",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-tablet-final.png",
+          "exists": true,
+          "bytes": 95777,
+          "modifiedUtc": "2026-10-31T21:50:20.872Z",
+          "sha256": "16a481693f27cce684aa9fb55a069490f2ef71d371827ce87def9e66eee8210d",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-tablet-landscape.png",
+          "exists": true,
+          "bytes": 45200,
+          "modifiedUtc": "2026-10-31T21:35:18.568Z",
+          "sha256": "4aed7f353a57d8f23c98fa7796b47e3a6748232726c8d61f7374c09c5792dc9b",
+          "pngWidth": 1280,
+          "pngHeight": 800
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-tablet-verified.png",
+          "exists": true,
+          "bytes": 95195,
+          "modifiedUtc": "2026-10-31T21:55:03.781Z",
+          "sha256": "6a7e635dec70c19fd4b4fcd63112421b46940bddb6f8362446733bac3d957e0b",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-centre-tablet.png",
+          "exists": true,
+          "bytes": 107478,
+          "modifiedUtc": "2026-10-31T21:35:17.157Z",
+          "sha256": "1024a810e2c49a8ac8798d52aa2ec9ae3f2219dac28c4fea97ebf9d5d90f69ed",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-closed-final.png",
+          "exists": true,
+          "bytes": 32487,
+          "modifiedUtc": "2026-10-31T21:50:25.082Z",
+          "sha256": "7c7162d656cd0866c4d4a7f1c86768c55761a123343eeb95ec90e80081c98ff0",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-desktop-final.png",
+          "exists": true,
+          "bytes": 728825,
+          "modifiedUtc": "2026-10-31T21:48:23.163Z",
+          "sha256": "c5164273df46f79f425c0b7afa5a4f6d3a6286c1744f5fe2261de38843a90bf5",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-desktop.png",
+          "exists": true,
+          "bytes": 728531,
+          "modifiedUtc": "2026-10-31T21:47:17.226Z",
+          "sha256": "9e995ebdf77480f6881886c1314b0a9c3383cb0c11895538c9af36ec8cca95c8",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-landscape.png",
+          "exists": true,
+          "bytes": 31052,
+          "modifiedUtc": "2026-10-31T21:34:53.885Z",
+          "sha256": "5b35fecc87a997a4d8aff316550c4145734365ef0becf85c024b09be9e213a10",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-local.png",
+          "exists": true,
+          "bytes": 40528,
+          "modifiedUtc": "2026-10-31T21:34:59.909Z",
+          "sha256": "4f549a924466d2089104c83124da9c83657d306ed8b6cbfdd8755543162556fc",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-narrow-landscape.png",
+          "exists": true,
+          "bytes": 30967,
+          "modifiedUtc": "2026-10-31T21:35:01.832Z",
+          "sha256": "0ca776a5b5b82520a807ba4d0f196bdaabafd3ea1ebd787685c4d706e4c97d88",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-portrait.png",
+          "exists": true,
+          "bytes": 39312,
+          "modifiedUtc": "2026-10-31T21:34:52.535Z",
+          "sha256": "f3db8f4b8a240039b33f915ca6a0f52d932c688c9de453f87301d0b2b8892e5e",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-flyout-tablet.png",
+          "exists": true,
+          "bytes": 903878,
+          "modifiedUtc": "2026-10-31T21:35:06.902Z",
+          "sha256": "5b4a92536a350f4b74575b7fad655d5188ebf2de676935d259e717e36a8a277a",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-welcome-desktop.png",
+          "exists": true,
+          "bytes": 378935,
+          "modifiedUtc": "2026-10-31T21:34:44.536Z",
+          "sha256": "cfb33c5c02311298b4d3e02ee1ed087bb1f22f3478a9dd272c89dab9a8d93ff5",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-welcome-landscape.png",
+          "exists": true,
+          "bytes": 171780,
+          "modifiedUtc": "2026-10-31T21:34:38.395Z",
+          "sha256": "c5b8d06331e6f8ad9b043fdf48a2a79d0f153d5b8718bf8bb7963e249584270f",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-welcome-narrow.png",
+          "exists": true,
+          "bytes": 141757,
+          "modifiedUtc": "2026-10-31T21:34:46.008Z",
+          "sha256": "9e35b9c8f60c60de7d5380da691e21ac4c864b6c21edd6bbaebbd7f099471817",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-welcome-portrait.png",
+          "exists": true,
+          "bytes": 140166,
+          "modifiedUtc": "2026-10-31T21:34:36.647Z",
+          "sha256": "c9c14df64d32d5772e95320f97c9f69b4adabe7508b261c98b739e22150c4738",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-welcome-tablet.png",
+          "exists": true,
+          "bytes": 487740,
+          "modifiedUtc": "2026-10-31T21:34:50.824Z",
+          "sha256": "7ef42cccb77aba4e92b7f19129306ca38985f420bd1112384d5644bfd6beb776",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        },
+        {
+          "path": "outputs/11-account-entry/captures/account-welcome-test.png",
+          "exists": true,
+          "bytes": 98132,
+          "modifiedUtc": "2026-10-31T21:16:57.625Z",
+          "sha256": "fe38149b4b04304e8d01fe80fef36bf8a6ce4ebc4a51690d084d1ca462cd404c",
+          "pngWidth": 412,
+          "pngHeight": 900
+        }
+      ],
+      "captureAudits": [
+        {
+          "path": "outputs/11-account-entry/captures/BROWSER-VERIFICATION.json",
+          "exists": true,
+          "bytes": 22171,
+          "modifiedUtc": "2026-10-31T21:36:00.282Z",
+          "sha256": "1ba91168642f2e99f270345034ec410171a5848f8b65667bafa78fc96be18c2f",
+          "topLevelKeys": [
+            "engine",
+            "cases",
+            "failures"
+          ],
+          "hasHashBinding": false
+        }
+      ]
+    },
+    {
+      "task": "12-account-forms",
+      "pages": [
+        "account-profile.html",
+        "account-security.html",
+        "account-recovery.html",
+        "account-privacy.html",
+        "account-devices.html",
+        "account-your-colosseum.html"
+      ],
+      "mockFiles": [
+        {
+          "path": "outputs/12-account-forms/account-devices.html",
+          "exists": true,
+          "bytes": 303,
+          "modifiedUtc": "2026-10-31T21:14:22.754Z",
+          "sha256": "e5a0fda403e828535b153babd001e161cf45c439d54653de706e665d980385bf"
+        },
+        {
+          "path": "outputs/12-account-forms/account-privacy.html",
+          "exists": true,
+          "bytes": 303,
+          "modifiedUtc": "2026-10-31T21:14:16.458Z",
+          "sha256": "e34501fff8581c8df278741d1af3bd794e19fc0bf7d02af4d5a20c68010f4d3b"
+        },
+        {
+          "path": "outputs/12-account-forms/account-profile.html",
+          "exists": true,
+          "bytes": 303,
+          "modifiedUtc": "2026-10-31T21:13:59.556Z",
+          "sha256": "a18243ddc34d0a2904c9824bba47ce03efd763eca636bb7a2a1693a558be356c"
+        },
+        {
+          "path": "outputs/12-account-forms/account-recovery.html",
+          "exists": true,
+          "bytes": 305,
+          "modifiedUtc": "2026-10-31T21:14:10.710Z",
+          "sha256": "24826c364148c1b892b6c6024bb5aaf0a402d7793ea26c442d7f55d6e5a445cb"
+        },
+        {
+          "path": "outputs/12-account-forms/account-security.html",
+          "exists": true,
+          "bytes": 305,
+          "modifiedUtc": "2026-10-31T21:14:06.060Z",
+          "sha256": "6a016eda38bb96314890ab5d9d4660c06145df76bb0eaec97d8f516be6047ece"
+        },
+        {
+          "path": "outputs/12-account-forms/account-your-colosseum.html",
+          "exists": true,
+          "bytes": 307,
+          "modifiedUtc": "2026-10-31T21:56:07.686Z",
+          "sha256": "3d89614968ffc40b225101b9837d2ee44ba053a8b11f91a62d6a27b1454e5bc4"
+        },
+        {
+          "path": "outputs/12-account-forms/app.js",
+          "exists": true,
+          "bytes": 37232,
+          "modifiedUtc": "2026-10-31T21:27:37.749Z",
+          "sha256": "ce393e9c09ee03ca064d3ffd3ab8e105bf7828dbe88a5a51044bdf18175af5c9"
+        },
+        {
+          "path": "outputs/12-account-forms/index.html",
+          "exists": true,
+          "bytes": 2911,
+          "modifiedUtc": "2026-10-31T21:28:39.771Z",
+          "sha256": "774fb960336acc0287c7053cdaf30bbd86408714e91c4952470a0f04d61570f8"
+        },
+        {
+          "path": "outputs/12-account-forms/style.css",
+          "exists": true,
+          "bytes": 26299,
+          "modifiedUtc": "2026-10-31T21:55:37.171Z",
+          "sha256": "13bc1d7815b7c39fc33814635b252ce96b72c83a8bee8bf813a54a31e3305051"
+        }
+      ],
+      "reports": [
+        {
+          "path": "outputs/12-account-forms/REPORT.json",
+          "exists": true,
+          "bytes": 10914,
+          "modifiedUtc": "2026-10-31T22:00:37.471Z",
+          "sha256": "b6ceebf4fc2e463130fb3605293a65b7bbfdf1a475d15505da556fbb62325e67",
+          "validJson": true
+        },
+        {
+          "path": "outputs/12-account-forms/FIDELITY.md",
+          "exists": true,
+          "bytes": 12662,
+          "modifiedUtc": "2026-10-31T21:59:50.096Z",
+          "sha256": "71565f054c0cd63e16c92478eeee4d15726bdbc6cc5c0fcced9f7fe0bea7ab6b"
+        }
+      ],
+      "existingCaptures": [
+        {
+          "path": "outputs/12-account-forms/captures/account-devices-desktop.png",
+          "exists": true,
+          "bytes": 41611,
+          "modifiedUtc": "2026-10-31T21:44:18.073Z",
+          "sha256": "b47896e2cb1635315b6545f4eceb667a48fccd598cf42405c6b38f693b867f71",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-devices-landscape.png",
+          "exists": true,
+          "bytes": 21499,
+          "modifiedUtc": "2026-10-31T21:44:04.296Z",
+          "sha256": "b92e076377822aac81fb812ea9702e36ca4679b78cfb08196d757750a49e7c14",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-devices-long-small.png",
+          "exists": true,
+          "bytes": 34320,
+          "modifiedUtc": "2026-10-31T21:36:37.445Z",
+          "sha256": "8debd7cbbe354afdeea0d2b57827d188828acc9f26f7a9e8d0df815933420cac",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-devices-portrait-fixed.png",
+          "exists": true,
+          "bytes": 31757,
+          "modifiedUtc": "2026-10-31T21:53:48.921Z",
+          "sha256": "26172a0007d51ec65df8173f9ce862c918ec2bbf500dcfbd0e704dcc20cad31e",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-devices-portrait.png",
+          "exists": true,
+          "bytes": 31757,
+          "modifiedUtc": "2026-10-31T21:53:48.921Z",
+          "sha256": "26172a0007d51ec65df8173f9ce862c918ec2bbf500dcfbd0e704dcc20cad31e",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-devices-revoke.png",
+          "exists": true,
+          "bytes": 32960,
+          "modifiedUtc": "2026-10-31T21:46:47.632Z",
+          "sha256": "eea25cae316325d5ec9e7050f30246cf5e31fa83fe5d3d64b91c041fc09f3da3",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-activity-landscape.png",
+          "exists": true,
+          "bytes": 30957,
+          "modifiedUtc": "2026-10-31T21:35:24.155Z",
+          "sha256": "47394f674e7c23652ceba7c0e56e709c63f3ab2170012a993bf9c54c0d668ca3",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-delete-ime.png",
+          "exists": true,
+          "bytes": 27693,
+          "modifiedUtc": "2026-10-31T21:46:33.371Z",
+          "sha256": "b7fb9ba0c2248e67825139671ce5f612d2341035493c876b662c7ad7293bfd95",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-desktop.png",
+          "exists": true,
+          "bytes": 60493,
+          "modifiedUtc": "2026-10-31T21:43:44.195Z",
+          "sha256": "9c1300fa6238abd8fcd1596ff4db37dad13352b25760befc1586f62b3ae848ca",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-landscape.png",
+          "exists": true,
+          "bytes": 30767,
+          "modifiedUtc": "2026-10-31T21:43:02.092Z",
+          "sha256": "9bc18f3e3d98272a55a19f4a1a5b5a0a1125f073db9fed874d833b659417df6e",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-long-small.png",
+          "exists": true,
+          "bytes": 39321,
+          "modifiedUtc": "2026-10-31T21:35:40.449Z",
+          "sha256": "9e8fdcda8a68e8eeb0ac77605892439e55e5016bdf1dee43506afa28f9e16c8d",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-portrait-fixed.png",
+          "exists": true,
+          "bytes": 44503,
+          "modifiedUtc": "2026-10-31T21:53:38.368Z",
+          "sha256": "051f16095f23b187fa9476e7d669366fd730b9783858cb6e5359eec59ae3da48",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-portrait.png",
+          "exists": true,
+          "bytes": 44503,
+          "modifiedUtc": "2026-10-31T21:53:38.368Z",
+          "sha256": "051f16095f23b187fa9476e7d669366fd730b9783858cb6e5359eec59ae3da48",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-privacy-search-small.png",
+          "exists": true,
+          "bytes": 38155,
+          "modifiedUtc": "2026-10-31T21:35:25.372Z",
+          "sha256": "1d54d1531903d7e7d1853842b6100b36721881a8d61245d7192f02de3ec36911",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-profile-desktop.png",
+          "exists": true,
+          "bytes": 50914,
+          "modifiedUtc": "2026-10-31T21:41:21.480Z",
+          "sha256": "7aca96aff4d3bcf3fb4d47e450078085314f825323b232a3b6f6be2abb9f70fe",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-profile-keyboard.png",
+          "exists": true,
+          "bytes": 26386,
+          "modifiedUtc": "2026-10-31T21:32:58.216Z",
+          "sha256": "ed0ebd75dc55191a52c57f430f0b443e4ac6c2ad81537867ce333e6dfefc3b09",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-profile-landscape.png",
+          "exists": true,
+          "bytes": 20946,
+          "modifiedUtc": "2026-10-31T21:41:02.789Z",
+          "sha256": "d107e6fa764d02d6681ca062682ccdac3c898712af9e2112f0a6b32582761236",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-profile-long-small.png",
+          "exists": true,
+          "bytes": 36027,
+          "modifiedUtc": "2026-10-31T21:45:38.742Z",
+          "sha256": "79bf39a8f307be56e3c97da9e7a7388fc7c42c83298d8ff962a9230f5d54b779",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-profile-portrait-fixed.png",
+          "exists": true,
+          "bytes": 38918,
+          "modifiedUtc": "2026-10-31T21:52:05.165Z",
+          "sha256": "3a3575a22fde54ed567f4c3a51dd9a64d814b126d88c03ab68122daa20854e4f",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-profile-portrait.png",
+          "exists": true,
+          "bytes": 38918,
+          "modifiedUtc": "2026-10-31T21:52:05.165Z",
+          "sha256": "3a3575a22fde54ed567f4c3a51dd9a64d814b126d88c03ab68122daa20854e4f",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-recovery-desktop.png",
+          "exists": true,
+          "bytes": 48519,
+          "modifiedUtc": "2026-10-31T21:42:37.573Z",
+          "sha256": "4862c66781ece8eb8d4fc01cb3c7fb58ac7d79fc79080d7d844659cef57a1653",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-recovery-landscape.png",
+          "exists": true,
+          "bytes": 26430,
+          "modifiedUtc": "2026-10-31T21:42:26.684Z",
+          "sha256": "5a5e7299b38983e79b2d193195702232c96bd17c637e3b8949af3d80df4fd335",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-recovery-long-small.png",
+          "exists": true,
+          "bytes": 36679,
+          "modifiedUtc": "2026-10-31T21:34:34.832Z",
+          "sha256": "58f646820de4a0009030f7f4f548c8b4e262183f8904a71f86a1a1dace9d8cbe",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-recovery-portrait-fixed.png",
+          "exists": true,
+          "bytes": 37604,
+          "modifiedUtc": "2026-10-31T21:53:20.987Z",
+          "sha256": "9b876fb87261edf86e8052b819c9136eff7df8bba9d83d0d792fc9dfbb469870",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-recovery-portrait.png",
+          "exists": true,
+          "bytes": 37604,
+          "modifiedUtc": "2026-10-31T21:53:20.987Z",
+          "sha256": "9b876fb87261edf86e8052b819c9136eff7df8bba9d83d0d792fc9dfbb469870",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-recovery-replace-ime.png",
+          "exists": true,
+          "bytes": 29627,
+          "modifiedUtc": "2026-10-31T21:45:53.426Z",
+          "sha256": "3967880e084f68fdd4dfc711e84f503f4931cf91d75b310a1eafa76b3f37a5f7",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-security-approval.png",
+          "exists": true,
+          "bytes": 33124,
+          "modifiedUtc": "2026-10-31T21:45:36.962Z",
+          "sha256": "bbf24ac657569329fdae525d7dbe5c9bbeb9c1fd6438d330461168805e3f2edb",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-security-desktop.png",
+          "exists": true,
+          "bytes": 40846,
+          "modifiedUtc": "2026-10-31T21:41:46.801Z",
+          "sha256": "21899ffdb4d9c51e02e2be3be8f186398981847e8408cd70edafb5f471014f9a",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-security-landscape.png",
+          "exists": true,
+          "bytes": 25255,
+          "modifiedUtc": "2026-10-31T21:41:38.203Z",
+          "sha256": "de970d0506318f8d062dc2047f092f5f41cebefa425f869d6950f115a19e9a71",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-security-logout-small.png",
+          "exists": true,
+          "bytes": 37413,
+          "modifiedUtc": "2026-10-31T21:33:55.256Z",
+          "sha256": "70258624a6f1eac1f404708c6642b4353b695642b4a5dbd152558d66cf4bff6d",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-security-password-ime.png",
+          "exists": true,
+          "bytes": 15275,
+          "modifiedUtc": "2026-10-31T21:45:43.992Z",
+          "sha256": "e7c8a6b65fa9ec30a2722dd83eb80eb94a510d91768180f7a44f8acc12c9fb5b",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-security-portrait-fixed.png",
+          "exists": true,
+          "bytes": 30989,
+          "modifiedUtc": "2026-10-31T21:53:11.826Z",
+          "sha256": "b282620a96aa20be590f538c67a4d4a153d5e482c1420d0c99993f796b4f783a",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-security-portrait.png",
+          "exists": true,
+          "bytes": 30989,
+          "modifiedUtc": "2026-10-31T21:53:11.826Z",
+          "sha256": "b282620a96aa20be590f538c67a4d4a153d5e482c1420d0c99993f796b4f783a",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-desktop-verified.png",
+          "exists": true,
+          "bytes": 70091,
+          "modifiedUtc": "2026-10-31T21:58:16.161Z",
+          "sha256": "d8c070523cad1afa27f1b6d4336074e552c1010f7e163844fe77af1ba6eb2e3d",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-desktop.png",
+          "exists": true,
+          "bytes": 70091,
+          "modifiedUtc": "2026-10-31T21:58:16.161Z",
+          "sha256": "d8c070523cad1afa27f1b6d4336074e552c1010f7e163844fe77af1ba6eb2e3d",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-landscape-verified.png",
+          "exists": true,
+          "bytes": 44557,
+          "modifiedUtc": "2026-10-31T21:57:55.932Z",
+          "sha256": "045b75ddde65ac739925762b66f6844b8f3237b33f5aa5c684c37b59a3c406b1",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-landscape.png",
+          "exists": true,
+          "bytes": 44557,
+          "modifiedUtc": "2026-10-31T21:57:55.932Z",
+          "sha256": "045b75ddde65ac739925762b66f6844b8f3237b33f5aa5c684c37b59a3c406b1",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-long-small-verified.png",
+          "exists": true,
+          "bytes": 37529,
+          "modifiedUtc": "2026-10-31T21:58:30.297Z",
+          "sha256": "79f33a177f4b90a27fcd79e084911865bac0b10907d211e1438c9e0e41db2c0b",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-long-small.png",
+          "exists": true,
+          "bytes": 37529,
+          "modifiedUtc": "2026-10-31T21:58:30.297Z",
+          "sha256": "79f33a177f4b90a27fcd79e084911865bac0b10907d211e1438c9e0e41db2c0b",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-portrait-fixed.png",
+          "exists": true,
+          "bytes": 2916,
+          "modifiedUtc": "2026-10-31T21:54:05.159Z",
+          "sha256": "776920a68d74cf72998ebe6bf0578d7bc436a3b8bbfaed3053cfe166a9a085c1",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-portrait-verified.png",
+          "exists": true,
+          "bytes": 40612,
+          "modifiedUtc": "2026-10-31T21:57:23.268Z",
+          "sha256": "4b0f2e4852de17a5b4cd561414b307e4bba64f880889e6ed326ae816560aec06",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/12-account-forms/captures/account-your-colosseum-portrait.png",
+          "exists": true,
+          "bytes": 40612,
+          "modifiedUtc": "2026-10-31T21:57:23.268Z",
+          "sha256": "4b0f2e4852de17a5b4cd561414b307e4bba64f880889e6ed326ae816560aec06",
+          "pngWidth": 412,
+          "pngHeight": 900
+        }
+      ],
+      "captureAudits": [
+        {
+          "path": "outputs/12-account-forms/captures/capture-manifest.json",
+          "exists": true,
+          "bytes": 8923,
+          "modifiedUtc": "2026-10-31T21:46:31.845Z",
+          "sha256": "89f444d081df06546268c7a6872152280e3f1e24d1b8818843b6a9ce63409cd6",
+          "topLevelKeys": [
+            "images",
+            "verified",
+            "attempted",
+            "tool"
+          ],
+          "hasHashBinding": false
+        }
+      ]
+    },
+    {
+      "task": "13-stremio-sync",
+      "pages": [
+        "stremio-sync.html"
+      ],
+      "mockFiles": [
+        {
+          "path": "outputs/13-stremio-sync/app.js",
+          "exists": true,
+          "bytes": 12923,
+          "modifiedUtc": "2026-10-31T21:30:53.690Z",
+          "sha256": "dba45e68909e26c8b4e57f49166ebf71011a51d17c935046ed3bac6e819e2b76"
+        },
+        {
+          "path": "outputs/13-stremio-sync/capture-and-verify.cjs",
+          "exists": true,
+          "bytes": 10721,
+          "modifiedUtc": "2026-10-31T21:33:04.538Z",
+          "sha256": "c81c4c0828a05703104e42667b6d51525b62c272f9637e206e5f71b4e7922907"
+        },
+        {
+          "path": "outputs/13-stremio-sync/index.html",
+          "exists": true,
+          "bytes": 1618,
+          "modifiedUtc": "2026-10-31T21:28:55.379Z",
+          "sha256": "aa2e35350a4462f7550a4e02029da5c75f7bc16d2141a7100175f5db436adebb"
+        },
+        {
+          "path": "outputs/13-stremio-sync/stremio-sync.html",
+          "exists": true,
+          "bytes": 9203,
+          "modifiedUtc": "2026-10-31T21:17:46.195Z",
+          "sha256": "3be29ccdda38e2fde531cab8542ff291d4814eb700906ee074613ce432d19230"
+        },
+        {
+          "path": "outputs/13-stremio-sync/style.css",
+          "exists": true,
+          "bytes": 13112,
+          "modifiedUtc": "2026-10-31T21:19:23.083Z",
+          "sha256": "fc710033ffe14bbcb5af1ba4134a76bab5f487aa762cb0a6985b2190aa6e4d07"
+        }
+      ],
+      "reports": [
+        {
+          "path": "outputs/13-stremio-sync/REPORT.json",
+          "exists": true,
+          "bytes": 7034,
+          "modifiedUtc": "2026-10-31T21:40:42.527Z",
+          "sha256": "4edb1aaa3e98670a419d0c6eee381836964b1166d33849b2d86ff4fbc061b34b",
+          "validJson": true
+        },
+        {
+          "path": "outputs/13-stremio-sync/FIDELITY.md",
+          "exists": true,
+          "bytes": 8321,
+          "modifiedUtc": "2026-10-31T21:38:32.233Z",
+          "sha256": "40eeea3505383943cf91163a944668757497aa88b35d62cab3d54b2bdc1f7eef"
+        }
+      ],
+      "existingCaptures": [
+        {
+          "path": "outputs/13-stremio-sync/captures/closed-portrait.png",
+          "exists": true,
+          "bytes": 87729,
+          "modifiedUtc": "2026-10-31T21:34:33.077Z",
+          "sha256": "ebc66a08491b10ba2307e3d092646ba4e26ab20f81cdb907c51b445a25afa61a",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/desktop.png",
+          "exists": true,
+          "bytes": 77509,
+          "modifiedUtc": "2026-10-31T21:33:47.311Z",
+          "sha256": "efbc22134fd91216118ca57673457a3500bfc6a72122c9b43c35d71a3be02bd7",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/disconnect-confirm-landscape.png",
+          "exists": true,
+          "bytes": 45527,
+          "modifiedUtc": "2026-10-31T21:34:13.875Z",
+          "sha256": "b5821b730c82bef5ee3935a681b2b3f64d4efd5749d8d0aae4b12af94b8284ad",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/keyboard-landscape-actions.png",
+          "exists": true,
+          "bytes": 43305,
+          "modifiedUtc": "2026-10-31T21:34:27.022Z",
+          "sha256": "6d9aeb4361b7c8711a0815282f11c346cf2da18dfe6a199fad1e2f7ee53863d2",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/keyboard-landscape.png",
+          "exists": true,
+          "bytes": 40943,
+          "modifiedUtc": "2026-10-31T21:34:24.134Z",
+          "sha256": "eb5b3289dddc8b4058c7637b6a1ade6862a31958015254d94bda5dc5b64de09a",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/keyboard-portrait-actions.png",
+          "exists": true,
+          "bytes": 63452,
+          "modifiedUtc": "2026-10-31T21:34:19.885Z",
+          "sha256": "e372ee877a4524951cc4be02c40c919d66a38139f15401b28345044227ce2487",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/keyboard-portrait.png",
+          "exists": true,
+          "bytes": 62463,
+          "modifiedUtc": "2026-10-31T21:34:18.921Z",
+          "sha256": "48d922a01be339893b8a2b693162019e241803c474bbcc9caa3ff760a23bff9d",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/landscape.png",
+          "exists": true,
+          "bytes": 38160,
+          "modifiedUtc": "2026-10-31T21:33:41.551Z",
+          "sha256": "e986579261cfe4107187f6e99e9bbc8865bbeab5ca2b04d79434df8fde0f1e67",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/portrait.png",
+          "exists": true,
+          "bytes": 55264,
+          "modifiedUtc": "2026-10-31T21:33:37.501Z",
+          "sha256": "2dd6661df256e9cf78843b2a409f79089ba5db3cd890bbadcf963eadef194fd8",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/small-landscape.png",
+          "exists": true,
+          "bytes": 31428,
+          "modifiedUtc": "2026-10-31T21:33:55.432Z",
+          "sha256": "9fd5e59b1e229f08cb3293a213f972b7c8fce5801906d05aaf09109c43b7a345",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/small-portrait.png",
+          "exists": true,
+          "bytes": 45755,
+          "modifiedUtc": "2026-10-31T21:33:50.801Z",
+          "sha256": "2e5448821d7a159ddd1c4b2f97718f50e0ba2989793ba1f2a4dd63474951bfce",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/switch-confirm-portrait.png",
+          "exists": true,
+          "bytes": 50020,
+          "modifiedUtc": "2026-10-31T21:34:11.441Z",
+          "sha256": "d0ff077a813d626894b04df8da835b59562e16204905d5277f63c5e5e5d7b7ec",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/tablet-landscape.png",
+          "exists": true,
+          "bytes": 83371,
+          "modifiedUtc": "2026-10-31T21:34:04.940Z",
+          "sha256": "41de1c54bee66e83b06ab893b538279a13cab3cc9d2c717b4cfcd2110d098ba4",
+          "pngWidth": 1280,
+          "pngHeight": 800
+        },
+        {
+          "path": "outputs/13-stremio-sync/captures/tablet-portrait.png",
+          "exists": true,
+          "bytes": 89099,
+          "modifiedUtc": "2026-10-31T21:33:59.968Z",
+          "sha256": "068997d996abbde9831ab5fa8946c437682dc4e15f1d8e19a6c1d8a03a26742f",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        }
+      ],
+      "captureAudits": [
+        {
+          "path": "outputs/13-stremio-sync/captures/audit.json",
+          "exists": true,
+          "bytes": 7424,
+          "modifiedUtc": "2026-10-31T21:35:10.877Z",
+          "sha256": "cf9e71da5aa0a82892421093370d744bd288ebeafaa68ed37cb545f868fbf838",
+          "topLevelKeys": [
+            "command",
+            "captureTool",
+            "cases",
+            "interactionCheck",
+            "failures",
+            "passed"
+          ],
+          "hasHashBinding": false
+        }
+      ]
+    },
+    {
+      "task": "14-extension-setup",
+      "pages": [
+        "extension-setup.html",
+        "tankoyomi-configuration.html"
+      ],
+      "mockFiles": [
+        {
+          "path": "outputs/14-extension-setup/app.js",
+          "exists": true,
+          "bytes": 12795,
+          "modifiedUtc": "2026-10-31T21:45:29.011Z",
+          "sha256": "5509135552fd002ba75902c13b4707f3f12b4644d15406493984ded4ac3932ce"
+        },
+        {
+          "path": "outputs/14-extension-setup/audit-existing.js",
+          "exists": true,
+          "bytes": 3976,
+          "modifiedUtc": "2026-10-31T21:56:27.234Z",
+          "sha256": "55332c69decc6859c47ca45e6b560205ba72cb1d1fc3db7028b8d74abbb8f808"
+        },
+        {
+          "path": "outputs/14-extension-setup/extension-setup.html",
+          "exists": true,
+          "bytes": 9619,
+          "modifiedUtc": "2026-10-31T21:45:10.949Z",
+          "sha256": "27396d3de0b925db68f7efd2a85b1128c8b09389c62180f5c071765e2ed40d9c"
+        },
+        {
+          "path": "outputs/14-extension-setup/index.html",
+          "exists": true,
+          "bytes": 2261,
+          "modifiedUtc": "2026-10-31T21:30:58.416Z",
+          "sha256": "f982742fd3512632b319e241302ab8a39d369e6b3d7e07a979ab1e1661664db0"
+        },
+        {
+          "path": "outputs/14-extension-setup/render-mocks.js",
+          "exists": true,
+          "bytes": 5831,
+          "modifiedUtc": "2026-10-31T21:57:16.858Z",
+          "sha256": "9141b2d9231947745ffa726bc58af17c4571c797e8138429a04f9024ffaebb22"
+        },
+        {
+          "path": "outputs/14-extension-setup/style.css",
+          "exists": true,
+          "bytes": 28433,
+          "modifiedUtc": "2026-10-31T21:43:09.268Z",
+          "sha256": "501fe941434b233813faf05b24acad4f9f2544772775af70fca6a8e26b82aa9c"
+        },
+        {
+          "path": "outputs/14-extension-setup/tankoyomi-configuration.html",
+          "exists": true,
+          "bytes": 7633,
+          "modifiedUtc": "2026-10-31T21:21:20.630Z",
+          "sha256": "6afccb08a82089457ca75065be3e4a6c9f629e6b6d6eeb23a149c7aa46f2ca47"
+        },
+        {
+          "path": "outputs/14-extension-setup/verify-mocks.js",
+          "exists": true,
+          "bytes": 6753,
+          "modifiedUtc": "2026-10-31T21:32:10.098Z",
+          "sha256": "ecab22bf43c9a8f8d522d989bbb7be802756a198db0104279d6402c1cad00a8f"
+        }
+      ],
+      "reports": [
+        {
+          "path": "outputs/14-extension-setup/REPORT.json",
+          "exists": true,
+          "bytes": 11026,
+          "modifiedUtc": "2026-10-31T21:58:36.373Z",
+          "sha256": "f1c47cae6863a6d15ec2df4bc35914b8c550592829813e08f81e0df76c24a198",
+          "validJson": true
+        },
+        {
+          "path": "outputs/14-extension-setup/FIDELITY.md",
+          "exists": true,
+          "bytes": 14251,
+          "modifiedUtc": "2026-10-31T21:57:38.743Z",
+          "sha256": "0359437e7fcc972ad3aa6fdc96e25cbea1a4cc6143a32d38318e08d59e77d0e9"
+        }
+      ],
+      "existingCaptures": [
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-closed.png",
+          "exists": true,
+          "bytes": 478403,
+          "modifiedUtc": "2026-10-31T21:53:02.567Z",
+          "sha256": "f023a807c0f50ec208fe77ac9e66bc9bdd99948c51473281aa941b6b4e638d1e",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-desktop.png",
+          "exists": true,
+          "bytes": 231153,
+          "modifiedUtc": "2026-10-31T21:49:29.291Z",
+          "sha256": "e5bd8b4a850f5e1ae8ff16c4d495e5114f69955c8a900cf51a5ead7cd2a15933",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-landscape.png",
+          "exists": true,
+          "bytes": 225737,
+          "modifiedUtc": "2026-10-31T21:49:15.449Z",
+          "sha256": "27dc8d862f01f88d6df655b8750364a9493f4fec98d694d7f4002b31d97814fd",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-long-addon.png",
+          "exists": true,
+          "bytes": 174948,
+          "modifiedUtc": "2026-10-31T21:52:37.889Z",
+          "sha256": "325755fb6f3f08b8df7bcafc3ba6cd385266c23fbbd334b6e066352b6044e8b5",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-portrait-keyboard.png",
+          "exists": true,
+          "bytes": 200242,
+          "modifiedUtc": "2026-10-31T21:52:48.671Z",
+          "sha256": "2b8d3cf223b4334b2ed77b9fbf8654ddbb6728549cccf819237acbd6b7de1702",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-portrait.png",
+          "exists": true,
+          "bytes": 240054,
+          "modifiedUtc": "2026-10-31T21:49:26.513Z",
+          "sha256": "94e5399888820fd596eb588c88348064247629308b7143fee02b06f13210cb07",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-short-keyboard-focused.png",
+          "exists": true,
+          "bytes": 192302,
+          "modifiedUtc": "2026-10-31T21:50:53.373Z",
+          "sha256": "d113b351e53b9e5b22f68ff5420a4a0b105bea02566bbcacf7ff45af1d726b94",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-short-keyboard.png",
+          "exists": true,
+          "bytes": 194972,
+          "modifiedUtc": "2026-10-31T21:49:36.741Z",
+          "sha256": "47bc5c1b299ecfe44a5ff95895808470b5cff08113d3bca48d5f4806475e9c7f",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-short-long.png",
+          "exists": true,
+          "bytes": 196400,
+          "modifiedUtc": "2026-10-31T21:52:53.011Z",
+          "sha256": "3a19a5a2441797930403e93068430130d6552127a663b653bb61fe585bbba81a",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-small.png",
+          "exists": true,
+          "bytes": 159885,
+          "modifiedUtc": "2026-10-31T21:49:34.826Z",
+          "sha256": "2615cc57b4de407b5038995b531e1b989496df5758113701edaf3227e5eef221",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-tablet-landscape.png",
+          "exists": true,
+          "bytes": 764918,
+          "modifiedUtc": "2026-10-31T21:53:06.595Z",
+          "sha256": "b9a1ca9587b5ed65abc9a8d7619de566e5b9857f92e762b7ab20956eab7d9bdb",
+          "pngWidth": 1280,
+          "pngHeight": 800
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-tablet.png",
+          "exists": true,
+          "bytes": 694741,
+          "modifiedUtc": "2026-10-31T21:52:59.699Z",
+          "sha256": "ff8bed4ac1523c884435c9918aa4830f6dbef9d6d332a1b5c892780b39e1005f",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/extension-setup-test.png",
+          "exists": true,
+          "bytes": 222208,
+          "modifiedUtc": "2026-10-31T21:23:32.637Z",
+          "sha256": "09f0a50011f52b5af3e8c6adc0e1794f3a0b6b847aecf19bee609eb9c2110fc8",
+          "pngWidth": 1280,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-about.png",
+          "exists": true,
+          "bytes": 267062,
+          "modifiedUtc": "2026-10-31T21:45:35.617Z",
+          "sha256": "3a0b4a30d9629eb3150f213c06c2ab23364dc760ce8aa912a64c6156719b398c",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-desktop.png",
+          "exists": true,
+          "bytes": 437119,
+          "modifiedUtc": "2026-10-31T21:53:18.800Z",
+          "sha256": "186f213d41d9440224605599d0144cc474880016ed01a2c9fbb2d2128c1da3da",
+          "pngWidth": 1280,
+          "pngHeight": 700
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-keyboard.png",
+          "exists": true,
+          "bytes": 232112,
+          "modifiedUtc": "2026-10-31T21:45:37.471Z",
+          "sha256": "2816c181d90fdf4c1f9fe15fe74aaaa4750ade1de1b2e20fbbf069be7c06ac5c",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-landscape.png",
+          "exists": true,
+          "bytes": 231807,
+          "modifiedUtc": "2026-10-31T21:45:20.734Z",
+          "sha256": "f0b9f1aa334fa19f92bb7780e16cf91a5a5f5fc7808ea5b391bdb377661dfd55",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-menu-open.png",
+          "exists": true,
+          "bytes": 145185,
+          "modifiedUtc": "2026-10-31T21:45:33.506Z",
+          "sha256": "310df55f1244a7865955a805347da26ca6895d28ea90b3ac4284e151280a24fd",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-portrait.png",
+          "exists": true,
+          "bytes": 208210,
+          "modifiedUtc": "2026-10-31T21:53:12.256Z",
+          "sha256": "13dfe730c1a7b622150b084e7627cbdfdfbed98fc82c4d7c3024294c0786ff56",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-provider-landscape.png",
+          "exists": true,
+          "bytes": 175553,
+          "modifiedUtc": "2026-10-31T21:50:20.535Z",
+          "sha256": "ae13c185a9b21f3bbf7560954c05ce437a5fecf4a90cbea6715832d571efd7f3",
+          "pngWidth": 900,
+          "pngHeight": 412
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-provider-portrait.png",
+          "exists": true,
+          "bytes": 163714,
+          "modifiedUtc": "2026-10-31T21:50:16.730Z",
+          "sha256": "00293fa8f35e21322efc7da4b484ef8e34ff0cb122c3e064c10e825445c1db55",
+          "pngWidth": 412,
+          "pngHeight": 900
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-provider-short.png",
+          "exists": true,
+          "bytes": 140444,
+          "modifiedUtc": "2026-10-31T21:50:34.357Z",
+          "sha256": "9cc00d9544c3ca341dd5cb8acbb26de3ee7a1626d7978db1328495ae557f7c8f",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-provider-small.png",
+          "exists": true,
+          "bytes": 129476,
+          "modifiedUtc": "2026-10-31T21:50:40.657Z",
+          "sha256": "8224a1e2417465d93c1696e1c907cd9cbc1f0154134749ab2760085ad6e4e4d6",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-short.png",
+          "exists": true,
+          "bytes": 199157,
+          "modifiedUtc": "2026-10-31T21:45:30.686Z",
+          "sha256": "a7fee85786c946a3ceec613ae5b15d855630b386e0bd510fef4a1168509df791",
+          "pngWidth": 792,
+          "pngHeight": 354
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-small.png",
+          "exists": true,
+          "bytes": 192062,
+          "modifiedUtc": "2026-10-31T21:45:25.397Z",
+          "sha256": "d0584c260d28f22a7bc65ec2ad17417a20e4548b2e159b14aaf78480ccc6a07a",
+          "pngWidth": 354,
+          "pngHeight": 792
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-tablet-landscape.png",
+          "exists": true,
+          "bytes": 471504,
+          "modifiedUtc": "2026-10-31T21:45:43.685Z",
+          "sha256": "97207fa8f0b4f77803e3019eedefe1bb10b8af61b99111a86a14bdb5eff6305e",
+          "pngWidth": 1280,
+          "pngHeight": 800
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/tankoyomi-configuration-tablet.png",
+          "exists": true,
+          "bytes": 396529,
+          "modifiedUtc": "2026-10-31T21:45:39.805Z",
+          "sha256": "9268defa2fd763850dc38e4d0b7d06d6d40f737d88a6016bfa10ee0c5ad911cc",
+          "pngWidth": 800,
+          "pngHeight": 1280
+        }
+      ],
+      "captureAudits": [
+        {
+          "path": "outputs/14-extension-setup/captures/capture-reconciliation.json",
+          "exists": true,
+          "bytes": 5743,
+          "modifiedUtc": "2026-10-31T21:56:50.052Z",
+          "sha256": "cb4955f1be26b5186191074dc090bfacb2da2ec54a7977f0b3fa55b9f1657ed4",
+          "topLevelKeys": [
+            "kind",
+            "explicitLimitations",
+            "expected",
+            "presentAndDimensionCorrect",
+            "requiredCore",
+            "priorCompletedRenderReceipts",
+            "priorRenderEvidenceClean",
+            "interactionChecks",
+            "interactionPassed",
+            "interactionErrors",
+            "captures"
+          ],
+          "hasHashBinding": false
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/interaction-audit.json",
+          "exists": true,
+          "bytes": 5420,
+          "modifiedUtc": "2026-10-31T21:52:17.772Z",
+          "sha256": "722fc941bdae267f67bab731e85070bbab2b6762062592e2f35a42f5276f372a",
+          "topLevelKeys": [
+            "tool",
+            "command",
+            "checks",
+            "errors"
+          ],
+          "hasHashBinding": false
+        },
+        {
+          "path": "outputs/14-extension-setup/captures/render-audit.json",
+          "exists": true,
+          "bytes": 33794,
+          "modifiedUtc": "2026-10-31T21:46:52.959Z",
+          "sha256": "9995384d4295e4e2e6a3fae9fb2684784ca1ca77daaa7c36a63c1476f9eeec90",
+          "topLevelKeys": [
+            "tool",
+            "command",
+            "executablePath",
+            "receipts"
+          ],
+          "hasHashBinding": false
+        }
+      ]
+    }
+  ],
+  "references": [
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "exists": true,
+      "bytes": 1920,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495"
+    },
+    {
+      "path": "reference/desktop/qml/Glass.qml",
+      "exists": true,
+      "bytes": 5889,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "28d19c799fabeb7670af05cbcd4cc0873ffee0127253c154635b1c1959704fdd"
+    },
+    {
+      "path": "reference/desktop/qml/TopBar.qml",
+      "exists": true,
+      "bytes": 27393,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "5292cebaa5948b87ab2bbf97cee763d99c61868e9f151537463292f696f715e9"
+    },
+    {
+      "path": "reference/desktop/qml/+android/TopBar.qml",
+      "exists": true,
+      "bytes": 27478,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "f546a54ed50c3139c9c03a83fbdb48f9ff13bd28d26b2d7593aed4e90612c35a"
+    },
+    {
+      "path": "reference/desktop/qml/PhoneShellHost.qml",
+      "exists": true,
+      "bytes": 13086,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "74df489a3ab2b26380a54a15f27c28a561e11e5ca3177b4570255952db6c6cc5"
+    },
+    {
+      "path": "reference/desktop/qml/PhoneWorldTabBar.qml",
+      "exists": true,
+      "bytes": 4118,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "515100d4648a7c9f15d835e5c1e2ecc4291a09d051697c546964d45b426faad3"
+    },
+    {
+      "path": "reference/desktop/qml/WideWorldRail.qml",
+      "exists": true,
+      "bytes": 3966,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "06da818472f9fa02a81426bf54b0c86854c1f298a53a1545fab4b1d8649292e3"
+    },
+    {
+      "path": "reference/desktop/qml/HouseWindowControls.qml",
+      "exists": true,
+      "bytes": 2014,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "e4384be0cce0bedd16ea18a95257424d2e02028c3972ebfbd1acc86f909c64e1"
+    },
+    {
+      "path": "reference/desktop/qml/BackAction.qml",
+      "exists": true,
+      "bytes": 7742,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "e33aa23a915b09a152bf271cb36cae191bad2294f0ce8314eb731f4132dd1b69"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountCenter.qml",
+      "exists": true,
+      "bytes": 25990,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "59c56b9e2eb17a55ae11973be0c20812bb37a86e8c3f260abac5eb2aa9bb9976"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountChoice.qml",
+      "exists": true,
+      "bytes": 1903,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "d4853b850f0a6e84f5fe9e7a9b66765844511bb2884f6d3565715168a5f769e1"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountWelcomeChoice.qml",
+      "exists": true,
+      "bytes": 1736,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "74928e9a77eeaf3cef5e54a26153aab35b804d372a01c6628111204868687dce"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountPanelHeader.qml",
+      "exists": true,
+      "bytes": 1199,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "f569842759afd2678c4e5cefb3a7c78c4673f4e16636984681bd2c00a69519b9"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountButton.qml",
+      "exists": true,
+      "bytes": 1832,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "b94ad0518f18291b9e29da2a60b161e806e0ecf81d578a1cb6a2772f32d9b485"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountAvatarGlyph.qml",
+      "exists": true,
+      "bytes": 5402,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "445e4692d45f6fc9481f75b91ff3ed0af11f2af7b7c4c97b917e104ebe819d9a"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountSecurityIcon.qml",
+      "exists": true,
+      "bytes": 2739,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "6f730824113adbe27d12500ee212e30cbde074aeb49470833f2d6f0b2d2371ff"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountRecoveryIcon.qml",
+      "exists": true,
+      "bytes": 2699,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "52a04d51781a4316b7c02791c34fcd27ec8203d0b14d988d83a880ce8b435361"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountDataPrivacyIcon.qml",
+      "exists": true,
+      "bytes": 4244,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "63213a7e3cb8be65b906528a61e55f1b01adcf616a607a354bb8dfc063b83a6c"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountDeviceIcon.qml",
+      "exists": true,
+      "bytes": 1245,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "d9bc4430d3e1ea72d76cc6549f407fdae31f5d2c24a626c782af703b0612cb88"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountAuthoritativeSwitch.qml",
+      "exists": true,
+      "bytes": 1885,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "6a9f04723f37a878d34da4b17fa3caf7993f6d25f8c1fb9634ebb16b2ea7e9a2"
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsSetupSheet.qml",
+      "exists": true,
+      "bytes": 14768,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "acf2486215411f058afc4c019196b96164c28b106e6e275b31ecd54fa1972ccc"
+    },
+    {
+      "path": "reference/desktop/qml/TankoyomiFlag.qml",
+      "exists": true,
+      "bytes": 3806,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "458e0dc82aa76b241f80a7e6ea0b6da5a6d83af308edde38b1ed0ad3437bbfc6"
+    },
+    {
+      "path": "reference/desktop/qml/PhoneProfilePage.qml",
+      "exists": true,
+      "bytes": 4766,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "b325ab5f6bdfc6db0cd4d8f1f80efbe66a4e4eee81fee2566e88905053acd058"
+    },
+    {
+      "path": "reference/desktop/qml/PhoneActionRow.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountWelcome.qml",
+      "exists": true,
+      "bytes": 3632,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "5a95e15fd27dd86890f10855aee342d723ae1670946000415c2ea43eddbee907"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountWelcomePhone.qml",
+      "exists": true,
+      "bytes": 7152,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "efff122a5126d73242460be3adbf774ef37e935bd800cbe72cfb6c0d40d63cee"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountFlyout.qml",
+      "exists": true,
+      "bytes": 18325,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "4c2874685f42083ae8f18e671dc5eede818b4847d0f5893e9befcc500d23b822"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountPageFrame.qml",
+      "exists": true,
+      "bytes": 5540,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "86737ca6c80efb7f0dcdb1b15e90ad9a007a8c8a76a78d2cac38bca72dfb2ac0"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountProfilePage.qml",
+      "exists": true,
+      "bytes": 24768,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "11c6be2e1d5052bf5e4a05afd66ffed16db89125977be12d3b63e0157dc23667"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountSecurityPage.qml",
+      "exists": true,
+      "bytes": 46104,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "2fc0474a85a8301c43d06e5965dd85e67b25e2ef8b5e7309a7e0f1e12c6c14cd"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountRecoveryPage.qml",
+      "exists": true,
+      "bytes": 21524,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "cd922389b0683ee24ecbf2fb06f7142db470016d1ada8ad5c5701b3ff82645d3"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountDataPrivacyPage.qml",
+      "exists": true,
+      "bytes": 63489,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "8d7a511d12adc370d8ce4fed754198e544658b9745439bbf550a553abcb89913"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountDevicesPage.qml",
+      "exists": true,
+      "bytes": 28000,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "ef6f224ba94aaa9f6d078811de482641b9150ae1fd06d347dad36f53897d4f2c"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountYourColosseumPage.qml",
+      "exists": true,
+      "bytes": 27261,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "01d848cdae829310edaa660f2a76ab22a885821f3f56b5d2849d5b6287b1c915"
+    },
+    {
+      "path": "reference/desktop/qml/account/AccountField.qml",
+      "exists": true,
+      "bytes": 3591,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "524440c2807d154d005b6f53c260562692622f1178d9df2174c7e2dc24afca13"
+    },
+    {
+      "path": "reference/desktop/qml/StremioSyncPanel.qml",
+      "exists": true,
+      "bytes": 8872,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "7789c7a703661f96cd4699e834a73ab14c4428681f191676781b1c988d90c238"
+    },
+    {
+      "path": "reference/desktop/qml/SettingsScaffold.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsSetupSheetAndroid.qml",
+      "exists": true,
+      "bytes": 7874,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "95e7dc4560dec4c91ff8308110ca18be5f15f87352c78e1bbf1966d667cdaff4"
+    },
+    {
+      "path": "reference/desktop/qml/TankoyomiConfigurationPage.qml",
+      "exists": true,
+      "bytes": 44708,
+      "modifiedUtc": "2026-10-31T19:05:25.000Z",
+      "sha256": "682e2f5de03fb6451082d41150956eec51c715209945818285bd38f8088e9fee"
+    },
+    {
+      "path": "reference/desktop/qml/TouchComboBox.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/alpha/qml/Theme.qml",
+      "exists": true,
+      "bytes": 2345,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "5c11cd0ed06079c80e317a8f3c4dcfb659791218532e7294c4d4931e67d6d020"
+    },
+    {
+      "path": "reference/alpha/qml/Glass.qml",
+      "exists": true,
+      "bytes": 5754,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "6a47e3d2ead1bf32fe7c54723e382f5ca2030011025f25017c7ae2b8c3ad908e"
+    },
+    {
+      "path": "reference/alpha/qml/TopBar.qml",
+      "exists": true,
+      "bytes": 25177,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "6b777bb3408a0289d7def15f433388f2971a3607a020c92813b31428279a5f60"
+    },
+    {
+      "path": "reference/alpha/qml/+android/TopBar.qml",
+      "exists": true,
+      "bytes": 28073,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "e78d6d9389de6884f911aa16930b4765a0765704d944c9fff0b69227826edd30"
+    },
+    {
+      "path": "reference/alpha/qml/PhoneShellHost.qml",
+      "exists": true,
+      "bytes": 14286,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "ca1bc1f72bf755dd57c577ccaee943a42bd86a77a578c731a5c1b225001ac9b5"
+    },
+    {
+      "path": "reference/alpha/qml/PhoneWorldTabBar.qml",
+      "exists": true,
+      "bytes": 5852,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "64cce8f168ef594eb3e5506bb0952e5870d0347acec56ab39ee284e9d4d69e8d"
+    },
+    {
+      "path": "reference/alpha/qml/WideWorldRail.qml",
+      "exists": true,
+      "bytes": 4114,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "826dc499f1ec5754a21eca4d22f392a5c8b629bb743eb8d33d3c5f70b9d3e19e"
+    },
+    {
+      "path": "reference/alpha/qml/HouseWindowControls.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/alpha/qml/BackAction.qml",
+      "exists": true,
+      "bytes": 7984,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "ad6a7b9af62ee9a539b836ff9d68aa798e7a38a23aa5575516acedc4a47a2eb6"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountCenter.qml",
+      "exists": true,
+      "bytes": 32012,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "598ad4732cac29560db6a2eff175cc57ce4e2b816178b7b6b77031e49097a7df"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountChoice.qml",
+      "exists": true,
+      "bytes": 1863,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "1f73bcfacdeff59b492da15554d8b4c04631e1823338e2128a070cec5d4c7e2e"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountWelcomeChoice.qml",
+      "exists": true,
+      "bytes": 1700,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "d93bcefed13e90a9cf94a17dab5c2c5806dcbc1bf8d4ac4a1f4fdb7c55dd8e67"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountPanelHeader.qml",
+      "exists": true,
+      "bytes": 1194,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "df19f8e2063ed16169ddd74e612d932dcd86c94530cff8ec7f8c892044a0dea3"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountButton.qml",
+      "exists": true,
+      "bytes": 1788,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "9af4c78063667b95f05141752b61aef715cab20cdf02b3113ef3880c067170d7"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountAvatarGlyph.qml",
+      "exists": true,
+      "bytes": 5263,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "f2d7f432e258194525a660abf59ab9a612aeef4dc713ddb5a5f64af2533b543d"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountSecurityIcon.qml",
+      "exists": true,
+      "bytes": 2658,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "4c50d5bf5a8634056de59010c37747b98ee72be844fe69d2473c17cafb132e8e"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountRecoveryIcon.qml",
+      "exists": true,
+      "bytes": 2618,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "cfbbe9622df73db480c568eb50b3b25a5a5cc7d719c8f33c71ec2174c3e3e9a4"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountDataPrivacyIcon.qml",
+      "exists": true,
+      "bytes": 4130,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "3904bc37278b1944a45d518647eb29ee333b7bb98890e856647063b34d7464e6"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountDeviceIcon.qml",
+      "exists": true,
+      "bytes": 1201,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "de898b0df82e46017ba775866b4a8d59f2c65eee8fb7786c0064fc43bd87f9c2"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountAuthoritativeSwitch.qml",
+      "exists": true,
+      "bytes": 1813,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "ef86e6371e62a300ed36c9b2f495d0a6f782b33a2996cb3f04117ddaeaf60c79"
+    },
+    {
+      "path": "reference/alpha/qml/ExtensionsSetupSheet.qml",
+      "exists": true,
+      "bytes": 15100,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "8bbb4a846c0f6efe80f633bd2bd534f671abf739731c46dd5acc70ced0e1afcb"
+    },
+    {
+      "path": "reference/alpha/qml/TankoyomiFlag.qml",
+      "exists": true,
+      "bytes": 3699,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "a513c384ce1ecec58ac58055090af66273b2eb01519aeca6bf04af6991fb47e7"
+    },
+    {
+      "path": "reference/alpha/qml/PhoneProfilePage.qml",
+      "exists": true,
+      "bytes": 4716,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "ee83be3ad23e2915080a6910f4680286790255661455c6f7d5125acfceb078c6"
+    },
+    {
+      "path": "reference/alpha/qml/PhoneActionRow.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountWelcome.qml",
+      "exists": true,
+      "bytes": 3537,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "daf592db84011f373bbc1219786feee1ab14db94698e1ee7053c12131fb12995"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountWelcomePhone.qml",
+      "exists": true,
+      "bytes": 7001,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "a923bcafb0ad79e9964935a4f51bc4ee8109c0f3918a34b6552f7232223fd55b"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountFlyout.qml",
+      "exists": true,
+      "bytes": 17863,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "24e191eef0117b36d1bab4c26a553de126725c2b9231a625a36c3d7e6eb56d31"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountPageFrame.qml",
+      "exists": true,
+      "bytes": 8297,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "53c4d02c67e77db1722324dfd08dc4a468551cc1fb9fd8d159798a4800f76491"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountProfilePage.qml",
+      "exists": true,
+      "bytes": 24251,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "ccd47f632bfdfb83aba2c1254f37811e3494ff8676793f55918e6306d4c5b7d6"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountSecurityPage.qml",
+      "exists": true,
+      "bytes": 45302,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "36cf0aa32cd4d1de9dc89fc8c6bbb531764c6fa436fec2a3ce4d3b84a007667f"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountRecoveryPage.qml",
+      "exists": true,
+      "bytes": 21100,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "90a07c44ad7b0f8399bb2d4d5381c3f2448aef1825bf3d5b63207a2a5a6f20f1"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountDataPrivacyPage.qml",
+      "exists": true,
+      "bytes": 62630,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "a586ed732f6cae08500333b37cfcfe0400dd46df440488998c1d47c49d15fec3"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountDevicesPage.qml",
+      "exists": true,
+      "bytes": 27453,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "aa0c51004ed7e03bb9c10b4853f474e321cdbd328916d07cdb9d9e621d715dd2"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountYourColosseumPage.qml",
+      "exists": true,
+      "bytes": 26903,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "d261dc7483ba4ab801f558134b116ae50f722ea4774730b16f55c529451b3e02"
+    },
+    {
+      "path": "reference/alpha/qml/account/AccountField.qml",
+      "exists": true,
+      "bytes": 3528,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "d2ba8a2c481855ad9e402ef7a5074e5ce1db121477d2cd9af2f3ec0cc45f9233"
+    },
+    {
+      "path": "reference/alpha/qml/StremioSyncPanel.qml",
+      "exists": true,
+      "bytes": 13262,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "9e4ea0eef92a540e9012db73d1c227f3251f458c980250a40c2d37575fcf912d"
+    },
+    {
+      "path": "reference/alpha/qml/SettingsScaffold.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/alpha/qml/ExtensionsSetupSheetAndroid.qml",
+      "exists": true,
+      "bytes": 11355,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "7eef4415237bd9124bab641d9438b5cb3a2fb7147faeb6c41c6350dd4414a5b1"
+    },
+    {
+      "path": "reference/alpha/qml/TankoyomiConfigurationPage.qml",
+      "exists": true,
+      "bytes": 47606,
+      "modifiedUtc": "2026-10-29T04:13:54.000Z",
+      "sha256": "59c027dc275f83df743e03f8031e888f9fdd7ff9caf2865f73be9ed15e1f1e20"
+    },
+    {
+      "path": "reference/alpha/qml/TouchComboBox.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/android-drift/qml/Theme.qml",
+      "exists": true,
+      "bytes": 2345,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "5c11cd0ed06079c80e317a8f3c4dcfb659791218532e7294c4d4931e67d6d020"
+    },
+    {
+      "path": "reference/android-drift/qml/Glass.qml",
+      "exists": true,
+      "bytes": 5754,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "6a47e3d2ead1bf32fe7c54723e382f5ca2030011025f25017c7ae2b8c3ad908e"
+    },
+    {
+      "path": "reference/android-drift/qml/TopBar.qml",
+      "exists": true,
+      "bytes": 25177,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "6b777bb3408a0289d7def15f433388f2971a3607a020c92813b31428279a5f60"
+    },
+    {
+      "path": "reference/android-drift/qml/+android/TopBar.qml",
+      "exists": true,
+      "bytes": 28073,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "e78d6d9389de6884f911aa16930b4765a0765704d944c9fff0b69227826edd30"
+    },
+    {
+      "path": "reference/android-drift/qml/PhoneShellHost.qml",
+      "exists": true,
+      "bytes": 14762,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "eabd57cd99eab51060db33a347df65f9ad27ded1066e210125e1bd6f1aec1dbd"
+    },
+    {
+      "path": "reference/android-drift/qml/PhoneWorldTabBar.qml",
+      "exists": true,
+      "bytes": 5836,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "257fa6b2e3b81b29cac1d15dd49a565d777343c3b1c426d179cbfc826db576d4"
+    },
+    {
+      "path": "reference/android-drift/qml/WideWorldRail.qml",
+      "exists": true,
+      "bytes": 4114,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "826dc499f1ec5754a21eca4d22f392a5c8b629bb743eb8d33d3c5f70b9d3e19e"
+    },
+    {
+      "path": "reference/android-drift/qml/HouseWindowControls.qml",
+      "exists": false
+    },
+    {
+      "path": "reference/android-drift/qml/BackAction.qml",
+      "exists": true,
+      "bytes": 7984,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "ad6a7b9af62ee9a539b836ff9d68aa798e7a38a23aa5575516acedc4a47a2eb6"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountCenter.qml",
+      "exists": true,
+      "bytes": 32334,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "42e77be60278c6f5f14e420099e4ca1a10cdf1220f1d1a3c5f088c45eb6073a2"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountChoice.qml",
+      "exists": true,
+      "bytes": 1863,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "1f73bcfacdeff59b492da15554d8b4c04631e1823338e2128a070cec5d4c7e2e"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountWelcomeChoice.qml",
+      "exists": true,
+      "bytes": 1700,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "d93bcefed13e90a9cf94a17dab5c2c5806dcbc1bf8d4ac4a1f4fdb7c55dd8e67"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountPanelHeader.qml",
+      "exists": true,
+      "bytes": 1194,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "df19f8e2063ed16169ddd74e612d932dcd86c94530cff8ec7f8c892044a0dea3"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountButton.qml",
+      "exists": true,
+      "bytes": 1883,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "3bd8cb144414acab06a2a14ae6280928507896081517d51b1888d89fa76a3c2e"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountAvatarGlyph.qml",
+      "exists": true,
+      "bytes": 5263,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "f2d7f432e258194525a660abf59ab9a612aeef4dc713ddb5a5f64af2533b543d"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountSecurityIcon.qml",
+      "exists": true,
+      "bytes": 2658,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "4c50d5bf5a8634056de59010c37747b98ee72be844fe69d2473c17cafb132e8e"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountRecoveryIcon.qml",
+      "exists": true,
+      "bytes": 2618,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "cfbbe9622df73db480c568eb50b3b25a5a5cc7d719c8f33c71ec2174c3e3e9a4"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountDataPrivacyIcon.qml",
+      "exists": true,
+      "bytes": 4130,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "3904bc37278b1944a45d518647eb29ee333b7bb98890e856647063b34d7464e6"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountDeviceIcon.qml",
+      "exists": true,
+      "bytes": 1201,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "de898b0df82e46017ba775866b4a8d59f2c65eee8fb7786c0064fc43bd87f9c2"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountAuthoritativeSwitch.qml",
+      "exists": true,
+      "bytes": 1813,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "ef86e6371e62a300ed36c9b2f495d0a6f782b33a2996cb3f04117ddaeaf60c79"
+    },
+    {
+      "path": "reference/android-drift/qml/ExtensionsSetupSheet.qml",
+      "exists": true,
+      "bytes": 15100,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "8bbb4a846c0f6efe80f633bd2bd534f671abf739731c46dd5acc70ced0e1afcb"
+    },
+    {
+      "path": "reference/android-drift/qml/TankoyomiFlag.qml",
+      "exists": true,
+      "bytes": 3699,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "a513c384ce1ecec58ac58055090af66273b2eb01519aeca6bf04af6991fb47e7"
+    },
+    {
+      "path": "reference/android-drift/qml/PhoneProfilePage.qml",
+      "exists": true,
+      "bytes": 7408,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "acb09f6d8e8b13e68ae837ab919ea619c4deab291e524cbef4178fdedb7866a2"
+    },
+    {
+      "path": "reference/android-drift/qml/PhoneActionRow.qml",
+      "exists": true,
+      "bytes": 87,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "5e44e56295e79ae86b0f3443f5c86bf2dfd7227aa6160596f1ecdb53e246009e"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountWelcome.qml",
+      "exists": true,
+      "bytes": 3460,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "d2eee352f43605e1b41b58be80e9c139cf7ae5b1d5e72cec76127bf448628eb7"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountWelcomePhone.qml",
+      "exists": true,
+      "bytes": 7013,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "7bc618a41b5540bc3c73705f8649a810300ba5cb362a15d9c39c40e9308423b4"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountFlyout.qml",
+      "exists": true,
+      "bytes": 18660,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "3c24a734b402d3b8a80b65a73c764ecbbeec769ed344e70a9d2894c1a0f81507"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountPageFrame.qml",
+      "exists": true,
+      "bytes": 7895,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "7905449a39cbacedb5806425f58c98d2a84f68ff416d9a5e1e7b38ffe9f41db5"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountProfilePage.qml",
+      "exists": true,
+      "bytes": 24320,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "3768e02b0cdc69c197a85bb0dd2a8a250b4b392b1db477e83bd799c638587e93"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountSecurityPage.qml",
+      "exists": true,
+      "bytes": 45943,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "4afc3e58c9eacf596091032a4e2fb44a92df6f455e51e49581aaf7e311495070"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountRecoveryPage.qml",
+      "exists": true,
+      "bytes": 21268,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "d407289c64076602832b8a596d7a94cd33085736941e2564572ef434b95bc025"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountDataPrivacyPage.qml",
+      "exists": true,
+      "bytes": 63177,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "7c319484bab98b72b95ad866c855576d14dd8a818c2cb5dcde17b5294ae19409"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountDevicesPage.qml",
+      "exists": true,
+      "bytes": 27673,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "130991af80b0af122a5ccefc0d6d170850dea8c525145a838340db858672bc13"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountYourColosseumPage.qml",
+      "exists": true,
+      "bytes": 27133,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "8aae7dc7fd13fe81a9a75dc3a7f21ecdcbe8029b1ba91047f0a1fb106035642f"
+    },
+    {
+      "path": "reference/android-drift/qml/account/AccountField.qml",
+      "exists": true,
+      "bytes": 3719,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "5cf1acf5fc5bdddeabc0abf9d1f3904712e12ca08eadc336b4539d4ac5e49ce1"
+    },
+    {
+      "path": "reference/android-drift/qml/StremioSyncPanel.qml",
+      "exists": true,
+      "bytes": 14087,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "c73ab766eceb46cb7e0615383d4d8a706cdf36e5ac385486e8a37ecb9ce4b208"
+    },
+    {
+      "path": "reference/android-drift/qml/SettingsScaffold.qml",
+      "exists": true,
+      "bytes": 1158,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "cbee5c9682ae56157ee338ec05affe7efe00b09e9347265962964bae3f148896"
+    },
+    {
+      "path": "reference/android-drift/qml/ExtensionsSetupSheetAndroid.qml",
+      "exists": true,
+      "bytes": 12075,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "7d57311273df36e2cdd995a5d3b623dfba0f757a8090cbaa601ae7aae5bc1005"
+    },
+    {
+      "path": "reference/android-drift/qml/TankoyomiConfigurationPage.qml",
+      "exists": true,
+      "bytes": 49406,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "e8e748738ffd8ebbd558fc03afa68d1cd036fd51cbd1432cf1a3bcac6684779e"
+    },
+    {
+      "path": "reference/android-drift/qml/TouchComboBox.qml",
+      "exists": true,
+      "bytes": 1281,
+      "modifiedUtc": "2026-10-31T18:32:33.000Z",
+      "sha256": "cbf2eedc912d6bf596f0ec82e0c0705dfe3fb58daca76ddc6339a72f9e9af633"
+    }
+  ],
+  "context": [
+    {
+      "path": "context/ANDROID-PORT-CLASSIFICATION.md",
+      "exists": true,
+      "bytes": 11389,
+      "modifiedUtc": "2026-10-31T20:01:23.574Z",
+      "sha256": "cc5eb89284d095fd6e5efe91e3416818746756e7f9438fbcf8073d5da6ee829a"
+    },
+    {
+      "path": "context/VIEWPORTS.json",
+      "exists": true,
+      "bytes": 705,
+      "modifiedUtc": "2026-10-31T20:33:29.152Z",
+      "sha256": "098eb7ca11d08966b6974082338a60d9d6534917d876070342c084e1f1d77552"
+    },
+    {
+      "path": "context/UI-VERIFICATION-AUDIT.md",
+      "exists": true,
+      "bytes": 9002,
+      "modifiedUtc": "2026-10-31T19:12:46.341Z",
+      "sha256": "f5021041915c29df5f89130c0a0fe36014389171dc797aa0b14361169571985e"
+    }
+  ]
+}

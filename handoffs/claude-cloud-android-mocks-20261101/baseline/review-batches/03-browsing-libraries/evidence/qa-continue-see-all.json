@@ -1,0 +1,114 @@
+{
+  "job": "20-search-browse",
+  "name": "continue-see-all.html",
+  "checks": [
+    {
+      "name": "home scope shows matching items and original medium controls",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 8
+      },
+      "time": "2026-11-01T00:01:52.488Z"
+    },
+    {
+      "name": "video scope shows matching items and original medium controls",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 2
+      },
+      "time": "2026-11-01T00:01:53.430Z"
+    },
+    {
+      "name": "tankoban scope shows matching items and original medium controls",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 3
+      },
+      "time": "2026-11-01T00:01:54.548Z"
+    },
+    {
+      "name": "book scope shows matching items and original medium controls",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 3
+      },
+      "time": "2026-11-01T00:01:56.253Z"
+    },
+    {
+      "name": "Medium filter and A–Z operate on fixture items",
+      "pass": true,
+      "time": "2026-11-01T00:01:58.304Z"
+    },
+    {
+      "name": "Keyboard context menu fits short landscape and arrow navigation works",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "fit": {
+          "pass": true,
+          "x": 23,
+          "y": 121.1875,
+          "w": 165.5,
+          "h": 112,
+          "right": 188.5,
+          "bottom": 233.1875,
+          "visible": true,
+          "client": 110,
+          "scroll": 110
+        },
+        "first": "context-detail",
+        "second": "context-resume"
+      },
+      "time": "2026-11-01T00:02:00.157Z"
+    },
+    {
+      "name": "Escape closes context and restores tile focus",
+      "pass": true,
+      "time": "2026-11-01T00:02:01.282Z"
+    },
+    {
+      "name": "Context remove updates progress collection",
+      "pass": true,
+      "time": "2026-11-01T00:02:02.382Z"
+    },
+    {
+      "name": "Removing scope contents reaches Nothing to continue",
+      "pass": true,
+      "time": "2026-11-01T00:02:05.819Z"
+    },
+    {
+      "name": "Watched filter without matching entries has Nothing here yet",
+      "pass": true,
+      "time": "2026-11-01T00:02:09.352Z"
+    },
+    {
+      "name": "All progress items remain reachable at end of scroll",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 785,
+        "scrollHeight": 1529,
+        "clientHeight": 744
+      },
+      "time": "2026-11-01T00:02:13.396Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\continue-see-all\\continue-home-stress.png",
+    "evidence\\after\\continue-see-all\\continue-video-stress.png",
+    "evidence\\after\\continue-see-all\\continue-tankoban-stress.png",
+    "evidence\\after\\continue-see-all\\continue-book-stress.png",
+    "evidence\\after\\continue-see-all\\continue-books-sorted.png",
+    "evidence\\after\\continue-see-all\\continue-menu-short-stress.png",
+    "evidence\\after\\continue-see-all\\continue-after-context-remove.png",
+    "evidence\\after\\continue-see-all\\continue-scope-empty.png",
+    "evidence\\after\\continue-see-all\\continue-filter-empty.png",
+    "evidence\\after\\continue-see-all\\continue-long-bottom.png"
+  ],
+  "completedAt": "2026-11-01T00:02:13.813Z",
+  "pass": true
+}

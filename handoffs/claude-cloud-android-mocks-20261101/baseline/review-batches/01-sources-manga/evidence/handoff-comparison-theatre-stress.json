@@ -1,0 +1,236 @@
+{
+  "captured_at": "2026-10-31T23:34:34.917Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks",
+  "file": "compare.html",
+  "viewport": {
+    "width": 1500,
+    "height": 1080
+  },
+  "params": {
+    "page": 0,
+    "preset": "short",
+    "font": 1.3,
+    "insets": 24,
+    "state": "provider"
+  },
+  "png": "captures/handoff-comparison-theatre-stress.png",
+  "metrics": {
+    "app": null,
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "SELECT",
+        "id": "pageSelect",
+        "class": "",
+        "text": "Film Sources\nEpisode Sources\nComic Sources\nComic Source Confirmation\nManga Volume Sources\nManga Series\nManga Chapters\nVolume Flow Original F",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 110,
+          "y": 207.921875,
+          "width": 228,
+          "height": 37,
+          "right": 338,
+          "bottom": 244.921875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"pageSelect\"><option value=\"0\">Film Sources</option><option value=\"1\">Episode Sources</option><option value=\"2\">Comic Sources</option><option value=\"3\">Comic Source Confirmation</option><op"
+      },
+      {
+        "tag": "SELECT",
+        "id": "preset",
+        "class": "",
+        "text": "412 × 900 portrait\n900 × 412 landscape\n354 × 792 portrait\n792 × 354 landscape\n1280 × 700 desktop\n800 × 1280 tablet\n1280 × 800 tablet",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 353,
+          "y": 207.921875,
+          "width": 157,
+          "height": 37,
+          "right": 510,
+          "bottom": 244.921875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"preset\"><option value=\"portrait\">412 × 900 portrait</option><option value=\"landscape\">900 × 412 landscape</option><option value=\"compact\">354 × 792 portrait</option><option value=\"short\">7"
+      },
+      {
+        "tag": "SELECT",
+        "id": "font",
+        "class": "",
+        "text": "1\n1.3",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 525,
+          "y": 207.921875,
+          "width": 55,
+          "height": 37,
+          "right": 580,
+          "bottom": 244.921875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"font\"><option>1</option><option>1.3</option></select>"
+      },
+      {
+        "tag": "SELECT",
+        "id": "insets",
+        "class": "",
+        "text": "0\n24",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 595,
+          "y": 207.921875,
+          "width": 106.671875,
+          "height": 37,
+          "right": 701.671875,
+          "bottom": 244.921875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"insets\"><option>0</option><option>24</option></select>"
+      },
+      {
+        "tag": "SELECT",
+        "id": "state",
+        "class": "",
+        "text": "default\nprovider\ndownload\nseason",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 716.671875,
+          "y": 207.921875,
+          "width": 96,
+          "height": 37,
+          "right": 812.671875,
+          "bottom": 244.921875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"state\"><option>default</option><option>provider</option><option>download</option><option>season</option></select>"
+      },
+      {
+        "tag": "SELECT",
+        "id": "position",
+        "class": "",
+        "text": "Initial\nContent / gallery\nBottom actions / final rows",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 827.671875,
+          "y": 207.921875,
+          "width": 193,
+          "height": 37,
+          "right": 1020.671875,
+          "bottom": 244.921875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"position\"><option value=\"initial\">Initial</option><option value=\"gallery\">Content / gallery</option><option value=\"bottom\">Bottom actions / final rows</option></select>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "reload",
+        "class": "",
+        "text": "Reload comparison",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 1035.671875,
+          "y": 187.78125,
+          "width": 153.421875,
+          "height": 57.140625,
+          "right": 1189.09375,
+          "bottom": 244.921875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<button id=\"reload\">Reload comparison</button>"
+      }
+    ],
+    "scrollers": [],
+    "fonts": []
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\compare.html",
+      "bytes": 10037,
+      "sha256": "ae17a2d2782859bf5097ae141dc0acc809288f1dc94c1fb4e01bf5ae202e0704"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\film-sources.html",
+      "bytes": 4880,
+      "sha256": "cc2c3a07bd966ac5dc48c2ac4b1deee80e6e113d4b433d27de7e79c6c4ecf101"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\film-sources.html",
+      "bytes": 4886,
+      "sha256": "2f9178619a05268c0373d6912dd3f63afccec29ee16f9d64785eaeff42c309ac"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\style.css",
+      "bytes": 17082,
+      "sha256": "c438f02e5470c9dfb3aeacbac35fbcefd6f8861019f8372f8a98366b470eab5e"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\app.js",
+      "bytes": 19929,
+      "sha256": "c56aebfee46556a811183b93c2f34cf61d2f8fe21e9a1b18c12a276404a3ca8f"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\style.css",
+      "bytes": 17533,
+      "sha256": "9593913b331389fd86b9c1736147a0fde8e208ed8ca7fc4b5ecd3d7707399d81"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\app.js",
+      "bytes": 21531,
+      "sha256": "7fcb0c6a1689836a3a4488fb5287e32564d398490bc3ffb932225482f10697a0"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\wallpaper\\captured-motion.jpg",
+      "bytes": 1019877,
+      "sha256": "9f56f69ee6d80fcd612e8ff43f23ed9744114868575a873f840191ddbdd48289"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeuib.ttf",
+      "bytes": 947364,
+      "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2"
+    },
+    {
+      "path": "reference\\desktop\\assets\\extensions\\house\\starwars-banner.jpg",
+      "bytes": 500855,
+      "sha256": "f77aed3b2b5d1b65279055d49a7e2d2171ccca2b5fdb3dab670fbee1835201a6"
+    }
+  ],
+  "extra": {}
+}

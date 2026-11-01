@@ -1,0 +1,20 @@
+(async()=>{const out=[];for(const name of ['theatre-home.html','tankoban-home.html','universes-home.html']){
+qaStart('15-world-home',name);await go(qaPage.job,name,'after',354,792);
+await qaCheck('Carousel dot changes title and active indicator',async()=>{let old=await page.$eval('.hero-title',e=>e.textContent);await qaClick('[data-action="slide"][data-index="1"]');return await page.$eval('.hero-title',e=>e.textContent)!==old&&await page.$eval('[data-action="slide"][data-index="1"]',e=>e.classList.contains('active'));});await qaShot('carousel-second');
+await qaCheck('Carousel keyboard arrow changes slide',async()=>{await page.focus('.featured');const old=await page.$eval('.hero-title',e=>e.textContent);await page.keyboard.press('ArrowRight');await delay(100);return await page.$eval('.hero-title',e=>e.textContent)!==old;});
+await go(qaPage.job,name,'after',354,792,{state:'long-title',font:'1.3',top:'24',bottom:'24'});await qaShot('long-title-stress');
+await qaCheck('Hero actions stay inside hero with long text',async()=>page.evaluate(()=>{const r=document.querySelector('.featured').getBoundingClientRect();const a=document.querySelector('.hero-actions').getBoundingClientRect();return{pass:a.left>=r.left&&a.right<=r.right+1&&a.top>=r.top&&a.bottom<=r.bottom,hero:[r.top,r.bottom],actions:[a.top,a.bottom]};}));
+if(name==='universes-home.html'){
+await go(qaPage.job,name,'after',354,792,{font:'1.3'});await qaCheck('Books filter matches banner forms',async()=>{await qaClick('[data-action="facet"][data-value="books"]');return page.$$eval('.universe-banner',es=>es.length===2&&es.every(e=>e.textContent.includes('Books')));});await qaShot('books-filter');
+await qaCheck('Films filter includes all matching banners',async()=>{await qaClick('[data-action="facet"][data-value="films"]');return await page.$$eval('.universe-banner',es=>es.length)===5;});
+await qaCheck('Last form chip scrolls into reach',async()=>{await qaClick('[data-action="facet"][data-value="comics"]');return await page.$$eval('.universe-banner',es=>es.length===1&&es[0].textContent.includes('Star Wars'));});await qaShot('comics-filter');
+}else{
+await go(qaPage.job,name,'after',412,900);await qaCheck('Continue context menu opens and Escape dismisses',async()=>{await page.click('.continue-tile',{button:'right'});await delay(100);let opened=!!await page.$('.tile-context');await qaShot('continue-context');await page.keyboard.press('Escape');await delay(100);return opened&&!await page.$('.tile-context');});
+await qaCheck('Removing a fixture updates visible continue cards',async()=>{const n=await page.$$eval('.continue-tile',es=>es.length);await page.hover('.continue-tile');await qaClick('.tile-remove');return await page.$$eval('.continue-tile',es=>es.length)===n-1;});
+await go(qaPage.job,name,'after',792,354,{state:'filter-open',font:'1.3',top:'24',bottom:'24'});await qaCheck('Filter popup fits short landscape',()=>qaBounds('.picker-menu'));await qaShot('filter-short-stress');
+await qaCheck('Filter updates local poster wall and closes',async()=>{await qaClick('[data-action="filter-option"][data-value="Romance"]');return !await page.$('.picker-menu')&&await page.$eval('.poster-wall',e=>e.textContent.includes('No titles match'));});await qaShot('filter-empty');
+}
+await go(qaPage.job,name,'after',900,412);await qaCheck('Wide shell uses original 92px rail',async()=>{const e=await page.$('.world-nav.side');if(e)return e.evaluate(e=>e.getBoundingClientRect().width===92);return page.evaluate(()=>[...document.querySelectorAll('nav')].some(e=>Math.round(e.getBoundingClientRect().width)===92));});
+await qaCheck('World long content scrolls to end',()=>qaScrollBottom('#worldScroll'));await qaShot('long-content-bottom');
+await go(qaPage.job,name,'after',1280,700);await qaCheck('Desktop compact hero title follows 42px source branch',async()=>await page.$eval('.hero-title',e=>getComputedStyle(e).fontSize)==='42px');
+out.push(qaSave());}return out;})()

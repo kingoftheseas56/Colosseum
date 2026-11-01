@@ -1,0 +1,12 @@
+{
+  "utc": "2026-11-01T00:11:29.174264+00:00",
+  "gaps": [
+    {
+      "finding": "B2-019",
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\REPORT.json",
+      "exists": false,
+      "status": "unavailable-original-handoff",
+      "note": "Absent at initial inspection and final handoff; no replacement written to original outputs."
+    }
+  ]
+}

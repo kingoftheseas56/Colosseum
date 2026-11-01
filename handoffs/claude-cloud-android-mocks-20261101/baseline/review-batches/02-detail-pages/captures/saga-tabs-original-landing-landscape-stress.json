@@ -1,0 +1,21 @@
+{
+  "name": "saga-tabs-original-landing-landscape-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-original-landing-landscape-stress.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&fixture=jump&tabs=original&scale=1.3&top=24&bottom=24",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&fixture=jump&tabs=original&scale=1.3&top=24&bottom=24",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 900,
+    "height": 412,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-11-01T00:04:00.895Z",
+  "sha256": "262eafb5a62a4af9cf00691cf7951d6bd6c4e5ce189836d91e5ab012a3c4663d",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

@@ -1,0 +1,21 @@
+{
+  "name": "saga-finished-continue-context-portrait-small-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-continue-context-portrait-small-stress.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:32:36.659Z",
+  "sha256": "eaebd397f601dae321c1454e44995601b0d2aad0f3f50a13fee6b41a4534c3ac",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

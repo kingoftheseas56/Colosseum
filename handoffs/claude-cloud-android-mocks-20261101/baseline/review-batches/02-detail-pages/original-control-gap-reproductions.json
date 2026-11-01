@@ -1,0 +1,142 @@
+{
+  "utc": "2026-10-31T23:34:25.278Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-archive.html?capture=1&state=index&font=1.3&top=24&bottom=24",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"all-releases\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "original-archive-all-releases-target",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-series.html"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-original-all-releases-wrong-route",
+      "result": {
+        "name": "comic-archive-original-all-releases-wrong-route",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-original-all-releases-wrong-route.png",
+        "input": "outputs/18-comic-details/comic-archive.html?capture=1&state=index&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-series.html",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:34:22.294Z",
+        "sha256": "39c3906ea0d4503c47d5410d6b7844e93e7fc95a57f6324178912a10bb1a33c1",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-original-continue-controls-absent",
+      "result": {
+        "removeControl": false,
+        "context": false
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-continue-context-absent-portrait-small-stress",
+      "result": {
+        "name": "saga-original-continue-context-absent-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-continue-context-absent-portrait-small-stress.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:34:23.726Z",
+        "sha256": "9499f6a51e43546aa4dfb1f6f14d880fcdf17f89829638696a6190c2b6f39329",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-original-continue-controls-absent",
+      "result": {
+        "removeControl": false,
+        "context": false
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-continue-context-absent-portrait-small-stress",
+      "result": {
+        "name": "shelves-original-continue-context-absent-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-continue-context-absent-portrait-small-stress.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:34:25.271Z",
+        "sha256": "fdf24f7c3ef413ff568be56902f9bcfa9b0771ec4e744668a4d46ae2b9065636",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

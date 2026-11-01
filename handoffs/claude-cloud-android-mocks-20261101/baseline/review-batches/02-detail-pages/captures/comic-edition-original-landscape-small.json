@@ -1,0 +1,16 @@
+{
+  "name": "comic-edition-original-landscape-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-original-landscape-small.png",
+  "input": "outputs/18-comic-details/comic-edition.html?capture=1",
+  "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-edition.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 792,
+    "height": 354,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:57:55.818Z",
+  "sha256": "10ec3ce3babf7c45dbbe44033eb8077e1d0b55358ccfe8803cfb40e166ccc01d",
+  "errors": [],
+  "blocked": []
+}

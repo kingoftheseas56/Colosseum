@@ -1,0 +1,70 @@
+{
+  "command": "node interaction-smoke.js",
+  "results": [
+    {
+      "label": "Theatre starts collapsed",
+      "pass": true
+    },
+    {
+      "label": "Rail expands in-place with no overlay",
+      "pass": true
+    },
+    {
+      "label": "Expanded rail retains wrapped long row label",
+      "pass": true
+    },
+    {
+      "label": "Customize mode contains original controls",
+      "pass": true
+    },
+    {
+      "label": "Rename commits inline",
+      "pass": true
+    },
+    {
+      "label": "Reset restores source title",
+      "pass": true
+    },
+    {
+      "label": "Hide dim in edit, retained rail navigation",
+      "pass": true
+    },
+    {
+      "label": "Hide removes row on Done",
+      "pass": true
+    },
+    {
+      "label": "Shows selected with original shelf titles",
+      "pass": true
+    },
+    {
+      "label": "Anime selected with original shelf titles",
+      "pass": true
+    },
+    {
+      "label": "354 portrait font 1.3 + 24px insets no rail/shelf overlap",
+      "pass": true,
+      "width": 149.375,
+      "gap": 16,
+      "bottom": 696,
+      "scrollerBottom": 696,
+      "topbarTop": 36,
+      "genre": true
+    },
+    {
+      "label": "Long Manga row index scrolls target",
+      "pass": true,
+      "before": 0,
+      "after": 2239
+    },
+    {
+      "label": "900 landscape uses wide world rail and preserved Explore Comics",
+      "pass": true,
+      "wide": true,
+      "bottom": true,
+      "explore": true,
+      "rowCount": 18,
+      "gap": 28
+    }
+  ]
+}

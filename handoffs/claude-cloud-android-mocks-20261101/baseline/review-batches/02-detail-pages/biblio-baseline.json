@@ -1,0 +1,1895 @@
+{
+  "utc": "2026-10-31T22:42:37.923Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=portrait",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-portrait",
+      "result": {
+        "name": "biblio-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-portrait.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=portrait",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:42:31.613Z",
+        "sha256": "083d5a7bc926f400d00261d6551a3f1f8e59b8bdd2ecf4b487681e1d864d4229",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "metrics",
+      "result": {
+        "app": {
+          "w": 412,
+          "h": 900
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "book-back",
+            "cls": "back-action",
+            "text": "Back",
+            "rect": {
+              "x": 39,
+              "y": 19,
+              "w": 63.578125,
+              "h": 44,
+              "right": 102.578125,
+              "bottom": 63
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "read-button",
+            "cls": "read-cta",
+            "text": "Read",
+            "rect": {
+              "x": 20,
+              "y": 663.203125,
+              "w": 372,
+              "h": 48,
+              "right": 392,
+              "bottom": 711.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "library-button",
+            "cls": "ghost-action library-action",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 20,
+              "y": 745.140625,
+              "w": 372,
+              "h": 48,
+              "right": 392,
+              "bottom": 793.140625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "collections-button",
+            "cls": "ghost-action collections-action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 20,
+              "y": 802.140625,
+              "w": 372,
+              "h": 44,
+              "right": 392,
+              "bottom": 846.140625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row is-preferred",
+            "text": "The Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1428.9375,
+              "w": 370,
+              "h": 64,
+              "right": 391,
+              "bottom": 1492.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1492.9375,
+              "w": 370,
+              "h": 64,
+              "right": 391,
+              "bottom": 1556.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "Brandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1556.9375,
+              "w": 370,
+              "h": 64,
+              "right": 391,
+              "bottom": 1620.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1620.9375,
+              "w": 370,
+              "h": 64,
+              "right": 391,
+              "bottom": 1684.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1684.9375,
+              "w": 370,
+              "h": 64,
+              "right": 391,
+              "bottom": 1748.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "torrent-more",
+            "cls": "source-more",
+            "text": "See 2 more",
+            "rect": {
+              "x": 21,
+              "y": 1748.9375,
+              "w": 370,
+              "h": 46,
+              "right": 391,
+              "bottom": 1794.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row is-preferred",
+            "text": "EPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1865.734375,
+              "w": 370,
+              "h": 54.375,
+              "right": 391,
+              "bottom": 1920.109375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "PDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1920.109375,
+              "w": 370,
+              "h": 55.375,
+              "right": 391,
+              "bottom": 1975.484375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "MOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1975.484375,
+              "w": 370,
+              "h": 55.375,
+              "right": 391,
+              "bottom": 2030.859375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "M4B\n1.21 GB   ·   English   ·   2020\n↓",
+            "rect": {
+              "x": 21,
+              "y": 2091.65625,
+              "w": 370,
+              "h": 52,
+              "right": 391,
+              "bottom": 2143.65625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "MP3\n950 MB   ·   English   ·   2017\n↓",
+            "rect": {
+              "x": 21,
+              "y": 2143.65625,
+              "w": 370,
+              "h": 52,
+              "right": 391,
+              "bottom": 2195.65625
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": 102,
+              "y": 96,
+              "w": 208,
+              "h": 312,
+              "right": 310,
+              "bottom": 408
+            }
+          },
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": -519,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -519,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "scrollWidth": 412,
+            "clientWidth": 412,
+            "scrollHeight": 2147,
+            "clientHeight": 816,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 84,
+              "w": 412,
+              "h": 816,
+              "right": 412,
+              "bottom": 900
+            }
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -519,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -519,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -519,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -519,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -519,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -519,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "focus": "",
+        "text": "Back\nBiblio\nRead\n\nRead will choose a tracked edition\n\n+\nLibrary\nAdd to Collections\n\nEPIC FANTASY  ·  BRANDON SANDERSON  ·  2010\n\nThe Way of Kings: Book One of the Stormlight Archive\n\n“Life before death. Strength before weakness. Journey before destination.”\n\nOn Roshar, highstorms shape the lives of kingdoms and the people who struggle to survive them. Kaladin, once a surgeon’s apprentice and a soldier, finds himself enslaved on the Shattered Plains, where bridge crews are sent into battles few return from. He must find a reason to protect others while everything he believes about honor is being tested. In a distant city, Shallan Davar seeks knowledge from the scholar Jasnah Kholin, concealing a desperate plan of her own. The visions of Dalinar Kholin, a highprince and veteran of the wars, point toward a danger far greater than any struggle over territory. Their stories follow separate paths through a world of ancient oaths, unusual powers, and the consequences of long-forgotten decisions. The questions that bind them together grow larger as each tries to decide what kind of person to become when duty, survival, and trust collide.\n\nTORRENTS · 7\nThe Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓\nThe Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓\nBrandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓\nThe Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓\nThe Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓\nSee 2 more\nEDITIONS · 3\nEPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nPDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓\nMOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nAUDIOBOOK · 2\nM4B\n1.21 GB   ·   English   ·   2020\n↓\nMP3\n950 MB   ·   English   ·   2017\n↓"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=portraitSmall",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-portrait-small",
+      "result": {
+        "name": "biblio-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-portrait-small.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=portraitSmall",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=portraitSmall",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:42:33.242Z",
+        "sha256": "986aac6117389fd5221bc97ac03f84e90b924e4e954656c8cd208c461b350290",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "metrics",
+      "result": {
+        "app": {
+          "w": 354,
+          "h": 792
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "book-back",
+            "cls": "back-action",
+            "text": "Back",
+            "rect": {
+              "x": 39,
+              "y": 19,
+              "w": 63.578125,
+              "h": 44,
+              "right": 102.578125,
+              "bottom": 63
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "read-button",
+            "cls": "read-cta",
+            "text": "Read",
+            "rect": {
+              "x": 20,
+              "y": 691.796875,
+              "w": 314,
+              "h": 48,
+              "right": 334,
+              "bottom": 739.796875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "library-button",
+            "cls": "ghost-action library-action",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 20,
+              "y": 773.734375,
+              "w": 314,
+              "h": 48,
+              "right": 334,
+              "bottom": 821.734375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "collections-button",
+            "cls": "ghost-action collections-action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 20,
+              "y": 830.734375,
+              "w": 314,
+              "h": 44,
+              "right": 334,
+              "bottom": 874.734375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row is-preferred",
+            "text": "The Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1534.03125,
+              "w": 312,
+              "h": 64,
+              "right": 333,
+              "bottom": 1598.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1598.03125,
+              "w": 312,
+              "h": 64,
+              "right": 333,
+              "bottom": 1662.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "Brandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1662.03125,
+              "w": 312,
+              "h": 64,
+              "right": 333,
+              "bottom": 1726.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1726.03125,
+              "w": 312,
+              "h": 64,
+              "right": 333,
+              "bottom": 1790.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1790.03125,
+              "w": 312,
+              "h": 64,
+              "right": 333,
+              "bottom": 1854.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "torrent-more",
+            "cls": "source-more",
+            "text": "See 2 more",
+            "rect": {
+              "x": 21,
+              "y": 1854.03125,
+              "w": 312,
+              "h": 46,
+              "right": 333,
+              "bottom": 1900.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row is-preferred",
+            "text": "EPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 21,
+              "y": 1970.828125,
+              "w": 312,
+              "h": 54.375,
+              "right": 333,
+              "bottom": 2025.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "PDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓",
+            "rect": {
+              "x": 21,
+              "y": 2025.203125,
+              "w": 312,
+              "h": 55.375,
+              "right": 333,
+              "bottom": 2080.578125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "MOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 21,
+              "y": 2080.578125,
+              "w": 312,
+              "h": 55.375,
+              "right": 333,
+              "bottom": 2135.953125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "M4B\n1.21 GB   ·   English   ·   2020\n↓",
+            "rect": {
+              "x": 21,
+              "y": 2196.75,
+              "w": 312,
+              "h": 52,
+              "right": 333,
+              "bottom": 2248.75
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "MP3\n950 MB   ·   English   ·   2017\n↓",
+            "rect": {
+              "x": 21,
+              "y": 2248.75,
+              "w": 312,
+              "h": 52,
+              "right": 333,
+              "bottom": 2300.75
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": 73,
+              "y": 96,
+              "w": 208,
+              "h": 312,
+              "right": 281,
+              "bottom": 408
+            }
+          },
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": -548,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -548,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "scrollWidth": 354,
+            "clientWidth": 354,
+            "scrollHeight": 2252,
+            "clientHeight": 708,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 84,
+              "w": 354,
+              "h": 708,
+              "right": 354,
+              "bottom": 792
+            }
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -548,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -548,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -548,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -548,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -548,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -548,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "focus": "",
+        "text": "Back\nBiblio\nRead\n\nRead will choose a tracked edition\n\n+\nLibrary\nAdd to Collections\n\nEPIC FANTASY  ·  BRANDON SANDERSON  ·  2010\n\nThe Way of Kings: Book One of the Stormlight Archive\n\n“Life before death. Strength before weakness. Journey before destination.”\n\nOn Roshar, highstorms shape the lives of kingdoms and the people who struggle to survive them. Kaladin, once a surgeon’s apprentice and a soldier, finds himself enslaved on the Shattered Plains, where bridge crews are sent into battles few return from. He must find a reason to protect others while everything he believes about honor is being tested. In a distant city, Shallan Davar seeks knowledge from the scholar Jasnah Kholin, concealing a desperate plan of her own. The visions of Dalinar Kholin, a highprince and veteran of the wars, point toward a danger far greater than any struggle over territory. Their stories follow separate paths through a world of ancient oaths, unusual powers, and the consequences of long-forgotten decisions. The questions that bind them together grow larger as each tries to decide what kind of person to become when duty, survival, and trust collide.\n\nTORRENTS · 7\nThe Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓\nThe Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓\nBrandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓\nThe Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓\nThe Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓\nSee 2 more\nEDITIONS · 3\nEPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nPDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓\nMOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nAUDIOBOOK · 2\nM4B\n1.21 GB   ·   English   ·   2020\n↓\nMP3\n950 MB   ·   English   ·   2017\n↓"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscape",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-landscape",
+      "result": {
+        "name": "biblio-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-landscape.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=landscape",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:42:34.715Z",
+        "sha256": "044e9995393b5712d1cae755ca9f9ea26af1c0b012e88ed45f33fdb7ed1b73ad",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "metrics",
+      "result": {
+        "app": {
+          "w": 900,
+          "h": 412
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "book-back",
+            "cls": "back-action",
+            "text": "Back",
+            "rect": {
+              "x": 43,
+              "y": 11,
+              "w": 63.578125,
+              "h": 44,
+              "right": 106.578125,
+              "bottom": 55
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "read-button",
+            "cls": "read-cta",
+            "text": "Read",
+            "rect": {
+              "x": 24,
+              "y": 363,
+              "w": 187,
+              "h": 46,
+              "right": 211,
+              "bottom": 409
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "library-button",
+            "cls": "ghost-action library-action",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 24,
+              "y": 440.9375,
+              "w": 187,
+              "h": 46,
+              "right": 211,
+              "bottom": 486.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "collections-button",
+            "cls": "ghost-action collections-action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 24,
+              "y": 494.9375,
+              "w": 187,
+              "h": 44,
+              "right": 211,
+              "bottom": 538.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row is-preferred",
+            "text": "The Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓",
+            "rect": {
+              "x": 244,
+              "y": 577.984375,
+              "w": 631,
+              "h": 64,
+              "right": 875,
+              "bottom": 641.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓",
+            "rect": {
+              "x": 244,
+              "y": 641.984375,
+              "w": 631,
+              "h": 64,
+              "right": 875,
+              "bottom": 705.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "Brandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓",
+            "rect": {
+              "x": 244,
+              "y": 705.984375,
+              "w": 631,
+              "h": 64,
+              "right": 875,
+              "bottom": 769.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓",
+            "rect": {
+              "x": 244,
+              "y": 769.984375,
+              "w": 631,
+              "h": 64,
+              "right": 875,
+              "bottom": 833.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓",
+            "rect": {
+              "x": 244,
+              "y": 833.984375,
+              "w": 631,
+              "h": 64,
+              "right": 875,
+              "bottom": 897.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "torrent-more",
+            "cls": "source-more",
+            "text": "See 2 more",
+            "rect": {
+              "x": 244,
+              "y": 897.984375,
+              "w": 631,
+              "h": 46,
+              "right": 875,
+              "bottom": 943.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row is-preferred",
+            "text": "EPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 244,
+              "y": 999.78125,
+              "w": 631,
+              "h": 52,
+              "right": 875,
+              "bottom": 1051.78125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "PDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓",
+            "rect": {
+              "x": 244,
+              "y": 1051.78125,
+              "w": 631,
+              "h": 52,
+              "right": 875,
+              "bottom": 1103.78125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "MOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 244,
+              "y": 1103.78125,
+              "w": 631,
+              "h": 52,
+              "right": 875,
+              "bottom": 1155.78125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "M4B\n1.21 GB   ·   English   ·   2020\n↓",
+            "rect": {
+              "x": 244,
+              "y": 1211.578125,
+              "w": 631,
+              "h": 52,
+              "right": 875,
+              "bottom": 1263.578125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "MP3\n950 MB   ·   English   ·   2017\n↓",
+            "rect": {
+              "x": 244,
+              "y": 1263.578125,
+              "w": 631,
+              "h": 52,
+              "right": 875,
+              "bottom": 1315.578125
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": 24,
+              "y": 71,
+              "w": 187,
+              "h": 280,
+              "right": 211,
+              "bottom": 351
+            }
+          },
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": -275,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -275,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "scrollWidth": 900,
+            "clientWidth": 900,
+            "scrollHeight": 1278,
+            "clientHeight": 345,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 67,
+              "w": 900,
+              "h": 345,
+              "right": 900,
+              "bottom": 412
+            }
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -275,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -275,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -275,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -275,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -275,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -275,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "focus": "",
+        "text": "Back\nBiblio\nRead\n\nRead will choose a tracked edition\n\n+\nLibrary\nAdd to Collections\n\nEPIC FANTASY  ·  BRANDON SANDERSON  ·  2010\n\nThe Way of Kings: Book One of the Stormlight Archive\n\n“Life before death. Strength before weakness. Journey before destination.”\n\nOn Roshar, highstorms shape the lives of kingdoms and the people who struggle to survive them. Kaladin, once a surgeon’s apprentice and a soldier, finds himself enslaved on the Shattered Plains, where bridge crews are sent into battles few return from. He must find a reason to protect others while everything he believes about honor is being tested. In a distant city, Shallan Davar seeks knowledge from the scholar Jasnah Kholin, concealing a desperate plan of her own. The visions of Dalinar Kholin, a highprince and veteran of the wars, point toward a danger far greater than any struggle over territory. Their stories follow separate paths through a world of ancient oaths, unusual powers, and the consequences of long-forgotten decisions. The questions that bind them together grow larger as each tries to decide what kind of person to become when duty, survival, and trust collide.\n\nTORRENTS · 7\nThe Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓\nThe Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓\nBrandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓\nThe Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓\nThe Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓\nSee 2 more\nEDITIONS · 3\nEPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nPDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓\nMOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nAUDIOBOOK · 2\nM4B\n1.21 GB   ·   English   ·   2020\n↓\nMP3\n950 MB   ·   English   ·   2017\n↓"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-landscape-small",
+      "result": {
+        "name": "biblio-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-landscape-small.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:42:35.998Z",
+        "sha256": "2f094e8839f954a044b82f185783cfbb1a822e8301d2c8b222a42da5a978ffa5",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "metrics",
+      "result": {
+        "app": {
+          "w": 792,
+          "h": 354
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "book-back",
+            "cls": "back-action",
+            "text": "Back",
+            "rect": {
+              "x": 43,
+              "y": 11,
+              "w": 63.578125,
+              "h": 44,
+              "right": 106.578125,
+              "bottom": 55
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "read-button",
+            "cls": "read-cta",
+            "text": "Read",
+            "rect": {
+              "x": 24,
+              "y": 305,
+              "w": 148,
+              "h": 46,
+              "right": 172,
+              "bottom": 351
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "library-button",
+            "cls": "ghost-action library-action",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 24,
+              "y": 398.875,
+              "w": 148,
+              "h": 46,
+              "right": 172,
+              "bottom": 444.875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "collections-button",
+            "cls": "ghost-action collections-action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 24,
+              "y": 452.875,
+              "w": 148,
+              "h": 53.09375,
+              "right": 172,
+              "bottom": 505.96875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row is-preferred",
+            "text": "The Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓",
+            "rect": {
+              "x": 205,
+              "y": 628.984375,
+              "w": 562,
+              "h": 64,
+              "right": 767,
+              "bottom": 692.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓",
+            "rect": {
+              "x": 205,
+              "y": 692.984375,
+              "w": 562,
+              "h": 64,
+              "right": 767,
+              "bottom": 756.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "Brandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓",
+            "rect": {
+              "x": 205,
+              "y": 756.984375,
+              "w": 562,
+              "h": 64,
+              "right": 767,
+              "bottom": 820.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓",
+            "rect": {
+              "x": 205,
+              "y": 820.984375,
+              "w": 562,
+              "h": 64,
+              "right": 767,
+              "bottom": 884.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓",
+            "rect": {
+              "x": 205,
+              "y": 884.984375,
+              "w": 562,
+              "h": 64,
+              "right": 767,
+              "bottom": 948.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "torrent-more",
+            "cls": "source-more",
+            "text": "See 2 more",
+            "rect": {
+              "x": 205,
+              "y": 948.984375,
+              "w": 562,
+              "h": 46,
+              "right": 767,
+              "bottom": 994.984375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row is-preferred",
+            "text": "EPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 205,
+              "y": 1050.78125,
+              "w": 562,
+              "h": 52,
+              "right": 767,
+              "bottom": 1102.78125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "PDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓",
+            "rect": {
+              "x": 205,
+              "y": 1102.78125,
+              "w": 562,
+              "h": 52,
+              "right": 767,
+              "bottom": 1154.78125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "MOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 205,
+              "y": 1154.78125,
+              "w": 562,
+              "h": 52,
+              "right": 767,
+              "bottom": 1206.78125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "M4B\n1.21 GB   ·   English   ·   2020\n↓",
+            "rect": {
+              "x": 205,
+              "y": 1262.578125,
+              "w": 562,
+              "h": 52,
+              "right": 767,
+              "bottom": 1314.578125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "MP3\n950 MB   ·   English   ·   2017\n↓",
+            "rect": {
+              "x": 205,
+              "y": 1314.578125,
+              "w": 562,
+              "h": 52,
+              "right": 767,
+              "bottom": 1366.578125
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": 24,
+              "y": 71,
+              "w": 148,
+              "h": 222,
+              "right": 172,
+              "bottom": 293
+            }
+          },
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": -329,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -329,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "scrollWidth": 792,
+            "clientWidth": 792,
+            "scrollHeight": 1329,
+            "clientHeight": 287,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 67,
+              "w": 792,
+              "h": 287,
+              "right": 792,
+              "bottom": 354
+            }
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -329,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -329,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -329,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -329,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -329,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -329,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "focus": "",
+        "text": "Back\nBiblio\nRead\n\nRead will choose a tracked edition\n\n+\nLibrary\nAdd to Collections\n\nEPIC FANTASY  ·  BRANDON SANDERSON  ·  2010\n\nThe Way of Kings: Book One of the Stormlight Archive\n\n“Life before death. Strength before weakness. Journey before destination.”\n\nOn Roshar, highstorms shape the lives of kingdoms and the people who struggle to survive them. Kaladin, once a surgeon’s apprentice and a soldier, finds himself enslaved on the Shattered Plains, where bridge crews are sent into battles few return from. He must find a reason to protect others while everything he believes about honor is being tested. In a distant city, Shallan Davar seeks knowledge from the scholar Jasnah Kholin, concealing a desperate plan of her own. The visions of Dalinar Kholin, a highprince and veteran of the wars, point toward a danger far greater than any struggle over territory. Their stories follow separate paths through a world of ancient oaths, unusual powers, and the consequences of long-forgotten decisions. The questions that bind them together grow larger as each tries to decide what kind of person to become when duty, survival, and trust collide.\n\nTORRENTS · 7\nThe Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓\nThe Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓\nBrandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓\nThe Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓\nThe Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓\nSee 2 more\nEDITIONS · 3\nEPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nPDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓\nMOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nAUDIOBOOK · 2\nM4B\n1.21 GB   ·   English   ·   2020\n↓\nMP3\n950 MB   ·   English   ·   2017\n↓"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=desktop",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-desktop-html",
+      "result": {
+        "name": "biblio-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-desktop-html.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=desktop",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:42:37.894Z",
+        "sha256": "cb248d36f890447f3109a6de47f518d02459575fe964ef78658e87180306c3ff",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "metrics",
+      "result": {
+        "app": {
+          "w": 1280,
+          "h": 700
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "book-back",
+            "cls": "back-action",
+            "text": "Back",
+            "rect": {
+              "x": 73,
+              "y": 32,
+              "w": 63.578125,
+              "h": 44,
+              "right": 136.578125,
+              "bottom": 76
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "—",
+            "rect": {
+              "x": 1109,
+              "y": 39,
+              "w": 30,
+              "h": 30,
+              "right": 1139,
+              "bottom": 69
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "⛶",
+            "rect": {
+              "x": 1145,
+              "y": 39,
+              "w": 30,
+              "h": 30,
+              "right": 1175,
+              "bottom": 69
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "⏻",
+            "rect": {
+              "x": 1181,
+              "y": 39,
+              "w": 30,
+              "h": 30,
+              "right": 1211,
+              "bottom": 69
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "read-button",
+            "cls": "read-cta",
+            "text": "Read",
+            "rect": {
+              "x": 54,
+              "y": 554,
+              "w": 268,
+              "h": 50,
+              "right": 322,
+              "bottom": 604
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "library-button",
+            "cls": "ghost-action library-action",
+            "text": "+\nLibrary",
+            "rect": {
+              "x": 54,
+              "y": 645.390625,
+              "w": 268,
+              "h": 50,
+              "right": 322,
+              "bottom": 695.390625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "collections-button",
+            "cls": "ghost-action collections-action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 54,
+              "y": 707.390625,
+              "w": 268,
+              "h": 42,
+              "right": 322,
+              "bottom": 749.390625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row is-preferred",
+            "text": "The Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓",
+            "rect": {
+              "x": 387,
+              "y": 860.421875,
+              "w": 638,
+              "h": 64,
+              "right": 1025,
+              "bottom": 924.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓",
+            "rect": {
+              "x": 387,
+              "y": 924.421875,
+              "w": 638,
+              "h": 64,
+              "right": 1025,
+              "bottom": 988.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "Brandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓",
+            "rect": {
+              "x": 387,
+              "y": 988.421875,
+              "w": 638,
+              "h": 64,
+              "right": 1025,
+              "bottom": 1052.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓",
+            "rect": {
+              "x": 387,
+              "y": 1052.421875,
+              "w": 638,
+              "h": 64,
+              "right": 1025,
+              "bottom": 1116.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row torrent-row",
+            "text": "The Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓",
+            "rect": {
+              "x": 387,
+              "y": 1116.421875,
+              "w": 638,
+              "h": 64,
+              "right": 1025,
+              "bottom": 1180.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "torrent-more",
+            "cls": "source-more",
+            "text": "See 2 more",
+            "rect": {
+              "x": 387,
+              "y": 1180.421875,
+              "w": 638,
+              "h": 46,
+              "right": 1025,
+              "bottom": 1226.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row is-preferred",
+            "text": "EPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 387,
+              "y": 1297.21875,
+              "w": 638,
+              "h": 52,
+              "right": 1025,
+              "bottom": 1349.21875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "PDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓",
+            "rect": {
+              "x": 387,
+              "y": 1349.21875,
+              "w": 638,
+              "h": 52,
+              "right": 1025,
+              "bottom": 1401.21875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row edition-row",
+            "text": "MOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓",
+            "rect": {
+              "x": 387,
+              "y": 1401.21875,
+              "w": 638,
+              "h": 52,
+              "right": 1025,
+              "bottom": 1453.21875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "M4B\n1.21 GB   ·   English   ·   2020\n↓",
+            "rect": {
+              "x": 387,
+              "y": 1514.015625,
+              "w": 638,
+              "h": 52,
+              "right": 1025,
+              "bottom": 1566.015625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "source-row audiobook-row",
+            "text": "MP3\n950 MB   ·   English   ·   2017\n↓",
+            "rect": {
+              "x": 387,
+              "y": 1566.015625,
+              "w": 638,
+              "h": 52,
+              "right": 1025,
+              "bottom": 1618.015625
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": 54,
+              "y": 124,
+              "w": 268,
+              "h": 402,
+              "right": 322,
+              "bottom": 526
+            }
+          },
+          {
+            "src": "../../reference/desktop/assets/extensions/house/cosmere.jpg",
+            "complete": true,
+            "natural": [
+              1920,
+              1250
+            ],
+            "rect": {
+              "x": -85,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -85,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "scrollWidth": 1280,
+            "clientWidth": 1280,
+            "scrollHeight": 1581,
+            "clientHeight": 592,
+            "scrollTop": 0,
+            "rect": {
+              "x": 0,
+              "y": 108,
+              "w": 1280,
+              "h": 592,
+              "right": 1280,
+              "bottom": 700
+            }
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -85,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -85,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -85,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -85,
+              "bottom": -272.28125
+            }
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "scrollWidth": 0,
+            "clientWidth": 0,
+            "scrollHeight": 0,
+            "clientHeight": 0,
+            "scrollTop": 0,
+            "rect": {
+              "x": -85,
+              "y": -272.28125,
+              "w": 0,
+              "h": 0,
+              "right": -85,
+              "bottom": -272.28125
+            }
+          }
+        ],
+        "focus": "",
+        "text": "Back\nBiblio\n—\n⛶\n⏻\nRead\n\nRead will choose a tracked edition\n\n+\nLibrary\nAdd to Collections\n\nEPIC FANTASY  ·  BRANDON SANDERSON  ·  2010\n\nThe Way of Kings: Book One of the Stormlight Archive\n\n“Life before death. Strength before weakness. Journey before destination.”\n\nOn Roshar, highstorms shape the lives of kingdoms and the people who struggle to survive them. Kaladin, once a surgeon’s apprentice and a soldier, finds himself enslaved on the Shattered Plains, where bridge crews are sent into battles few return from. He must find a reason to protect others while everything he believes about honor is being tested. In a distant city, Shallan Davar seeks knowledge from the scholar Jasnah Kholin, concealing a desperate plan of her own. The visions of Dalinar Kholin, a highprince and veteran of the wars, point toward a danger far greater than any struggle over territory. Their stories follow separate paths through a world of ancient oaths, unusual powers, and the consequences of long-forgotten decisions. The questions that bind them together grow larger as each tries to decide what kind of person to become when duty, survival, and trust collide.\n\nTORRENTS · 7\nThe Way of Kings · Brandon Sanderson · EPUB\n▲ 82   4.3 MB\n↓\nThe Stormlight Archive Book One · The Way of Kings · English\n▲ 56   8.7 MB\n↓\nBrandon Sanderson · The Way of Kings · EPUB + MOBI\n▲ 29   9.2 MB   ·   PACK\n↓\nThe Way of Kings · Stormlight Archive · Ebook Edition\n▲ 24   6.1 MB\n↓\nThe Way of Kings · Brandon Sanderson · 2010 Edition\n▲ 18   5.6 MB\n↓\nSee 2 more\nEDITIONS · 3\nEPUB\n4.3 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nPDF\n9.8 MB   ·   LIBGEN   ·   2014   ·   English\n↓\nMOBI\n6.1 MB   ·   LIBGEN   ·   2010   ·   English\n↓\nAUDIOBOOK · 2\nM4B\n1.21 GB   ·   English   ·   2020\n↓\nMP3\n950 MB   ·   English   ·   2017\n↓"
+      }
+    }
+  ]
+}

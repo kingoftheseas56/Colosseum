@@ -1,0 +1,911 @@
+{
+  "utc": "2026-10-31T23:26:56.142Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-portrait",
+      "result": {
+        "page": "biblio",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 412,
+            "sw": 412,
+            "h": 816,
+            "sh": 2147
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-verified-portrait",
+      "result": {
+        "name": "biblio-finished-verified-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:44.185Z",
+        "sha256": "083d5a7bc926f400d00261d6551a3f1f8e59b8bdd2ecf4b487681e1d864d4229",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=354&height=792",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-portrait-small",
+      "result": {
+        "page": "biblio",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 354,
+            "sw": 354,
+            "h": 708,
+            "sh": 2252
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-verified-portrait-small",
+      "result": {
+        "name": "biblio-finished-verified-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=354&height=792",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=354&height=792",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:46.155Z",
+        "sha256": "986aac6117389fd5221bc97ac03f84e90b924e4e954656c8cd208c461b350290",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=900&height=412",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-landscape",
+      "result": {
+        "page": "biblio",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 900,
+            "sw": 900,
+            "h": 345,
+            "sh": 1278
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-verified-landscape",
+      "result": {
+        "name": "biblio-finished-verified-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=900&height=412",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=900&height=412",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:47.811Z",
+        "sha256": "044e9995393b5712d1cae755ca9f9ea26af1c0b012e88ed45f33fdb7ed1b73ad",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=792&height=354",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-landscape-small",
+      "result": {
+        "page": "biblio",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 792,
+            "sw": 792,
+            "h": 287,
+            "sh": 1329
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-verified-landscape-small",
+      "result": {
+        "name": "biblio-finished-verified-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=792&height=354",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=792&height=354",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:49.439Z",
+        "sha256": "2f094e8839f954a044b82f185783cfbb1a822e8301d2c8b222a42da5a978ffa5",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=700",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-desktop-html",
+      "result": {
+        "page": "biblio",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-actions"
+        ],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 592,
+            "sh": 1581
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-verified-desktop-html",
+      "result": {
+        "name": "biblio-finished-verified-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=700",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=700",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:51.088Z",
+        "sha256": "cb248d36f890447f3109a6de47f518d02459575fe964ef78658e87180306c3ff",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=800&height=1280",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-tablet-portrait",
+      "result": {
+        "page": "biblio",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 800,
+            "sw": 800,
+            "h": 1172,
+            "sh": 1792
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-verified-tablet-portrait",
+      "result": {
+        "name": "biblio-finished-verified-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=800&height=1280",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=800&height=1280",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:52.724Z",
+        "sha256": "1c7f112ef4f0b0e22b4840ce8357b301d2db99559bdc1d861ba7c32875b7809c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-tablet-landscape",
+      "result": {
+        "page": "biblio",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 692,
+            "sh": 1528
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-verified-tablet-landscape",
+      "result": {
+        "name": "biblio-finished-verified-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-verified-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:54.455Z",
+        "sha256": "f63c09f4a961ff368e5028c30deab938616cbb39031ca016e850c7a2994579f8",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800&scale=1.3&insetTop=24&insetBottom=24&scenario=collections",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-tablet-collections",
+      "result": {
+        "mode": "tablet",
+        "windowControlsHidden": true,
+        "dialogFits": false,
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "top": 0,
+          "right": 0,
+          "bottom": 0,
+          "left": 0
+        }
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-tablet-landscape-collections-stress",
+      "result": {
+        "name": "biblio-finished-tablet-landscape-collections-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-tablet-landscape-collections-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800&scale=1.3&insetTop=24&insetBottom=24&scenario=collections",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800&scale=1.3&insetTop=24&insetBottom=24&scenario=collections",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:26:56.135Z",
+        "sha256": "a918e284b8f0e19a6cf779488e1fa5d3deb6dd7635f0ae07fa63c0d86b380d29",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

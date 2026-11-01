@@ -1,0 +1,15 @@
+from pathlib import Path
+B=Path(r'D:\Colosseum-Android-Phone-Mocks-20261101\review-batches\03-browsing-libraries')
+p=B/'finished-mocks/09-catalogue-index/app.js';s=p.read_text(encoding='utf-8')
+s=s.replace('aria-label="Open ${esc(n)} details">›</button>','aria-label="Open ${esc(n)} details"><img src="${A(\'icons/manga.svg\')}" alt=""></button>')
+p.write_text(s,encoding='utf-8')
+p=B/'finished-mocks/09-catalogue-index/style.css';s=p.read_text(encoding='utf-8');s+='\n.resume-round{border:1.5px solid rgba(255,255,255,.9);background:rgba(0,0,0,.55);display:grid;place-items:center;padding:0}.resume-round img{width:21px;height:21px;object-fit:contain}\n';p.write_text(s,encoding='utf-8')
+p=B/'finished-mocks/20-search-browse/app.js';s=p.read_text(encoding='utf-8')
+chevron='<svg class="back-vector" width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12 14.5 18.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>'
+s=s.replace('aria-label="Back">‹</button>','aria-label="Back">'+chevron+'</button>')
+s=s.replace('aria-label="Back to world">‹</button>','aria-label="Back to world">'+chevron+'<span>Back</span></button>')
+s=s.replace("searchResultsSection('Audiobooks',items.slice(1,6),true)","(items.length>1?searchResultsSection('Audiobooks',items.slice(1,6),true):'')")
+s=s.replace("frame.style.width=S.width+'px';frame.style.height=S.height+'px';","frame.style.width=S.width+'px';frame.style.height=S.height+'px';if(S.page==='biblio-explore'){const w=S.width-(S.preset!=='desktop'&&S.width>=840?92:0);frame.style.setProperty('--pad',(w<=430?18:w<600?24:w<840?32:54)+'px');}")
+p.write_text(s,encoding='utf-8')
+p=B/'finished-mocks/20-search-browse/style.css';s=p.read_text(encoding='utf-8');s+='\n/* Preserve BackAction and BiblioBookRail dimensions; reserve WorldPage board margins. */\n.back-capsule{width:42px;background:rgba(0,0,0,.4);border:0}.back-vector{flex:none}.back-capsule .back-vector{width:18px;height:18px}\n.search-back{width:80px;justify-content:flex-start;gap:9px;border:0;background:none;font:15px var(--ui)}.search-back .back-vector{width:20px;height:20px}.app-frame:not(.phone) .search-field{left:calc(var(--pad) + 100px)}.app-frame.phone.landscape.ime-active .search-field{left:112px}\n.genre-index:not(.phone) .genre-index-body>.kicker{padding-left:18px}\n.biblio-explore .explore-scroll .scroll-body{padding-left:var(--pad);padding-right:var(--pad)}.biblio-explore .explore-main{padding:0 0 55px 28px}.biblio-explore.phone .row-rail.open+.explore-main{padding-left:16px}\n.biblio-explore.phone .book-card{width:130px}.biblio-explore.phone .book-card .book-cover{width:130px;height:182px}.biblio-explore.phone .shelf-header h2{font-size:20px}.biblio-explore.phone .shelf-track{gap:16px;padding-left:6px}.biblio-explore.phone .shelf-track:has(.ranked){gap:26px;padding-left:30px}\n';p.write_text(s,encoding='utf-8')
+print('Restored Collection manga icon, canonical BackAction, Explore margins/card sizes and hidden empty audiobook section.')

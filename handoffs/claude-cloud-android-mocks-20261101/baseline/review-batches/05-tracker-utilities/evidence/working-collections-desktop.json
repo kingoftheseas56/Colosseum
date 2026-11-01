@@ -1,0 +1,222 @@
+{
+  "time": "2026-10-31T23:01:25.299Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/collections.html?capture=1&w=1280&h=700&preset=desktop",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 1280,
+    "h": 700,
+    "outerWidth": 1280,
+    "outerHeight": 700,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device desktop desktop-platform landscape",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 0,
+          "y": 56,
+          "w": 1280,
+          "h": 620,
+          "right": 1280,
+          "bottom": 676
+        },
+        "scrollHeight": 876,
+        "clientHeight": 620
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 1102,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1136,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 1150,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1184,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 1198,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1232,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Back",
+        "action": "collectionExit",
+        "disabled": false,
+        "box": {
+          "x": 48,
+          "y": 78,
+          "w": 1184,
+          "h": 44,
+          "right": 1232,
+          "bottom": 122
+        }
+      },
+      {
+        "text": "New collection",
+        "action": "collectionNew",
+        "disabled": false,
+        "box": {
+          "x": 1077.859375,
+          "y": 161.796875,
+          "w": 154.140625,
+          "h": 44,
+          "right": 1232,
+          "bottom": 205.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to, 6 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 48,
+          "y": 270.59375,
+          "w": 377.328125,
+          "h": 300,
+          "right": 425.328125,
+          "bottom": 570.59375
+        }
+      },
+      {
+        "text": "Open Stories worth revisiting, 4 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 451.328125,
+          "y": 270.59375,
+          "w": 377.328125,
+          "h": 300,
+          "right": 828.65625,
+          "bottom": 570.59375
+        }
+      },
+      {
+        "text": "Open Mysteries and detectives, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 854.65625,
+          "y": 270.59375,
+          "w": 377.34375,
+          "h": 300,
+          "right": 1232,
+          "bottom": 570.59375
+        }
+      },
+      {
+        "text": "Open The worlds I keep coming back to, even after the last chapter, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 48,
+          "y": 594.59375,
+          "w": 377.328125,
+          "h": 302.5,
+          "right": 425.328125,
+          "bottom": 897.09375
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 66.59375,
+          "y": 629.5,
+          "w": 45,
+          "h": 45,
+          "right": 111.59375,
+          "bottom": 674.5
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 123.59375,
+          "y": 629.5,
+          "w": 45,
+          "h": 45,
+          "right": 168.59375,
+          "bottom": 674.5
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 180.59375,
+          "y": 630.5,
+          "w": 43,
+          "h": 43,
+          "right": 223.59375,
+          "bottom": 673.5
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "3a0857e6af58ae3d8d090be199809c4d17800289714c74a128d14687133e2174"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "2739559ac11deb2d43bcd4ad1bd8f2901ad5b06e573bebdc051dc8421d8e0e3e"
+    }
+  ]
+}

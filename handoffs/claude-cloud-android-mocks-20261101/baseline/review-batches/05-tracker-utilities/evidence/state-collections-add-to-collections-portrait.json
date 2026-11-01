@@ -1,0 +1,367 @@
+{
+  "time": "2026-10-31T23:45:19.655Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/collections.html?capture=1&w=354&h=792&fontScale=1.3&top=24&bottom=24&state=Add+to+Collections",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 354,
+    "h": 792,
+    "outerWidth": 354,
+    "outerHeight": 792,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android portrait text-enlarged",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      },
+      {
+        "class": "modal-panel collection-popup small",
+        "box": {
+          "x": 16,
+          "y": 44,
+          "w": 322,
+          "h": 704,
+          "right": 338,
+          "bottom": 748
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 0,
+          "y": 63,
+          "w": 354,
+          "h": 691,
+          "right": 354,
+          "bottom": 754
+        },
+        "scrollHeight": 1732,
+        "clientHeight": 691
+      },
+      {
+        "tag": "DIV",
+        "class": "modal-panel collection-popup small",
+        "id": "",
+        "box": {
+          "x": 16,
+          "y": 44,
+          "w": 322,
+          "h": 704,
+          "right": 338,
+          "bottom": 748
+        },
+        "scrollHeight": 715,
+        "clientHeight": 702
+      },
+      {
+        "tag": "DIV",
+        "class": "scroll-y membership-list",
+        "id": "",
+        "box": {
+          "x": 37,
+          "y": 360.46875,
+          "w": 280,
+          "h": 244,
+          "right": 317,
+          "bottom": 604.46875
+        },
+        "scrollHeight": 440,
+        "clientHeight": 244
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Back",
+        "action": "collectionExit",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 81,
+          "w": 310,
+          "h": 44,
+          "right": 332,
+          "bottom": 125
+        }
+      },
+      {
+        "text": "New collection",
+        "action": "collectionNew",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 355.453125,
+          "w": 172.390625,
+          "h": 44,
+          "right": 194.390625,
+          "bottom": 399.453125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to, 6 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 440.453125,
+          "w": 310,
+          "h": 300,
+          "right": 332,
+          "bottom": 740.453125
+        }
+      },
+      {
+        "text": "Open Stories worth revisiting, 4 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 764.453125,
+          "w": 310,
+          "h": 300,
+          "right": 332,
+          "bottom": 1064.453125
+        }
+      },
+      {
+        "text": "Open Mysteries and detectives, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1088.453125,
+          "w": 310,
+          "h": 300,
+          "right": 332,
+          "bottom": 1388.453125
+        }
+      },
+      {
+        "text": "Open The worlds I keep coming back to, even after the last chapter, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1412.453125,
+          "w": 310,
+          "h": 352.625,
+          "right": 332,
+          "bottom": 1765.078125
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Close",
+        "action": "closeModal",
+        "disabled": false,
+        "box": {
+          "x": 281,
+          "y": 84.375,
+          "w": 36,
+          "h": 36,
+          "right": 317,
+          "bottom": 120.375
+        }
+      },
+      {
+        "text": "Worlds worth returning to6 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 360.46875,
+          "w": 280,
+          "h": 94,
+          "right": 317,
+          "bottom": 454.46875
+        }
+      },
+      {
+        "text": "Stories worth revisiting4 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 458.46875,
+          "w": 280,
+          "h": 94,
+          "right": 317,
+          "bottom": 552.46875
+        }
+      },
+      {
+        "text": "Mysteries and detectives3 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 556.46875,
+          "w": 280,
+          "h": 94,
+          "right": 317,
+          "bottom": 650.46875
+        }
+      },
+      {
+        "text": "The worlds I keep coming back to, even after the last chapter3 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 654.46875,
+          "w": 280,
+          "h": 146,
+          "right": 317,
+          "bottom": 800.46875
+        }
+      },
+      {
+        "text": "New collection",
+        "action": "collectionNew",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 616.46875,
+          "w": 280,
+          "h": 44,
+          "right": 317,
+          "bottom": 660.46875
+        }
+      },
+      {
+        "text": "Cancel",
+        "action": "closeModal",
+        "disabled": false,
+        "box": {
+          "x": 156.421875,
+          "y": 696.46875,
+          "w": 88.40625,
+          "h": 44,
+          "right": 244.828125,
+          "bottom": 740.46875
+        }
+      },
+      {
+        "text": "Save",
+        "action": "saveMembership",
+        "disabled": false,
+        "box": {
+          "x": 254.828125,
+          "y": 696.46875,
+          "w": 62.171875,
+          "h": 44,
+          "right": 317,
+          "bottom": 740.46875
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

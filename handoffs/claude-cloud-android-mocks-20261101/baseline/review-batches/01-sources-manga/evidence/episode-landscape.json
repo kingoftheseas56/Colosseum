@@ -1,0 +1,934 @@
+{
+  "captured_at": "2026-10-31T22:48:07.889Z",
+  "job": "01-theatre-sources",
+  "file": "episode-sources.html",
+  "viewport": {
+    "width": 900,
+    "height": 412
+  },
+  "params": {
+    "render": 1,
+    "w": 900,
+    "h": 412
+  },
+  "png": "captures/episode-landscape.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 900,
+      "height": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "backAction",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back to Theatre detail",
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 10,
+          "width": 80,
+          "height": 44,
+          "right": 96,
+          "bottom": 54
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "providerTrigger",
+        "class": "provider-trigger",
+        "text": "All\n▾",
+        "label": "Choose source extension",
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 104,
+          "width": 868,
+          "height": 44,
+          "right": 884,
+          "bottom": 148
+        },
+        "radius": "16px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px",
+        "hit": "<button class=\"provider-trigger\" id=\"providerTrigger\" type=\"button\" aria-label=\"Choose source extension\" aria-haspopup=\"listbox\" aria-expanded=\"false\">\n            <span class=\"grid-badge\" aria-hidden"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill active",
+        "text": "All\n9",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 156,
+          "width": 59.984375,
+          "height": 34,
+          "right": 75.984375,
+          "bottom": 190
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill active\" data-quality=\"all\" aria-pressed=\"true\"><span>All</span><small>9</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "4K\n3",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 81.984375,
+          "y": 156,
+          "width": 57.265625,
+          "height": 34,
+          "right": 139.25,
+          "bottom": 190
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"4K\" aria-pressed=\"false\"><span>4K</span><small>3</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "1080p\n3",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 145.25,
+          "y": 156,
+          "width": 81.640625,
+          "height": 34,
+          "right": 226.890625,
+          "bottom": 190
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"1080p\" aria-pressed=\"false\"><span>1080p</span><small>3</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "720p\n2",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 232.890625,
+          "y": 156,
+          "width": 73.546875,
+          "height": 34,
+          "right": 306.4375,
+          "bottom": 190
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"720p\" aria-pressed=\"false\"><span>720p</span><small>2</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "SD\n1",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 312.4375,
+          "y": 156,
+          "width": 58.96875,
+          "height": 34,
+          "right": 371.40625,
+          "bottom": 190
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"SD\" aria-pressed=\"false\"><span>SD</span><small>1</small></button>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "T\nTorrentio\n4K · HDR\nThe.Mandalorian.S01E01.Chapter.One.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC.MULTi\n587 seeders\n9.7 GB\nTorrentGalaxy\nDDP",
+        "label": "Play Torrentio 4K · HDR The.Mandalorian.S01E01.Chapter.One.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC.MULTi",
+        "rect": {
+          "x": 17,
+          "y": 255,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 455.171875
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px",
+        "hit": "<div class=\"row-meta\"><span class=\"meta-piece\">587 seeders</span><span class=\"meta-piece\">9.7 GB</span><span class=\"meta-piece\">TorrentGalaxy</span></div>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 267,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 311
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"circle \" data-act=\"download\" data-row=\"0\" aria-label=\"Download this source\" title=\"Download this source\">↓</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 267,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 311
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"circle \" data-act=\"copy\" data-row=\"0\" aria-label=\"Copy link\" title=\"Copy link\">⧉</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 267,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 311
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px",
+        "hit": "<button type=\"button\" class=\"circle play\" data-act=\"activate\" data-row=\"0\" aria-label=\"Play source\" title=\"Play\">▶</button>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "M\nMediaFusion\n4K · Dolby Vision\nThe.Mandalorian.S01E01.2160p.DV.HDR.WEB-DL.H265.EAC3.MULTI-EXTENDED-CUT\n112 seeders\n8.3 GB\nBitSearch\nEAC3 5.",
+        "label": "Play MediaFusion 4K · Dolby Vision The.Mandalorian.S01E01.2160p.DV.HDR.WEB-DL.H265.EAC3.MULTI-EXTENDED-CUT",
+        "rect": {
+          "x": 17,
+          "y": 455.171875,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 655.34375
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 467.171875,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 511.171875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 467.171875,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 511.171875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 467.171875,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 511.171875
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "N\nNoTorrent\n1080p · Direct\nThe.Mandalorian.S01E01.1080p.DSNP.WEB-DL.AAC.2.0\n1.9 GB\nNoTorrent\nAAC 2.0\nENG\nESP\nPOR\nDIRECT\nWEB-DL\nDirect · HTTP",
+        "label": "Play NoTorrent 1080p · Direct The.Mandalorian.S01E01.1080p.DSNP.WEB-DL.AAC.2.0",
+        "rect": {
+          "x": 17,
+          "y": 655.34375,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 855.515625
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 667.34375,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 711.34375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 667.34375,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 711.34375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 667.34375,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 711.34375
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "T\nTorrentio\n1080p · WEB-DL\nThe.Mandalorian.S01E01.1080p.DSNP.WEB-DL.DDP5.1.H264-RELEASE\n1073 seeders\n3.4 GB\n1337x\nDDP 5.1\nENG\nHIN\nWEB-DL\nH.2",
+        "label": "Play Torrentio 1080p · WEB-DL The.Mandalorian.S01E01.1080p.DSNP.WEB-DL.DDP5.1.H264-RELEASE",
+        "rect": {
+          "x": 17,
+          "y": 855.515625,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 1055.6875
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 867.515625,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 911.515625
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 867.515625,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 911.515625
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 867.515625,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 911.515625
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "C\nComet\n720p · WEB\nThe.Mandalorian.S01E01.720p.WEBRip.x264.AAC\n87 seeders\n1.1 GB\nYTS\nAAC 5.1\nENG\nWEBRIP\nTorrent · P2P stream\n↓\n⧉\n▶",
+        "label": "Play Comet 720p · WEB The.Mandalorian.S01E01.720p.WEBRip.x264.AAC",
+        "rect": {
+          "x": 17,
+          "y": 1055.6875,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 1255.859375
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 1067.6875,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 1111.6875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 1067.6875,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 1111.6875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 1067.6875,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 1111.6875
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "T\nTorrentio\n4K · Season Pack\nThe.Mandalorian.S01.COMPLETE.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC-ALL-EIGHT-EPISODES\n331 seeders\n77.2 GB\nT",
+        "label": "Play Torrentio 4K · Season Pack The.Mandalorian.S01.COMPLETE.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC-ALL-EIGHT-EPISODES",
+        "rect": {
+          "x": 17,
+          "y": 1255.859375,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 1456.03125
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 1267.859375,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 1311.859375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 1267.859375,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 1311.859375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 1267.859375,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 1311.859375
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "M\nMediaFusion\n1080p · Season Pack\nThe.Mandalorian.Season.01.Complete.1080p.BluRay.x264.DTS.5.1.MULTi-LONG-EDITION\n188 seeders\n27.6 GB\n1337x\n",
+        "label": "Play MediaFusion 1080p · Season Pack The.Mandalorian.Season.01.Complete.1080p.BluRay.x264.DTS.5.1.MULTi-LONG-EDITION",
+        "rect": {
+          "x": 17,
+          "y": 1456.03125,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 1656.203125
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 1468.03125,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 1512.03125
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 1468.03125,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 1512.03125
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 1468.03125,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 1512.03125
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "C\nComet\n720p · Season Pack\nThe.Mandalorian.S01.COMPLETE.720p.WEBRip.AAC2.0.H264\n76 seeders\n11.3 GB\nBitSearch\nAAC 2.0\nENG\nPOR\nFULL SEASON\nTor",
+        "label": "Play Comet 720p · Season Pack The.Mandalorian.S01.COMPLETE.720p.WEBRip.AAC2.0.H264",
+        "rect": {
+          "x": 17,
+          "y": 1656.203125,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 1856.375
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 1668.203125,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 1712.203125
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 1668.203125,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 1712.203125
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 1668.203125,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 1712.203125
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "T\nTorrentio\nSD · Season Pack\nThe.Mandalorian.S01.COMPLETE.SD.WEBRip.MP3.XviD\n14 seeders\n3.7 GB\nYTS\nMP3\nENG\nFULL SEASON\nSD\nTorrent · P2P stre",
+        "label": "Play Torrentio SD · Season Pack The.Mandalorian.S01.COMPLETE.SD.WEBRip.MP3.XviD",
+        "rect": {
+          "x": 17,
+          "y": 1856.375,
+          "width": 866,
+          "height": 200.171875,
+          "right": 883,
+          "bottom": 2056.546875
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 713,
+          "y": 1868.375,
+          "width": 44,
+          "height": 44,
+          "right": 757,
+          "bottom": 1912.375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 763,
+          "y": 1868.375,
+          "width": 44,
+          "height": 44,
+          "right": 807,
+          "bottom": 1912.375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 813,
+          "y": 1868.375,
+          "width": 56,
+          "height": 44,
+          "right": 869,
+          "bottom": 1912.375
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "rows",
+        "class": "row-scroll",
+        "rect": {
+          "x": 17,
+          "y": 251,
+          "width": 866,
+          "height": 152,
+          "right": 883,
+          "bottom": 403
+        },
+        "scrollTop": 0,
+        "maxScroll": 1662,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nS1E1 - CHAPTER 1: THE MANDALORIAN\nThe Mandalorian\nAll\n▾\nAll\n9\n4K\n3\n1080p\n3\n720p\n2\nSD\n1\n9 sources\nvia 4 extensions\nT\nTorrentio\n4K · HDR\nThe.Mandalorian.S01E01.Chapter.One.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC.MULTi\n587 seeders\n9.7 GB\nTorrentGalaxy\nDDP ATMOS 5.1\nENG\nESP\nHIN\nTAM\nHDR10\nWEB-DL\nTorrent · P2P stream\n↓\n⧉\n▶\nM\nMediaFusion\n4K · Dolby Vision\nThe.Mandalorian.S01E01.2160p.DV.HDR.WEB-DL.H265.EAC3.MULTI-EXTENDED-CUT\n112 seeders\n8.3 GB\nBitSearch\nEAC3 5.1\nENG\nFRA\nDEU\nJPN\nDOLBY VISION\nHEVC\nTorrent · P2P stream\n↓\n⧉\n▶\nN\nNoTorrent\n1080p · Direct\nThe.Mandalorian.S01E01.1080p.DSNP.WEB-DL.AAC.2.0\n1.9 GB\nNoTorrent\nAAC 2.0\nENG\nESP\nPOR\nDIRECT\nWEB-DL\nDirect · HTTP stream\n↓\n⧉\n▶\nT\nTorrentio\n1080p · WEB-DL\nThe.Mandalorian.S01E01.1080p.DSNP.WEB-DL.DDP5.1.H264-RELEASE\n1073 seeders\n3.4 GB\n1337x\nDDP 5.1\nENG\nHIN\nWEB-DL\nH.264\nTorrent · P2P stream\n↓\n⧉\n▶\nC\nComet\n720p · WEB\nThe.Mandalorian.S01E01.720p.WEBRip.x264.AAC\n87 seeders\n1.1 GB\nYTS\nAAC 5.1\nENG\nWEBRIP\nTorrent · P2P stream\n↓\n⧉\n▶\nT\nTorrentio\n4K · Season Pack\nThe.Mandalorian.S01.COMPLETE.2160p.DSNP.WEB-DL.DDP5.1.Atmos.HDR10.HEVC-ALL-EIGHT-EPISODES\n331 seeders\n77.2 GB\nTorrentGalaxy\nDDP ATMOS 5.1\nENG\nFRA\nESP\nFULL SEASON\nHDR10\nHEVC\nTorrent · P2P stream\n↓\n⧉\n▶\nM\nMediaFusion\n1080p · Season Pack\nThe.Mandalorian.Season.01.Complete.1080p.BluRay.x264.DTS.5.1.MULTi-LONG-EDITION\n188 seeders\n27.6 GB\n1337x\nDTS 5.1\nENG\nJPN\nDEU\nFULL SEASON\nBLURAY\nTorrent · P2P stream\n↓\n⧉\n▶\nC\nComet\n720p · Season Pack\nThe.Mandalorian.S01.COMPLETE.720p.WEBRip.AAC2.0.H264\n76 seeders\n11.3 GB\nBitSearch\nAAC 2.0\nENG\nPOR\nFULL SEASON\nTorrent · P2P stream\n↓\n⧉\n▶\nT\nTorrentio\nSD · Season Pack\nThe.Mandalorian.S01.COMPLETE.SD.WEBRip.MP3.XviD\n14 seeders\n3.7 GB\nYTS\nMP3\nENG\nFULL SEASON\nSD\nTorrent · P2P stream\n↓\n⧉\n▶",
+    "fonts": [
+      {
+        "family": "HouseSegoe",
+        "status": "loaded"
+      },
+      {
+        "family": "HouseSegoe",
+        "status": "loaded"
+      },
+      {
+        "family": "HouseSegoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "loaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "outputs\\01-theatre-sources\\episode-sources.html",
+      "bytes": 4898,
+      "sha256": "eda9322fdbe1fbf236ee5d149eca76a6173021fd25054648531b2ddf86587ace"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\style.css",
+      "bytes": 17082,
+      "sha256": "c438f02e5470c9dfb3aeacbac35fbcefd6f8861019f8372f8a98366b470eab5e"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\app.js",
+      "bytes": 19929,
+      "sha256": "c56aebfee46556a811183b93c2f34cf61d2f8fe21e9a1b18c12a276404a3ca8f"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\wallpaper\\captured-motion.jpg",
+      "bytes": 1019877,
+      "sha256": "9f56f69ee6d80fcd612e8ff43f23ed9744114868575a873f840191ddbdd48289"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\star-wars\\nevarro.jpg",
+      "bytes": 324669,
+      "sha256": "1a2fdd66d12c86fa5d5f847f1d0865a8324687074e6cbf99b34e952d7c396518"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeuib.ttf",
+      "bytes": 947364,
+      "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2"
+    }
+  ],
+  "extra": {}
+}

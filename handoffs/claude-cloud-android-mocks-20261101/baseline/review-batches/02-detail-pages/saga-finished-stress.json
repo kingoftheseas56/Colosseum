@@ -1,0 +1,1965 @@
+{
+  "utc": "2026-10-31T23:13:48.822Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-hero-portrait-stress",
+      "result": {
+        "name": "saga-finished-hero-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-hero-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:29.962Z",
+        "sha256": "29284211c6c509db5209a76cdfbdb46ebef55ff9928d82a903975e051f6aed31",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": 0
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)",
+        "logs": [
+          "Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowRight"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film1",
+        "cta": "Watch again"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-film-portrait-stress",
+      "result": {
+        "name": "saga-finished-last-film-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-film-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:30.276Z",
+        "sha256": "38f08093b26006f485370444f38342e1b87d0e63d7ccac655dca500319136b48",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film7",
+        "detail": "STORY 7 OF 7 · FILM · PART 2Harry Potter and the Deathly Hallows: Part 22011WatchOpens in Theatre",
+        "log": "Mock only: Open Harry Potter and the Deathly Hallows: Part 2 in Theatre (simulated)",
+        "gridScroll": 774
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowUp"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "book6",
+        "activeDescendant": "work-0-6"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-upcoming\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-upcoming-portrait-stress",
+      "result": {
+        "name": "saga-finished-upcoming-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-upcoming-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:30.603Z",
+        "sha256": "780a638d845dc6f4e83a64761c04e81b9f253653388774290a270eb2bca0b1a2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-select=\"hbo\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "pending": "Details pending",
+        "disabled": true,
+        "log": "Mock only: Details pending for Harry Potter (unresolved local fixture)"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-about-portrait-stress",
+      "result": {
+        "name": "saga-finished-about-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-about-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:30.971Z",
+        "sha256": "164d96cfe8ce840404bee14a5184d73f3fb19dfc5d207d97df22966dcb0174f6",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tab": {
+          "x": 24,
+          "y": 98,
+          "width": 364,
+          "height": 46,
+          "top": 98,
+          "right": 388,
+          "bottom": 144,
+          "left": 24
+        },
+        "position": "below-back",
+        "active": "About",
+        "trackScroll": 121,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-section-portrait-stress",
+      "result": {
+        "name": "saga-finished-last-section-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-section-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:31.303Z",
+        "sha256": "31a8c623c43f4e1365017a73ae48d41fb44977521dacc900e0b2a421dc0cc774",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-original-portrait-stress",
+      "result": {
+        "name": "saga-tabs-original-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-original-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:32.715Z",
+        "sha256": "db54bd25b7ebaf7060e80f85ca72e6298e13b7f1196beb837e7937c85b318a55",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "original",
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 485.25,
+          "height": 46,
+          "top": 46,
+          "right": 627.25,
+          "bottom": 92,
+          "left": 142
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 147,
+              "y": 51,
+              "width": 108.125,
+              "height": 36,
+              "top": 51,
+              "right": 255.125,
+              "bottom": 87,
+              "left": 147
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 257.125,
+              "y": 51,
+              "width": 164.0625,
+              "height": 36,
+              "top": 51,
+              "right": 421.1875,
+              "bottom": 87,
+              "left": 257.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 423.1875,
+              "y": 51,
+              "width": 114.859375,
+              "height": 36,
+              "top": 51,
+              "right": 538.046875,
+              "bottom": 87,
+              "left": 423.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 540.046875,
+              "y": 51,
+              "width": 82.203125,
+              "height": 36,
+              "top": 51,
+              "right": 622.25,
+              "bottom": 87,
+              "left": 540.046875
+            }
+          }
+        ],
+        "position": "beside-back"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-proposed-portrait-stress",
+      "result": {
+        "name": "saga-tabs-proposed-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-proposed-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:33.956Z",
+        "sha256": "86e0f3a4bb748a0b15390bc7d5671c4dbcb4e78e7a81931eaa17800a328cb055",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "proposed",
+        "bar": {
+          "x": 24,
+          "y": 98,
+          "width": 364,
+          "height": 46,
+          "top": 98,
+          "right": 388,
+          "bottom": 144,
+          "left": 24
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 29,
+              "y": 103,
+              "width": 108.125,
+              "height": 36,
+              "top": 103,
+              "right": 137.125,
+              "bottom": 139,
+              "left": 29
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 139.125,
+              "y": 103,
+              "width": 164.0625,
+              "height": 36,
+              "top": 103,
+              "right": 303.1875,
+              "bottom": 139,
+              "left": 139.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 305.1875,
+              "y": 103,
+              "width": 114.859375,
+              "height": 36,
+              "top": 103,
+              "right": 420.046875,
+              "bottom": 139,
+              "left": 305.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 422.046875,
+              "y": 103,
+              "width": 82.203125,
+              "height": 36,
+              "top": 103,
+              "right": 504.25,
+              "bottom": 139,
+              "left": 422.046875
+            }
+          }
+        ],
+        "position": "below-back"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-hero-portrait-small-stress",
+      "result": {
+        "name": "saga-finished-hero-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-hero-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:34.949Z",
+        "sha256": "23278d6250ee9005d3d28d250c91dd9399df848090dc1142e461edd6a81ca26f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": 0
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)",
+        "logs": [
+          "Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowRight"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film1",
+        "cta": "Watch again"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-film-portrait-small-stress",
+      "result": {
+        "name": "saga-finished-last-film-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-film-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:35.234Z",
+        "sha256": "0cec7980d2852f04e233b5f4b9e9c84d0a7f43cb5be14537afae0367e11a6520",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film7",
+        "detail": "STORY 7 OF 7 · FILM · PART 2Harry Potter and the Deathly Hallows: Part 22011WatchOpens in Theatre",
+        "log": "Mock only: Open Harry Potter and the Deathly Hallows: Part 2 in Theatre (simulated)",
+        "gridScroll": 832
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowUp"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "book6",
+        "activeDescendant": "work-0-6"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-upcoming\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-upcoming-portrait-small-stress",
+      "result": {
+        "name": "saga-finished-upcoming-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-upcoming-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:35.530Z",
+        "sha256": "b537a0c126cd85bfcbdf95a97652e3e06621fa56bb1a7a6663b11a2f942f8c11",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-select=\"hbo\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "pending": "Details pending",
+        "disabled": true,
+        "log": "Mock only: Details pending for Harry Potter (unresolved local fixture)"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-about-portrait-small-stress",
+      "result": {
+        "name": "saga-finished-about-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-about-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:35.834Z",
+        "sha256": "750cc828ea7eed03055d2e5cb9f08d5af7c972a653d83fd6c31e4521501ec9b2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tab": {
+          "x": 24,
+          "y": 98,
+          "width": 306,
+          "height": 46,
+          "top": 98,
+          "right": 330,
+          "bottom": 144,
+          "left": 24
+        },
+        "position": "below-back",
+        "active": "About",
+        "trackScroll": 179,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-section-portrait-small-stress",
+      "result": {
+        "name": "saga-finished-last-section-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-section-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:36.101Z",
+        "sha256": "2fad6d3f28965114a02d535080284951823047edbc50e604d4a44655c4919fb7",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-original-portrait-small-stress",
+      "result": {
+        "name": "saga-tabs-original-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-original-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:37.428Z",
+        "sha256": "4203bf71ebec568f3a55d920b8ce79e68979bbe3dcdb88987ad524d24768b844",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "original",
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 485.25,
+          "height": 46,
+          "top": 46,
+          "right": 627.25,
+          "bottom": 92,
+          "left": 142
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 147,
+              "y": 51,
+              "width": 108.125,
+              "height": 36,
+              "top": 51,
+              "right": 255.125,
+              "bottom": 87,
+              "left": 147
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 257.125,
+              "y": 51,
+              "width": 164.0625,
+              "height": 36,
+              "top": 51,
+              "right": 421.1875,
+              "bottom": 87,
+              "left": 257.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 423.1875,
+              "y": 51,
+              "width": 114.859375,
+              "height": 36,
+              "top": 51,
+              "right": 538.046875,
+              "bottom": 87,
+              "left": 423.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 540.046875,
+              "y": 51,
+              "width": 82.203125,
+              "height": 36,
+              "top": 51,
+              "right": 622.25,
+              "bottom": 87,
+              "left": 540.046875
+            }
+          }
+        ],
+        "position": "beside-back"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-proposed-portrait-small-stress",
+      "result": {
+        "name": "saga-tabs-proposed-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-proposed-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:38.589Z",
+        "sha256": "36a4a6871d118dc37278b70a27d95fdc580b36b2736f5a5bef717dee7ccc5d77",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "proposed",
+        "bar": {
+          "x": 24,
+          "y": 98,
+          "width": 306,
+          "height": 46,
+          "top": 98,
+          "right": 330,
+          "bottom": 144,
+          "left": 24
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 29,
+              "y": 103,
+              "width": 108.125,
+              "height": 36,
+              "top": 103,
+              "right": 137.125,
+              "bottom": 139,
+              "left": 29
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 139.125,
+              "y": 103,
+              "width": 164.0625,
+              "height": 36,
+              "top": 103,
+              "right": 303.1875,
+              "bottom": 139,
+              "left": 139.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 305.1875,
+              "y": 103,
+              "width": 114.859375,
+              "height": 36,
+              "top": 103,
+              "right": 420.046875,
+              "bottom": 139,
+              "left": 305.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 422.046875,
+              "y": 103,
+              "width": 82.203125,
+              "height": 36,
+              "top": 103,
+              "right": 504.25,
+              "bottom": 139,
+              "left": 422.046875
+            }
+          }
+        ],
+        "position": "below-back"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-hero-landscape-stress",
+      "result": {
+        "name": "saga-finished-hero-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-hero-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:39.975Z",
+        "sha256": "5dd4892ad0cf3c0b0a3c3cb1a15eb2518fe5bdb6fb385bce26b2ae307a4a7d48",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": 0
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)",
+        "logs": [
+          "Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowRight"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film1",
+        "cta": "Watch again"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-film-landscape-stress",
+      "result": {
+        "name": "saga-finished-last-film-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-film-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:40.266Z",
+        "sha256": "65c5a50adcee5573581a20def78021aba57281c54316a59f892b92df95527a7f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film7",
+        "detail": "STORY 7 OF 7 · FILM · PART 2Harry Potter and the Deathly Hallows: Part 22011WatchOpens in Theatre",
+        "log": "Mock only: Open Harry Potter and the Deathly Hallows: Part 2 in Theatre (simulated)",
+        "gridScroll": 286
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowUp"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "book6",
+        "activeDescendant": "work-0-6"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-upcoming\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-upcoming-landscape-stress",
+      "result": {
+        "name": "saga-finished-upcoming-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-upcoming-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:40.574Z",
+        "sha256": "274583c6e8e3ae6f06959620339e31238c1c6a84199c22cad7ff5eff6cf3cc3f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-select=\"hbo\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "pending": "Details pending",
+        "disabled": true,
+        "log": "Mock only: Details pending for Harry Potter (unresolved local fixture)"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-about-landscape-stress",
+      "result": {
+        "name": "saga-finished-about-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-about-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:40.900Z",
+        "sha256": "38dfd4c5fde01b9440bfe3fb6252fdba3494938798a6c268420719176115640d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tab": {
+          "x": 142,
+          "y": 46,
+          "width": 485.328125,
+          "height": 46,
+          "top": 46,
+          "right": 627.328125,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "active": "About",
+        "trackScroll": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-section-landscape-stress",
+      "result": {
+        "name": "saga-finished-last-section-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-section-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:41.248Z",
+        "sha256": "8942cf299928f0c6a949c56229921e4e21e6c26aa020f86bcdefbbf912683d63",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-original-landscape-stress",
+      "result": {
+        "name": "saga-tabs-original-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-original-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:42.607Z",
+        "sha256": "1d62fff6b842d17798088885424e64b20d301b99e7a5d62e27335f0b3c9b54bc",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "original",
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 485.25,
+          "height": 46,
+          "top": 46,
+          "right": 627.25,
+          "bottom": 92,
+          "left": 142
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 147,
+              "y": 51,
+              "width": 108.125,
+              "height": 36,
+              "top": 51,
+              "right": 255.125,
+              "bottom": 87,
+              "left": 147
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 257.125,
+              "y": 51,
+              "width": 164.0625,
+              "height": 36,
+              "top": 51,
+              "right": 421.1875,
+              "bottom": 87,
+              "left": 257.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 423.1875,
+              "y": 51,
+              "width": 114.859375,
+              "height": 36,
+              "top": 51,
+              "right": 538.046875,
+              "bottom": 87,
+              "left": 423.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 540.046875,
+              "y": 51,
+              "width": 82.203125,
+              "height": 36,
+              "top": 51,
+              "right": 622.25,
+              "bottom": 87,
+              "left": 540.046875
+            }
+          }
+        ],
+        "position": "beside-back"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-proposed-landscape-stress",
+      "result": {
+        "name": "saga-tabs-proposed-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-proposed-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:43.934Z",
+        "sha256": "68ec30b0093bd0e8ac2f9eba058553346d0652b19b004f7ea9e96387cf0d8d5b",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "proposed",
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 485.25,
+          "height": 46,
+          "top": 46,
+          "right": 627.25,
+          "bottom": 92,
+          "left": 142
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 147,
+              "y": 51,
+              "width": 108.125,
+              "height": 36,
+              "top": 51,
+              "right": 255.125,
+              "bottom": 87,
+              "left": 147
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 257.125,
+              "y": 51,
+              "width": 164.0625,
+              "height": 36,
+              "top": 51,
+              "right": 421.1875,
+              "bottom": 87,
+              "left": 257.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 423.1875,
+              "y": 51,
+              "width": 114.859375,
+              "height": 36,
+              "top": 51,
+              "right": 538.046875,
+              "bottom": 87,
+              "left": 423.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 540.046875,
+              "y": 51,
+              "width": 82.203125,
+              "height": 36,
+              "top": 51,
+              "right": 622.25,
+              "bottom": 87,
+              "left": 540.046875
+            }
+          }
+        ],
+        "position": "beside-back"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-hero-landscape-small-stress",
+      "result": {
+        "name": "saga-finished-hero-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-hero-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:45.042Z",
+        "sha256": "ae11dfc3880d0cf0f9a699501f506feb91bca3e2eae68213750d84078506fe99",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": 0
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)",
+        "logs": [
+          "Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowRight"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film1",
+        "cta": "Watch again"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-film-landscape-small-stress",
+      "result": {
+        "name": "saga-finished-last-film-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-film-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:45.320Z",
+        "sha256": "f297c9b306019e6bf2b55de4c7515949549b30a0546c031fcb4707d4cfe95736",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "film7",
+        "detail": "STORY 7 OF 7 · FILM · PART 2Harry Potter and the Deathly Hallows: Part 22011WatchOpens in Theatre",
+        "log": "Mock only: Open Harry Potter and the Deathly Hallows: Part 2 in Theatre (simulated)",
+        "gridScroll": 394
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowUp"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "book6",
+        "activeDescendant": "work-0-6"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-upcoming\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-upcoming-landscape-small-stress",
+      "result": {
+        "name": "saga-finished-upcoming-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-upcoming-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:45.603Z",
+        "sha256": "7233ac257591ccc7488fb28c6c43eae31577e764f18537f0777b991373a2cdb2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-select=\"hbo\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "pending": "Details pending",
+        "disabled": true,
+        "log": "Mock only: Details pending for Harry Potter (unresolved local fixture)"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"saga-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-about-landscape-small-stress",
+      "result": {
+        "name": "saga-finished-about-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-about-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:45.897Z",
+        "sha256": "1e4d51fc737434d85ae59d4033188c0fdc141f673011aa41dd84b6a8299a0cb6",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tab": {
+          "x": 142,
+          "y": 46,
+          "width": 485.328125,
+          "height": 46,
+          "top": 46,
+          "right": 627.328125,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "active": "About",
+        "trackScroll": 0,
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-last-section-landscape-small-stress",
+      "result": {
+        "name": "saga-finished-last-section-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-last-section-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:46.168Z",
+        "sha256": "378f8f3cdc263f47cadb59e30d21f6a85786434724bd9bb34808ccb34ce53202",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-original-landscape-small-stress",
+      "result": {
+        "name": "saga-tabs-original-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-original-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:47.489Z",
+        "sha256": "48a8a38d884483c381cc0cd638afe88a744c8d525c857c968db67f39ef5a065e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "original",
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 485.25,
+          "height": 46,
+          "top": 46,
+          "right": 627.25,
+          "bottom": 92,
+          "left": 142
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 147,
+              "y": 51,
+              "width": 108.125,
+              "height": 36,
+              "top": 51,
+              "right": 255.125,
+              "bottom": 87,
+              "left": 147
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 257.125,
+              "y": 51,
+              "width": 164.0625,
+              "height": 36,
+              "top": 51,
+              "right": 421.1875,
+              "bottom": 87,
+              "left": 257.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 423.1875,
+              "y": 51,
+              "width": 114.859375,
+              "height": 36,
+              "top": 51,
+              "right": 538.046875,
+              "bottom": 87,
+              "left": 423.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 540.046875,
+              "y": 51,
+              "width": 82.203125,
+              "height": 36,
+              "top": 51,
+              "right": 622.25,
+              "bottom": 87,
+              "left": 540.046875
+            }
+          }
+        ],
+        "position": "beside-back"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "saga-tabs-proposed-landscape-small-stress",
+      "result": {
+        "name": "saga-tabs-proposed-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-tabs-proposed-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:13:48.818Z",
+        "sha256": "e90fc12b836127dc2a52caafdd3263c5412bbb47d4434ce078f12735de44d894",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "mode": "proposed",
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 485.25,
+          "height": 46,
+          "top": 46,
+          "right": 627.25,
+          "bottom": 92,
+          "left": 142
+        },
+        "back": {
+          "x": 24,
+          "y": 52,
+          "width": 72,
+          "height": 44,
+          "top": 52,
+          "right": 96,
+          "bottom": 96,
+          "left": 24
+        },
+        "tabs": [
+          {
+            "text": "The saga",
+            "rect": {
+              "x": 147,
+              "y": 51,
+              "width": 108.125,
+              "height": 36,
+              "top": 51,
+              "right": 255.125,
+              "bottom": 87,
+              "left": 147
+            }
+          },
+          {
+            "text": "Beyond the saga",
+            "rect": {
+              "x": 257.125,
+              "y": 51,
+              "width": 164.0625,
+              "height": 36,
+              "top": 51,
+              "right": 421.1875,
+              "bottom": 87,
+              "left": 257.125
+            }
+          },
+          {
+            "text": "Upcoming",
+            "rect": {
+              "x": 423.1875,
+              "y": 51,
+              "width": 114.859375,
+              "height": 36,
+              "top": 51,
+              "right": 538.046875,
+              "bottom": 87,
+              "left": 423.1875
+            }
+          },
+          {
+            "text": "About",
+            "rect": {
+              "x": 540.046875,
+              "y": 51,
+              "width": 82.203125,
+              "height": 36,
+              "top": 51,
+              "right": 622.25,
+              "bottom": 87,
+              "left": 540.046875
+            }
+          }
+        ],
+        "position": "beside-back"
+      }
+    }
+  ]
+}

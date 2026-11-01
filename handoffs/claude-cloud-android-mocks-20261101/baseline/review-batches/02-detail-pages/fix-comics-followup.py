@@ -1,0 +1,10 @@
+from pathlib import Path
+p=Path(r"D:\Colosseum-Android-Phone-Mocks-20261101\review-batches\02-detail-pages\finished-mocks\18-comic-details\app.js")
+s=p.read_text(encoding="utf-8")
+s=s.replace('document.getElementById("app-scroll").scrollTop=oldScroll;','document.getElementById("app-scroll").scrollTop=st.nextScroll===undefined?oldScroll:st.nextScroll;delete st.nextScroll;')
+s=s.replace('if(page==="archive"&&st.archiveView==="releases"){st.archiveView="index";','if(page==="archive"&&st.archiveView==="releases"){st.nextScroll=st.archiveIndexScroll||0;st.archiveView="index";')
+s=s.replace('if(page==="archive"&&st.archiveView==="index"){st.archiveView="board";','if(page==="archive"&&st.archiveView==="index"){st.nextScroll=st.archiveBoardScroll||0;st.archiveView="board";')
+s=s.replace('st.archiveView="index";st.archiveBox=box.name;','st.archiveBoardScroll=document.getElementById("app-scroll").scrollTop;st.nextScroll=0;st.archiveView="index";st.archiveBox=box.name;')
+s=s.replace('case "all-releases":st.archiveView="releases";','case "all-releases":st.archiveIndexScroll=document.getElementById("app-scroll").scrollTop;st.nextScroll=0;st.archiveView="releases";')
+p.write_text(s,encoding="utf-8")
+print("Archive forward/back scroll positions corrected.")

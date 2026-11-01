@@ -1,0 +1,6 @@
+from pathlib import Path
+p=Path("D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\finished-mocks")
+f=p/"07-biblio-home/app.js";s=f.read_text(encoding="utf-8");s=s.replace('let categoryOpenFromSeeAll=false;','let categoryOpenFromSeeAll=false,pickerOpenedY=0;');s=s.replace('fitShortLandscapeMenu();updateIndex();','fitShortLandscapeMenu();updateIndex();if(catalogMenu||genreMenu)pickerOpenedY=scroll.scrollTop;');s=s.replace('if(catalogMenu||genreMenu){catalogMenu=false;genreMenu=false;app.querySelectorAll','if((catalogMenu||genreMenu)&&Math.abs(scroll.scrollTop-pickerOpenedY)>1){catalogMenu=false;genreMenu=false;app.querySelectorAll');f.write_text(s,encoding="utf-8")
+f=p/"08-theatre-discover/app.js";s=f.read_text(encoding="utf-8");s=s.replace('ui.popup=kind;','ui.popup=kind;ui.popupScroll=$("world-scroll").scrollTop;');s=s.replace('if(ui.popup)closePopup();},{passive:true});','if(ui.popup&&Math.abs($("world-scroll").scrollTop-ui.popupScroll)>1)closePopup();},{passive:true});');f.write_text(s,encoding="utf-8")
+with (p/"20-search-browse/style.css").open("a",encoding="utf-8") as f:f.write("\n.batch-world-nav img{filter:brightness(0) invert(.72)}\n")
+print("Picker pending-scroll race fixed")

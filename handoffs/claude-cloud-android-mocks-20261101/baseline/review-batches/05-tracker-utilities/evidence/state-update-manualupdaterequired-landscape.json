@@ -1,0 +1,170 @@
+{
+  "time": "2026-10-31T23:45:10.111Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/update.html?capture=1&w=792&h=354&fontScale=1.3&top=24&bottom=24&state=ManualUpdateRequired",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 792,
+    "h": 354,
+    "outerWidth": 792,
+    "outerHeight": 354,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android landscape text-enlarged compact-available",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      },
+      {
+        "class": "app-surface update-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      }
+    ],
+    "scrolls": [],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Back",
+        "action": "updateBack",
+        "disabled": false,
+        "box": {
+          "x": 13,
+          "y": 36,
+          "w": 44,
+          "h": 44,
+          "right": 57,
+          "bottom": 80
+        }
+      },
+      {
+        "text": "Chapter 1: The latest chapter",
+        "action": "chapter",
+        "disabled": false,
+        "box": {
+          "x": 86.4375,
+          "y": 256,
+          "w": 44,
+          "h": 44,
+          "right": 130.4375,
+          "bottom": 300
+        }
+      },
+      {
+        "text": "Chapter 2: Your Collections",
+        "action": "chapter",
+        "disabled": false,
+        "box": {
+          "x": 130.4375,
+          "y": 256,
+          "w": 44,
+          "h": 44,
+          "right": 174.4375,
+          "bottom": 300
+        }
+      },
+      {
+        "text": "Chapter 3: Add-ons and sources for every world.",
+        "action": "chapter",
+        "disabled": false,
+        "box": {
+          "x": 174.4375,
+          "y": 256,
+          "w": 44,
+          "h": 44,
+          "right": 218.4375,
+          "bottom": 300
+        }
+      },
+      {
+        "text": "Next chapter",
+        "action": "chapterNext",
+        "disabled": false,
+        "box": {
+          "x": 218.4375,
+          "y": 256,
+          "w": 44,
+          "h": 44,
+          "right": 262.4375,
+          "bottom": 300
+        }
+      },
+      {
+        "text": "Check again",
+        "action": "updatePrimary",
+        "disabled": false,
+        "box": {
+          "x": 483.109375,
+          "y": 180,
+          "w": 123.734375,
+          "h": 44,
+          "right": 606.84375,
+          "bottom": 224
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/update.html",
+      "sha256": "e242bc8d992c3ccf7d79457b9f54de16494be67ffc8b0aa8d3c022545c4ce09a"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

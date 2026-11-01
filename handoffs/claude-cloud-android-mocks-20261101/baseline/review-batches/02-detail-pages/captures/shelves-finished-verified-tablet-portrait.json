@@ -1,0 +1,21 @@
+{
+  "name": "shelves-finished-verified-tablet-portrait",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-verified-tablet-portrait.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 800,
+    "height": 1280,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:33:41.766Z",
+  "sha256": "1b58497a2cb0151eca7ac52c371c2dd9302dd568148f405750c2a5e95ed739ce",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

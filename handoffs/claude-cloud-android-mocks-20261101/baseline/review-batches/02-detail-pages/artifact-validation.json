@@ -1,0 +1,26 @@
+{
+  "utc": "2026-11-01T00:11:29.280443+00:00",
+  "html_files": 24,
+  "relative_links_and_assets_checked": 711,
+  "broken_links_or_assets": [],
+  "report_links_pending_final_write": 2,
+  "capture_count": 522,
+  "capture_integrity_errors": [],
+  "coverage_rows": 8,
+  "finding_rows": 21,
+  "fixed_verified": 18,
+  "fixed_unverified": [],
+  "normal_verified": 56,
+  "decision_pending": [
+    "B2-018"
+  ],
+  "source_files_hashed": 80,
+  "finished_files_hashed": 25,
+  "historical_browser_errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked_requests": []
+}

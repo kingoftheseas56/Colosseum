@@ -1,0 +1,253 @@
+{
+  "verdict": "ACCEPT_WITH_GAPS",
+  "scope": "Receiving review of seven finished HTML mocks; primary owns final acceptance.",
+  "requestedModel": "gpt-6.1-sol",
+  "requestedEffort": "medium",
+  "effectiveRuntimeMetadata": "Not independently exposed to this worker.",
+  "pages": [
+    {
+      "page": "tracker-connections",
+      "portrait": "354x792",
+      "landscape": "792x354",
+      "desktop": "1280x700",
+      "captured": true,
+      "visualReview": "Source-related composition and original before/after contact sheet inspected; no blocking visual substitution found.",
+      "finding": "SOL-B5-001 shared focus restoration"
+    },
+    {
+      "page": "tracker-dossier",
+      "portrait": "354x792",
+      "landscape": "792x354",
+      "desktop": "1280x700",
+      "captured": true,
+      "visualReview": "Source-related composition and original before/after contact sheet inspected; no blocking visual substitution found.",
+      "finding": "SOL-B5-001 shared focus restoration"
+    },
+    {
+      "page": "tracker-preferences",
+      "portrait": "354x792",
+      "landscape": "792x354",
+      "desktop": "1280x700",
+      "captured": true,
+      "visualReview": "Source-related composition and original before/after contact sheet inspected; no blocking visual substitution found.",
+      "finding": "SOL-B5-001 shared focus restoration"
+    },
+    {
+      "page": "wallpaper-search",
+      "portrait": "354x792",
+      "landscape": "792x354",
+      "desktop": "1280x700",
+      "captured": true,
+      "visualReview": "Source-related composition and original before/after contact sheet inspected; no blocking visual substitution found.",
+      "finding": ""
+    },
+    {
+      "page": "extensions-store",
+      "portrait": "354x792",
+      "landscape": "792x354",
+      "desktop": "1280x700",
+      "captured": true,
+      "visualReview": "Source-related composition and original before/after contact sheet inspected; no blocking visual substitution found.",
+      "finding": ""
+    },
+    {
+      "page": "update",
+      "portrait": "354x792",
+      "landscape": "792x354",
+      "desktop": "1280x700",
+      "captured": true,
+      "visualReview": "Source-related composition and original before/after contact sheet inspected; no blocking visual substitution found.",
+      "finding": ""
+    },
+    {
+      "page": "collections",
+      "portrait": "354x792",
+      "landscape": "792x354",
+      "desktop": "1280x700",
+      "captured": true,
+      "visualReview": "Source-related composition and original before/after contact sheet inspected; no blocking visual substitution found.",
+      "finding": ""
+    }
+  ],
+  "findings": [
+    {
+      "id": "SOL-B5-001",
+      "priority": "P2",
+      "title": "Tracker dossier close loses the exact provider opener",
+      "file": "finished-mocks/tracker.js",
+      "lines": [
+        325,
+        327,
+        386
+      ],
+      "source": "reference/desktop/qml/TrackerSyncCenterPage.qml:1381-1401",
+      "repro": "Open tracker-connections.html at 354x792; click connected-card[data-key=mal]; press Escape. Focus lands on Preferences, not the MAL card.",
+      "observed": "document.activeElement.dataset = {action: preferences}",
+      "expected": "Restore the exact visible enabled provider card which invoked the dossier, as approved QML closeDossier does.",
+      "cause": "render falls back to Preferences after the focused dossier button disappears. returnFocus records only action and is not used to restore provider identity.",
+      "evidence": [
+        "failure-1.png",
+        "tracker-focus-after-escape.png",
+        "checks.json"
+      ],
+      "recommendation": "Preserve action plus provider key (or stable opener identity) and restore it on all dossier close paths; check nested dialogs separately. Do not port the HTML fallback into QML."
+    }
+  ],
+  "checks": {
+    "freshCaptures": 21,
+    "focusedScenarios": 12,
+    "passed": 11,
+    "failed": 1,
+    "inputFiles": 29,
+    "inputMismatch": 0,
+    "finalCaptureReceipts": 171,
+    "emptyInputHashLists": 0,
+    "captureCodeHashMismatch": 0,
+    "manifestVerification": [
+      {
+        "name": "final-evidence-manifest",
+        "files": 342,
+        "mismatch": 0
+      },
+      {
+        "name": "finished-versions",
+        "files": 30,
+        "mismatch": 0
+      }
+    ],
+    "reportArtifacts": 31,
+    "artifactMismatch": 0,
+    "contactSheetPngCount": 10,
+    "proViewportCaptures": 63,
+    "proStateScrollCaptures": 108,
+    "proReceiptsWithErrorsMissingOrExternal": 0
+  },
+  "actions": [
+    {
+      "name": "Tracker dossier ordinary body click stays open",
+      "pass": true
+    },
+    {
+      "name": "Tracker restores exact provider opener after Escape",
+      "pass": false,
+      "error": "Expected MAL opener; actual {\"action\":\"preferences\"}",
+      "evidence": "failure-1.png"
+    },
+    {
+      "name": "Tracker slow title match keeps entered text and separate decision",
+      "pass": true
+    },
+    {
+      "name": "Preferences all four switches and Escape",
+      "pass": true,
+      "detail": [
+        "trackerSyncEnabled",
+        "checkOnLaunch",
+        "backgroundDelivery",
+        "completionMessages"
+      ]
+    },
+    {
+      "name": "Wallpaper zero search, native scenes and KDE identity",
+      "pass": true,
+      "detail": [
+        {
+          "id": "noir",
+          "rendered": "true"
+        },
+        {
+          "id": "aurora",
+          "rendered": "true"
+        },
+        {
+          "id": "poly",
+          "rendered": "true"
+        },
+        {
+          "id": "twilight",
+          "rendered": "true"
+        },
+        {
+          "id": "ember",
+          "rendered": "true"
+        },
+        {
+          "id": "mint",
+          "rendered": "true"
+        }
+      ]
+    },
+    {
+      "name": "Extension slow URL and preview/install/Done",
+      "pass": true
+    },
+    {
+      "name": "Update unknown size and pause/resume",
+      "pass": true
+    },
+    {
+      "name": "Collection remove/cancel rollback",
+      "pass": true
+    },
+    {
+      "name": "Collection nested create Cancel returns; Escape closes per source",
+      "pass": true,
+      "detail": "Matches AddToCollectionsPopup.qml: cancelCreate returns; Popup.CloseOnEscape closes."
+    },
+    {
+      "name": "Collection slow search",
+      "pass": true,
+      "detail": [
+        "Worlds worth returning to",
+        "The worlds I keep coming back to, even after the last chapter"
+      ]
+    },
+    {
+      "name": "Extension text menu cut restores editor and core toggle gated",
+      "pass": true
+    },
+    {
+      "name": "MAL read-only gates and provider catalogue reachable",
+      "pass": true,
+      "detail": [
+        {
+          "key": "pull",
+          "disabled": false
+        },
+        {
+          "key": "send",
+          "disabled": true
+        },
+        {
+          "key": "live",
+          "disabled": true
+        }
+      ]
+    }
+  ],
+  "qualificationLimits": [
+    "Original tracker worker REPORT.json remains missing.",
+    "Physical viewport/DPR/insets/keyboard remain provisional.",
+    "No current approved native Batch 5 capture; QML/source and HTML comparisons are not native pixel equivalence.",
+    "No application, device, authentication, live provider, updater installation, real clipboard or persistence qualification.",
+    "No fresh replay of all 44 Pro scenarios or all stress cases. Existing receipts were independently bound to current artifact bytes.",
+    "No commit or app-repository mutation, push or publication."
+  ],
+  "harnessNotes": [
+    "checks-first.json retains first-pass collection selector mistakes. Collection card class was wrong, a duplicated New collection selector targeted inert background, and Worlds correctly matches two fixtures, not one. Corrected checks pass; these are not mock defects.",
+    "Nested create Escape intentionally closes the popup per AddToCollectionsPopup.qml CloseOnEscape; Cancel returns to membership picker.",
+    "Fresh first page records one /favicon.ico 404 from the minimal reviewer server. No page script/image error, external request or horizontal overflow occurred; this does not contradict Pro server evidence.",
+    "Unused FontFace declarations were not counted as load failures.",
+    "One owned profile and one owned loopback server at a time; each session closed before next launch."
+  ],
+  "productDecisions": [
+    "No new phone surface exception proposed or needed in reviewed samples.",
+    "Preserve latest Connections layout; do not revert to alpha or rejected Android baseline.",
+    "Accept source-fitting guidance, but correct focus restoration and the unqualified no-unfinished-repair wording before calling every behavior complete."
+  ],
+  "cleanup": {
+    "ownedBrowserClosed": true,
+    "ownedServerClosed": true
+  },
+  "evidence": "checks.json; 21 page captures; tracker-focus-after-escape.png; failure-1.png; checks-first.json"
+}

@@ -1,0 +1,1246 @@
+{
+  "time": "2026-10-31T23:44:28.729Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/extensions-store.html?capture=1&w=792&h=354&fontScale=1.3&top=24&bottom=24&state=Remove+confirmation",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 792,
+    "h": 354,
+    "outerWidth": 792,
+    "outerHeight": 354,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android landscape text-enlarged compact-available",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      },
+      {
+        "class": "app-surface ext-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "sub-body scroll-y",
+        "id": "",
+        "box": {
+          "x": 16,
+          "y": 192.5625,
+          "w": 760,
+          "h": 117.4375,
+          "right": 776,
+          "bottom": 310
+        },
+        "scrollHeight": 1214,
+        "clientHeight": 117
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Back",
+        "action": "extExit",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "+Install from URL",
+        "action": "extUrl",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Search",
+        "action": "extSearch",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "action": "heroOpen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Turn off Nyaa",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "action": "heroOpen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Turn off Tankoyomi",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Turn off GetComics",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Turn off Tankorent",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Turn off LibGen",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Turn off AudioBookBay",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Anime KitsuCore · Always onCatalogs · Details",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "TorrentioEnabledStreams",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "OpenSubtitles v3Core · Always onSubtitles",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "TankoyomiCore · Always onCatalogs · Details",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "NyaaEnabledStreams",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "MediaFusionEnabledStreams",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "OpenSubtitles v3",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Streaming Catalogs",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Comet",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Anime Kitsu",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Comet",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "MediaFusion",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "AIOStreams",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Netflix Catalog",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Comet",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "MediaFusion",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "AIOStreams",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Streaming Catalogs",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Netflix Catalog",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Anime Kitsu",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "OpenSubtitles v3",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": true,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "SubDL",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "OpenSubtitles",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Store",
+        "action": "extBack",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 36,
+          "w": 760,
+          "h": 44,
+          "right": 776,
+          "bottom": 80
+        }
+      },
+      {
+        "text": "Disable",
+        "action": "installedToggle",
+        "disabled": true,
+        "box": {
+          "x": 33,
+          "y": 306.5625,
+          "w": 82.59375,
+          "h": 44,
+          "right": 115.59375,
+          "bottom": 350.5625
+        }
+      },
+      {
+        "text": "Remove",
+        "action": "extRemove",
+        "disabled": true,
+        "box": {
+          "x": 123.59375,
+          "y": 306.5625,
+          "w": 87.84375,
+          "h": 44,
+          "right": 211.4375,
+          "bottom": 350.5625
+        }
+      },
+      {
+        "text": "Disable",
+        "action": "installedToggle",
+        "disabled": false,
+        "box": {
+          "x": 33,
+          "y": 493.5625,
+          "w": 82.59375,
+          "h": 44,
+          "right": 115.59375,
+          "bottom": 537.5625
+        }
+      },
+      {
+        "text": "Configure",
+        "action": "extConfigure",
+        "disabled": false,
+        "box": {
+          "x": 123.59375,
+          "y": 493.5625,
+          "w": 101.546875,
+          "h": 44,
+          "right": 225.140625,
+          "bottom": 537.5625
+        }
+      },
+      {
+        "text": "Remove",
+        "action": "extRemove",
+        "disabled": false,
+        "box": {
+          "x": 33,
+          "y": 545.5625,
+          "w": 87.84375,
+          "h": 44,
+          "right": 120.84375,
+          "bottom": 589.5625
+        }
+      },
+      {
+        "text": "Disable",
+        "action": "installedToggle",
+        "disabled": true,
+        "box": {
+          "x": 33,
+          "y": 732.5625,
+          "w": 82.59375,
+          "h": 44,
+          "right": 115.59375,
+          "bottom": 776.5625
+        }
+      },
+      {
+        "text": "Remove",
+        "action": "extRemove",
+        "disabled": true,
+        "box": {
+          "x": 123.59375,
+          "y": 732.5625,
+          "w": 87.84375,
+          "h": 44,
+          "right": 211.4375,
+          "bottom": 776.5625
+        }
+      },
+      {
+        "text": "Disable",
+        "action": "installedToggle",
+        "disabled": true,
+        "box": {
+          "x": 33,
+          "y": 919.5625,
+          "w": 82.59375,
+          "h": 44,
+          "right": 115.59375,
+          "bottom": 963.5625
+        }
+      },
+      {
+        "text": "Remove",
+        "action": "extRemove",
+        "disabled": true,
+        "box": {
+          "x": 123.59375,
+          "y": 919.5625,
+          "w": 87.84375,
+          "h": 44,
+          "right": 211.4375,
+          "bottom": 963.5625
+        }
+      },
+      {
+        "text": "Disable",
+        "action": "installedToggle",
+        "disabled": false,
+        "box": {
+          "x": 33,
+          "y": 1106.5625,
+          "w": 82.59375,
+          "h": 44,
+          "right": 115.59375,
+          "bottom": 1150.5625
+        }
+      },
+      {
+        "text": "Remove",
+        "action": "extRemove",
+        "disabled": false,
+        "box": {
+          "x": 123.59375,
+          "y": 1106.5625,
+          "w": 87.84375,
+          "h": 44,
+          "right": 211.4375,
+          "bottom": 1150.5625
+        }
+      },
+      {
+        "text": "Disable",
+        "action": "installedToggle",
+        "disabled": false,
+        "box": {
+          "x": 33,
+          "y": 1293.5625,
+          "w": 82.59375,
+          "h": 44,
+          "right": 115.59375,
+          "bottom": 1337.5625
+        }
+      },
+      {
+        "text": "Configure",
+        "action": "extConfigure",
+        "disabled": false,
+        "box": {
+          "x": 123.59375,
+          "y": 1293.5625,
+          "w": 101.546875,
+          "h": 44,
+          "right": 225.140625,
+          "bottom": 1337.5625
+        }
+      },
+      {
+        "text": "Remove",
+        "action": "extRemove",
+        "disabled": false,
+        "box": {
+          "x": 33,
+          "y": 1345.5625,
+          "w": 87.84375,
+          "h": 44,
+          "right": 120.84375,
+          "bottom": 1389.5625
+        }
+      },
+      {
+        "text": "Cancel",
+        "action": "closeModal",
+        "disabled": false,
+        "box": {
+          "x": 415.78125,
+          "y": 205.796875,
+          "w": 77.375,
+          "h": 44,
+          "right": 493.15625,
+          "bottom": 249.796875
+        }
+      },
+      {
+        "text": "Remove",
+        "action": "extConfirmRemove",
+        "disabled": false,
+        "box": {
+          "x": 503.15625,
+          "y": 205.796875,
+          "w": 87.84375,
+          "h": 44,
+          "right": 591,
+          "bottom": 249.796875
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/extensions-store.html",
+      "sha256": "09ebe7894a382e74ca4948ef68e054639055e46b046eeb14b3ef74f29fcdfd81"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

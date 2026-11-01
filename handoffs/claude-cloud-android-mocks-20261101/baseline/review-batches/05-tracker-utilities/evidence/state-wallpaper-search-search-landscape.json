@@ -1,0 +1,460 @@
+{
+  "time": "2026-10-31T23:44:09.065Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/wallpaper-search.html?capture=1&w=792&h=354&fontScale=1.3&top=24&bottom=24&state=Search",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 792,
+    "h": 354,
+    "outerWidth": 792,
+    "outerHeight": 354,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android landscape text-enlarged compact-available",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      },
+      {
+        "class": "app-surface wall-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      },
+      {
+        "class": "wall-panel",
+        "box": {
+          "x": 12,
+          "y": 32,
+          "w": 530,
+          "h": 290,
+          "right": 542,
+          "bottom": 322
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "SECTION",
+        "class": "wall-panel",
+        "id": "",
+        "box": {
+          "x": 12,
+          "y": 32,
+          "w": 530,
+          "h": 290,
+          "right": 542,
+          "bottom": 322
+        },
+        "scrollHeight": 825,
+        "clientHeight": 288
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Close wallpaper picker",
+        "action": "wallClose",
+        "disabled": false,
+        "box": {
+          "x": 485,
+          "y": 45,
+          "w": 44,
+          "h": 44,
+          "right": 529,
+          "bottom": 89
+        }
+      },
+      {
+        "text": "Search",
+        "disabled": false,
+        "box": {
+          "x": 447,
+          "y": 97,
+          "w": 82,
+          "h": 44,
+          "right": 529,
+          "bottom": 141
+        }
+      },
+      {
+        "text": "Relevance",
+        "action": "wallSort",
+        "disabled": false,
+        "box": {
+          "x": 25,
+          "y": 149,
+          "w": 98.484375,
+          "h": 44,
+          "right": 123.484375,
+          "bottom": 193
+        }
+      },
+      {
+        "text": "Top",
+        "action": "wallSort",
+        "disabled": false,
+        "box": {
+          "x": 128.484375,
+          "y": 149,
+          "w": 52.96875,
+          "h": 44,
+          "right": 181.453125,
+          "bottom": 193
+        }
+      },
+      {
+        "text": "Random",
+        "action": "wallSort",
+        "disabled": false,
+        "box": {
+          "x": 186.453125,
+          "y": 149,
+          "w": 85.875,
+          "h": 44,
+          "right": 272.328125,
+          "bottom": 193
+        }
+      },
+      {
+        "text": "Select Noir Flow",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 26,
+          "y": 273,
+          "w": 144,
+          "h": 92,
+          "right": 170,
+          "bottom": 365
+        }
+      },
+      {
+        "text": "Select Aurora Flow",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 180,
+          "y": 273,
+          "w": 144,
+          "h": 92,
+          "right": 324,
+          "bottom": 365
+        }
+      },
+      {
+        "text": "Select Low Poly",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 334,
+          "y": 273,
+          "w": 144,
+          "h": 92,
+          "right": 478,
+          "bottom": 365
+        }
+      },
+      {
+        "text": "Select Twilight",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 26,
+          "y": 420,
+          "w": 144,
+          "h": 92,
+          "right": 170,
+          "bottom": 512
+        }
+      },
+      {
+        "text": "Select Ember",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 180,
+          "y": 420,
+          "w": 144,
+          "h": 92,
+          "right": 324,
+          "bottom": 512
+        }
+      },
+      {
+        "text": "Select Mint",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 334,
+          "y": 420,
+          "w": 144,
+          "h": 92,
+          "right": 478,
+          "bottom": 512
+        }
+      },
+      {
+        "text": "Select Cascade",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 26,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 170,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Flow",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 180,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 324,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Kay",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 334,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 478,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Shell",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 488,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 632,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Volna",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 642,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 786,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Nexus",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 796,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 940,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Opal",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 950,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 1094,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Cold Ripple",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 1104,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 1248,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Elarun",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 1258,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 1402,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Ice Cold",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 1412,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 1556,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Pastel Hills",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 1566,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 1710,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Honeywave",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 1720,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 1864,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Kokkini",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 1874,
+          "y": 567,
+          "w": 144,
+          "h": 92,
+          "right": 2018,
+          "bottom": 659
+        }
+      },
+      {
+        "text": "Select Dune",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 25,
+          "y": 663,
+          "w": 161.328125,
+          "h": 92,
+          "right": 186.328125,
+          "bottom": 755
+        }
+      },
+      {
+        "text": "Load more",
+        "action": "wallMore",
+        "disabled": true,
+        "box": {
+          "x": 220.46875,
+          "y": 768,
+          "w": 113.046875,
+          "h": 44,
+          "right": 333.515625,
+          "bottom": 812
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/wallpaper-search.html",
+      "sha256": "e3591498c08654d143421194f5caeef34c808cae28f19c26afac3e68deda598e"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/native-wallpapers.js",
+      "sha256": "cc5d04ad266f2df9788509f52a860b096d040f4dc403c1913f16ea0d60b615d3"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

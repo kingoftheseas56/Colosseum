@@ -1,0 +1,222 @@
+{
+  "time": "2026-10-31T22:46:35.713Z",
+  "url": "http://127.0.0.1:13213/outputs/22-utilities-collections/collections.html?capture=1&preset=portrait&w=412&h=900",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 412,
+    "h": 900,
+    "outerWidth": 412,
+    "outerHeight": 900,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone portrait",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 0,
+          "y": 39,
+          "w": 412,
+          "h": 847,
+          "right": 412,
+          "bottom": 886
+        },
+        "scrollHeight": 1554,
+        "clientHeight": 847
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Back",
+        "action": "collectionExit",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 57,
+          "w": 368,
+          "h": 44,
+          "right": 390,
+          "bottom": 101
+        }
+      },
+      {
+        "text": "New collection",
+        "action": "collectionNew",
+        "disabled": false,
+        "box": {
+          "x": 245.859375,
+          "y": 206.1875,
+          "w": 144.140625,
+          "h": 44,
+          "right": 390,
+          "bottom": 250.1875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to, 6 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 291.1875,
+          "w": 368,
+          "h": 300,
+          "right": 390,
+          "bottom": 591.1875
+        }
+      },
+      {
+        "text": "Open Stories worth revisiting, 4 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 615.1875,
+          "w": 368,
+          "h": 300,
+          "right": 390,
+          "bottom": 915.1875
+        }
+      },
+      {
+        "text": "Open Mysteries and detectives, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 939.1875,
+          "w": 368,
+          "h": 300,
+          "right": 390,
+          "bottom": 1239.1875
+        }
+      },
+      {
+        "text": "Open The worlds I keep coming back to, even after the last chapter, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1263.1875,
+          "w": 368,
+          "h": 300,
+          "right": 390,
+          "bottom": 1563.1875
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "outputs/22-utilities-collections/collections.html",
+      "sha256": "3152667a6e366c85590408e12234188a1c01a5d2755d410f0499819175393d54"
+    },
+    {
+      "path": "outputs/22-utilities-collections/style.css",
+      "sha256": "a7fe372fa2b22f00e64d0b39fe1f6e12b588b732b3486fb9d159e7d7ac35d9ce"
+    },
+    {
+      "path": "outputs/22-utilities-collections/app.js",
+      "sha256": "1b765457dff74f11bf1b57b9fef3da663dc1f90bc8b39b60691f7ddceb818272"
+    }
+  ]
+}

@@ -1,0 +1,253 @@
+{
+  "utc": "2026-11-01T00:07:04.236Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "scroller": "page-scroll"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "film",
+        "version": "original",
+        "rect": {
+          "x": 20,
+          "y": 110,
+          "width": 314,
+          "height": 84.796875,
+          "top": 110,
+          "right": 334,
+          "bottom": 194.796875,
+          "left": 20
+        },
+        "scrollHeight": 198,
+        "clientHeight": 85,
+        "lineClamp": "3",
+        "overflow": "hidden",
+        "text": "Harry, Ron and Hermione return to Hogwarts to find and destroy Voldemort's remaining Horcruxes. As the wizarding world gathers for its final battle, Harry must confront the truth about his past and face the Dark Lord one last time.",
+        "fullVisible": false,
+        "moreVisible": false
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-original-synopsis-visible-portrait-small-stress",
+      "result": {
+        "name": "film-original-synopsis-visible-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-synopsis-visible-portrait-small-stress.png",
+        "input": "outputs/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:07:00.139Z",
+        "sha256": "aeac186c9762b695972489a043becf27393a3e9e4980752cdc930319914d4d3d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "scroller": "page-scroll"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "film",
+        "version": "finished",
+        "rect": {
+          "x": 20,
+          "y": 110,
+          "width": 314,
+          "height": 197.859375,
+          "top": 110,
+          "right": 334,
+          "bottom": 307.859375,
+          "left": 20
+        },
+        "scrollHeight": 198,
+        "clientHeight": 198,
+        "lineClamp": "none",
+        "overflow": "visible",
+        "text": "Harry, Ron and Hermione return to Hogwarts to find and destroy Voldemort's remaining Horcruxes. As the wizarding world gathers for its final battle, Harry must confront the truth about his past and face the Dark Lord one last time.",
+        "fullVisible": true,
+        "moreVisible": false
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-synopsis-visible-portrait-small-stress",
+      "result": {
+        "name": "film-finished-synopsis-visible-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-synopsis-visible-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:07:01.313Z",
+        "sha256": "aa5180d1ffaf2e4771df02025a72e281fe7ace28adf51eb94c2566bdbf65b841",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "scroller": "page-scroll"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "series",
+        "version": "original",
+        "rect": {
+          "x": 20,
+          "y": 109.71875,
+          "width": 314,
+          "height": 84.796875,
+          "top": 109.71875,
+          "right": 334,
+          "bottom": 194.515625,
+          "left": 20
+        },
+        "scrollHeight": 226,
+        "clientHeight": 85,
+        "lineClamp": "3",
+        "overflow": "hidden",
+        "text": "Monkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.",
+        "fullVisible": false,
+        "moreVisible": false
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-original-synopsis-visible-portrait-small-stress",
+      "result": {
+        "name": "series-original-synopsis-visible-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-synopsis-visible-portrait-small-stress.png",
+        "input": "outputs/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:07:03.024Z",
+        "sha256": "78c9032ac481e3828a2f71a667dacbba6cee14b5b664d5d26a98f775c8f46bab",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "scroller": "page-scroll"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "series",
+        "version": "finished",
+        "rect": {
+          "x": 20,
+          "y": 109.71875,
+          "width": 314,
+          "height": 226.125,
+          "top": 109.71875,
+          "right": 334,
+          "bottom": 335.84375,
+          "left": 20
+        },
+        "scrollHeight": 226,
+        "clientHeight": 226,
+        "lineClamp": "none",
+        "overflow": "visible",
+        "text": "Monkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.",
+        "fullVisible": true,
+        "moreVisible": false
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-synopsis-visible-portrait-small-stress",
+      "result": {
+        "name": "series-finished-synopsis-visible-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-synopsis-visible-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:07:04.231Z",
+        "sha256": "23cae79d7cde97b9a54aea49ea2e223517202cfa85542332a93e73ab48caa494",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

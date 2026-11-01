@@ -1,0 +1,26 @@
+--- a/finished-mocks/17-theatre-details/app.js
++++ b/finished-mocks/17-theatre-details/app.js
+@@ -215,9 +215,12 @@
+     '<div class="episode-list">' + eps.map(episodeRowMarkup).join("") + '</div></section>';
+ }
+ function chromeMarkup() {
++  const androidHost = app.classList.contains("android-host");
++  if (androidHost) { state.systemMenu = false; state.quitArmed = false; }
+   const back = '<button type="button" class="back" data-action="back">' + backSvg +
+     '<span>' + (state.renderer === "rebuilt" ? "Theatre" : "Back") + '</span></button>';
+   if (state.renderer === "legacy") {
++    if (androidHost) return back;
+     return back + '<div class="window-controls">' +
+       '<button data-action="minimize" aria-label="Minimize">' + icon("minimize") + '</button>' +
+       '<button data-action="fullscreen" aria-label="Toggle fullscreen">' + icon("fullscreen") + '</button>' +
+@@ -230,8 +233,8 @@
+       '<hr><button class="danger" data-action="arm-quit">Quit Colosseum…</button>') + '</div>' : "";
+   return '<div class="bar-chrome" id="bar-chrome">' + back +
+     '<div class="bar-right"><button type="button" class="round-head" data-action="search" aria-label="Search">' +
+-    icon("search") + '</button><button type="button" class="round-head" data-action="system-menu" aria-label="Window and app" aria-expanded="' +
+-    state.systemMenu + '"><span class="three-dots"><i></i><i></i><i></i></span></button></div>' + menu + '</div>';
++    icon("search") + '</button>' + (androidHost ? "" : '<button type="button" class="round-head" data-action="system-menu" aria-label="Window and app" aria-expanded="' +
++    state.systemMenu + '"><span class="three-dots"><i></i><i></i><i></i></span></button>') + '</div>' + menu + '</div>';
+ }
+ function setViewport() {
+   const width = capture ? Math.round(window.innerWidth) : Math.max(320, +$("screenWidth").value || 412);

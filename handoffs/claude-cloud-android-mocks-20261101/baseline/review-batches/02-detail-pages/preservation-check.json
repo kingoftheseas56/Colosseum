@@ -1,0 +1,11 @@
+{
+  "utc": "2026-11-01T00:09:19.142989+00:00",
+  "baseline": "input-versions-start.json",
+  "final": "input-versions-end.json",
+  "start_records": 75,
+  "end_records": 75,
+  "unique_path_role_pairs": 73,
+  "changed": [],
+  "passed": true,
+  "note": "All inventoried original worker files, assigned briefs, context and approved source bytes/mtime are unchanged; missing source helpers remain absent. No writes were made outside this batch."
+}

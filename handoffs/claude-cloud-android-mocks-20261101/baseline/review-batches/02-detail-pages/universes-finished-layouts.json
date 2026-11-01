@@ -1,0 +1,971 @@
+{
+  "utc": "2026-10-31T23:11:44.903Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-portrait",
+      "result": {
+        "name": "saga-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:23.467Z",
+        "sha256": "3a488c6f18aa6dba2c9abd6980125d98db0b0c17fe8e69b60ddf4160abb25af4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 599.390625,
+          "width": 46,
+          "height": 46,
+          "top": 599.390625,
+          "right": 104,
+          "bottom": 645.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 548.390625,
+          "width": 340,
+          "height": 148,
+          "top": 548.390625,
+          "right": 364,
+          "bottom": 696.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "ReadBook 1",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-portrait-small",
+      "result": {
+        "name": "saga-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:24.504Z",
+        "sha256": "60bc542673f378286390a10d5d052856662591a05b5303b4b8e8442de7503aad",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 599.390625,
+          "width": 46,
+          "height": 46,
+          "top": 599.390625,
+          "right": 104,
+          "bottom": 645.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 548.390625,
+          "width": 306,
+          "height": 148,
+          "top": 548.390625,
+          "right": 330,
+          "bottom": 696.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "ReadBook 1",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-landscape",
+      "result": {
+        "name": "saga-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:26.216Z",
+        "sha256": "001572038fa5feca557dbe6615b863a57b285e3264d0661e06b9f5d422a4045c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 599.390625,
+          "width": 46,
+          "height": 46,
+          "top": 599.390625,
+          "right": 104,
+          "bottom": 645.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 548.390625,
+          "width": 340,
+          "height": 148,
+          "top": 548.390625,
+          "right": 364,
+          "bottom": 696.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "ReadBook 1",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-landscape-small",
+      "result": {
+        "name": "saga-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:27.750Z",
+        "sha256": "cb46256e3bae15dcd3403e76e2aa46bb6f767211b8408393f70e296140096fcc",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 599.390625,
+          "width": 46,
+          "height": 46,
+          "top": 599.390625,
+          "right": 104,
+          "bottom": 645.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 548.390625,
+          "width": 340,
+          "height": 148,
+          "top": 548.390625,
+          "right": 364,
+          "bottom": 696.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "ReadBook 1",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-desktop-html",
+      "result": {
+        "name": "saga-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:29.586Z",
+        "sha256": "4d904e20a26d3007de0ff7f6c6445bc2ca0fa4cc2feacd277ec6d3b2894de3c8",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "kind": "desktop",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 98,
+          "y": 579.390625,
+          "width": 46,
+          "height": 46,
+          "top": 579.390625,
+          "right": 144,
+          "bottom": 625.390625,
+          "left": 98
+        },
+        "card": {
+          "x": 64,
+          "y": 528.390625,
+          "width": 340,
+          "height": 148,
+          "top": 528.390625,
+          "right": 404,
+          "bottom": 676.390625,
+          "left": 64
+        },
+        "heroActions": [
+          "ReadBook 1",
+          "Watch"
+        ],
+        "windowControls": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-tablet-portrait",
+      "result": {
+        "name": "saga-finished-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:31.313Z",
+        "sha256": "b23a83c36f0b71a5dc0766ec6b931b21da04842bfdd51ca93316b2353f3eddab",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 98,
+          "y": 579.390625,
+          "width": 46,
+          "height": 46,
+          "top": 579.390625,
+          "right": 144,
+          "bottom": 625.390625,
+          "left": 98
+        },
+        "card": {
+          "x": 64,
+          "y": 528.390625,
+          "width": 340,
+          "height": 148,
+          "top": 528.390625,
+          "right": 404,
+          "bottom": 676.390625,
+          "left": 64
+        },
+        "heroActions": [
+          "ReadBook 1",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-tablet-landscape",
+      "result": {
+        "name": "saga-finished-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:33.016Z",
+        "sha256": "b691cca094f9a8ab78894aa307067454fb8a2c725b162faeb20c13377540c95e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 98,
+          "y": 579.390625,
+          "width": 46,
+          "height": 46,
+          "top": 579.390625,
+          "right": 144,
+          "bottom": 625.390625,
+          "left": 98
+        },
+        "card": {
+          "x": 64,
+          "y": 528.390625,
+          "width": 340,
+          "height": 148,
+          "top": 528.390625,
+          "right": 404,
+          "bottom": 676.390625,
+          "left": 64
+        },
+        "heroActions": [
+          "ReadBook 1",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-portrait",
+      "result": {
+        "name": "shelves-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:34.494Z",
+        "sha256": "4368f97c9f88d3846038c56847878c2c83e210f7b0a3de01ec568316ed3d4e0a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 597.390625,
+          "width": 46,
+          "height": 46,
+          "top": 597.390625,
+          "right": 104,
+          "bottom": 643.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 546.390625,
+          "width": 340,
+          "height": 148,
+          "top": 546.390625,
+          "right": 364,
+          "bottom": 694.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "Read",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-portrait-small",
+      "result": {
+        "name": "shelves-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:36.246Z",
+        "sha256": "ad738de773dbaea7ebb1ec35b10bc6e4ebc305dfed2f95ce455df23e1a9efbc0",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 597.390625,
+          "width": 46,
+          "height": 46,
+          "top": 597.390625,
+          "right": 104,
+          "bottom": 643.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 546.390625,
+          "width": 306,
+          "height": 148,
+          "top": 546.390625,
+          "right": 330,
+          "bottom": 694.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "Read",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-landscape",
+      "result": {
+        "name": "shelves-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:37.694Z",
+        "sha256": "145a68d0bdae71823c7fa9a021be7fb350146230acc478f2ad95825d6a7ecdcb",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 597.390625,
+          "width": 46,
+          "height": 46,
+          "top": 597.390625,
+          "right": 104,
+          "bottom": 643.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 546.390625,
+          "width": 340,
+          "height": 148,
+          "top": 546.390625,
+          "right": 364,
+          "bottom": 694.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "Read",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-landscape-small",
+      "result": {
+        "name": "shelves-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:39.140Z",
+        "sha256": "8d6ac0e1652a12783d0d0e753cc129b84b8f48f3f01ed9d9c8442d7e78be7450",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 58,
+          "y": 597.390625,
+          "width": 46,
+          "height": 46,
+          "top": 597.390625,
+          "right": 104,
+          "bottom": 643.390625,
+          "left": 58
+        },
+        "card": {
+          "x": 24,
+          "y": 546.390625,
+          "width": 340,
+          "height": 148,
+          "top": 546.390625,
+          "right": 364,
+          "bottom": 694.390625,
+          "left": 24
+        },
+        "heroActions": [
+          "Read",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-desktop-html",
+      "result": {
+        "name": "shelves-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:41.018Z",
+        "sha256": "434afa36fecf883c8bb2cf10173d4663146f8a2e57f11d9f2de6606e3ebf52f5",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "kind": "desktop",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 98,
+          "y": 581.390625,
+          "width": 46,
+          "height": 46,
+          "top": 581.390625,
+          "right": 144,
+          "bottom": 627.390625,
+          "left": 98
+        },
+        "card": {
+          "x": 64,
+          "y": 530.390625,
+          "width": 340,
+          "height": 148,
+          "top": 530.390625,
+          "right": 404,
+          "bottom": 678.390625,
+          "left": 64
+        },
+        "heroActions": [
+          "Read",
+          "Watch"
+        ],
+        "windowControls": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-tablet-portrait",
+      "result": {
+        "name": "shelves-finished-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:42.834Z",
+        "sha256": "446d9d64f8940980ea98432df50a17cfee634bab055ca7bacddb6672415df12a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 98,
+          "y": 581.390625,
+          "width": 46,
+          "height": 46,
+          "top": 581.390625,
+          "right": 144,
+          "bottom": 627.390625,
+          "left": 98
+        },
+        "card": {
+          "x": 64,
+          "y": 530.390625,
+          "width": 340,
+          "height": 148,
+          "top": 530.390625,
+          "right": 404,
+          "bottom": 678.390625,
+          "left": 64
+        },
+        "heroActions": [
+          "Read",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-tablet-landscape",
+      "result": {
+        "name": "shelves-finished-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:11:44.774Z",
+        "sha256": "c4f64b92471010d26b29297f53513b0bdc017995dbca12414b6ce14f6a1a361c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": [],
+        "resume": {
+          "x": 98,
+          "y": 581.390625,
+          "width": 46,
+          "height": 46,
+          "top": 581.390625,
+          "right": 144,
+          "bottom": 627.390625,
+          "left": 98
+        },
+        "card": {
+          "x": 64,
+          "y": 530.390625,
+          "width": 340,
+          "height": 148,
+          "top": 530.390625,
+          "right": 404,
+          "bottom": 678.390625,
+          "left": 64
+        },
+        "heroActions": [
+          "Read",
+          "Watch"
+        ],
+        "windowControls": false
+      }
+    }
+  ]
+}

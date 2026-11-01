@@ -1,0 +1,13 @@
+{
+  "utc": "2026-10-31T23:29:10.040Z",
+  "checked": 6,
+  "failed": 0,
+  "files": [
+    "finished-mocks\\10-profile\\app.js",
+    "finished-mocks\\11-account-entry\\app.js",
+    "finished-mocks\\12-account-forms\\app.js",
+    "finished-mocks\\13-stremio-sync\\app.js",
+    "finished-mocks\\14-extension-setup\\app.js",
+    "finished-mocks\\mock-support.js"
+  ]
+}

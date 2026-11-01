@@ -1,0 +1,87 @@
+{
+  "at": "2026-10-31T23:47:57.249Z",
+  "command": [
+    "node",
+    "tools/serve-mocks.mjs",
+    "0"
+  ],
+  "base": "http://127.0.0.1:5048",
+  "pid": 34472,
+  "checks": [
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/index.html",
+      "status": 200,
+      "bytes": 7137,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html",
+      "status": 200,
+      "bytes": 2789,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/tracker-dossier.html",
+      "status": 200,
+      "bytes": 2789,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/tracker-preferences.html",
+      "status": 200,
+      "bytes": 2797,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/wallpaper-search.html",
+      "status": 200,
+      "bytes": 664,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/extensions-store.html",
+      "status": 200,
+      "bytes": 621,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/update.html",
+      "status": 200,
+      "bytes": 617,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "status": 200,
+      "bytes": 622,
+      "type": "text/html; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "status": 200,
+      "bytes": 70826,
+      "type": "text/javascript; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+      "status": 200,
+      "bytes": 28628,
+      "type": "text/css; charset=utf-8"
+    },
+    {
+      "path": "/review-batches/05-tracker-utilities/finished-mocks/assets/kde/kokkini.png",
+      "status": 200,
+      "bytes": 3796675,
+      "type": "image/png"
+    },
+    {
+      "path": "/reference/local-fonts/segoeui.ttf",
+      "status": 200,
+      "bytes": 960076,
+      "type": "font/ttf"
+    }
+  ],
+  "pass": true,
+  "stoppedAfterCheck": true,
+  "processAbsentAfterStop": true
+}

@@ -1,0 +1,16 @@
+{
+  "name": "biblio-finished-collections-portrait",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-collections-portrait.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 1450,
+    "height": 1500,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:53:58.824Z",
+  "sha256": "6dc0967f85a6f0b6a686dcbb7fbfeaa517492bc432ae38ada9eb43a0a3bc4cc1",
+  "errors": [],
+  "blocked": []
+}

@@ -1,0 +1,187 @@
+{
+  "at": "2026-10-31T23:45:48.618Z",
+  "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+  "note": "Source inspection manifest; not a native runtime capture. Main.qml and Taskbar.qml inspected for relevant integration sections, not reviewed as independent pages.",
+  "files": [
+    {
+      "path": "reference/desktop/qml/TrackerSyncCenterPage.qml",
+      "sha256": "e8226f58e305f297660f7d124712763aa67627dab71d0987207fba546e038611",
+      "bytes": 248252
+    },
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495",
+      "bytes": 1920
+    },
+    {
+      "path": "reference/desktop/qml/Main.qml",
+      "sha256": "9baeea5bb4cd053d2a8eb310ccd847a9ddbf0b234b6b5c819277f41510d8fa54",
+      "bytes": 341875
+    },
+    {
+      "path": "reference/desktop/qml/Taskbar.qml",
+      "sha256": "dd239b901184cbacb103f67870957f31846a6b9241d861412583dfc23ebfbb62",
+      "bytes": 36390
+    },
+    {
+      "path": "reference/desktop/qml/WallpaperSearch.qml",
+      "sha256": "8da9e6e5984c52740b2d34c8e8bf4c631dca757e814fb5feebef8f6a8107bac4",
+      "bytes": 33981
+    },
+    {
+      "path": "reference/desktop/qml/WallpaperApi.js",
+      "sha256": "f9446f189e23b9a9bc3ec863833ddd4a978218262e1ff1d8fcbce4ba6b55b77f",
+      "bytes": 14967
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/NoirFlow.qml",
+      "sha256": "5ea93e4db089653f8c363ed3148d7a4d2ac18ba21d74349a7647e532aa7d5bac",
+      "bytes": 1095
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/LowPoly.qml",
+      "sha256": "7787da7e36de8e0785b810346e0199d2806e0d99ca1e1fe70c8405cd055c3a0e",
+      "bytes": 1279
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/AuroraFlow.qml",
+      "sha256": "61d3bbaba6f332517722d781eadf31f588afdbd2a61a666b449c0217ef712ee3",
+      "bytes": 3850
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/MeshGradient.qml",
+      "sha256": "f5f371498e30881fc4761870ef5cbc2c2af502aebab62a1c3c1aa668c5a70f9f",
+      "bytes": 4171
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/MeshTwilight.qml",
+      "sha256": "0bc69a4da856aeff9d817d1452267dae4ba9b8dbcc1ec88809dfa3fbd857feba",
+      "bytes": 140
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/MeshEmber.qml",
+      "sha256": "d7c3abf40503be7956d44e72f0ac237823df68d65da7a2f070ce5ee95c8df9dd",
+      "bytes": 132
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/MeshMint.qml",
+      "sha256": "3a568adc34efddff9d60a58db74892a5f53a86719fb8a7fe95f11e7c011f3aaa",
+      "bytes": 135
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/shaders/noirflow.frag",
+      "sha256": "37c7fdb77585284bd21b43b7b6a27796aace9b87dd7aad5e05637ad0696d2f12",
+      "bytes": 1750
+    },
+    {
+      "path": "reference/desktop/qml/wallpapers/shaders/lowpoly.frag",
+      "sha256": "9fd2f0ecf10e3f9700fb22e065719ac7bed44cc7a1988b469484b2dfd638e1e7",
+      "bytes": 2267
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsStorePage.qml",
+      "sha256": "758b548c9d94e80cfa687df755f6f774d413687ec00a788132a58938dc6241cf",
+      "bytes": 41254
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsInstalledPage.qml",
+      "sha256": "00889a1325c62cfbd1dfa59cee35fffdb994506a7f495db1b90499e030cb6c35",
+      "bytes": 9352
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsStoreCard.qml",
+      "sha256": "c80b010d4585f8a1534f5862b6f1803b9f87d248a63120dac91725b2d0277812",
+      "bytes": 7796
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsHouseHero.qml",
+      "sha256": "1d1cb03f3a18f7194a69a1d54a82c3434a53df23deff34e77a69104eb0df55eb",
+      "bytes": 14728
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsInstalledCard.qml",
+      "sha256": "b73f03534060eb37198b2150184988443ef620e3a3bc62f23b86bf344e185e6a",
+      "bytes": 4747
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsActionButton.qml",
+      "sha256": "437cc4086609e033a772415715f2c3973d18a9f09f78d6717d636222f9bebd8b",
+      "bytes": 1363
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsTextMenu.qml",
+      "sha256": "f9ec7de56dda4e6553d636c4c99a602c95e2669e2c828b88239fcc40cb85058b",
+      "bytes": 2724
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsSetupSheet.qml",
+      "sha256": "acf2486215411f058afc4c019196b96164c28b106e6e275b31ecd54fa1972ccc",
+      "bytes": 14768
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsSetupSheetAndroid.qml",
+      "sha256": "95e7dc4560dec4c91ff8308110ca18be5f15f87352c78e1bbf1966d667cdaff4",
+      "bytes": 7874
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsStoreApi.js",
+      "sha256": "2fda92be77b7215853306d903152b64d9ec808a1d98e2d4a0531f6e18ccadd88",
+      "bytes": 6954
+    },
+    {
+      "path": "reference/desktop/qml/UpdatePage.qml",
+      "sha256": "460c548232c31b7d70dea6b4196c05c13cf5b0083edefb9fcc5c785127c56879",
+      "bytes": 16493
+    },
+    {
+      "path": "reference/desktop/qml/update/UpdateLivingGallery.qml",
+      "sha256": "5254a03fef378530ca3516cb949a9457a3107dcb3f71212bf7fe82e16d405028",
+      "bytes": 19193
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionsPanel.qml",
+      "sha256": "98e97ff7343ef38b8187d18c393bf96f101bf7505638883562721816fdaba0e0",
+      "bytes": 11964
+    },
+    {
+      "path": "reference/desktop/qml/collections/YourCollectionsPage.qml",
+      "sha256": "a1942f7b3d757535c2ee74b582ac21ebc99575e0c207315e80cbeb55a862a0f0",
+      "bytes": 8297
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionPage.qml",
+      "sha256": "ce6e4230f560f9d42ca8f4d5b6b3059ccab48304a5c06f0630ef5a8801954784",
+      "bytes": 24754
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionShelfCard.qml",
+      "sha256": "63da0314b5dad7a4d30f1f23ffdca351e02e331d941ddc8564e71bbec8eb3316",
+      "bytes": 5036
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionMediaCard.qml",
+      "sha256": "80da426a9763a98d8f6eeca1fa8745d50e1220b29211d405b1e4058779aeee03",
+      "bytes": 8981
+    },
+    {
+      "path": "reference/desktop/qml/collections/AddToCollectionsPopup.qml",
+      "sha256": "555c6a842985c2c9c90ac25159f8e9208f295b318e3afacbae472f43dd124de1",
+      "bytes": 12887
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionActionButton.qml",
+      "sha256": "f4f971f031167eb6f895d1d04cb80a42906246f2d5e8f0d5558c2a2ef6270616",
+      "bytes": 2628
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionMembershipRow.qml",
+      "sha256": "f95aeb595f4b63d6eccc9dc34eec2e32c82aba1cc92dc20b4acef9c6582ef60c",
+      "bytes": 3023
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionIcon.qml",
+      "sha256": "1275f606542436bdbe9b7a304c34fe3f6474791a2212550180d1a34a21507234",
+      "bytes": 3290
+    }
+  ]
+}

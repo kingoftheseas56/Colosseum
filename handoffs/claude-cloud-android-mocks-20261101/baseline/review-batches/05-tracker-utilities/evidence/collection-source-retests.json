@@ -1,0 +1,12 @@
+[
+  {
+    "name": "Source overview pagination",
+    "pass": true,
+    "before": 36,
+    "after": 44
+  },
+  {
+    "name": "Source collection confirmation message",
+    "pass": true
+  }
+]

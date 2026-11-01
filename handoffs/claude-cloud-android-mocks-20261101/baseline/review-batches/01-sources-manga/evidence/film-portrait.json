@@ -1,0 +1,865 @@
+{
+  "captured_at": "2026-10-31T22:42:21.928Z",
+  "job": "01-theatre-sources",
+  "file": "film-sources.html",
+  "viewport": {
+    "width": 412,
+    "height": 900
+  },
+  "params": {
+    "render": 1,
+    "w": 412,
+    "h": 900
+  },
+  "png": "captures/film-portrait.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 412,
+      "height": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "backAction",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back to Theatre detail",
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 20,
+          "width": 80,
+          "height": 44,
+          "right": 96,
+          "bottom": 64
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "providerTrigger",
+        "class": "provider-trigger",
+        "text": "All\n▾",
+        "label": "Choose source extension",
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 210,
+          "width": 380,
+          "height": 52,
+          "right": 396,
+          "bottom": 262
+        },
+        "radius": "16px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px",
+        "hit": "<button class=\"provider-trigger\" id=\"providerTrigger\" type=\"button\" aria-label=\"Choose source extension\" aria-haspopup=\"listbox\" aria-expanded=\"false\">\n            <span class=\"grid-badge\" aria-hidden"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill active",
+        "text": "All\n8",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 272,
+          "width": 59.984375,
+          "height": 40,
+          "right": 75.984375,
+          "bottom": 312
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill active\" data-quality=\"all\" aria-pressed=\"true\"><span>All</span><small>8</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "4K\n2",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 83.984375,
+          "y": 272,
+          "width": 57.265625,
+          "height": 40,
+          "right": 141.25,
+          "bottom": 312
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"4K\" aria-pressed=\"false\"><span>4K</span><small>2</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "1080p\n3",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 149.25,
+          "y": 272,
+          "width": 81.640625,
+          "height": 40,
+          "right": 230.890625,
+          "bottom": 312
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"1080p\" aria-pressed=\"false\"><span>1080p</span><small>3</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "720p\n2",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 238.890625,
+          "y": 272,
+          "width": 73.546875,
+          "height": 40,
+          "right": 312.4375,
+          "bottom": 312
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"720p\" aria-pressed=\"false\"><span>720p</span><small>2</small></button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "quality-pill ",
+        "text": "SD\n1",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 320.4375,
+          "y": 272,
+          "width": 58.96875,
+          "height": 40,
+          "right": 379.40625,
+          "bottom": 312
+        },
+        "radius": "20px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"quality-pill \" data-quality=\"SD\" aria-pressed=\"false\"><span>SD</span><small>1</small></button>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "T\nTorrentio\n4K · HDR\nStar.Wars.Episode.IV.A.New.Hope.1977.REMASTERED.2160p.UHD.BluRay.REMUX.HEVC.TrueHD.Atmos.7.1\n744 seeders\n64.8 GB\n1337x\n",
+        "label": "Play Torrentio 4K · HDR Star.Wars.Episode.IV.A.New.Hope.1977.REMASTERED.2160p.UHD.BluRay.REMUX.HEVC.TrueHD.Atmos.7.1",
+        "rect": {
+          "x": 17,
+          "y": 399,
+          "width": 378,
+          "height": 282.359375,
+          "right": 395,
+          "bottom": 681.359375
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px",
+        "hit": "<span class=\"lang-chip\">HIN</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 619.359375,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 667.359375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"circle \" data-act=\"download\" data-row=\"0\" aria-label=\"Download this source\" title=\"Download this source\">↓</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 619.359375,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 667.359375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"circle \" data-act=\"copy\" data-row=\"0\" aria-label=\"Copy link\" title=\"Copy link\">⧉</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 619.359375,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 667.359375
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px",
+        "hit": "<button type=\"button\" class=\"circle play\" data-act=\"activate\" data-row=\"0\" aria-label=\"Play source\" title=\"Play\">▶</button>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "M\nMediaFusion\n4K · Dolby Vision\nStar.Wars.A.New.Hope.1977.2160p.DV.HDR10.BluRay.REMUX.HEVC.MULTI-AUDIO.RELEASE-GROUP\n182 seeders\n52.4 GB\nTor",
+        "label": "Play MediaFusion 4K · Dolby Vision Star.Wars.A.New.Hope.1977.2160p.DV.HDR10.BluRay.REMUX.HEVC.MULTI-AUDIO.RELEASE-GROUP",
+        "rect": {
+          "x": 17,
+          "y": 681.359375,
+          "width": 378,
+          "height": 282.359375,
+          "right": 395,
+          "bottom": 963.71875
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px",
+        "hit": "<span class=\"lang-chip\">JPN</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 901.71875,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 949.71875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 901.71875,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 949.71875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 901.71875,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 949.71875
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "T\nTorrentio\n1080p · BluRay\nStar.Wars.Episode.IV.A.New.Hope.1977.1080p.BluRay.x264.DTS.MULTi.LONG-RELEASE-NAME-WITH-MANY-PARTS\n1286 seeders\n1",
+        "label": "Play Torrentio 1080p · BluRay Star.Wars.Episode.IV.A.New.Hope.1977.1080p.BluRay.x264.DTS.MULTi.LONG-RELEASE-NAME-WITH-MANY-PARTS",
+        "rect": {
+          "x": 17,
+          "y": 963.71875,
+          "width": 378,
+          "height": 282.359375,
+          "right": 395,
+          "bottom": 1246.078125
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 1184.078125,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 1232.078125
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 1184.078125,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 1232.078125
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 1184.078125,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 1232.078125
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "N\nNoTorrent\n1080p · WEB-DL\nStar.Wars.A.New.Hope.1977.1080p.WEB-DL.H264.AAC2.0\n4.2 GB\nNoTorrent\nAAC 2.0\nENG\nESP\nWEB-DL\nDIRECT\nDirect · HTTP s",
+        "label": "Play NoTorrent 1080p · WEB-DL Star.Wars.A.New.Hope.1977.1080p.WEB-DL.H264.AAC2.0",
+        "rect": {
+          "x": 17,
+          "y": 1246.078125,
+          "width": 378,
+          "height": 264.171875,
+          "right": 395,
+          "bottom": 1510.25
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 1448.25,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 1496.25
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 1448.25,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 1496.25
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 1448.25,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 1496.25
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "C\nComet\n1080p · BluRay\nStar.Wars.1977.DESPECIALIZED.EDITION.1080p.BluRay.x264.FLAC-RESTORATION\n58 seeders\n18.1 GB\n1337x\nFLAC 2.0\nENG\nRESTORE",
+        "label": "Play Comet 1080p · BluRay Star.Wars.1977.DESPECIALIZED.EDITION.1080p.BluRay.x264.FLAC-RESTORATION",
+        "rect": {
+          "x": 17,
+          "y": 1510.25,
+          "width": 378,
+          "height": 282.359375,
+          "right": 395,
+          "bottom": 1792.609375
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 1730.609375,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 1778.609375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 1730.609375,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 1778.609375
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 1730.609375,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 1778.609375
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "M\nMediaFusion\n720p · WEB\nStar.Wars.Episode.IV.A.New.Hope.1977.720p.WEBRip.x264\n316 seeders\n2.1 GB\nBitSearch\nAAC 5.1\nENG\nHIN\nWEBRIP\nTorrent ·",
+        "label": "Play MediaFusion 720p · WEB Star.Wars.Episode.IV.A.New.Hope.1977.720p.WEBRip.x264",
+        "rect": {
+          "x": 17,
+          "y": 1792.609375,
+          "width": 378,
+          "height": 282.359375,
+          "right": 395,
+          "bottom": 2074.96875
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 2012.96875,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 2060.96875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 2012.96875,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 2060.96875
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 2012.96875,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 2060.96875
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "N\nNoTorrent\n720p · Direct\nStar.Wars.A.New.Hope.1977.720p.STREAM.H264.AAC\nNoTorrent\nAAC 2.0\nENG\nFRA\nDIRECT\nH.264\nDirect · HTTP stream\n↓\n⧉\n▶",
+        "label": "Play NoTorrent 720p · Direct Star.Wars.A.New.Hope.1977.720p.STREAM.H264.AAC",
+        "rect": {
+          "x": 17,
+          "y": 2074.96875,
+          "width": 378,
+          "height": 264.171875,
+          "right": 395,
+          "bottom": 2339.140625
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 2277.140625,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 2325.140625
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 2277.140625,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 2325.140625
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 2277.140625,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 2325.140625
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row ",
+        "text": "T\nTorrentio\nSD · DVD\nStar.Wars.Episode.IV.A.New.Hope.1977.DVDRip.XviD.MP3\n63 seeders\n1.4 GB\nYTS\nMP3\nENG\nDVDRIP\nTorrent · P2P stream\n↓\n⧉\n▶",
+        "label": "Play Torrentio SD · DVD Star.Wars.Episode.IV.A.New.Hope.1977.DVDRip.XviD.MP3",
+        "rect": {
+          "x": 17,
+          "y": 2339.140625,
+          "width": 378,
+          "height": 282.359375,
+          "right": 395,
+          "bottom": 2621.5
+        },
+        "radius": "0px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "↓",
+        "label": "Download this source",
+        "disabled": false,
+        "rect": {
+          "x": 205,
+          "y": 2559.5,
+          "width": 48,
+          "height": 48,
+          "right": 253,
+          "bottom": 2607.5
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle ",
+        "text": "⧉",
+        "label": "Copy link",
+        "disabled": false,
+        "rect": {
+          "x": 265,
+          "y": 2559.5,
+          "width": 48,
+          "height": 48,
+          "right": 313,
+          "bottom": 2607.5
+        },
+        "radius": "50%",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "15px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "circle play",
+        "text": "▶",
+        "label": "Play source",
+        "disabled": false,
+        "rect": {
+          "x": 325,
+          "y": 2559.5,
+          "width": 56,
+          "height": 48,
+          "right": 381,
+          "bottom": 2607.5
+        },
+        "radius": "24px",
+        "font": "HouseSegoe, \"Segoe UI\", Arial, sans-serif",
+        "fontSize": "18px"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "rows",
+        "class": "row-scroll",
+        "rect": {
+          "x": 17,
+          "y": 395,
+          "width": 378,
+          "height": 488,
+          "right": 395,
+          "bottom": 883
+        },
+        "scrollTop": 0,
+        "maxScroll": 1747,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\n1977 - SCIENCE FICTION, ADVENTURE\nStar Wars: A New Hope\nAll\n▾\nAll\n8\n4K\n2\n1080p\n3\n720p\n2\nSD\n1\n8 sources\nvia 4 extensions\nT\nTorrentio\n4K · HDR\nStar.Wars.Episode.IV.A.New.Hope.1977.REMASTERED.2160p.UHD.BluRay.REMUX.HEVC.TrueHD.Atmos.7.1\n744 seeders\n64.8 GB\n1337x\nTRUEHD ATMOS 7.1\nENG\nHIN\nESP\nFRA\nREMUX\nHDR10\nHEVC\nTorrent · P2P stream\n↓\n⧉\n▶\nM\nMediaFusion\n4K · Dolby Vision\nStar.Wars.A.New.Hope.1977.2160p.DV.HDR10.BluRay.REMUX.HEVC.MULTI-AUDIO.RELEASE-GROUP\n182 seeders\n52.4 GB\nTorrentGalaxy\nDTS-HD MA 7.1\nENG\nJPN\nDEU\nDOLBY VISION\nREMUX\nBLURAY\nTorrent · P2P stream\n↓\n⧉\n▶\nT\nTorrentio\n1080p · BluRay\nStar.Wars.Episode.IV.A.New.Hope.1977.1080p.BluRay.x264.DTS.MULTi.LONG-RELEASE-NAME-WITH-MANY-PARTS\n1286 seeders\n12.6 GB\nYTS\nDTS 5.1\nENG\nESP\nPOR\nHIN\nFRA\nTAM\nBLURAY\nH.264\nMULTI\nTorrent · P2P stream\n↓\n⧉\n▶\nN\nNoTorrent\n1080p · WEB-DL\nStar.Wars.A.New.Hope.1977.1080p.WEB-DL.H264.AAC2.0\n4.2 GB\nNoTorrent\nAAC 2.0\nENG\nESP\nWEB-DL\nDIRECT\nDirect · HTTP stream\n↓\n⧉\n▶\nC\nComet\n1080p · BluRay\nStar.Wars.1977.DESPECIALIZED.EDITION.1080p.BluRay.x264.FLAC-RESTORATION\n58 seeders\n18.1 GB\n1337x\nFLAC 2.0\nENG\nRESTORED\nBLURAY\nTorrent · P2P stream\n↓\n⧉\n▶\nM\nMediaFusion\n720p · WEB\nStar.Wars.Episode.IV.A.New.Hope.1977.720p.WEBRip.x264\n316 seeders\n2.1 GB\nBitSearch\nAAC 5.1\nENG\nHIN\nWEBRIP\nTorrent · P2P stream\n↓\n⧉\n▶\nN\nNoTorrent\n720p · Direct\nStar.Wars.A.New.Hope.1977.720p.STREAM.H264.AAC\nNoTorrent\nAAC 2.0\nENG\nFRA\nDIRECT\nH.264\nDirect · HTTP stream\n↓\n⧉\n▶\nT\nTorrentio\nSD · DVD\nStar.Wars.Episode.IV.A.New.Hope.1977.DVDRip.XviD.MP3\n63 seeders\n1.4 GB\nYTS\nMP3\nENG\nDVDRIP\nTorrent · P2P stream\n↓\n⧉\n▶",
+    "fonts": [
+      {
+        "family": "HouseSegoe",
+        "status": "loaded"
+      },
+      {
+        "family": "HouseSegoe",
+        "status": "loaded"
+      },
+      {
+        "family": "HouseSegoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "loaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "outputs\\01-theatre-sources\\film-sources.html",
+      "bytes": 4880,
+      "sha256": "cc2c3a07bd966ac5dc48c2ac4b1deee80e6e113d4b433d27de7e79c6c4ecf101"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\style.css",
+      "bytes": 17082,
+      "sha256": "c438f02e5470c9dfb3aeacbac35fbcefd6f8861019f8372f8a98366b470eab5e"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\app.js",
+      "bytes": 19929,
+      "sha256": "c56aebfee46556a811183b93c2f34cf61d2f8fe21e9a1b18c12a276404a3ca8f"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\wallpaper\\captured-motion.jpg",
+      "bytes": 1019877,
+      "sha256": "9f56f69ee6d80fcd612e8ff43f23ed9744114868575a873f840191ddbdd48289"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\extensions\\house\\starwars-banner.jpg",
+      "bytes": 500855,
+      "sha256": "f77aed3b2b5d1b65279055d49a7e2d2171ccca2b5fdb3dab670fbee1835201a6"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeuib.ttf",
+      "bytes": 947364,
+      "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\colosseum.ico",
+      "bytes": 28715,
+      "sha256": "b61b14bf4e3a005a39f35855cb0123eca6aa4de09fe19810656bf53cd11a2eeb"
+    }
+  ],
+  "extra": {}
+}

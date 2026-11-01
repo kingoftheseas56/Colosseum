@@ -1,0 +1,35 @@
+[
+  {
+    "name": "index toggle is visible and top-anchored",
+    "pass": true
+  },
+  {
+    "name": "hidden shelf excluded from index",
+    "pass": true
+  },
+  {
+    "name": "ranked source reveal shown; rating hidden",
+    "pass": true
+  },
+  {
+    "name": "filter opens in short landscape",
+    "pass": true
+  },
+  {
+    "name": "filter changes matching fixture count",
+    "pass": true,
+    "detail": 7
+  },
+  {
+    "name": "selected pill body reopens menu",
+    "pass": true
+  },
+  {
+    "name": "clear button resets filter",
+    "pass": false
+  },
+  {
+    "name": "empty filter copy",
+    "pass": true
+  }
+]

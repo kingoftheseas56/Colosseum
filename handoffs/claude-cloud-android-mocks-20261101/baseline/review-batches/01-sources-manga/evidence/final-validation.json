@@ -1,0 +1,1375 @@
+{
+  "checked_at": "2026-10-31T23:43:01.412493+00:00",
+  "status": "passed",
+  "suites": [
+    {
+      "file": "film-sources.html",
+      "receipt": "evidence/finished-film-checks.json",
+      "checks": 25,
+      "passed": 25,
+      "failed": [],
+      "known_constraints": 0
+    },
+    {
+      "file": "episode-sources.html",
+      "receipt": "evidence/finished-episode-checks.json",
+      "checks": 26,
+      "passed": 26,
+      "failed": [],
+      "known_constraints": 0
+    },
+    {
+      "file": "comic-sources.html",
+      "receipt": "evidence/finished-comic-checks.json",
+      "checks": 26,
+      "passed": 26,
+      "failed": [],
+      "known_constraints": 0
+    },
+    {
+      "file": "comic-source-confirmation.html",
+      "receipt": "evidence/finished-comic-confirm-checks.json",
+      "checks": 26,
+      "passed": 26,
+      "failed": [],
+      "known_constraints": 0
+    },
+    {
+      "file": "manga-volume-sources.html",
+      "receipt": "evidence/finished-manga-sources-checks.json",
+      "checks": 26,
+      "passed": 26,
+      "failed": [],
+      "known_constraints": 0
+    },
+    {
+      "file": "manga-series.html",
+      "receipt": "evidence/finished-series-checks.json",
+      "checks": 27,
+      "passed": 27,
+      "failed": [],
+      "known_constraints": 0
+    },
+    {
+      "file": "manga-chapters.html",
+      "receipt": "evidence/finished-chapters-checks.json",
+      "checks": 32,
+      "passed": 32,
+      "failed": [],
+      "known_constraints": 0
+    },
+    {
+      "file": "volume-flow-original-fit.html",
+      "receipt": "evidence/finished-flow-original-checks.json",
+      "checks": 42,
+      "passed": 42,
+      "failed": [],
+      "known_constraints": 6
+    },
+    {
+      "file": "volume-flow-minimal-alternative.html",
+      "receipt": "evidence/finished-flow-alternative-checks.json",
+      "checks": 42,
+      "passed": 42,
+      "failed": [],
+      "known_constraints": 0
+    }
+  ],
+  "total_page_checks": 272,
+  "passed_page_checks": 272,
+  "matrix_cases": 81,
+  "matrix": [
+    {
+      "name": "finished-film-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "render": 1,
+        "w": 412,
+        "h": 900
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "render": 1,
+        "w": 900,
+        "h": 412
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "render": 1,
+        "w": 354,
+        "h": 792
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "render": 1,
+        "w": 792,
+        "h": 354
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "render": 1,
+        "w": 1280,
+        "h": 700
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-tablet",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "render": 1,
+        "w": 800,
+        "h": 1280
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "render": 1,
+        "w": 1280,
+        "h": 800
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "render": 1,
+        "w": 354,
+        "h": 792,
+        "scale": 1.3,
+        "insetTop": 24,
+        "insetBottom": 24
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-film-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "render": 1,
+        "w": 792,
+        "h": 354,
+        "scale": 1.3,
+        "insetTop": 24,
+        "insetBottom": 24
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "render": 1,
+        "w": 412,
+        "h": 900
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "render": 1,
+        "w": 900,
+        "h": 412
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "render": 1,
+        "w": 354,
+        "h": 792
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "render": 1,
+        "w": 792,
+        "h": 354
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "render": 1,
+        "w": 1280,
+        "h": 700
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-tablet",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "render": 1,
+        "w": 800,
+        "h": 1280
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "render": 1,
+        "w": 1280,
+        "h": 800
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "render": 1,
+        "w": 354,
+        "h": 792,
+        "scale": 1.3,
+        "insetTop": 24,
+        "insetBottom": 24
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-episode-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "render": 1,
+        "w": 792,
+        "h": 354,
+        "scale": 1.3,
+        "insetTop": 24,
+        "insetBottom": 24
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "capture": 1,
+        "vw": 412,
+        "vh": 900
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "capture": 1,
+        "vw": 900,
+        "vh": 412
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "vw": 354,
+        "vh": 792
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "vw": 792,
+        "vh": 354
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "capture": 1,
+        "vw": 1280,
+        "vh": 700
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-tablet-portrait",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "capture": 1,
+        "vw": 800,
+        "vh": 1280
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "capture": 1,
+        "vw": 1280,
+        "vh": 800
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "vw": 354,
+        "vh": 792,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "vw": 792,
+        "vh": 354,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "capture": 1,
+        "vw": 412,
+        "vh": 900
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "capture": 1,
+        "vw": 900,
+        "vh": 412
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "vw": 354,
+        "vh": 792
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "vw": 792,
+        "vh": 354
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "capture": 1,
+        "vw": 1280,
+        "vh": 700
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-tablet-portrait",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "capture": 1,
+        "vw": 800,
+        "vh": 1280
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "capture": 1,
+        "vw": 1280,
+        "vh": 800
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "vw": 354,
+        "vh": 792,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-comic-confirm-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "vw": 792,
+        "vh": 354,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-tablet-portrait",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-manga-sources-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-tablet-portrait",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-series-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-tablet-portrait",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "capture": 1
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-chapters-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "top": 24,
+        "bottom": 24,
+        "scale": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "capture": 1,
+        "preset": "portrait"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "capture": 1,
+        "preset": "landscape"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "preset": "portrait-small"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "preset": "landscape-small"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "capture": 1,
+        "preset": "desktop"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-tablet-portrait",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "capture": 1,
+        "preset": "tablet-portrait"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "capture": 1,
+        "preset": "tablet-landscape"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "preset": "portrait-small",
+        "top": 24,
+        "bottom": 24,
+        "font": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-original-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "preset": "landscape-small",
+        "top": 24,
+        "bottom": 24,
+        "font": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "params": {
+        "capture": 1,
+        "preset": "portrait"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "params": {
+        "capture": 1,
+        "preset": "landscape"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-small-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "preset": "portrait-small"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-small-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "preset": "landscape-small"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-desktop",
+      "viewport": {
+        "width": 1280,
+        "height": 700
+      },
+      "params": {
+        "capture": 1,
+        "preset": "desktop"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-tablet-portrait",
+      "viewport": {
+        "width": 800,
+        "height": 1280
+      },
+      "params": {
+        "capture": 1,
+        "preset": "tablet-portrait"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-tablet-landscape",
+      "viewport": {
+        "width": 1280,
+        "height": 800
+      },
+      "params": {
+        "capture": 1,
+        "preset": "tablet-landscape"
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-stress-portrait",
+      "viewport": {
+        "width": 354,
+        "height": 792
+      },
+      "params": {
+        "capture": 1,
+        "preset": "portrait-small",
+        "top": 24,
+        "bottom": 24,
+        "font": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    },
+    {
+      "name": "finished-flow-alternative-stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "params": {
+        "capture": 1,
+        "preset": "landscape-small",
+        "top": 24,
+        "bottom": 24,
+        "font": 1.3
+      },
+      "resource_mismatches": [],
+      "errors": [],
+      "blocked": [],
+      "png_exists": true
+    }
+  ],
+  "supplemental": {
+    "metadata": true,
+    "desktop_menu": true,
+    "comparison_checks": 13,
+    "comparison_passed": 13,
+    "index_http_links": 64,
+    "index_http_passed": true,
+    "static_links": 372,
+    "static_failed": [],
+    "report_link_deferred_until_last_write": 1,
+    "sheet_count": 16,
+    "sheet_capture_resource_checks": 67
+  },
+  "issues": []
+}

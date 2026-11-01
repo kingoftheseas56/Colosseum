@@ -1,0 +1,16 @@
+{
+  "name": "series-original-season-landscape-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-season-landscape-stress.png",
+  "input": "outputs/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+  "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 792,
+    "height": 354,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:48:32.734Z",
+  "sha256": "567c23755f19192f002725690c7ec69a4b0e298f5ae5304a66a8d08e2fde424b",
+  "errors": [],
+  "blocked": []
+}

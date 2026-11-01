@@ -1,0 +1,611 @@
+{
+  "utc": "2026-10-31T23:21:56.147Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-listener-cycle",
+      "result": {
+        "renders": 4,
+        "oneBackAction": true,
+        "before": 0,
+        "after": 1,
+        "hasResume": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-resume-after-renders",
+      "result": {
+        "oneResume": true,
+        "logs": [
+          "Resume Harry Potter and the Sorcerer's Stone in Biblio (simulated)",
+          "Back requested"
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-tablet-source-type",
+      "result": {
+        "heroFont": "72px",
+        "source72": true,
+        "kind": "tablet",
+        "windowControlsHidden": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-tablet-land-source-type",
+      "result": {
+        "heroFont": "72px",
+        "source72": true,
+        "kind": "tablet",
+        "windowControlsHidden": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-listener-cycle",
+      "result": {
+        "renders": 4,
+        "oneBackAction": true,
+        "before": 0,
+        "after": 1,
+        "hasResume": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-resume-after-renders",
+      "result": {
+        "oneResume": true,
+        "logs": [
+          "Resume Dr. No in Theatre (simulated)",
+          "Back requested"
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-tablet-source-type",
+      "result": {
+        "heroFont": "72px",
+        "source72": true,
+        "kind": "tablet",
+        "windowControlsHidden": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-tablet-land-source-type",
+      "result": {
+        "heroFont": "72px",
+        "source72": true,
+        "kind": "tablet",
+        "windowControlsHidden": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=tablet",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "jump-tablet-columns",
+      "result": [
+        {
+          "count": 20,
+          "columns": "291px 291px",
+          "downFirst": true,
+          "clipped": []
+        },
+        {
+          "count": 20,
+          "columns": "291px 291px",
+          "downFirst": true,
+          "clipped": []
+        }
+      ]
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-tablet-last",
+      "result": {
+        "name": "shelves-finished-jump-tablet-last",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-tablet-last.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=tablet",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:21:41.261Z",
+        "sha256": "6b2f8bdc4ad3e8885d496dbc86c4e0aebc875c8b535d0aa3b2ded8c5fc51f1b0",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=tablet-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "jump-tablet-land-columns",
+      "result": [
+        {
+          "count": 20,
+          "columns": "531px 531px",
+          "downFirst": true,
+          "clipped": []
+        },
+        {
+          "count": 20,
+          "columns": "531px 531px",
+          "downFirst": true,
+          "clipped": []
+        }
+      ]
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-tablet-land-last",
+      "result": {
+        "name": "shelves-finished-jump-tablet-land-last",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-tablet-land-last.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=tablet-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=tablet-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:21:42.741Z",
+        "sha256": "1be18dd5a1faa0690a5d8a1a1948ec411e6f33a6424ebbdc92fc81a7f0122c67",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=desktop",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "jump-desktop-columns",
+      "result": [
+        {
+          "count": 20,
+          "columns": "531px 531px",
+          "downFirst": true,
+          "clipped": []
+        },
+        {
+          "count": 20,
+          "columns": "531px 531px",
+          "downFirst": true,
+          "clipped": []
+        }
+      ]
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-desktop-last",
+      "result": {
+        "name": "shelves-finished-jump-desktop-last",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-desktop-last.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=desktop",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&fixture=jump&v=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:21:44.119Z",
+        "sha256": "315e01672a4a5e616685fbb60ccab1d4a28cff7059d0a575598371dac90d0d82",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-portrait-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Harry, Ron and Hermione return to Hogwarts to find and destroy Voldemort's remaining Horcruxes. As the wizarding world gathers for its final battle, Harry must confront the truth about his past and face the Dark Lord one last time.",
+        "height": 170,
+        "scrollHeight": 170
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-portrait-small-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Harry, Ron and Hermione return to Hogwarts to find and destroy Voldemort's remaining Horcruxes. As the wizarding world gathers for its final battle, Harry must confront the truth about his past and face the Dark Lord one last time.",
+        "height": 198,
+        "scrollHeight": 198
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-landscape-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Harry, Ron and Hermione return to Hogwarts to find and destroy Voldemort's remaining Horcruxes. As the wizarding world gathers for its final battle, Harry must confront the truth about his past and face the Dark Lord one last time.",
+        "height": 115,
+        "scrollHeight": 115
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-landscape-small-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Harry, Ron and Hermione return to Hogwarts to find and destroy Voldemort's remaining Horcruxes. As the wizarding world gathers for its final battle, Harry must confront the truth about his past and face the Dark Lord one last time.",
+        "height": 115,
+        "scrollHeight": 115
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-portrait-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Monkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.",
+        "height": 198,
+        "scrollHeight": 198
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-portrait-small-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Monkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.",
+        "height": 226,
+        "scrollHeight": 226
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-landscape-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Monkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.",
+        "height": 115,
+        "scrollHeight": 115
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-landscape-small-complete-synopsis",
+      "result": {
+        "clamp": "none",
+        "full": true,
+        "text": "Monkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.",
+        "height": 115,
+        "scrollHeight": 115
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&linked=1&state=removal-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "linked-removal-portrait-small",
+      "result": {
+        "fits": true,
+        "rect": {
+          "x": 24,
+          "y": 196.5,
+          "width": 306,
+          "height": 398.71875,
+          "top": 196.5,
+          "right": 330,
+          "bottom": 595.21875,
+          "left": 24
+        },
+        "actions": [
+          {
+            "label": "Remove from Colosseum",
+            "action": "remove-confirm"
+          },
+          {
+            "label": "Remove from Colosseum & Stremio",
+            "action": "remove-linked"
+          },
+          {
+            "label": "Cancel",
+            "action": "remove-cancel"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-linked-removal-portrait-small-stress",
+      "result": {
+        "name": "series-finished-linked-removal-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-linked-removal-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&linked=1&state=removal-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&linked=1&state=removal-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:21:53.574Z",
+        "sha256": "cb2c6f18fe8058066d5cfd10e4a8061c1d92658e021709b6d9bc0bf4e1e774c8",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&linked=1&state=removal-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "linked-removal-landscape-small",
+      "result": {
+        "fits": true,
+        "rect": {
+          "x": 136,
+          "y": 34,
+          "width": 520,
+          "height": 286,
+          "top": 34,
+          "right": 656,
+          "bottom": 320,
+          "left": 136
+        },
+        "actions": [
+          {
+            "label": "Remove from Colosseum",
+            "action": "remove-confirm"
+          },
+          {
+            "label": "Remove from Colosseum & Stremio",
+            "action": "remove-linked"
+          },
+          {
+            "label": "Cancel",
+            "action": "remove-cancel"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-linked-removal-landscape-small-stress",
+      "result": {
+        "name": "series-finished-linked-removal-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-linked-removal-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&linked=1&state=removal-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&linked=1&state=removal-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:21:54.848Z",
+        "sha256": "f80239ffe93fe2597e8ada2ecaab5bc961b5d309cd82e86dc8aee2a9cd8248a8",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&state=index&font=1.3&top=24&bottom=24",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "archive-all-releases-navigation",
+      "result": {
+        "found": false
+      }
+    },
+    {
+      "op": "click",
+      "error": "No element found for selector: [data-action=\"collections\"]"
+    }
+  ]
+}

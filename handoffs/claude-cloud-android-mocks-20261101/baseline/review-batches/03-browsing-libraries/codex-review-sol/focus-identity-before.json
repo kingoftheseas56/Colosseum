@@ -1,0 +1,266 @@
+{
+  "started": "2026-11-01T00:54:10.149Z",
+  "checks": [
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "pointer exact Minimize focus across debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": {
+          "label": "Minimize",
+          "action": "noop"
+        },
+        "after": {
+          "label": "Minimize",
+          "action": "noop"
+        }
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "keyboard exact Minimize focus across debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": {
+          "label": "Minimize",
+          "action": "noop"
+        },
+        "after": {
+          "label": "Minimize",
+          "action": "noop"
+        }
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "pointer exact Fullscreen focus across debounce",
+      "pass": false,
+      "detail": {
+        "pass": false,
+        "before": {
+          "label": "Fullscreen",
+          "action": "noop"
+        },
+        "after": {
+          "label": "Minimize",
+          "action": "noop"
+        }
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "keyboard exact Fullscreen focus across debounce",
+      "pass": false,
+      "detail": {
+        "pass": false,
+        "before": {
+          "label": "Fullscreen",
+          "action": "noop"
+        },
+        "after": {
+          "label": "Minimize",
+          "action": "noop"
+        }
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "pointer exact Close focus across debounce",
+      "pass": false,
+      "detail": {
+        "pass": false,
+        "before": {
+          "label": "Close",
+          "action": "noop"
+        },
+        "after": {
+          "label": "Minimize",
+          "action": "noop"
+        }
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "keyboard exact Close focus across debounce",
+      "pass": false,
+      "detail": {
+        "pass": false,
+        "before": {
+          "label": "Close",
+          "action": "noop"
+        },
+        "after": {
+          "label": "Minimize",
+          "action": "noop"
+        }
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "short query smoke preserves pause typing and Enter",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "first": {
+          "value": "S",
+          "focus": true,
+          "start": 1,
+          "end": 1,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "full": {
+          "value": "Sherlock",
+          "focus": true,
+          "start": 8,
+          "end": 8,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "after": {
+          "value": "Sherlockx",
+          "focus": true,
+          "start": 9,
+          "end": 9,
+          "activeTag": "INPUT",
+          "activeAction": null
+        }
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "result focus remains intentional",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Sherlock ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "item-open"
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        1280,
+        700
+      ],
+      "name": "clear focus remains intentional",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": " Sherlock ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "search-clear"
+      }
+    }
+  ],
+  "errors": [],
+  "failedResources": [
+    {
+      "url": "http://127.0.0.1:6773/favicon.ico",
+      "status": 404
+    }
+  ],
+  "requests": [
+    {
+      "url": "http://127.0.0.1:6773/review-batches/03-browsing-libraries/codex-review-sol/candidate/search.html?capture=1&preset=desktop&lane=Biblio",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/review-batches/03-browsing-libraries/finished-mocks/batch-runtime.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/desktop/assets/icons/search.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/desktop/assets/icons/minimize.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/desktop/assets/icons/fullscreen.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/desktop/assets/icons/power.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/local-fonts/segoeui.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/desktop/assets/wallpaper/sagas/dune.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/local-fonts/seguisb.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:6773/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:6773/reference/desktop/assets/wallpaper/sagas/sherlock-holmes.jpg",
+      "status": 200
+    }
+  ],
+  "captures": [],
+  "origin": "http://127.0.0.1:6773",
+  "browser": "Chrome/156.0.8078.74",
+  "closed": "2026-11-01T00:54:24.539Z"
+}

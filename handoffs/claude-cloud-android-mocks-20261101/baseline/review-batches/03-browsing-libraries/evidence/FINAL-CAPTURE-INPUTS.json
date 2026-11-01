@@ -1,0 +1,163 @@
+{
+  "time": "2026-11-01T00:07:13.800Z",
+  "files": [
+    {
+      "path": "finished-mocks\\07-biblio-home\\app.js",
+      "sha256": "5a5a3e66127cf9d283227cc87ae2409b38ac02f1f37971dab509670a44521ecf"
+    },
+    {
+      "path": "finished-mocks\\07-biblio-home\\biblio-home.html",
+      "sha256": "7174b3c3665b0d479f89be6fc81ff3767a24d5b9c985912518ab27fb1b1f501a"
+    },
+    {
+      "path": "finished-mocks\\07-biblio-home\\index.html",
+      "sha256": "2662022829cd191d6d1e82961e9e61006f990d9411ecf4fea94ecebe9feb98a0"
+    },
+    {
+      "path": "finished-mocks\\07-biblio-home\\style.css",
+      "sha256": "d0e98535aaa8c2d91c6be4c3c6686bc0634d0731827ad72157fad3deb5163371"
+    },
+    {
+      "path": "finished-mocks\\08-theatre-discover\\app.js",
+      "sha256": "8ebd5a440ecc2a4be38b37291d24b35fe577384dddc67b45db696e232a101e5f"
+    },
+    {
+      "path": "finished-mocks\\08-theatre-discover\\index.html",
+      "sha256": "2662022829cd191d6d1e82961e9e61006f990d9411ecf4fea94ecebe9feb98a0"
+    },
+    {
+      "path": "finished-mocks\\08-theatre-discover\\style.css",
+      "sha256": "648dbc5f0ee7990fad109c192d957cd1e50c4e0a48a298d8d0fe6b188035affd"
+    },
+    {
+      "path": "finished-mocks\\08-theatre-discover\\theatre-discover.html",
+      "sha256": "c424be8018f6d390d17e5276e96b31c371548a2958afb86a54c417e0aa3a338c"
+    },
+    {
+      "path": "finished-mocks\\08-theatre-discover\\world-context.js",
+      "sha256": "e13cd5273d727a9f12c60e20898153d842fa7ed98165105218e1aacd09a51af6"
+    },
+    {
+      "path": "finished-mocks\\09-catalogue-index\\app.js",
+      "sha256": "22588fcc59e96738dc44f6483bf5954db9e75bd9c08520a048820245212555dd"
+    },
+    {
+      "path": "finished-mocks\\09-catalogue-index\\comics-catalogue.html",
+      "sha256": "c4290230bc438f91f636ef5ec5824d9325452bc4680935f12078cd9eb73680e2"
+    },
+    {
+      "path": "finished-mocks\\09-catalogue-index\\index.html",
+      "sha256": "2662022829cd191d6d1e82961e9e61006f990d9411ecf4fea94ecebe9feb98a0"
+    },
+    {
+      "path": "finished-mocks\\09-catalogue-index\\manga-catalogue.html",
+      "sha256": "865040b23df3545a83652cdd43424c7b1b40593f4e59052c33c532d34d8560f4"
+    },
+    {
+      "path": "finished-mocks\\09-catalogue-index\\style.css",
+      "sha256": "f4692ecdbb16a420f4a2d825ce8d6097d30ee8beaa73c88a10ef8e390b92a1b7"
+    },
+    {
+      "path": "finished-mocks\\09-catalogue-index\\theatre-catalogue.html",
+      "sha256": "dfd6f8e89f457de9b08ded13a9f482d8c0e5d5168b0dfd789214d2e757e53ced"
+    },
+    {
+      "path": "finished-mocks\\15-world-home\\app.js",
+      "sha256": "1f7d01a426a28f442da093c08bc1f5f700ec37711b3c1c0251b322690c2c7bcc"
+    },
+    {
+      "path": "finished-mocks\\15-world-home\\index.html",
+      "sha256": "2662022829cd191d6d1e82961e9e61006f990d9411ecf4fea94ecebe9feb98a0"
+    },
+    {
+      "path": "finished-mocks\\15-world-home\\style.css",
+      "sha256": "43469a9604fbd8512f66430f1ebefd2fa25f16e49d035425d9209294d804faf5"
+    },
+    {
+      "path": "finished-mocks\\15-world-home\\tankoban-home.html",
+      "sha256": "ab15c3592c86fb249245c74cab3c2ebbfc0ab0df580bd50aa203bccb6ed3e684"
+    },
+    {
+      "path": "finished-mocks\\15-world-home\\theatre-home.html",
+      "sha256": "bf8c29062f66507e7e3920682254222c19ed90090c2c7575c2a75e8b4788029a"
+    },
+    {
+      "path": "finished-mocks\\15-world-home\\universes-home.html",
+      "sha256": "2008121945ea98c2a6633e6e5384cfbba784269877df40ca82060f746fb20a87"
+    },
+    {
+      "path": "finished-mocks\\16-libraries\\app.js",
+      "sha256": "7fa5a372a31a1fcb4786e0767f4bc0300c1bf35a8fb816463c06d0dd375af637"
+    },
+    {
+      "path": "finished-mocks\\16-libraries\\biblio-library.html",
+      "sha256": "00a748d06af70906abdefafdd841cc8daf4bd45725a975e6999da782c66fcef3"
+    },
+    {
+      "path": "finished-mocks\\16-libraries\\index.html",
+      "sha256": "2662022829cd191d6d1e82961e9e61006f990d9411ecf4fea94ecebe9feb98a0"
+    },
+    {
+      "path": "finished-mocks\\16-libraries\\style.css",
+      "sha256": "4af663a8ea1078fc0278eb66bb9850e419f64974f0c7535958a9f4d33f1ed218"
+    },
+    {
+      "path": "finished-mocks\\16-libraries\\tankoban-library.html",
+      "sha256": "8644ffa05ac4bdc4e4f4923da21da384f53c23f2ace222f9793c07a77f2cdd67"
+    },
+    {
+      "path": "finished-mocks\\16-libraries\\theatre-library.html",
+      "sha256": "e9c80b1ea306d876242bab4aa2e4501934ceaeca05b369b7c85a391c7083bfeb"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\app.js",
+      "sha256": "175b0d07ba5d5b4bd3024f1591c37b2896139f0cb1ad9dbcc48d6c9ca37af0fb"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\biblio-explore.html",
+      "sha256": "c082e1c127be99ce591111a023d5b6fffed7d2f0825ff268aae3b6eafe1aa733"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\continue-see-all.html",
+      "sha256": "a0c3f42892197b5dfd965ace71827e9998ea392847e2af58cdafa0108e3e1dbb"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\genre-index.html",
+      "sha256": "cd0c571c7a1ff3fb2165521c5bdf18fffa29c9013529efdaf189a7fd38de89cc"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\genre-results.html",
+      "sha256": "9804b63fadc36c347ca6d5b9db6076f1ae827df1a7f99d04e5cb1dbd530b5d57"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\index.html",
+      "sha256": "2662022829cd191d6d1e82961e9e61006f990d9411ecf4fea94ecebe9feb98a0"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\search.html",
+      "sha256": "3510f5b682925bc42a0fcc5454ef26d7cd32e7ba1d9d6be3135cff4138b13a5e"
+    },
+    {
+      "path": "finished-mocks\\20-search-browse\\style.css",
+      "sha256": "5c205b75e555f91136c00cc9fabd7d20cd105cbf4426242566bfc4c091a6f0e3"
+    },
+    {
+      "path": "finished-mocks\\batch-runtime.js",
+      "sha256": "efe7191994c28ecccea86fbe117e755fc076b2a1641480502a56b6fb415fe174"
+    },
+    {
+      "path": "finished-mocks\\index.html",
+      "sha256": "db4d0f6eaac780eccf2ab6834fadbccc8fbce9e5f15e566f292157431213a5d7"
+    }
+  ],
+  "previousSnapshotUtc": "2026-11-01T00:03:28.290Z",
+  "targetedRetest": {
+    "changed": [
+      "finished-mocks\\09-catalogue-index\\style.css",
+      "finished-mocks\\index.html"
+    ],
+    "reason": "Centered restored Collection glyph; added handoff links. Catalogue pages recaptured at all 10 sizes; page layouts elsewhere unchanged."
+  },
+  "lastTheatrePillRetestUtc": "2026-11-01T00:08:07.728Z",
+  "lastTheatrePillRetest": "Compact pill horizontal padding reduced to 3px so Movies/Shows/Anime/Library remain complete; Discover elides. All 10 page captures refreshed."
+}

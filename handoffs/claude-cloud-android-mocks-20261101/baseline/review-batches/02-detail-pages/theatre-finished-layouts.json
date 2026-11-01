@@ -1,0 +1,769 @@
+{
+  "utc": "2026-10-31T22:55:07.240Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-portrait",
+      "result": {
+        "name": "film-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:46.551Z",
+        "sha256": "44531c2e76c6a41f54ae021d31abd370dd299bf89de42cbf89750dbf78e20aba",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "class": "legacy phone-portrait is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            109,
+            109
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-portrait-small",
+      "result": {
+        "name": "film-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:47.912Z",
+        "sha256": "70bb30e1e8466424158ef7e4e626a3fbcacf3f112a406e0ec1d1cda9e80d0492",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "class": "legacy phone-portrait is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            131,
+            131
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-landscape",
+      "result": {
+        "name": "film-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:49.407Z",
+        "sha256": "fd5b00daf3874b0ca24e0d40d0a4f2d0f949561546f02e9ed3359e2a2832c6ac",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "class": "legacy phone-landscape is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            67,
+            67
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-landscape-small",
+      "result": {
+        "name": "film-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:50.645Z",
+        "sha256": "e9fd35ff017c78f6f0d096fdd2c4fdad7b327a676120ac8280c17c6465158461",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "class": "legacy phone-landscape is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            67,
+            67
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-desktop-html",
+      "result": {
+        "name": "film-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:52.000Z",
+        "sha256": "105b2e187d21d749efc3487d1813e89859aacfa9635a0e128af0df25b3f9f45c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "class": "legacy desktop",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": true,
+        "synopsisHeight": [
+          [
+            67,
+            67
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-tablet-portrait",
+      "result": {
+        "name": "film-finished-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:53.579Z",
+        "sha256": "2fe539330021fab7e37a50c0b3252e99d48de6a54673eef91ec405e36b3608c4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "class": "legacy phone-portrait tablet is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            65,
+            65
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-tablet-landscape",
+      "result": {
+        "name": "film-finished-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:54.855Z",
+        "sha256": "926e7a8714fb53c575b21d15a1abf6a42f7a0b063d3ffb1d09892050e469a22a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "class": "legacy tablet android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            67,
+            67
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-portrait",
+      "result": {
+        "name": "series-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:56.239Z",
+        "sha256": "7a790c9952476e4838f4219136d0e4628b0eb9a8aafe091e9b6104be9bbe8bc4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "class": "legacy phone-portrait is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            109,
+            109
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-portrait-small",
+      "result": {
+        "name": "series-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:57.429Z",
+        "sha256": "e22e9e3af00be170dc16156e1ba4ead4d81196260ce78562a93eb0ee869bde4a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "class": "legacy phone-portrait is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            131,
+            131
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-landscape",
+      "result": {
+        "name": "series-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:54:58.939Z",
+        "sha256": "4f2be5b22a8bf6c9bc3d3676594f6f788479e4da1e61218170544d8498b83b39",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "class": "legacy phone-landscape is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            89,
+            89
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-landscape-small",
+      "result": {
+        "name": "series-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:00.321Z",
+        "sha256": "00ef7b11d7ccb66d0faa43758a8f420bcd8eb5340922391cc1ea01b3ec61762c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "class": "legacy phone-landscape is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            89,
+            89
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-desktop-html",
+      "result": {
+        "name": "series-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:01.989Z",
+        "sha256": "d97a48a2fb8e64c3a00b5a1777bc1ed85dd31b83e31034b98dcefd12dfec6ff5",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "class": "legacy desktop",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": true,
+        "synopsisHeight": [
+          [
+            89,
+            89
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-tablet-portrait",
+      "result": {
+        "name": "series-finished-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:03.523Z",
+        "sha256": "0163ea7554e8542517ecc9a32c0ea41a2b33808931efca883a76c5b016673e3c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "class": "legacy phone-portrait tablet is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            65,
+            65
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-tablet-landscape",
+      "result": {
+        "name": "series-finished-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:05.415Z",
+        "sha256": "798f3adfa47b4d25675c2b2b227973788fd29118f9aae23d84216417ac9d51e9",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "class": "legacy tablet android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            89,
+            89
+          ]
+        ]
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "class": "rebuilt phone-portrait is-handset android-host",
+        "overflow": 0,
+        "missingImages": [],
+        "windowControlsVisible": false,
+        "synopsisHeight": [
+          [
+            198,
+            198
+          ]
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-rebuilt-full-synopsis-stress",
+      "result": {
+        "name": "film-finished-rebuilt-full-synopsis-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-rebuilt-full-synopsis-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:06.748Z",
+        "sha256": "a6cdd5e0cdecf2b7ed5fe23f5d1f25b1bf844a353faf5fdbcdff1f544258eb72",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-collections-stress",
+      "result": {
+        "name": "film-finished-collections-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-collections-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:07.016Z",
+        "sha256": "d1c37072cf46d36fe6d7a62e98acc142ff9bd0b6757c1a502d3bd10e749f58e7",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "saveBackground": "rgb(240, 196, 74)",
+        "rect": {
+          "x": 16,
+          "y": 55.125,
+          "width": 322,
+          "height": 681.75,
+          "top": 55.125,
+          "right": 338,
+          "bottom": 736.875,
+          "left": 16
+        }
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-new"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#cp-name"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-save"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "open": false,
+        "committed": [
+          [
+            "theatre-movie:Harry Potter and the Deathly Hallows: Part 2",
+            [
+              "local-3"
+            ]
+          ]
+        ]
+      }
+    }
+  ]
+}

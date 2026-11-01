@@ -1,0 +1,105 @@
+{
+  "utc": "2026-10-31T23:27:17.218Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-original-tablet-type",
+      "result": {
+        "heroFont": "64px",
+        "kind": "tablet"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-tablet-portrait",
+      "result": {
+        "name": "saga-original-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-tablet-portrait.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:27:15.577Z",
+        "sha256": "8103baa6e3d78d2de3de95b04ad3e09cc581dd6fc6b88366b2f53726e91ace7e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-original-listener-reproduction",
+      "result": {
+        "renders": 4,
+        "backLogWrites": 5,
+        "duplicate": true,
+        "log": "Mock only: Back requested"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-original-tablet-type",
+      "result": {
+        "heroFont": "64px",
+        "kind": "tablet"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-tablet-portrait",
+      "result": {
+        "name": "shelves-original-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-tablet-portrait.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:27:17.200Z",
+        "sha256": "7b30cd2fbf53af7456e4734733e307ad3450c3a867af3cab478fa8814ab2197d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-original-listener-reproduction",
+      "result": {
+        "renders": 4,
+        "backLogWrites": 5,
+        "duplicate": true,
+        "log": "Mock only: Back requested"
+      }
+    }
+  ]
+}

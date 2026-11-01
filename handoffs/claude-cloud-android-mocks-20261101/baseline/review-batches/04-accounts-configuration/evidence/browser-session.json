@@ -1,0 +1,649 @@
+{
+  "startedUtc": "2026-10-31T22:45:19.502Z",
+  "profile": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\04-accounts-configuration\\evidence\\browser-profile",
+  "events": [
+    {
+      "utc": "2026-10-31T22:46:03.477Z",
+      "command": {
+        "cmd": "run",
+        "variant": "before",
+        "pages": [
+          "profile",
+          "account-welcome",
+          "account-flyout",
+          "account-centre"
+        ]
+      },
+      "result": {
+        "variant": "before",
+        "pages": [
+          {
+            "page": "profile",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-welcome",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-flyout",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-centre",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          }
+        ]
+      }
+    },
+    {
+      "utc": "2026-10-31T22:47:32.890Z",
+      "command": {
+        "cmd": "run",
+        "variant": "before",
+        "pages": [
+          "account-profile",
+          "account-security",
+          "account-recovery",
+          "account-privacy",
+          "account-devices",
+          "account-your-colosseum",
+          "stremio-sync",
+          "extension-setup",
+          "tankoyomi-configuration"
+        ]
+      },
+      "result": {
+        "variant": "before",
+        "pages": [
+          {
+            "page": "account-profile",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-security",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-recovery",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-privacy",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-devices",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-your-colosseum",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "stremio-sync",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "extension-setup",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "tankoyomi-configuration",
+            "cases": 5,
+            "errors": 0,
+            "inputStable": true
+          }
+        ]
+      }
+    },
+    {
+      "utc": "2026-10-31T22:50:56.655Z",
+      "command": {
+        "cmd": "run",
+        "module": "interaction-probes.cjs",
+        "variant": "before"
+      },
+      "result": {
+        "variant": "before",
+        "total": 9,
+        "passed": 0,
+        "failed": [
+          "F01-flyout-initial-focus",
+          "F02-flyout-tab-boundary",
+          "F03-flyout-escape-return",
+          "F04-account-route-context",
+          "F05-password-draft-rerender",
+          "F06-avatar-focus",
+          "F07-reset-preserves-enabled",
+          "F08-language-select-focus",
+          "F09-month-layout-width"
+        ]
+      }
+    },
+    {
+      "utc": "2026-10-31T23:00:33.986Z",
+      "command": {
+        "cmd": "run",
+        "module": "interaction-probes.cjs",
+        "variant": "after"
+      },
+      "result": {
+        "variant": "after",
+        "total": 9,
+        "passed": 9,
+        "failed": []
+      }
+    },
+    {
+      "utc": "2026-10-31T23:02:16.142Z",
+      "command": {
+        "cmd": "run",
+        "variant": "after",
+        "cases": [
+          {
+            "name": "portrait",
+            "kind": "portrait",
+            "bottom": true
+          },
+          {
+            "name": "landscape",
+            "kind": "landscape",
+            "bottom": true
+          },
+          {
+            "name": "desktop",
+            "kind": "desktop",
+            "bottom": true
+          },
+          {
+            "name": "small-stress",
+            "kind": "small",
+            "stress": true,
+            "bottom": true
+          },
+          {
+            "name": "short-stress",
+            "kind": "short",
+            "stress": true,
+            "bottom": true
+          },
+          {
+            "name": "tablet-portrait",
+            "kind": "tablet",
+            "bottom": true
+          },
+          {
+            "name": "tablet-landscape",
+            "kind": "tabletLandscape",
+            "bottom": true
+          }
+        ]
+      },
+      "result": {
+        "variant": "after",
+        "pages": [
+          {
+            "page": "profile",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-welcome",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-flyout",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-centre",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-profile",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-security",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-recovery",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-privacy",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-devices",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "account-your-colosseum",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "stremio-sync",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "extension-setup",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          },
+          {
+            "page": "tankoyomi-configuration",
+            "cases": 7,
+            "errors": 0,
+            "inputStable": true
+          }
+        ]
+      }
+    },
+    {
+      "utc": "2026-10-31T23:04:31.442Z",
+      "command": {
+        "cmd": "run",
+        "module": "interaction-probes.cjs",
+        "variant": "after"
+      },
+      "result": {
+        "variant": "after",
+        "total": 9,
+        "passed": 9,
+        "failed": []
+      }
+    },
+    {
+      "utc": "2026-10-31T23:07:27.661Z",
+      "command": {
+        "cmd": "run",
+        "module": "scenario-tests.cjs"
+      },
+      "result": {
+        "cases": 70,
+        "passed": 61,
+        "failures": [
+          {
+            "page": "profile",
+            "id": "rows-and-route",
+            "kind": "portrait",
+            "failure": "TypeError: Cannot read properties of null (reading 'getBoundingClientRect')"
+          },
+          {
+            "page": "profile",
+            "id": "rows-and-route",
+            "kind": "landscape",
+            "failure": "TypeError: Cannot read properties of null (reading 'getBoundingClientRect')"
+          },
+          {
+            "page": "account-flyout",
+            "id": "mode-local",
+            "kind": "portrait",
+            "failure": "Error: focus returns to account invoker: undefined"
+          },
+          {
+            "page": "account-flyout",
+            "id": "mode-local",
+            "kind": "landscape",
+            "failure": "Error: focus returns to account invoker: undefined"
+          },
+          {
+            "page": "account-centre",
+            "id": "five-sections-and-back",
+            "kind": "portrait",
+            "failure": "TypeError: Cannot read properties of null (reading 'getBoundingClientRect')"
+          },
+          {
+            "page": "account-centre",
+            "id": "five-sections-and-back",
+            "kind": "landscape",
+            "failure": "TypeError: Cannot read properties of null (reading 'getBoundingClientRect')"
+          },
+          {
+            "page": "account-profile",
+            "id": "edit-save-avatar-keyboard",
+            "kind": "portrait",
+            "failure": "Error: local host response updates displayed name: undefined"
+          },
+          {
+            "page": "account-profile",
+            "id": "edit-save-avatar-keyboard",
+            "kind": "landscape",
+            "failure": "Error: local host response updates displayed name: undefined"
+          },
+          {
+            "page": "account-profile",
+            "id": "keyboard-name",
+            "kind": "landscape",
+            "failure": "Error: username field reachable above simulated keyboard: {\"fits\":false,\"rect\":{\"x\":16,\"y\":134.21875,\"w\":486,\"h\":46},\"area\":{\"x\":16,\"y\":136,\"w\":868,\"h\":59}}"
+          }
+        ]
+      }
+    },
+    {
+      "utc": "2026-10-31T23:08:53.406Z",
+      "command": {
+        "cmd": "run",
+        "module": "diagnose-profile.cjs"
+      },
+      "result": {
+        "out": [
+          {
+            "label": "initial",
+            "value": "Ariadne",
+            "hero": "Ariadne",
+            "disabled": true,
+            "active": "",
+            "intents": []
+          },
+          {
+            "label": "typed",
+            "value": "AriadneAriadne Studio",
+            "hero": "Ariadne",
+            "disabled": false,
+            "active": "profile-name",
+            "intents": []
+          },
+          {
+            "label": "submitted",
+            "value": "AriadneAriadne Studio",
+            "hero": "AriadneAriadne Studio",
+            "disabled": true,
+            "active": "profile-name",
+            "intents": [
+              {
+                "action": "profile-save",
+                "detail": {
+                  "page": "profile"
+                },
+                "localOnly": true,
+                "at": "2026-10-31T23:08:53.337Z"
+              },
+              {
+                "action": "renameUsername",
+                "detail": {
+                  "fixtureLength": 21
+                },
+                "localOnly": true,
+                "at": "2026-10-31T23:08:53.338Z"
+              }
+            ]
+          }
+        ],
+        "errors": []
+      }
+    },
+    {
+      "utc": "2026-10-31T23:10:56.417Z",
+      "command": {
+        "cmd": "run",
+        "module": "scenario-tests.cjs",
+        "pages": [
+          "profile",
+          "account-flyout",
+          "account-centre",
+          "account-profile"
+        ]
+      },
+      "result": {
+        "cases": 16,
+        "passed": 16,
+        "failures": []
+      }
+    },
+    {
+      "utc": "2026-10-31T23:20:37.384Z",
+      "command": {
+        "cmd": "run",
+        "module": "keyboard-decision.cjs"
+      },
+      "result": {
+        "cases": 12,
+        "passed": 12,
+        "failures": []
+      }
+    },
+    {
+      "utc": "2026-10-31T23:23:45.069Z",
+      "command": {
+        "cmd": "run",
+        "module": "state-captures.cjs"
+      },
+      "result": {
+        "generatedUtc": "2026-10-31T23:23:45.067Z",
+        "cases": 124,
+        "passed": 122,
+        "failures": [
+          {
+            "page": "tankoyomi-configuration",
+            "id": "menu",
+            "kind": "landscape",
+            "failure": "Error: open menu last option visible: {\"fits\":false,\"top\":388.84375,\"bottom\":432.84375,\"areaTop\":58,\"areaBottom\":406}"
+          },
+          {
+            "page": "tankoyomi-configuration",
+            "id": "menu",
+            "kind": "short",
+            "failure": "Error: open menu last option visible: {\"fits\":false,\"top\":359.578125,\"bottom\":403.578125,\"areaTop\":82,\"areaBottom\":324}"
+          }
+        ]
+      }
+    },
+    {
+      "utc": "2026-10-31T23:26:45.039Z",
+      "command": {
+        "cmd": "run",
+        "module": "state-captures.cjs",
+        "pages": [
+          "extension-setup",
+          "tankoyomi-configuration"
+        ]
+      },
+      "result": {
+        "generatedUtc": "2026-10-31T23:26:45.036Z",
+        "cases": 20,
+        "passed": 20,
+        "failures": []
+      }
+    },
+    {
+      "utc": "2026-10-31T23:31:31.070Z",
+      "command": {
+        "cmd": "run",
+        "module": "final-suite.cjs"
+      },
+      "result": {
+        "scenarios": {
+          "cases": 70,
+          "passed": 70,
+          "failures": []
+        },
+        "regressions": {
+          "variant": "after",
+          "total": 9,
+          "passed": 9,
+          "failed": []
+        },
+        "keyboard": {
+          "cases": 12,
+          "passed": 12,
+          "failures": []
+        },
+        "matrix": {
+          "variant": "after",
+          "pages": [
+            {
+              "page": "profile",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-welcome",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-flyout",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-centre",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-profile",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-security",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-recovery",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-privacy",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-devices",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "account-your-colosseum",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "stremio-sync",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "extension-setup",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            },
+            {
+              "page": "tankoyomi-configuration",
+              "cases": 7,
+              "errors": 0,
+              "inputStable": true
+            }
+          ]
+        }
+      }
+    },
+    {
+      "utc": "2026-10-31T23:32:36.563Z",
+      "command": {
+        "cmd": "run",
+        "module": "pack-smoke.cjs"
+      },
+      "result": {
+        "cases": 33,
+        "passed": 33,
+        "failures": []
+      }
+    },
+    {
+      "utc": "2026-10-31T23:33:19.648Z",
+      "command": {
+        "cmd": "run",
+        "module": "extra-before.cjs"
+      },
+      "result": {
+        "examples": 4
+      }
+    },
+    {
+      "utc": "2026-10-31T23:34:10.915Z",
+      "command": {
+        "cmd": "run",
+        "module": "interaction-probes.cjs",
+        "variant": "after"
+      },
+      "result": {
+        "variant": "after",
+        "total": 9,
+        "passed": 9,
+        "failed": []
+      }
+    },
+    {
+      "deadlineReached": "2026-11-01T01:20:21.893Z"
+    }
+  ],
+  "closed": true,
+  "browserVersion": "Chrome/156.0.8078.74",
+  "browserPid": 43376
+}

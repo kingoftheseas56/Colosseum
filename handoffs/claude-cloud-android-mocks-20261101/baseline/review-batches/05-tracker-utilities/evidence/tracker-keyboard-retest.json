@@ -1,0 +1,22 @@
+[
+  {
+    "label": "state-tracker-dossier-match-portrait",
+    "errors": [],
+    "missing": 0
+  },
+  {
+    "label": "after-tracker-match-keyboard-actions-portrait",
+    "errors": [],
+    "missing": 0
+  },
+  {
+    "label": "state-tracker-dossier-match-landscape",
+    "errors": [],
+    "missing": 0
+  },
+  {
+    "label": "after-tracker-match-keyboard-actions-landscape",
+    "errors": [],
+    "missing": 0
+  }
+]

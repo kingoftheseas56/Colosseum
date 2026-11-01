@@ -1,0 +1,833 @@
+{
+  "time": "2026-10-31T23:43:40.492Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/collections.html?capture=1&w=354&h=792&fontScale=1.3&top=24&bottom=24&long=1&state=Detail",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 354,
+    "h": 792,
+    "outerWidth": 354,
+    "outerHeight": 792,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android portrait text-enlarged",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 0,
+          "y": 63,
+          "w": 354,
+          "h": 691,
+          "right": 354,
+          "bottom": 754
+        },
+        "scrollHeight": 8710,
+        "clientHeight": 691
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "collectionOverview",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 81,
+          "w": 192.703125,
+          "h": 44,
+          "right": 214.703125,
+          "bottom": 125
+        }
+      },
+      {
+        "text": "Edit collection",
+        "action": "collectionEdit",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 631.390625,
+          "w": 176.703125,
+          "h": 44,
+          "right": 198.703125,
+          "bottom": 675.390625
+        }
+      },
+      {
+        "text": "Delete collection",
+        "action": "collectionDelete",
+        "disabled": false,
+        "box": {
+          "x": 206.703125,
+          "y": 631.390625,
+          "w": 44,
+          "h": 44,
+          "right": 250.703125,
+          "bottom": 675.390625
+        }
+      },
+      {
+        "text": "All",
+        "action": "collectionFilter",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 695.390625,
+          "w": 48.5625,
+          "h": 45,
+          "right": 70.5625,
+          "bottom": 740.390625
+        }
+      },
+      {
+        "text": "Books",
+        "action": "collectionFilter",
+        "disabled": false,
+        "box": {
+          "x": 75.5625,
+          "y": 695.390625,
+          "w": 76.53125,
+          "h": 45,
+          "right": 152.09375,
+          "bottom": 740.390625
+        }
+      },
+      {
+        "text": "Series",
+        "action": "collectionFilter",
+        "disabled": false,
+        "box": {
+          "x": 157.09375,
+          "y": 695.390625,
+          "w": 75.171875,
+          "h": 45,
+          "right": 232.265625,
+          "bottom": 740.390625
+        }
+      },
+      {
+        "text": "Movies",
+        "action": "collectionFilter",
+        "disabled": false,
+        "box": {
+          "x": 237.265625,
+          "y": 695.390625,
+          "w": 85.375,
+          "h": 45,
+          "right": 322.640625,
+          "bottom": 740.390625
+        }
+      },
+      {
+        "text": "DuneBook · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 781.390625,
+          "w": 147,
+          "h": 258.125,
+          "right": 169,
+          "bottom": 1039.515625
+        }
+      },
+      {
+        "text": "Harry PotterBook · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 781.390625,
+          "w": 147,
+          "h": 258.125,
+          "right": 332,
+          "bottom": 1039.515625
+        }
+      },
+      {
+        "text": "The Lord of the RingsBook · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1063.515625,
+          "w": 147,
+          "h": 283.46875,
+          "right": 169,
+          "bottom": 1346.984375
+        }
+      },
+      {
+        "text": "A Song of Ice and FireBook · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 1063.515625,
+          "w": 147,
+          "h": 302.046875,
+          "right": 332,
+          "bottom": 1365.5625
+        }
+      },
+      {
+        "text": "The WitcherSeries",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1389.5625,
+          "w": 147,
+          "h": 258.125,
+          "right": 169,
+          "bottom": 1647.6875
+        }
+      },
+      {
+        "text": "Percy JacksonBook · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 1389.5625,
+          "w": 147,
+          "h": 258.125,
+          "right": 332,
+          "bottom": 1647.6875
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 1Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1671.6875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 1980.5
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 2Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 1671.6875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 1980.5
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 3Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2004.5,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 2338.65625
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 4Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 2004.5,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 2357.234375
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 5Series",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2381.234375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 2690.046875
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 6Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 2381.234375,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 2733.96875
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 7Movie",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2757.96875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 3066.78125
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 8Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 2757.96875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 3066.78125
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 9Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 3090.78125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 3399.59375
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 10Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 3090.78125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 3399.59375
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 11Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 3423.59375,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 3757.75
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 12Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 3423.59375,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 3776.328125
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 13Series",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 3800.328125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 4109.140625
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 14Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 3800.328125,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 4153.0625
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 15Movie",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 4177.0625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 4485.875
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 16Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 4177.0625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 4485.875
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 17Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 4509.875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 4818.6875
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 18Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 4509.875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 4818.6875
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 19Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 4842.6875,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 5176.84375
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 20Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 4842.6875,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 5195.421875
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 21Series",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 5219.421875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 5528.234375
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 22Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 5219.421875,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 5572.15625
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 23Movie",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 5596.15625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 5904.96875
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 24Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 5596.15625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 5904.96875
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 25Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 5928.96875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 6237.78125
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 26Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 5928.96875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 6237.78125
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 27Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 6261.78125,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 6595.9375
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 28Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 6261.78125,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 6614.515625
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 29Series",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 6638.515625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 6947.328125
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 30Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 6638.515625,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 6991.25
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 31Movie",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 7015.25,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 7324.0625
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 32Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 7015.25,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 7324.0625
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 33Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 7348.0625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 7656.875
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 34Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 7348.0625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 7656.875
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 35Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 7680.875,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 8015.03125
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 36Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 7680.875,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 8033.609375
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 37Series",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 8057.609375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 8366.421875
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 38Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 8057.609375,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 8410.34375
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 39Movie",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 8434.34375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 8743.15625
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 40Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 8434.34375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 8743.15625
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

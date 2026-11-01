@@ -1,0 +1,2231 @@
+{
+  "at": "2026-10-31T23:46:01.062Z",
+  "records": [
+    {
+      "page": "tracker-connections",
+      "state": "disconnected",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-connections-disconnected-portrait.png",
+      "receipt": "evidence/state-tracker-connections-disconnected-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "state": "disconnected",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-connections-disconnected-landscape.png",
+      "receipt": "evidence/state-tracker-connections-disconnected-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "state": "attention",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-connections-attention-portrait.png",
+      "receipt": "evidence/state-tracker-connections-attention-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "state": "attention",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-connections-attention-landscape.png",
+      "receipt": "evidence/state-tracker-connections-attention-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "mal",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-mal-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-mal-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "mal",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-mal-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-mal-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "trakt",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-trakt-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-trakt-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "trakt",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-trakt-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-trakt-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "anilist",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-anilist-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-anilist-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "anilist",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-anilist-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-anilist-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "import",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-import-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-import-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog dialog-import",
+            "x": 28,
+            "y": 80,
+            "w": 298,
+            "h": 632,
+            "right": 326,
+            "bottom": 712,
+            "scrollHeight": 630,
+            "clientHeight": 630
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "import",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-import-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-import-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog dialog-import",
+            "x": 38,
+            "y": 42,
+            "w": 716,
+            "h": 270,
+            "right": 754,
+            "bottom": 312,
+            "scrollHeight": 3361,
+            "clientHeight": 268
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "export",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-export-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-export-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog dialog-export",
+            "x": 28,
+            "y": 80,
+            "w": 298,
+            "h": 632,
+            "right": 326,
+            "bottom": 712,
+            "scrollHeight": 630,
+            "clientHeight": 630
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "export",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-export-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-export-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog dialog-export",
+            "x": 71,
+            "y": 42,
+            "w": 650,
+            "h": 270,
+            "right": 721,
+            "bottom": 312,
+            "scrollHeight": 503,
+            "clientHeight": 268
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "disconnect",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-disconnect-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-disconnect-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog",
+            "x": 28,
+            "y": 80,
+            "w": 298,
+            "h": 632,
+            "right": 326,
+            "bottom": 712,
+            "scrollHeight": 630,
+            "clientHeight": 630
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "disconnect",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-disconnect-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-disconnect-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog",
+            "x": 71,
+            "y": 42,
+            "w": 650,
+            "h": 270,
+            "right": 721,
+            "bottom": 312,
+            "scrollHeight": 518,
+            "clientHeight": 268
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "remove",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-remove-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-remove-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog",
+            "x": 28,
+            "y": 80,
+            "w": 298,
+            "h": 632,
+            "right": 326,
+            "bottom": 712,
+            "scrollHeight": 630,
+            "clientHeight": 630
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "remove",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-remove-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-remove-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog",
+            "x": 71,
+            "y": 42,
+            "w": 650,
+            "h": 270,
+            "right": 721,
+            "bottom": 312,
+            "scrollHeight": 524,
+            "clientHeight": 268
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "bulk",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-bulk-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-bulk-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog",
+            "x": 28,
+            "y": 149.515625,
+            "w": 298,
+            "h": 492.953125,
+            "right": 326,
+            "bottom": 642.46875,
+            "scrollHeight": 491,
+            "clientHeight": 491
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "bulk",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-bulk-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-bulk-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog",
+            "x": 71,
+            "y": 42,
+            "w": 650,
+            "h": 270,
+            "right": 721,
+            "bottom": 312,
+            "scrollHeight": 317,
+            "clientHeight": 268
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "match",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-tracker-dossier-match-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-match-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog dialog-export",
+            "x": 28,
+            "y": 80,
+            "w": 298,
+            "h": 352,
+            "right": 326,
+            "bottom": 432,
+            "scrollHeight": 616,
+            "clientHeight": 350
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "match",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-tracker-dossier-match-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-match-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "dialog dialog-export",
+            "x": 71,
+            "y": 42,
+            "w": 650,
+            "h": 143,
+            "right": 721,
+            "bottom": 185,
+            "scrollHeight": 500,
+            "clientHeight": 141
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "state": "Selected + keyboard",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-wallpaper-search-selected-keyboard-portrait.png",
+      "receipt": "evidence/state-wallpaper-search-selected-keyboard-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "wall-panel has-pick",
+            "x": 12,
+            "y": 36,
+            "w": 330,
+            "h": 420,
+            "right": 342,
+            "bottom": 456,
+            "scrollHeight": 1250,
+            "clientHeight": 418
+          },
+          {
+            "class": "wall-selected",
+            "x": 29,
+            "y": 1103,
+            "w": 296,
+            "h": 156,
+            "right": 325,
+            "bottom": 1259,
+            "scrollHeight": 154,
+            "clientHeight": 154
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "state": "Selected + keyboard",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-wallpaper-search-selected-keyboard-landscape.png",
+      "receipt": "evidence/state-wallpaper-search-selected-keyboard-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "wall-panel has-pick",
+            "x": 12,
+            "y": 32,
+            "w": 530,
+            "h": 148,
+            "right": 542,
+            "bottom": 180,
+            "scrollHeight": 943,
+            "clientHeight": 146
+          },
+          {
+            "class": "wall-selected",
+            "x": 554,
+            "y": 32,
+            "w": 220,
+            "h": 148,
+            "right": 774,
+            "bottom": 180,
+            "scrollHeight": 154,
+            "clientHeight": 146
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "state": "Search",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-wallpaper-search-search-portrait.png",
+      "receipt": "evidence/state-wallpaper-search-search-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "wall-panel",
+            "x": 12,
+            "y": 36,
+            "w": 330,
+            "h": 720,
+            "right": 342,
+            "bottom": 756,
+            "scrollHeight": 718,
+            "clientHeight": 718
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "state": "Search",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-wallpaper-search-search-landscape.png",
+      "receipt": "evidence/state-wallpaper-search-search-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "wall-panel",
+            "x": 12,
+            "y": 32,
+            "w": 530,
+            "h": 290,
+            "right": 542,
+            "bottom": 322,
+            "scrollHeight": 825,
+            "clientHeight": 288
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Search",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-search-portrait.png",
+      "receipt": "evidence/state-extensions-store-search-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Search",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-search-landscape.png",
+      "receipt": "evidence/state-extensions-store-search-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Your Add-ons",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-your-add-ons-portrait.png",
+      "receipt": "evidence/state-extensions-store-your-add-ons-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Your Add-ons",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-your-add-ons-landscape.png",
+      "receipt": "evidence/state-extensions-store-your-add-ons-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL dialog",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-url-dialog-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-dialog-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 16,
+            "y": 217.265625,
+            "w": 322,
+            "h": 357.46875,
+            "right": 338,
+            "bottom": 574.734375,
+            "scrollHeight": 355,
+            "clientHeight": 355
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL dialog",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-url-dialog-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-dialog-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 126,
+            "y": 44,
+            "w": 540,
+            "h": 266,
+            "right": 666,
+            "bottom": 310,
+            "scrollHeight": 299,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL ready",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-url-ready-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-ready-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 16,
+            "y": 152.5625,
+            "w": 322,
+            "h": 486.859375,
+            "right": 338,
+            "bottom": 639.421875,
+            "scrollHeight": 485,
+            "clientHeight": 485
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL ready",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-url-ready-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-ready-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 126,
+            "y": 44,
+            "w": 540,
+            "h": 266,
+            "right": 666,
+            "bottom": 310,
+            "scrollHeight": 412,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL preview",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-url-preview-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-preview-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 16,
+            "y": 126.5625,
+            "w": 322,
+            "h": 538.859375,
+            "right": 338,
+            "bottom": 665.421875,
+            "scrollHeight": 537,
+            "clientHeight": 537
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL preview",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-url-preview-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-preview-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 126,
+            "y": 44,
+            "w": 540,
+            "h": 266,
+            "right": 666,
+            "bottom": 310,
+            "scrollHeight": 412,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL complete",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-url-complete-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-complete-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 16,
+            "y": 141.5625,
+            "w": 322,
+            "h": 508.859375,
+            "right": 338,
+            "bottom": 650.421875,
+            "scrollHeight": 507,
+            "clientHeight": 507
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL complete",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-url-complete-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-complete-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 126,
+            "y": 44,
+            "w": 540,
+            "h": 266,
+            "right": 666,
+            "bottom": 310,
+            "scrollHeight": 434,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Setup",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-setup-portrait.png",
+      "receipt": "evidence/state-extensions-store-setup-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel setup-panel setup-android",
+            "x": 16,
+            "y": 198.03125,
+            "w": 322,
+            "h": 395.9375,
+            "right": 338,
+            "bottom": 593.96875,
+            "scrollHeight": 394,
+            "clientHeight": 394
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Setup",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-setup-landscape.png",
+      "receipt": "evidence/state-extensions-store-setup-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel setup-panel setup-android",
+            "x": 136,
+            "y": 44,
+            "w": 520,
+            "h": 266,
+            "right": 656,
+            "bottom": 310,
+            "scrollHeight": 343,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Remove confirmation",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-remove-confirmation-portrait.png",
+      "receipt": "evidence/state-extensions-store-remove-confirmation-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel",
+            "x": 16,
+            "y": 287.703125,
+            "w": 322,
+            "h": 216.59375,
+            "right": 338,
+            "bottom": 504.296875,
+            "scrollHeight": 215,
+            "clientHeight": 215
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Remove confirmation",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-remove-confirmation-landscape.png",
+      "receipt": "evidence/state-extensions-store-remove-confirmation-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel",
+            "x": 176,
+            "y": 79.203125,
+            "w": 440,
+            "h": 195.59375,
+            "right": 616,
+            "bottom": 274.796875,
+            "scrollHeight": 194,
+            "clientHeight": 194
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "See all",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-see-all-portrait.png",
+      "receipt": "evidence/state-extensions-store-see-all-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "See all",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-see-all-landscape.png",
+      "receipt": "evidence/state-extensions-store-see-all-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL ready keyboard",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-url-ready-keyboard-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-ready-keyboard-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 16,
+            "y": 44,
+            "w": 322,
+            "h": 404,
+            "right": 338,
+            "bottom": 448,
+            "scrollHeight": 485,
+            "clientHeight": 402
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "URL ready keyboard",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-url-ready-keyboard-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-ready-keyboard-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel ext-url-modal",
+            "x": 126,
+            "y": 44,
+            "w": 540,
+            "h": 124,
+            "right": 666,
+            "bottom": 168,
+            "scrollHeight": 412,
+            "clientHeight": 122
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Setup keyboard",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-store-setup-keyboard-portrait.png",
+      "receipt": "evidence/state-extensions-store-setup-keyboard-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel setup-panel setup-android",
+            "x": 16,
+            "y": 48.03125,
+            "w": 322,
+            "h": 395.9375,
+            "right": 338,
+            "bottom": 443.96875,
+            "scrollHeight": 394,
+            "clientHeight": 394
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "extensions-store",
+      "state": "Setup keyboard",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-store-setup-keyboard-landscape.png",
+      "receipt": "evidence/state-extensions-store-setup-keyboard-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel setup-panel setup-android",
+            "x": 136,
+            "y": 44,
+            "w": 520,
+            "h": 124,
+            "right": 656,
+            "bottom": 168,
+            "scrollHeight": 343,
+            "clientHeight": 122
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Idle",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-idle-portrait.png",
+      "receipt": "evidence/state-update-idle-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "No update check yetInstalled 1.1.10Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Idle",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-idle-landscape.png",
+      "receipt": "evidence/state-update-idle-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "No update check yetInstalled 1.1.10Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Checking",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-checking-portrait.png",
+      "receipt": "evidence/state-update-checking-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Checking for updatesInstalled 1.1.10",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Checking",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-checking-landscape.png",
+      "receipt": "evidence/state-update-checking-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Checking for updatesInstalled 1.1.10",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "UpToDate",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-uptodate-portrait.png",
+      "receipt": "evidence/state-update-uptodate-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Everything is up to dateInstalled 1.1.10 · Latest 1.1.10Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "UpToDate",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-uptodate-landscape.png",
+      "receipt": "evidence/state-update-uptodate-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Everything is up to dateInstalled 1.1.10 · Latest 1.1.10Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Available",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-available-portrait.png",
+      "receipt": "evidence/state-update-available-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Colosseum 1.2.0 is readyTarget 1.2.0Download update",
+        "primary": "Download update",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Available",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-available-landscape.png",
+      "receipt": "evidence/state-update-available-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Colosseum 1.2.0 is readyTarget 1.2.0Download update",
+        "primary": "Download update",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Downloading",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-downloading-portrait.png",
+      "receipt": "evidence/state-update-downloading-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Updating to 1.2.062 MB of 100 MB · 62%Pause download",
+        "primary": "Pause download",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Downloading",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-downloading-landscape.png",
+      "receipt": "evidence/state-update-downloading-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Updating to 1.2.062 MB of 100 MB · 62%Pause download",
+        "primary": "Pause download",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Paused",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-paused-portrait.png",
+      "receipt": "evidence/state-update-paused-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Update pausedTarget 1.2.062 MB of 100 MB · 62%Resume download",
+        "primary": "Resume download",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Paused",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-paused-landscape.png",
+      "receipt": "evidence/state-update-paused-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Update pausedTarget 1.2.062 MB of 100 MB · 62%Resume download",
+        "primary": "Resume download",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Verifying",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-verifying-portrait.png",
+      "receipt": "evidence/state-update-verifying-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Verifying the updateTarget 1.2.0",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Verifying",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-verifying-landscape.png",
+      "receipt": "evidence/state-update-verifying-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Verifying the updateTarget 1.2.0",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Ready",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-ready-portrait.png",
+      "receipt": "evidence/state-update-ready-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Ready to enter 1.2.0Target 1.2.0Restart and update",
+        "primary": "Restart and update",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Ready",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-ready-landscape.png",
+      "receipt": "evidence/state-update-ready-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Ready to enter 1.2.0Target 1.2.0Restart and update",
+        "primary": "Restart and update",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Installing",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-installing-portrait.png",
+      "receipt": "evidence/state-update-installing-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Colosseum is updatingTarget 1.2.0",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "Installing",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-installing-landscape.png",
+      "receipt": "evidence/state-update-installing-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Colosseum is updatingTarget 1.2.0",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "RecoverableError",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-recoverableerror-portrait.png",
+      "receipt": "evidence/state-update-recoverableerror-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "The update could not finishTarget 1.2.0Retry download",
+        "primary": "Retry download",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "RecoverableError",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-recoverableerror-landscape.png",
+      "receipt": "evidence/state-update-recoverableerror-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "The update could not finishTarget 1.2.0Retry download",
+        "primary": "Retry download",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "VerificationFailure",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-verificationfailure-portrait.png",
+      "receipt": "evidence/state-update-verificationfailure-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "This update could not be verifiedTarget 1.2.0Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "VerificationFailure",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-verificationfailure-landscape.png",
+      "receipt": "evidence/state-update-verificationfailure-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "This update could not be verifiedTarget 1.2.0Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "ManualUpdateRequired",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-update-manualupdaterequired-portrait.png",
+      "receipt": "evidence/state-update-manualupdaterequired-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Manual update requiredTarget 1.2.0Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "update",
+      "state": "ManualUpdateRequired",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-update-manualupdaterequired-landscape.png",
+      "receipt": "evidence/state-update-manualupdaterequired-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "status": "Manual update requiredTarget 1.2.0Check again",
+        "primary": "Check again",
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Detail",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-detail-portrait.png",
+      "receipt": "evidence/state-collections-detail-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Detail",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-detail-landscape.png",
+      "receipt": "evidence/state-collections-detail-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Editing",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-editing-portrait.png",
+      "receipt": "evidence/state-collections-editing-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Editing",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-editing-landscape.png",
+      "receipt": "evidence/state-collections-editing-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "New collection",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-new-collection-portrait.png",
+      "receipt": "evidence/state-collections-new-collection-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup small",
+            "x": 16,
+            "y": 217.453125,
+            "w": 322,
+            "h": 357.09375,
+            "right": 338,
+            "bottom": 574.546875,
+            "scrollHeight": 355,
+            "clientHeight": 355
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "New collection",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-new-collection-landscape.png",
+      "receipt": "evidence/state-collections-new-collection-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup",
+            "x": 116,
+            "y": 44,
+            "w": 560,
+            "h": 266,
+            "right": 676,
+            "bottom": 310,
+            "scrollHeight": 348,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Add to Collections",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-add-to-collections-portrait.png",
+      "receipt": "evidence/state-collections-add-to-collections-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup small",
+            "x": 16,
+            "y": 44,
+            "w": 322,
+            "h": 704,
+            "right": 338,
+            "bottom": 748,
+            "scrollHeight": 715,
+            "clientHeight": 702
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Add to Collections",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-add-to-collections-landscape.png",
+      "receipt": "evidence/state-collections-add-to-collections-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup",
+            "x": 116,
+            "y": 44,
+            "w": 560,
+            "h": 266,
+            "right": 676,
+            "bottom": 310,
+            "scrollHeight": 537,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Delete collection",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-delete-collection-portrait.png",
+      "receipt": "evidence/state-collections-delete-collection-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup small",
+            "x": 16,
+            "y": 212.625,
+            "w": 322,
+            "h": 366.75,
+            "right": 338,
+            "bottom": 579.375,
+            "scrollHeight": 365,
+            "clientHeight": 365
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Delete collection",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-delete-collection-landscape.png",
+      "receipt": "evidence/state-collections-delete-collection-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup",
+            "x": 156,
+            "y": 44,
+            "w": 480,
+            "h": 266,
+            "right": 636,
+            "bottom": 310,
+            "scrollHeight": 270,
+            "clientHeight": 264
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Discard edits",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-discard-edits-portrait.png",
+      "receipt": "evidence/state-collections-discard-edits-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Discard edits",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-discard-edits-landscape.png",
+      "receipt": "evidence/state-collections-discard-edits-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Empty collection",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-empty-collection-portrait.png",
+      "receipt": "evidence/state-collections-empty-collection-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Empty collection",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-empty-collection-landscape.png",
+      "receipt": "evidence/state-collections-empty-collection-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Empty overview",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-empty-overview-portrait.png",
+      "receipt": "evidence/state-collections-empty-overview-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Empty overview",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-empty-overview-landscape.png",
+      "receipt": "evidence/state-collections-empty-overview-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Editing keyboard",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-editing-keyboard-portrait.png",
+      "receipt": "evidence/state-collections-editing-keyboard-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Editing keyboard",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-editing-keyboard-landscape.png",
+      "receipt": "evidence/state-collections-editing-keyboard-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "New collection keyboard",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-new-collection-keyboard-portrait.png",
+      "receipt": "evidence/state-collections-new-collection-keyboard-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup small",
+            "x": 16,
+            "y": 67.453125,
+            "w": 322,
+            "h": 357.09375,
+            "right": 338,
+            "bottom": 424.546875,
+            "scrollHeight": 355,
+            "clientHeight": 355
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "New collection keyboard",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-new-collection-keyboard-landscape.png",
+      "receipt": "evidence/state-collections-new-collection-keyboard-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup",
+            "x": 116,
+            "y": 44,
+            "w": 560,
+            "h": 124,
+            "right": 676,
+            "bottom": 168,
+            "scrollHeight": 348,
+            "clientHeight": 122
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Add to Collections keyboard",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-collections-add-to-collections-keyboard-portrait.png",
+      "receipt": "evidence/state-collections-add-to-collections-keyboard-portrait.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup small",
+            "x": 16,
+            "y": 44,
+            "w": 322,
+            "h": 404,
+            "right": 338,
+            "bottom": 448,
+            "scrollHeight": 581,
+            "clientHeight": 402
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "collections",
+      "state": "Add to Collections keyboard",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-collections-add-to-collections-keyboard-landscape.png",
+      "receipt": "evidence/state-collections-add-to-collections-keyboard-landscape.json",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "panels": [
+          {
+            "class": "modal-panel collection-popup",
+            "x": 116,
+            "y": 44,
+            "w": 560,
+            "h": 124,
+            "right": 676,
+            "bottom": 168,
+            "scrollHeight": 537,
+            "clientHeight": 122
+          }
+        ],
+        "canvasErrors": []
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "state": "long scroll end",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/scroll-tracker-connections-portrait.png",
+      "receipt": "evidence/scroll-tracker-connections-portrait.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "long scroll end",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/scroll-tracker-dossier-portrait.png",
+      "receipt": "evidence/scroll-tracker-dossier-portrait.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "wallpaper-search",
+      "state": "long scroll end",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/scroll-wallpaper-search-portrait.png",
+      "receipt": "evidence/scroll-wallpaper-search-portrait.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "collections",
+      "state": "long scroll end",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/scroll-collections-portrait.png",
+      "receipt": "evidence/scroll-collections-portrait.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "extensions-store",
+      "state": "long scroll end",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/scroll-extensions-store-portrait.png",
+      "receipt": "evidence/scroll-extensions-store-portrait.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "update",
+      "state": "long scroll end",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/scroll-update-portrait.png",
+      "receipt": "evidence/scroll-update-portrait.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-connections",
+      "state": "long scroll end",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/scroll-tracker-connections-landscape.png",
+      "receipt": "evidence/scroll-tracker-connections-landscape.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-dossier",
+      "state": "long scroll end",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/scroll-tracker-dossier-landscape.png",
+      "receipt": "evidence/scroll-tracker-dossier-landscape.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "wallpaper-search",
+      "state": "long scroll end",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/scroll-wallpaper-search-landscape.png",
+      "receipt": "evidence/scroll-wallpaper-search-landscape.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "collections",
+      "state": "long scroll end",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/scroll-collections-landscape.png",
+      "receipt": "evidence/scroll-collections-landscape.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "extensions-store",
+      "state": "long scroll end",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/scroll-extensions-store-landscape.png",
+      "receipt": "evidence/scroll-extensions-store-landscape.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "update",
+      "state": "long scroll end",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/scroll-update-landscape.png",
+      "receipt": "evidence/scroll-update-landscape.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "extensions-store",
+      "state": "original text menu",
+      "orientation": "portrait",
+      "w": 354,
+      "h": 792,
+      "image": "evidence/state-extensions-text-menu-portrait.png",
+      "receipt": "evidence/state-extensions-text-menu-portrait.json",
+      "errors": [],
+      "missing": []
+    },
+    {
+      "page": "extensions-store",
+      "state": "original text menu",
+      "orientation": "landscape",
+      "w": 792,
+      "h": 354,
+      "image": "evidence/state-extensions-text-menu-landscape.png",
+      "receipt": "evidence/state-extensions-text-menu-landscape.json",
+      "errors": [],
+      "missing": []
+    }
+  ]
+}

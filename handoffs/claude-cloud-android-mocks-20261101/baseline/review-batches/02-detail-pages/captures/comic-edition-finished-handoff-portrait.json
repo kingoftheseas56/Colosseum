@@ -1,0 +1,21 @@
+{
+  "name": "comic-edition-finished-handoff-portrait",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-handoff-portrait.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 412,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:55:45.581Z",
+  "sha256": "313fb2387ae843c6bad879e9a0f91629d5d82528bf36d5be186b7791f81d85a3",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

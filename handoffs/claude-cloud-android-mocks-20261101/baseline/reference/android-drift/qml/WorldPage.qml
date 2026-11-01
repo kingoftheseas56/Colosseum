@@ -1,0 +1,479 @@
+// WorldPage — the REUSABLE world-page shell (the doctrine's "lean board of distinct OS-widgets").
+// A mode owner (A1 Comics/Manga · A2 Books · A3 Video/Music · A4 Theatre) instantiates THIS and
+// declares their own widgets as children; the shell supplies the wallpaper hookup, the top bar
+// (this medium's pill selected), page margins, and the vertical scroll. Widgets float as a board
+// on the SAME persistent wallpaper — never a self-skinned sub-app.
+//
+//   WorldPage {
+//       medium: "Comics"; backdrop: wall
+//       FeaturedCarousel { ... }
+//       ContinueRow      { ... }
+//       TrendingTop10    { ... }
+//       GenreMosaic      { ... }
+//   }
+//
+// Content-row discipline lives with the instantiator: cap at ~two rows (Continue + Trending);
+// vary widget TYPES instead of stacking rows.
+
+import QtQuick
+import QtQuick.Controls
+import QtQuick.Effects
+import QtQuick.Window
+
+Item {
+    id: world
+
+    // Shared world-shell D-pad router. Child rails/grids keep first claim on arrows;
+    // when they hit a boundary, the unaccepted key bubbles here and moves to the
+    // nearest visible focus region in that direction (including the pinned TopBar).
+    KeyboardSpatialNavigator {
+        id: spatialNav
+        root: world
+        onLanded: (target, key) => {
+            if (key === Qt.Key_Up || key === Qt.Key_Down)
+                world.parkRow(target)
+        }
+    }
+
+    // Rows park (world-feel Slice 8, the mock's "park"): after Up/Down lands focus, the page glides
+    // so the landed row (its whole section, header included) sits just under the docked tab bar.
+    // Landing on the tab bar parks the bar at the top; anything above the tab bar (the carousel)
+    // returns the page to its top. A row taller than the room below the dock parks the landed
+    // item itself instead.
+    readonly property real parkDockSpace: 64
+    readonly property real parkGap: 14
+    function _inside(item, ancestor) {
+        for (var node = item; node; node = node.parent) {
+            if (node === ancestor)
+                return true
+        }
+        return false
+    }
+    function parkY(item) {
+        if (!item || !world._inside(item, page.contentItem))
+            return NaN
+        var bar = world.tabBarSource
+        var top = item.mapToItem(page.contentItem, 0, 0).y
+        if (bar && bar.visible) {
+            var barTop = bar.mapToItem(page.contentItem, 0, 0).y
+            if (world._inside(item, bar))
+                return barTop - 12
+            if (top + item.height <= barTop)
+                return 0
+        }
+        var dock = bar && bar.visible ? world.parkDockSpace : 0
+        var room = page.height - dock - world.parkGap
+        var anchor = item
+        for (var node = item.parent; node && node !== page.contentItem && node !== board; node = node.parent) {
+            if (node.height > room)
+                break
+            if (node.height > 0)
+                anchor = node
+        }
+        return anchor.mapToItem(page.contentItem, 0, 0).y - dock - world.parkGap
+    }
+    function parkRow(item) {
+        var y = world.parkY(item)
+        if (isFinite(y))
+            pageGlide.glideTo(y)
+    }
+    Keys.onPressed: function(event) {
+        // A routed world can receive its first arrow while the world root owns
+        // focus. Use that ordinary key to land the declared entry region; the
+        // next arrow then follows the region's own collection/scroll contract.
+        if (spatialNav.isDirectionalKey(event.key)
+                && spatialNav.activeItem() === world
+                && world.initialFocusName.length > 0
+                && spatialNav.focusNamed(world.initialFocusName)) {
+            event.accepted = true
+            return
+        }
+        if (world.televisionMode && event.key === Qt.Key_Up)
+            event.accepted = world.moveVerticalFocus(false)
+        else if (world.televisionMode && event.key === Qt.Key_Down)
+            event.accepted = world.moveVerticalFocus(true)
+        else
+            event.accepted = spatialNav.handle(event)
+    }
+    Keys.onReleased: function(event) { spatialNav.handleRelease(event) }
+    KeyboardSectionCoordinator { id: keyboardSections }
+
+    property Item backdrop                    // the persistent wallpaper (set post-load by the host; Glass is null-safe)
+    readonly property var keyboardSectionCoordinator: keyboardSections
+    readonly property string automationFocusedObject: spatialNav.automationActiveFocusIdentity
+    readonly property bool automationFocusedObjectFullyVisible: spatialNav.automationActiveFocusFullyVisible
+    onLifecycleActiveChanged: {
+        if (!lifecycleActive)
+            keyboardSections.clear()
+        else if (visible)
+            Qt.callLater(function() { if (world.visible && world.lifecycleActive) world.forceActiveFocus(Qt.TabFocusReason) })
+    }
+    onVisibleChanged: {
+        if (!visible)
+            keyboardSections.clear()
+        else if (lifecycleActive) {
+            Qt.callLater(function() {
+                if (!world.visible || !world.lifecycleActive) return
+                if (world.televisionMode) topbar.focusFirst()
+                else world.forceActiveFocus(Qt.TabFocusReason)
+            })
+        }
+    }
+    onEnabledChanged: if (!enabled) keyboardSections.clear()
+    property string medium: ""               // which library pill reads as selected
+    property bool topBarBackOnly: false       // Extensions: the bar keeps only Back and the page's name
+    property string topBarTitle: ""
+    property string topBarSubtitle: ""
+    property string initialFocusName: ""
+    // Main binds this to the current world. Bare page harnesses keep the default true, while
+    // retained hidden worlds can stop timers, paging and refresh work without being destroyed.
+    property bool lifecycleActive: true
+    // A world is an ordinary keyboard entry point after the TopBar route opens it.
+    // Claim focus on the next event-loop turn so the first D-pad key reaches the
+    // world spatial router instead of dying on Main's hidden ignition item.
+    focus: visible && lifecycleActive
+
+    Timer {
+        id: initialFocusTimer
+        interval: 50
+        repeat: true
+        running: world.visible && world.lifecycleActive && world.initialFocusName.length > 0
+        onTriggered: {
+            // A user may navigate before this deferred initial landing runs.
+            // Keep that child focus instead of stealing it back to the carousel.
+            if (spatialNav.activeItem() !== world) {
+                stop()
+                return
+            }
+            if (spatialNav.focusNamed(world.initialFocusName))
+                stop()
+        }
+    }
+    // Host/layout seam shared by Tankoban, Biblio and Theatre. Writable for desktop viewport tests.
+    property bool androidHost: Qt.platform.os === "android"
+    property var safeInsets: SafeArea.margins
+    readonly property bool phoneLayout: adaptive.phoneLayout
+    readonly property bool shortHeaderActive: world.phoneLayout && adaptive.shortLandscape
+        && world.width >= 430 && world.tabBarSource !== null && !world.topBarBackOnly
+    readonly property real chromeLeft: world.androidHost ? Math.max(adaptive.pageMargin, safeInsets.left) : adaptive.pageMargin
+    readonly property real chromeRight: world.androidHost ? Math.max(adaptive.pageMargin, safeInsets.right) : adaptive.pageMargin
+    readonly property real chromeTop: world.androidHost ? Math.max(adaptive.topInset, safeInsets.top) : adaptive.topInset
+    readonly property real shortHeaderLeft: world.chromeLeft
+    readonly property real shortHeaderRight: world.chromeRight
+    readonly property real shortHeaderTop: Math.max(12, world.androidHost ? safeInsets.top : 0)
+    readonly property real scrollTop: world.shortHeaderActive ? world.shortHeaderTop + 56
+        : topbar.y + topbar.height + (world.televisionMode ? 18 : (adaptive.compactChrome ? 8 : 10))
+    AdaptiveLayout { id: adaptive; page:world; touch:world.androidHost; safeInsets:world.safeInsets }
+    readonly property alias layout:adaptive
+    readonly property real pageMargin: adaptive.pageMargin
+    // Host-owned chrome can reserve the bottom of the viewport without changing desktop layout.
+    property real contentBottomInset: 0
+
+    readonly property string layoutClass: adaptive.layoutClass
+    // The global Explicit Content preference, threaded in by Main's world-loader onLoaded
+    // (Task 7 Step 4). Worlds that own a Discover wall (Tankoban now; Theatre/Biblio via
+    // Task 9) read this to drive the sexually-explicit-only gate. Default false so a bare
+    // construct (the page harness, a cold world) stays conservative.
+    property bool showExplicitContent: false
+    readonly property bool televisionMode: {
+        const w = world.Window.window
+        return !!(w && w["televisionMode"] === true)
+    }
+    default property alias content: board.data
+
+    function isInside(item, ancestor) {
+        var p = item
+        while (p) {
+            if (p === ancestor) return true
+            p = p.parent
+        }
+        return false
+    }
+    function revealFocusedItem(item) {
+        if (!item || !world.isInside(item, page)) return
+        var point = item.mapToItem(page, 0, 0)
+        if (point.y < 18)
+            page.contentY = Math.max(0, page.contentY + point.y - 18)
+        else if (point.y + item.height > page.height - 18)
+            page.contentY = Math.min(Math.max(0, page.contentHeight - page.height),
+                                     page.contentY + point.y + item.height - page.height + 18)
+    }
+    function moveVerticalFocus(forward) {
+        const w = world.Window.window
+        const from = w ? w.activeFocusItem : null
+        if (!from || !world.isInside(from, world)) return false
+        var target = from.nextItemInFocusChain(forward)
+        var guard = 0
+        while (target && target !== from && guard++ < 96) {
+            if (target.visible && target.enabled && target.activeFocusOnTab) {
+                target.forceActiveFocus(forward ? Qt.TabFocusReason : Qt.BacktabFocusReason)
+                world.revealFocusedItem(target)
+                return true
+            }
+            target = target.nextItemInFocusChain(forward)
+        }
+        return false
+    }
+
+    Keys.priority: Keys.AfterItem
+
+    signal homeRequested()
+    signal mediumSelected(string medium)     // tapped another pill → host switches world
+    signal seriesRequested(string title)     // tapped a title tile → host opens its detail page
+    signal bookRequested(var book)           // Biblio: tapped a book → host opens the BiblioBook detail
+    signal genreRequested(string genreName)  // tapped a genre tile opens its GenrePage
+    signal genreIndexRequested()             // tapped a genre widget's "Explore" → host opens the full genre index
+    signal continueResumeRequested(var item) // Continue tile's center icon → host resumes the content
+    signal continueDetailRequested(var item) // Continue tile elsewhere → host opens its detail view
+    signal continueSeeAllRequested()         // Continue row's "See all ›" → host opens the scoped backlog page
+    signal searchClicked()
+    signal stremioClicked()
+    signal trackersClicked()                 // topbar third-party trackers door -> host opens the Sync Center
+    property bool trackersActive: false
+    signal settingsClicked()
+    signal accountClicked(real anchorRight, real anchorBottom) // topbar account control -> anchored flyout
+    signal wallpaperClicked()
+    signal fullscreenClicked()               // topbar fullscreen toggle → host flips the shell (same door as F11)
+    signal minimizeClicked()
+    signal powerClicked()
+
+    function focusStremioButton() {
+        if (shortActions.item) shortActions.item.focusAction("stremio")
+        else topbar.focusStremioButton()
+    }
+    function focusTrackersButton() {
+        if (shortActions.item) shortActions.item.focusAction("trackers")
+        else topbar.focusTrackersButton()
+    }
+
+    Theme { id: theme }
+
+    // absorb stray clicks so the home underneath never receives them
+    MouseArea { anchors.fill: parent }
+
+    // ---- pinned top bar (this medium selected; "‹ Home" shown) ----
+    TopBar {
+        id: topbar
+        objectName: world.medium.toLowerCase() + "WorldHeader"
+        visible: !world.shortHeaderActive
+        backdrop: world.backdrop
+        activeMedium: world.medium
+        backOnly: world.topBarBackOnly
+        pageTitle: world.topBarTitle
+        pageSubtitle: world.topBarSubtitle
+        lifecycleActive: world.lifecycleActive
+        androidHost: world.androidHost
+        x: world.chromeLeft; y: world.chromeTop
+        width: world.width - world.chromeLeft - world.chromeRight
+        onHomeRequested: world.homeRequested()
+        onMediumSelected: (m) => world.mediumSelected(m)
+        onSearchClicked: world.searchClicked()
+        onStremioClicked: world.stremioClicked()
+        trackersEnabled: true
+        trackersActive: world.trackersActive
+        onTrackersClicked: world.trackersClicked()
+        onSettingsClicked: world.settingsClicked()
+        onAccountClicked: (anchorRight, anchorBottom) =>
+            world.accountClicked(anchorRight, anchorBottom)
+        onWallpaperClicked: world.wallpaperClicked()
+        onFullscreenClicked: world.fullscreenClicked()
+        onMinimizeClicked: world.minimizeClicked()
+        onPowerClicked: world.powerClicked()
+    }
+
+    Loader {
+        id: shortActions
+        objectName: world.medium.toLowerCase() + "ShortChrome"
+        active: world.shortHeaderActive
+        x: world.width - world.shortHeaderRight - width
+        y: world.shortHeaderTop
+        width: item ? item.implicitWidth : 0
+        height: 48
+        sourceComponent: Component {
+            PhoneWorldActions {
+                medium: world.medium
+                automationPrefix: world.medium.toLowerCase() + "ShortChrome"
+                trackersActive: world.trackersActive
+                onSearchClicked: world.searchClicked()
+                onStremioClicked: world.stremioClicked()
+                onTrackersClicked: world.trackersClicked()
+                onAccountClicked: (right, bottom) => world.accountClicked(right, bottom)
+                onWallpaperClicked: world.wallpaperClicked()
+            }
+        }
+    }
+
+    Component.onCompleted: if (world.televisionMode && world.visible)
+        Qt.callLater(function() { topbar.focusFirst() })
+
+    // Read-only viewport seam for viewport-aware lazy shelves (LazyPosterShelf). These expose the
+    // existing page Flickable's scroll offset and height WITHOUT adding a second vertical scroller or
+    // touching the scroll controller — WorldPage stays the only vertical scroll owner.
+    readonly property real viewportContentY: page.contentY
+    readonly property real viewportHeight: page.height
+    // The one vertical scroller itself, for content that must scroll WITH the page rather than
+    // inside its own box (the Discover walls, world-feel Slice 7).
+    readonly property Flickable pageFlickable: page
+
+    // Retain the visible board section and position within it when rotation changes
+    // header/hero/grid heights. Raw contentY alone points at another section after reflow.
+    property var phoneViewportAnchor: null
+    property real anchorWidth: 0
+    property real anchorHeight: 0
+    function capturePhoneViewport() {
+        if (!world.phoneLayout || resizeRestore.running) return
+        if (anchorWidth && (anchorWidth !== width || anchorHeight !== height)) return
+        let next = null
+        for (const row of board.children) {
+            if (!row.visible || row.height <= 0 || row.width <= 0) continue
+            const top = row.mapToItem(page.contentItem, 0, 0).y
+            if (top + row.height > page.contentY) {
+                next = {item:row, fraction:(page.contentY - top) / Math.max(1, row.height), atTop:page.contentY <= 0}
+                break
+            }
+        }
+        phoneViewportAnchor = next
+        anchorWidth = width; anchorHeight = height
+    }
+    function restorePhoneViewport() {
+        board.forceLayout()
+        const anchor = phoneViewportAnchor
+        if (world.phoneLayout && anchor && anchor.item && anchor.item.visible) {
+            const top = anchor.item.mapToItem(page.contentItem, 0, 0).y
+            page.contentY = anchor.atTop ? 0 : Math.max(0, Math.min(page.contentHeight - page.height,
+                top + anchor.fraction * anchor.item.height))
+        }
+        anchorWidth = width; anchorHeight = height
+        capturePhoneViewport()
+    }
+    onWidthChanged: if (world.phoneLayout) { if (page) page.cancelFlick(); resizeRestore.restart() }
+    onHeightChanged: if (world.phoneLayout) { if (page) page.cancelFlick(); resizeRestore.restart() }
+    Timer { id: resizeRestore; interval: 32; onTriggered: world.restorePhoneViewport() }
+
+    // ---- the widget board (scrolls vertically) ----
+    Flickable {
+        id: page
+        // Automation identity (Lanista): the production world board is the one vertical
+        // scroll owner. World-qualified naming keeps Theatre/Biblio/Tankoban journeys
+        // addressable without introducing a second scroller or a presentation shell.
+        objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "WorldScroll" : "worldPageScroll"
+        anchors.left: parent.left; anchors.right: parent.right
+        y: world.scrollTop + (!world.shortHeaderActive && world.phoneLayout && tabDock.visible ? tabDock.height + 8 : 0)
+        height: Math.max(0, world.height - y - world.contentBottomInset)
+        contentWidth: width
+        contentHeight: board.implicitHeight + (world.androidHost ? Math.max(adaptive.sectionSpacing,world.safeInsets.bottom) : 50)
+        clip: true
+        pixelAligned: false
+        flickableDirection: Flickable.VerticalFlick
+        boundsBehavior: Flickable.StopAtBounds
+        onContentYChanged: world.capturePhoneViewport()
+        ScrollBar.vertical: HouseScrollBar { flick: page }
+        // Soft top edge (2026-09-29): content leaving under the top bar fades out over 28px
+        // instead of being sliced by the clip line mid-glyph (the catalogue name, "Popular").
+        // Only layered once the page has scrolled, so the resting page renders as before.
+        // MultiEffect needs the shader renderer. Its software-backend fallback
+        // must keep the board visible rather than replacing it with a blank layer.
+        layer.enabled: page.contentY > 0 && page.GraphicsInfo.api !== GraphicsInfo.Software
+        layer.effect: MultiEffect {
+            maskEnabled: true
+            maskSource: pageTopFade
+            // min 0.5 + spread 1.0 = smoothstep(0, 1, maskAlpha): the ramp passes through as-is
+            maskThresholdMin: 0.5
+            maskSpreadAtMin: 1.0
+        }
+
+        Column {
+            id: board
+            x: world.chromeLeft
+            width: world.width - world.chromeLeft - world.chromeRight
+            topPadding: 12; bottomPadding: 24
+            spacing: adaptive.sectionSpacing
+            onPositioningComplete: if (!resizeRestore.running) world.capturePhoneViewport()
+        }
+    }
+
+    // Alpha ramp for the page's soft top edge: clear at the clip line, opaque 28px below.
+    Item {
+        id: pageTopFade
+        width: page.width; height: page.height
+        visible: false
+        layer.enabled: true
+        Rectangle {
+            anchors.fill: parent
+            gradient: Gradient {
+                GradientStop { position: 0.0; color: "transparent" }
+                GradientStop { position: 28 / Math.max(28, pageTopFade.height); color: "black" }
+                GradientStop { position: 1.0; color: "black" }
+            }
+        }
+    }
+
+    ScrollGlide { id: pageGlide; flick: page }
+    // The world shell is the only vertical viewport for its board. Register
+    // its keyboard face so nested collection boundaries can spend their
+    // directional budget on this viewport before exporting to another route.
+    KeyboardScrollController { id: pageKeys; flick: page; glide: pageGlide }
+
+    // ---- the docked tab bar (world-feel Slice 8, the halfway mock's dock) ----
+    // The world's own tab bar scrolls with the page. Once it slides under the TopBar, this
+    // compact copy pins at the top of the board and the in-flow bar keeps its space, hidden.
+    // A world opts in by pointing tabBarSource at its in-flow tab bar.
+    property Item tabBarSource: null
+    // Where the content column starts inside the board when a page puts a rail beside it (the
+    // Discover sidebar): the docked bar then sits over that column, right of the rail, as in the
+    // retractable concept (.dock left = margin + rail + gap, right = margin). 0 = full width.
+    property real dockContentLeft: 0
+    readonly property bool tabsDocked: {
+        page.contentY;       // re-evaluate as the page scrolls
+        page.contentHeight;  // …and as content above the bar changes size
+        if (!world.tabBarSource || !world.lifecycleActive) return false
+        if (world.phoneLayout) return true
+        if (!world.tabBarSource.visible) return false
+        return world.tabBarSource.mapToItem(world, 0, 0).y < page.y
+    }
+    Binding {
+        target: world.tabBarSource
+        property: "opacity"
+        value: 0
+        when: !world.phoneLayout && world.tabsDocked && world.tabBarSource !== null
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    Binding {
+        target: world.tabBarSource
+        property: "visible"
+        value: false
+        when: world.phoneLayout && world.tabBarSource !== null
+        restoreMode: Binding.RestoreBindingOrValue
+    }
+    WorldTabBar {
+        id: tabDock
+        phoneLayout: world.phoneLayout
+        objectName: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
+        tabPrefix: world.medium.length > 0 ? world.medium.toLowerCase() + "TabDock" : "worldTabDock"
+        compact: true
+        shortWindow: world.shortHeaderActive
+        anchors.left: parent.left; anchors.right: parent.right
+        anchors.leftMargin: world.shortHeaderActive ? world.shortHeaderLeft
+            : world.phoneLayout ? world.chromeLeft : (world.dockContentLeft > 0 ? theme.margin + world.dockContentLeft : 0)
+        anchors.rightMargin: world.shortHeaderActive ? world.shortHeaderRight + shortActions.width + 12
+            : world.phoneLayout ? world.chromeRight : (world.dockContentLeft > 0 ? theme.margin : 0)
+        y: world.shortHeaderActive ? world.shortHeaderTop : world.phoneLayout ? world.scrollTop : page.y + 4
+        visible: world.tabsDocked
+        backdrop: world.backdrop
+        track: page.contentY
+        contentBackdrop: page
+        contentTrack: page.contentY
+        tabModel: world.tabBarSource ? world.tabBarSource.tabModel : []
+        currentTab: world.tabBarSource ? world.tabBarSource.currentTab : ""
+        onTabRequested: (tab) => { if (world.tabBarSource) world.tabBarSource.tabRequested(tab) }
+    }
+    // Keyboard focus follows the bar the user can see when it docks or undocks.
+    onTabsDockedChanged: {
+        var from = world.tabsDocked ? world.tabBarSource : tabDock
+        var to = world.tabsDocked ? tabDock : world.tabBarSource
+        if (from && to && from.activeFocus) {
+            to.keyboardIndex = from.keyboardIndex
+            to.forceActiveFocus(Qt.OtherFocusReason)
+        }
+    }
+}

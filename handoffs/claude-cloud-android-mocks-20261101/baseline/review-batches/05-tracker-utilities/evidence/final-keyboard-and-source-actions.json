@@ -1,0 +1,70 @@
+{
+  "at": "2026-10-31T23:41:57.254Z",
+  "tests": [
+    {
+      "name": "Tracker matching with keyboard: portrait",
+      "pass": true
+    },
+    {
+      "name": "Wallpaper final Apply reachable with keyboard: portrait",
+      "pass": true
+    },
+    {
+      "name": "URL keyboard error/preview and modal focus: portrait",
+      "pass": true
+    },
+    {
+      "name": "Setup keyboard final install reachable: portrait",
+      "pass": true
+    },
+    {
+      "name": "Nested collection Create & add preserves title and returns focus: portrait",
+      "pass": true
+    },
+    {
+      "name": "500-character collection note, reorder focus and Save: portrait",
+      "pass": true
+    },
+    {
+      "name": "Tracker matching with keyboard: landscape",
+      "pass": true
+    },
+    {
+      "name": "Wallpaper final Apply reachable with keyboard: landscape",
+      "pass": true
+    },
+    {
+      "name": "URL keyboard error/preview and modal focus: landscape",
+      "pass": true
+    },
+    {
+      "name": "Setup keyboard final install reachable: landscape",
+      "pass": true
+    },
+    {
+      "name": "Nested collection Create & add preserves title and returns focus: landscape",
+      "pass": true
+    },
+    {
+      "name": "500-character collection note, reorder focus and Save: landscape",
+      "pass": true
+    },
+    {
+      "name": "Source overview pagination 36 to 44",
+      "pass": true,
+      "detail": {
+        "before": 36,
+        "after": 44
+      }
+    },
+    {
+      "name": "Source confirmation dismisses after 4.2 seconds",
+      "pass": true,
+      "detail": "Visible after save, automatically absent within 5.5 seconds."
+    },
+    {
+      "name": "Noncapture long/unknown controls preserve query viewport",
+      "pass": true
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+{
+  "name": "comic-series-original-portrait-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-original-portrait-small.png",
+  "input": "outputs/18-comic-details/comic-series.html?capture=1",
+  "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-series.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:57:47.210Z",
+  "sha256": "40bcc518a55171b1fe3ba0b53b19a4e06435e3d2dbbb547c0c9b9d6cacc934cd",
+  "errors": [],
+  "blocked": []
+}

@@ -1,0 +1,358 @@
+{
+  "task": "12-account-forms",
+  "status": "ready-for-review",
+  "sourceRefs": {
+    "approvedDesktopCommit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+    "alphaPhoneRecoveryCommit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+    "desktopQml": [
+      "account/AccountCenter.qml",
+      "account/AccountProfilePage.qml",
+      "account/AccountSecurityPage.qml",
+      "account/AccountRecoveryPage.qml",
+      "account/AccountDataPrivacyPage.qml",
+      "account/AccountDevicesPage.qml",
+      "account/AccountYourColosseumPage.qml",
+      "account/AccountField.qml",
+      "account/AccountPageFrame.qml",
+      "Theme.qml",
+      "Main.qml"
+    ],
+    "context": [
+      "context/ANDROID-PORT-CLASSIFICATION.md",
+      "context/VIEWPORTS.json"
+    ]
+  },
+  "pages": [
+    {
+      "file": "account-profile.html",
+      "title": "Profile",
+      "states": [
+        "default",
+        "edit",
+        "long"
+      ],
+      "viewports": [
+        "412x900",
+        "900x412",
+        "354x792",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800",
+        "custom/insets/font"
+      ],
+      "captures": [
+        {
+          "file": "captures/account-profile-desktop.png",
+          "viewportPx": "1280x700",
+          "label": "desktop"
+        },
+        {
+          "file": "captures/account-profile-keyboard.png",
+          "viewportPx": "412x900",
+          "label": "keyboard"
+        },
+        {
+          "file": "captures/account-profile-landscape.png",
+          "viewportPx": "900x412",
+          "label": "landscape"
+        },
+        {
+          "file": "captures/account-profile-long-small.png",
+          "viewportPx": "354x792",
+          "label": "long-small"
+        },
+        {
+          "file": "captures/account-profile-portrait.png",
+          "viewportPx": "412x900",
+          "label": "portrait"
+        }
+      ]
+    },
+    {
+      "file": "account-security.html",
+      "title": "Security",
+      "states": [
+        "default",
+        "approval",
+        "password",
+        "logout",
+        "long"
+      ],
+      "viewports": [
+        "412x900",
+        "900x412",
+        "354x792",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800",
+        "custom/insets/font"
+      ],
+      "captures": [
+        {
+          "file": "captures/account-security-approval.png",
+          "viewportPx": "412x900",
+          "label": "approval"
+        },
+        {
+          "file": "captures/account-security-desktop.png",
+          "viewportPx": "1280x700",
+          "label": "desktop"
+        },
+        {
+          "file": "captures/account-security-landscape.png",
+          "viewportPx": "900x412",
+          "label": "landscape"
+        },
+        {
+          "file": "captures/account-security-logout-small.png",
+          "viewportPx": "354x792",
+          "label": "logout-small"
+        },
+        {
+          "file": "captures/account-security-password-ime.png",
+          "viewportPx": "900x412",
+          "label": "password-ime"
+        },
+        {
+          "file": "captures/account-security-portrait.png",
+          "viewportPx": "412x900",
+          "label": "portrait"
+        }
+      ]
+    },
+    {
+      "file": "account-recovery.html",
+      "title": "Recovery",
+      "states": [
+        "default",
+        "replace",
+        "long"
+      ],
+      "viewports": [
+        "412x900",
+        "900x412",
+        "354x792",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800",
+        "custom/insets/font"
+      ],
+      "captures": [
+        {
+          "file": "captures/account-recovery-desktop.png",
+          "viewportPx": "1280x700",
+          "label": "desktop"
+        },
+        {
+          "file": "captures/account-recovery-landscape.png",
+          "viewportPx": "900x412",
+          "label": "landscape"
+        },
+        {
+          "file": "captures/account-recovery-long-small.png",
+          "viewportPx": "354x792",
+          "label": "long-small"
+        },
+        {
+          "file": "captures/account-recovery-portrait.png",
+          "viewportPx": "412x900",
+          "label": "portrait"
+        },
+        {
+          "file": "captures/account-recovery-replace-ime.png",
+          "viewportPx": "412x900",
+          "label": "replace-ime"
+        }
+      ]
+    },
+    {
+      "file": "account-privacy.html",
+      "title": "Data & privacy",
+      "states": [
+        "default",
+        "search",
+        "activity",
+        "delete",
+        "long"
+      ],
+      "viewports": [
+        "412x900",
+        "900x412",
+        "354x792",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800",
+        "custom/insets/font"
+      ],
+      "captures": [
+        {
+          "file": "captures/account-privacy-activity-landscape.png",
+          "viewportPx": "900x412",
+          "label": "activity-landscape"
+        },
+        {
+          "file": "captures/account-privacy-delete-ime.png",
+          "viewportPx": "412x900",
+          "label": "delete-ime"
+        },
+        {
+          "file": "captures/account-privacy-desktop.png",
+          "viewportPx": "1280x700",
+          "label": "desktop"
+        },
+        {
+          "file": "captures/account-privacy-landscape.png",
+          "viewportPx": "900x412",
+          "label": "landscape"
+        },
+        {
+          "file": "captures/account-privacy-long-small.png",
+          "viewportPx": "354x792",
+          "label": "long-small"
+        },
+        {
+          "file": "captures/account-privacy-portrait.png",
+          "viewportPx": "412x900",
+          "label": "portrait"
+        },
+        {
+          "file": "captures/account-privacy-search-small.png",
+          "viewportPx": "354x792",
+          "label": "search-small"
+        }
+      ]
+    },
+    {
+      "file": "account-devices.html",
+      "title": "Devices",
+      "states": [
+        "default",
+        "revoke",
+        "long"
+      ],
+      "viewports": [
+        "412x900",
+        "900x412",
+        "354x792",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800",
+        "custom/insets/font"
+      ],
+      "captures": [
+        {
+          "file": "captures/account-devices-desktop.png",
+          "viewportPx": "1280x700",
+          "label": "desktop"
+        },
+        {
+          "file": "captures/account-devices-landscape.png",
+          "viewportPx": "900x412",
+          "label": "landscape"
+        },
+        {
+          "file": "captures/account-devices-long-small.png",
+          "viewportPx": "354x792",
+          "label": "long-small"
+        },
+        {
+          "file": "captures/account-devices-portrait.png",
+          "viewportPx": "412x900",
+          "label": "portrait"
+        },
+        {
+          "file": "captures/account-devices-revoke.png",
+          "viewportPx": "412x900",
+          "label": "revoke"
+        }
+      ]
+    },
+    {
+      "file": "account-your-colosseum.html",
+      "title": "Your Colosseum",
+      "states": [
+        "default",
+        "long"
+      ],
+      "viewports": [
+        "412x900",
+        "900x412",
+        "354x792",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800",
+        "custom/insets/font"
+      ],
+      "captures": [
+        {
+          "file": "captures/account-your-colosseum-desktop.png",
+          "viewportPx": "1280x700",
+          "label": "desktop"
+        },
+        {
+          "file": "captures/account-your-colosseum-landscape.png",
+          "viewportPx": "900x412",
+          "label": "landscape"
+        },
+        {
+          "file": "captures/account-your-colosseum-long-small.png",
+          "viewportPx": "354x792",
+          "label": "long-small"
+        },
+        {
+          "file": "captures/account-your-colosseum-portrait.png",
+          "viewportPx": "412x900",
+          "label": "portrait"
+        }
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Approved warm-dark Account Centre and original 232px desktop rail",
+    "Alpha's existing compact horizontal account-section navigation and Back/sign-out row",
+    "Gold/ink/glass/divider palette, Segoe form typography and Inter rail",
+    "Original account fields, avatar vector geometry, icon glyph paths and inline buttons",
+    "Source section order, full copy, inline confirmations and abstract monthly highlight marks"
+  ],
+  "fittingChanges": [
+    "Stack long forms, hero copy and actions when content width is narrow",
+    "Wrap the seven circular avatar choices without changing their selected artwork",
+    "Shrink text columns beside source 38px glyphs without clipping",
+    "Collapse password columns and privacy boundary lanes without hiding facts",
+    "Keep phone navigation horizontally scrollable, with editable viewport, inset and font controls outside the mock",
+    "Capture-only correction: size the app frame from the explicit logical preset, not headless Chrome's minimum viewport"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "AccountYourColosseumPage.qml is not mounted in the inspected approved AccountCenter rail; live route ownership unverified",
+    "OnePlus is disconnected: all logical viewport dimensions and insets provisional",
+    "Native IME, QML runtime interactions, screenreader semantics, account backend and real Android behavior not verified",
+    "Some historical small-portrait PNG captures predate the capture-width correction; use the current interactive 354px preset for fresh layout review"
+  ],
+  "verification": {
+    "htmlPages": 6,
+    "indexLinksAllSix": true,
+    "javascriptSyntax": "PASS node --check",
+    "localAssets": "verified paths",
+    "captureMethod": "installed Chrome headless=new via PowerShell/isolated user-data-dir; original command in render_fallback.ps1, fixed portraits from refresh_portraits.ps1",
+    "screenshotsPngHeaderAndSizeValidated": 32,
+    "requiredPortraitLandscapeDesktop": "PASS",
+    "correctedPortraitsPromoted": [
+      "account-profile",
+      "account-security",
+      "account-recovery",
+      "account-privacy",
+      "account-devices",
+      "account-your-colosseum"
+    ],
+    "visualReview": "Corrected 412x900 Profile and 1280x700 desktop screenshots inspected; app does not render from QML. Other screenshots are not a full adversarial accessibility audit.",
+    "stateSafety": "No real credentials; all action handlers local only, no network/API/backend calls",
+    "unverifiedBoundary": "HTML rendering only; no compiled or executed Colosseum binary, APK, ADB, UI integration, native runtime, production actions or release"
+  }
+}

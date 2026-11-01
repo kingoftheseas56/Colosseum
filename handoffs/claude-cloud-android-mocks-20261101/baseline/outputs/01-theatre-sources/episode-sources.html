@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Colosseum · Episode sources fitting study</title>
+  <link rel="icon" href="../../reference/desktop/assets/icons/colosseum.ico">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body data-page="episode">
+<header class="workbench" aria-label="Review controls, not Colosseum UI">
+  <strong id="pageName">Source picker</strong>
+  <nav class="controlgroup" aria-label="Mock pages">
+    <a href="index.html">Index</a>
+    <a class="" href="film-sources.html">Film</a>
+    <a class="current" href="episode-sources.html">Episode</a>
+  </nav>
+  <div class="controlgroup" aria-label="Viewport presets">
+    <button type="button" data-size="412x900">412 × 900</button>
+    <button type="button" data-size="354x792">354 × 792</button>
+    <button type="button" data-size="900x412">900 × 412</button>
+    <button type="button" data-size="792x354">792 × 354</button>
+    <button type="button" data-size="1280x700">Desktop</button>
+    <button type="button" data-size="800x1280">Tablet portrait</button>
+    <button type="button" data-size="1280x800">Tablet landscape</button>
+  </div>
+  <div class="controlgroup">
+    <label>Width <input id="vw" type="number" min="320" max="1920" value="412"></label>
+    <label>Height <input id="vh" type="number" min="320" max="1300" value="900"></label>
+    <label>Font × <select id="fontScale"><option value="1">1.0</option><option value="1.3">1.3</option></select></label>
+    <label>Picker mode <select id="pageMode" aria-label="Picker mode"></select></label>
+    <button id="toggleSheet" type="button">Close picker</button>
+  </div>
+  <div class="controlgroup" aria-label="Illustrative safe area adjustments">
+    <label>Top <input id="inset-top" type="number" min="0" max="100" value="0"></label>
+    <label>Right <input id="inset-right" type="number" min="0" max="100" value="0"></label>
+    <label>Bottom <input id="inset-bottom" type="number" min="0" max="100" value="0"></label>
+    <label>Left <input id="inset-left" type="number" min="0" max="100" value="0"></label>
+    <button id="presetInsets" type="button">24px top/bottom</button>
+    <button id="zeroInsets" type="button">Zero insets</button>
+  </div>
+</header>
+<div class="inspector" aria-label="Review notes, outside app mock">
+  <span><b>Study only</b> · illustrative populated source data, no providers or player calls</span>
+  <span id="viewInfo"></span>
+  <span id="artCredit"></span>
+</div>
+<main class="review-stage">
+  <div id="viewport" role="region" aria-label="Colosseum source picker viewport">
+    <div class="theatre-underlay" id="underlay" hidden aria-label="Parent Theatre detail behind closed picker">
+      <div class="underlay-copy">
+        <h2 id="detailTitle"></h2><p id="detailMeta"></p>
+        <button type="button" id="reopen">Watch S1 · E1</button>
+      </div>
+    </div>
+    <section class="sources" id="sourceSheet" aria-label="Episode source picker">
+      <div class="hero">
+        <button class="back-action" id="backAction" type="button" aria-label="Back to Theatre detail">
+          <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5L8 12l6.5 6.5"></path></svg><span>Back</span>
+        </button>
+        <div class="hero-title">
+          <div class="hero-meta" id="heroMeta"></div><h1 id="heroTitle"></h1>
+        </div>
+      </div>
+      <div class="picker-body">
+        <div class="provider-wrap">
+          <button class="provider-trigger" id="providerTrigger" type="button" aria-label="Choose source extension" aria-haspopup="listbox" aria-expanded="false">
+            <span class="grid-badge" aria-hidden="true"><i></i><i></i><i></i><i></i></span>
+            <span class="provider-label" id="providerLabel">All</span>
+            <span class="provider-chevron" aria-hidden="true">▾</span>
+          </button>
+          <div class="provider-menu" id="providerMenu" role="listbox" aria-label="Source extension" hidden></div>
+        </div>
+        <div class="quality-pills" id="quality" aria-label="Quality quick filters"></div>
+        <div class="source-table" aria-label="Glass source table">
+          <div class="table-head">
+            <div class="table-count" id="tableCount"></div><div class="table-via" id="tableVia"></div>
+          </div>
+          <div class="row-scroll" id="rows" tabindex="0" aria-label="Scrollable source list"></div>
+        </div>
+      </div>
+      <div id="contextScrim" class="context-scrim" hidden></div>
+      <div id="contextMenu" class="context-menu" role="menu" aria-label="Source actions" hidden></div>
+    </section>
+  </div>
+</main>
+<div class="inspector review-notes"><span id="feedback" role="status">Select a quality, choose an extension, use round actions, or scroll the source rows.</span></div>
+<script src="app.js"></script>
+</body></html>
+

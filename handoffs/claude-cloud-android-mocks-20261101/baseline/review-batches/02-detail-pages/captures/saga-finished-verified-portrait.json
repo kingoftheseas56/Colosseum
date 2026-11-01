@@ -1,0 +1,21 @@
+{
+  "name": "saga-finished-verified-portrait",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-verified-portrait.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 412,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:33:21.455Z",
+  "sha256": "15ae5da69a4137c48c70304261ea44592033b8c9a3b138a17ade308270b63d3c",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

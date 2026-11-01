@@ -1,0 +1,200 @@
+@font-face{font-family:"Colosseum Fraunces";src:url("../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf")} 
+@font-face{font-family:"Colosseum Segoe";src:url("../../../../reference/local-fonts/segoeui.ttf")}
+@font-face{font-family:"Colosseum Segoe";src:url("../../../../reference/local-fonts/seguisb.ttf");font-weight:600}
+@font-face{font-family:"Colosseum Segoe";src:url("../../../../reference/local-fonts/segoeuib.ttf");font-weight:700}
+*{box-sizing:border-box}
+html,body{margin:0;min-height:100%;background:#08090e;color:#f7f7f5;font-family:"Colosseum Segoe","Segoe UI",sans-serif}
+button,input,select{font:inherit}
+button{cursor:pointer}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #f0c44a;outline-offset:3px}
+#bench{position:relative;z-index:2;max-width:1400px;margin:22px auto 16px;padding:0 22px}
+.bench-title{font:calc(26px * var(--font-scale,1)) "Colosseum Fraunces",serif;margin:0 0 5px}
+.bench-note{font-size:calc(13px * var(--font-scale,1));color:#c9c8d0;line-height:1.4;margin:0 0 12px}
+.bench-note strong{color:#e9d392}
+.bench-fields{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end;padding:14px 16px;border:1px solid #ffffff29;border-radius:14px;background:#171923}
+.bench-fields label{font-size:calc(11px * var(--font-scale,1));letter-spacing:.4px;color:#c9c8d0;display:flex;flex-direction:column;gap:5px}
+.bench-fields input,.bench-fields select{border:1px solid #ffffff3b;background:#090a11;color:#f7f7f5;border-radius:7px;min-width:72px;height:34px;padding:4px 7px;font-size:calc(13px * var(--font-scale,1))}
+.bench-fields input[type=number]{width:77px}
+.bench-fields input[type=range]{width:124px;accent-color:#f0c44a}
+.bench-fields button,.bench-links a{border:1px solid #ffffff3d;border-radius:7px;background:#20232e;color:#f7f7f5;text-decoration:none;padding:8px 10px;font-size:calc(12px * var(--font-scale,1));white-space:nowrap}
+.bench-fields button:hover,.bench-links a:hover{border-color:#f0c44a}
+.bench-links{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}
+.bench-status{font-size:calc(12px * var(--font-scale,1));color:#e4cf90;align-self:center;max-width:330px}
+#stage{display:flex;justify-content:center;align-items:flex-start;padding:10px 18px 42px;overflow-x:auto}
+#device{position:relative;isolation:isolate;overflow:hidden;flex:none;width:412px;height:900px;background:#080a0f;border:1px solid #ffffff20;border-radius:15px;box-shadow:0 12px 70px #000b;--page-margin:18px;--font-scale:1;--rail-width:52px;--poster-w:148px;--shelf-gap:46px;--header-gap:18px;--topbar-top:12px;--topbar-h:56px;--board-top:76px;--bottom-bar:72px;--scroller-h:744px}
+#device.desktop{--shelf-gap:46px}
+#device[data-page=manga],#device[data-page=comics]{--poster-w:132px;--shelf-gap:36px;--header-gap:14px}
+#device.phone-portrait .catalogue-layout.open{--rail-width:clamp(144px,48%,196px)}
+#device.phone-portrait .catalogue-layout.open .shelf-stack{--poster-w:128px}
+#device.phone-portrait .catalogue-layout.open .shelf-stack.classic{--poster-w:120px}
+#device.phone-portrait .catalogue-layout.open{column-gap:16px}
+.wallpaper{position:absolute;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(4,6,12,.91),rgba(6,8,16,.94)),url("../../../../reference/desktop/assets/wallpaper/cold-ripple.jpg") center/cover}
+.world-rail{position:absolute;top:0;bottom:0;left:0;width:92px;display:none;align-items:center;justify-content:center;flex-direction:column;gap:18px;background:#0a0b10;border-right:1px solid #ffffff2e;z-index:6}
+#device.android-wide .world-rail{display:flex}
+.world-nav-btn{flex:none;width:100%;min-height:64px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:0;background:transparent;color:#9a99a5;font-size:calc(12px * var(--font-scale));padding:6px 0}
+.world-nav-btn.active{color:#f0c44a;font-weight:600}
+.world-nav-btn .nav-symbol{height:22px;width:22px;display:inline-block;background:currentColor;-webkit-mask:var(--nav-mask) center/contain no-repeat;mask:var(--nav-mask) center/contain no-repeat}
+.world-stage{position:absolute;inset:0;min-width:0;overflow:hidden}
+#device.android-wide .world-stage{left:92px}
+.topbar{position:absolute;left:var(--page-margin);right:var(--page-margin);top:var(--topbar-top);height:var(--topbar-h);z-index:5;display:flex;align-items:center;justify-content:space-between;gap:12px}
+.clock-block{flex:none;min-width:62px}
+.clock-line{display:flex;align-items:baseline;gap:5px}
+.clock-time{font:calc(30px * var(--font-scale)) "Colosseum Fraunces",serif}
+.clock-am{color:#c9c8d0;font-size:calc(14px * var(--font-scale))}
+.clock-date{color:#c9c8d0;font-size:calc(12px * var(--font-scale));margin-top:0}
+#device.android-compact .clock-time{font-size:calc(19px * var(--font-scale))}
+#device.android-compact .clock-am{font-size:calc(10px * var(--font-scale))}
+#device.android-compact .clock-date{display:none}
+.topbar-left{display:flex;align-items:center;gap:18px;min-width:0}
+.back-home{display:flex;align-items:center;gap:7px;border:0;padding:6px 0;color:#c9c8d0;background:none;font-size:calc(14px * var(--font-scale,1));white-space:nowrap}
+.back-home svg{width:20px;height:20px;fill:none;stroke:currentColor;stroke-width:2}
+#device.android .back-home{display:none}
+.topbar-modes{display:flex;align-items:center;gap:5px;border:1px solid #ffffff18;border-radius:26px;background:#ffffff12;padding:5px 7px;min-width:0}
+.mode-pill{border:0;background:transparent;padding:9px 13px;border-radius:22px;color:#c9c8d0;font-size:calc(13px * var(--font-scale));white-space:nowrap}
+.mode-pill.active{color:#17120a;background:#f0c44a;font-weight:600}
+#device.android .topbar-modes{display:none}
+#device.desktop:not(.large-desktop) .topbar-modes{max-width:48%}
+#device.desktop:not(.large-desktop) .mode-pill{padding:7px}
+.sys-icons{display:flex;align-items:center;gap:clamp(7px,1.5vw,20px);flex:none}
+.sys-button{position:relative;background:none;border:0;width:24px;height:32px;padding:4px 0;display:flex;align-items:center;justify-content:center;opacity:.88}
+.sys-button:hover{opacity:1}
+.sys-button img{width:21px;height:21px;object-fit:contain}
+.sys-button.account{border:1px solid #ffffff70;width:22px;height:22px;border-radius:50%;font-size:calc(14px * var(--font-scale,1));color:#e9d392;padding:0}
+#device.android .desktop-icon{display:none}
+#device.phone-portrait .sys-icons{gap:7px}
+.world-scroll{position:absolute;left:0;right:0;top:var(--board-top);bottom:var(--bottom-bar);overflow-x:hidden;overflow-y:auto;overscroll-behavior:contain;scrollbar-width:none;scroll-behavior:smooth}
+.world-scroll::-webkit-scrollbar,.strip::-webkit-scrollbar,.index-links::-webkit-scrollbar{display:none}
+.world-board{margin:0 var(--page-margin);padding:12px 0 42px;min-height:100%}
+.featured{height:340px;display:flex;flex-direction:column;justify-content:center;position:relative;border-radius:20px;background:linear-gradient(95deg,#0a0e17 7%,#101a2cbb 65%,#0a1023b0),var(--feature-image) right center/cover;border:1px solid #ffffff28;overflow:hidden;padding:40px;margin-bottom:34px}
+#device.phone-portrait .featured,#device.phone-landscape .featured{height:260px;padding:25px}
+#device.tablet .featured{height:300px}
+.featured .kicker{font-size:calc(10px * var(--font-scale));letter-spacing:3px;color:#f0c44a;text-transform:uppercase;margin:0 0 12px}
+.featured h1{font:calc(35px * var(--font-scale)) "Colosseum Fraunces",serif;max-width:540px;line-height:1.1;letter-spacing:-.3px;margin:0 0 14px}
+#device.phone-portrait .featured h1{font-size:calc(27px * var(--font-scale))}
+.featured p{font-size:calc(12px * var(--font-scale));color:#c9c8d0;margin:0 0 18px}
+.hero-actions{display:flex;gap:10px}
+.hero-actions button{min-width:70px;min-height:42px;padding:0 14px;border:1px solid #ffffff20;border-radius:11px;background:#ffffff16;color:#f7f7f5}
+.hero-actions button.primary{background:#f0c44a;color:#211909;border-color:#f0c44a}
+.hero-dots{position:absolute;right:22px;bottom:14px;border-radius:30px;background:#0007;display:flex;gap:7px;padding:8px 10px;align-items:center}
+.hero-dots button{border:0;padding:0;border-radius:99px;background:#ffffff80;width:7px;height:7px}
+.hero-dots button.active{background:#f0c44a;width:22px}
+.prelude{margin-bottom:32px}
+.tab-zone{position:sticky;top:0;z-index:11;padding:9px 0 12px;background:linear-gradient(#080a0fea 0%,#080a0fe4 78%,transparent)}
+.tab-glass{max-width:760px;margin:0 auto;display:flex;gap:3px;padding:5px;border:1px solid #ffffff27;background:#ffffff12;backdrop-filter:blur(15px);border-radius:18px;min-height:54px}
+.tab-glass button{flex:1 1 0;min-width:0;border-radius:13px;border:1px solid #ffffff14;background:#ffffff08;color:#f7f7f5;font-size:calc(13px * var(--font-scale));font-weight:600;padding:8px 2px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tab-glass button.active{background:#f0c44a;color:#17120a;border-color:transparent}
+#device.android-compact .tab-glass button{font-size:calc(12px * var(--font-scale))}
+.catalogue-layout{display:grid;grid-template-columns:var(--rail-width) minmax(0,1fr);gap:28px;align-items:start;min-width:0;transition:grid-template-columns .24s cubic-bezier(.2,.7,.2,1)}
+.catalogue-layout.open{--rail-width:240px}
+#device.phone-portrait .catalogue-layout{column-gap:16px}
+.index-rail{position:sticky;top:78px;z-index:4;min-width:0;height:clamp(148px,calc(var(--scroller-h) - 134px),670px);border-right:1px solid #ffffff14}
+.rail-brand{position:absolute;left:12px;top:22px;right:10px;opacity:0;pointer-events:none;transition:opacity .15s;overflow:hidden}
+.open .rail-brand{opacity:1}
+.rail-context{font-size:calc(10px * var(--font-scale));letter-spacing:2.8px;color:#f0c44a;text-transform:uppercase;margin-bottom:5px}
+.rail-world{font:calc(27px * var(--font-scale)) "Colosseum Fraunces",serif;color:#f7f7f5;line-height:1.15;overflow-wrap:anywhere}
+.index-links{position:absolute;left:0;right:0;top:60px;bottom:18px;overflow:auto;scrollbar-width:none;display:flex;flex-direction:column;gap:4px}
+.open .index-links{top:106px;right:12px}
+.rail-row{position:relative;flex:none;width:44px;min-height:46px;border:0;border-radius:12px;background:transparent;display:flex;align-items:center;gap:10px;padding:10px 4px 10px 12px;color:#c9c8d0;text-align:left;transition:background .16s}
+.open .rail-row{width:100%;padding-right:7px}
+.rail-row:hover{background:#ffffff12;color:#f7f7f5}
+.rail-row.active{background:#ffffff17;color:#f7f7f5}
+.rail-row.active:before{content:"";position:absolute;left:0;top:10px;bottom:10px;width:3px;border-radius:4px;background:#f0c44a}
+.rail-row.active:after{content:"";position:absolute;left:-7px;top:4px;bottom:4px;width:10px;border-radius:7px;background:#f0c44a24;z-index:-1}
+.rail-glyph{flex:none;width:20px;height:20px;display:block;color:inherit}
+.active .rail-glyph{color:#f0c44a}
+.rail-label{display:none;min-width:0;font-size:calc(14px * var(--font-scale));font-weight:600;line-height:1.24;overflow-wrap:break-word}
+.open .rail-label{display:block}
+.rail-toggle{position:absolute;top:18px;left:calc(100% - 14px);width:28px;height:28px;border-radius:50%;border:1px solid #ffffff28;background:#20232bc4;backdrop-filter:blur(16px);color:#d2d2d8;z-index:3;display:grid;place-items:center;padding:0}
+.rail-toggle:before{content:"";position:absolute;inset:-6px;border-radius:50%}
+.rail-toggle svg{width:15px;height:15px;transition:transform .24s}
+.rail-toggle.expanded svg{transform:rotate(180deg)}
+.shelf-stack{min-width:0;display:flex;flex-direction:column;gap:var(--shelf-gap)}
+.customize{height:24px;align-self:stretch;display:flex;justify-content:flex-end;align-items:center}
+.customize button{background:transparent;border:0;color:#c9c8d0;font-size:calc(13px * var(--font-scale));font-weight:600;padding:5px 2px;white-space:nowrap}
+.customize button:hover{color:#f7f7f5}
+.shelf{min-width:0;scroll-margin-top:80px}
+.widget-header{display:flex;align-items:baseline;justify-content:space-between;gap:6px 10px;flex-wrap:wrap;margin-bottom:var(--header-gap);min-height:30px}
+.widget-title{font:calc(22px * var(--font-scale)) "Colosseum Fraunces",serif;line-height:1.2;min-width:0;overflow-wrap:break-word}
+.widget-more{margin-left:auto;align-self:center;display:flex;gap:5px;align-items:center;flex:none;font:calc(17px * var(--font-scale)) "Colosseum Fraunces",serif;background:transparent;border:0;color:#f7f7f5;padding:0 0 0 4px;white-space:nowrap}
+.widget-more:hover{color:#f0c44a}
+.widget-more b{font-size:calc(22px * var(--font-scale,1));line-height:1;font-weight:400;color:#c9c8d0}
+.widget-sub{font-size:calc(12px * var(--font-scale,1));color:#c9c8d0}
+.strip-wrap{position:relative;min-width:0}
+.strip{display:flex;gap:20px;overflow-x:auto;overflow-y:hidden;scrollbar-width:none;scroll-snap-type:x proximity;min-width:0;padding:0 6px 3px}
+.shelf.classic .strip{gap:18px}
+.shelf.ranked .strip{gap:30px}
+.poster-cell{position:relative;flex:0 0 var(--poster-w);width:var(--poster-w);scroll-snap-align:start;min-width:0}
+.poster-cell.ranked{flex-basis:calc(var(--poster-w) + 35px);width:calc(var(--poster-w) + 35px)}
+.poster-art{position:relative;overflow:hidden;width:var(--poster-w);aspect-ratio:2/3;border-radius:12px;border:1px solid #ffffff1e;background:linear-gradient(145deg,#292e3c,#0b0e16);box-shadow:0 6px 12px #0004;transition:transform .26s,outline-color .18s}
+.poster-cell.ranked .poster-art{margin-left:32px}
+.shelf.classic .poster-art{border-radius:8px}
+.poster-art img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}
+.poster-cell:hover .poster-art,.poster-cell:focus-within .poster-art{outline:2px solid #f0c44a78;transform:translateY(-4px)}
+.poster-cell .rank-number{position:absolute;left:-4px;bottom:20px;font:700 calc(132px * var(--font-scale,1)) "Colosseum Fraunces",serif;line-height:.95;color:#ffffff29;pointer-events:none}
+.poster-title{color:#f7f7f5;font-size:calc(13px * var(--font-scale));font-weight:600;line-height:1.15;margin-top:10px;min-height:35px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden}
+.shelf.classic .poster-title{font-size:calc(12px * var(--font-scale));margin-top:8px;min-height:18px;white-space:nowrap;display:block;text-overflow:ellipsis}
+.poster-reveal{position:absolute;left:0;right:0;bottom:0;min-height:60px;display:flex;align-items:flex-end;justify-content:space-between;gap:4px;padding:10px 11px;background:linear-gradient(transparent,#040508ee);opacity:0;transition:opacity .2s;font-size:calc(11px * var(--font-scale,1))}
+.poster-cell:hover .poster-reveal{opacity:1}
+.poster-reveal .rating{display:flex;gap:4px;color:#f7f7f5;align-items:center}
+.poster-reveal .rating img{position:static;width:12px;height:12px}
+.poster-reveal .origin{color:#c9c8d0}
+.poster-click{position:absolute;inset:0;width:100%;height:100%;border:0;background:transparent;border-radius:inherit}
+.poster-caption-inset{position:absolute;bottom:0;left:0;right:0;background:linear-gradient(transparent,#040408c7);padding:23px 9px 9px;color:#f7f7f5;font-size:calc(13px * var(--font-scale));font-weight:600;line-height:1.1;text-shadow:1px 1px #000,-1px -1px #000}
+.resume-cell{flex:0 0 148px;width:148px}
+.resume-cell .poster-art{width:148px}
+.resume-progress{position:absolute;left:0;right:0;bottom:0;height:4px;background:#ffffff36}
+.resume-progress span{display:block;background:#f0c44a;height:100%}
+.resume-round{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:46px;height:46px;border:1px solid #f0c44a;border-radius:50%;background:#090a0da8;color:#f0c44a;font-size:calc(19px * var(--font-scale,1))}
+.strip-chev{position:absolute;top:0;bottom:0;width:44px;border:0;background:linear-gradient(90deg,#05060abf,transparent);font:calc(42px * var(--font-scale,1)) "Colosseum Fraunces",serif;color:#f7f7f5;z-index:2}
+.strip-chev.right{right:0;background:linear-gradient(270deg,#05060abf,transparent)}
+.strip-chev.left{left:0}
+.strip-chev:disabled{opacity:0;pointer-events:none}
+.edit-controls{display:flex;gap:6px;align-items:center;flex-wrap:wrap;margin-bottom:8px;min-height:34px}
+.edit-controls button{background:transparent;border:1px solid #ffffff2e;color:#f7f7f5;border-radius:6px;height:28px;min-width:28px;padding:0 8px;font-size:calc(12px * var(--font-scale,1));font-weight:600}
+.edit-controls button:disabled{opacity:.4}
+.edit-controls input{height:28px;width:140px;max-width:100%;border:1px solid #f0c44a;background:#12151c;color:#f7f7f5;border-radius:6px;padding:0 8px;font-size:calc(12px * var(--font-scale,1))}
+.shelf.is-hidden{opacity:.5}
+.shelf .edit-label{color:#c9c8d0;font-size:calc(12px * var(--font-scale,1));min-width:0;overflow-wrap:anywhere}
+.genre-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:16px;min-width:0}
+.genre-card{position:relative;height:112px;border-radius:14px;overflow:hidden;border:1px solid #ffffff2e;background:#121622;padding:0;color:#f7f7f5;text-align:left}
+.genre-card img{position:absolute;width:100%;height:100%;inset:0;object-fit:cover}
+.genre-card:before{content:"";position:absolute;inset:0;background:#0008;z-index:1}
+.genre-name{position:absolute;left:12px;bottom:12px;right:8px;z-index:2;font:600 calc(16px * var(--font-scale)) "Colosseum Fraunces",serif;line-height:1.12;overflow-wrap:break-word}
+.genre-count{position:absolute;right:12px;top:10px;z-index:2;font-size:calc(11px * var(--font-scale));color:#ffffffdb}
+.genre-card:hover{outline:2px solid #f0c44a}
+.bottom-tabs{position:absolute;bottom:0;left:0;right:0;display:none;height:var(--bottom-bar);background:#0a0b10;border-top:1px solid #ffffff2d;z-index:6}
+#device.android-narrow .bottom-tabs{display:flex}
+.bottom-tabs .world-nav-btn{flex:1 1 0;width:0;min-width:0;min-height:0;font-size:calc(11px * var(--font-scale));gap:4px;padding-bottom:10px}
+.bottom-tabs .world-nav-btn .nav-symbol{width:22px;height:22px}
+#device.phone-portrait .bottom-tabs .world-nav-btn{font-size:calc(10px * var(--font-scale))}
+#device.phone-portrait .genre-grid{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+#device.phone-portrait .genre-name{font-size:calc(14px * var(--font-scale));left:8px;bottom:9px}
+#device.phone-portrait .genre-count{right:8px;top:7px}
+#device.phone-landscape .genre-grid,#device.tablet .genre-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+#device.phone-portrait .widget-more{font-size:calc(15px * var(--font-scale))}
+#device.phone-portrait .open .index-links{right:3px}
+#device.phone-portrait .open .rail-row{gap:6px}
+#device.phone-portrait .open .rail-label{font-size:calc(12px * var(--font-scale))}
+#device.phone-portrait .open .rail-world{font-size:calc(23px * var(--font-scale))}
+#device.phone-landscape .index-rail{height:clamp(130px,calc(var(--scroller-h) - 84px),500px);top:70px}
+#device.phone-landscape .tab-zone{padding:3px 0 5px}
+#device.phone-landscape .tab-glass{min-height:43px}
+#device.phone-landscape .tab-glass button{padding:5px 2px}
+#device.phone-landscape .index-links{bottom:5px}
+#device.android-compact .world-board{padding-top:8px}
+#device.phone-portrait .shelf-stack{--shelf-gap:30px}
+#device.phone-portrait .shelf-stack.classic{--shelf-gap:30px}
+body.capture{width:100vw;height:100vh;overflow:hidden}
+body.capture #bench{display:none}
+body.capture #stage{padding:0;margin:0;display:block;overflow:hidden}
+body.capture #device{border:0;border-radius:0;box-shadow:none}
+body.capture #app{width:100%;height:100%}
+
+.sys-button.account{position:relative;color:var(--ink)}.account-head{position:absolute;top:4px;left:8px;width:5px;height:5px;border-radius:50%;background:currentColor}.account-body{position:absolute;bottom:4px;left:5px;width:11px;height:6px;border-radius:6px 6px 3px 3px;background:currentColor}.mode-pill small{font-size:calc(7px * var(--font-scale,1));opacity:.65}.mode-pill:disabled{opacity:.45;cursor:default}
+
+.desktop .featured h1{font-size:calc(42px * var(--font-scale,1))}
+
+.resume-round{border:1.5px solid rgba(255,255,255,.9);background:rgba(0,0,0,.55);display:grid;place-items:center;padding:0}.resume-round img{width:21px;height:21px;object-fit:contain}
+
+/* Nested collection glyphs use the resume-circle grid, not the poster image anchor. */
+.resume-round img{position:static;inset:auto}

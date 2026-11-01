@@ -1,0 +1,3063 @@
+{
+  "task": "05-volume-flow",
+  "tool": "puppeteer headless Chrome isolated local file URL",
+  "chrome": "C:/Program Files/Google/Chrome/Application/chrome.exe",
+  "records": [
+    {
+      "variant": "original",
+      "preset": "portrait",
+      "path": "captures\\original\\portrait.png",
+      "dimensions": [
+        412,
+        900
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 412,
+          "height": 900
+        },
+        "frame": {
+          "left": 0,
+          "right": 412,
+          "top": 0,
+          "bottom": 900,
+          "width": 412,
+          "height": 900
+        },
+        "lane": {
+          "left": 0,
+          "right": 412,
+          "top": 526.875,
+          "bottom": 568.875,
+          "width": 412,
+          "height": 42
+        },
+        "flow": {
+          "left": 0,
+          "right": 412,
+          "top": 568.875,
+          "bottom": 812,
+          "width": 412,
+          "height": 243.125
+        },
+        "focus": {
+          "left": 147.14999389648438,
+          "right": 264.8500061035156,
+          "top": 587.5187377929688,
+          "bottom": 793.21875,
+          "width": 117.70001220703125,
+          "height": 205.70001220703125
+        },
+        "cover": {
+          "left": 157.04998779296875,
+          "right": 254.9499969482422,
+          "top": 596.3187255859375,
+          "bottom": 742.6187744140625,
+          "width": 97.90000915527344,
+          "height": 146.300048828125
+        },
+        "hero": {
+          "left": 0,
+          "right": 412,
+          "top": 58,
+          "bottom": 526.875,
+          "width": 412,
+          "height": 468.875
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 412,
+          "top": 812,
+          "bottom": 900,
+          "width": 412,
+          "height": 88
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 206,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 206,
+            "right": 391,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 396,
+            "top": 375.921875,
+            "bottom": 413.921875,
+            "width": 380,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 279.921875,
+            "bottom": 315.921875,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 355.578125,
+            "right": 396,
+            "top": 530.875,
+            "bottom": 560.875,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 47,
+            "right": 217,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 226,
+            "right": 396,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 412×900 · hero 469px · flow 243px · focused card 206px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 311739
+    },
+    {
+      "variant": "original",
+      "preset": "portrait-small",
+      "path": "captures\\original\\portrait-small.png",
+      "dimensions": [
+        354,
+        792
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 354,
+          "height": 792
+        },
+        "frame": {
+          "left": 0,
+          "right": 354,
+          "top": 0,
+          "bottom": 792,
+          "width": 354,
+          "height": 792
+        },
+        "lane": {
+          "left": 0,
+          "right": 354,
+          "top": 480.5625,
+          "bottom": 518.5625,
+          "width": 354,
+          "height": 38
+        },
+        "flow": {
+          "left": 0,
+          "right": 354,
+          "top": 518.5625,
+          "bottom": 708,
+          "width": 354,
+          "height": 189.4375
+        },
+        "focus": {
+          "left": 134.64999389648438,
+          "right": 219.35000610351562,
+          "top": 534.9562377929688,
+          "bottom": 691.15625,
+          "width": 84.70001220703125,
+          "height": 156.20001220703125
+        },
+        "cover": {
+          "left": 144.54998779296875,
+          "right": 209.4499969482422,
+          "top": 543.7562255859375,
+          "bottom": 640.5562744140625,
+          "width": 64.90000915527344,
+          "height": 96.800048828125
+        },
+        "hero": {
+          "left": 0,
+          "right": 354,
+          "top": 58,
+          "bottom": 480.5625,
+          "width": 354,
+          "height": 422.5625
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 354,
+          "top": 708,
+          "bottom": 792,
+          "width": 354,
+          "height": 84
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 177,
+            "top": 304,
+            "bottom": 336,
+            "width": 156,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 177,
+            "right": 333,
+            "top": 304,
+            "bottom": 336,
+            "width": 156,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 338,
+            "top": 346,
+            "bottom": 384,
+            "width": 322,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 256,
+            "bottom": 292,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 297.578125,
+            "right": 338,
+            "top": 480.5625,
+            "bottom": 510.5625,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 25,
+            "right": 178,
+            "top": 747.5,
+            "bottom": 781.5,
+            "width": 153,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 187,
+            "right": 338,
+            "top": 747.5,
+            "bottom": 781.5,
+            "width": 151,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 354×792 · hero 423px · flow 189px · focused card 156px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 234296
+    },
+    {
+      "variant": "original",
+      "preset": "landscape",
+      "path": "captures\\original\\landscape.png",
+      "dimensions": [
+        900,
+        412
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 900,
+          "height": 412
+        },
+        "frame": {
+          "left": 0,
+          "right": 900,
+          "top": 0,
+          "bottom": 412,
+          "width": 900,
+          "height": 412
+        },
+        "lane": {
+          "left": 0,
+          "right": 900,
+          "top": 166,
+          "bottom": 202,
+          "width": 900,
+          "height": 36
+        },
+        "flow": {
+          "left": 0,
+          "right": 900,
+          "top": 202,
+          "bottom": 360,
+          "width": 900,
+          "height": 158
+        },
+        "focus": {
+          "left": 417.54998779296875,
+          "right": 482.4499816894531,
+          "top": 217.19686889648438,
+          "bottom": 344.796875,
+          "width": 64.89999389648438,
+          "height": 127.60000610351562
+        },
+        "cover": {
+          "left": 427.4499816894531,
+          "right": 472.54998779296875,
+          "top": 225.9968719482422,
+          "bottom": 294.1968688964844,
+          "width": 45.100006103515625,
+          "height": 68.19999694824219
+        },
+        "hero": {
+          "left": 0,
+          "right": 900,
+          "top": 50,
+          "bottom": 166,
+          "width": 900,
+          "height": 116
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 900,
+          "top": 360,
+          "bottom": 412,
+          "width": 900,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 18,
+            "right": 81.625,
+            "top": 2.5,
+            "bottom": 46.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 635,
+            "right": 756,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          "#chapterMode": {
+            "left": 756,
+            "right": 877,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          ".language-selector": {
+            "left": 630,
+            "right": 882,
+            "top": 107,
+            "bottom": 145,
+            "width": 252,
+            "height": 38
+          },
+          "#collections": {
+            "left": 98,
+            "right": 233.921875,
+            "top": 137.6875,
+            "bottom": 165.6875,
+            "width": 135.921875,
+            "height": 28
+          },
+          "#selectToggle": {
+            "left": 841.578125,
+            "right": 882,
+            "top": 167,
+            "bottom": 197,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 672.71875,
+            "right": 781.609375,
+            "top": 369,
+            "bottom": 403,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 790.609375,
+            "right": 882,
+            "top": 369,
+            "bottom": 403,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 900×412 · hero 116px · flow 158px · focused card 128px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 158510
+    },
+    {
+      "variant": "original",
+      "preset": "landscape-small",
+      "path": "captures\\original\\landscape-small.png",
+      "dimensions": [
+        792,
+        354
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 792,
+          "height": 354
+        },
+        "frame": {
+          "left": 0,
+          "right": 792,
+          "top": 0,
+          "bottom": 354,
+          "width": 792,
+          "height": 354
+        },
+        "lane": {
+          "left": 0,
+          "right": 792,
+          "top": 166,
+          "bottom": 202,
+          "width": 792,
+          "height": 36
+        },
+        "flow": {
+          "left": 0,
+          "right": 792,
+          "top": 202,
+          "bottom": 302,
+          "width": 792,
+          "height": 100
+        },
+        "focus": {
+          "left": 380.04998779296875,
+          "right": 411.9499816894531,
+          "top": 213.5,
+          "bottom": 290.5,
+          "width": 31.899993896484375,
+          "height": 77
+        },
+        "cover": {
+          "left": 389.9499816894531,
+          "right": 402.04998779296875,
+          "top": 222.3000030517578,
+          "bottom": 239.89999389648438,
+          "width": 12.100006103515625,
+          "height": 17.599990844726562
+        },
+        "hero": {
+          "left": 0,
+          "right": 792,
+          "top": 50,
+          "bottom": 166,
+          "width": 792,
+          "height": 116
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 792,
+          "top": 302,
+          "bottom": 354,
+          "width": 792,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 18,
+            "right": 81.625,
+            "top": 2.5,
+            "bottom": 46.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 527,
+            "right": 648,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          "#chapterMode": {
+            "left": 648,
+            "right": 769,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          ".language-selector": {
+            "left": 522,
+            "right": 774,
+            "top": 107,
+            "bottom": 145,
+            "width": 252,
+            "height": 38
+          },
+          "#collections": {
+            "left": 98,
+            "right": 233.921875,
+            "top": 137.6875,
+            "bottom": 165.6875,
+            "width": 135.921875,
+            "height": 28
+          },
+          "#selectToggle": {
+            "left": 733.578125,
+            "right": 774,
+            "top": 167,
+            "bottom": 197,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 564.71875,
+            "right": 673.609375,
+            "top": 311,
+            "bottom": 345,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 682.609375,
+            "right": 774,
+            "top": 311,
+            "bottom": 345,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 792×354 · hero 116px · flow 100px · focused card 77px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 102380
+    },
+    {
+      "variant": "original",
+      "preset": "desktop",
+      "path": "captures\\original\\desktop.png",
+      "dimensions": [
+        1280,
+        700
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 700
+        },
+        "frame": {
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 700,
+          "width": 1280,
+          "height": 700
+        },
+        "lane": {
+          "left": 0,
+          "right": 1280,
+          "top": 263,
+          "bottom": 307,
+          "width": 1280,
+          "height": 44
+        },
+        "flow": {
+          "left": 0,
+          "right": 1280,
+          "top": 307,
+          "bottom": 648,
+          "width": 1280,
+          "height": 341
+        },
+        "focus": {
+          "left": 551.4500122070312,
+          "right": 728.550048828125,
+          "top": 329.5375061035156,
+          "bottom": 625.4375,
+          "width": 177.10003662109375,
+          "height": 295.8999938964844
+        },
+        "cover": {
+          "left": 561.3500366210938,
+          "right": 718.6500244140625,
+          "top": 338.3374938964844,
+          "bottom": 574.8375244140625,
+          "width": 157.29998779296875,
+          "height": 236.50003051757812
+        },
+        "hero": {
+          "left": 0,
+          "right": 1280,
+          "top": 58,
+          "bottom": 263,
+          "width": 1280,
+          "height": 205
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 1280,
+          "top": 648,
+          "bottom": 700,
+          "width": 1280,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 54,
+            "right": 117.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 973,
+            "right": 1097,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          "#chapterMode": {
+            "left": 1097,
+            "right": 1221,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          ".language-selector": {
+            "left": 968,
+            "right": 1226,
+            "top": 134,
+            "bottom": 170,
+            "width": 258,
+            "height": 36
+          },
+          "#collections": {
+            "left": 54,
+            "right": 241.34375,
+            "top": 167.765625,
+            "bottom": 209.765625,
+            "width": 187.34375,
+            "height": 42
+          },
+          "#selectToggle": {
+            "left": 1185.578125,
+            "right": 1226,
+            "top": 267,
+            "bottom": 297,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 1016.71875,
+            "right": 1125.609375,
+            "top": 657,
+            "bottom": 691,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 1134.609375,
+            "right": 1226,
+            "top": 657,
+            "bottom": 691,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 1280×700 · hero 205px · flow 341px · focused card 296px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 542831
+    },
+    {
+      "variant": "original",
+      "preset": "tablet-portrait",
+      "path": "captures\\original\\tablet-portrait.png",
+      "dimensions": [
+        800,
+        1280
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 800,
+          "height": 1280
+        },
+        "frame": {
+          "left": 0,
+          "right": 800,
+          "top": 0,
+          "bottom": 1280,
+          "width": 800,
+          "height": 1280
+        },
+        "lane": {
+          "left": 0,
+          "right": 800,
+          "top": 321,
+          "bottom": 365,
+          "width": 800,
+          "height": 44
+        },
+        "flow": {
+          "left": 0,
+          "right": 800,
+          "top": 365,
+          "bottom": 1228,
+          "width": 800,
+          "height": 863
+        },
+        "focus": {
+          "left": 288.8999938964844,
+          "right": 511.1000061035156,
+          "top": 615,
+          "bottom": 978,
+          "width": 222.20001220703125,
+          "height": 363
+        },
+        "cover": {
+          "left": 298.79998779296875,
+          "right": 501.20001220703125,
+          "top": 623.7999877929688,
+          "bottom": 927.4000244140625,
+          "width": 202.4000244140625,
+          "height": 303.60003662109375
+        },
+        "hero": {
+          "left": 0,
+          "right": 800,
+          "top": 58,
+          "bottom": 321,
+          "width": 800,
+          "height": 263
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 800,
+          "top": 1228,
+          "bottom": 1280,
+          "width": 800,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 54,
+            "right": 117.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 493,
+            "right": 617,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          "#chapterMode": {
+            "left": 617,
+            "right": 741,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          ".language-selector": {
+            "left": 488,
+            "right": 746,
+            "top": 134,
+            "bottom": 170,
+            "width": 258,
+            "height": 36
+          },
+          "#collections": {
+            "left": 54,
+            "right": 224.625,
+            "top": 161.09375,
+            "bottom": 203.09375,
+            "width": 170.625,
+            "height": 42
+          },
+          "#selectToggle": {
+            "left": 705.578125,
+            "right": 746,
+            "top": 325,
+            "bottom": 355,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 536.71875,
+            "right": 645.609375,
+            "top": 1237,
+            "bottom": 1271,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 654.609375,
+            "right": 746,
+            "top": 1237,
+            "bottom": 1271,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 800×1280 · hero 263px · flow 863px · focused card 363px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 520217
+    },
+    {
+      "variant": "original",
+      "preset": "tablet-landscape",
+      "path": "captures\\original\\tablet-landscape.png",
+      "dimensions": [
+        1280,
+        800
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "frame": {
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 800,
+          "width": 1280,
+          "height": 800
+        },
+        "lane": {
+          "left": 0,
+          "right": 1280,
+          "top": 263,
+          "bottom": 307,
+          "width": 1280,
+          "height": 44
+        },
+        "flow": {
+          "left": 0,
+          "right": 1280,
+          "top": 307,
+          "bottom": 748,
+          "width": 1280,
+          "height": 441
+        },
+        "focus": {
+          "left": 528.9000244140625,
+          "right": 751.1000366210938,
+          "top": 346,
+          "bottom": 709,
+          "width": 222.20001220703125,
+          "height": 363
+        },
+        "cover": {
+          "left": 538.800048828125,
+          "right": 741.2000122070312,
+          "top": 354.79998779296875,
+          "bottom": 658.4000244140625,
+          "width": 202.39996337890625,
+          "height": 303.60003662109375
+        },
+        "hero": {
+          "left": 0,
+          "right": 1280,
+          "top": 58,
+          "bottom": 263,
+          "width": 1280,
+          "height": 205
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 1280,
+          "top": 748,
+          "bottom": 800,
+          "width": 1280,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 54,
+            "right": 117.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 973,
+            "right": 1097,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          "#chapterMode": {
+            "left": 1097,
+            "right": 1221,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          ".language-selector": {
+            "left": 968,
+            "right": 1226,
+            "top": 134,
+            "bottom": 170,
+            "width": 258,
+            "height": 36
+          },
+          "#collections": {
+            "left": 54,
+            "right": 241.34375,
+            "top": 167.765625,
+            "bottom": 209.765625,
+            "width": 187.34375,
+            "height": 42
+          },
+          "#selectToggle": {
+            "left": 1185.578125,
+            "right": 1226,
+            "top": 267,
+            "bottom": 297,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 1016.71875,
+            "right": 1125.609375,
+            "top": 757,
+            "bottom": 791,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 1134.609375,
+            "right": 1226,
+            "top": 757,
+            "bottom": 791,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 1280×800 · hero 205px · flow 441px · focused card 363px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 712245
+    },
+    {
+      "variant": "original",
+      "preset": "selection",
+      "path": "captures\\original\\selection.png",
+      "dimensions": [
+        412,
+        900
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 412,
+          "height": 900
+        },
+        "frame": {
+          "left": 0,
+          "right": 412,
+          "top": 0,
+          "bottom": 900,
+          "width": 412,
+          "height": 900
+        },
+        "lane": {
+          "left": 0,
+          "right": 412,
+          "top": 526.875,
+          "bottom": 568.875,
+          "width": 412,
+          "height": 42
+        },
+        "flow": {
+          "left": 0,
+          "right": 412,
+          "top": 568.875,
+          "bottom": 812,
+          "width": 412,
+          "height": 243.125
+        },
+        "focus": {
+          "left": 147.14999389648438,
+          "right": 264.8500061035156,
+          "top": 587.5187377929688,
+          "bottom": 793.21875,
+          "width": 117.70001220703125,
+          "height": 205.70001220703125
+        },
+        "cover": {
+          "left": 157.04998779296875,
+          "right": 254.9499969482422,
+          "top": 596.3187255859375,
+          "bottom": 742.6187744140625,
+          "width": 97.90000915527344,
+          "height": 146.300048828125
+        },
+        "hero": {
+          "left": 0,
+          "right": 412,
+          "top": 58,
+          "bottom": 526.875,
+          "width": 412,
+          "height": 468.875
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 412,
+          "top": 812,
+          "bottom": 900,
+          "width": 412,
+          "height": 88
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 206,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 206,
+            "right": 391,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 396,
+            "top": 375.921875,
+            "bottom": 413.921875,
+            "width": 380,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 279.921875,
+            "bottom": 315.921875,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 359.453125,
+            "right": 396,
+            "top": 530.875,
+            "bottom": 560.875,
+            "width": 36.546875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 47,
+            "right": 217,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 226,
+            "right": 396,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 412×900 · hero 469px · flow 243px · focused card 206px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 314006
+    },
+    {
+      "variant": "original",
+      "preset": "expanded",
+      "path": "captures\\original\\expanded.png",
+      "dimensions": [
+        412,
+        900
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 412,
+          "height": 900
+        },
+        "frame": {
+          "left": 0,
+          "right": 412,
+          "top": 0,
+          "bottom": 900,
+          "width": 412,
+          "height": 900
+        },
+        "lane": {
+          "left": 0,
+          "right": 412,
+          "top": 594.4375,
+          "bottom": 636.4375,
+          "width": 412,
+          "height": 42
+        },
+        "flow": {
+          "left": 0,
+          "right": 412,
+          "top": 636.4375,
+          "bottom": 812,
+          "width": 412,
+          "height": 175.5625
+        },
+        "focus": {
+          "left": 168.0500030517578,
+          "right": 243.95001220703125,
+          "top": 652.3843994140625,
+          "bottom": 796.484375,
+          "width": 75.90000915527344,
+          "height": 144.0999755859375
+        },
+        "cover": {
+          "left": 177.9499969482422,
+          "right": 234.0500030517578,
+          "top": 661.1843872070312,
+          "bottom": 745.8843994140625,
+          "width": 56.100006103515625,
+          "height": 84.70001220703125
+        },
+        "hero": {
+          "left": 0,
+          "right": 412,
+          "top": 58,
+          "bottom": 594.4375,
+          "width": 412,
+          "height": 536.4375
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 412,
+          "top": 812,
+          "bottom": 900,
+          "width": 412,
+          "height": 88
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 206,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 206,
+            "right": 391,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 396,
+            "top": 375.921875,
+            "bottom": 413.921875,
+            "width": 380,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 279.921875,
+            "bottom": 315.921875,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 355.578125,
+            "right": 396,
+            "top": 598.4375,
+            "bottom": 628.4375,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 47,
+            "right": 217,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 226,
+            "right": 396,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 412×900 · hero 536px · flow 176px · focused card 144px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 319120
+    },
+    {
+      "variant": "original",
+      "preset": "insets-font",
+      "path": "captures\\original\\insets-font.png",
+      "dimensions": [
+        354,
+        792
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 354,
+          "height": 792
+        },
+        "frame": {
+          "left": 0,
+          "right": 354,
+          "top": 0,
+          "bottom": 792,
+          "width": 354,
+          "height": 792
+        },
+        "lane": {
+          "left": 0,
+          "right": 354,
+          "top": 580.6875,
+          "bottom": 618.6875,
+          "width": 354,
+          "height": 38
+        },
+        "flow": {
+          "left": 0,
+          "right": 354,
+          "top": 618.6875,
+          "bottom": 684,
+          "width": 354,
+          "height": 65.3125
+        },
+        "focus": {
+          "left": 161.0500030517578,
+          "right": 192.95001220703125,
+          "top": 612.6875,
+          "bottom": 689.6875,
+          "width": 31.900009155273438,
+          "height": 77
+        },
+        "cover": {
+          "left": 170.9499969482422,
+          "right": 183.0500030517578,
+          "top": 619.8375244140625,
+          "bottom": 637.4375,
+          "width": 12.100006103515625,
+          "height": 17.5999755859375
+        },
+        "hero": {
+          "left": 0,
+          "right": 354,
+          "top": 82,
+          "bottom": 580.6875,
+          "width": 354,
+          "height": 498.6875
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 354,
+          "top": 684,
+          "bottom": 768,
+          "width": 354,
+          "height": 84
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": false,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 88.8125,
+            "top": 30.5,
+            "bottom": 74.5,
+            "width": 72.8125,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 177,
+            "top": 340.9375,
+            "bottom": 372.9375,
+            "width": 156,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 177,
+            "right": 333,
+            "top": 340.9375,
+            "bottom": 372.9375,
+            "width": 156,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 338,
+            "top": 382.9375,
+            "bottom": 420.9375,
+            "width": 322,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 200.359375,
+            "top": 292.9375,
+            "bottom": 328.9375,
+            "width": 184.359375,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 288.921875,
+            "right": 338,
+            "top": 580.6875,
+            "bottom": 610.6875,
+            "width": 49.078125,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 25,
+            "right": 178,
+            "top": 726.5,
+            "bottom": 760.5,
+            "width": 153,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 187,
+            "right": 338,
+            "top": 726.5,
+            "bottom": 760.5,
+            "width": 151,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 354×792 · hero 499px · flow 65px · focused card 77px · focused card clipped · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 228730
+    },
+    {
+      "variant": "alternative",
+      "preset": "portrait",
+      "path": "captures\\alternative\\portrait.png",
+      "dimensions": [
+        412,
+        900
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 412,
+          "height": 900
+        },
+        "frame": {
+          "left": 0,
+          "right": 412,
+          "top": 0,
+          "bottom": 900,
+          "width": 412,
+          "height": 900
+        },
+        "lane": {
+          "left": 0,
+          "right": 412,
+          "top": 526.875,
+          "bottom": 568.875,
+          "width": 412,
+          "height": 42
+        },
+        "flow": {
+          "left": 0,
+          "right": 412,
+          "top": 568.875,
+          "bottom": 812,
+          "width": 412,
+          "height": 243.125
+        },
+        "focus": {
+          "left": 147.14999389648438,
+          "right": 264.8500061035156,
+          "top": 587.5187377929688,
+          "bottom": 793.21875,
+          "width": 117.70001220703125,
+          "height": 205.70001220703125
+        },
+        "cover": {
+          "left": 157.04998779296875,
+          "right": 254.9499969482422,
+          "top": 596.3187255859375,
+          "bottom": 742.6187744140625,
+          "width": 97.90000915527344,
+          "height": 146.300048828125
+        },
+        "hero": {
+          "left": 0,
+          "right": 412,
+          "top": 58,
+          "bottom": 526.875,
+          "width": 412,
+          "height": 468.875
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 412,
+          "top": 812,
+          "bottom": 900,
+          "width": 412,
+          "height": 88
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 206,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 206,
+            "right": 391,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 396,
+            "top": 375.921875,
+            "bottom": 413.921875,
+            "width": 380,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 279.921875,
+            "bottom": 315.921875,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 355.578125,
+            "right": 396,
+            "top": 530.875,
+            "bottom": 560.875,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 47,
+            "right": 217,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 226,
+            "right": 396,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 412×900 · hero 469px · flow 243px · focused card 206px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 311739
+    },
+    {
+      "variant": "alternative",
+      "preset": "portrait-small",
+      "path": "captures\\alternative\\portrait-small.png",
+      "dimensions": [
+        354,
+        792
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 354,
+          "height": 792
+        },
+        "frame": {
+          "left": 0,
+          "right": 354,
+          "top": 0,
+          "bottom": 792,
+          "width": 354,
+          "height": 792
+        },
+        "lane": {
+          "left": 0,
+          "right": 354,
+          "top": 480.5625,
+          "bottom": 518.5625,
+          "width": 354,
+          "height": 38
+        },
+        "flow": {
+          "left": 0,
+          "right": 354,
+          "top": 518.5625,
+          "bottom": 708,
+          "width": 354,
+          "height": 189.4375
+        },
+        "focus": {
+          "left": 134.64999389648438,
+          "right": 219.35000610351562,
+          "top": 534.9562377929688,
+          "bottom": 691.15625,
+          "width": 84.70001220703125,
+          "height": 156.20001220703125
+        },
+        "cover": {
+          "left": 144.54998779296875,
+          "right": 209.4499969482422,
+          "top": 543.7562255859375,
+          "bottom": 640.5562744140625,
+          "width": 64.90000915527344,
+          "height": 96.800048828125
+        },
+        "hero": {
+          "left": 0,
+          "right": 354,
+          "top": 58,
+          "bottom": 480.5625,
+          "width": 354,
+          "height": 422.5625
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 354,
+          "top": 708,
+          "bottom": 792,
+          "width": 354,
+          "height": 84
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 177,
+            "top": 304,
+            "bottom": 336,
+            "width": 156,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 177,
+            "right": 333,
+            "top": 304,
+            "bottom": 336,
+            "width": 156,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 338,
+            "top": 346,
+            "bottom": 384,
+            "width": 322,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 256,
+            "bottom": 292,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 297.578125,
+            "right": 338,
+            "top": 480.5625,
+            "bottom": 510.5625,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 25,
+            "right": 178,
+            "top": 747.5,
+            "bottom": 781.5,
+            "width": 153,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 187,
+            "right": 338,
+            "top": 747.5,
+            "bottom": 781.5,
+            "width": 151,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 354×792 · hero 423px · flow 189px · focused card 156px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 234296
+    },
+    {
+      "variant": "alternative",
+      "preset": "landscape",
+      "path": "captures\\alternative\\landscape.png",
+      "dimensions": [
+        900,
+        412
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 900,
+          "height": 412
+        },
+        "frame": {
+          "left": 0,
+          "right": 900,
+          "top": 0,
+          "bottom": 412,
+          "width": 900,
+          "height": 412
+        },
+        "lane": {
+          "left": 0,
+          "right": 900,
+          "top": 166,
+          "bottom": 202,
+          "width": 900,
+          "height": 36
+        },
+        "flow": {
+          "left": 0,
+          "right": 900,
+          "top": 202,
+          "bottom": 360,
+          "width": 900,
+          "height": 158
+        },
+        "focus": {
+          "left": 417.54998779296875,
+          "right": 482.4499816894531,
+          "top": 217.19686889648438,
+          "bottom": 344.796875,
+          "width": 64.89999389648438,
+          "height": 127.60000610351562
+        },
+        "cover": {
+          "left": 427.4499816894531,
+          "right": 472.54998779296875,
+          "top": 225.9968719482422,
+          "bottom": 294.1968688964844,
+          "width": 45.100006103515625,
+          "height": 68.19999694824219
+        },
+        "hero": {
+          "left": 0,
+          "right": 900,
+          "top": 50,
+          "bottom": 166,
+          "width": 900,
+          "height": 116
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 900,
+          "top": 360,
+          "bottom": 412,
+          "width": 900,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 18,
+            "right": 81.625,
+            "top": 2.5,
+            "bottom": 46.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 635,
+            "right": 756,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          "#chapterMode": {
+            "left": 756,
+            "right": 877,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          ".language-selector": {
+            "left": 630,
+            "right": 882,
+            "top": 107,
+            "bottom": 145,
+            "width": 252,
+            "height": 38
+          },
+          "#collections": {
+            "left": 98,
+            "right": 233.921875,
+            "top": 137.6875,
+            "bottom": 165.6875,
+            "width": 135.921875,
+            "height": 28
+          },
+          "#selectToggle": {
+            "left": 841.578125,
+            "right": 882,
+            "top": 167,
+            "bottom": 197,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 672.71875,
+            "right": 781.609375,
+            "top": 369,
+            "bottom": 403,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 790.609375,
+            "right": 882,
+            "top": 369,
+            "bottom": 403,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 900×412 · hero 116px · flow 158px · focused card 128px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 158510
+    },
+    {
+      "variant": "alternative",
+      "preset": "landscape-small",
+      "path": "captures\\alternative\\landscape-small.png",
+      "dimensions": [
+        792,
+        354
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 792,
+          "height": 354
+        },
+        "frame": {
+          "left": 0,
+          "right": 792,
+          "top": 0,
+          "bottom": 354,
+          "width": 792,
+          "height": 354
+        },
+        "lane": {
+          "left": 0,
+          "right": 792,
+          "top": 166,
+          "bottom": 202,
+          "width": 792,
+          "height": 36
+        },
+        "flow": {
+          "left": 0,
+          "right": 792,
+          "top": 202,
+          "bottom": 428,
+          "width": 792,
+          "height": 226
+        },
+        "focus": {
+          "left": 342.6499938964844,
+          "right": 449.3500061035156,
+          "top": 219.8406219482422,
+          "bottom": 410.140625,
+          "width": 106.70001220703125,
+          "height": 190.3000030517578
+        },
+        "cover": {
+          "left": 352.54998779296875,
+          "right": 439.45001220703125,
+          "top": 228.640625,
+          "bottom": 359.5406188964844,
+          "width": 86.9000244140625,
+          "height": 130.89999389648438
+        },
+        "hero": {
+          "left": 0,
+          "right": 792,
+          "top": 50,
+          "bottom": 166,
+          "width": 792,
+          "height": 116
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 792,
+          "top": 428,
+          "bottom": 480,
+          "width": 792,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": false,
+        "actionVisibleInScreen": false,
+        "scrollable": true,
+        "maxScroll": 126,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 18,
+            "right": 81.625,
+            "top": 2.5,
+            "bottom": 46.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 527,
+            "right": 648,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          "#chapterMode": {
+            "left": 648,
+            "right": 769,
+            "top": 63,
+            "bottom": 96,
+            "width": 121,
+            "height": 33
+          },
+          ".language-selector": {
+            "left": 522,
+            "right": 774,
+            "top": 107,
+            "bottom": 145,
+            "width": 252,
+            "height": 38
+          },
+          "#collections": {
+            "left": 98,
+            "right": 233.921875,
+            "top": 137.6875,
+            "bottom": 165.6875,
+            "width": 135.921875,
+            "height": 28
+          },
+          "#selectToggle": {
+            "left": 733.578125,
+            "right": 774,
+            "top": 167,
+            "bottom": 197,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 564.71875,
+            "right": 673.609375,
+            "top": 437,
+            "bottom": 471,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 682.609375,
+            "right": 774,
+            "top": 437,
+            "bottom": 471,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 792×354 · hero 116px · flow 226px · focused card 190px · entire focused card visible · no hero/gallery overlap",
+        "galleryScrollTop": 126
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": "captures\\alternative\\landscape-small-gallery.png",
+      "pngBytes": 209146
+    },
+    {
+      "variant": "alternative",
+      "preset": "desktop",
+      "path": "captures\\alternative\\desktop.png",
+      "dimensions": [
+        1280,
+        700
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 700
+        },
+        "frame": {
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 700,
+          "width": 1280,
+          "height": 700
+        },
+        "lane": {
+          "left": 0,
+          "right": 1280,
+          "top": 263,
+          "bottom": 307,
+          "width": 1280,
+          "height": 44
+        },
+        "flow": {
+          "left": 0,
+          "right": 1280,
+          "top": 307,
+          "bottom": 648,
+          "width": 1280,
+          "height": 341
+        },
+        "focus": {
+          "left": 551.4500122070312,
+          "right": 728.550048828125,
+          "top": 329.5375061035156,
+          "bottom": 625.4375,
+          "width": 177.10003662109375,
+          "height": 295.8999938964844
+        },
+        "cover": {
+          "left": 561.3500366210938,
+          "right": 718.6500244140625,
+          "top": 338.3374938964844,
+          "bottom": 574.8375244140625,
+          "width": 157.29998779296875,
+          "height": 236.50003051757812
+        },
+        "hero": {
+          "left": 0,
+          "right": 1280,
+          "top": 58,
+          "bottom": 263,
+          "width": 1280,
+          "height": 205
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 1280,
+          "top": 648,
+          "bottom": 700,
+          "width": 1280,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 54,
+            "right": 117.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 973,
+            "right": 1097,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          "#chapterMode": {
+            "left": 1097,
+            "right": 1221,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          ".language-selector": {
+            "left": 968,
+            "right": 1226,
+            "top": 134,
+            "bottom": 170,
+            "width": 258,
+            "height": 36
+          },
+          "#collections": {
+            "left": 54,
+            "right": 241.34375,
+            "top": 167.765625,
+            "bottom": 209.765625,
+            "width": 187.34375,
+            "height": 42
+          },
+          "#selectToggle": {
+            "left": 1185.578125,
+            "right": 1226,
+            "top": 267,
+            "bottom": 297,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 1016.71875,
+            "right": 1125.609375,
+            "top": 657,
+            "bottom": 691,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 1134.609375,
+            "right": 1226,
+            "top": 657,
+            "bottom": 691,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 1280×700 · hero 205px · flow 341px · focused card 296px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 542831
+    },
+    {
+      "variant": "alternative",
+      "preset": "tablet-portrait",
+      "path": "captures\\alternative\\tablet-portrait.png",
+      "dimensions": [
+        800,
+        1280
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 800,
+          "height": 1280
+        },
+        "frame": {
+          "left": 0,
+          "right": 800,
+          "top": 0,
+          "bottom": 1280,
+          "width": 800,
+          "height": 1280
+        },
+        "lane": {
+          "left": 0,
+          "right": 800,
+          "top": 321,
+          "bottom": 365,
+          "width": 800,
+          "height": 44
+        },
+        "flow": {
+          "left": 0,
+          "right": 800,
+          "top": 365,
+          "bottom": 1228,
+          "width": 800,
+          "height": 863
+        },
+        "focus": {
+          "left": 288.8999938964844,
+          "right": 511.1000061035156,
+          "top": 615,
+          "bottom": 978,
+          "width": 222.20001220703125,
+          "height": 363
+        },
+        "cover": {
+          "left": 298.79998779296875,
+          "right": 501.20001220703125,
+          "top": 623.7999877929688,
+          "bottom": 927.4000244140625,
+          "width": 202.4000244140625,
+          "height": 303.60003662109375
+        },
+        "hero": {
+          "left": 0,
+          "right": 800,
+          "top": 58,
+          "bottom": 321,
+          "width": 800,
+          "height": 263
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 800,
+          "top": 1228,
+          "bottom": 1280,
+          "width": 800,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 54,
+            "right": 117.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 493,
+            "right": 617,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          "#chapterMode": {
+            "left": 617,
+            "right": 741,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          ".language-selector": {
+            "left": 488,
+            "right": 746,
+            "top": 134,
+            "bottom": 170,
+            "width": 258,
+            "height": 36
+          },
+          "#collections": {
+            "left": 54,
+            "right": 224.625,
+            "top": 161.09375,
+            "bottom": 203.09375,
+            "width": 170.625,
+            "height": 42
+          },
+          "#selectToggle": {
+            "left": 705.578125,
+            "right": 746,
+            "top": 325,
+            "bottom": 355,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 536.71875,
+            "right": 645.609375,
+            "top": 1237,
+            "bottom": 1271,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 654.609375,
+            "right": 746,
+            "top": 1237,
+            "bottom": 1271,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 800×1280 · hero 263px · flow 863px · focused card 363px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 520206
+    },
+    {
+      "variant": "alternative",
+      "preset": "tablet-landscape",
+      "path": "captures\\alternative\\tablet-landscape.png",
+      "dimensions": [
+        1280,
+        800
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 1280,
+          "height": 800
+        },
+        "frame": {
+          "left": 0,
+          "right": 1280,
+          "top": 0,
+          "bottom": 800,
+          "width": 1280,
+          "height": 800
+        },
+        "lane": {
+          "left": 0,
+          "right": 1280,
+          "top": 263,
+          "bottom": 307,
+          "width": 1280,
+          "height": 44
+        },
+        "flow": {
+          "left": 0,
+          "right": 1280,
+          "top": 307,
+          "bottom": 748,
+          "width": 1280,
+          "height": 441
+        },
+        "focus": {
+          "left": 528.9000244140625,
+          "right": 751.1000366210938,
+          "top": 346,
+          "bottom": 709,
+          "width": 222.20001220703125,
+          "height": 363
+        },
+        "cover": {
+          "left": 538.800048828125,
+          "right": 741.2000122070312,
+          "top": 354.79998779296875,
+          "bottom": 658.4000244140625,
+          "width": 202.39996337890625,
+          "height": 303.60003662109375
+        },
+        "hero": {
+          "left": 0,
+          "right": 1280,
+          "top": 58,
+          "bottom": 263,
+          "width": 1280,
+          "height": 205
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 1280,
+          "top": 748,
+          "bottom": 800,
+          "width": 1280,
+          "height": 52
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 9,
+        "loadedImages": 9,
+        "controls": {
+          "#backAction": {
+            "left": 54,
+            "right": 117.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 973,
+            "right": 1097,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          "#chapterMode": {
+            "left": 1097,
+            "right": 1221,
+            "top": 93,
+            "bottom": 121,
+            "width": 124,
+            "height": 28
+          },
+          ".language-selector": {
+            "left": 968,
+            "right": 1226,
+            "top": 134,
+            "bottom": 170,
+            "width": 258,
+            "height": 36
+          },
+          "#collections": {
+            "left": 54,
+            "right": 241.34375,
+            "top": 167.765625,
+            "bottom": 209.765625,
+            "width": 187.34375,
+            "height": 42
+          },
+          "#selectToggle": {
+            "left": 1185.578125,
+            "right": 1226,
+            "top": 267,
+            "bottom": 297,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 1016.71875,
+            "right": 1125.609375,
+            "top": 757,
+            "bottom": 791,
+            "width": 108.890625,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 1134.609375,
+            "right": 1226,
+            "top": 757,
+            "bottom": 791,
+            "width": 91.390625,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 1280×800 · hero 205px · flow 441px · focused card 363px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 712245
+    },
+    {
+      "variant": "alternative",
+      "preset": "selection",
+      "path": "captures\\alternative\\selection.png",
+      "dimensions": [
+        412,
+        900
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 412,
+          "height": 900
+        },
+        "frame": {
+          "left": 0,
+          "right": 412,
+          "top": 0,
+          "bottom": 900,
+          "width": 412,
+          "height": 900
+        },
+        "lane": {
+          "left": 0,
+          "right": 412,
+          "top": 526.875,
+          "bottom": 568.875,
+          "width": 412,
+          "height": 42
+        },
+        "flow": {
+          "left": 0,
+          "right": 412,
+          "top": 568.875,
+          "bottom": 812,
+          "width": 412,
+          "height": 243.125
+        },
+        "focus": {
+          "left": 147.14999389648438,
+          "right": 264.8500061035156,
+          "top": 587.5187377929688,
+          "bottom": 793.21875,
+          "width": 117.70001220703125,
+          "height": 205.70001220703125
+        },
+        "cover": {
+          "left": 157.04998779296875,
+          "right": 254.9499969482422,
+          "top": 596.3187255859375,
+          "bottom": 742.6187744140625,
+          "width": 97.90000915527344,
+          "height": 146.300048828125
+        },
+        "hero": {
+          "left": 0,
+          "right": 412,
+          "top": 58,
+          "bottom": 526.875,
+          "width": 412,
+          "height": 468.875
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 412,
+          "top": 812,
+          "bottom": 900,
+          "width": 412,
+          "height": 88
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 206,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 206,
+            "right": 391,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 396,
+            "top": 375.921875,
+            "bottom": 413.921875,
+            "width": 380,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 279.921875,
+            "bottom": 315.921875,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 359.453125,
+            "right": 396,
+            "top": 530.875,
+            "bottom": 560.875,
+            "width": 36.546875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 47,
+            "right": 217,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 226,
+            "right": 396,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 412×900 · hero 469px · flow 243px · focused card 206px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 314006
+    },
+    {
+      "variant": "alternative",
+      "preset": "expanded",
+      "path": "captures\\alternative\\expanded.png",
+      "dimensions": [
+        412,
+        900
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 412,
+          "height": 900
+        },
+        "frame": {
+          "left": 0,
+          "right": 412,
+          "top": 0,
+          "bottom": 900,
+          "width": 412,
+          "height": 900
+        },
+        "lane": {
+          "left": 0,
+          "right": 412,
+          "top": 594.4375,
+          "bottom": 636.4375,
+          "width": 412,
+          "height": 42
+        },
+        "flow": {
+          "left": 0,
+          "right": 412,
+          "top": 636.4375,
+          "bottom": 812,
+          "width": 412,
+          "height": 175.5625
+        },
+        "focus": {
+          "left": 168.0500030517578,
+          "right": 243.95001220703125,
+          "top": 652.3843994140625,
+          "bottom": 796.484375,
+          "width": 75.90000915527344,
+          "height": 144.0999755859375
+        },
+        "cover": {
+          "left": 177.9499969482422,
+          "right": 234.0500030517578,
+          "top": 661.1843872070312,
+          "bottom": 745.8843994140625,
+          "width": 56.100006103515625,
+          "height": 84.70001220703125
+        },
+        "hero": {
+          "left": 0,
+          "right": 412,
+          "top": 58,
+          "bottom": 594.4375,
+          "width": 412,
+          "height": 536.4375
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 412,
+          "top": 812,
+          "bottom": 900,
+          "width": 412,
+          "height": 88
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": true,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 79.625,
+            "top": 6.5,
+            "bottom": 50.5,
+            "width": 63.625,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 206,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 206,
+            "right": 391,
+            "top": 331.921875,
+            "bottom": 363.921875,
+            "width": 185,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 396,
+            "top": 375.921875,
+            "bottom": 413.921875,
+            "width": 380,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 170.265625,
+            "top": 279.921875,
+            "bottom": 315.921875,
+            "width": 154.265625,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 355.578125,
+            "right": 396,
+            "top": 598.4375,
+            "bottom": 628.4375,
+            "width": 40.421875,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 47,
+            "right": 217,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 226,
+            "right": 396,
+            "top": 853.5,
+            "bottom": 887.5,
+            "width": 170,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 412×900 · hero 536px · flow 176px · focused card 144px · entire focused card visible · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 319120
+    },
+    {
+      "variant": "alternative",
+      "preset": "insets-font",
+      "path": "captures\\alternative\\insets-font.png",
+      "dimensions": [
+        354,
+        792
+      ],
+      "metrics": {
+        "viewport": {
+          "width": 354,
+          "height": 792
+        },
+        "frame": {
+          "left": 0,
+          "right": 354,
+          "top": 0,
+          "bottom": 792,
+          "width": 354,
+          "height": 792
+        },
+        "lane": {
+          "left": 0,
+          "right": 354,
+          "top": 580.6875,
+          "bottom": 618.6875,
+          "width": 354,
+          "height": 38
+        },
+        "flow": {
+          "left": 0,
+          "right": 354,
+          "top": 618.6875,
+          "bottom": 684,
+          "width": 354,
+          "height": 65.3125
+        },
+        "focus": {
+          "left": 161.0500030517578,
+          "right": 192.95001220703125,
+          "top": 612.6875,
+          "bottom": 689.6875,
+          "width": 31.900009155273438,
+          "height": 77
+        },
+        "cover": {
+          "left": 170.9499969482422,
+          "right": 183.0500030517578,
+          "top": 619.8375244140625,
+          "bottom": 637.4375,
+          "width": 12.100006103515625,
+          "height": 17.5999755859375
+        },
+        "hero": {
+          "left": 0,
+          "right": 354,
+          "top": 82,
+          "bottom": 580.6875,
+          "width": 354,
+          "height": 498.6875
+        },
+        "actionBar": {
+          "left": 0,
+          "right": 354,
+          "top": 684,
+          "bottom": 768,
+          "width": 354,
+          "height": 84
+        },
+        "currentVolume": "Vol. 3",
+        "currentAction": "Read Vol. 3",
+        "coverFit": false,
+        "coverVisibleInScreen": true,
+        "actionVisibleInScreen": true,
+        "scrollable": false,
+        "maxScroll": 0,
+        "imageCount": 7,
+        "loadedImages": 7,
+        "controls": {
+          "#backAction": {
+            "left": 16,
+            "right": 88.8125,
+            "top": 30.5,
+            "bottom": 74.5,
+            "width": 72.8125,
+            "height": 44
+          },
+          "#tankobanMode": {
+            "left": 21,
+            "right": 177,
+            "top": 340.9375,
+            "bottom": 372.9375,
+            "width": 156,
+            "height": 32
+          },
+          "#chapterMode": {
+            "left": 177,
+            "right": 333,
+            "top": 340.9375,
+            "bottom": 372.9375,
+            "width": 156,
+            "height": 32
+          },
+          ".language-selector": {
+            "left": 16,
+            "right": 338,
+            "top": 382.9375,
+            "bottom": 420.9375,
+            "width": 322,
+            "height": 38
+          },
+          "#collections": {
+            "left": 16,
+            "right": 200.359375,
+            "top": 292.9375,
+            "bottom": 328.9375,
+            "width": 184.359375,
+            "height": 36
+          },
+          "#selectToggle": {
+            "left": 288.921875,
+            "right": 338,
+            "top": 580.6875,
+            "bottom": 610.6875,
+            "width": 49.078125,
+            "height": 30
+          },
+          "#downloadAction": {
+            "left": 25,
+            "right": 178,
+            "top": 726.5,
+            "bottom": 760.5,
+            "width": 153,
+            "height": 34
+          },
+          "#readAction": {
+            "left": 187,
+            "right": 338,
+            "top": 726.5,
+            "bottom": 760.5,
+            "width": 151,
+            "height": 34
+          }
+        },
+        "geometryStatus": "Inside 354×792 · hero 499px · flow 65px · focused card 77px · focused card clipped · no hero/gallery overlap"
+      },
+      "pageErrors": [],
+      "networkViolations": [],
+      "brokenResources": [],
+      "galleryShot": null,
+      "pngBytes": 228739
+    },
+    {
+      "interactions": {
+        "before": "Vol. 3",
+        "afterNeighbour": "Vol. 4",
+        "acted": true,
+        "selection": "1 selected",
+        "selectionOpen": true,
+        "selectionClosed": true,
+        "synopsisExpanded": true,
+        "synopsisBefore": 468.875,
+        "synopsisAfter": 536.4375,
+        "afterKey": "Vol. 4",
+        "afterPageDown": "Vol. 14"
+      }
+    }
+  ]
+}

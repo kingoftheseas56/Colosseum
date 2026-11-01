@@ -1,0 +1,2505 @@
+{
+  "results": [
+    {
+      "name": "series-legacy-ledger-actual",
+      "url": "http://127.0.0.1:11072/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24&renderer=legacy",
+      "metrics": {
+        "app": {
+          "w": 792,
+          "h": 354
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action primary",
+            "text": "Watch S1 · E1",
+            "rect": {
+              "x": 24,
+              "y": -745.8125,
+              "w": 171.328125,
+              "h": 42,
+              "right": 195.328125,
+              "bottom": -703.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action library",
+            "text": "✓\nIn Library",
+            "rect": {
+              "x": 207.328125,
+              "y": -745.8125,
+              "w": 142.71875,
+              "h": 42,
+              "right": 350.046875,
+              "bottom": -703.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 362.046875,
+              "y": -745.8125,
+              "w": 224.9375,
+              "h": 42,
+              "right": 586.984375,
+              "bottom": -703.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action",
+            "text": "Notifications on",
+            "rect": {
+              "x": 24,
+              "y": -691.8125,
+              "w": 177.875,
+              "h": 42,
+              "right": 201.875,
+              "bottom": -649.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "order-btn ",
+            "text": "Absolute",
+            "rect": {
+              "x": 24,
+              "y": 102,
+              "w": 76.3125,
+              "h": 32,
+              "right": 100.3125,
+              "bottom": 134
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "order-btn selected",
+            "text": "Seasons",
+            "rect": {
+              "x": 124.3125,
+              "y": 102,
+              "w": 71,
+              "h": 33,
+              "right": 195.3125,
+              "bottom": 135
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "season-trigger",
+            "cls": "season-trigger",
+            "text": "Season 1\n▾",
+            "rect": {
+              "x": 217.3125,
+              "y": 99,
+              "w": 135.75,
+              "h": 38,
+              "right": 353.0625,
+              "bottom": 137
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "ledger-action download-season",
+            "text": "Download season",
+            "rect": {
+              "x": 456.875,
+              "y": 156.703125,
+              "w": 176,
+              "h": 40,
+              "right": 632.875,
+              "bottom": 196.703125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "jump-trigger",
+            "cls": "ledger-action",
+            "text": "Go to episode",
+            "rect": {
+              "x": 642.875,
+              "y": 156.703125,
+              "w": 125.125,
+              "h": 40,
+              "right": 768,
+              "bottom": 196.703125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row watched",
+            "text": "1\nS1\nI'm Luffy! The Man Who's Gonna Be King of the Pirates!\nWatched\nA young pirate begins his journe",
+            "rect": {
+              "x": 24,
+              "y": -477.390625,
+              "w": 744,
+              "h": 142.796875,
+              "right": 768,
+              "bottom": -334.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 1",
+            "rect": {
+              "x": 662,
+              "y": -428.5,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": -384.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 1",
+            "rect": {
+              "x": 714,
+              "y": -428.5,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": -384.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row next-up",
+            "text": "2\nS1\nEnter the Great Swordsman! Pirate Hunter Roronoa Zoro!\nNext up\nLuffy crosses paths with a sword",
+            "rect": {
+              "x": 24,
+              "y": -334.59375,
+              "w": 744,
+              "h": 142.796875,
+              "right": 768,
+              "bottom": -191.796875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 2",
+            "rect": {
+              "x": 662,
+              "y": -285.703125,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": -241.703125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 2",
+            "rect": {
+              "x": 714,
+              "y": -285.703125,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": -241.703125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "3\nS1\nMorgan vs. Luffy! Who's the Mysterious Pretty Girl?\n43% watched\nLuffy confronts a powerful Mari",
+            "rect": {
+              "x": 24,
+              "y": -191.796875,
+              "w": 744,
+              "h": 142.796875,
+              "right": 768,
+              "bottom": -49
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 3",
+            "rect": {
+              "x": 662,
+              "y": -142.90625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": -98.90625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 3",
+            "rect": {
+              "x": 714,
+              "y": -142.90625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": -98.90625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "4\nS1\nLuffy's Past! The Red-haired Shanks Appears!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 24,
+              "y": -49,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 55
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 4",
+            "rect": {
+              "x": 662,
+              "y": -19.5,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 24.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 4",
+            "rect": {
+              "x": 714,
+              "y": -19.5,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 24.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "5\nS1\nFear, Mysterious Power! Pirate Clown Captain Buggy!\nLuffy and his companions continue their jou",
+            "rect": {
+              "x": 24,
+              "y": 55,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 172.53125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 5",
+            "rect": {
+              "x": 662,
+              "y": 91.265625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 135.265625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 5",
+            "rect": {
+              "x": 714,
+              "y": 91.265625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 135.265625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "6\nS1\nDesperate Situation! Beast Tamer Mohji vs. Luffy!\nLuffy and his companions continue their journ",
+            "rect": {
+              "x": 24,
+              "y": 172.53125,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 290.0625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 6",
+            "rect": {
+              "x": 662,
+              "y": 208.796875,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 252.796875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 6",
+            "rect": {
+              "x": 714,
+              "y": 208.796875,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 252.796875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "7\nS1\nEpic Showdown! Swordsman Zoro vs. Acrobat Cabaji!\nLuffy and his companions continue their journ",
+            "rect": {
+              "x": 24,
+              "y": 290.0625,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 407.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 7",
+            "rect": {
+              "x": 662,
+              "y": 326.328125,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 370.328125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 7",
+            "rect": {
+              "x": 714,
+              "y": 326.328125,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 370.328125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "8\nS1\nWho is the Victor? Devil Fruit Power Showdown!\nLuffy and his companions continue their journey ",
+            "rect": {
+              "x": 24,
+              "y": 407.59375,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 525.125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 8",
+            "rect": {
+              "x": 662,
+              "y": 443.859375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 487.859375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 8",
+            "rect": {
+              "x": 714,
+              "y": 443.859375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 487.859375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "9\nS1\nThe Honorable Liar? Captain Usopp\nLuffy and his companions continue their journey toward the Gr",
+            "rect": {
+              "x": 24,
+              "y": 525.125,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 629.125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 9",
+            "rect": {
+              "x": 662,
+              "y": 554.625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 598.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 9",
+            "rect": {
+              "x": 714,
+              "y": 554.625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 598.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "10\nS1\nThe Weirdest Guy Ever! Jango the Hypnotist!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 24,
+              "y": 629.125,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 733.125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 10",
+            "rect": {
+              "x": 662,
+              "y": 658.625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 702.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 10",
+            "rect": {
+              "x": 714,
+              "y": 658.625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 702.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "11\nS1\nExpose the Plot! Pirate Butler, Captain Kuro!\nLuffy and his companions continue their journey ",
+            "rect": {
+              "x": 24,
+              "y": 733.125,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 837.125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 11",
+            "rect": {
+              "x": 662,
+              "y": 762.625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 806.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 11",
+            "rect": {
+              "x": 714,
+              "y": 762.625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 806.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "12\nS1\nClash with the Black Cat Pirates! The Great Battle on the Slope!\nLuffy and his companions cont",
+            "rect": {
+              "x": 24,
+              "y": 837.125,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 954.65625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 12",
+            "rect": {
+              "x": 662,
+              "y": 873.390625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 917.390625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 12",
+            "rect": {
+              "x": 714,
+              "y": 873.390625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 917.390625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "13\nS1\nThe Terrifying Duo! Meowban Brothers vs. Zoro!\nLuffy and his companions continue their journey",
+            "rect": {
+              "x": 24,
+              "y": 954.65625,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 1072.1875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 13",
+            "rect": {
+              "x": 662,
+              "y": 990.921875,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 1034.921875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 13",
+            "rect": {
+              "x": 714,
+              "y": 990.921875,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 1034.921875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "14\nS1\nLuffy Back in Action! Miss Kaya's Desperate Resistance!\nLuffy and his companions continue thei",
+            "rect": {
+              "x": 24,
+              "y": 1072.1875,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 1189.71875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 14",
+            "rect": {
+              "x": 662,
+              "y": 1108.453125,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 1152.453125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 14",
+            "rect": {
+              "x": 714,
+              "y": 1108.453125,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 1152.453125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "15\nS1\nBeat Kuro! Usopp the Man's Tearful Resolve!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 24,
+              "y": 1189.71875,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 1293.71875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 15",
+            "rect": {
+              "x": 662,
+              "y": 1219.21875,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 1263.21875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 15",
+            "rect": {
+              "x": 714,
+              "y": 1219.21875,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 1263.21875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "cast-person cast-more",
+            "text": "›\nAll cast",
+            "rect": {
+              "x": 272,
+              "y": 1547.40625,
+              "w": 96,
+              "h": 148.828125,
+              "right": 368,
+              "bottom": 1696.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "The Witcher",
+            "rect": {
+              "x": 24,
+              "y": 1777.234375,
+              "w": 120,
+              "h": 205,
+              "right": 144,
+              "bottom": 1982.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "Dune",
+            "rect": {
+              "x": 162,
+              "y": 1777.234375,
+              "w": 120,
+              "h": 205,
+              "right": 282,
+              "bottom": 1982.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "Harry Potter",
+            "rect": {
+              "x": 300,
+              "y": 1777.234375,
+              "w": 120,
+              "h": 205,
+              "right": 420,
+              "bottom": 1982.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "back",
+            "text": "Back",
+            "rect": {
+              "x": 24,
+              "y": 52,
+              "w": 82,
+              "h": 44,
+              "right": 106,
+              "bottom": 96
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": -440.5,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": -372.5
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": -297.703125,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": -229.703125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": -154.90625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": -86.90625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": -31.5,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 36.5
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 79.265625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 147.265625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 196.796875,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 264.796875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 314.328125,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 382.328125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 431.859375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 499.859375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 542.625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 610.625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 646.625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 714.625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 750.625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 818.625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 861.390625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 929.390625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 978.921875,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 1046.921875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 1096.453125,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 1164.453125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 1207.21875,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 1275.21875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/the-witcher.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 24,
+              "y": 1777.234375,
+              "w": 120,
+              "h": 172,
+              "right": 144,
+              "bottom": 1949.234375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/dune.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 162,
+              "y": 1777.234375,
+              "w": 120,
+              "h": 172,
+              "right": 282,
+              "bottom": 1949.234375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/harry-potter.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 300,
+              "y": 1777.234375,
+              "w": 120,
+              "h": 172,
+              "right": 420,
+              "bottom": 1949.234375
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "scrollWidth": 792,
+            "clientWidth": 792,
+            "scrollHeight": 3556,
+            "clientHeight": 354,
+            "scrollTop": 1480,
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 792,
+              "h": 354,
+              "right": 792,
+              "bottom": 354
+            }
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "scrollWidth": 744,
+            "clientWidth": 744,
+            "scrollHeight": 205,
+            "clientHeight": 205,
+            "scrollTop": 0,
+            "rect": {
+              "x": 24,
+              "y": 1777.234375,
+              "w": 744,
+              "h": 205,
+              "right": 768,
+              "bottom": 1982.234375
+            }
+          }
+        ],
+        "focus": "",
+        "text": "SERIES - THEATRE\nOne Piece\n1999\n-\nAnimation · Action · Adventure\n-\nIMDb\n9.0\n-\n24 min\nStudio\nToei Animation\nNetwork\nFuji TV\nCountry\nJapan\nAired\n1999\nStatus\nOngoing\nSource\nManga\n\nMonkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.\n\nWatch S1 · E1\n✓\nIn Library\nAdd to Collections\nNotifications on\nAbsolute\nSeasons\nSeason 1\n▾\nSeason 1\n15 episodes / 1 watched / 1 in progress / next E2\nDownload season\nGo to episode\n1\nS1\nI'm Luffy! The Man Who's Gonna Be King of the Pirates!\nWatched\nA young pirate begins his journey across the seas in search of the One Piece.\n2\nS1\nEnter the Great Swordsman! Pirate Hunter Roronoa Zoro!\nNext up\nLuffy crosses paths with a swordsman who could become his first crewmate.\n3\nS1\nMorgan vs. Luffy! Who's the Mysterious Pretty Girl?\n43% watched\nLuffy confronts a powerful Marine captain in Shells Town.\n4\nS1\nLuffy's Past! The Red-haired Shanks Appears!\nLuffy and his companions continue their journey toward the Grand Line.\n5\nS1\nFear, Mysterious Power! Pirate Clown Captain Buggy!\nLuffy and his companions continue their journey toward the Grand Line.\n6\nS1\nDesperate Situation! Beast Tamer Mohji vs. Luffy!\nLuffy and his companions continue their journey toward the Grand Line.\n7\nS1\nEpic Showdown! Swordsman Zoro vs. Acrobat Cabaji!\nLuffy and his companions continue their journey toward the Grand Line.\n8\nS1\nWho is the Victor? Devil Fruit Power Showdown!\nLuffy and his companions continue their journey toward the Grand Line.\n9\nS1\nThe Honorable Liar? Captain Usopp\nLuffy and his companions continue their journey toward the Grand Line.\n10\nS1\nThe Weirdest Guy Ever! Jango the Hypnotist!\nLuffy and his companions continue their journey toward the Grand Line.\n11\nS1\nExpose the Plot! Pirate Butler, Captain Kuro!\nLuffy and his companions continue their journey toward the Grand Line.\n12\nS1\nClash with the Black Cat Pirates! The Great Battle on the Slope!\nLuffy and his companions continue their journey toward the Grand Line.\n13\nS1\nThe Terrifying Duo! Meowban Brothers vs. Zoro!\nLuffy and his companions continue their journey toward the Grand Line.\n14\nS1\nLuffy Back in Action! Miss Kaya's Desperate Resistance!\nLuffy and his companions continue their journey toward the Grand Line.\n15\nS1\nBeat Kuro! Usopp the Man's Tearful Resolve!\nLuffy and his companions continue their journey toward the Grand Line.\nCAST\nMT\nMayumi Tanaka\nMonkey D. Luffy\nKN\nKazuya Nakai\nRoronoa Zoro\nAO\nAkemi Okamura\nNami\nKY\nKappei Yamaguchi\nUsopp\nHH\nHiroaki Hirata\nSanji\nIO\nIkue Otani\nTony Tony Chopper\nYY\nYuriko Yamaguchi\nNico Robin\nKY\nKazuki Yao\nFranky\n›\nAll cast\nMORE LIKE THIS\nThe Witcher\nDune\nHarry Potter\nBack"
+      }
+    },
+    {
+      "name": "series-rebuilt-ledger-actual",
+      "url": "http://127.0.0.1:11072/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24&renderer=rebuilt",
+      "metrics": {
+        "app": {
+          "w": 792,
+          "h": 354
+        },
+        "controls": [
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action primary",
+            "text": "Watch S1 · E1",
+            "rect": {
+              "x": 24,
+              "y": -745.8125,
+              "w": 171.328125,
+              "h": 42,
+              "right": 195.328125,
+              "bottom": -703.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action library",
+            "text": "✓\nIn Library",
+            "rect": {
+              "x": 207.328125,
+              "y": -745.8125,
+              "w": 142.71875,
+              "h": 42,
+              "right": 350.046875,
+              "bottom": -703.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action",
+            "text": "Add to Collections",
+            "rect": {
+              "x": 362.046875,
+              "y": -745.8125,
+              "w": 224.9375,
+              "h": 42,
+              "right": 586.984375,
+              "bottom": -703.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "action",
+            "text": "Notifications on",
+            "rect": {
+              "x": 24,
+              "y": -691.8125,
+              "w": 177.875,
+              "h": 42,
+              "right": 201.875,
+              "bottom": -649.8125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "",
+            "text": "Absolute",
+            "rect": {
+              "x": 28,
+              "y": 114,
+              "w": 94.140625,
+              "h": 28,
+              "right": 122.140625,
+              "bottom": 142
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "selected",
+            "text": "Seasons",
+            "rect": {
+              "x": 124.140625,
+              "y": 114,
+              "w": 89.53125,
+              "h": 28,
+              "right": 213.671875,
+              "bottom": 142
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "season-trigger",
+            "cls": "season-trigger",
+            "text": "Season 1\n▾",
+            "rect": {
+              "x": 227.671875,
+              "y": 110,
+              "w": 132,
+              "h": 36,
+              "right": 359.671875,
+              "bottom": 146
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rebuilt-pill",
+            "text": "Download season",
+            "rect": {
+              "x": 24,
+              "y": 156,
+              "w": 177.75,
+              "h": 36,
+              "right": 201.75,
+              "bottom": 192
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rebuilt-pill next-pill",
+            "text": "Next · E2",
+            "rect": {
+              "x": 211.75,
+              "y": 156,
+              "w": 92.78125,
+              "h": 36,
+              "right": 304.53125,
+              "bottom": 192
+            },
+            "tab": 0
+          },
+          {
+            "tag": "INPUT",
+            "id": "inline-goto",
+            "cls": "",
+            "text": "Go to episode",
+            "rect": {
+              "x": 315.53125,
+              "y": 157,
+              "w": 130,
+              "h": 34,
+              "right": 445.53125,
+              "bottom": 191
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row watched",
+            "text": "1\nS1\nI'm Luffy! The Man Who's Gonna Be King of the Pirates!\nWatched\nA young pirate begins his journe",
+            "rect": {
+              "x": 24,
+              "y": -445.421875,
+              "w": 744,
+              "h": 142.796875,
+              "right": 768,
+              "bottom": -302.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 1",
+            "rect": {
+              "x": 662,
+              "y": -396.53125,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": -352.53125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 1",
+            "rect": {
+              "x": 714,
+              "y": -396.53125,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": -352.53125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row next-up",
+            "text": "2\nS1\nEnter the Great Swordsman! Pirate Hunter Roronoa Zoro!\nNext up\nLuffy crosses paths with a sword",
+            "rect": {
+              "x": 24,
+              "y": -302.625,
+              "w": 744,
+              "h": 142.796875,
+              "right": 768,
+              "bottom": -159.828125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 2",
+            "rect": {
+              "x": 662,
+              "y": -253.734375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": -209.734375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 2",
+            "rect": {
+              "x": 714,
+              "y": -253.734375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": -209.734375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "3\nS1\nMorgan vs. Luffy! Who's the Mysterious Pretty Girl?\n43% watched\nLuffy confronts a powerful Mari",
+            "rect": {
+              "x": 24,
+              "y": -159.828125,
+              "w": 744,
+              "h": 142.796875,
+              "right": 768,
+              "bottom": -17.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 3",
+            "rect": {
+              "x": 662,
+              "y": -110.9375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": -66.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 3",
+            "rect": {
+              "x": 714,
+              "y": -110.9375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": -66.9375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "4\nS1\nLuffy's Past! The Red-haired Shanks Appears!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 24,
+              "y": -17.03125,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 86.96875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 4",
+            "rect": {
+              "x": 662,
+              "y": 12.46875,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 56.46875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 4",
+            "rect": {
+              "x": 714,
+              "y": 12.46875,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 56.46875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "5\nS1\nFear, Mysterious Power! Pirate Clown Captain Buggy!\nLuffy and his companions continue their jou",
+            "rect": {
+              "x": 24,
+              "y": 86.96875,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 204.5
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 5",
+            "rect": {
+              "x": 662,
+              "y": 123.234375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 167.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 5",
+            "rect": {
+              "x": 714,
+              "y": 123.234375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 167.234375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "6\nS1\nDesperate Situation! Beast Tamer Mohji vs. Luffy!\nLuffy and his companions continue their journ",
+            "rect": {
+              "x": 24,
+              "y": 204.5,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 322.03125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 6",
+            "rect": {
+              "x": 662,
+              "y": 240.765625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 284.765625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 6",
+            "rect": {
+              "x": 714,
+              "y": 240.765625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 284.765625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "7\nS1\nEpic Showdown! Swordsman Zoro vs. Acrobat Cabaji!\nLuffy and his companions continue their journ",
+            "rect": {
+              "x": 24,
+              "y": 322.03125,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 439.5625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 7",
+            "rect": {
+              "x": 662,
+              "y": 358.296875,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 402.296875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 7",
+            "rect": {
+              "x": 714,
+              "y": 358.296875,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 402.296875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "8\nS1\nWho is the Victor? Devil Fruit Power Showdown!\nLuffy and his companions continue their journey ",
+            "rect": {
+              "x": 24,
+              "y": 439.5625,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 557.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 8",
+            "rect": {
+              "x": 662,
+              "y": 475.828125,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 519.828125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 8",
+            "rect": {
+              "x": 714,
+              "y": 475.828125,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 519.828125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "9\nS1\nThe Honorable Liar? Captain Usopp\nLuffy and his companions continue their journey toward the Gr",
+            "rect": {
+              "x": 24,
+              "y": 557.09375,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 661.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 9",
+            "rect": {
+              "x": 662,
+              "y": 586.59375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 630.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 9",
+            "rect": {
+              "x": 714,
+              "y": 586.59375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 630.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "10\nS1\nThe Weirdest Guy Ever! Jango the Hypnotist!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 24,
+              "y": 661.09375,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 765.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 10",
+            "rect": {
+              "x": 662,
+              "y": 690.59375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 734.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 10",
+            "rect": {
+              "x": 714,
+              "y": 690.59375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 734.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "11\nS1\nExpose the Plot! Pirate Butler, Captain Kuro!\nLuffy and his companions continue their journey ",
+            "rect": {
+              "x": 24,
+              "y": 765.09375,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 869.09375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 11",
+            "rect": {
+              "x": 662,
+              "y": 794.59375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 838.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 11",
+            "rect": {
+              "x": 714,
+              "y": 794.59375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 838.59375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "12\nS1\nClash with the Black Cat Pirates! The Great Battle on the Slope!\nLuffy and his companions cont",
+            "rect": {
+              "x": 24,
+              "y": 869.09375,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 986.625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 12",
+            "rect": {
+              "x": 662,
+              "y": 905.359375,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 949.359375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 12",
+            "rect": {
+              "x": 714,
+              "y": 905.359375,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 949.359375
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "13\nS1\nThe Terrifying Duo! Meowban Brothers vs. Zoro!\nLuffy and his companions continue their journey",
+            "rect": {
+              "x": 24,
+              "y": 986.625,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 1104.15625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 13",
+            "rect": {
+              "x": 662,
+              "y": 1022.890625,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 1066.890625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 13",
+            "rect": {
+              "x": 714,
+              "y": 1022.890625,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 1066.890625
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "14\nS1\nLuffy Back in Action! Miss Kaya's Desperate Resistance!\nLuffy and his companions continue thei",
+            "rect": {
+              "x": 24,
+              "y": 1104.15625,
+              "w": 744,
+              "h": 117.53125,
+              "right": 768,
+              "bottom": 1221.6875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 14",
+            "rect": {
+              "x": 662,
+              "y": 1140.421875,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 1184.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 14",
+            "rect": {
+              "x": 714,
+              "y": 1140.421875,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 1184.421875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "DIV",
+            "id": "",
+            "cls": "episode-row",
+            "text": "15\nS1\nBeat Kuro! Usopp the Man's Tearful Resolve!\nLuffy and his companions continue their journey to",
+            "rect": {
+              "x": 24,
+              "y": 1221.6875,
+              "w": 744,
+              "h": 104,
+              "right": 768,
+              "bottom": 1325.6875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Play episode 15",
+            "rect": {
+              "x": 662,
+              "y": 1251.1875,
+              "w": 44,
+              "h": 44,
+              "right": 706,
+              "bottom": 1295.1875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "circle-action",
+            "text": "Download episode 15",
+            "rect": {
+              "x": 714,
+              "y": 1251.1875,
+              "w": 44,
+              "h": 44,
+              "right": 758,
+              "bottom": 1295.1875
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "cast-person cast-more",
+            "text": "›\nAll cast",
+            "rect": {
+              "x": 272,
+              "y": 1579.375,
+              "w": 96,
+              "h": 148.828125,
+              "right": 368,
+              "bottom": 1728.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "The Witcher",
+            "rect": {
+              "x": 24,
+              "y": 1809.203125,
+              "w": 120,
+              "h": 205,
+              "right": 144,
+              "bottom": 2014.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "Dune",
+            "rect": {
+              "x": 162,
+              "y": 1809.203125,
+              "w": 120,
+              "h": 205,
+              "right": 282,
+              "bottom": 2014.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "rec-card",
+            "text": "Harry Potter",
+            "rect": {
+              "x": 300,
+              "y": 1809.203125,
+              "w": 120,
+              "h": 205,
+              "right": 420,
+              "bottom": 2014.203125
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "back",
+            "text": "Theatre",
+            "rect": {
+              "x": 24,
+              "y": 39,
+              "w": 99.96875,
+              "h": 44,
+              "right": 123.96875,
+              "bottom": 83
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-head",
+            "text": "Search",
+            "rect": {
+              "x": 678,
+              "y": 42,
+              "w": 40,
+              "h": 40,
+              "right": 718,
+              "bottom": 82
+            },
+            "tab": 0
+          },
+          {
+            "tag": "BUTTON",
+            "id": "",
+            "cls": "round-head",
+            "text": "Window and app",
+            "rect": {
+              "x": 728,
+              "y": 42,
+              "w": 40,
+              "h": 40,
+              "right": 768,
+              "bottom": 82
+            },
+            "tab": 0
+          }
+        ],
+        "images": [
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": -408.53125,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": -340.53125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": -265.734375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": -197.734375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": -122.9375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": -54.9375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+            "complete": true,
+            "natural": [
+              1154,
+              880
+            ],
+            "rect": {
+              "x": 107,
+              "y": 0.46875,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 68.46875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 111.234375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 179.234375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 228.765625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 296.765625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 346.296875,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 414.296875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/orange.png",
+            "complete": true,
+            "natural": [
+              957,
+              1000
+            ],
+            "rect": {
+              "x": 107,
+              "y": 463.828125,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 531.828125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 574.59375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 642.59375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 678.59375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 746.59375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 782.59375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 850.59375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 893.359375,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 961.359375
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 1010.890625,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 1078.890625
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 1128.421875,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 1196.421875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/banners/syrup.png",
+            "complete": true,
+            "natural": [
+              1353,
+              1500
+            ],
+            "rect": {
+              "x": 107,
+              "y": 1239.1875,
+              "w": 120,
+              "h": 68,
+              "right": 227,
+              "bottom": 1307.1875
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/the-witcher.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 24,
+              "y": 1809.203125,
+              "w": 120,
+              "h": 172,
+              "right": 144,
+              "bottom": 1981.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/dune.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 162,
+              "y": 1809.203125,
+              "w": 120,
+              "h": 172,
+              "right": 282,
+              "bottom": 1981.203125
+            }
+          },
+          {
+            "src": "../../../../reference/desktop/assets/wallpaper/sagas/harry-potter.jpg",
+            "complete": true,
+            "natural": [
+              1280,
+              720
+            ],
+            "rect": {
+              "x": 300,
+              "y": 1809.203125,
+              "w": 120,
+              "h": 172,
+              "right": 420,
+              "bottom": 1981.203125
+            }
+          }
+        ],
+        "scrollers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "scrollWidth": 792,
+            "clientWidth": 792,
+            "scrollHeight": 3588,
+            "clientHeight": 354,
+            "scrollTop": 1480,
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "w": 792,
+              "h": 354,
+              "right": 792,
+              "bottom": 354
+            }
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "scrollWidth": 744,
+            "clientWidth": 744,
+            "scrollHeight": 205,
+            "clientHeight": 205,
+            "scrollTop": 0,
+            "rect": {
+              "x": 24,
+              "y": 1809.203125,
+              "w": 744,
+              "h": 205,
+              "right": 768,
+              "bottom": 2014.203125
+            }
+          }
+        ],
+        "focus": "",
+        "text": "SERIES · THEATRE\nOne Piece\n1999\nAnimation · Action · Adventure\nIMDb\n9.0\n24 min\nStudio\nToei Animation\nNetwork\nFuji TV\nCountry\nJapan\nAired\n1999\nStatus\nOngoing\nSource\nManga\n\nMonkey D. Luffy sets sail to become King of the Pirates. Along the way, he assembles the Straw Hat crew and journeys across the seas in search of the legendary treasure known as the One Piece, facing powerful foes and uncovering the world's hidden history.\n\nWatch S1 · E1\n✓\nIn Library\nAdd to Collections\nNotifications on\nAbsolute\nSeasons\nSeason 1\n▾\nDownload season\nNext · E2\nGo to episode number\nSeason 1\n15 episodes · 1 watched · 1 in progress\n1\nS1\nI'm Luffy! The Man Who's Gonna Be King of the Pirates!\nWatched\nA young pirate begins his journey across the seas in search of the One Piece.\n2\nS1\nEnter the Great Swordsman! Pirate Hunter Roronoa Zoro!\nNext up\nLuffy crosses paths with a swordsman who could become his first crewmate.\n3\nS1\nMorgan vs. Luffy! Who's the Mysterious Pretty Girl?\n43% watched\nLuffy confronts a powerful Marine captain in Shells Town.\n4\nS1\nLuffy's Past! The Red-haired Shanks Appears!\nLuffy and his companions continue their journey toward the Grand Line.\n5\nS1\nFear, Mysterious Power! Pirate Clown Captain Buggy!\nLuffy and his companions continue their journey toward the Grand Line.\n6\nS1\nDesperate Situation! Beast Tamer Mohji vs. Luffy!\nLuffy and his companions continue their journey toward the Grand Line.\n7\nS1\nEpic Showdown! Swordsman Zoro vs. Acrobat Cabaji!\nLuffy and his companions continue their journey toward the Grand Line.\n8\nS1\nWho is the Victor? Devil Fruit Power Showdown!\nLuffy and his companions continue their journey toward the Grand Line.\n9\nS1\nThe Honorable Liar? Captain Usopp\nLuffy and his companions continue their journey toward the Grand Line.\n10\nS1\nThe Weirdest Guy Ever! Jango the Hypnotist!\nLuffy and his companions continue their journey toward the Grand Line.\n11\nS1\nExpose the Plot! Pirate Butler, Captain Kuro!\nLuffy and his companions continue their journey toward the Grand Line.\n12\nS1\nClash with the Black Cat Pirates! The Great Battle on the Slope!\nLuffy and his companions continue their journey toward the Grand Line.\n13\nS1\nThe Terrifying Duo! Meowban Brothers vs. Zoro!\nLuffy and his companions continue their journey toward the Grand Line.\n14\nS1\nLuffy Back in Action! Miss Kaya's Desperate Resistance!\nLuffy and his companions continue their journey toward the Grand Line.\n15\nS1\nBeat Kuro! Usopp the Man's Tearful Resolve!\nLuffy and his companions continue their journey toward the Grand Line.\nCAST\nMT\nMayumi Tanaka\nMonkey D. Luffy\nKN\nKazuya Nakai\nRoronoa Zoro\nAO\nAkemi Okamura\nNami\nKY\nKappei Yamaguchi\nUsopp\nHH\nHiroaki Hirata\nSanji\nIO\nIkue Otani\nTony Tony Chopper\nYY\nYuriko Yamaguchi\nNico Robin\nKY\nKazuki Yao\nFranky\n›\nAll cast\nMORE LIKE THIS\nThe Witcher\nDune\nHarry Potter\nTheatre"
+      }
+    },
+    {
+      "test": "actual-source-invoker-return",
+      "focus": "<button class=\"alt-button\" data-action=\"alt\" data-id=\"3603805\" aria-label=\"Find alternate sources for Batman: Detective Comics: The Rebirth Deluxe Edition Book 1\" title=\"Find alternate sources\"><img src=\"../../../../reference/desktop/assets/icons/search.svg\" alt=\"\"></button>"
+    }
+  ],
+  "errors": [],
+  "blocked": []
+}

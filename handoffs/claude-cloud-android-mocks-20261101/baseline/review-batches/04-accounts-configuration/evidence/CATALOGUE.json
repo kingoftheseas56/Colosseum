@@ -1,0 +1,365 @@
+[
+  {
+    "task": "10-profile",
+    "page": "profile",
+    "title": "Profile rows",
+    "source": "PhoneProfilePage.qml",
+    "states": []
+  },
+  {
+    "task": "11-account-entry",
+    "page": "account-welcome",
+    "title": "Account welcome",
+    "source": "account/AccountWelcome.qml",
+    "states": [
+      [
+        "Local choice",
+        {
+          "mode": "local"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "11-account-entry",
+    "page": "account-flyout",
+    "title": "Account flyout",
+    "source": "account/AccountFlyout.qml",
+    "states": [
+      [
+        "Local",
+        {
+          "mode": "local"
+        }
+      ],
+      [
+        "Offline",
+        {
+          "mode": "offline"
+        }
+      ],
+      [
+        "Retry",
+        {
+          "scenario": "retry"
+        }
+      ],
+      [
+        "Closed",
+        {
+          "open": 0
+        }
+      ]
+    ]
+  },
+  {
+    "task": "11-account-entry",
+    "page": "account-centre",
+    "title": "Account Centre",
+    "source": "account/AccountCenter.qml",
+    "states": [
+      [
+        "Security",
+        {
+          "section": "security",
+          "expanded": "password"
+        }
+      ],
+      [
+        "Local privacy",
+        {
+          "section": "privacy",
+          "mode": "local"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "12-account-forms",
+    "page": "account-profile",
+    "title": "Account profile",
+    "source": "account/AccountProfilePage.qml",
+    "states": [
+      [
+        "Edited username",
+        {
+          "state": "edit"
+        }
+      ],
+      [
+        "Long username",
+        {
+          "state": "long"
+        }
+      ],
+      [
+        "Saving",
+        {
+          "state": "edit",
+          "response": "pending"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "12-account-forms",
+    "page": "account-security",
+    "title": "Security",
+    "source": "account/AccountSecurityPage.qml",
+    "states": [
+      [
+        "Password editor",
+        {
+          "state": "password"
+        }
+      ],
+      [
+        "Approval",
+        {
+          "state": "approval"
+        }
+      ],
+      [
+        "Sign-out confirmation",
+        {
+          "state": "logout"
+        }
+      ],
+      [
+        "Saving",
+        {
+          "state": "password",
+          "response": "pending"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "12-account-forms",
+    "page": "account-recovery",
+    "title": "Recovery",
+    "source": "account/AccountRecoveryPage.qml",
+    "states": [
+      [
+        "Replace key",
+        {
+          "state": "replace"
+        }
+      ],
+      [
+        "Generating",
+        {
+          "state": "replace",
+          "response": "pending"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "12-account-forms",
+    "page": "account-privacy",
+    "title": "Data & privacy",
+    "source": "account/AccountDataPrivacyPage.qml",
+    "states": [
+      [
+        "Clear searches",
+        {
+          "state": "search"
+        }
+      ],
+      [
+        "Clear activity",
+        {
+          "state": "activity"
+        }
+      ],
+      [
+        "Delete confirmation",
+        {
+          "state": "delete"
+        }
+      ],
+      [
+        "Pending response",
+        {
+          "state": "delete",
+          "response": "pending"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "12-account-forms",
+    "page": "account-devices",
+    "title": "Devices",
+    "source": "account/AccountDevicesPage.qml",
+    "states": [
+      [
+        "Revoke",
+        {
+          "state": "revoke"
+        }
+      ],
+      [
+        "Long device name",
+        {
+          "state": "long"
+        }
+      ],
+      [
+        "Empty response (added)",
+        {
+          "state": "empty"
+        }
+      ],
+      [
+        "Failed refresh (added)",
+        {
+          "state": "error"
+        }
+      ],
+      [
+        "Revoking",
+        {
+          "state": "revoke",
+          "response": "pending"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "12-account-forms",
+    "page": "account-your-colosseum",
+    "title": "Your Colosseum",
+    "source": "account/AccountYourColosseumPage.qml",
+    "states": [
+      [
+        "Long titles",
+        {
+          "state": "long"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "13-stremio-sync",
+    "page": "stremio-sync",
+    "title": "Stremio sync",
+    "source": "StremioSyncPanel.qml",
+    "states": [
+      [
+        "Not connected",
+        {
+          "state": "notConnected"
+        }
+      ],
+      [
+        "Connecting",
+        {
+          "state": "connecting"
+        }
+      ],
+      [
+        "Syncing",
+        {
+          "state": "syncing"
+        }
+      ],
+      [
+        "Reconnect",
+        {
+          "state": "reconnectRequired"
+        }
+      ],
+      [
+        "Failed",
+        {
+          "state": "syncFailed"
+        }
+      ],
+      [
+        "Paused",
+        {
+          "state": "paused"
+        }
+      ],
+      [
+        "Unavailable",
+        {
+          "state": "unavailable"
+        }
+      ],
+      [
+        "Switch confirmation",
+        {
+          "confirm": "switch"
+        }
+      ],
+      [
+        "Disconnect confirmation",
+        {
+          "confirm": "disconnect"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "14-extension-setup",
+    "page": "extension-setup",
+    "title": "Extension setup",
+    "source": "ExtensionsSetupSheetAndroid.qml",
+    "states": [
+      [
+        "Required setup",
+        {
+          "required": 1
+        }
+      ],
+      [
+        "Long add-on title",
+        {
+          "addon": "Comet | ElfHosted",
+          "scale": 1.3
+        }
+      ],
+      [
+        "Closed",
+        {
+          "state": "closed"
+        }
+      ]
+    ]
+  },
+  {
+    "task": "14-extension-setup",
+    "page": "tankoyomi-configuration",
+    "title": "Tankoyomi configuration",
+    "source": "TankoyomiConfigurationPage.qml",
+    "states": [
+      [
+        "Open default-language menu",
+        {
+          "menu": "open"
+        }
+      ],
+      [
+        "English providers",
+        {
+          "language": "en"
+        }
+      ],
+      [
+        "Empty Portuguese route",
+        {
+          "language": "pt"
+        }
+      ],
+      [
+        "About",
+        {
+          "tab": "about"
+        }
+      ]
+    ]
+  }
+]

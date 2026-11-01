@@ -1,0 +1,220 @@
+{
+  "task": "06-biblio-book",
+  "status": "ready-for-review",
+  "outputDirectory": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book",
+  "sourceRefs": [
+    {
+      "path": "reference/desktop/qml/BiblioBook.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "approved inline dust-jacket page, controls and source sections"
+    },
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "colors, wash and font/layout tokens"
+    },
+    {
+      "path": "reference/desktop/qml/Main.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "bookLayer full-window shell context"
+    },
+    {
+      "path": "reference/desktop/qml/BiblioApi.js",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "genre/author/year metadata and synopsis shape"
+    },
+    {
+      "path": "reference/desktop/qml/Glass.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "glass material"
+    },
+    {
+      "path": "reference/desktop/qml/BackAction.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "approved plain vector back action"
+    },
+    {
+      "path": "reference/desktop/qml/LibraryButton.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "saved and unsaved library action"
+    },
+    {
+      "path": "reference/desktop/qml/collections/AddToCollectionsButton.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "latest approved Collections action"
+    },
+    {
+      "path": "reference/desktop/qml/collections/AddToCollectionsPopup.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "approved Collections picker structure"
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionIcon.qml",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "Collections vector glyph path"
+    },
+    {
+      "path": "reference/alpha/qml/BiblioBook.qml",
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "role": "historical approved original Android size/reflow recovery only"
+    },
+    {
+      "path": "context/ANDROID-PORT-CLASSIFICATION.md",
+      "role": "user-approved change classes; Biblio item 9"
+    },
+    {
+      "path": "context/VIEWPORTS.json",
+      "role": "provisional viewport and insets contract"
+    },
+    {
+      "path": "reference/desktop/assets/extensions/house/cosmere.jpg",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "real local Cosmere project artwork; explicit cover substitute, not retail jacket"
+    },
+    {
+      "path": "reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "actual display family"
+    },
+    {
+      "path": "reference/desktop/assets/fonts/Fraunces-Italic.ttf",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "actual tagline family"
+    },
+    {
+      "path": "reference/local-fonts/segoeui.ttf",
+      "role": "review-only Segoe UI"
+    }
+  ],
+  "pages": [
+    {
+      "file": "biblio-book.html",
+      "title": "Biblio book detail — original dust-jacket design fitted to phones",
+      "states": [
+        "complete long-title book page with genre/author/year metadata, full synopsis, Read and source sections",
+        "shorter synopsis fixture selected only outside the app",
+        "tracked Read edition choice open and dismissed",
+        "Add to Collections approved-style picker open with local search and membership toggles",
+        "Library unsaved/saved",
+        "torrent list five rows / expanded seven rows",
+        "source row visual status and local keyboard Escape/focus",
+        "1.3x font scale and illustrative 24px top/bottom safe insets"
+      ],
+      "viewports": [
+        {
+          "width": 412,
+          "height": 900,
+          "preset": "phone-portrait",
+          "units": "provisional logical px"
+        },
+        {
+          "width": 354,
+          "height": 792,
+          "preset": "phone-portrait-small",
+          "units": "provisional logical px"
+        },
+        {
+          "width": 900,
+          "height": 412,
+          "preset": "phone-landscape",
+          "units": "provisional logical px"
+        },
+        {
+          "width": 792,
+          "height": 354,
+          "preset": "phone-landscape-small",
+          "units": "provisional logical px"
+        },
+        {
+          "width": 1280,
+          "height": 700,
+          "preset": "desktop-reference",
+          "units": "logical px"
+        },
+        {
+          "width": 800,
+          "height": 1280,
+          "preset": "tablet-portrait",
+          "units": "logical px"
+        },
+        {
+          "width": 1280,
+          "height": 800,
+          "preset": "tablet-landscape",
+          "units": "logical px"
+        }
+      ],
+      "captures": [
+        "captures/portrait.png",
+        "captures/portrait-small.png",
+        "captures/landscape.png",
+        "captures/landscape-small.png",
+        "captures/desktop.png",
+        "captures/tablet-portrait.png",
+        "captures/tablet-landscape.png",
+        "captures/portrait-read-open.png",
+        "captures/landscape-read-open.png",
+        "captures/portrait-collections-open.png",
+        "captures/portrait-expanded-torrents.png",
+        "captures/portrait-synopsis.png",
+        "captures/landscape-synopsis.png",
+        "captures/portrait-font130-insets.png",
+        "captures/landscape-font130-insets.png",
+        "captures/portrait-small-read-open-insets.png",
+        "captures/landscape-small-read-open-insets.png",
+        "captures/landscape-collections-open.png",
+        "captures/landscape-sources.png",
+        "captures/portrait-library-saved.png"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Full-window Biblio layer, solid navy gradient, docked glass Back/Biblio header and desktop-only window glyphs",
+    "Actual Fraunces and local Segoe UI families, ink/edge/gold tokens and dust-jacket typography",
+    "Physical cover shape with paper edge, spine, vertical shadow and local image",
+    "Uppercase genre·author·year, large title, italic tagline, gold-ticked hairline and raised-initial synopsis",
+    "Gold Read and status, original ghost Library and Add to Collections actions with exact Collections icon path",
+    "Three original glass source sections: torrent list (without invented format pills), edition format badges, audiobook format badges, original row hierarchy",
+    "Original Read choice and approved-style Collections picker, no generic mobile sheet or fabricated navigation",
+    "Original 42px desktop Collections button; >=44px core phone targets"
+  ],
+  "fittingChanges": [
+    "Phone portrait reorders unchanged blocks as cover → genre/title/tagline → approved actions → full synopsis/sources, preserving every named control and section",
+    "Phone landscape retains two columns using short-height cover and narrower 32px gap, both 900×412 and 792×354",
+    "Phone safe inset/viewport/1.3x font adjustments are editable only in an external reviewer toolbar",
+    "Tablet retains two columns and hides Android-inapplicable desktop window controls",
+    "Long text and source metadata wrap or elide within the original information hierarchy; modals clamp and scroll inside the viewport"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "OnePlus disconnected: provisional logical viewport, DPR, cutout and safe-area values not physically measured",
+    "Actual selected book's retail cover absent from frozen local assets; real Cosmere project artwork used only as clearly declared stand-in",
+    "Original QML runtime, fonts/rasterization, actual device touch behavior and backend/provider operations not tested",
+    "Illustrative title, metadata, synopsis and source candidates do not constitute verified live search data",
+    "Portrait block order is a reviewable fitting decision, not pre-approved app implementation",
+    "MediaDetailScaffold.qml is absent from approved desktop/alpha; only present in rejected Android drift, which was not used as the target"
+  ],
+  "verification": {
+    "status": "passed-browser-mock",
+    "captureManifest": "captures/validation.json",
+    "tool": "Node.js + already-installed Puppeteer + isolated headless Google Chrome",
+    "exactCommand": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\capture.cjs\"",
+    "server": "Temporary localhost HTTP server rooted at D:\\Colosseum-Android-Phone-Mocks-20261101; automatically closed",
+    "screenshots": 20,
+    "cases": 21,
+    "failures": 0,
+    "interactionSmoke": "passed: Library toggle, Read choice open and Escape dismiss, torrent expand to 7, Collections picker open",
+    "checks": [
+      "requested viewport geometry",
+      "real local image loaded",
+      "no horizontal scroll overflow",
+      "cover/title do not overlap",
+      "phone core buttons and source row touch heights",
+      "popup stays within app viewport",
+      "no failed resource responses",
+      "local controls respond"
+    ],
+    "constraints": "Only owned output files created; no app/repository edits, commits, build, ADB/device actions, account/provider calls, uploads or publication",
+    "boundary": "Headless HTML/CSS/JS rendering only. Neither Colosseum QML nor Android runtime is validated."
+  }
+}

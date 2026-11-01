@@ -1,0 +1,482 @@
+{
+  "utc": "2026-11-01T00:48:45.218Z",
+  "pid": 6084,
+  "browserClosed": true,
+  "serverClosed": true,
+  "browserVersion": null,
+  "results": [
+    {
+      "kind": "film",
+      "renderer": "legacy",
+      "host": "phone-portrait",
+      "dom": {
+        "host": "legacy phone-portrait is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": false
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "film",
+      "renderer": "legacy",
+      "host": "phone-landscape",
+      "dom": {
+        "host": "legacy phone-landscape is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": false
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "film",
+      "renderer": "legacy",
+      "host": "tablet",
+      "dom": {
+        "host": "legacy tablet android-host",
+        "windowActions": [],
+        "back": true,
+        "search": false
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "film",
+      "renderer": "legacy",
+      "host": "desktop",
+      "dom": {
+        "host": "legacy desktop",
+        "windowActions": [
+          {
+            "action": "minimize",
+            "tab": 0,
+            "label": "Minimize"
+          },
+          {
+            "action": "fullscreen",
+            "tab": 0,
+            "label": "Toggle fullscreen"
+          },
+          {
+            "action": "quit",
+            "tab": 0,
+            "label": "Close"
+          }
+        ],
+        "back": true,
+        "search": false
+      },
+      "desktopActionsClicked": [
+        "minimize",
+        "fullscreen",
+        "quit"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "film",
+      "renderer": "rebuilt",
+      "host": "phone-portrait",
+      "dom": {
+        "host": "rebuilt phone-portrait is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": true
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "action": "search",
+          "label": "Search"
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "film",
+      "renderer": "rebuilt",
+      "host": "phone-landscape",
+      "dom": {
+        "host": "rebuilt phone-landscape is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": true
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "action": "search",
+          "label": "Search"
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "film",
+      "renderer": "rebuilt",
+      "host": "tablet",
+      "dom": {
+        "host": "rebuilt tablet android-host",
+        "windowActions": [],
+        "back": true,
+        "search": true
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "action": "search",
+          "label": "Search"
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "synopsis",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "film",
+      "renderer": "rebuilt",
+      "host": "desktop",
+      "dom": {
+        "host": "rebuilt desktop",
+        "windowActions": [
+          {
+            "action": "system-menu",
+            "tab": 0,
+            "label": "Window and app"
+          }
+        ],
+        "back": true,
+        "search": true
+      },
+      "labels": [
+        "Minimize",
+        "Exit fullscreen",
+        "Quit Colosseum…"
+      ],
+      "resizeToAndroid": [
+        "back",
+        "search"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "legacy",
+      "host": "phone-portrait",
+      "dom": {
+        "host": "legacy phone-portrait is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": false
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "legacy",
+      "host": "phone-landscape",
+      "dom": {
+        "host": "legacy phone-landscape is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": false
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "legacy",
+      "host": "tablet",
+      "dom": {
+        "host": "legacy tablet android-host",
+        "windowActions": [],
+        "back": true,
+        "search": false
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "legacy",
+      "host": "desktop",
+      "dom": {
+        "host": "legacy desktop",
+        "windowActions": [
+          {
+            "action": "minimize",
+            "tab": 0,
+            "label": "Minimize"
+          },
+          {
+            "action": "fullscreen",
+            "tab": 0,
+            "label": "Toggle fullscreen"
+          },
+          {
+            "action": "quit",
+            "tab": 0,
+            "label": "Close"
+          }
+        ],
+        "back": true,
+        "search": false
+      },
+      "desktopActionsClicked": [
+        "minimize",
+        "fullscreen",
+        "quit"
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "rebuilt",
+      "host": "phone-portrait",
+      "dom": {
+        "host": "rebuilt phone-portrait is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": true
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "action": "search",
+          "label": "Search"
+        },
+        {
+          "action": "watch",
+          "label": null
+        },
+        {
+          "action": "library",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "rebuilt",
+      "host": "phone-landscape",
+      "dom": {
+        "host": "rebuilt phone-landscape is-handset android-host",
+        "windowActions": [],
+        "back": true,
+        "search": true
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "action": "search",
+          "label": "Search"
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "watch",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "rebuilt",
+      "host": "tablet",
+      "dom": {
+        "host": "rebuilt tablet android-host",
+        "windowActions": [],
+        "back": true,
+        "search": true
+      },
+      "tabs": [
+        {
+          "action": "back",
+          "label": null
+        },
+        {
+          "action": "search",
+          "label": "Search"
+        },
+        {
+          "label": null
+        },
+        {
+          "action": "synopsis",
+          "label": null
+        }
+      ],
+      "pass": true
+    },
+    {
+      "kind": "series",
+      "renderer": "rebuilt",
+      "host": "desktop",
+      "dom": {
+        "host": "rebuilt desktop",
+        "windowActions": [
+          {
+            "action": "system-menu",
+            "tab": 0,
+            "label": "Window and app"
+          }
+        ],
+        "back": true,
+        "search": true
+      },
+      "labels": [
+        "Minimize",
+        "Exit fullscreen",
+        "Quit Colosseum…"
+      ],
+      "resizeToAndroid": [
+        "back",
+        "search"
+      ],
+      "pass": true
+    }
+  ],
+  "errors": [],
+  "blocked": [],
+  "passed": true
+}

@@ -1,0 +1,210 @@
+{
+  "at": "2026-10-31T23:45:46.800Z",
+  "checked": 29,
+  "unchanged": 29,
+  "records": [
+    {
+      "path": "outputs/21-tracker-connections/app.js",
+      "bytes": 33913,
+      "sha256": "90441eaf3156d2cb09dcde4939367790a3f9d709d513bd9682ab99bed0428c6d",
+      "currentSha256": "90441eaf3156d2cb09dcde4939367790a3f9d709d513bd9682ab99bed0428c6d",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/FIDELITY.md",
+      "bytes": 10822,
+      "sha256": "c8c70515a2f7f8676f5ce6c7aef641bb0db8d23f15f11fa09b492c269c9aaa0b",
+      "currentSha256": "c8c70515a2f7f8676f5ce6c7aef641bb0db8d23f15f11fa09b492c269c9aaa0b",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/index.html",
+      "bytes": 1394,
+      "sha256": "39cb9dacdbc38ffb4886d094bae279a8e68837307146d0fe16a8e7a039f1e1f1",
+      "currentSha256": "39cb9dacdbc38ffb4886d094bae279a8e68837307146d0fe16a8e7a039f1e1f1",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/render-captures.py",
+      "bytes": 2500,
+      "sha256": "24401b01521d124ca1f338ed8c837c1e846ee53870a1186fdc96bb1bfd4b6b27",
+      "currentSha256": "24401b01521d124ca1f338ed8c837c1e846ee53870a1186fdc96bb1bfd4b6b27",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/style.css",
+      "bytes": 25789,
+      "sha256": "075d838f03993010e54827e49e3379ba19d787b0297714c4da3d0937eb90ab04",
+      "currentSha256": "075d838f03993010e54827e49e3379ba19d787b0297714c4da3d0937eb90ab04",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/tracker-connections.html",
+      "bytes": 2709,
+      "sha256": "6a452ec35107dc1c36b5b89d3935d148a1c3973ed698bd28d2e711daee2b3f4f",
+      "currentSha256": "6a452ec35107dc1c36b5b89d3935d148a1c3973ed698bd28d2e711daee2b3f4f",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/tracker-dossier.html",
+      "bytes": 2709,
+      "sha256": "a95a9710a78cfeba5a0ef4aa642de65b8bc688cb4990e0f3521d75d94c6b2571",
+      "currentSha256": "a95a9710a78cfeba5a0ef4aa642de65b8bc688cb4990e0f3521d75d94c6b2571",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/tracker-preferences.html",
+      "bytes": 2717,
+      "sha256": "3bd5c41faaca3d34737e4460e9b86f4696468d0afaed3e29feff3623b8e7ccce",
+      "currentSha256": "3bd5c41faaca3d34737e4460e9b86f4696468d0afaed3e29feff3623b8e7ccce",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/_render-connections.html",
+      "bytes": 409,
+      "sha256": "3a9ddd18d08a335b19f50d9bdaf64ebd8277e90e2cf83ea50f38db450302330e",
+      "currentSha256": "3a9ddd18d08a335b19f50d9bdaf64ebd8277e90e2cf83ea50f38db450302330e",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/_render-dossier.html",
+      "bytes": 401,
+      "sha256": "3b383042da08341388f46e0644137035264b301995947db71ac2f499d1e0cce2",
+      "currentSha256": "3b383042da08341388f46e0644137035264b301995947db71ac2f499d1e0cce2",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/21-tracker-connections/_render-preferences.html",
+      "bytes": 409,
+      "sha256": "eb082c0efba99a8c2a148e4a89ee86032e2c54aa77d6361ee242b0767e945445",
+      "currentSha256": "eb082c0efba99a8c2a148e4a89ee86032e2c54aa77d6361ee242b0767e945445",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/app.js",
+      "bytes": 47713,
+      "sha256": "1b765457dff74f11bf1b57b9fef3da663dc1f90bc8b39b60691f7ddceb818272",
+      "currentSha256": "1b765457dff74f11bf1b57b9fef3da663dc1f90bc8b39b60691f7ddceb818272",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/capture-audit.cjs",
+      "bytes": 10251,
+      "sha256": "4b5cb36068c053209e16fa9fcb71cc406f505c7878d29648d5e094d0441d5093",
+      "currentSha256": "4b5cb36068c053209e16fa9fcb71cc406f505c7878d29648d5e094d0441d5093",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/collections.html",
+      "bytes": 612,
+      "sha256": "3152667a6e366c85590408e12234188a1c01a5d2755d410f0499819175393d54",
+      "currentSha256": "3152667a6e366c85590408e12234188a1c01a5d2755d410f0499819175393d54",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/extensions-store.html",
+      "bytes": 611,
+      "sha256": "de3b28dbd3425a78dbb99e4f64a1248b85589c804954cea38287d2383d7c846f",
+      "currentSha256": "de3b28dbd3425a78dbb99e4f64a1248b85589c804954cea38287d2383d7c846f",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/FIDELITY.md",
+      "bytes": 16894,
+      "sha256": "484599f5ad3735fa094d92e984feb2092716aa056175edcef979540287f80eb7",
+      "currentSha256": "484599f5ad3735fa094d92e984feb2092716aa056175edcef979540287f80eb7",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/index.html",
+      "bytes": 1325,
+      "sha256": "749bb06a9bd26f490f9c2c1fcfada20a4121a836f2ee2f271cfbb963f8970575",
+      "currentSha256": "749bb06a9bd26f490f9c2c1fcfada20a4121a836f2ee2f271cfbb963f8970575",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/REPORT.json",
+      "bytes": 12808,
+      "sha256": "78de8be55ad101e7d921e2fd2576a2938820899c615579a50496d93fcc6af19f",
+      "currentSha256": "78de8be55ad101e7d921e2fd2576a2938820899c615579a50496d93fcc6af19f",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/style.css",
+      "bytes": 37869,
+      "sha256": "a7fe372fa2b22f00e64d0b39fe1f6e12b588b732b3486fb9d159e7d7ac35d9ce",
+      "currentSha256": "a7fe372fa2b22f00e64d0b39fe1f6e12b588b732b3486fb9d159e7d7ac35d9ce",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/update.html",
+      "bytes": 607,
+      "sha256": "f8a52982fb8917c40b140c227d5efba11d465bec320045fa93cadec329cf17a0",
+      "currentSha256": "f8a52982fb8917c40b140c227d5efba11d465bec320045fa93cadec329cf17a0",
+      "unchanged": true
+    },
+    {
+      "path": "outputs/22-utilities-collections/wallpaper-search.html",
+      "bytes": 610,
+      "sha256": "0f9cb9c43d1a3dc6c0709eebcf2f71586a16718f4ebcf5231991d7b4d068c277",
+      "currentSha256": "0f9cb9c43d1a3dc6c0709eebcf2f71586a16718f4ebcf5231991d7b4d068c277",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/TrackerSyncCenterPage.qml",
+      "bytes": 248252,
+      "sha256": "e8226f58e305f297660f7d124712763aa67627dab71d0987207fba546e038611",
+      "currentSha256": "e8226f58e305f297660f7d124712763aa67627dab71d0987207fba546e038611",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "bytes": 1920,
+      "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495",
+      "currentSha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/WallpaperSearch.qml",
+      "bytes": 33981,
+      "sha256": "8da9e6e5984c52740b2d34c8e8bf4c631dca757e814fb5feebef8f6a8107bac4",
+      "currentSha256": "8da9e6e5984c52740b2d34c8e8bf4c631dca757e814fb5feebef8f6a8107bac4",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsStorePage.qml",
+      "bytes": 41254,
+      "sha256": "758b548c9d94e80cfa687df755f6f774d413687ec00a788132a58938dc6241cf",
+      "currentSha256": "758b548c9d94e80cfa687df755f6f774d413687ec00a788132a58938dc6241cf",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/ExtensionsInstalledPage.qml",
+      "bytes": 9352,
+      "sha256": "00889a1325c62cfbd1dfa59cee35fffdb994506a7f495db1b90499e030cb6c35",
+      "currentSha256": "00889a1325c62cfbd1dfa59cee35fffdb994506a7f495db1b90499e030cb6c35",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/UpdatePage.qml",
+      "bytes": 16493,
+      "sha256": "460c548232c31b7d70dea6b4196c05c13cf5b0083edefb9fcc5c785127c56879",
+      "currentSha256": "460c548232c31b7d70dea6b4196c05c13cf5b0083edefb9fcc5c785127c56879",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionsPanel.qml",
+      "bytes": 11964,
+      "sha256": "98e97ff7343ef38b8187d18c393bf96f101bf7505638883562721816fdaba0e0",
+      "currentSha256": "98e97ff7343ef38b8187d18c393bf96f101bf7505638883562721816fdaba0e0",
+      "unchanged": true
+    },
+    {
+      "path": "reference/desktop/qml/collections/YourCollectionsPage.qml",
+      "bytes": 8297,
+      "sha256": "a1942f7b3d757535c2ee74b582ac21ebc99575e0c207315e80cbeb55a862a0f0",
+      "currentSha256": "a1942f7b3d757535c2ee74b582ac21ebc99575e0c207315e80cbeb55a862a0f0",
+      "unchanged": true
+    }
+  ]
+}

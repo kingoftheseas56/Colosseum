@@ -1,0 +1,1943 @@
+{
+  "utc": "2026-10-31T23:53:28.068Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "source-result"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-alt-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-alt-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-alt-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:36.446Z",
+        "sha256": "7c412a3b6d420c8377a1c0b734f3060af6cd8520019f1d832976a976df0ff808",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "alt-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 659,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 572,
+          "sh": 572
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-inspecting-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-source-inspecting-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-inspecting-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:37.944Z",
+        "sha256": "5f50ba84dcb6d6a813262f211003189037555bbf07ff5b7dba47ec11974a205f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-inspecting-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 180,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-incomplete-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-source-incomplete-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-incomplete-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:39.612Z",
+        "sha256": "ec4d33cb32a295979e8f62b62a5ac69df224d1f10d20e58cfb46a94a7656465e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-incomplete-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 282,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-combined-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-source-combined-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-combined-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:41.183Z",
+        "sha256": "6a642ad11803b841456a50fc3b419341ca6b6cf4d9d37176e35a6455e200c9ff",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-combined-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 268,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "archive-file"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-ambiguous-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-source-ambiguous-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-ambiguous-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:43.463Z",
+        "sha256": "f4fabc53ceaf4e3567bfaba914b594080bfaf406b94ad34bcde7e84e6af27c41",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-ambiguous-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 332,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 278,
+          "sh": 278
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "weak-dialog"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-weak-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-source-weak-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-weak-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:45.203Z",
+        "sha256": "7d351b14eb77355c678087340948658ba8db108ef51120b79b22de21d8c50455",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-weak-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 659,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 572,
+          "sh": 572
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "source-result"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-alt-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-verified-alt-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-alt-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:46.641Z",
+        "sha256": "88f442b8bcdc35a90b98cd9247b89a10a06fb2a75e765b460924512ee586d8b1",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "alt-portrait-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 734,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 647,
+          "sh": 647
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-inspecting-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-inspecting-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-inspecting-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:48.163Z",
+        "sha256": "c0315edcdfee114e60f5715ee8a56ebb1c6c9133998fd94bf7f37bdf6bb154c0",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-inspecting-portrait-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 194,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-incomplete-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-incomplete-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-incomplete-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:49.590Z",
+        "sha256": "6dbe0a40e88783ba779b7168b89ccd72a30f09ac156bad53cdaedd0c021a5d95",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-incomplete-portrait-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 282,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-combined-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-combined-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-combined-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:51.128Z",
+        "sha256": "8305fbf0331ccabd1d288fae24e6f2f849d8f72795cf0783bd273cdfc6f4515b",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-combined-portrait-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 325,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "archive-file"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-ambiguous-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-ambiguous-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-ambiguous-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:52.545Z",
+        "sha256": "fca127e923e155d52f835da64d47d22efde546c6cab09dd5d75f43b69ed6cf31",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-ambiguous-portrait-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 332,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 278,
+          "sh": 278
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "weak-dialog"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-weak-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-weak-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-weak-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:53.992Z",
+        "sha256": "0c604c1cd485053214ca7d46c837241da79a5c04ccc7e22a0ae15d4af0c4748e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-weak-portrait-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 734,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 647,
+          "sh": 647
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "source-result"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-alt-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-alt-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-alt-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:55.462Z",
+        "sha256": "830c0a81ffb96d79bd4cd897ce25ba4cf8e2674ffcc17f93ff478d8bf04ca7c0",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "alt-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 504,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 450,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-inspecting-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-source-inspecting-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-inspecting-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:56.855Z",
+        "sha256": "75dcf408b67f3ed19a3a0b433bf4dfcf34512b94644de89dc998df052e455f71",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-inspecting-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 180,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-incomplete-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-source-incomplete-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-incomplete-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:58.255Z",
+        "sha256": "fdd03910cdb80709b96e4c42fbdbb7270caf8509627e0b454a4adbe006f2382d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-incomplete-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 205,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-combined-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-source-combined-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-combined-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:52:59.620Z",
+        "sha256": "18a8ec45bc5af92ab28657c3d6c6c1d9d53dc06bcea81f74f21731903cd1fadb",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-combined-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 193,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "archive-file"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-ambiguous-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-source-ambiguous-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-ambiguous-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:00.947Z",
+        "sha256": "bddf223029cd9c62c05e4559577c133c57800e956199e1df1adfdb35adfd0d01",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-ambiguous-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 238,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 184,
+          "sh": 184
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "weak-dialog"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-weak-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-source-weak-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-weak-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:02.350Z",
+        "sha256": "0dffc744184fb33e9a0e17c0bf94bdcc714dab015f4ec6dded685e25a1aed0f6",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-weak-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 504,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 450,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "source-result"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-alt-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-verified-alt-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-alt-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:03.623Z",
+        "sha256": "8d60066def804017bb2eaa48c7b1755bbce9adf09ed56802350214bbde759018",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "alt-landscape-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 504,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 450,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-inspecting-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-inspecting-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-inspecting-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:05.067Z",
+        "sha256": "cf13cdb3ca7fe0c239c6abe2bfb1c15eabd79bc25f0b881d5993431a07f98b4a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-inspecting-landscape-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 180,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-incomplete-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-incomplete-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-incomplete-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:06.413Z",
+        "sha256": "12893e9d263a1dfb1e9f618c09ee3ede463c5517a23ed854deb0d16c08cd5791",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-incomplete-landscape-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 205,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-combined-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-combined-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-combined-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:07.651Z",
+        "sha256": "3da6978017ba7365597322c8e00ee7d440ed99edbd093c070daa4b899bef9faf",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-combined-landscape-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 193,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "archive-file"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-ambiguous-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-ambiguous-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-ambiguous-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:09.050Z",
+        "sha256": "faa2b878ad0ff1fec75f8183a1892d035a6d140e646f75767fac9d15ddbff0ad",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-ambiguous-landscape-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 238,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 184,
+          "sh": 184
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "weak-dialog"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-weak-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-verified-source-weak-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-weak-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:10.805Z",
+        "sha256": "9bc44cdab0669cbac451b57aae97169729792d89e5094fb0f9c857fe1e6dd385",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-weak-landscape-small",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 504,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 450,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "source-result"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-alt-desktop-stress",
+      "result": {
+        "name": "comic-edition-verified-alt-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-alt-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:12.385Z",
+        "sha256": "53dadffd74b80d0ba29575bb4e8807ec241c0b786b36a5db3e3127a0e6326fd4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "alt-desktop",
+      "result": {
+        "android": false,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 24,
+        "backBottom": 96,
+        "tableHeight": 232,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 272,
+          "h": 178,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-inspecting-desktop-stress",
+      "result": {
+        "name": "comic-edition-verified-source-inspecting-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-inspecting-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-inspecting",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:14.065Z",
+        "sha256": "85590cd4c6bc61900e0476c365488b257d830ba2ed0b6a0072de281c1d227fe1",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-inspecting-desktop",
+      "result": {
+        "android": false,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 24,
+        "backBottom": 96,
+        "tableHeight": 232,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-incomplete-desktop-stress",
+      "result": {
+        "name": "comic-edition-verified-source-incomplete-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-incomplete-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:15.699Z",
+        "sha256": "389a86a47d03f0695cec66e1db2d16118d95b5ae3ddf749f288d81412acfefe8",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-incomplete-desktop",
+      "result": {
+        "android": false,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 24,
+        "backBottom": 96,
+        "tableHeight": 232,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-combined-desktop-stress",
+      "result": {
+        "name": "comic-edition-verified-source-combined-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-combined-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-combined",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:17.360Z",
+        "sha256": "8069bd3cbc6a7581c304da1f0c8500c7094dac47f623d39f0b03d877e388e2af",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-combined-desktop",
+      "result": {
+        "android": false,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 24,
+        "backBottom": 96,
+        "tableHeight": 232,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "archive-file"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-ambiguous-desktop-stress",
+      "result": {
+        "name": "comic-edition-verified-source-ambiguous-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-ambiguous-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-ambiguous",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:19.108Z",
+        "sha256": "a6bbac1509a325e2919f8b01207530c73646cc867d2dd915ebb3373085b7b09f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-ambiguous-desktop",
+      "result": {
+        "android": false,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 24,
+        "backBottom": 96,
+        "tableHeight": 232,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 6,
+          "h": 178,
+          "sh": 184
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "weak-dialog"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-weak-desktop-stress",
+      "result": {
+        "name": "comic-edition-verified-source-weak-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-weak-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-weak",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:20.846Z",
+        "sha256": "b95a83bbfa4df3a742ba2553cc69c4af8c7b1e41759d260d4a379253efbb54a9",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-weak-desktop",
+      "result": {
+        "android": false,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 24,
+        "backBottom": 96,
+        "tableHeight": 232,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 178,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "source-result"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-alt-tablet-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-alt-tablet-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-alt-tablet-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:23.215Z",
+        "sha256": "1b6ba8ff355edafffc22f790f9d08b25e9c02437d78df845231a335ce3525bca",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "alt-tablet-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 504,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 450,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-incomplete-tablet-portrait-stress",
+      "result": {
+        "name": "comic-edition-verified-source-incomplete-tablet-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-incomplete-tablet-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:24.870Z",
+        "sha256": "6dc2b5f219563d32d70f18ca82d89a8b1588bd3aaa5ba432cb3ef10fe269bd4b",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-incomplete-tablet-portrait",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 205,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "source-result"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-alt-tablet-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-alt-tablet-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-alt-tablet-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:26.443Z",
+        "sha256": "b2b4e19a55254db18842113dd5b69fd0d6d058fb7e857fc8d5b14cdcd0a283d2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "alt-tablet-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 504,
+        "desktopPinned": true,
+        "resultsInnerScroll": {
+          "top": 0,
+          "h": 450,
+          "sh": 450
+        },
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "target": "pack-state"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-verified-source-incomplete-tablet-landscape-stress",
+      "result": {
+        "name": "comic-edition-verified-source-incomplete-tablet-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-verified-source-incomplete-tablet-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=source-incomplete",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:53:28.057Z",
+        "sha256": "087ee6c42cd9722d958a827fd1ddce94422629997a074df28395a3d8e8160a14",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "source-incomplete-tablet-landscape",
+      "result": {
+        "android": true,
+        "backBandClear": true,
+        "backHit": true,
+        "weakFits": true,
+        "sourceScrollTop": 104,
+        "backBottom": 96,
+        "tableHeight": 205,
+        "desktopPinned": true,
+        "resultsInnerScroll": null,
+        "overflow": 0,
+        "missing": []
+      }
+    }
+  ]
+}

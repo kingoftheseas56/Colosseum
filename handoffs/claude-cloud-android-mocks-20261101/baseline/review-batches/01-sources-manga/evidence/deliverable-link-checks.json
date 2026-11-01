@@ -1,0 +1,1877 @@
+{
+  "checked_at": "2026-10-31T23:43:01.354370+00:00",
+  "documents": 21,
+  "links": 372,
+  "failed": [],
+  "pending_report_last": [
+    {
+      "document": "START-HERE.html",
+      "link": "REPORT.json",
+      "exists": false,
+      "deferred": "Required report written last"
+    }
+  ],
+  "checks": [
+    {
+      "document": "finished-mocks/compare.html",
+      "link": "index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../REVIEW.md",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../QML-PORTING.md",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../DECISIONS.md",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../COVERAGE.csv",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../FINDINGS.csv",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../contact-sheets/index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "01-theatre-sources/film-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=0",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/01-theatre-sources/film-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=0&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=0&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=0&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "01-theatre-sources/episode-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=1",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/01-theatre-sources/episode-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=1&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=1&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=1&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "02-comic-sources/comic-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=2",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/02-comic-sources/comic-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=2&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=2&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=2&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "02-comic-sources/comic-source-confirmation.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=3",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/02-comic-sources/comic-source-confirmation.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=3&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=3&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=3&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "03-manga-sources/manga-volume-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=4",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/03-manga-sources/manga-volume-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=4&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=4&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=4&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "04-manga-series/manga-series.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=5",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/04-manga-series/manga-series.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=5&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=5&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=5&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "04-manga-series/manga-chapters.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=6",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/04-manga-series/manga-chapters.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=6&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=6&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=6&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "05-volume-flow/volume-flow-original-fit.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=7",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/05-volume-flow/volume-flow-original-fit.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=7&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=7&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=7&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "05-volume-flow/volume-flow-minimal-alternative.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=8",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "../../../outputs/05-volume-flow/volume-flow-minimal-alternative.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=8&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=8&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?page=8&preset=desktop",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?pair=flow&preset=portrait",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?pair=flow&preset=landscape",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?pair=flow&preset=short&font=1.3&insets=24&position=gallery",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/index.html",
+      "link": "compare.html?pair=flow&preset=short&font=1.3&insets=24&position=bottom",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/episode-sources.html",
+      "link": "../../../../reference/desktop/assets/icons/colosseum.ico",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/episode-sources.html",
+      "link": "style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/episode-sources.html",
+      "link": "index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/episode-sources.html",
+      "link": "film-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/episode-sources.html",
+      "link": "episode-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/episode-sources.html",
+      "link": "app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/film-sources.html",
+      "link": "../../../../reference/desktop/assets/icons/colosseum.ico",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/film-sources.html",
+      "link": "style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/film-sources.html",
+      "link": "index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/film-sources.html",
+      "link": "film-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/film-sources.html",
+      "link": "episode-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/film-sources.html",
+      "link": "app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/index.html",
+      "link": "../index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/index.html",
+      "link": "film-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/index.html",
+      "link": "../../../../outputs/01-theatre-sources/film-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/index.html",
+      "link": "episode-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/01-theatre-sources/index.html",
+      "link": "../../../../outputs/01-theatre-sources/episode-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/comic-source-confirmation.html",
+      "link": "style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/comic-source-confirmation.html",
+      "link": "app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/comic-sources.html",
+      "link": "style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/comic-sources.html",
+      "link": "app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/index.html",
+      "link": "../index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/index.html",
+      "link": "comic-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/index.html",
+      "link": "../../../../outputs/02-comic-sources/comic-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/index.html",
+      "link": "comic-source-confirmation.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/02-comic-sources/index.html",
+      "link": "../../../../outputs/02-comic-sources/comic-source-confirmation.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/03-manga-sources/index.html",
+      "link": "../index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/03-manga-sources/index.html",
+      "link": "manga-volume-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/03-manga-sources/index.html",
+      "link": "../../../../outputs/03-manga-sources/manga-volume-sources.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/03-manga-sources/manga-volume-sources.html",
+      "link": "style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/03-manga-sources/manga-volume-sources.html",
+      "link": "app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/index.html",
+      "link": "../index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/index.html",
+      "link": "manga-series.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/index.html",
+      "link": "../../../../outputs/04-manga-series/manga-series.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/index.html",
+      "link": "manga-chapters.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/index.html",
+      "link": "../../../../outputs/04-manga-series/manga-chapters.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-chapters.html",
+      "link": "style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-chapters.html",
+      "link": "index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-chapters.html",
+      "link": "manga-series.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-chapters.html",
+      "link": "manga-chapters.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-chapters.html",
+      "link": "app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-series.html",
+      "link": "style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-series.html",
+      "link": "index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-series.html",
+      "link": "manga-series.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-series.html",
+      "link": "manga-chapters.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/04-manga-series/manga-series.html",
+      "link": "app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/index.html",
+      "link": "../index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/index.html",
+      "link": "volume-flow-original-fit.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/index.html",
+      "link": "../../../../outputs/05-volume-flow/volume-flow-original-fit.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/index.html",
+      "link": "volume-flow-minimal-alternative.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/index.html",
+      "link": "../../../../outputs/05-volume-flow/volume-flow-minimal-alternative.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "./style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "./app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "./index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "./volume-flow-original-fit.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "./volume-flow-minimal-alternative.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "../../../../reference/desktop/assets/icons/minimize.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "../../../../reference/desktop/assets/icons/power.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "link": "../../../../reference/desktop/assets/icons/download.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "./style.css",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "./app.js",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "./index.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "./volume-flow-original-fit.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "./volume-flow-minimal-alternative.html",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "../../../../reference/desktop/assets/icons/minimize.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "../../../../reference/desktop/assets/icons/power.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+      "exists": true
+    },
+    {
+      "document": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "link": "../../../../reference/desktop/assets/icons/download.svg",
+      "exists": true
+    },
+    {
+      "document": "START-HERE.html",
+      "link": "finished-mocks/index.html",
+      "exists": true
+    },
+    {
+      "document": "START-HERE.html",
+      "link": "REVIEW.md",
+      "exists": true
+    },
+    {
+      "document": "START-HERE.html",
+      "link": "QML-PORTING.md",
+      "exists": true
+    },
+    {
+      "document": "START-HERE.html",
+      "link": "DECISIONS.md",
+      "exists": true
+    },
+    {
+      "document": "START-HERE.html",
+      "link": "contact-sheets/index.html",
+      "exists": true
+    },
+    {
+      "document": "START-HERE.html",
+      "link": "REPORT.json",
+      "exists": false,
+      "deferred": "Required report written last"
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../finished-mocks/index.html",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../REVIEW.md",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/contact-sheets-manifest.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "01-film-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "01-film-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/film-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/film-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-film-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-film-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/film-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/film-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-film-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-film-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "02-episode-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "02-episode-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/episode-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/episode-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-episode-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-episode-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/episode-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/episode-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-episode-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-episode-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "03-comic-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "03-comic-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/comic-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/comic-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-comic-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-comic-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/comic-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/comic-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-comic-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-comic-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "04-comic-confirm-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "04-comic-confirm-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/comic-confirm-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/comic-confirm-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-comic-confirm-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-comic-confirm-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/comic-confirm-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/comic-confirm-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-comic-confirm-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-comic-confirm-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "05-manga-sources-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "05-manga-sources-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/manga-sources-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/manga-sources-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-manga-sources-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-manga-sources-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/manga-sources-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/manga-sources-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-manga-sources-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-manga-sources-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "06-series-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "06-series-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/series-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/series-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-series-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-series-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/series-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/series-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-series-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-series-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "07-chapters-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "07-chapters-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/chapters-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/chapters-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-chapters-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-chapters-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/chapters-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/chapters-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-chapters-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-chapters-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "08-flow-original-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "08-flow-original-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/flow-original-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/flow-original-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-original-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-original-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/flow-original-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/flow-original-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-original-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-original-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "09-flow-alternative-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "09-flow-alternative-phone.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/flow-alternative-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/flow-alternative-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-alternative-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-alternative-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/flow-alternative-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/flow-alternative-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-alternative-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-alternative-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "desktop-1.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "desktop-1.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/film-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/film-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-film-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-film-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/episode-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/episode-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-episode-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-episode-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/comic-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/comic-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-comic-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-comic-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "desktop-2.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "desktop-2.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/comic-confirm-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/comic-confirm-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-comic-confirm-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-comic-confirm-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/manga-sources-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/manga-sources-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-manga-sources-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-manga-sources-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/series-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/series-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-series-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-series-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "desktop-3.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "desktop-3.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/chapters-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/chapters-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-chapters-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-chapters-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/flow-original-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/flow-original-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-original-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-original-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/flow-alternative-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/flow-alternative-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-alternative-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-alternative-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "decision-flow-stress.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "decision-flow-stress.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-original-stress-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-original-stress-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-alternative-stress-landscape-gallery.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-alternative-stress-landscape-gallery.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-original-stress-landscape-gallery.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-original-stress-landscape-gallery.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-alternative-stress-landscape-actions.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-alternative-stress-landscape-actions.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "decision-flow-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "decision-flow-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-original-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-original-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-alternative-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-alternative-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-flow-alternative-portrait-gallery.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-flow-alternative-portrait-gallery.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "controls-and-states.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "controls-and-states.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-film-provider-open-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-film-provider-open-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-chapters-page-open-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-chapters-page-open-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-comic-combined-stress.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-comic-combined-stress.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-manga-sources-downloading-landscape.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-manga-sources-downloading-landscape.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "reference-t5-sources.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "reference-t5-sources.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../../../reference/historical-captures/T5-sources-before-412x900.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-manga-sources-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-manga-sources-portrait.json",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../../../reference/historical-captures/T5-sources-before-1280x700.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../captures/finished-manga-sources-desktop.png",
+      "exists": true
+    },
+    {
+      "document": "contact-sheets/index.html",
+      "link": "../evidence/finished-manga-sources-desktop.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "finished-mocks/index.html",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "START-HERE.html",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "contact-sheets/index.html",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "COVERAGE.csv",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "FINDINGS.csv",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "DECISIONS.md",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "QML-PORTING.md",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/input-versions-end.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-film-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-episode-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-comic-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-comic-confirm-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-manga-sources-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/manga-metadata-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-series-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-chapters-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/chapter-desktop-menu-check.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-flow-original-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/finished-flow-alternative-checks.json",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "DECISIONS.md",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "QML-PORTING.md",
+      "exists": true
+    },
+    {
+      "document": "REVIEW.md",
+      "link": "evidence/contact-sheets-manifest.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "finished-mocks/index.html",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "INPUTS.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/input-versions-start.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/source-map.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/MangaReadingRoomThumbnailMock.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/SourcesSheet.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/finished-film-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/finished-episode-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "contact-sheets/01-film-phone.png",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/ComicTorrentSourcesPage.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/ComicTorrentArchivePicker.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/BackAction.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/finished-comic-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/finished-comic-confirm-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/comic-filter-cancel-before.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/MangaTankobanSourcesPage.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/finished-manga-sources-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/manga-metadata-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "captures/finished-manga-sources-long-landscape-last.png",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/MangaSeriesSharedHeader.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/collections/CollectionIcon.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/MangaChapterSeriesView.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/finished-series-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/finished-chapters-checks.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "evidence/chapter-desktop-menu-check.json",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "../../reference/desktop/qml/MangaTankobanLibrary.qml",
+      "exists": true
+    },
+    {
+      "document": "QML-PORTING.md",
+      "link": "DECISIONS.md",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "finished-mocks/compare.html?pair=flow",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "finished-mocks/compare.html?pair=flow&preset=short&font=1.3&insets=24&position=gallery",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "contact-sheets/decision-flow-portrait.png",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "contact-sheets/decision-flow-stress.png",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "../../outputs/05-volume-flow/index.html",
+      "exists": true
+    },
+    {
+      "document": "DECISIONS.md",
+      "link": "QML-PORTING.md",
+      "exists": true
+    }
+  ]
+}

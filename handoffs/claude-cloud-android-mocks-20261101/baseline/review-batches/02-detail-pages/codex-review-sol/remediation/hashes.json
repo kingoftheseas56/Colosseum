@@ -1,0 +1,12 @@
+{
+  "original": {
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\17-theatre-details\\app.js",
+    "sha256": "258347b94af24c7190cbb97384c197f08bc7a42e115c04c72a89252aee708dee",
+    "bytes": 35065
+  },
+  "corrected": {
+    "path": "app.js",
+    "sha256": "64fd16d35f596a89175e1c573924527a48a9c237acb3ba68a72dcac2053c7ce5",
+    "bytes": 35269
+  }
+}

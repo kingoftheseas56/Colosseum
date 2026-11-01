@@ -1,0 +1,438 @@
+{
+  "utc": "2026-11-01T00:09:07.251Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/index.html",
+        "title": "Batch 2 — finished detail-page mocks"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "Batch 2 — finished detail-page mocks",
+        "cards": 8,
+        "links": [
+          [
+            {
+              "label": "Open finished mock",
+              "href": "06-biblio-book/biblio-book.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/06-biblio-book/biblio-book.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/biblio.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "17-theatre-details/film-detail.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/17-theatre-details/film-detail.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/film.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "17-theatre-details/series-detail.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/17-theatre-details/series-detail.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/series.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "18-comic-details/comic-series.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/18-comic-details/comic-series.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/comic-series.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "18-comic-details/comic-edition.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/18-comic-details/comic-edition.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/comic-edition.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "18-comic-details/comic-archive.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/18-comic-details/comic-archive.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/comic-archive.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "19-generic-universes/saga-universe.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/19-generic-universes/saga-universe.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/saga.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "19-generic-universes/shelves-universe.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/19-generic-universes/shelves-universe.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/shelves.html"
+            }
+          ]
+        ],
+        "overflow": 0,
+        "passed": true
+      }
+    },
+    {
+      "op": "capture",
+      "name": "handoff-index-desktop",
+      "result": {
+        "name": "handoff-index-desktop",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\handoff-index-desktop.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/index.html",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/index.html",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:09:03.149Z",
+        "sha256": "cad6ba08050f5f7391676c6f425147758367d13a08b6893ee814d147cb66c310",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/index.html",
+        "title": "Batch 2 — finished detail-page mocks"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "Batch 2 — finished detail-page mocks",
+        "cards": 8,
+        "links": [
+          [
+            {
+              "label": "Open finished mock",
+              "href": "06-biblio-book/biblio-book.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/06-biblio-book/biblio-book.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/biblio.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "17-theatre-details/film-detail.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/17-theatre-details/film-detail.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/film.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "17-theatre-details/series-detail.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/17-theatre-details/series-detail.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/series.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "18-comic-details/comic-series.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/18-comic-details/comic-series.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/comic-series.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "18-comic-details/comic-edition.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/18-comic-details/comic-edition.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/comic-edition.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "18-comic-details/comic-archive.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/18-comic-details/comic-archive.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/comic-archive.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "19-generic-universes/saga-universe.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/19-generic-universes/saga-universe.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/saga.html"
+            }
+          ],
+          [
+            {
+              "label": "Open finished mock",
+              "href": "19-generic-universes/shelves-universe.html"
+            },
+            {
+              "label": "Original worker",
+              "href": "../../../outputs/19-generic-universes/shelves-universe.html"
+            },
+            {
+              "label": "Before / after",
+              "href": "../comparisons/shelves.html"
+            }
+          ]
+        ],
+        "overflow": 0,
+        "passed": true
+      }
+    },
+    {
+      "op": "capture",
+      "name": "handoff-index-phone",
+      "result": {
+        "name": "handoff-index-phone",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\handoff-index-phone.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/index.html",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/index.html",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:09:04.124Z",
+        "sha256": "0fa18f568d1be687ba8b2d741bc78bae7e80960007f1355925c2c875ccb5915e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".card .links a:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html",
+        "title": "Biblio · Book detail fitting study",
+        "passed": true
+      }
+    },
+    {
+      "op": "capture",
+      "name": "handoff-index-opens-biblio",
+      "result": {
+        "name": "handoff-index-opens-biblio",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\handoff-index-opens-biblio.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/index.html",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:09:04.806Z",
+        "sha256": "7a0af6c6b93c125236ca842a5182b198922e5e799dd7c2f0a12d4e57299f30d1",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/comparisons/film.html",
+        "title": "Theatre film — comparison"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "Theatre film — comparison",
+        "imageCount": 14,
+        "missing": [],
+        "overflow": 0,
+        "passed": true
+      }
+    },
+    {
+      "op": "capture",
+      "name": "handoff-comparison-film",
+      "result": {
+        "name": "handoff-comparison-film",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\handoff-comparison-film.png",
+        "input": "review-batches/02-detail-pages/comparisons/film.html",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/comparisons/film.html",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:09:06.200Z",
+        "sha256": "e677cd35e65e3317b8feca76f2eefa40261535cc1c853c4a234e547961199f9e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/comparisons/decision-B2-018.html",
+        "title": "B2-018 — original tab attempt / proposed alternative"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "B2-018 — original tab attempt / proposed alternative",
+        "imageCount": 16,
+        "missing": [],
+        "overflow": 0,
+        "passed": true
+      }
+    },
+    {
+      "op": "capture",
+      "name": "handoff-decision-comparison",
+      "result": {
+        "name": "handoff-decision-comparison",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\handoff-decision-comparison.png",
+        "input": "review-batches/02-detail-pages/comparisons/decision-B2-018.html",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/comparisons/decision-B2-018.html",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:09:07.247Z",
+        "sha256": "36ed40e11734738e9905fdc3e2e0417c42f80057d79d49c79df8a7e2b261be45",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

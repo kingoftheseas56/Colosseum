@@ -1,0 +1,16 @@
+{
+  "name": "comic-series-finished-collections-portrait-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-collections-portrait-stress.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 412,
+    "height": 900,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:03:32.614Z",
+  "sha256": "b09cb0033e9427724c5ff94526d765cd0288aceb16dbef5a3251d8f2a1864786",
+  "errors": [],
+  "blocked": []
+}

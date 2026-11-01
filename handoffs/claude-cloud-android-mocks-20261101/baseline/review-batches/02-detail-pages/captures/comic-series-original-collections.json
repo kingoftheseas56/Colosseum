@@ -1,0 +1,16 @@
+{
+  "name": "comic-series-original-collections",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-original-collections.png",
+  "input": "outputs/18-comic-details/comic-series.html?capture=1&state=collections",
+  "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-series.html?capture=1&state=collections",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:58:05.856Z",
+  "sha256": "4dd08fc64acf675d42d9e52c9a0d5df9cd161bc91ffef1507644fcfbc9ef6593",
+  "errors": [],
+  "blocked": []
+}

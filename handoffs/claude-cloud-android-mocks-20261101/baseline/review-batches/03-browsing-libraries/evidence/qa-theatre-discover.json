@@ -1,0 +1,143 @@
+{
+  "job": "08-theatre-discover",
+  "name": "theatre-discover.html",
+  "checks": [
+    {
+      "name": "Five original Theatre world tabs",
+      "pass": true,
+      "time": "2026-11-01T00:00:48.686Z"
+    },
+    {
+      "name": "Source rail opens and provider list scrolls",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "providers": 14,
+        "scroll": 144
+      },
+      "time": "2026-11-01T00:00:48.977Z"
+    },
+    {
+      "name": "Category popup fits short landscape",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 500,
+        "y": 32,
+        "w": 260,
+        "h": 159,
+        "right": 760,
+        "bottom": 191,
+        "visible": true,
+        "client": 157,
+        "scroll": 157
+      },
+      "time": "2026-11-01T00:00:50.892Z"
+    },
+    {
+      "name": "Category arrow/Enter selection closes popup",
+      "pass": true,
+      "time": "2026-11-01T00:00:51.248Z"
+    },
+    {
+      "name": "Filter popup fits and can clear selected value",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "fit": {
+          "pass": true,
+          "x": 176,
+          "y": 32,
+          "w": 280,
+          "h": 121,
+          "right": 456,
+          "bottom": 153,
+          "visible": true,
+          "client": 119,
+          "scroll": 119
+        },
+        "clearWasVisible": true
+      },
+      "time": "2026-11-01T00:00:51.983Z"
+    },
+    {
+      "name": "900px shell uses left rail",
+      "pass": true,
+      "time": "2026-11-01T00:00:53.045Z"
+    },
+    {
+      "name": "Long catalogue scrolls to end",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 2392,
+        "scrollHeight": 2728,
+        "clientHeight": 336
+      },
+      "time": "2026-11-01T00:00:53.272Z"
+    },
+    {
+      "name": "800px shell retains bottom tabs",
+      "pass": true,
+      "time": "2026-11-01T00:00:54.613Z"
+    },
+    {
+      "name": "Shows tab reaches assigned catalogue",
+      "pass": true,
+      "time": "2026-11-01T00:00:56.502Z"
+    },
+    {
+      "name": "Complete Theatre context includes carousel, Next Up and Continue",
+      "pass": true,
+      "time": "2026-11-01T00:02:25.860Z"
+    },
+    {
+      "name": "Context carousel keeps keyboard slide navigation",
+      "pass": true,
+      "time": "2026-11-01T00:02:26.379Z"
+    },
+    {
+      "name": "Context menu fits short landscape and removes local item",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "bounds": {
+          "pass": true,
+          "x": 41,
+          "y": 113,
+          "w": 134,
+          "h": 113,
+          "right": 175,
+          "bottom": 226,
+          "visible": true,
+          "client": 111,
+          "scroll": 111
+        }
+      },
+      "time": "2026-11-01T00:02:29.403Z"
+    },
+    {
+      "name": "Final fit: enlarged tab labels stay inside their pills",
+      "pass": true,
+      "time": "2026-11-01T00:02:56.757Z"
+    },
+    {
+      "name": "Final fit: short Theatre labels remain fully readable at 1.3x",
+      "pass": true,
+      "time": "2026-11-01T00:07:58.302Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\theatre-discover\\sources-long.png",
+    "evidence\\after\\theatre-discover\\category-short-stress.png",
+    "evidence\\after\\theatre-discover\\filter-short-stress.png",
+    "evidence\\after\\theatre-discover\\long-content-bottom.png",
+    "evidence\\after\\theatre-discover\\complete-context-portrait-stress.png",
+    "evidence\\after\\theatre-discover\\context-carousel-two.png",
+    "evidence\\after\\theatre-discover\\context-menu-short-stress.png",
+    "evidence\\after\\theatre-discover\\tabs-elide-portrait-stress.png",
+    "evidence\\after\\theatre-discover\\tabs-elide-portrait-stress.png"
+  ],
+  "completedAt": "2026-11-01T00:07:58.417Z",
+  "pass": true
+}

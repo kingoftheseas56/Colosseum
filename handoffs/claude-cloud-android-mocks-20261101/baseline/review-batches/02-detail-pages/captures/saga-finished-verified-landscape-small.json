@@ -1,0 +1,21 @@
+{
+  "name": "saga-finished-verified-landscape-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-verified-landscape-small.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 792,
+    "height": 354,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:33:25.437Z",
+  "sha256": "cb46256e3bae15dcd3403e76e2aa46bb6f767211b8408393f70e296140096fcc",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

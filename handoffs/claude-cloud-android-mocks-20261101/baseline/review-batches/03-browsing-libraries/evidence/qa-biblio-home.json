@@ -1,0 +1,117 @@
+{
+  "job": "07-biblio-home",
+  "name": "biblio-home.html",
+  "checks": [
+    {
+      "name": "Expanded index toggle reachable",
+      "pass": true,
+      "time": "2026-11-01T00:00:36.604Z"
+    },
+    {
+      "name": "Index retains expansion after row jump",
+      "pass": true,
+      "time": "2026-11-01T00:00:37.093Z"
+    },
+    {
+      "name": "Independent long index list scrolls",
+      "pass": true,
+      "time": "2026-11-01T00:00:37.111Z"
+    },
+    {
+      "name": "Hidden shelves leave the index",
+      "pass": true,
+      "time": "2026-11-01T00:00:39.615Z"
+    },
+    {
+      "name": "Reorder updates shelf and index order",
+      "pass": true,
+      "time": "2026-11-01T00:00:40.360Z"
+    },
+    {
+      "name": "Ranked source reveal preserves rating suppression",
+      "pass": true,
+      "time": "2026-11-01T00:00:40.627Z"
+    },
+    {
+      "name": "Long shelf content reaches final mosaic",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 3043,
+        "scrollHeight": 3795,
+        "clientHeight": 752
+      },
+      "time": "2026-11-01T00:00:41.440Z"
+    },
+    {
+      "name": "Filter popup fits short landscape with insets",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 164.46875,
+        "y": 100,
+        "w": 260,
+        "h": 152,
+        "right": 424.46875,
+        "bottom": 252,
+        "visible": true,
+        "client": 150,
+        "scroll": 278
+      },
+      "time": "2026-11-01T00:00:43.223Z"
+    },
+    {
+      "name": "Selected filter reopens, Escape closes, clear resets",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "closed": true,
+        "filteredCount": 7
+      },
+      "time": "2026-11-01T00:00:44.208Z"
+    },
+    {
+      "name": "Original empty-filter copy renders",
+      "pass": true,
+      "time": "2026-11-01T00:00:44.615Z"
+    },
+    {
+      "name": "Category popup keyboard works",
+      "pass": true,
+      "time": "2026-11-01T00:00:45.065Z"
+    },
+    {
+      "name": "Reading Desk opens Biblio",
+      "pass": true,
+      "time": "2026-11-01T00:00:46.241Z"
+    },
+    {
+      "name": "Library route stays inside finished batch",
+      "pass": true,
+      "time": "2026-11-01T00:00:46.734Z"
+    },
+    {
+      "name": "Native Biblio poster has one inset and no bleed",
+      "pass": true,
+      "time": "2026-11-01T00:02:19.615Z"
+    },
+    {
+      "name": "Native narrow poster follows source hidden-inset branch",
+      "pass": true,
+      "time": "2026-11-01T00:02:22.419Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\biblio-home\\index-open.png",
+    "evidence\\after\\biblio-home\\index-long.png",
+    "evidence\\after\\biblio-home\\ranked-focus.png",
+    "evidence\\after\\biblio-home\\long-content-bottom.png",
+    "evidence\\after\\biblio-home\\filter-short-stress.png",
+    "evidence\\after\\biblio-home\\empty-filter.png",
+    "evidence\\after\\biblio-home\\reading-desk.png",
+    "evidence\\after\\biblio-home\\native-poster-desktop.png",
+    "evidence\\after\\biblio-home\\native-poster-phone-stress.png"
+  ],
+  "completedAt": "2026-11-01T00:02:22.921Z",
+  "pass": true
+}

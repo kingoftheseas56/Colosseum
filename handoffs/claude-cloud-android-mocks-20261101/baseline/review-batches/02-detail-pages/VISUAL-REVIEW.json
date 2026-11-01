@@ -1,0 +1,322 @@
+{
+  "utc": "2026-11-01T00:13:41.472071+00:00",
+  "method": "Inspected original/finished captures and 19 comparison/contact sheets during the pass; refreshed labels and final action-based composites were inspected. Full PNGs remain authoritative over scaled previews. Final contact files are hash-bound below.",
+  "sources": "contact-sheets/manifest.json and capture-provenance.json",
+  "native_desktop_capture": false,
+  "observations": [
+    "Original artwork, fonts, color vocabulary and desktop hierarchy retained with disclosed item-art stand-ins.",
+    "Final Theatre/Comics source scrim and final source-page Back boundary inspected after fixes.",
+    "Matched Theatre synopsis captures visibly show the original three-line clamp and complete corrected text.",
+    "Universe decision sheets now show actual tab-action landings; headings clear chrome. Earlier same-scroll captures are preserved.",
+    "Collections, source inspection outcomes, episode controls, Continue context menus and magazine scaling have supporting open/long-content evidence.",
+    "Reduced composite previews can render fine text poorly; a suspected Watch-label loss was checked against the raw PNG and was not an artifact defect."
+  ],
+  "remaining_visual_decision": "B2-018: Hemanth must choose narrow-phone tab docking.",
+  "sheets": [
+    {
+      "file": "contact-sheets/biblio-before-after.png",
+      "title": "Biblio book — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "9ccb05440a9b8db34d50d39c9d15dd32dbd0edadfa30e245fbe0fe1fc1833bfa",
+      "source_captures": [
+        "biblio-portrait",
+        "biblio-finished-verified-portrait",
+        "biblio-landscape",
+        "biblio-finished-verified-landscape",
+        "biblio-desktop-html",
+        "biblio-finished-verified-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/biblio-key-fixes.png",
+      "title": "Biblio book — key fixes",
+      "dimensions": [
+        1280,
+        1648
+      ],
+      "sha256": "30c29d04a5b556a74050d5a0dafd1717232833ec5e56fd32220e88796d0057d2",
+      "source_captures": [
+        "biblio-original-collections-portrait",
+        "biblio-finished-collections-portrait",
+        "biblio-original-tablet-landscape-controls",
+        "biblio-finished-verified-tablet-landscape"
+      ]
+    },
+    {
+      "file": "contact-sheets/film-before-after.png",
+      "title": "Theatre film — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "56a42f29f37892406619f3acf6605a2b728d29dbe77d26512daec7a72d4df2d0",
+      "source_captures": [
+        "film-original-portrait",
+        "film-finished-handoff-portrait",
+        "film-original-landscape",
+        "film-finished-handoff-landscape",
+        "film-original-desktop-html",
+        "film-finished-handoff-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/film-key-fixes.png",
+      "title": "Theatre film — key fixes",
+      "dimensions": [
+        1280,
+        1043
+      ],
+      "sha256": "34f71b3d7c09163d3d60fb96239aeca7ab1819fb88d4a8c456e01d50ec01692f",
+      "source_captures": [
+        "film-original-synopsis-visible-portrait-small-stress",
+        "film-finished-synopsis-visible-portrait-small-stress"
+      ]
+    },
+    {
+      "file": "contact-sheets/series-before-after.png",
+      "title": "Theatre series — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "e1207107d1ad117a5a0bd3331c07354e13967f86e562a501e06afa41da5de87f",
+      "source_captures": [
+        "series-original-portrait",
+        "series-finished-handoff-portrait",
+        "series-original-landscape",
+        "series-finished-handoff-landscape",
+        "series-original-desktop-html",
+        "series-finished-handoff-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/series-key-fixes.png",
+      "title": "Theatre series — key fixes",
+      "dimensions": [
+        1280,
+        1827
+      ],
+      "sha256": "3b44c66facf402590c8e79f375a070493c78e6c4117a058b813b3ec45d8bee1e",
+      "source_captures": [
+        "series-original-synopsis-visible-portrait-small-stress",
+        "series-finished-synopsis-visible-portrait-small-stress",
+        "series-original-season-landscape-stress",
+        "series-finished-verified-season-landscape-stress",
+        "series-original-jump-misses-last-episode",
+        "series-finished-verified-last-episode-landscape-small-stress"
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-series-before-after.png",
+      "title": "Comic series — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "f7b28ac5c53a75711ae9c6220d7eca51e6816612b66146ef4538b7b5d496f993",
+      "source_captures": [
+        "comic-series-original-portrait",
+        "comic-series-finished-handoff-portrait",
+        "comic-series-original-landscape",
+        "comic-series-finished-handoff-landscape",
+        "comic-series-original-desktop-html",
+        "comic-series-finished-handoff-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-series-key-fixes.png",
+      "title": "Comic series — key fixes",
+      "dimensions": [
+        1280,
+        1151
+      ],
+      "sha256": "34a5cd0dcbb9b85399e7730a014beab74bbd28f75cc7a407592f4eb3e177b034",
+      "source_captures": [
+        "comic-series-original-collections",
+        "comic-series-finished-collections-portrait-stress"
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-edition-before-after.png",
+      "title": "Comic editions — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "7c2e32df8f6986cf71ef268ba1b946d9b62ccd2a328d556b1cc275e9955c8dd5",
+      "source_captures": [
+        "comic-edition-original-portrait",
+        "comic-edition-finished-handoff-portrait",
+        "comic-edition-original-landscape",
+        "comic-edition-finished-handoff-landscape",
+        "comic-edition-original-desktop-html",
+        "comic-edition-finished-handoff-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-edition-key-fixes.png",
+      "title": "Comic editions — key fixes",
+      "dimensions": [
+        1280,
+        527
+      ],
+      "sha256": "d3154a6d81e1e6379b2e27f8701e52fb87d0a4006764bc7e4c857ad314656cf4",
+      "source_captures": [
+        "comic-edition-original-alt-landscape-stress",
+        "comic-edition-verified-alt-landscape-stress"
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-archive-before-after.png",
+      "title": "Comic archives — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "236e2eb796ad76b125b4d2e3d85b3422ecc7287335558b502214a88782e77667",
+      "source_captures": [
+        "comic-archive-original-portrait",
+        "comic-archive-finished-handoff-portrait",
+        "comic-archive-original-landscape",
+        "comic-archive-finished-handoff-landscape",
+        "comic-archive-original-desktop-html",
+        "comic-archive-finished-handoff-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-archive-key-fixes.png",
+      "title": "Comic archives — key fixes",
+      "dimensions": [
+        1280,
+        1043
+      ],
+      "sha256": "1975795c49c45772b404cbef91ef1b97a95c81d7fcbbf9b7ec66eccae90a6660",
+      "source_captures": [
+        "comic-archive-original-all-releases-wrong-route",
+        "comic-archive-finished-all-releases-portrait-small-stress"
+      ]
+    },
+    {
+      "file": "contact-sheets/saga-before-after.png",
+      "title": "Saga universe — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "808dee0c4446a56dcae761b1cf61d04e29b137842e05d17e2d9a701ed8b300fe",
+      "source_captures": [
+        "saga-original-portrait",
+        "saga-finished-verified-portrait",
+        "saga-original-landscape",
+        "saga-finished-verified-landscape",
+        "saga-original-desktop-html",
+        "saga-finished-verified-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/saga-key-fixes.png",
+      "title": "Saga universe — key fixes",
+      "dimensions": [
+        1280,
+        2128
+      ],
+      "sha256": "a2870c6e63657c12cc5fce9e2ce384455caf878fce05895802654c55d744d79f",
+      "source_captures": [
+        "saga-original-continue-context-absent-portrait-small-stress",
+        "saga-finished-continue-context-portrait-small-stress",
+        "saga-original-tablet-portrait",
+        "saga-finished-verified-tablet-portrait"
+      ]
+    },
+    {
+      "file": "contact-sheets/shelves-before-after.png",
+      "title": "Shelves universe — before / after",
+      "dimensions": [
+        1280,
+        1995
+      ],
+      "sha256": "33b22ca8a7cbc624e66168ca987400518747372aac1f009c0eeb27f09e03f6af",
+      "source_captures": [
+        "shelves-original-portrait",
+        "shelves-finished-verified-portrait",
+        "shelves-original-landscape",
+        "shelves-finished-verified-landscape",
+        "shelves-original-desktop-html",
+        "shelves-finished-verified-desktop-html"
+      ]
+    },
+    {
+      "file": "contact-sheets/shelves-key-fixes.png",
+      "title": "Shelves universe — key fixes",
+      "dimensions": [
+        1280,
+        3039
+      ],
+      "sha256": "b39087ebdd2ca22033f579a4dec7021fa9dd4986a0cff5000a7c49e5de37b5fe",
+      "source_captures": [
+        "shelves-original-continue-context-absent-portrait-small-stress",
+        "shelves-finished-continue-context-portrait-small-stress",
+        "shelves-original-jump-portrait-stress",
+        "shelves-finished-jump-portrait-small-stress",
+        "shelves-original-tablet-portrait",
+        "shelves-finished-verified-tablet-portrait"
+      ]
+    },
+    {
+      "file": "contact-sheets/saga-tab-decision.png",
+      "title": "Saga — B2-018 tab decision",
+      "dimensions": [
+        1280,
+        2846
+      ],
+      "sha256": "08387ade90300387fb131ae5a9411e73005941370b2670bf4f26c0a8d21ee3e2",
+      "source_captures": [
+        "saga-tabs-original-landing-portrait-stress",
+        "saga-tabs-proposed-landing-portrait-stress",
+        "saga-tabs-original-landing-portrait-small-stress",
+        "saga-tabs-proposed-landing-portrait-small-stress",
+        "saga-tabs-original-landing-landscape-stress",
+        "saga-tabs-proposed-landing-landscape-stress",
+        "saga-tabs-original-landing-landscape-small-stress",
+        "saga-tabs-proposed-landing-landscape-small-stress"
+      ]
+    },
+    {
+      "file": "contact-sheets/shelves-tab-decision.png",
+      "title": "Shelves — B2-018 tab decision",
+      "dimensions": [
+        1280,
+        2846
+      ],
+      "sha256": "9a708f31561216a9746d6e5d99e857368bfe7ece85e6984952d8017702d41183",
+      "source_captures": [
+        "shelves-tabs-original-bond-landing-portrait-stress",
+        "shelves-tabs-proposed-bond-landing-portrait-stress",
+        "shelves-tabs-original-bond-landing-portrait-small-stress",
+        "shelves-tabs-proposed-bond-landing-portrait-small-stress",
+        "shelves-tabs-original-bond-landing-landscape-stress",
+        "shelves-tabs-proposed-bond-landing-landscape-stress",
+        "shelves-tabs-original-bond-landing-landscape-small-stress",
+        "shelves-tabs-proposed-bond-landing-landscape-small-stress"
+      ]
+    },
+    {
+      "file": "contact-sheets/comic-source-outcomes.png",
+      "title": "Comic source inspection — completed states",
+      "dimensions": [
+        1280,
+        1432
+      ],
+      "sha256": "87c052fd344920055db4c412cf9ea96d986d8981718d2688716cdf0b79a0577c",
+      "source_captures": [
+        "comic-edition-verified-source-weak-portrait-small-stress",
+        "comic-edition-verified-source-incomplete-portrait-small-stress",
+        "comic-edition-verified-source-combined-landscape-small-stress",
+        "comic-edition-verified-source-ambiguous-landscape-small-stress"
+      ]
+    }
+  ]
+}

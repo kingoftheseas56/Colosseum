@@ -1,0 +1,32 @@
+[
+  {
+    "job": "07-biblio-home",
+    "fontSizeDeclarations": 58,
+    "shorthandDeclarations": 20
+  },
+  {
+    "job": "08-theatre-discover",
+    "fontSizeDeclarations": 16,
+    "shorthandDeclarations": 4
+  },
+  {
+    "job": "09-catalogue-index",
+    "fontSizeDeclarations": 16,
+    "shorthandDeclarations": 3
+  },
+  {
+    "job": "15-world-home",
+    "fontSizeDeclarations": 55,
+    "shorthandDeclarations": 18
+  },
+  {
+    "job": "16-libraries",
+    "fontSizeDeclarations": 10,
+    "shorthandDeclarations": 2
+  },
+  {
+    "job": "20-search-browse",
+    "fontSizeDeclarations": 77,
+    "shorthandDeclarations": 32
+  }
+]

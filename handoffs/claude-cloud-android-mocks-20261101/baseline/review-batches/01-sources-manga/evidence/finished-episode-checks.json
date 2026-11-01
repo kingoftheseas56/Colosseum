@@ -1,0 +1,427 @@
+{
+  "file": "episode-sources.html",
+  "checks": [
+    {
+      "name": "portrait resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 17,
+              "y": 395,
+              "width": 378,
+              "height": 488,
+              "right": 395,
+              "bottom": 883
+            },
+            "scrollTop": 0,
+            "maxScroll": 2011,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "landscape resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 17,
+              "y": 251,
+              "width": 866,
+              "height": 152,
+              "right": 883,
+              "bottom": 403
+            },
+            "scrollTop": 0,
+            "maxScroll": 1662,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-portrait resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-small-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 17,
+              "y": 443,
+              "width": 320,
+              "height": 332,
+              "right": 337,
+              "bottom": 775
+            },
+            "scrollTop": 0,
+            "maxScroll": 2221,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-landscape resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-small-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 17,
+              "y": 237,
+              "width": 758,
+              "height": 108,
+              "right": 775,
+              "bottom": 345
+            },
+            "scrollTop": 0,
+            "maxScroll": 1742,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "desktop resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-desktop",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 55,
+              "y": 507,
+              "width": 1170,
+              "height": 166,
+              "right": 1225,
+              "bottom": 673
+            },
+            "scrollTop": 0,
+            "maxScroll": 1398,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-tablet",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 800,
+          "height": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 55,
+              "y": 507,
+              "width": 690,
+              "height": 746,
+              "right": 745,
+              "bottom": 1253
+            },
+            "scrollTop": 0,
+            "maxScroll": 818,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-landscape resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-tablet-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 55,
+              "y": 507,
+              "width": 1170,
+              "height": 266,
+              "right": 1225,
+              "bottom": 773
+            },
+            "scrollTop": 0,
+            "maxScroll": 1298,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-portrait resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-stress-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 17,
+              "y": 467,
+              "width": 320,
+              "height": 284,
+              "right": 337,
+              "bottom": 751
+            },
+            "scrollTop": 0,
+            "maxScroll": 2544,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-portrait all actions fully reachable",
+      "pass": true,
+      "details": {
+        "failures": [],
+        "height": 284
+      }
+    },
+    {
+      "name": "stress-landscape resources and horizontal fit",
+      "pass": true,
+      "details": {
+        "name": "finished-episode-stress-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "rows",
+            "class": "row-scroll",
+            "rect": {
+              "x": 17,
+              "y": 261,
+              "width": 758,
+              "height": 60,
+              "right": 775,
+              "bottom": 321
+            },
+            "scrollTop": 0,
+            "maxScroll": 2066,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-landscape all actions fully reachable",
+      "pass": true,
+      "details": {
+        "failures": [],
+        "height": 60
+      }
+    },
+    {
+      "name": "click-away only dismisses",
+      "pass": true,
+      "details": {
+        "menu": true,
+        "sheet": true,
+        "chosen": 0
+      }
+    },
+    {
+      "name": "Escape dismisses only dropdown and restores trigger",
+      "pass": true,
+      "details": {
+        "menu": true,
+        "sheet": true,
+        "focus": "providerTrigger"
+      }
+    },
+    {
+      "name": "dropdown retains keyboard scope",
+      "pass": true,
+      "details": true
+    },
+    {
+      "name": "quality filter count",
+      "pass": true
+    },
+    {
+      "name": "provider retains applicable quality",
+      "pass": true
+    },
+    {
+      "name": "copy tick preserves scroll and does not activate",
+      "pass": true,
+      "details": {
+        "scroll": 1662,
+        "focus": {
+          "act": "copy",
+          "row": "6"
+        },
+        "copy": "✓",
+        "chosen": 0
+      }
+    },
+    {
+      "name": "copy timer preserves focused action",
+      "pass": true
+    },
+    {
+      "name": "download queues title across rows",
+      "pass": true,
+      "details": true
+    },
+    {
+      "name": "context Escape preserves picker",
+      "pass": true
+    },
+    {
+      "name": "desktop download aligns to original right gutter",
+      "pass": true,
+      "details": {
+        "gap": 30,
+        "diameter": [
+          56,
+          56
+        ]
+      }
+    },
+    {
+      "name": "download pick closes",
+      "pass": true
+    },
+    {
+      "name": "season four full packs",
+      "pass": true,
+      "details": "4 sources"
+    },
+    {
+      "name": "Back closes",
+      "pass": true
+    },
+    {
+      "name": "Watch reopens",
+      "pass": true
+    },
+    {
+      "name": "whole-row keyboard activation",
+      "pass": true
+    }
+  ],
+  "passed": 26,
+  "failed": []
+}

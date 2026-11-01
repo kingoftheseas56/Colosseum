@@ -1,0 +1,1395 @@
+{
+  "utc": "2026-10-31T23:32:48.181Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "book0",
+        "removeControl": true,
+        "badge": "BOOK"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 99,
+          "y": 394.3125,
+          "width": 190,
+          "height": 112,
+          "top": 394.3125,
+          "right": 289,
+          "bottom": 506.3125,
+          "left": 99
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-continue-context-portrait-stress",
+      "result": {
+        "name": "saga-finished-continue-context-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-continue-context-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:35.074Z",
+        "sha256": "c48ddc540335ad5a42db1ab21ea7a07b6db494da062fbd7db88b07a5eaa13761",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "book0",
+        "removeControl": true,
+        "badge": "BOOK"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-small-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 82,
+          "y": 340.3125,
+          "width": 190,
+          "height": 112,
+          "top": 340.3125,
+          "right": 272,
+          "bottom": 452.3125,
+          "left": 82
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-continue-context-portrait-small-stress",
+      "result": {
+        "name": "saga-finished-continue-context-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-continue-context-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:36.659Z",
+        "sha256": "eaebd397f601dae321c1454e44995601b0d2aad0f3f50a13fee6b41a4534c3ac",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-small-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-small-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-small-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "book0",
+        "removeControl": true,
+        "badge": "BOOK"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 99,
+          "y": 150.3125,
+          "width": 190,
+          "height": 112,
+          "top": 150.3125,
+          "right": 289,
+          "bottom": 262.3125,
+          "left": 99
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-continue-context-landscape-stress",
+      "result": {
+        "name": "saga-finished-continue-context-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-continue-context-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:38.064Z",
+        "sha256": "612a201225df22e1fef121e771dc1c918a817c174434cece38540c26ff51c334",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "book0",
+        "removeControl": true,
+        "badge": "BOOK"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-small-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 99,
+          "y": 121.3125,
+          "width": 190,
+          "height": 112,
+          "top": 121.3125,
+          "right": 289,
+          "bottom": 233.3125,
+          "left": 99
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-continue-context-landscape-small-stress",
+      "result": {
+        "name": "saga-finished-continue-context-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-continue-context-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:39.560Z",
+        "sha256": "86b05237dfd647fab609ea8df90c906b7a22a4fe905cec905bed769f2a430261",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-small-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-small-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-small-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop&scale=1.3&top=24&bottom=24",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "book0",
+        "removeControl": true,
+        "badge": "BOOK"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-desktop-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 139,
+          "y": 294,
+          "width": 190,
+          "height": 112,
+          "top": 294,
+          "right": 329,
+          "bottom": 406,
+          "left": 139
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-continue-context-desktop-stress",
+      "result": {
+        "name": "saga-finished-continue-context-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-continue-context-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:41.163Z",
+        "sha256": "906d3ab48d5c129fba46c1f5afa4347654302bfc1659e3ae0f3ffbffedf4d6c4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-desktop-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-desktop-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-desktop-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "bondFilm0-0",
+        "removeControl": true,
+        "badge": "VIDEO"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 99,
+          "y": 394.3125,
+          "width": 190,
+          "height": 112,
+          "top": 394.3125,
+          "right": 289,
+          "bottom": 506.3125,
+          "left": 99
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-continue-context-portrait-stress",
+      "result": {
+        "name": "shelves-finished-continue-context-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-continue-context-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:42.839Z",
+        "sha256": "e19658f54dd432f2403a06bdbbe5504a49c00d7fffadb1d56069deb3ccebfb93",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "bondFilm0-0",
+        "removeControl": true,
+        "badge": "VIDEO"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-small-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 82,
+          "y": 340.3125,
+          "width": 190,
+          "height": 112,
+          "top": 340.3125,
+          "right": 272,
+          "bottom": 452.3125,
+          "left": 82
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-continue-context-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-continue-context-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-continue-context-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:44.029Z",
+        "sha256": "12a06416755cf1026239445a76f3f705d1c3b3aa86050f33fdb17a37d33ab1c6",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-small-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-small-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-small-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "bondFilm0-0",
+        "removeControl": true,
+        "badge": "VIDEO"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 99,
+          "y": 150.3125,
+          "width": 190,
+          "height": 112,
+          "top": 150.3125,
+          "right": 289,
+          "bottom": 262.3125,
+          "left": 99
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-continue-context-landscape-stress",
+      "result": {
+        "name": "shelves-finished-continue-context-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-continue-context-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:45.424Z",
+        "sha256": "8eee20d4aba7193964a62e9878f9356c0e094045b45bfaa50907e62d8660a70d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "bondFilm0-0",
+        "removeControl": true,
+        "badge": "VIDEO"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-small-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 99,
+          "y": 121.3125,
+          "width": 190,
+          "height": 112,
+          "top": 121.3125,
+          "right": 289,
+          "bottom": 233.3125,
+          "left": 99
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-continue-context-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-continue-context-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-continue-context-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:46.833Z",
+        "sha256": "73d23cfb15f7fdb54c048b41d2815f3310111d424dfeefe8c510dff6a77d7f1a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-small-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-small-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-small-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "card": "bondFilm0-0",
+        "removeControl": true,
+        "badge": "VIDEO"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-desktop-continue-context",
+      "result": {
+        "hasMenu": true,
+        "labels": [
+          "Open details",
+          "Resume",
+          "Remove"
+        ],
+        "rect": {
+          "x": 139,
+          "y": 294,
+          "width": 190,
+          "height": 112,
+          "top": 294,
+          "right": 329,
+          "bottom": 406,
+          "left": 139
+        },
+        "fits": true,
+        "focus": "Open details"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-continue-context-desktop-stress",
+      "result": {
+        "name": "shelves-finished-continue-context-desktop-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-continue-context-desktop-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:32:48.155Z",
+        "sha256": "09a78e31fb255de29467b20beb4f210dc42f4bc7c9d84cb6eb1420af1baf37c4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-desktop-continue-resume",
+      "result": {
+        "oneAction": true,
+        "resume": true,
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-desktop-remove-signal",
+      "result": {
+        "twoActions": true,
+        "sourceBoundary": true,
+        "tileRetained": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ContextMenu"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-desktop-context-dismiss",
+      "result": {
+        "closed": true,
+        "focusReturned": true,
+        "noBackAction": true
+      }
+    }
+  ]
+}

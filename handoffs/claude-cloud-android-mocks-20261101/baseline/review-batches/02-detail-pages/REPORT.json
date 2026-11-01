@@ -1,0 +1,204 @@
+{
+  "batch": "02-detail-pages",
+  "title": "Batch 2 finished detail-page HTML mocks",
+  "status": "ready-for-review",
+  "scope": "User scope update supersedes review-only text. Completed only assigned finished-mocks and review evidence.",
+  "started_utc": "2026-10-31T22:37:03+00:00",
+  "finished_utc": "2026-11-01T00:13:42.363974+00:00",
+  "elapsed_minutes": 96.66,
+  "within_three_hours": true,
+  "assigned_folder": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages",
+  "finished_pages": 8,
+  "assigned_pages": 8,
+  "page_status": [
+    {
+      "page": "biblio",
+      "path": "finished-mocks/06-biblio-book/biblio-book.html",
+      "status": "finished-verified-html"
+    },
+    {
+      "page": "film",
+      "path": "finished-mocks/17-theatre-details/film-detail.html",
+      "status": "finished-verified-html"
+    },
+    {
+      "page": "series",
+      "path": "finished-mocks/17-theatre-details/series-detail.html",
+      "status": "finished-verified-html"
+    },
+    {
+      "page": "comic-series",
+      "path": "finished-mocks/18-comic-details/comic-series.html",
+      "status": "finished-verified-html"
+    },
+    {
+      "page": "comic-edition",
+      "path": "finished-mocks/18-comic-details/comic-edition.html",
+      "status": "finished-verified-html"
+    },
+    {
+      "page": "comic-archive",
+      "path": "finished-mocks/18-comic-details/comic-archive.html",
+      "status": "finished-verified-html"
+    },
+    {
+      "page": "saga",
+      "path": "finished-mocks/19-generic-universes/saga-universe.html",
+      "status": "finished-verified-html; B2-018 proposal pending"
+    },
+    {
+      "page": "shelves",
+      "path": "finished-mocks/19-generic-universes/shelves-universe.html",
+      "status": "finished-verified-html; B2-018 proposal pending"
+    }
+  ],
+  "coverage_counts": {
+    "normal_page_size_combinations": 56,
+    "phone_sizes_per_page": 4,
+    "tablet_sizes_per_page": 2,
+    "desktop_sizes_per_page": 1,
+    "phone_stress_sizes_per_page": 4,
+    "comic_source_state_cases": 34,
+    "comic_queue_return_flows": 6,
+    "universe_continue_cases": 10,
+    "universe_tab_landing_cases": 24,
+    "handoff_browser_checks": 5,
+    "note": "Targeted cases overlap; do not sum them as unique tests."
+  },
+  "findings": {
+    "total": 21,
+    "fixed_verified": 18,
+    "fixed_but_unverified": 0,
+    "decision_pending": 1,
+    "input_limitations": 2
+  },
+  "artifacts": {
+    "finished_index": "finished-mocks/index.html",
+    "local_launcher": "finished-mocks/RUN-LOCAL.cmd",
+    "finished_readme": "finished-mocks/README.md",
+    "review": "REVIEW.md",
+    "coverage": "COVERAGE.csv",
+    "findings": "FINDINGS.csv",
+    "qml_porting_notes": "QML-PORTING-NOTES.md",
+    "decision_brief": "DECISION-B2-018.md",
+    "asset_provenance": "ASSETS-AND-PROVENANCE.md",
+    "comparison_index": "finished-mocks/index.html",
+    "comparisons": [
+      "comparisons/biblio.html",
+      "comparisons/comic-archive.html",
+      "comparisons/comic-edition.html",
+      "comparisons/comic-series.html",
+      "comparisons/decision-B2-018.html",
+      "comparisons/film.html",
+      "comparisons/saga.html",
+      "comparisons/series.html",
+      "comparisons/shelves.html"
+    ],
+    "contact_sheets": "contact-sheets/index.html",
+    "contact_manifest": "contact-sheets/manifest.json",
+    "visual_review": "VISUAL-REVIEW.md",
+    "visual_hashes": "VISUAL-REVIEW.json",
+    "verification_summary": "verification-summary.json",
+    "final_layout_matrix": "verified-layouts.json",
+    "capture_provenance": "capture-provenance.json",
+    "runtime_versions": "finished-versions.json",
+    "source_versions": "source-versions.json",
+    "input_start": "input-versions-start.json",
+    "input_end": "input-versions-end.json",
+    "preservation_check": "preservation-check.json",
+    "artifact_validation": "artifact-validation.json",
+    "browser_close": "browser-close.json",
+    "checkpoint": "CHECKPOINT.json",
+    "page_checkpoints": [
+      "CHECKPOINT-FINAL-BIBLIO.md",
+      "CHECKPOINT-FINAL-FILM.md",
+      "CHECKPOINT-FINAL-SERIES.md",
+      "CHECKPOINT-FINAL-COMIC-SERIES.md",
+      "CHECKPOINT-FINAL-COMIC-EDITION.md",
+      "CHECKPOINT-FINAL-COMIC-ARCHIVE.md",
+      "CHECKPOINT-FINAL-SAGA.md",
+      "CHECKPOINT-FINAL-SHELVES.md"
+    ]
+  },
+  "artifact_counts": {
+    "finished_files": 25,
+    "comparison_pages": 9,
+    "contact_sheets": 19,
+    "capture_png_json_pairs": 522
+  },
+  "reviewed_input_versions": {
+    "start": "input-versions-start.json",
+    "end": "input-versions-end.json",
+    "records": 75,
+    "unchanged": 75,
+    "changed": 0,
+    "approved_source_asset_font_files_hashed": 80,
+    "final_finished_files_hashed": 25,
+    "declared_reference_pins": {
+      "desktop": {
+        "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+        "files": 1162,
+        "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+      },
+      "alpha": {
+        "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+        "files": 670,
+        "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+      },
+      "android-drift": {
+        "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+        "files": 697,
+        "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+      }
+    },
+    "pins_note": "Declared frozen reference pins; independently reviewed file bytes are SHA256-bound in manifests. Android drift is rejected design authority."
+  },
+  "validation": {
+    "broken_links_or_assets": 0,
+    "capture_integrity_errors": 0,
+    "relative_links_assets_checked_before_report": 711,
+    "report_self_links_created_last": 2,
+    "blocked_requests": 0,
+    "native_app_qualified": false,
+    "historical_browser_error": "One interim Universe syntax error was corrected and retested; cumulative raw history is preserved. No new errors occurred in final handoff checks.",
+    "browser_closed": true,
+    "owned_browser_process_confirmed_absent": 20624,
+    "browser_version": "Chrome/156.0.8078.74"
+  },
+  "preservation": {
+    "original_worker_outputs_unchanged": true,
+    "frozen_references_unchanged": true,
+    "other_batches_untouched": true,
+    "app_repository_untouched": true,
+    "builds_installs_devices_live_services_publication": "Not performed"
+  },
+  "unresolved": [
+    {
+      "id": "B2-018",
+      "status": "decision-pending-verified-proposal",
+      "owner": "Hemanth",
+      "remaining": "Choose conditional below-Back docking for the original Universe tabs on narrow phones, retain the source attempt, or specify another behavior. Both modes and matched evidence are delivered.",
+      "blocks": "Native adoption of this behavior only; no unaffected assigned HTML work remains."
+    },
+    {
+      "id": "B2-019",
+      "status": "unavailable-input",
+      "remaining": "Original outputs/19-generic-universes/REPORT.json is absent. Available pages were reviewed independently; retrieve the missing worker handoff if needed."
+    },
+    {
+      "id": "B2-020",
+      "status": "unavailable-exact-art-and-live-data",
+      "remaining": "Supply exact approved item artwork and native data; replace disclosed frozen-project stand-ins through separate ownership and recheck crop/title association. No external art or service content was invented."
+    },
+    {
+      "id": "NATIVE-INTEGRATION",
+      "status": "outside-assignment",
+      "remaining": "Port the concrete QML fitting changes after the behavior decision; verify native fonts, focus, clipping, measured insets, routes, persistence and services. Frozen Saga/Shelves parents do not connect Continue removeRequested; finished mocks emit the source intent and retain the card."
+    }
+  ],
+  "remaining_assigned_html_work": [],
+  "fixed_but_unverified_work": [],
+  "native_implementation_performed": false,
+  "final_acceptance": "Hemanth and Codex retain product decision and implementation acceptance.",
+  "report_written_last": true
+}

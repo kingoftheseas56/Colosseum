@@ -1,0 +1,785 @@
+{
+  "captured_at": "2026-10-31T23:16:08.294Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks/05-volume-flow",
+  "file": "volume-flow-original-fit.html",
+  "viewport": {
+    "width": 1280,
+    "height": 700
+  },
+  "params": {
+    "capture": 1,
+    "preset": "desktop"
+  },
+  "png": "captures/finished-flow-original-expanded-desktop.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "bodyOverflowX": 0,
+    "images": [
+      {
+        "src": "../../../../reference/desktop/assets/icons/minimize.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/power.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/lucide/bookmark-check.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/arabasta.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/skypiea.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/water-7.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/enies-lobby.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/paradise/banners/marineford.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/new-world/banners/dressrosa.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/new-world/banners/whole-cake-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/new-world/banners/wano-country.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/final-sea/banners/egghead.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/download.svg",
+        "loaded": true
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "backAction",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 54,
+          "y": 6.5,
+          "width": 63.625,
+          "height": 44,
+          "right": 117.625,
+          "bottom": 50.5
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "",
+        "text": "",
+        "label": "Minimize window",
+        "disabled": false,
+        "rect": {
+          "x": 1102,
+          "y": 10.5,
+          "width": 36,
+          "height": 36,
+          "right": 1138,
+          "bottom": 46.5
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/icons/minimize.svg\" alt=\"\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "",
+        "text": "",
+        "label": "Enter full screen",
+        "disabled": false,
+        "rect": {
+          "x": 1146,
+          "y": 10.5,
+          "width": 36,
+          "height": 36,
+          "right": 1182,
+          "bottom": 46.5
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/icons/fullscreen.svg\" alt=\"\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "",
+        "text": "",
+        "label": "Close series view",
+        "disabled": false,
+        "rect": {
+          "x": 1190,
+          "y": 10.5,
+          "width": 36,
+          "height": 36,
+          "right": 1226,
+          "bottom": 46.5
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/icons/power.svg\" alt=\"\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "bookmark",
+        "class": "bookmark-action saved",
+        "text": "",
+        "label": "Remove from Library",
+        "disabled": false,
+        "rect": {
+          "x": 219.9375,
+          "y": 97.375,
+          "width": 36,
+          "height": 36,
+          "right": 255.9375,
+          "bottom": 133.375
+        },
+        "radius": "9px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img id=\"bookmarkIcon\" src=\"../../../../reference/desktop/assets/icons/lucide/bookmark-check.svg\" alt=\"\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "collections",
+        "class": "collections-action",
+        "text": "Add to Collections",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 54,
+          "y": 167.765625,
+          "width": 187.34375,
+          "height": 42,
+          "right": 241.34375,
+          "bottom": 209.765625
+        },
+        "radius": "11px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Add to Collections</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "tankobanMode",
+        "class": "mode active",
+        "text": "Tankoban Mode",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 973,
+          "y": 93,
+          "width": 124,
+          "height": 28,
+          "right": 1097,
+          "bottom": 121
+        },
+        "radius": "7px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<button class=\"mode active\" type=\"button\" id=\"tankobanMode\">Tankoban Mode</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "chapterMode",
+        "class": "mode",
+        "text": "Chapter Mode",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 1097,
+          "y": 93,
+          "width": 124,
+          "height": 28,
+          "right": 1221,
+          "bottom": 121
+        },
+        "radius": "7px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<button class=\"mode\" type=\"button\" id=\"chapterMode\">Chapter Mode</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "",
+        "text": "English",
+        "label": "English, available in Chapter Mode",
+        "disabled": true,
+        "rect": {
+          "x": 1055,
+          "y": 138,
+          "width": 166,
+          "height": 28,
+          "right": 1221,
+          "bottom": 166
+        },
+        "radius": "7px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<button disabled=\"\" type=\"button\" aria-label=\"English, available in Chapter Mode\">English</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "synopsisMore",
+        "class": "synopsis-more",
+        "text": "less",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 890,
+          "y": 276.375,
+          "width": 36,
+          "height": 22,
+          "right": 926,
+          "bottom": 298.375
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "11px",
+        "hit": "<button id=\"synopsisMore\" class=\"synopsis-more\" type=\"button\" aria-expanded=\"true\">less</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "selectToggle",
+        "class": "",
+        "text": "Select",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 1185.578125,
+          "y": 376,
+          "width": 40.421875,
+          "height": 30,
+          "right": 1226,
+          "bottom": 406
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "11px",
+        "hit": "<button type=\"button\" id=\"selectToggle\">Select</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 5\nfailed",
+        "label": "Volume 5",
+        "disabled": false,
+        "rect": {
+          "x": -483.94000244140625,
+          "y": 455.9756164550781,
+          "width": 135.8800048828125,
+          "height": 227.04000854492188,
+          "right": -348.05999755859375,
+          "bottom": 683.015625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 6\nThe Oath",
+        "label": "Volume 6",
+        "disabled": false,
+        "rect": {
+          "x": -307.94000244140625,
+          "y": 455.9756164550781,
+          "width": 135.8800048828125,
+          "height": 227.04000854492188,
+          "right": -172.05999755859375,
+          "bottom": 683.015625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 7",
+        "label": "Volume 7",
+        "disabled": false,
+        "rect": {
+          "x": -131.94000244140625,
+          "y": 455.9756164550781,
+          "width": 135.8800048828125,
+          "height": 227.04000854492188,
+          "right": 3.94000244140625,
+          "bottom": 683.015625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 8",
+        "label": "Volume 8",
+        "disabled": false,
+        "rect": {
+          "x": 40.900001525878906,
+          "y": 450.6968994140625,
+          "width": 142.20001220703125,
+          "height": 237.5999755859375,
+          "right": 183.10001373291016,
+          "bottom": 688.296875
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png\" alt=\"Local One Piece art used for illustrative volume 8\" loading=\"eager\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 9",
+        "label": "Volume 9",
+        "disabled": false,
+        "rect": {
+          "x": 212.95001220703125,
+          "y": 444.09063720703125,
+          "width": 150.0999755859375,
+          "height": 250.79998779296875,
+          "right": 363.04998779296875,
+          "bottom": 694.890625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/paradise/banners/arabasta.png\" alt=\"Local One Piece art used for illustrative volume 9\" loading=\"eager\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 10",
+        "label": "Volume 10",
+        "disabled": false,
+        "rect": {
+          "x": 385,
+          "y": 437.5,
+          "width": 158,
+          "height": 264,
+          "right": 543,
+          "bottom": 701.5
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/paradise/banners/skypiea.png\" alt=\"Local One Piece art used for illustrative volume 10\" loading=\"eager\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card focused",
+        "text": "VOL 11\nThe Grand Line",
+        "label": "Volume 11",
+        "disabled": false,
+        "rect": {
+          "x": 553.0999755859375,
+          "y": 424.2875061035156,
+          "width": 173.79998779296875,
+          "height": 290.3999938964844,
+          "right": 726.8999633789062,
+          "bottom": 714.6875
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/paradise/banners/water-7.png\" alt=\"Local One Piece art used for illustrative volume 11\" loading=\"eager\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 12",
+        "label": "Volume 12",
+        "disabled": false,
+        "rect": {
+          "x": 737,
+          "y": 437.5,
+          "width": 158,
+          "height": 264,
+          "right": 895,
+          "bottom": 701.5
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/paradise/banners/enies-lobby.png\" alt=\"Local One Piece art used for illustrative volume 12\" loading=\"eager\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 13",
+        "label": "Volume 13",
+        "disabled": false,
+        "rect": {
+          "x": 916.9500122070312,
+          "y": 444.09063720703125,
+          "width": 150.10003662109375,
+          "height": 250.79998779296875,
+          "right": 1067.050048828125,
+          "bottom": 694.890625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/paradise/banners/marineford.png\" alt=\"Local One Piece art used for illustrative volume 13\" loading=\"eager\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 14",
+        "label": "Volume 14",
+        "disabled": false,
+        "rect": {
+          "x": 1096.9000244140625,
+          "y": 450.6968994140625,
+          "width": 142.199951171875,
+          "height": 237.5999755859375,
+          "right": 1239.0999755859375,
+          "bottom": 688.296875
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<img src=\"../../../../reference/desktop/assets/universes/one-piece/new-world/banners/dressrosa.png\" alt=\"Local One Piece art used for illustrative volume 14\" loading=\"eager\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 15",
+        "label": "Volume 15",
+        "disabled": false,
+        "rect": {
+          "x": 1276.06005859375,
+          "y": 455.9756164550781,
+          "width": 135.8800048828125,
+          "height": 227.04000854492188,
+          "right": 1411.9400634765625,
+          "bottom": 683.015625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 16",
+        "label": "Volume 16",
+        "disabled": false,
+        "rect": {
+          "x": 1452.06005859375,
+          "y": 455.9756164550781,
+          "width": 135.8800048828125,
+          "height": 227.04000854492188,
+          "right": 1587.9400634765625,
+          "bottom": 683.015625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 17",
+        "label": "Volume 17",
+        "disabled": false,
+        "rect": {
+          "x": 1628.06005859375,
+          "y": 455.9756164550781,
+          "width": 135.8800048828125,
+          "height": 227.04000854492188,
+          "right": 1763.9400634765625,
+          "bottom": 683.015625
+        },
+        "radius": "0px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "downloadAction",
+        "class": "download-action",
+        "text": "Download",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 1013.984375,
+          "y": 657,
+          "width": 108.890625,
+          "height": 34,
+          "right": 1122.875,
+          "bottom": 691
+        },
+        "radius": "9px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "11px",
+        "hit": "<button class=\"download-action\" id=\"downloadAction\" type=\"button\"><img src=\"../../../../reference/desktop/assets/icons/download.svg\" alt=\"\">Download</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "readAction",
+        "class": "read-action",
+        "text": "Read Vol. 11",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 1131.875,
+          "y": 657,
+          "width": 94.125,
+          "height": 34,
+          "right": 1226,
+          "bottom": 691
+        },
+        "radius": "9px",
+        "font": "\"Segoe Local\", \"Segoe UI\", sans-serif",
+        "fontSize": "11px",
+        "hit": "<button class=\"read-action\" id=\"readAction\" type=\"button\">Read Vol. 11</button>"
+      }
+    ],
+    "scrollers": [],
+    "text": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\n\nEiichiro Oda\n·\nPublishing\n·\n1997\n·\n★ 9.20\n\nAdd to Collections\nTankoban Mode\nChapter Mode\nLanguage\nEnglish\nFollow Monkey D. Luffy and his crew as they set sail in search of the legendary One Piece treasure, meeting allies and rivals across the Grand Line. Their journey carries them through the seas and toward the mysteries of the world. Their story continues across countless islands, taking them through the perilous New World, intricate alliances, and battles that shape a generation. Each voyage reveals more of the Grand Line and those who hope to find its treasure.\nless\nON THIS DEVICE\n3 OF 48\nVOLUMES\n48\nSelect\nVOL 5\nfailed\nVOL 6\nThe Oath\nVOL 7\nVOL 8\nVOL 9\nVOL 10\nVOL 11\nThe Grand Line\nVOL 12\nVOL 13\nVOL 14\nVOL 15\nVOL 16\nVOL 17\nVol. 11\nThe Grand Line\nDownload\nRead Vol. 11",
+    "fonts": [
+      {
+        "family": "Segoe Local",
+        "status": "loaded"
+      },
+      {
+        "family": "Segoe Local",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "loaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\volume-flow-original-fit.html",
+      "bytes": 8571,
+      "sha256": "9c16b1a18ca392d79f623ff9d338323431a5e6a45810d4b4fad9b2d309c37bb7"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\style.css",
+      "bytes": 24813,
+      "sha256": "9018f64292f1ab7aea95689a0090a8514a93caa25da1d2b7e9f55accfff79515"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\app.js",
+      "bytes": 17599,
+      "sha256": "98af3c039c0886105b8af0ac7c2a41de531790be3a9e05b1ca20abc69111f339"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\minimize.svg",
+      "bytes": 183,
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\fullscreen.svg",
+      "bytes": 305,
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\power.svg",
+      "bytes": 215,
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\02-one-piece-movie.png",
+      "bytes": 982829,
+      "sha256": "0ed1620094d23dfb4b4f5326ccff5bc464227d66d2fdc6690ba4011d393c377b"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\lucide\\bookmark-plus.svg",
+      "bytes": 456,
+      "sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\download.svg",
+      "bytes": 238,
+      "sha256": "49bdfb176bf6a8fe8b008e88b4597500c4d4fc90a2014d06445c63791d089b67"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\01-ganzack.png",
+      "bytes": 3726579,
+      "sha256": "024920fec9db49e162c66ccab008e4f125a73a6f67882c27f5e01f2b8cec3f1d"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\03-oceans-navel.png",
+      "bytes": 186051,
+      "sha256": "0138c405ff0964bd652928a3a929161f28636ed4a042353aa6cfb2e77bd4a7bd"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\04-jangos-dance-carnival.png",
+      "bytes": 1307186,
+      "sha256": "37d2f6996d7eabdc26c7f844ac126aceaa9dc4e80c64c3e01a16b2b624a324a4"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\05-clockwork-island.png",
+      "bytes": 1992330,
+      "sha256": "ccb9eb602ed4f251a4e114c219931425b956df94d88fb79e8aba9f15eb927575"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\romance-dawn.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\baratie.png",
+      "bytes": 3362230,
+      "sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\arlong-park.png",
+      "bytes": 3298285,
+      "sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\banners\\arabasta.png",
+      "bytes": 2587818,
+      "sha256": "1a413dcf6c80aa66b2d2ae8ba8956c675643989954ec70094c1b002eee92076f"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\banners\\skypiea.png",
+      "bytes": 1380785,
+      "sha256": "8f31f51f098917e677ec02950d706f9abe0ee5ec7933e96367cf4f70b19687b6"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\banners\\water-7.png",
+      "bytes": 3414747,
+      "sha256": "f8983a04c32525dee988daf98211df3014600857ae77c3ba428c5c33f7cd5774"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\banners\\enies-lobby.png",
+      "bytes": 4564234,
+      "sha256": "a5ca1040406d5d722408c2538365cafd9c52eb1ce2f48b7892924c5e5b171daa"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\banners\\marineford.png",
+      "bytes": 2728014,
+      "sha256": "78a5a96a30ac12bb783a04ae6fb9e5a8c02e64fad9bc528e68f28d44e49c7009"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\new-world\\banners\\dressrosa.png",
+      "bytes": 1012220,
+      "sha256": "f4afe358f2d9032238caebeabc3362ef9c653d863181283c19ad780c46bf9381"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\new-world\\banners\\whole-cake-island.png",
+      "bytes": 1548145,
+      "sha256": "acc08800918791fb48c448782761c5537abd05ac77eb6e388591c410eaec5c85"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\new-world\\banners\\wano-country.png",
+      "bytes": 2999160,
+      "sha256": "83d403c5334b5f4aa32b00aedc0489f7973443f739f38f9fb5985d777a7d66fb"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\final-sea\\banners\\egghead.png",
+      "bytes": 8789112,
+      "sha256": "5daad5e1c48e41aa0cd7ae1e895c94d8a4dffd2bc712664a2a8bec06955b1bc6"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\lucide\\bookmark-check.svg",
+      "bytes": 398,
+      "sha256": "112bb653bfb1f064d3eec929466aeb9e579aaca2167677ce09c1618c3953a69c"
+    }
+  ],
+  "extra": {}
+}

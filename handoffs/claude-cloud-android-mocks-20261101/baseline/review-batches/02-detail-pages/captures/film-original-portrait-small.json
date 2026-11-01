@@ -1,0 +1,16 @@
+{
+  "name": "film-original-portrait-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-portrait-small.png",
+  "input": "outputs/17-theatre-details/film-detail.html?capture=1",
+  "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:48:18.773Z",
+  "sha256": "70bb30e1e8466424158ef7e4e626a3fbcacf3f112a406e0ec1d1cda9e80d0492",
+  "errors": [],
+  "blocked": []
+}

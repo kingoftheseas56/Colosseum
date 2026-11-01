@@ -1,0 +1,161 @@
+{
+  "job": "16-libraries",
+  "name": "tankoban-library.html",
+  "checks": [
+    {
+      "name": "Card menu opens within portrait bounds",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 8,
+        "y": 348,
+        "w": 200,
+        "h": 110,
+        "right": 208,
+        "bottom": 458,
+        "visible": true,
+        "client": 108,
+        "scroll": 108
+      },
+      "time": "2026-11-01T00:01:10.101Z"
+    },
+    {
+      "name": "Phone menu starts selection",
+      "pass": true,
+      "time": "2026-11-01T00:01:10.439Z"
+    },
+    {
+      "name": "Invert and Select all operate on visible identities",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "visible": 10,
+        "inverted": 9,
+        "all": 10
+      },
+      "time": "2026-11-01T00:01:10.938Z"
+    },
+    {
+      "name": "Removal confirmation can Keep without losing entries",
+      "pass": true,
+      "time": "2026-11-01T00:01:11.453Z"
+    },
+    {
+      "name": "Confirm remove updates local library and empty state",
+      "pass": true,
+      "time": "2026-11-01T00:01:11.789Z"
+    },
+    {
+      "name": "Card menu scrolls within short landscape",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 8,
+        "y": 142,
+        "w": 200,
+        "h": 110,
+        "right": 208,
+        "bottom": 252,
+        "visible": true,
+        "client": 108,
+        "scroll": 108
+      },
+      "time": "2026-11-01T00:01:13.112Z"
+    },
+    {
+      "name": "Short landscape selection bar uses reserved 72px plus inset",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 0,
+        "y": 258,
+        "w": 792,
+        "h": 96,
+        "right": 792,
+        "bottom": 354,
+        "visible": true,
+        "client": 94,
+        "scroll": 94
+      },
+      "time": "2026-11-01T00:01:13.434Z"
+    },
+    {
+      "name": "Short landscape confirmation fits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 176,
+        "y": 82.09375,
+        "w": 440,
+        "h": 189.8125,
+        "right": 616,
+        "bottom": 271.90625,
+        "visible": true,
+        "client": 188,
+        "scroll": 188
+      },
+      "time": "2026-11-01T00:01:13.700Z"
+    },
+    {
+      "name": "Wide phone retains selection eligibility",
+      "pass": true,
+      "time": "2026-11-01T00:01:14.915Z"
+    },
+    {
+      "name": "Tablet omits phone selection action",
+      "pass": true,
+      "time": "2026-11-01T00:01:16.133Z"
+    },
+    {
+      "name": "Desktop omits phone selection action",
+      "pass": true,
+      "time": "2026-11-01T00:01:17.427Z"
+    },
+    {
+      "name": "Local library search filters and can clear",
+      "pass": true,
+      "time": "2026-11-01T00:01:19.453Z"
+    },
+    {
+      "name": "Long library wall reaches last row",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 279,
+        "scrollHeight": 1029,
+        "clientHeight": 750
+      },
+      "time": "2026-11-01T00:01:19.670Z"
+    },
+    {
+      "name": "Pointer hold opens original card menu",
+      "pass": true,
+      "time": "2026-11-01T00:01:21.485Z"
+    },
+    {
+      "name": "Enlarged library title reserves exactly two lines",
+      "pass": true,
+      "time": "2026-11-01T00:02:46.576Z"
+    },
+    {
+      "name": "Final fit: enlarged tab labels stay inside their pills",
+      "pass": true,
+      "time": "2026-11-01T00:02:59.453Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\tankoban-library\\menu-portrait-stress.png",
+    "evidence\\after\\tankoban-library\\selection-portrait-stress.png",
+    "evidence\\after\\tankoban-library\\confirm-portrait-stress.png",
+    "evidence\\after\\tankoban-library\\empty-after-remove.png",
+    "evidence\\after\\tankoban-library\\menu-short-stress.png",
+    "evidence\\after\\tankoban-library\\selection-short-stress.png",
+    "evidence\\after\\tankoban-library\\confirm-short-stress.png",
+    "evidence\\after\\tankoban-library\\menu-desktop.png",
+    "evidence\\after\\tankoban-library\\long-content-bottom.png",
+    "evidence\\after\\tankoban-library\\two-line-title-stress.png",
+    "evidence\\after\\tankoban-library\\tabs-elide-portrait-stress.png"
+  ],
+  "completedAt": "2026-11-01T00:02:59.635Z",
+  "pass": true
+}

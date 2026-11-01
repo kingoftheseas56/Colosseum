@@ -1,0 +1,4560 @@
+{
+  "started": "2026-10-31T23:56:41.329Z",
+  "scope": "Independent HTML handoff checks and route comparison; no app/device operation",
+  "hashChecks": [
+    {
+      "path": "build-contact-sheets.py",
+      "matches": true
+    },
+    {
+      "path": "build-decisions.py",
+      "matches": true
+    },
+    {
+      "path": "build-indexes.py",
+      "matches": true
+    },
+    {
+      "path": "captures/chapters-desktop-popup-before-final-fit.png",
+      "matches": true
+    },
+    {
+      "path": "captures/chapters-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/chapters-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/chapters-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/chapters-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/chapters-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-combined-stress-before.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-confirm-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-confirm-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-confirm-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-confirm-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-confirm-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-confirm-stress-before.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/comic-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/episode-desktop-download-before.png",
+      "matches": true
+    },
+    {
+      "path": "captures/episode-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/episode-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/episode-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/episode-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/episode-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/film-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/film-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/film-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/film-provider-open.png",
+      "matches": true
+    },
+    {
+      "path": "captures/film-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/film-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-desktop-first.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-desktop-page-menu.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-disabled.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-downloaded.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-empty.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-error.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-language-open-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-language-open-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-loading.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-long-expanded.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-long-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-page-open-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-page-open-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-rebuilt-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-rebuilt-go-to.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-saved-unavailable.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-chapters-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-ambiguous-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-combined-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-ambiguous-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-combined-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-empty-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-incomplete-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-inspecting-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-loading-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-stress-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-weak-accepted.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-confirm-weak-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-empty-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-incomplete-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-inspecting-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-loading-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-stress-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-weak-accepted.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-comic-weak-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-context-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-desktop-download.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-filtered.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-provider-open-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-provider-open.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-queued-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-season.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-stress-landscape-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-stress-portrait-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-episode-tablet.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-context-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-desktop-download.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-filtered.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-provider-open-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-provider-open.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-queued-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-stress-landscape-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-stress-portrait-last-row.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-film-tablet.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-desktop-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-desktop-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-downloading-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-end.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-expanded-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-failed-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-first.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-gallery-first.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-no-cover-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-select-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-selected.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-small-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-small-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-small-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-small-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-stress-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-stress-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-stress-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-stress-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-synopsis-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-tablet-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-tablet-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-tablet-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-tablet-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-alternative-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-desktop-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-desktop-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-downloading-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-end.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-expanded-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-failed-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-no-cover-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-select-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-selected.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-small-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-small-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-small-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-small-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-stress-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-stress-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-stress-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-stress-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-synopsis-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-tablet-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-tablet-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-tablet-portrait-actions.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-tablet-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-flow-original-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-batch.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-disabled.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-done.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-downloading-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-downloading.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-empty.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-failed.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-loading.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-long-landscape-last.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-long-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-long-portrait-last.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-long-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-resolving.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-search-error.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-series.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-manga-sources-unknown-metadata.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-desktop-first.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-desktop-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-landscape-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-last-volume.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-long-expanded.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-portrait-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-rebuilt-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-selection.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-small-landscape-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-small-portrait-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-stress-landscape-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-stress-portrait-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-stress-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-tablet-landscape-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-tablet-portrait-flow.png",
+      "matches": true
+    },
+    {
+      "path": "captures/finished-series-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-alternative-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-alternative-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-alternative-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-alternative-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-alternative-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-original-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-original-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-original-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-original-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/flow-original-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/handoff-comparison-chapter-menu.png",
+      "matches": true
+    },
+    {
+      "path": "captures/handoff-comparison-flow-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/handoff-comparison-theatre-stress.png",
+      "matches": true
+    },
+    {
+      "path": "captures/handoff-index.png",
+      "matches": true
+    },
+    {
+      "path": "captures/manga-sources-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/manga-sources-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/manga-sources-long-stress-before.png",
+      "matches": true
+    },
+    {
+      "path": "captures/manga-sources-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/manga-sources-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/manga-sources-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/manga-unknown-metadata-before.png",
+      "matches": true
+    },
+    {
+      "path": "captures/series-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "captures/series-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/series-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "captures/series-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "captures/series-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "CHECKPOINT.md",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/01-film-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/02-episode-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/03-comic-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/04-comic-confirm-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/05-manga-sources-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/06-series-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/07-chapters-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/08-flow-original-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/09-flow-alternative-phone.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/controls-and-states.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/decision-flow-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/decision-flow-stress.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/desktop-1.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/desktop-2.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/desktop-3.png",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/index.html",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/reference-t5-sources.png",
+      "matches": true
+    },
+    {
+      "path": "COVERAGE.csv",
+      "matches": true
+    },
+    {
+      "path": "DECISIONS.md",
+      "matches": true
+    },
+    {
+      "path": "evidence/artwork-inventory.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/browser-session.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapter-desktop-menu-check.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-desktop-popup-before-final-fit.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-combined-stress-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-stress-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-filter-cancel-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/contact-sheets-manifest.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/deliverable-link-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-desktop-download-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-clickaway.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-copy-scroll.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-escape-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-provider-open.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/final-evidence-index.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/final-validation.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-desktop-first.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-desktop-page-menu.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-disabled.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-downloaded.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-empty.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-error.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-language-open-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-language-open-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-loading.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-long-expanded.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-long-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-page-open-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-page-open-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-rebuilt-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-rebuilt-go-to.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-saved-unavailable.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-tablet-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-ambiguous-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-combined-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-ambiguous-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-combined-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-empty-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-incomplete-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-inspecting-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-loading-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-stress-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-tablet-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-weak-accepted.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-weak-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-empty-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-incomplete-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-inspecting-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-loading-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-stress-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-tablet-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-weak-accepted.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-weak-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-context-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-desktop-download.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-filtered.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-provider-open-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-provider-open.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-queued-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-season.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-stress-landscape-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-stress-portrait-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-tablet.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-context-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-desktop-download.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-filtered.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-provider-open-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-provider-open.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-queued-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-stress-landscape-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-stress-portrait-last-row.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-tablet.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-desktop-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-desktop-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-downloading-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-end.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-expanded-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-failed-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-first.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-gallery-first.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-no-cover-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-select-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-selected.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-small-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-small-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-small-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-small-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-synopsis-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-tablet-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-tablet-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-tablet-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-tablet-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-tablet-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-desktop-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-desktop-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-downloading-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-end.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-expanded-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-failed-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-no-cover-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-select-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-selected.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-small-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-small-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-small-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-small-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-synopsis-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-tablet-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-tablet-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-tablet-portrait-actions.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-tablet-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-tablet-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-initial-copy.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-batch.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-disabled.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-done.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-downloading-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-downloading.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-empty.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-failed.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-loading.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-long-landscape-last.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-long-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-long-portrait-last.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-long-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-resolving.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-search-error.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-series.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-tablet-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-unknown-metadata.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-desktop-first.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-desktop-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-landscape-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-last-volume.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-long-expanded.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-portrait-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-rebuilt-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-selection.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-small-landscape-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-small-portrait-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-stress-landscape-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-stress-portrait-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-stress-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-tablet-landscape-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-tablet-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-tablet-portrait-flow.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-tablet-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-decision-measurements.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/handoff-comparison-chapter-menu.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/handoff-comparison-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/handoff-comparison-flow-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/handoff-comparison-theatre-stress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/handoff-index-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/handoff-index.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/input-versions-end.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/input-versions-start.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-failed-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-metadata-checks.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-long-stress-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-unknown-metadata-before.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/page-catalog.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/progress.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/reviewed-reference-files.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-small-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-small-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/source-map.json",
+      "matches": true
+    },
+    {
+      "path": "evidence/theatre-fix-authored.json",
+      "matches": true
+    },
+    {
+      "path": "finalize-handoff.py",
+      "matches": true
+    },
+    {
+      "path": "FINDINGS.csv",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/01-theatre-sources/app.js",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/01-theatre-sources/episode-sources.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/01-theatre-sources/film-sources.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/01-theatre-sources/index.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/01-theatre-sources/style.css",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/02-comic-sources/app.js",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/02-comic-sources/comic-source-confirmation.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/02-comic-sources/comic-sources.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/02-comic-sources/index.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/02-comic-sources/style.css",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/03-manga-sources/app.js",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/03-manga-sources/index.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/03-manga-sources/manga-volume-sources.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/03-manga-sources/style.css",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/04-manga-series/app.js",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/04-manga-series/index.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/04-manga-series/manga-chapters.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/04-manga-series/manga-series.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/04-manga-series/style.css",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/05-volume-flow/app.js",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/05-volume-flow/index.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/05-volume-flow/style.css",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/05-volume-flow/volume-flow-minimal-alternative.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/05-volume-flow/volume-flow-original-fit.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/compare.html",
+      "matches": true
+    },
+    {
+      "path": "finished-mocks/index.html",
+      "matches": true
+    },
+    {
+      "path": "fix-chapter-popup.py",
+      "matches": true
+    },
+    {
+      "path": "fix-comic.py",
+      "matches": true
+    },
+    {
+      "path": "fix-final-metadata.py",
+      "matches": true
+    },
+    {
+      "path": "fix-flow.py",
+      "matches": true
+    },
+    {
+      "path": "fix-handoff.py",
+      "matches": true
+    },
+    {
+      "path": "fix-manga-sources.py",
+      "matches": true
+    },
+    {
+      "path": "fix-series.py",
+      "matches": true
+    },
+    {
+      "path": "fix-theatre.py",
+      "matches": true
+    },
+    {
+      "path": "INPUTS.json",
+      "matches": true
+    },
+    {
+      "path": "QML-PORTING.md",
+      "matches": true
+    },
+    {
+      "path": "README.md",
+      "matches": true
+    },
+    {
+      "path": "review-runtime.mjs",
+      "matches": true
+    },
+    {
+      "path": "REVIEW.md",
+      "matches": true
+    },
+    {
+      "path": "START-HERE.html",
+      "matches": true
+    },
+    {
+      "path": "verify-comic.mjs",
+      "matches": true
+    },
+    {
+      "path": "verify-flow.mjs",
+      "matches": true
+    },
+    {
+      "path": "verify-handoff.mjs",
+      "matches": true
+    },
+    {
+      "path": "verify-manga-sources.mjs",
+      "matches": true
+    },
+    {
+      "path": "verify-package.py",
+      "matches": true
+    },
+    {
+      "path": "verify-series.mjs",
+      "matches": true
+    },
+    {
+      "path": "verify-theatre.mjs",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/01-film-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/film-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-film-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/film-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-film-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/02-episode-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/episode-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-episode-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/episode-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-episode-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/03-comic-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/comic-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-comic-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/comic-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-comic-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/04-comic-confirm-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/comic-confirm-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-comic-confirm-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/comic-confirm-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-comic-confirm-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/05-manga-sources-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/manga-sources-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-manga-sources-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/manga-sources-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-manga-sources-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/06-series-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/series-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-series-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/series-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-series-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/07-chapters-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/chapters-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-chapters-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/chapters-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-chapters-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/08-flow-original-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/flow-original-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-original-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/flow-original-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-original-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/09-flow-alternative-phone.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/flow-alternative-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/flow-alternative-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-alternative-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/desktop-1.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/film-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/film-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-film-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/episode-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/episode-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-episode-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-episode-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/comic-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-comic-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/desktop-2.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/comic-confirm-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/comic-confirm-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-comic-confirm-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-confirm-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/manga-sources-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/manga-sources-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-manga-sources-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/series-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/series-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-series-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-series-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/desktop-3.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/chapters-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/chapters-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-chapters-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/flow-original-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-original-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-original-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/flow-alternative-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/flow-alternative-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-alternative-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-desktop.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/decision-flow-stress.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-original-stress-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-alternative-stress-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-original-stress-landscape-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-stress-landscape-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-alternative-stress-landscape-actions.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-stress-landscape-actions.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/decision-flow-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-original-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-original-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-flow-alternative-portrait-gallery.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/controls-and-states.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-film-provider-open-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-film-provider-open-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-chapters-page-open-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-chapters-page-open-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-comic-combined-stress.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-comic-combined-stress.json",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-manga-sources-downloading-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-downloading-landscape.json",
+      "matches": true
+    },
+    {
+      "path": "contact-sheets/reference-t5-sources.png",
+      "matches": true
+    },
+    {
+      "path": "reference/historical-captures/T5-sources-before-412x900.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-manga-sources-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-portrait.json",
+      "matches": true
+    },
+    {
+      "path": "reference/historical-captures/T5-sources-before-1280x700.png",
+      "matches": true
+    },
+    {
+      "path": "review-batches/01-sources-manga/captures/finished-manga-sources-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "evidence/finished-manga-sources-desktop.json",
+      "matches": true
+    }
+  ],
+  "pageChecks": [
+    {
+      "page": "film-sources.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 8,
+      "roundControls": 24,
+      "route": null
+    },
+    {
+      "page": "film-sources.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 8,
+      "roundControls": 24,
+      "route": null
+    },
+    {
+      "page": "film-sources.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 8,
+      "roundControls": 24,
+      "route": null
+    },
+    {
+      "page": "episode-sources.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 9,
+      "roundControls": 27,
+      "route": null
+    },
+    {
+      "page": "episode-sources.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 9,
+      "roundControls": 27,
+      "route": null
+    },
+    {
+      "page": "episode-sources.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 9,
+      "roundControls": 27,
+      "route": null
+    },
+    {
+      "page": "comic-sources.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Colosseum Segoe"
+      ],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "comic-sources.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Colosseum Segoe"
+      ],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "comic-sources.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Colosseum Segoe"
+      ],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "comic-source-confirmation.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Colosseum Segoe"
+      ],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "comic-source-confirmation.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Colosseum Segoe"
+      ],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "comic-source-confirmation.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Colosseum Segoe"
+      ],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "manga-volume-sources.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "manga-volume-sources.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "manga-volume-sources.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 4,
+      "roundControls": 4,
+      "route": null
+    },
+    {
+      "page": "manga-series.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Fraunces"
+      ],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": "reading-room"
+    },
+    {
+      "page": "manga-series.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Fraunces"
+      ],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": "reading-room"
+    },
+    {
+      "page": "manga-series.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Fraunces"
+      ],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": "reading-room"
+    },
+    {
+      "page": "manga-chapters.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Fraunces"
+      ],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": "reading-room"
+    },
+    {
+      "page": "manga-chapters.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Fraunces"
+      ],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": "reading-room"
+    },
+    {
+      "page": "manga-chapters.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [
+        "Fraunces"
+      ],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": "reading-room"
+    },
+    {
+      "page": "volume-flow-original-fit.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": null
+    },
+    {
+      "page": "volume-flow-original-fit.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": null
+    },
+    {
+      "page": "volume-flow-original-fit.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": null
+    },
+    {
+      "page": "volume-flow-minimal-alternative.html",
+      "preset": "portrait",
+      "viewport": {
+        "width": 412,
+        "height": 900
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": null
+    },
+    {
+      "page": "volume-flow-minimal-alternative.html",
+      "preset": "landscape",
+      "viewport": {
+        "width": 900,
+        "height": 412
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": null
+    },
+    {
+      "page": "volume-flow-minimal-alternative.html",
+      "preset": "stress-landscape",
+      "viewport": {
+        "width": 792,
+        "height": 354
+      },
+      "errors": [],
+      "horizontalOverflow": 0,
+      "failedImages": [],
+      "unloadedFonts": [],
+      "sourceTiles": 0,
+      "roundControls": 0,
+      "route": null
+    }
+  ],
+  "interactions": [
+    {
+      "name": "Provider Escape retains picker and returns focus",
+      "pass": true
+    },
+    {
+      "name": "Provider outside click does not activate source",
+      "pass": true
+    },
+    {
+      "name": "Weak-match cancel preserves filtered result and query",
+      "pass": true
+    }
+  ],
+  "limitations": [
+    "Rebuilt HTML is a component preview and omits the native TitlePageBar.",
+    "Known original flow constraints are not accepted as a usable fit.",
+    "No native runtime or physical device qualification."
+  ],
+  "comparisons": [
+    "compare-series-portrait",
+    "compare-series-landscape",
+    "compare-chapters-portrait",
+    "compare-chapters-landscape"
+  ],
+  "closed": "2026-10-31T23:57:40.533Z",
+  "browserClosed": true,
+  "serverClosed": true,
+  "hashMismatches": [],
+  "resourceFailures": [],
+  "fontFaceNote": "Unused declared Segoe bold and Fraunces italic variants are informational; loaded used faces and CSS declarations were inspected. An unused declared face is not a failed resource.",
+  "originalInputChecks": [
+    {
+      "path": "review-batches\\01-sources-manga\\README.md",
+      "matches": true
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\INPUTS.json",
+      "matches": true
+    },
+    {
+      "path": "context\\ANDROID-PORT-CLASSIFICATION.md",
+      "matches": true
+    },
+    {
+      "path": "context\\VIEWPORTS.json",
+      "matches": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-01-THEATRE-SOURCES.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\app.js",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\capture.js",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\episode-sources.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\FIDELITY.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\film-sources.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\index.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\REPORT.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\style.css",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-context-open.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-download.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-insets.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-large-font-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-quality-filter.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-season.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\episode-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-closed.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-large-font.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-provider-filter.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-provider-open.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\film-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\captures\\verification.json",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\SourcesSheet.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\SourcePickerList.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\SourceCard.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\SourcesSheet.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\SourcePickerList.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\SourceCard.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\SourcesSheet.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\SourcePickerList.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\SourceCard.qml",
+      "matches": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-02-COMIC-SOURCES.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\app.js",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\capture.ps1",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\comic-source-confirmation.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\comic-sources.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\FIDELITY.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\index.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\REPORT.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\style.css",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\verify-mocks.cjs",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-ambiguous-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-archive-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-combined-short-scale.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-combined-short.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-incomplete-short-scale.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-incomplete-short.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-landscape-scale-insets.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-narrow.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-source-confirmation-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-insets-scale.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-landscape-scale-insets.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-narrow-scale-insets.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-narrow.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-short.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\comic-sources-tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\02-comic-sources\\captures\\verification.json",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\ComicTorrentSourcesPage.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\ComicTorrentArchivePicker.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\ComicTorrentSourcesPage.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\ComicTorrentArchivePicker.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\ComicTorrentSourcesPage.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\ComicTorrentArchivePicker.qml",
+      "matches": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-03-MANGA-SOURCES.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\app.js",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\FIDELITY.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\index.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\manga-volume-sources.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\REPORT.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\style.css",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\verify-layout.js",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\batch.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\disabled.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\geometry-audit.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\landscape-long-130-scrolled.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\landscape-long-130.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\live.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\long-130.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\series.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\small-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\small-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\03-manga-sources\\captures\\tablet.png",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaTankobanSourcesPage.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaTankobanSourcesPage.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaTankobanSourcesPage.qml",
+      "matches": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-04-MANGA-SERIES.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\app.js",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\capture.cjs",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\FIDELITY.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\index.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\manga-chapters.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\manga-series.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\REPORT.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\style.css",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\verify.cjs",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\checks.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\interaction-checks.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-compact-page-popup.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-compact-scale.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-compact.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-insetsScale.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-language-open.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-page-open-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-page-open.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-rows-scrolled.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-short.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-tablet.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters-tabletLandscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-action-scrolled.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-compact.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-expanded.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-insetsScale.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-selected.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-short.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-synopsis-open-compact.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-tablet.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series-tabletLandscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters\\desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters\\landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-chapters\\portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series\\desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series\\landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\04-manga-series\\captures\\manga-series\\portrait.png",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaSeries.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaSeriesSharedHeader.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaReadingRoom.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaReadingRoomThumbnailMock.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaChapterSeriesView.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\TankobanChapterList.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\TankobanSeriesView.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaSeries.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaSeriesSharedHeader.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaReadingRoom.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaReadingRoomThumbnailMock.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaChapterSeriesView.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\TankobanChapterList.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\TankobanSeriesView.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaSeries.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaSeriesSharedHeader.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaReadingRoom.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaReadingRoomThumbnailMock.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaChapterSeriesView.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\TankobanChapterList.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\TankobanSeriesView.qml",
+      "matches": true
+    },
+    {
+      "path": "prompts\\PHONE-MOCK-05-VOLUME-FLOW.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\app.js",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\audit-summary.cjs",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\FIDELITY.md",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\index.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\run-review-captures.cjs",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\style.css",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\volume-flow-minimal-alternative.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\volume-flow-original-fit.html",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\geometry-review.json",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\probe-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\expanded.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\insets-font.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\landscape-small-gallery.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\landscape-small.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\portrait-small.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\selection.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\alternative\\tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\desktop.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\expanded.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\insets-font.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\landscape-small.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\portrait-small.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\portrait.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\selection.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\tablet-landscape.png",
+      "matches": true
+    },
+    {
+      "path": "outputs\\05-volume-flow\\captures\\original\\tablet-portrait.png",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaTankobanLibrary.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\MangaTankobanLibraryThumbnailMock.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaTankobanLibrary.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\alpha\\qml\\MangaTankobanLibraryThumbnailMock.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaTankobanLibrary.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\android-drift\\qml\\MangaTankobanLibraryThumbnailMock.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\Theme.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\Main.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\Glass.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\BackAction.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\TheatreSeriesView.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\ComicSeriesPage.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\KeyboardAction.qml",
+      "matches": true
+    },
+    {
+      "path": "reference\\desktop\\qml\\FocusRing.qml",
+      "matches": true
+    }
+  ],
+  "reviewDisposition": "Five source-picker mock pages suitable for visual review. Hemanth selected rebuilt content/layout for series and chapters; completed title bar and refreshed evidence remain. Cover-flow allocation remains a separate decision.",
+  "userDecision": "USER-DECISION-REBUILT-MANGA.json"
+}

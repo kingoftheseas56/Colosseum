@@ -1,0 +1,1789 @@
+{
+  "utc": "2026-10-31T23:14:54.618Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-hero-portrait-stress",
+      "result": {
+        "name": "shelves-finished-hero-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-hero-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:26.936Z",
+        "sha256": "11516e5811b15b556f8061f29559f96a459e1c982d2f424a8400addb3f962b82",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Dr. No in Theatre (simulated)",
+        "logs": [
+          "Resume Dr. No in Theatre (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-film-portrait-stress",
+      "result": {
+        "name": "shelves-finished-last-film-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-film-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:27.343Z",
+        "sha256": "a6d2e80f8f48ff56ff33b5260449912a72e6f9021a95eca79b454ba2e396cf48",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "work-0-24",
+        "lastFilm": "Mock only: Open No Time to Die in Theatre (simulated)",
+        "scroll": 4206,
+        "count": 25
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-book-portrait-stress",
+      "result": {
+        "name": "shelves-finished-last-book-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-book-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:27.733Z",
+        "sha256": "0e0f0941dc3a627185ce891929dcd0e3a81df07023263c90f923dced2e912fb8",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "lastBook": "Mock only: Open Octopussy and The Living Daylights in Biblio (simulated)",
+        "count": 14
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"shelves-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-about-portrait-stress",
+      "result": {
+        "name": "shelves-finished-about-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-about-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:28.203Z",
+        "sha256": "7c95705a294a0185dcb6083508c2ad32000eed88c8665a34bfa10b28fc904a6e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-section-portrait-stress",
+      "result": {
+        "name": "shelves-finished-last-section-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-section-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:28.577Z",
+        "sha256": "13ea833d050bff087a261e592e28b9bb67b87bd07064d3d8844baabdb374b2a1",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-portrait-stress",
+      "result": {
+        "name": "shelves-tabs-original-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:30.028Z",
+        "sha256": "0f19373054a568de7d7792041d3d2a05bb266382983579263e1b770d1c65be9b",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 448.6875,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "mode": "original"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-portrait-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:31.511Z",
+        "sha256": "332389e79b3df1924d89b710baa999295460aafe33cfbc747e28783e73cc30f7",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 24,
+          "y": 98,
+          "width": 306.6875,
+          "height": 46,
+          "top": 98,
+          "right": 330.6875,
+          "bottom": 144,
+          "left": 24
+        },
+        "position": "below-back",
+        "mode": "proposed"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&fixture=jump&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-portrait-stress",
+      "result": {
+        "name": "shelves-finished-jump-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:32.896Z",
+        "sha256": "b0187a4424001fbf3c0896983407f9dbe7c3e2d3071918313b34df9d00fd70dd",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "count": 40,
+        "font": "18.2px",
+        "overflow": 0,
+        "clippedText": [],
+        "missing": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-now-portrait-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-now-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-now-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:33.250Z",
+        "sha256": "60cad2ec0fadc16dbdf7688e61b934fe0152d83545b60e597a71a7c6fd1ba6c5",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Mock only: Open Graykeith: Translator Daemonica in Tankoban (simulated)"
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-classic-portrait-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-classic-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-classic-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:33.604Z",
+        "sha256": "412abe81a9aecb1db1bc488f73f2cfef1a92f0cb697f6a1623a566bf1b82354d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Mock only: Open Gintama in Tankoban (simulated)",
+        "position": "below-back",
+        "active": "Classics20"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-hero-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-hero-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-hero-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:35.015Z",
+        "sha256": "35e1ba4095cf9463e83e85507d70419c96081d46eeedc2ea7b8c5562e9da6793",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Dr. No in Theatre (simulated)",
+        "logs": [
+          "Resume Dr. No in Theatre (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-film-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-last-film-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-film-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:35.350Z",
+        "sha256": "6aaaedc177b7ee6ea7991331de8f7aa4edaebd59a45a486ec2eedb9cb2fa5aa2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "work-0-24",
+        "lastFilm": "Mock only: Open No Time to Die in Theatre (simulated)",
+        "scroll": 4264,
+        "count": 25
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-book-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-last-book-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-book-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:35.647Z",
+        "sha256": "0264db839d21eb31da5dfd4a49f7c9bf4fef93b63be545b5ba88c8f8ca9a47a7",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "lastBook": "Mock only: Open Octopussy and The Living Daylights in Biblio (simulated)",
+        "count": 14
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"shelves-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-about-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-about-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-about-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:35.937Z",
+        "sha256": "9a866003b1e0aeba1c206e12d8013eac97352bf79fa028e7ff6b2175f9b44c43",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-section-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-last-section-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-section-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:36.215Z",
+        "sha256": "0d4cc4325328340977f102f78ae5f38b6e606da6f6d18da9746d0d10fcc0a710",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-portrait-small-stress",
+      "result": {
+        "name": "shelves-tabs-original-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:37.326Z",
+        "sha256": "e6b6544aa87ec290e4777eeb4e05213b8c452e4da35b9f8b07ede74536b52686",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 448.6875,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "mode": "original"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-portrait-small-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:38.667Z",
+        "sha256": "a76114fa4e13b85b3e4f1bf349bf7ed364ed1a0f49a357aa0ebca054737642d7",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 24,
+          "y": 98,
+          "width": 306,
+          "height": 46,
+          "top": 98,
+          "right": 330,
+          "bottom": 144,
+          "left": 24
+        },
+        "position": "below-back",
+        "mode": "proposed"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-jump-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:40.051Z",
+        "sha256": "e49edbf4d4b56e569a67cfd90b8476bb87c4acdcbb7e09cbdb60d6d8abfa42b4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "count": 40,
+        "font": "18.2px",
+        "overflow": 0,
+        "clippedText": [],
+        "missing": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-now-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-now-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-now-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:40.388Z",
+        "sha256": "29416701239a3d9fa5d5e62e6516456306ca2a866860043ae67df3dd7e3c6da8",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Mock only: Open Graykeith: Translator Daemonica in Tankoban (simulated)"
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-classic-portrait-small-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-classic-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-classic-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:40.683Z",
+        "sha256": "663ebab76a3084fc1e507cbfafb9520c5a49769a4a038b26a70da6d035802bc2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Mock only: Open Gintama in Tankoban (simulated)",
+        "position": "below-back",
+        "active": "Classics20"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-hero-landscape-stress",
+      "result": {
+        "name": "shelves-finished-hero-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-hero-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:42.137Z",
+        "sha256": "41c551c82a930c2aa921a50bc4faeaf951af60f288ef37983dec4d41d8071ecf",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Dr. No in Theatre (simulated)",
+        "logs": [
+          "Resume Dr. No in Theatre (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-film-landscape-stress",
+      "result": {
+        "name": "shelves-finished-last-film-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-film-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:42.460Z",
+        "sha256": "ed94054883d325456d00313f9fc900c3c8387e7c52979038ab9ef8526c9c3a28",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "work-0-24",
+        "lastFilm": "Mock only: Open No Time to Die in Theatre (simulated)",
+        "scroll": 3718,
+        "count": 25
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-book-landscape-stress",
+      "result": {
+        "name": "shelves-finished-last-book-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-book-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:42.812Z",
+        "sha256": "b407bd08cac1617991ec2d1986dd9c0e1fd8545f77673d83cc1c8400ba085a87",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "lastBook": "Mock only: Open Octopussy and The Living Daylights in Biblio (simulated)",
+        "count": 14
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"shelves-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-about-landscape-stress",
+      "result": {
+        "name": "shelves-finished-about-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-about-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:43.143Z",
+        "sha256": "caef35adae44673cd1a9e76e83f3baa8255a3ff13b9088839c76799a49f8391b",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-section-landscape-stress",
+      "result": {
+        "name": "shelves-finished-last-section-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-section-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:43.485Z",
+        "sha256": "81e74ed44a5ddfa1229663a4f60358f53b06afb2e414892b5b453f1d28d225f9",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-landscape-stress",
+      "result": {
+        "name": "shelves-tabs-original-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:44.873Z",
+        "sha256": "c415d3c2add137896372a49e25af037aa3657144b014f9444010836fcbd0e736",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 448.6875,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "mode": "original"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-landscape-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:46.196Z",
+        "sha256": "ffbe0c93f886fd66a39d898d9846de8024720f2aceb0c18251494b59200f5941",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 448.6875,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "mode": "proposed"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&fixture=jump&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-landscape-stress",
+      "result": {
+        "name": "shelves-finished-jump-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:47.358Z",
+        "sha256": "6ffe1ef5b903d0da9cf1e2368344b7d7ea45bf2f0c6faac3e8e4385e3c1dbfab",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "count": 40,
+        "font": "18.2px",
+        "overflow": 0,
+        "clippedText": [],
+        "missing": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-now-landscape-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-now-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-now-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:47.635Z",
+        "sha256": "d356e8f4fe54b4951cf975427cd1f266899a7d317263aca8679b30e8fb42bf24",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Mock only: Open Graykeith: Translator Daemonica in Tankoban (simulated)"
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-classic-landscape-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-classic-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-classic-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:47.990Z",
+        "sha256": "a16156887be8881f3c4289acabd28077f8c8de15eaf3fefb296fb01b8d704471",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Mock only: Open Gintama in Tankoban (simulated)",
+        "position": "beside-back",
+        "active": "Classics20"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-hero-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-hero-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-hero-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:49.389Z",
+        "sha256": "b78022332c4fdadafbd2c8feb36b16d2efdda68b3d1976707341c8d40a79a7ae",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "resume": "Mock only: Resume Dr. No in Theatre (simulated)",
+        "logs": [
+          "Resume Dr. No in Theatre (simulated)"
+        ]
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-film-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-last-film-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-film-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:49.695Z",
+        "sha256": "15637ee2dccdc3777f3c17d7ce7d7527cbf9ddd136a0527f9aed866446e5d56f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "work-0-24",
+        "lastFilm": "Mock only: Open No Time to Die in Theatre (simulated)",
+        "scroll": 3826,
+        "count": 25
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-book-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-last-book-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-book-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:49.931Z",
+        "sha256": "77acd7311a2100ab20f7f2f2b00dbea74d4d8c3c86071d556effdda797722e44",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "lastBook": "Mock only: Open Octopussy and The Living Daylights in Biblio (simulated)",
+        "count": 14
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab[data-tab=\"shelves-about\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-about-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-about-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-about-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:50.229Z",
+        "sha256": "cf92afb95c27af7a44993f3f2b75fb25cef996e58cfd5a1ef4744603278b689c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-last-section-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-last-section-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-last-section-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:50.472Z",
+        "sha256": "e6343378872fd5a8dfa307c2b1755c8b7d479bec6ec70daa6a730db7c0719493",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-landscape-small-stress",
+      "result": {
+        "name": "shelves-tabs-original-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:51.804Z",
+        "sha256": "280db5a6bb4f5dba48b063f50538b92723d99089e352b98534a52094d9815a9f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 448.6875,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "mode": "original"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-landscape-small-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:53.123Z",
+        "sha256": "ead86e3ea3a0e1e03060ed172ee77733bd2b660c983c12fdd95d990cbb187a64",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "bar": {
+          "x": 142,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 448.6875,
+          "bottom": 92,
+          "left": 142
+        },
+        "position": "beside-back",
+        "mode": "proposed"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&fixture=jump&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-jump-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:54.102Z",
+        "sha256": "61efe129ce2f0efba79b390d0af9216886682e72cac5cea33169064b43ab2389",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "count": 40,
+        "font": "18.2px",
+        "overflow": 0,
+        "clippedText": [],
+        "missing": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-now-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-now-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-now-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:54.338Z",
+        "sha256": "00d3297faca45e7517b1076be99bedb6025028a9771959a82dd2bac5b7c290e2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Mock only: Open Graykeith: Translator Daemonica in Tankoban (simulated)"
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-jump-last-classic-landscape-small-stress",
+      "result": {
+        "name": "shelves-finished-jump-last-classic-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-jump-last-classic-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&fixture=jump&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&fixture=jump&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:14:54.608Z",
+        "sha256": "ac6846221922dd195cb87868cd3de89c7b60d15dcf78a1ebaaeeff1c03d83aa2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Mock only: Open Gintama in Tankoban (simulated)",
+        "position": "beside-back",
+        "active": "Classics20"
+      }
+    }
+  ]
+}

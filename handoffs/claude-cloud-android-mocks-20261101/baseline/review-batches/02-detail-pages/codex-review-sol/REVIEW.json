@@ -1,0 +1,236 @@
+{
+  "batch": "02-detail-pages",
+  "reviewer_requested_model": "gpt-6.1-sol",
+  "requested_effort": "medium",
+  "effective_model_metadata_exposed": false,
+  "utc": "2026-11-01T00:41:35.542037+00:00",
+  "proposed_disposition": "RETURN_FOR_CORRECTION",
+  "scope_of_return": "Rebuilt Theatre phone platform chrome and Theatre baseline description/selection only. Unaffected six pages usable as mock handoff with declared gaps. Primary owns final acceptance.",
+  "all_eight_covered": true,
+  "coverage": [
+    {
+      "page": "biblio",
+      "path": "finished-mocks/06-biblio-book/biblio-book.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "ACCEPT_WITH_GAPS",
+      "notes": "Full jacket/copy/source structure retained; Read Escape and Collections Escape restore invoker focus."
+    },
+    {
+      "page": "film",
+      "path": "finished-mocks/17-theatre-details/film-detail.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "RETURN_FOR_CORRECTION",
+      "notes": "Both Theatre renderers visually compared; rebuilt window actions require Android fitting; library removal dialog opens."
+    },
+    {
+      "page": "series",
+      "path": "finished-mocks/17-theatre-details/series-detail.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "RETURN_FOR_CORRECTION",
+      "notes": "Both renderers compared; legacy season End/Enter selects Specials; both retain distinct ledger structure. Rebuilt window actions require fitting."
+    },
+    {
+      "page": "comic-series",
+      "path": "finished-mocks/18-comic-details/comic-series.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "ACCEPT_WITH_GAPS",
+      "notes": "Release search zero-match state and clear restores eight rows. Active release owner retained."
+    },
+    {
+      "page": "comic-edition",
+      "path": "finished-mocks/18-comic-details/comic-edition.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "ACCEPT_WITH_GAPS",
+      "notes": "Parked source page explicitly remains parked; actual alternate-source invocation, weak confirmation cancel and Back restore exact alternate-source invoker."
+    },
+    {
+      "page": "comic-archive",
+      "path": "finished-mocks/18-comic-details/comic-archive.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "ACCEPT_WITH_GAPS",
+      "notes": "Board to DC index to All releases maintains DC identity; Back returns index. Bundled Batman release rows remain disclosed fixtures."
+    },
+    {
+      "page": "saga",
+      "path": "finished-mocks/19-generic-universes/saga-universe.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "ACCEPT_WITH_GAPS",
+      "notes": "Original/proposed dock geometry compared; Continue context Remove emits intent and retains one card. B2-018 remains pending."
+    },
+    {
+      "page": "shelves",
+      "path": "finished-mocks/19-generic-universes/shelves-universe.html",
+      "independently_rendered": [
+        "354x792",
+        "792x354",
+        "1280x700"
+      ],
+      "font_scale": 1.3,
+      "illustrative_top_bottom_insets": 24,
+      "visual_review": "portrait, landscape and desktop screenshots inspected",
+      "disposition": "ACCEPT_WITH_GAPS",
+      "notes": "Original/proposed dock geometry compared; Continue context Remove emits intent and retains one card. B2-018 remains pending; art stand-ins remain."
+    }
+  ],
+  "findings": [
+    {
+      "id": "SOL-B2-001",
+      "priority": "P2",
+      "kind": "correction",
+      "title": "Rebuilt Theatre exposes desktop window actions on Android phone layouts",
+      "paths": [
+        {
+          "path": "finished-mocks/17-theatre-details/app.js",
+          "line": 226
+        },
+        {
+          "path": "finished-mocks/17-theatre-details/app.js",
+          "line": 233
+        },
+        {
+          "path": "finished-mocks/17-theatre-details/style.css",
+          "line": 289
+        }
+      ],
+      "source": "context/ANDROID-PORT-CLASSIFICATION.md:55, Rule 27; reference/desktop/qml/TheatreSeriesView.qml:2164 and TitlePageBar.qml:116-200",
+      "observed": "Actual click of Window and app on rebuilt film and series at 354x792, font 1.3, top/bottom 24 exposes Minimize, Exit fullscreen and Quit Colosseum. The android-host rule hides only legacy .window-controls; rebuilt .bar-right/system-menu remains actionable.",
+      "impact": "The optional renderer is delivered as a usable finished comparison but breaks the retained Android platform-fit rule. Frozen TitlePageBar also exposes these actions; fidelity to that desktop source does not override Rule 27.",
+      "requested": "Apply platform-host visibility to rebuilt window actions/menu, preserve search and desktop behavior, and rerun film/series phone and tablet checks. Do not switch renderer ownership as the fix.",
+      "evidence": [
+        "captures/film-rebuilt-android-window-menu.png",
+        "captures/series-rebuilt-android-window-menu.png",
+        "interaction-results.json"
+      ]
+    },
+    {
+      "id": "SOL-B2-002",
+      "priority": "P2",
+      "kind": "baseline-decision",
+      "title": "Default=false does not settle the configured Theatre baseline",
+      "paths": [
+        {
+          "path": "QML-PORTING-NOTES.md",
+          "line": 9
+        },
+        {
+          "path": "QML-PORTING-NOTES.md",
+          "line": 62
+        },
+        {
+          "path": "finished-mocks/17-theatre-details/app.js",
+          "line": 64
+        },
+        {
+          "path": "finished-mocks/17-theatre-details/series-detail.html",
+          "line": 27
+        }
+      ],
+      "source": "Frozen Main.qml:575-583 documents persisted [views] rebuiltTitlePages; Main.qml:5234 selects either renderer. Live C:/Users/Suprabha/Desktop/Brotherhood/Colosseum/views.ini=true; D:/ClaudeAndroid014Local-20261021/repo/views.ini=false, independently read during review.",
+      "observed": "Finished HTML defaults legacy. Both renderer compositions are present and render in both orientations. Current desktop configuration selects rebuilt, Android configuration selects legacy. No running executable was observed.",
+      "impact": "Pro porting notes imply the unconfigured default is the approved route. That is insufficient for choosing the implementation baseline. Manga approval cannot resolve Theatre.",
+      "requested": "Primary/Hemanth chooses Theatre source composition explicitly; qualify notes/default labels and retain both runnable variants until that choice.",
+      "evidence": [
+        "theatre-both-portrait.jpg",
+        "theatre-both-landscape.jpg",
+        "captures/series-legacy-ledger-actual.png",
+        "captures/series-rebuilt-ledger-actual.png"
+      ]
+    }
+  ],
+  "independent_verification": {
+    "hash_check": "independent-hash-check.json",
+    "finished_files_match": 25,
+    "source_assets_match": 80,
+    "existing_inputs_match_each_start_and_end": 68,
+    "capture_png_sha256_match": 522,
+    "hash_mismatches": 0,
+    "fresh_browser_errors": 0,
+    "external_requests": 0,
+    "browser": "Chrome/156.0.8078.74",
+    "screenshots_and_metadata": "captures/",
+    "browser_profile": "owned-profile",
+    "closed_receipts": [
+      "closed.json",
+      "closed-focused.json",
+      "closed-interactions.json",
+      "closed-last.json"
+    ]
+  },
+  "product_choices": [
+    {
+      "id": "B2-018",
+      "status": "PENDING",
+      "review": "Proposal accurately reflects a fitting obstacle and preserves original tab vocabulary/style. Portrait original right edges 627.25 Saga / 448.6875 Shelves exceed 354. Proposal right330; landscape geometry remains identical. Reasonable proposal, not approved."
+    },
+    {
+      "id": "THEATRE-BASELINE",
+      "status": "PENDING",
+      "review": "Select legacy or rebuilt from configured-source evidence and user intent; do not infer from default false or manga decision."
+    }
+  ],
+  "native_gaps": [
+    "No QML authored/built/tested, no device/ADB or native/runtime/service qualification.",
+    "Native focus, scenegraph clipping, actual text metrics, measured insets, route/data ownership, persistence and asynchronous source lifecycle unverified.",
+    "Continue removeRequested remains unwired by original Saga/Shelves parents; HTML preserves signal-only behavior.",
+    "Comic edition surface is parked in frozen source, not authorization to activate it.",
+    "Exact book/film/issue artwork unavailable; project-art substitutes and initial cast portraits remain disclosed.",
+    "Missing original worker19 REPORT is a provenance gap, not evidence that inspected HTML is absent."
+  ],
+  "review_limitations": [
+    "Focused receiving review, not exhaustive reexecution of all 522 Pro cases.",
+    "Snapshots are HTML source-composition studies, not native desktop captures.",
+    "First own universe capture attempt used an oversized capture viewport; corrected captures overwritten under same names and focused-results.json are authoritative. Initial fresh-results.json universe entries explicitly superseded.",
+    "Initial helper attempts had own harness errors (root separator, shortcut syntax), with browser/server closed in finally; these were not artifact runtime failures.",
+    "Programmatic initial state=alt had no actual invoker; last-focused-results.json actual-source-invoker-return is authoritative.",
+    "Old series-*-ledger.png captures show bottom recommendations; use *-ledger-actual.png for episode chrome."
+  ]
+}

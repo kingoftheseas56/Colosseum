@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Series detail — Colosseum fitting study</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="app.js" defer></script>
+</head>
+<body class="capture" data-kind="series" data-capture data-initial-state="jump-open">
+  <aside id="review-tools" aria-label="Review controls outside Colosseum mock">
+    <div class="review-heading">17 / Theatre detail · HTML fitting study</div>
+    <nav class="review-links"><a href="film-detail.html">Film detail</a><a href="series-detail.html">Series detail</a><a href="index.html">Index</a></nav>
+    <div class="review-fields">
+      <label>Viewport preset<select id="preset">
+        <option value="412x900">Phone · 412 × 900</option><option value="354x792">Phone · 354 × 792</option>
+        <option value="900x412">Landscape · 900 × 412</option><option value="792x354">Landscape · 792 × 354</option>
+        <option value="1280x700">Desktop · 1280 × 700</option><option value="800x1280">Tablet · 800 × 1280</option>
+        <option value="1280x800">Tablet · 1280 × 800</option></select></label>
+      <label>Width <input id="screenWidth" type="number" min="320" max="1800" step="1" value="412"></label>
+      <label>Height <input id="screenHeight" type="number" min="320" max="1800" step="1" value="900"></label>
+      <label>Top inset <input id="insetTop" type="number" min="0" max="120" value="0"></label>
+      <label>Bottom inset <input id="insetBottom" type="number" min="0" max="120" value="0"></label>
+      <label>Font scale <input id="fontScale" type="number" min="0.8" max="1.6" step="0.05" value="1"></label>
+      <label>Renderer<select id="renderer"><option value="legacy">Main.qml default (TheatreSeries)</option><option value="rebuilt">Opt-in TheatreSeriesView</option></select></label>
+    </div>
+    <div class="review-actions"><button id="topButton">Top</button><button id="episodesButton">Episode list</button>
+      <button id="seasonButton">Season dropdown</button><button id="jumpButton">Go-to popup</button><button id="synopsisButton">Synopsis More/Less</button></div>
+    <p class="fixture-warning">Illustrative local fixture: titles, episode/season assignments, cast and recommendations demonstrate existing UI only. Project images are real local titled assets; see FIDELITY.md. Viewports and insets are provisional.</p>
+    <p id="review-status" aria-live="polite">No app or account operation is connected.</p>
+  </aside>
+  <div id="stage"><main id="app" aria-label="Colosseum Theatre detail mock">
+    <div id="page-scroll"><div id="page-content"></div></div>
+    <div id="chrome"></div><div id="overlay" aria-live="polite"></div>
+  </main></div>
+</body>
+</html>

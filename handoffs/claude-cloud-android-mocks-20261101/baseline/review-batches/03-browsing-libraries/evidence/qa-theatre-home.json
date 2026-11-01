@@ -1,0 +1,95 @@
+{
+  "job": "15-world-home",
+  "name": "theatre-home.html",
+  "checks": [
+    {
+      "name": "Carousel dot changes title and active indicator",
+      "pass": true,
+      "time": "2026-10-31T23:42:16.350Z"
+    },
+    {
+      "name": "Carousel keyboard arrow changes slide",
+      "pass": true,
+      "time": "2026-10-31T23:42:16.945Z"
+    },
+    {
+      "name": "Hero actions stay inside hero with long text",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "hero": [
+          112,
+          372
+        ],
+        "actions": [
+          301,
+          349
+        ]
+      },
+      "time": "2026-10-31T23:42:17.996Z"
+    },
+    {
+      "name": "Continue context menu opens and Escape dismisses",
+      "pass": true,
+      "time": "2026-10-31T23:42:19.734Z"
+    },
+    {
+      "name": "Removing a fixture updates visible continue cards",
+      "pass": true,
+      "time": "2026-10-31T23:42:20.213Z"
+    },
+    {
+      "name": "Filter popup fits short landscape",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 32.265625,
+        "y": 32,
+        "w": 280,
+        "h": 218,
+        "right": 312.265625,
+        "bottom": 250,
+        "visible": true,
+        "client": 216,
+        "scroll": 306
+      },
+      "time": "2026-10-31T23:42:21.216Z"
+    },
+    {
+      "name": "Filter updates local poster wall and closes",
+      "pass": true,
+      "time": "2026-10-31T23:42:21.774Z"
+    },
+    {
+      "name": "Wide shell uses original 92px rail",
+      "pass": true,
+      "time": "2026-10-31T23:42:22.839Z"
+    },
+    {
+      "name": "World long content scrolls to end",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 1804,
+        "scrollHeight": 2140,
+        "clientHeight": 336
+      },
+      "time": "2026-10-31T23:42:23.076Z"
+    },
+    {
+      "name": "Desktop compact hero title follows 42px source branch",
+      "pass": true,
+      "time": "2026-10-31T23:42:24.402Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\theatre-home\\carousel-second.png",
+    "evidence\\after\\theatre-home\\long-title-stress.png",
+    "evidence\\after\\theatre-home\\continue-context.png",
+    "evidence\\after\\theatre-home\\filter-short-stress.png",
+    "evidence\\after\\theatre-home\\filter-empty.png",
+    "evidence\\after\\theatre-home\\long-content-bottom.png"
+  ],
+  "completedAt": "2026-10-31T23:42:24.402Z",
+  "pass": true
+}

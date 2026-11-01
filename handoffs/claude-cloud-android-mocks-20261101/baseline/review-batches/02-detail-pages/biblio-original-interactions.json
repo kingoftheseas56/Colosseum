@@ -1,0 +1,154 @@
+{
+  "utc": "2026-10-31T22:43:56.786Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=portrait&scenario=collections",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-original-collections-portrait",
+      "result": {
+        "name": "biblio-original-collections-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-original-collections-portrait.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=portrait&scenario=collections",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=portrait&scenario=collections",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:43:53.239Z",
+        "sha256": "108646d9ef23be6b5ae4def08c7a167ade1eb440aeeba86cbee70c6e7ea5bad3",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-membership=\"favourites\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#picker-cancel"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelReopenedSelected": "true",
+        "labels": [
+          "✓\nFavorites",
+          "Reading Later",
+          "Epic Fantasy"
+        ],
+        "saveLabel": "Done"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#new-collection"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-original-collections-create",
+      "result": {
+        "name": "biblio-original-collections-create",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-original-collections-create.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=portrait&scenario=collections",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=portrait&scenario=collections",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:43:53.651Z",
+        "sha256": "e039869a9678a126e5cd2ac1be34d9efb707d19f6e0d3a6a10df0447385c4f25",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall&scenario=collections&scale=1.3&insetTop=24&insetBottom=24",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-original-collections-landscape-stress",
+      "result": {
+        "name": "biblio-original-collections-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-original-collections-landscape-stress.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall&scenario=collections&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall&scenario=collections&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:43:55.175Z",
+        "sha256": "4aaa0ed8283831ca4129f6096af830113070ac8c242ee540996d7486c17c3542",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscape&scenario=read",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-original-read-landscape",
+      "result": {
+        "name": "biblio-original-read-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-original-read-landscape.png",
+        "input": "outputs/06-biblio-book/biblio-book.html?preset=landscape&scenario=read",
+        "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscape&scenario=read",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:43:56.772Z",
+        "sha256": "c003b15984ef930af17ba4b0f69469da6dc6e4b48880ab4111117ca8d17bc59f",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focus": "<button type=\"button\" class=\"choice-row\" data-choice=\"e0\"><span class=\"choice-copy\"><strong>EPUB</strong><small>4.3 MB   ·   LIBGEN   ·   2010   ·   English</small></span><span class=\"choice-read\">Read</span></button>"
+      }
+    }
+  ]
+}

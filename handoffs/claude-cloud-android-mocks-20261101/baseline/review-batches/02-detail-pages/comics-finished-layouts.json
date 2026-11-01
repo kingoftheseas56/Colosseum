@@ -1,0 +1,845 @@
+{
+  "utc": "2026-10-31T23:02:45.609Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-portrait",
+      "result": {
+        "name": "comic-series-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:21.835Z",
+        "sha256": "fa3ffb7870002fd4533ec5f27efcae67998a6decfea9f295ca057cdaf7b59853",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "class": "app phone android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-portrait-small",
+      "result": {
+        "name": "comic-series-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:22.839Z",
+        "sha256": "66fcf796986c44f48ff0f4bd81ac1295f0a47a909b999d7a778992578bc3921c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "class": "app phone android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-landscape",
+      "result": {
+        "name": "comic-series-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:24.158Z",
+        "sha256": "56e100144a557d433ddbd7cea53a17517f2e3ea344a956acd8a0bf6dff08786b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "class": "app phone android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-landscape-small",
+      "result": {
+        "name": "comic-series-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:25.478Z",
+        "sha256": "7afb7b6fb5bc1e0a25982a77cef3a5a02e0a9b399c8fe6e47192455ddab58c09",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "class": "app phone android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-desktop-html",
+      "result": {
+        "name": "comic-series-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:26.875Z",
+        "sha256": "96823fa7682fbcca930f22b177ba8171018efdb1cd0bfc45cd34d9b8413aec4e",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "class": "app desktop landscape ",
+        "windowControls": true,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-tablet-portrait",
+      "result": {
+        "name": "comic-series-finished-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:28.279Z",
+        "sha256": "81549dbc87fd04d8ece645999cf325fbde41969312987e524f56cceebb36fd0d",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "class": "app android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-tablet-landscape",
+      "result": {
+        "name": "comic-series-finished-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:29.366Z",
+        "sha256": "991aafe66c6a80577c6cf0a04662a31cfb32a9ef31e50824d7a55f1bbc20a8c5",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "class": "app android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-portrait",
+      "result": {
+        "name": "comic-edition-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:30.721Z",
+        "sha256": "950dadb2f0b79698533e6d07b114e9df908f6d0f65f39eb39d2465b8f6896903",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "class": "app phone android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-portrait-small",
+      "result": {
+        "name": "comic-edition-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:32.008Z",
+        "sha256": "99ed77a480212e44f30a24f4acc015d948b1635d6da80402c87cd227fa6cce8a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "class": "app phone android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-landscape",
+      "result": {
+        "name": "comic-edition-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:33.033Z",
+        "sha256": "14baa6f6bfffe8ae00cea165cfa98134302a94e77697423c4ad7ee1fe8608969",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "class": "app phone android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-landscape-small",
+      "result": {
+        "name": "comic-edition-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:34.020Z",
+        "sha256": "74423434c2c4429e056d9f30fc3cafb9c098e26b08c84445cf51e8cefdceb188",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "class": "app phone android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-desktop-html",
+      "result": {
+        "name": "comic-edition-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:35.185Z",
+        "sha256": "ec11bf55aae18086f54894ef8446cdbd11a4dcefc2231f2aba05d0d244cb54a4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "class": "app desktop landscape ",
+        "windowControls": true,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-tablet-portrait",
+      "result": {
+        "name": "comic-edition-finished-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:36.456Z",
+        "sha256": "a8d145d91726a6a710286dc426b37e30dc16100acc015b92eb4e319ac41d017d",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "class": "app android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-tablet-landscape",
+      "result": {
+        "name": "comic-edition-finished-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:37.821Z",
+        "sha256": "424a85627bed0fee565a171e07e1b8257d1a22b72afb3a8df6939a0b037dc319",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "class": "app android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-portrait",
+      "result": {
+        "name": "comic-archive-finished-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:39.100Z",
+        "sha256": "07570544fdbb27dc541961dd212601b957cd99b839f8e51f3f063fc18a3ae8c7",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "class": "app phone android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-portrait-small",
+      "result": {
+        "name": "comic-archive-finished-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:40.083Z",
+        "sha256": "45f3b144e6f4df251fe6d68e56286ea49bcdcf490a8c511b883546e247d8de6d",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "class": "app phone android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-landscape",
+      "result": {
+        "name": "comic-archive-finished-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:41.127Z",
+        "sha256": "3c53396b4621da5e3f58b271c47a65e18d12fd460a2cddb83ea2d282a9340fca",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "class": "app phone android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-landscape-small",
+      "result": {
+        "name": "comic-archive-finished-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:42.100Z",
+        "sha256": "dadc7f7b8eb94a40f60acb629d1540bd8b33cda3b59af264666dc023a36bd2ae",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "class": "app phone android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-desktop-html",
+      "result": {
+        "name": "comic-archive-finished-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:43.183Z",
+        "sha256": "071f785fcd1b1947f2b5aa6447dfd117136ed83dcab9d49239390c9e5a20d77b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "class": "app desktop landscape ",
+        "windowControls": true,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-tablet-portrait",
+      "result": {
+        "name": "comic-archive-finished-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:44.243Z",
+        "sha256": "99f647bacbcc0c5879561aba5163d62f3fe470664c1676005c3f895eb0bdbf88",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "class": "app android-host ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-tablet-landscape",
+      "result": {
+        "name": "comic-archive-finished-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:02:45.603Z",
+        "sha256": "0ad7baf46f526ad4bc2254d901451bfd8c59194d41c6516adcca92be95fcaa1b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "class": "app android-host landscape ",
+        "windowControls": false,
+        "overflow": 0,
+        "missing": []
+      }
+    }
+  ]
+}

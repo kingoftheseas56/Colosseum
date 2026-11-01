@@ -1,0 +1,645 @@
+{
+  "utc": "2026-10-31T23:07:13.814Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-portrait",
+      "result": {
+        "name": "saga-original-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-portrait.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:39.889Z",
+        "sha256": "514f84d95442d1b09822eccbb76c3394fa264521a748572a1c62104b69bb6fb3",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-portrait-small",
+      "result": {
+        "name": "saga-original-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-portrait-small.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:41.364Z",
+        "sha256": "1d5579327750be0c175ee736d9d5878e3117c4077014d05c8662fb7f5f9eb90b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-landscape",
+      "result": {
+        "name": "saga-original-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-landscape.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:42.939Z",
+        "sha256": "c1410f50c7ed08541751ec767f47bf9abe1c605c5c65923c19fb39e883532882",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-landscape-small",
+      "result": {
+        "name": "saga-original-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-landscape-small.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:44.501Z",
+        "sha256": "14c3889f819ad9ac50f1c6c694648d404cda5e2eeef120610bfd6ba30f00e9f4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-desktop-html",
+      "result": {
+        "name": "saga-original-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-desktop-html.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:46.466Z",
+        "sha256": "8b60ae266a7b1faec8704e318d9b29ff46baba6fadf0197c9de429a9c828023c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "kind": "desktop",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-tablet-portrait",
+      "result": {
+        "name": "saga-original-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-tablet-portrait.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:48.364Z",
+        "sha256": "8103baa6e3d78d2de3de95b04ad3e09cc581dd6fc6b88366b2f53726e91ace7e",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-original-tablet-landscape",
+      "result": {
+        "name": "saga-original-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-tablet-landscape.png",
+        "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:50.683Z",
+        "sha256": "e2f044eca912aeab9f28f92b4fa88a487d5cb2b0e70f5233221512e46bd54715",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-portrait",
+      "result": {
+        "name": "shelves-original-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-portrait.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:53.288Z",
+        "sha256": "303533163b157ba41fdb4602785d7d6be2367ebe07136c0df7ea3e07b788a547",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-portrait-small",
+      "result": {
+        "name": "shelves-original-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-portrait-small.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:55.135Z",
+        "sha256": "9f7ac24a2528a4ae90f11ec5387d38e9f74c0df3dd750b29156caa7106378e45",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-landscape",
+      "result": {
+        "name": "shelves-original-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-landscape.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:56.832Z",
+        "sha256": "1b6e64961bb546fb6b49747360e786ea73c387da40f60872066e1e823dd269b4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-landscape-small",
+      "result": {
+        "name": "shelves-original-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-landscape-small.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:06:59.199Z",
+        "sha256": "fb99b336c652033b22ddd563810a48388977d549f2a20a514ae774262df4d8ee",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "kind": "phone",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-desktop-html",
+      "result": {
+        "name": "shelves-original-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-desktop-html.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:07:01.898Z",
+        "sha256": "711b7d2e23bf7fd3f9a4da710a23fbce975aa1532c6160623d796160d8b29222",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          700
+        ],
+        "kind": "desktop",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-tablet-portrait",
+      "result": {
+        "name": "shelves-original-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-tablet-portrait.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:07:04.466Z",
+        "sha256": "7b30cd2fbf53af7456e4734733e307ad3450c3a867af3cab478fa8814ab2197d",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          800,
+          1280
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-tablet-landscape",
+      "result": {
+        "name": "shelves-original-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-tablet-landscape.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:07:07.671Z",
+        "sha256": "13d8bb39dbbcb942bed3d04ae7b46b3a4bc5cf478d21215e28cff7208fad7e31",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          1280,
+          800
+        ],
+        "kind": "tablet",
+        "overflow": 0,
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Mock only: Open Harry Potter and the Sorcerer's Stone details (simulated)"
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowRight"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "selected": "book0",
+        "focused": "matrixWindow"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "font": "13px",
+        "rows": 40
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-jump-portrait-stress",
+      "result": {
+        "name": "shelves-original-jump-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-jump-portrait-stress.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:07:12.580Z",
+        "sha256": "32a2996fa682f0f7b6ad23e02521d2afdf71d7a8ff99f0b44fef2d290b50d615",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "shelves-original-jump-last-portrait-stress",
+      "result": {
+        "name": "shelves-original-jump-last-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-jump-last-portrait-stress.png",
+        "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump",
+        "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:07:13.391Z",
+        "sha256": "6b3467bfa85ebac081c0e2412342f7192d0d5692758f583519a5f47b49999914",
+        "errors": [],
+        "blocked": []
+      }
+    }
+  ]
+}

@@ -1,0 +1,119 @@
+{
+  "utc": "2026-10-31T23:42:19.243Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "scrollSet": 250
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-source-chrome-portrait-small-stress",
+      "result": {
+        "name": "film-finished-source-chrome-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-source-chrome-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:42:16.499Z",
+        "sha256": "f57aa0d22d6b5a070f3abb46f1e96e7ad3a7821d90f87ef347b381d110925daa",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-phone-source-shading",
+      "result": {
+        "gradientHeight": "144px",
+        "gradient": "linear-gradient(rgba(0, 0, 0, 0.55), rgba(0, 0, 0, 0))",
+        "phoneOpacity": "1",
+        "phoneHeight": "110px",
+        "backReceivesHit": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=jump-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#jump-input"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-source-chrome-last-episode-landscape-small-stress",
+      "result": {
+        "name": "series-finished-source-chrome-last-episode-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-source-chrome-last-episode-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=jump-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=jump-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:42:19.155Z",
+        "sha256": "0064eb8714d450cfb65c8750444618cae342e5498ed3df600b1472db42b9d102",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-pinned-source-shading",
+      "result": {
+        "pinned": true,
+        "scrimOpacity": "1",
+        "headerBackground": "rgb(8, 9, 13)",
+        "backReceivesHit": true,
+        "lastRowFits": true,
+        "rect": {
+          "x": 24,
+          "y": 225.71875,
+          "width": 744,
+          "height": 104,
+          "top": 225.71875,
+          "right": 768,
+          "bottom": 329.71875,
+          "left": 24
+        }
+      }
+    }
+  ]
+}

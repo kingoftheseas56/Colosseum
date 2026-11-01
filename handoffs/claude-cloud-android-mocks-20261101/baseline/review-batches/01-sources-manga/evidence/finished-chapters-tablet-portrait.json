@@ -1,0 +1,824 @@
+{
+  "captured_at": "2026-10-31T23:31:46.878Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks/04-manga-series",
+  "file": "manga-chapters.html",
+  "viewport": {
+    "width": 800,
+    "height": 1280
+  },
+  "params": {
+    "capture": 1
+  },
+  "png": "captures/finished-chapters-tablet-portrait.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 800,
+      "height": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "bodyOverflowX": 0,
+    "images": [
+      {
+        "src": "../../../../reference/desktop/assets/icons/minimize.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/power.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/settings.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/comic-book.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+        "loaded": true
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 34,
+          "y": 6.5,
+          "width": 69.625,
+          "height": 44,
+          "right": 103.625,
+          "bottom": 50.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "bookmark",
+        "class": "bookmark",
+        "text": "",
+        "label": "Add to Library",
+        "disabled": false,
+        "rect": {
+          "x": 193.625,
+          "y": 101.6875,
+          "width": 36,
+          "height": 36,
+          "right": 229.625,
+          "bottom": 137.6875
+        },
+        "radius": "9px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px",
+        "hit": "<img id=\"bookmarkImg\" src=\"../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg\" alt=\"\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "collection-btn",
+        "text": "Add to Collections",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 34,
+          "y": 167.890625,
+          "width": 187.34375,
+          "height": 42,
+          "right": 221.34375,
+          "bottom": 209.890625
+        },
+        "radius": "11px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<button class=\"collection-btn\" data-do=\"collections\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"6\" y=\"7\" width=\"15\" height=\"14\" rx=\"2\"></rect><path d=\"M3 17V5a2 2 0 0 1 2-2h12M10 11h7m-7 5h5"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "synopsisMore",
+        "class": "synopsis-more",
+        "text": "More",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 426,
+          "y": 225.578125,
+          "width": 40,
+          "height": 32,
+          "right": 466,
+          "bottom": 257.578125
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<button class=\"synopsis-more\" id=\"synopsisMore\" data-do=\"synopsis\" aria-expanded=\"false\">More</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "languageSelector",
+        "class": "combo-button",
+        "text": "Default · English\n▾",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 594,
+          "y": 141,
+          "width": 166,
+          "height": 28,
+          "right": 760,
+          "bottom": 169
+        },
+        "radius": "7px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<span id=\"languageText\">Default · English</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "settings-btn",
+        "text": "Language settings",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 508,
+          "y": 183,
+          "width": 258,
+          "height": 32,
+          "right": 766,
+          "bottom": 215
+        },
+        "radius": "7px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<button class=\"settings-btn\" data-do=\"settings\"><img src=\"../../../../reference/desktop/assets/icons/settings.svg\" alt=\"\">Language settings</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-continuation",
+        "text": "Continue reading\nChapter 7 · Page 14",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 374,
+          "y": 275,
+          "width": 264,
+          "height": 58,
+          "right": 638,
+          "bottom": 333
+        },
+        "radius": "14px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px",
+        "hit": "<span class=\"main\">Continue reading</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "pageSelector",
+        "class": "pager-label",
+        "text": "Page 1 ▾",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 651,
+          "y": 288,
+          "width": 114,
+          "height": 32,
+          "right": 765,
+          "bottom": 320
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<button class=\"pager-label\" id=\"pageSelector\" data-do=\"pagePopup\" aria-haspopup=\"listbox\" aria-expanded=\"false\">Page 1 ▾</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "download-page",
+        "text": "↓  Download page",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 610.96875,
+          "y": 355.5,
+          "width": 130.03125,
+          "height": 30,
+          "right": 741,
+          "bottom": 385.5
+        },
+        "radius": "8px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<button class=\"download-page\" data-do=\"downloadPage\">↓ &nbsp;Download page</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 1 · Romance Dawn",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 459.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 481.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-open\" data-chapter=\"1\">Chapter 1 · Romance Dawn</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "✓",
+        "label": "Delete download Chapter 1",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 462,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 500
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-download\" data-download=\"1\" aria-label=\"Delete download Chapter 1\">✓</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 2 · They Call Him Straw Hat Luffy",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 615.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 637.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-open\" data-chapter=\"2\">Chapter 2 · They Call Him Straw Hat Luffy</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "✓",
+        "label": "Delete download Chapter 2",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 618,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 656
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-download\" data-download=\"2\" aria-label=\"Delete download Chapter 2\">✓</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 3 · Enter Zoro: Pirate Hunter",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 771.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 793.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-open\" data-chapter=\"3\">Chapter 3 · Enter Zoro: Pirate Hunter</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "↓",
+        "label": "Download Chapter 3",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 774,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 812
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-download\" data-download=\"3\" aria-label=\"Download Chapter 3\">↓</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 4 · The Great Captain Morgan",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 927.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 949.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-open\" data-chapter=\"4\">Chapter 4 · The Great Captain Morgan</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "✕",
+        "label": "Cancel download Chapter 4",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 930,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 968
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-download\" data-download=\"4\" aria-label=\"Cancel download Chapter 4\">✕</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 5 · The Pirate King and the Master Swordsman",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 1083.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 1105.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-open\" data-chapter=\"5\">Chapter 5 · The Pirate King and the Master Swordsman</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "↓",
+        "label": "Download Chapter 5",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 1086,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 1124
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-download\" data-download=\"5\" aria-label=\"Download Chapter 5\">↓</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 6 · The First",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 1239.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 1261.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-open\" data-chapter=\"6\">Chapter 6 · The First</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "↻",
+        "label": "Retry Chapter 6",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 1242,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 1280
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px",
+        "hit": "<button class=\"chapter-download\" data-download=\"6\" aria-label=\"Retry Chapter 6\">↻</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 7 · Friends",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 1395.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 1417.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "↓",
+        "label": "Download Chapter 7",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 1398,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 1436
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 8 · Nami",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 1551.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 1573.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "↓",
+        "label": "Download Chapter 8",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 1554,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 1592
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 9 · The Devil's Daughter",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 1707.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 1729.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "↓",
+        "label": "Download Chapter 9",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 1710,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 1748
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-open",
+        "text": "Chapter 10 · The Black Cat Pirates",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 245,
+          "y": 1863.5,
+          "width": 442,
+          "height": 22,
+          "right": 687,
+          "bottom": 1885.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-download",
+        "text": "↓",
+        "label": "Download Chapter 10",
+        "disabled": false,
+        "rect": {
+          "x": 705,
+          "y": 1866,
+          "width": 38,
+          "height": 38,
+          "right": 743,
+          "bottom": 1904
+        },
+        "radius": "50%",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "17px"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "contentScroll",
+        "class": "content-scroll",
+        "rect": {
+          "x": 0,
+          "y": 270,
+          "width": 800,
+          "height": 1010,
+          "right": 800,
+          "bottom": 1280
+        },
+        "scrollTop": 0,
+        "maxScroll": 738,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\nEiichiro Oda\nPublishing\n1997\n★ 9.22\nAdd to Collections\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. With the Straw Hat Pirates, he crosses treacherous seas, meets unlikely allies, and challenges powerful enemies on the way to becoming King of the Pirates. Along the Grand Line and into the New World, every island brings new friendships and an adventure of its own.\n\nMore\nTankoban Mode\nChapter Mode\nLanguage\nDefault · English\n▾\nLanguage settings\nCHAPTERS 1,130\nContinue reading\nChapter 7 · Page 14\nPage 1 ▾\nChapters 1–10\n10 chapters\n↓  Download page\n1\nChapter 1 · Romance Dawn\nDownloaded\n✓\n2\nChapter 2 · They Call Him Straw Hat Luffy\nDownloaded\n✓\n3\nChapter 3 · Enter Zoro: Pirate Hunter\nAvailable\n↓\n4\nChapter 4 · The Great Captain Morgan\nDownloading 40%\n✕\n5\nChapter 5 · The Pirate King and the Master Swordsman\nAvailable\n↓\n6\nChapter 6 · The First\nFailed · Retry\n↻\n7\nChapter 7 · Friends\nAvailable\n↓\n8\nChapter 8 · Nami\nAvailable\n↓\n9\nChapter 9 · The Devil's Daughter\nAvailable\n↓\n10\nChapter 10 · The Black Cat Pirates\nAvailable\n↓",
+    "fonts": [
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "unloaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\manga-chapters.html",
+      "bytes": 2677,
+      "sha256": "6fc5193ff4b5603279b3a781f1db56e9622d98377230592407f4e62cece3b64b"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\style.css",
+      "bytes": 31249,
+      "sha256": "2399d6187308779b7cc9b63d4b930c39f6eaf2e17261df6a02267cf83d770ceb"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\app.js",
+      "bytes": 31525,
+      "sha256": "cb42793d73d22243e11a7d75d5587c4956783f7a77baeb2000f630bc80e00656"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\banners\\romance.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\minimize.svg",
+      "bytes": 183,
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\fullscreen.svg",
+      "bytes": 305,
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\power.svg",
+      "bytes": 215,
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\romance-dawn.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\lucide\\bookmark-plus.svg",
+      "bytes": 456,
+      "sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\settings.svg",
+      "bytes": 296,
+      "sha256": "be11c362a2ca3acca8634af162570ded82ad14a790aa616b68a00374565e77b4"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\comic-book.svg",
+      "bytes": 536,
+      "sha256": "899b22dd3a501b123bb48d28b20636a32f967b9399f32e25439083f9c323bc47"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\orange-town.png",
+      "bytes": 1469896,
+      "sha256": "d87f36ce8e6c303a8970e44f48b248d8e5323727285bd11822bdadcb5f2a8cae"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\syrup-village.png",
+      "bytes": 4604348,
+      "sha256": "547e46629d6a38f4f4532b31b493c3a9715b933072eaef7f3860da978a558169"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\baratie.png",
+      "bytes": 3362230,
+      "sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\arlong-park.png",
+      "bytes": 3298285,
+      "sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\loguetown.png",
+      "bytes": 3525891,
+      "sha256": "28fc9ccefdab2444b54fc6d55c854cf7c1671280878129527c0698be71837dde"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\01-ganzack.png",
+      "bytes": 3726579,
+      "sha256": "024920fec9db49e162c66ccab008e4f125a73a6f67882c27f5e01f2b8cec3f1d"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\02-one-piece-movie.png",
+      "bytes": 982829,
+      "sha256": "0ed1620094d23dfb4b4f5326ccff5bc464227d66d2fdc6690ba4011d393c377b"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\05-clockwork-island.png",
+      "bytes": 1992330,
+      "sha256": "ccb9eb602ed4f251a4e114c219931425b956df94d88fb79e8aba9f15eb927575"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\04-jangos-dance-carnival.png",
+      "bytes": 1307186,
+      "sha256": "37d2f6996d7eabdc26c7f844ac126aceaa9dc4e80c64c3e01a16b2b624a324a4"
+    }
+  ],
+  "extra": {}
+}

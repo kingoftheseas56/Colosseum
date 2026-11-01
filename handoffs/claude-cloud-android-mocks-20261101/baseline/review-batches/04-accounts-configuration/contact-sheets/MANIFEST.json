@@ -1,0 +1,260 @@
+{
+  "generatedUtc": "2026-10-31T23:32:41.774313+00:00",
+  "label": "Original worker HTML versus corrected HTML; not native app captures",
+  "sheets": [
+    {
+      "page": "profile",
+      "sheet": "contact-sheets/profile-before-after.png",
+      "inputs": [
+        "evidence/before/profile/portrait.png",
+        "evidence/before/profile/landscape.png",
+        "evidence/before/profile/desktop.png",
+        "evidence/after/profile/portrait.png",
+        "evidence/after/profile/landscape.png",
+        "evidence/after/profile/desktop.png"
+      ]
+    },
+    {
+      "page": "account-welcome",
+      "sheet": "contact-sheets/account-welcome-before-after.png",
+      "inputs": [
+        "evidence/before/account-welcome/portrait.png",
+        "evidence/before/account-welcome/landscape.png",
+        "evidence/before/account-welcome/desktop.png",
+        "evidence/after/account-welcome/portrait.png",
+        "evidence/after/account-welcome/landscape.png",
+        "evidence/after/account-welcome/desktop.png"
+      ]
+    },
+    {
+      "page": "account-flyout",
+      "sheet": "contact-sheets/account-flyout-before-after.png",
+      "inputs": [
+        "evidence/before/account-flyout/portrait.png",
+        "evidence/before/account-flyout/landscape.png",
+        "evidence/before/account-flyout/desktop.png",
+        "evidence/after/account-flyout/portrait.png",
+        "evidence/after/account-flyout/landscape.png",
+        "evidence/after/account-flyout/desktop.png"
+      ]
+    },
+    {
+      "page": "account-centre",
+      "sheet": "contact-sheets/account-centre-before-after.png",
+      "inputs": [
+        "evidence/before/account-centre/portrait.png",
+        "evidence/before/account-centre/landscape.png",
+        "evidence/before/account-centre/desktop.png",
+        "evidence/after/account-centre/portrait.png",
+        "evidence/after/account-centre/landscape.png",
+        "evidence/after/account-centre/desktop.png"
+      ]
+    },
+    {
+      "page": "account-profile",
+      "sheet": "contact-sheets/account-profile-before-after.png",
+      "inputs": [
+        "evidence/before/account-profile/portrait.png",
+        "evidence/before/account-profile/landscape.png",
+        "evidence/before/account-profile/desktop.png",
+        "evidence/after/account-profile/portrait.png",
+        "evidence/after/account-profile/landscape.png",
+        "evidence/after/account-profile/desktop.png"
+      ]
+    },
+    {
+      "page": "account-security",
+      "sheet": "contact-sheets/account-security-before-after.png",
+      "inputs": [
+        "evidence/before/account-security/portrait.png",
+        "evidence/before/account-security/landscape.png",
+        "evidence/before/account-security/desktop.png",
+        "evidence/after/account-security/portrait.png",
+        "evidence/after/account-security/landscape.png",
+        "evidence/after/account-security/desktop.png"
+      ]
+    },
+    {
+      "page": "account-recovery",
+      "sheet": "contact-sheets/account-recovery-before-after.png",
+      "inputs": [
+        "evidence/before/account-recovery/portrait.png",
+        "evidence/before/account-recovery/landscape.png",
+        "evidence/before/account-recovery/desktop.png",
+        "evidence/after/account-recovery/portrait.png",
+        "evidence/after/account-recovery/landscape.png",
+        "evidence/after/account-recovery/desktop.png"
+      ]
+    },
+    {
+      "page": "account-privacy",
+      "sheet": "contact-sheets/account-privacy-before-after.png",
+      "inputs": [
+        "evidence/before/account-privacy/portrait.png",
+        "evidence/before/account-privacy/landscape.png",
+        "evidence/before/account-privacy/desktop.png",
+        "evidence/after/account-privacy/portrait.png",
+        "evidence/after/account-privacy/landscape.png",
+        "evidence/after/account-privacy/desktop.png"
+      ]
+    },
+    {
+      "page": "account-devices",
+      "sheet": "contact-sheets/account-devices-before-after.png",
+      "inputs": [
+        "evidence/before/account-devices/portrait.png",
+        "evidence/before/account-devices/landscape.png",
+        "evidence/before/account-devices/desktop.png",
+        "evidence/after/account-devices/portrait.png",
+        "evidence/after/account-devices/landscape.png",
+        "evidence/after/account-devices/desktop.png"
+      ]
+    },
+    {
+      "page": "account-your-colosseum",
+      "sheet": "contact-sheets/account-your-colosseum-before-after.png",
+      "inputs": [
+        "evidence/before/account-your-colosseum/portrait.png",
+        "evidence/before/account-your-colosseum/landscape.png",
+        "evidence/before/account-your-colosseum/desktop.png",
+        "evidence/after/account-your-colosseum/portrait.png",
+        "evidence/after/account-your-colosseum/landscape.png",
+        "evidence/after/account-your-colosseum/desktop.png"
+      ]
+    },
+    {
+      "page": "stremio-sync",
+      "sheet": "contact-sheets/stremio-sync-before-after.png",
+      "inputs": [
+        "evidence/before/stremio-sync/portrait.png",
+        "evidence/before/stremio-sync/landscape.png",
+        "evidence/before/stremio-sync/desktop.png",
+        "evidence/after/stremio-sync/portrait.png",
+        "evidence/after/stremio-sync/landscape.png",
+        "evidence/after/stremio-sync/desktop.png"
+      ]
+    },
+    {
+      "page": "extension-setup",
+      "sheet": "contact-sheets/extension-setup-before-after.png",
+      "inputs": [
+        "evidence/before/extension-setup/portrait.png",
+        "evidence/before/extension-setup/landscape.png",
+        "evidence/before/extension-setup/desktop.png",
+        "evidence/after/extension-setup/portrait.png",
+        "evidence/after/extension-setup/landscape.png",
+        "evidence/after/extension-setup/desktop.png"
+      ]
+    },
+    {
+      "page": "tankoyomi-configuration",
+      "sheet": "contact-sheets/tankoyomi-configuration-before-after.png",
+      "inputs": [
+        "evidence/before/tankoyomi-configuration/portrait.png",
+        "evidence/before/tankoyomi-configuration/landscape.png",
+        "evidence/before/tankoyomi-configuration/desktop.png",
+        "evidence/after/tankoyomi-configuration/portrait.png",
+        "evidence/after/tankoyomi-configuration/landscape.png",
+        "evidence/after/tankoyomi-configuration/desktop.png"
+      ]
+    }
+  ],
+  "stateSheets": [
+    {
+      "page": "account-devices",
+      "sheet": "contact-sheets/account-devices-states.png",
+      "inputs": [
+        "evidence/after/states/account-devices/revoke-portrait.png",
+        "evidence/after/states/account-devices/revoke-landscape.png",
+        "evidence/after/states/account-devices/revoke-short.png",
+        "evidence/after/states/account-devices/error-portrait.png",
+        "evidence/after/states/account-devices/error-landscape.png",
+        "evidence/after/states/account-devices/error-short.png"
+      ]
+    },
+    {
+      "page": "account-privacy",
+      "sheet": "contact-sheets/account-privacy-states.png",
+      "inputs": [
+        "evidence/after/states/account-privacy/search-portrait.png",
+        "evidence/after/states/account-privacy/search-landscape.png",
+        "evidence/after/states/account-privacy/search-short.png",
+        "evidence/after/states/account-privacy/exporting-portrait.png",
+        "evidence/after/states/account-privacy/exporting-landscape.png",
+        "evidence/after/states/account-privacy/exporting-short.png"
+      ]
+    },
+    {
+      "page": "account-profile",
+      "sheet": "contact-sheets/account-profile-states.png",
+      "inputs": [
+        "evidence/after/states/account-profile/edited-portrait.png",
+        "evidence/after/states/account-profile/edited-landscape.png",
+        "evidence/after/states/account-profile/edited-short.png",
+        "evidence/after/states/account-profile/saving-portrait.png",
+        "evidence/after/states/account-profile/saving-landscape.png",
+        "evidence/after/states/account-profile/saving-short.png"
+      ]
+    },
+    {
+      "page": "account-recovery",
+      "sheet": "contact-sheets/account-recovery-states.png",
+      "inputs": [
+        "evidence/after/states/account-recovery/replace-portrait.png",
+        "evidence/after/states/account-recovery/replace-landscape.png",
+        "evidence/after/states/account-recovery/replace-short.png",
+        "evidence/after/states/account-recovery/generating-portrait.png",
+        "evidence/after/states/account-recovery/generating-landscape.png",
+        "evidence/after/states/account-recovery/generating-short.png"
+      ]
+    },
+    {
+      "page": "account-security",
+      "sheet": "contact-sheets/account-security-states.png",
+      "inputs": [
+        "evidence/after/states/account-security/password-portrait.png",
+        "evidence/after/states/account-security/password-landscape.png",
+        "evidence/after/states/account-security/password-short.png",
+        "evidence/after/states/account-security/signing-out-portrait.png",
+        "evidence/after/states/account-security/signing-out-landscape.png",
+        "evidence/after/states/account-security/signing-out-short.png"
+      ]
+    },
+    {
+      "page": "extension-setup",
+      "sheet": "contact-sheets/extension-setup-states.png",
+      "inputs": [
+        "evidence/after/states/extension-setup/required-long-title-portrait.png",
+        "evidence/after/states/extension-setup/required-long-title-landscape.png",
+        "evidence/after/states/extension-setup/required-long-title-short.png",
+        "evidence/after/states/extension-setup/typed-install-portrait.png",
+        "evidence/after/states/extension-setup/typed-install-landscape.png",
+        "evidence/after/states/extension-setup/typed-install-short.png"
+      ]
+    },
+    {
+      "page": "stremio-sync",
+      "sheet": "contact-sheets/stremio-sync-states.png",
+      "inputs": [
+        "evidence/after/states/stremio-sync/switch-portrait.png",
+        "evidence/after/states/stremio-sync/switch-landscape.png",
+        "evidence/after/states/stremio-sync/switch-short.png",
+        "evidence/after/states/stremio-sync/connect-fields-portrait.png",
+        "evidence/after/states/stremio-sync/connect-fields-landscape.png",
+        "evidence/after/states/stremio-sync/connect-fields-short.png"
+      ]
+    },
+    {
+      "page": "tankoyomi-configuration",
+      "sheet": "contact-sheets/tankoyomi-configuration-states.png",
+      "inputs": [
+        "evidence/after/states/tankoyomi-configuration/menu-portrait.png",
+        "evidence/after/states/tankoyomi-configuration/menu-landscape.png",
+        "evidence/after/states/tankoyomi-configuration/menu-short.png",
+        "evidence/after/states/tankoyomi-configuration/empty-portrait.png",
+        "evidence/after/states/tankoyomi-configuration/empty-landscape.png",
+        "evidence/after/states/tankoyomi-configuration/empty-short.png"
+      ]
+    }
+  ]
+}

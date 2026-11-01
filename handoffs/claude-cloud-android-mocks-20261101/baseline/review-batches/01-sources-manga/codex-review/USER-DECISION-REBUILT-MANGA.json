@@ -1,0 +1,22 @@
+{
+  "localDate": "2026-11-01",
+  "timezone": "Asia/Calcutta",
+  "decisionOwner": "Hemanth",
+  "decision": "Use the right-hand rebuilt content/layout direction for both manga series and chapter pages.",
+  "userEvidence": "Right is superior on both counts brother. It is what I imagined Colosseum would look like in potrait.",
+  "shownEvidence": [
+    "compare-series-portrait.png",
+    "compare-chapters-portrait.png",
+    "compare-series-landscape.png",
+    "compare-chapters-landscape.png"
+  ],
+  "selectedPreviewRoute": "rebuilt",
+  "scope": "Selection of the displayed content/layout direction. The rebuilt preview was explicitly disclosed as missing the real TitlePageBar.",
+  "remaining": [
+    "Complete and show the actual source TitlePageBar fitted with the selected content.",
+    "Make rebuilt the primary finished mock and update captures, coverage and QML porting notes.",
+    "Re-evaluate the separate cover-flow allocation comparison with the selected header. Its scrolling proposal is not automatically approved by this choice."
+  ],
+  "appImplementation": "Not performed by recording this decision.",
+  "publication": "Existing hold remains."
+}

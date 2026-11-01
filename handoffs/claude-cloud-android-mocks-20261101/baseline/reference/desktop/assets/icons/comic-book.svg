@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" role="img" aria-labelledby="title">
+  <title id="title">Comic book</title>
+  <g fill="none" stroke="#f1f1f4" stroke-width="3.2" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M9 14c8-3 16-2 23 3v34c-7-5-15-6-23-3z"/>
+    <path d="M55 14c-8-3-16-2-23 3v34c7-5 15-6 23-3z"/>
+    <path d="M16 23h9"/>
+    <path d="M16 30h9"/>
+    <path d="M39 23h9"/>
+    <path d="M39 30h9"/>
+    <path d="M17 39l4-5 4 5"/>
+    <path d="M39 39l4-5 4 5"/>
+  </g>
+</svg>

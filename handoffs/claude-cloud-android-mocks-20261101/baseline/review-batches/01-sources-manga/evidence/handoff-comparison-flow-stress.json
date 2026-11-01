@@ -1,0 +1,281 @@
+{
+  "captured_at": "2026-10-31T23:34:36.856Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks",
+  "file": "compare.html",
+  "viewport": {
+    "width": 1500,
+    "height": 1080
+  },
+  "params": {
+    "pair": "flow",
+    "preset": "short",
+    "font": 1.3,
+    "insets": 24,
+    "position": "gallery"
+  },
+  "png": "captures/handoff-comparison-flow-stress.png",
+  "metrics": {
+    "app": null,
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "SELECT",
+        "id": "pageSelect",
+        "class": "",
+        "text": "Film Sources\nEpisode Sources\nComic Sources\nComic Source Confirmation\nManga Volume Sources\nManga Series\nManga Chapters\nVolume Flow Original F",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 110,
+          "y": 232.71875,
+          "width": 228,
+          "height": 37,
+          "right": 338,
+          "bottom": 269.71875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"pageSelect\"><option value=\"0\">Film Sources</option><option value=\"1\">Episode Sources</option><option value=\"2\">Comic Sources</option><option value=\"3\">Comic Source Confirmation</option><op"
+      },
+      {
+        "tag": "SELECT",
+        "id": "preset",
+        "class": "",
+        "text": "412 × 900 portrait\n900 × 412 landscape\n354 × 792 portrait\n792 × 354 landscape\n1280 × 700 desktop\n800 × 1280 tablet\n1280 × 800 tablet",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 353,
+          "y": 232.71875,
+          "width": 157,
+          "height": 37,
+          "right": 510,
+          "bottom": 269.71875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"preset\"><option value=\"portrait\">412 × 900 portrait</option><option value=\"landscape\">900 × 412 landscape</option><option value=\"compact\">354 × 792 portrait</option><option value=\"short\">7"
+      },
+      {
+        "tag": "SELECT",
+        "id": "font",
+        "class": "",
+        "text": "1\n1.3",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 525,
+          "y": 232.71875,
+          "width": 55,
+          "height": 37,
+          "right": 580,
+          "bottom": 269.71875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"font\"><option>1</option><option>1.3</option></select>"
+      },
+      {
+        "tag": "SELECT",
+        "id": "insets",
+        "class": "",
+        "text": "0\n24",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 595,
+          "y": 232.71875,
+          "width": 106.671875,
+          "height": 37,
+          "right": 701.671875,
+          "bottom": 269.71875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"insets\"><option>0</option><option>24</option></select>"
+      },
+      {
+        "tag": "SELECT",
+        "id": "state",
+        "class": "",
+        "text": "default\nselect\nsynopsis\ndownloading\nfailed\nend\nno-cover",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 716.671875,
+          "y": 232.71875,
+          "width": 114,
+          "height": 37,
+          "right": 830.671875,
+          "bottom": 269.71875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"state\"><option>default</option><option>select</option><option>synopsis</option><option>downloading</option><option>failed</option><option>end</option><option>no-cover</option></select>"
+      },
+      {
+        "tag": "SELECT",
+        "id": "position",
+        "class": "",
+        "text": "Initial\nContent / gallery\nBottom actions / final rows",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 845.671875,
+          "y": 232.71875,
+          "width": 193,
+          "height": 37,
+          "right": 1038.671875,
+          "bottom": 269.71875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<select id=\"position\"><option value=\"initial\">Initial</option><option value=\"gallery\">Content / gallery</option><option value=\"bottom\">Bottom actions / final rows</option></select>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "reload",
+        "class": "",
+        "text": "Reload comparison",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 1053.671875,
+          "y": 212.578125,
+          "width": 153.421875,
+          "height": 57.140625,
+          "right": 1207.09375,
+          "bottom": 269.71875
+        },
+        "radius": "6px",
+        "font": "\"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<button id=\"reload\">Reload comparison</button>"
+      }
+    ],
+    "scrollers": [],
+    "fonts": []
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\compare.html",
+      "bytes": 10037,
+      "sha256": "ae17a2d2782859bf5097ae141dc0acc809288f1dc94c1fb4e01bf5ae202e0704"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\volume-flow-original-fit.html",
+      "bytes": 8571,
+      "sha256": "9c16b1a18ca392d79f623ff9d338323431a5e6a45810d4b4fad9b2d309c37bb7"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\volume-flow-minimal-alternative.html",
+      "bytes": 8784,
+      "sha256": "612a1e045d7f8bc2eee0a474783c43b8f570389f919911abd5851534bc7d2e5c"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\style.css",
+      "bytes": 24813,
+      "sha256": "9018f64292f1ab7aea95689a0090a8514a93caa25da1d2b7e9f55accfff79515"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\app.js",
+      "bytes": 17599,
+      "sha256": "98af3c039c0886105b8af0ac7c2a41de531790be3a9e05b1ca20abc69111f339"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\minimize.svg",
+      "bytes": 183,
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\fullscreen.svg",
+      "bytes": 305,
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\power.svg",
+      "bytes": 215,
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\02-one-piece-movie.png",
+      "bytes": 982829,
+      "sha256": "0ed1620094d23dfb4b4f5326ccff5bc464227d66d2fdc6690ba4011d393c377b"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\lucide\\bookmark-plus.svg",
+      "bytes": 456,
+      "sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\download.svg",
+      "bytes": 238,
+      "sha256": "49bdfb176bf6a8fe8b008e88b4597500c4d4fc90a2014d06445c63791d089b67"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\01-ganzack.png",
+      "bytes": 3726579,
+      "sha256": "024920fec9db49e162c66ccab008e4f125a73a6f67882c27f5e01f2b8cec3f1d"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\03-oceans-navel.png",
+      "bytes": 186051,
+      "sha256": "0138c405ff0964bd652928a3a929161f28636ed4a042353aa6cfb2e77bd4a7bd"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\04-jangos-dance-carnival.png",
+      "bytes": 1307186,
+      "sha256": "37d2f6996d7eabdc26c7f844ac126aceaa9dc4e80c64c3e01a16b2b624a324a4"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\noncanon\\05-clockwork-island.png",
+      "bytes": 1992330,
+      "sha256": "ccb9eb602ed4f251a4e114c219931425b956df94d88fb79e8aba9f15eb927575"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\romance-dawn.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\baratie.png",
+      "bytes": 3362230,
+      "sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\arlong-park.png",
+      "bytes": 3298285,
+      "sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\banners\\arabasta.png",
+      "bytes": 2587818,
+      "sha256": "1a413dcf6c80aa66b2d2ae8ba8956c675643989954ec70094c1b002eee92076f"
+    }
+  ],
+  "extra": {}
+}

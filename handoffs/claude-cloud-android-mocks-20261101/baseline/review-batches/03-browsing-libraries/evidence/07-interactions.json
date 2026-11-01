@@ -1,0 +1,41 @@
+[
+  {
+    "name": "expanded index toggle reachable",
+    "pass": true,
+    "detail": {
+      "top": 126,
+      "bottom": 154,
+      "hit": true,
+      "position": "absolute"
+    }
+  },
+  {
+    "name": "collapse works",
+    "pass": true
+  },
+  {
+    "name": "hidden shelf absent from index",
+    "pass": true
+  },
+  {
+    "name": "ranked source reveal without rating",
+    "pass": false,
+    "detail": {
+      "display": "block",
+      "opacity": "0",
+      "rating": "none"
+    }
+  },
+  {
+    "name": "filter opens short landscape",
+    "pass": true
+  },
+  {
+    "name": "selected filter body reopens menu",
+    "pass": true
+  },
+  {
+    "name": "clear button clears value",
+    "pass": false
+  }
+]

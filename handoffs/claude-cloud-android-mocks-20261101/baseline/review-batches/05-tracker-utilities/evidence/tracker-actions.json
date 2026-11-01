@@ -1,0 +1,38 @@
+{
+  "at": "2026-10-31T23:35:51.418Z",
+  "tests": [
+    {
+      "name": "Dossier blank/body click stays open",
+      "pass": true
+    },
+    {
+      "name": "Import match remains a separate progress decision",
+      "pass": true,
+      "detail": "All four local review decisions confirmed; no network operations."
+    },
+    {
+      "name": "Long import at short landscape scrolls through last item and confirmation",
+      "pass": true
+    },
+    {
+      "name": "Export empty selection gates send; selection sends local preview",
+      "pass": true
+    },
+    {
+      "name": "Disconnect cancel preserves and confirm disconnects local fixture",
+      "pass": true
+    },
+    {
+      "name": "Removal affects local import section only",
+      "pass": true
+    },
+    {
+      "name": "Preferences switch and modal keyboard containment",
+      "pass": true
+    },
+    {
+      "name": "Keyboard title match results reachable",
+      "pass": true
+    }
+  ]
+}

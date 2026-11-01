@@ -1,0 +1,116 @@
+{
+  "job": "20-search-browse",
+  "name": "genre-index.html",
+  "checks": [
+    {
+      "name": "Biblio directory contains approved groups and scrolls to its final genre",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 10,
+        "bottom": {
+          "pass": true,
+          "scrollTop": 309,
+          "scrollHeight": 1053,
+          "clientHeight": 744
+        }
+      },
+      "time": "2026-11-01T00:01:32.481Z"
+    },
+    {
+      "name": "Theatre directory contains approved groups and scrolls to its final genre",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 13,
+        "bottom": {
+          "pass": true,
+          "scrollTop": 531,
+          "scrollHeight": 1275,
+          "clientHeight": 744
+        }
+      },
+      "time": "2026-11-01T00:01:33.429Z"
+    },
+    {
+      "name": "Tankoban directory contains approved groups and scrolls to its final genre",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 35,
+        "bottom": {
+          "pass": true,
+          "scrollTop": 2137,
+          "scrollHeight": 2881,
+          "clientHeight": 744
+        }
+      },
+      "time": "2026-11-01T00:01:34.995Z"
+    },
+    {
+      "name": "Anime directory contains approved groups and scrolls to its final genre",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "count": 35,
+        "bottom": {
+          "pass": true,
+          "scrollTop": 2137,
+          "scrollHeight": 2881,
+          "clientHeight": 744
+        }
+      },
+      "time": "2026-11-01T00:01:35.861Z"
+    },
+    {
+      "name": "Approved explicit preference exposes separate group",
+      "pass": true,
+      "time": "2026-11-01T00:01:36.507Z"
+    },
+    {
+      "name": "Genre tile opens matching world and genre result",
+      "pass": true,
+      "time": "2026-11-01T00:01:37.632Z"
+    },
+    {
+      "name": "Desktop back capsule clears the directory kicker",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "a": {
+          "x": 22,
+          "y": 13,
+          "w": 42,
+          "h": 34,
+          "right": 64,
+          "bottom": 47,
+          "visible": true,
+          "client": 34,
+          "scroll": 34
+        },
+        "b": {
+          "x": 54,
+          "y": 14,
+          "w": 1172,
+          "h": 18,
+          "right": 1226,
+          "bottom": 32,
+          "visible": true,
+          "client": 18,
+          "scroll": 18
+        }
+      },
+      "time": "2026-11-01T00:02:52.342Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\genre-index\\directory-biblio-bottom.png",
+    "evidence\\after\\genre-index\\directory-theatre-bottom.png",
+    "evidence\\after\\genre-index\\directory-tankoban-bottom.png",
+    "evidence\\after\\genre-index\\directory-anime-bottom.png",
+    "evidence\\after\\genre-index\\directory-explicit-short.png",
+    "evidence\\after\\genre-index\\directory-desktop-header.png"
+  ],
+  "completedAt": "2026-11-01T00:02:52.995Z",
+  "pass": true
+}

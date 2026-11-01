@@ -1,0 +1,131 @@
+{
+  "task": "03-manga-sources — manga volume torrent sources; standalone faithful HTML fitting study",
+  "status": "ready-for-review",
+  "sourceRefs": [
+    {
+      "path": "reference/desktop/qml/MangaTankobanSourcesPage.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41"
+    },
+    "reference/desktop/qml/Theme.qml",
+    "reference/desktop/qml/BackAction.qml",
+    "reference/desktop/qml/Glass.qml",
+    "reference/desktop/qml/Main.qml",
+    "reference/desktop/qml/MangaSeries.qml",
+    {
+      "path": "reference/alpha/qml/MangaTankobanSourcesPage.qml",
+      "revision": "77844eef0bd3b7fee2c1f884be4a76db6d63321d"
+    },
+    "context/ANDROID-PORT-CLASSIFICATION.md",
+    "context/VIEWPORTS.json",
+    "reference/historical-captures/T5-sources-before-412x900.png",
+    "reference/historical-captures/T5-sources-before-1280x700.png"
+  ],
+  "pages": [
+    {
+      "file": "manga-volume-sources.html",
+      "title": "SOURCES · TANKOBAN VOLUME — ranked Nyaa volume sources",
+      "states": [
+        "Populated ranked Nyaa releases",
+        "Nyaa disabled — exact empty message and Open Extensions",
+        "Searching Nyaa releases",
+        "No releases matched",
+        "Long synopsis and long release title",
+        "Source selected — resolving torrent",
+        "Source selected — Downloading · 47%",
+        "Done — added to your shelf",
+        "Failed — pick another source",
+        "Picker closed by Back",
+        "Batch source picker (3 volumes, coverage filtered)",
+        "Series source picker"
+      ],
+      "viewports": [
+        "412x900 (phone portrait)",
+        "900x412 (phone landscape)",
+        "354x792 (small phone portrait)",
+        "792x354 (small phone landscape)",
+        "1280x700 (desktop)",
+        "800x1280 (tablet portrait)",
+        "1280x800 (tablet landscape)",
+        "354x792 with 130% font and 24px top/bottom illustrative insets",
+        "792x354 with 130% font and 24px top/bottom illustrative insets"
+      ],
+      "captures": {
+        "portrait": "captures/portrait.png",
+        "landscape": "captures/landscape.png",
+        "desktop": "captures/desktop.png",
+        "smallPortrait": "captures/small-portrait.png",
+        "smallLandscape": "captures/small-landscape.png",
+        "disabledExtensions": "captures/disabled.png",
+        "batch": "captures/batch.png",
+        "series": "captures/series.png",
+        "downloading": "captures/live.png",
+        "longFont130": "captures/long-130.png",
+        "landscapeLongFont130": "captures/landscape-long-130.png",
+        "landscapeLongScrolled": "captures/landscape-long-130-scrolled.png",
+        "tabletPortrait": "captures/tablet.png",
+        "tabletLandscape": "captures/tablet-landscape.png"
+      }
+    }
+  ],
+  "preservedDesign": [
+    "Full-screen black and art-wash hero instead of a generic mobile sheet or page",
+    "Original Back chevron and text, gold SOURCES · TANKOBAN VOLUME eyebrow, Fraunces title, contextual identity, synopsis",
+    "One 18px-radius glass results table with source count and Nyaa header",
+    "Original letter tile, uploader identity, gold STRONG and blue-grey POSSIBLE confidence labels",
+    "Original release titles, DIGITAL/SINGLE VOLUME/VOLS/TRUSTED evidence chips, byte size and seeder metadata",
+    "Original round gold down action; whole-row and keyboard source selection",
+    "Original status disc, other-row dimming, notification toast, and Back during simulated acquisition",
+    "Original disabled Nyaa empty-state language and gold-outlined Open Extensions route",
+    "Nyaa-only source contract; no WeebCentral compile fallback, invented query field, flat cards or progress bar"
+  ],
+  "fittingChanges": [
+    "Portrait: smaller page gutters, 258px hero, 46px display title, 46px letter tile and 50px circular action",
+    "Landscape phone: reduced hero height, relocated hero copy to avoid Back, same table and horizontally fitted row",
+    "Row metadata/chips can wrap; release title is bounded; row height expands instead of clipping",
+    "Vertical result scrolling preserves the original actions; short landscape at 130% and 24px insets requires deliberate scrolling",
+    "Tablet and desktop retain desktop row geometry and composition",
+    "Editable viewport, safe-area inset, font-scale and mock-state controls are placed outside the app frame"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "OnePlus logical viewport, device pixel ratio, real insets, keyboard and runtime interactions not measured: viewport sizes are provisional",
+    "Exact volume cover is unavailable in the named local assets; real One Piece Romance Dawn project banner used as disclosed fixture, not represented as a volume cover",
+    "Release names, counts, sizes, and seeder values are clearly labelled illustrative fixtures rather than real provider results",
+    "Mock done/failed states are held for inspection rather than reproducing original QML automatic timer transitions",
+    "CSS backdrop-filter, local font rasterization and emoji are not Qt Quick/Android pixel-parity proof",
+    "The extreme 130%-font, 24px-inset landscape state has a small but scrollable result area; device review needed",
+    "Real native navigation, provider responses, acquisition/progress and mobile device rendering remain unverified"
+  ],
+  "verification": {
+    "outcome": "HTML mock ready for visual review, not validated Colosseum implementation",
+    "host": "Laptop 1 through Brotherhood Desktop Commander",
+    "renderCommand": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\03-manga-sources\\verify-layout.js\"",
+    "renderer": "Installed Chrome headless via DevTools Protocol; isolated temporary profile; device scale factor 1; local file assets",
+    "audit": "captures/geometry-audit.json",
+    "auditScenarioCount": 14,
+    "pngCount": 14,
+    "failedChecks": 0,
+    "checks": [
+      "Expected source row counts including disabled/Extensions",
+      "Download/status disc inside glass results panel",
+      "Tile, text and round action do not horizontally overlap",
+      "No horizontal source-row overflow",
+      "Back control has at least 44px hit height",
+      "Hero text inside banner; table header inside glass",
+      "Disabled empty state has no spurious scrollbar",
+      "Clicking source changes download circle to resolving disc, dims other rows, displays original toast",
+      "Back closes picker locally",
+      "Keyboard Enter activates a row",
+      "Open Extensions emits local demo signal only",
+      "130%-font extreme landscape download action is reachable through vertical scrolling",
+      "External reviewer controls change viewport, insets, font scale and mock state"
+    ],
+    "syntax": "node --check app.js and node --check verify-layout.js passed",
+    "rendering": "Required portrait/landscape/desktop captures created; additional difficult-state and tablet captures reviewed",
+    "isolatedBrowserProfileCleaned": true,
+    "noAppRepositoryOrBetaChanges": true,
+    "noBuildDeviceProviderUploadOrPublication": true,
+    "qmlRuntimeVerified": false,
+    "androidDeviceVerified": false
+  }
+}

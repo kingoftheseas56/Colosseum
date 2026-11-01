@@ -1,0 +1,228 @@
+{
+  "snapshotEntries": 847,
+  "hashMismatches": [],
+  "gitSources": [
+    {
+      "file": "qml/BiblioBookRail.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/BiblioDiscoverPage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/BiblioExplorePage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/BiblioGenreIndex.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/BiblioGenrePage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/BiblioLibraryPage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/BiblioSearch.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/BiblioWorld.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/CarouselSlide.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/ContinueSeeAllPage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/ContinueTile.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/DiscoverBrowser.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/DiscoverPicker.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/DiscoverSidebar.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/ExtensionsSeeAllPage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/FeaturedCarousel.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/GenreIndex.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/GenrePage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/LibraryPage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/PhoneWorldTabBar.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/PosterRail.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/ReadingDesk.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/RowIndexSidebar.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/SearchSurface.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TankobanComicsTab.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TankobanLibraryTab.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TankobanMangaTab.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TankobanWorld.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TheatreCatalogPage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TheatreGenreIndex.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TheatreGenrePage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TheatreWorld.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/TrendingTop10.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/UniversesWorld.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/WidgetHeader.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/WorldPage.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    },
+    {
+      "file": "qml/WorldTabBar.qml",
+      "exact": false,
+      "crlfOnly": true,
+      "gitAvailable": true
+    }
+  ]
+}

@@ -1,0 +1,1003 @@
+{
+  "utc": "2026-10-31T22:55:51.154Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-portrait-stress",
+      "result": {
+        "name": "series-finished-season-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:38.740Z",
+        "sha256": "030e497c47e3e7dade91de3a7953ee08d06c6c00aeaf7428d4cedafb714c3f59",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-last-portrait-stress",
+      "result": {
+        "name": "series-finished-season-last-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-last-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:39.073Z",
+        "sha256": "e9a8944b327a1b9eb663c10cf7b044853e1203b6239691f87bda414a1204f759",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focus": "Specials",
+        "rect": {
+          "x": 20,
+          "y": 201,
+          "width": 236,
+          "height": 304,
+          "top": 201,
+          "right": 256,
+          "bottom": 505,
+          "left": 20
+        },
+        "bottomLimit": 876,
+        "menuScroll": 584
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "season": "Specials▾",
+        "focus": "season-trigger",
+        "rows": 16
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#jump-trigger"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#jump-input"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-jump-portrait-stress",
+      "result": {
+        "name": "series-finished-jump-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-jump-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:39.476Z",
+        "sha256": "36c430689ac6640e7cbc3ae94056ab12ae4234c18715e8c33d84acfa16042fca",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "eval",
+      "result": {
+        "draft": "16",
+        "expanded": "true"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-last-episode-portrait-stress",
+      "result": {
+        "name": "series-finished-last-episode-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-last-episode-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:39.789Z",
+        "sha256": "33d003529a82a23b12523c477442cc051b81ad853b3b84269d1bb63bff73195e",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": {
+          "x": 20,
+          "y": 1497,
+          "width": 372,
+          "height": 270,
+          "top": 1497,
+          "right": 392,
+          "bottom": 1767,
+          "left": 20
+        },
+        "chrome": {
+          "x": 0,
+          "y": 96,
+          "width": 412,
+          "height": 252.421875,
+          "top": 96,
+          "right": 412,
+          "bottom": 348.421875,
+          "left": 0
+        },
+        "focus": "jump-trigger",
+        "popupClosed": true,
+        "status": "Selected episode 16. No player or source request was made."
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-portrait-small-stress",
+      "result": {
+        "name": "series-finished-season-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:41.099Z",
+        "sha256": "8fa1c621f18a03e5851adeaf4993c9dc2f505d2461eb8aa000acdfbc7557dad4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-last-portrait-small-stress",
+      "result": {
+        "name": "series-finished-season-last-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-last-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:41.331Z",
+        "sha256": "683a48af1a8e4271fd848051dc7e3f911ee60bd8e331f03979e9ab6fd22857ec",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focus": "Specials",
+        "rect": {
+          "x": 20,
+          "y": 201,
+          "width": 236,
+          "height": 304,
+          "top": 201,
+          "right": 256,
+          "bottom": 505,
+          "left": 20
+        },
+        "bottomLimit": 768,
+        "menuScroll": 584
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "season": "Specials▾",
+        "focus": "season-trigger",
+        "rows": 16
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#jump-trigger"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#jump-input"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-jump-portrait-small-stress",
+      "result": {
+        "name": "series-finished-jump-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-jump-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:41.611Z",
+        "sha256": "6aa36a4336ccf50d5d29999bfe6d6b80fdedbdf30d74c1076c9eab97c62cd064",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "eval",
+      "result": {
+        "draft": "16",
+        "expanded": "true"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-last-episode-portrait-small-stress",
+      "result": {
+        "name": "series-finished-last-episode-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-last-episode-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:41.852Z",
+        "sha256": "ee29bdee2b2fba5f72bf90c3a0065de2d0d4cfaed99998342028f4594342e51c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": {
+          "x": 20,
+          "y": 1600.3125,
+          "width": 314,
+          "height": 270,
+          "top": 1600.3125,
+          "right": 334,
+          "bottom": 1870.3125,
+          "left": 20
+        },
+        "chrome": {
+          "x": 0,
+          "y": 96,
+          "width": 354,
+          "height": 273.46875,
+          "top": 96,
+          "right": 354,
+          "bottom": 369.46875,
+          "left": 0
+        },
+        "focus": "jump-trigger",
+        "popupClosed": true,
+        "status": "Selected episode 16. No player or source request was made."
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-landscape-stress",
+      "result": {
+        "name": "series-finished-season-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:43.153Z",
+        "sha256": "949426450d7f6f0054db4d0478660d0c5aff9e45429e2053fb99154cdb751d75",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-last-landscape-stress",
+      "result": {
+        "name": "series-finished-season-last-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-last-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:43.399Z",
+        "sha256": "26ae3aefb76e05e3347583e2953df678afa71645dc81b38c13162a3544a82775",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focus": "Specials",
+        "rect": {
+          "x": 24,
+          "y": 201,
+          "width": 236,
+          "height": 177,
+          "top": 201,
+          "right": 260,
+          "bottom": 378,
+          "left": 24
+        },
+        "bottomLimit": 388,
+        "menuScroll": 711
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "season": "Specials▾",
+        "focus": "season-trigger",
+        "rows": 16
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#jump-trigger"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#jump-input"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-jump-landscape-stress",
+      "result": {
+        "name": "series-finished-jump-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-jump-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:43.682Z",
+        "sha256": "9dcf7396972587a17878525a0d24831ff02496f7c995e57756cadf15ec9cecc4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "eval",
+      "result": {
+        "draft": "16",
+        "expanded": "true"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-last-episode-landscape-stress",
+      "result": {
+        "name": "series-finished-last-episode-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-last-episode-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:43.919Z",
+        "sha256": "99da86df89d1188fd2c1c3a9df8dc81b85c849a9dc47dbe91bd73747beecc203",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": {
+          "x": 24,
+          "y": 1157.609375,
+          "width": 852,
+          "height": 104,
+          "top": 1157.609375,
+          "right": 876,
+          "bottom": 1261.609375,
+          "left": 24
+        },
+        "chrome": {
+          "x": 0,
+          "y": 96,
+          "width": 900,
+          "height": 195.421875,
+          "top": 96,
+          "right": 900,
+          "bottom": 291.421875,
+          "left": 0
+        },
+        "focus": "jump-trigger",
+        "popupClosed": true,
+        "status": "Selected episode 16. No player or source request was made."
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-landscape-small-stress",
+      "result": {
+        "name": "series-finished-season-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:45.164Z",
+        "sha256": "4c960937363b7f79e9fd924b43d64c6b7ffd4fe1098f5e0cf61450b640f4e439",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "End"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-season-last-landscape-small-stress",
+      "result": {
+        "name": "series-finished-season-last-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-season-last-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:45.386Z",
+        "sha256": "2f4ff0a810f6d59b86e9ad0a4e0cf5d8071f179edf03eb3d3841af9e4ad53e90",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focus": "Specials",
+        "rect": {
+          "x": 24,
+          "y": 201,
+          "width": 236,
+          "height": 119,
+          "top": 201,
+          "right": 260,
+          "bottom": 320,
+          "left": 24
+        },
+        "bottomLimit": 330,
+        "menuScroll": 769
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "season": "Specials▾",
+        "focus": "season-trigger",
+        "rows": 16
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#jump-trigger"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#jump-input"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-jump-landscape-small-stress",
+      "result": {
+        "name": "series-finished-jump-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-jump-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:45.715Z",
+        "sha256": "7e7267d425d8d94c84dde8cfd4e53e3c937ae36dee406cd22ee3ce7f67529c3b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "eval",
+      "result": {
+        "draft": "16",
+        "expanded": "true"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-last-episode-landscape-small-stress",
+      "result": {
+        "name": "series-finished-last-episode-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-last-episode-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:45.952Z",
+        "sha256": "6c17f50ae0244b3b5b0d4ef015736dc075361046228df18456f38102510a0c76",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": {
+          "x": 24,
+          "y": 1157.609375,
+          "width": 744,
+          "height": 104,
+          "top": 1157.609375,
+          "right": 768,
+          "bottom": 1261.609375,
+          "left": 24
+        },
+        "chrome": {
+          "x": 0,
+          "y": 96,
+          "width": 792,
+          "height": 195.421875,
+          "top": 96,
+          "right": 792,
+          "bottom": 291.421875,
+          "left": 0
+        },
+        "focus": "jump-trigger",
+        "popupClosed": true,
+        "status": "Selected episode 16. No player or source request was made."
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"library\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-removal-landscape-stress",
+      "result": {
+        "name": "series-finished-removal-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-removal-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:47.241Z",
+        "sha256": "0360bbbeadb0456e5520b97b1b3700e7905d41c53534cd7c05d4c13ed6356293",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "dialog": {
+          "x": 136,
+          "y": 38,
+          "width": 520,
+          "height": 278,
+          "top": 38,
+          "right": 656,
+          "bottom": 316,
+          "left": 136
+        },
+        "inert": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"remove-cancel\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "saved": "✓In Library",
+        "focus": "library"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"library\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"remove-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "saved": "+Library",
+        "notificationsAbsent": true,
+        "inert": false
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"library\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"notifications\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "notifications": "Notifications off"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-collections-landscape-stress",
+      "result": {
+        "name": "series-finished-collections-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-collections-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:47.919Z",
+        "sha256": "314a23d1bb1b84e54da59380af8ee4a7039dbaf7a5f40a3ff8aecc803e9d95cc",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"watch\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Watch would open the approved SourcesSheet; no provider call or player mock."
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=episodes",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Episode 1 Download would open the approved SourcesSheet; no provider call or player mock."
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".episode-row[data-episode=\"2\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-context-portrait",
+      "result": {
+        "name": "series-finished-context-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-context-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=episodes",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=episodes",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:49.529Z",
+        "sha256": "a666fc7ec2b554f64f95dab528e1e5e863f2285c96aa2a3431816a1e45b771d3",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "status": "Episode 2 Download would open the approved SourcesSheet; no provider call or player mock.",
+        "closed": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"synopsis\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "expanded": "true",
+        "label": "Less"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"cast-expand\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-cast-expanded-desktop",
+      "result": {
+        "name": "film-finished-cast-expanded-desktop",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-cast-expanded-desktop.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:55:51.127Z",
+        "sha256": "990f1a2caddaa544aa45864de7db63104685afd85f32492b34728597f00f803b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cast": 9,
+        "allCastButton": false
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".rec-card:last-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "More like this: The Witcher — navigation omitted in standalone mock."
+    }
+  ]
+}

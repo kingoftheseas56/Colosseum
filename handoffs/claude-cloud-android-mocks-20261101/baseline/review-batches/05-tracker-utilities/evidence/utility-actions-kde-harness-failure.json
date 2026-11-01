@@ -1,0 +1,132 @@
+{
+  "at": "2026-10-31T23:36:12.505Z",
+  "tests": [
+    {
+      "page": "wallpaper-search",
+      "name": "Six source-native canvases render and shelves scroll",
+      "pass": true,
+      "detail": [
+        {
+          "id": "noir",
+          "ok": true
+        },
+        {
+          "id": "aurora",
+          "ok": true
+        },
+        {
+          "id": "poly",
+          "ok": true
+        },
+        {
+          "id": "twilight",
+          "ok": true
+        },
+        {
+          "id": "ember",
+          "ok": true
+        },
+        {
+          "id": "mint",
+          "ok": true
+        }
+      ]
+    },
+    {
+      "page": "wallpaper-search",
+      "name": "Search zero results, reset and Load more",
+      "pass": true
+    },
+    {
+      "page": "wallpaper-search",
+      "name": "Random rerolls and Close exits only local picker",
+      "pass": true
+    },
+    {
+      "page": "collections",
+      "name": "Remove then Cancel preserves all six original titles",
+      "pass": true
+    },
+    {
+      "page": "collections",
+      "name": "Undo, reorder, notes and Save use one draft",
+      "pass": true
+    },
+    {
+      "page": "collections",
+      "name": "Blank name validation and discard Escape keep edits reversible",
+      "pass": true
+    },
+    {
+      "page": "collections",
+      "name": "Membership Save removes only selected fixture membership",
+      "pass": true
+    },
+    {
+      "page": "collections",
+      "name": "Create empty collection and membership list tolerate no covers",
+      "pass": true
+    },
+    {
+      "page": "collections",
+      "name": "Delete cancel keeps, confirm deletes local collection",
+      "pass": true
+    },
+    {
+      "page": "extensions-store",
+      "name": "Typed URL enables Preview; invalid URL uses source error",
+      "pass": true
+    },
+    {
+      "page": "extensions-store",
+      "name": "Preview, install, Done and installed list agree",
+      "pass": true
+    },
+    {
+      "page": "extensions-store",
+      "name": "Existing installation gates duplicate URL action",
+      "pass": true
+    },
+    {
+      "page": "extensions-store",
+      "name": "Setup validates link and returns after local installation",
+      "pass": true
+    },
+    {
+      "page": "extensions-store",
+      "name": "Enable/disable and removal preserve core gating",
+      "pass": true
+    },
+    {
+      "page": "extensions-store",
+      "name": "House end tile is reachable and toggles locally",
+      "pass": true
+    },
+    {
+      "page": "extensions-store",
+      "name": "Original text menu selects/cuts and restores editor focus",
+      "pass": true
+    },
+    {
+      "page": "update",
+      "name": "Download, pause and resume are local state transitions",
+      "pass": true
+    },
+    {
+      "page": "update",
+      "name": "Next wraps but arrow navigation clamps",
+      "pass": true
+    },
+    {
+      "page": "update",
+      "name": "Unknown download size has no fabricated percentage",
+      "pass": true
+    },
+    {
+      "page": "wallpaper-search",
+      "name": "All 13 approved KDE picks load; final pick selects and applies",
+      "pass": false,
+      "error": "a.map is not a function"
+    }
+  ]
+}

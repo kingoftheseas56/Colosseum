@@ -1,0 +1,123 @@
+{
+  "job": "20-search-browse",
+  "name": "biblio-explore.html",
+  "checks": [
+    {
+      "name": "Expanded index reserves in-place content space",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "a": {
+          "x": 18,
+          "y": 127,
+          "w": 140,
+          "h": 556,
+          "right": 158,
+          "bottom": 683,
+          "visible": true,
+          "client": 556,
+          "scroll": 556
+        },
+        "b": {
+          "x": 158,
+          "y": 127,
+          "w": 178,
+          "h": 3044,
+          "right": 336,
+          "bottom": 3171,
+          "visible": true,
+          "client": 3044,
+          "scroll": 3044
+        }
+      },
+      "time": "2026-10-31T23:44:00.158Z"
+    },
+    {
+      "name": "Last index entry scrolls to fixed mosaic and stays open",
+      "pass": true,
+      "time": "2026-10-31T23:44:00.832Z"
+    },
+    {
+      "name": "Customize hides shelf and corresponding index entry",
+      "pass": true,
+      "time": "2026-10-31T23:44:02.878Z"
+    },
+    {
+      "name": "Keyboard reorder updates shelf and index order",
+      "pass": true,
+      "time": "2026-10-31T23:44:03.340Z"
+    },
+    {
+      "name": "Pointer drag reorders the original shelf handle",
+      "pass": true,
+      "time": "2026-10-31T23:44:05.707Z"
+    },
+    {
+      "name": "Ranked card retains source reveal on focus",
+      "pass": true,
+      "time": "2026-10-31T23:44:06.515Z"
+    },
+    {
+      "name": "See All enters canonical Discover and Back returns to Explore",
+      "pass": true,
+      "time": "2026-10-31T23:44:09.644Z"
+    },
+    {
+      "name": "Wide phone uses 92px world navigation rail",
+      "pass": true,
+      "time": "2026-10-31T23:44:10.886Z"
+    },
+    {
+      "name": "Long Explore reaches final mosaic",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 2557,
+        "scrollHeight": 2866,
+        "clientHeight": 309
+      },
+      "time": "2026-10-31T23:44:11.630Z"
+    },
+    {
+      "name": "Explore keeps WorldPage margin and 130x182 book art",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "a": {
+          "x": 18,
+          "y": 127,
+          "w": 52,
+          "h": 556,
+          "right": 70,
+          "bottom": 683,
+          "visible": true,
+          "client": 556,
+          "scroll": 556
+        },
+        "b": {
+          "x": 114,
+          "y": 292,
+          "w": 130,
+          "h": 182,
+          "right": 244,
+          "bottom": 474,
+          "visible": true,
+          "client": 182,
+          "scroll": 182
+        }
+      },
+      "time": "2026-11-01T00:02:49.544Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\biblio-explore\\index-open-stress.png",
+    "evidence\\after\\biblio-explore\\index-last-mosaic.png",
+    "evidence\\after\\biblio-explore\\customize-keyboard.png",
+    "evidence\\after\\biblio-explore\\customize-drag-desktop.png",
+    "evidence\\after\\biblio-explore\\ranked-source-focus.png",
+    "evidence\\after\\biblio-explore\\wide-navigation.png",
+    "evidence\\after\\biblio-explore\\native-book-geometry-stress.png"
+  ],
+  "completedAt": "2026-11-01T00:02:50.051Z",
+  "pass": true
+}

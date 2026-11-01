@@ -1,0 +1,257 @@
+{
+  "at": "2026-10-31T23:45:49.056Z",
+  "note": "Reference assets actually requested by the isolated browser across baseline and finished states.",
+  "files": [
+    {
+      "path": "reference/desktop/assets/addon-logos/aiostreams.png",
+      "sha256": "50ad96b0b8306e9b80e15ce70618deef76c7170fc9c17dd41aa230ca9496c230",
+      "bytes": 8456
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/anime-kitsu.png",
+      "sha256": "9a9b15df6123368d3902d9d197bc9b22569365dee067ac32a5495740e16465a8",
+      "bytes": 16685
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/audiobookbay.png",
+      "sha256": "21e05bc6c7983fcbbc9abb44b0b65451d5d021e40332abd5ae549069d90af598",
+      "bytes": 11980
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/colosseum-grand-database.png",
+      "sha256": "6eaf9b494743439b4f8d3fb720400d88640de3633985bfcc149349358034b8c1",
+      "bytes": 13069
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/comet.png",
+      "sha256": "42b4498551aaacd3f278e3b024a509059923fbe75ddc19da238edf2dfc919673",
+      "bytes": 64765
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/getcomics.png",
+      "sha256": "2272f2fad31098f365864a887d6ffff22064e2af707f43fd1c7a51d0a2645f9e",
+      "bytes": 31386
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/libgen.ico",
+      "sha256": "d3910a9bd312389bd76df879ad74c7c5f596b1056f1d86d537b6451738c61390",
+      "bytes": 2238
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/mediafusion.png",
+      "sha256": "5d3289dcef4a591cf0ba434f09fccde5fc016bb8e8950acb4f50a2b7ced9f41f",
+      "bytes": 46976
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/netflix-catalog.png",
+      "sha256": "9879ba91e75410bbdffe05268d4114fcfa8a403201b102c22676f302e2d1004a",
+      "bytes": 13040
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/nyaa.png",
+      "sha256": "91f7d549ef809e5529c49fbf038137f83bd1483f70a1e23201487edf11b82625",
+      "bytes": 9207
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/opensubtitles.png",
+      "sha256": "5a970da5a403fe30003d03d42b96672a18ea66a13256215a194c4764097502a2",
+      "bytes": 2323
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/streaming-catalogs.png",
+      "sha256": "9879ba91e75410bbdffe05268d4114fcfa8a403201b102c22676f302e2d1004a",
+      "bytes": 13040
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/subdl.jpg",
+      "sha256": "178ea843a934ccb494949fcaea2393e9e226de2ff6e098572dce6443b70de977",
+      "bytes": 3052
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/tankorent.png",
+      "sha256": "6e321247aa0a7810df17164274a42c467efd60012680eff75c0f0bb69264cb9e",
+      "bytes": 38348
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/tankoyomi.png",
+      "sha256": "a230c84439b9631e0f87479066e84d2e85a851b7e2fb802dfcddda9ee75ba724",
+      "bytes": 91579
+    },
+    {
+      "path": "reference/desktop/assets/addon-logos/torrentio.png",
+      "sha256": "b7bdae0f2301c0ce4bfb3069ef95abe5c2bfd5c0d32a13c289735b4d0fdd783d",
+      "bytes": 265208
+    },
+    {
+      "path": "reference/desktop/assets/extensions/house/starwars-banner.jpg",
+      "sha256": "f77aed3b2b5d1b65279055d49a7e2d2171ccca2b5fdb3dab670fbee1835201a6",
+      "bytes": 500855
+    },
+    {
+      "path": "reference/desktop/assets/extensions/store-jolly-roger.jpg",
+      "sha256": "90a520efb92dfa917078c8946cc1cc5917791fc147b3f345757063a18904a19f",
+      "bytes": 588657
+    },
+    {
+      "path": "reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc",
+      "bytes": 72036
+    },
+    {
+      "path": "reference/desktop/assets/fonts/Inter-Regular.otf",
+      "sha256": "d4f2b9e148059a15f014cb0f0b8fea8cd11bfa447dd483bedf1b0adc0e2ba799",
+      "bytes": 609600
+    },
+    {
+      "path": "reference/desktop/assets/fonts/Inter-SemiBold.otf",
+      "sha256": "0a4d30778fa2dc239368d90fd854b88b27e7ede737450da72686a90eca66f02c",
+      "bytes": 629912
+    },
+    {
+      "path": "reference/desktop/assets/icons/colosseum.svg",
+      "sha256": "9794195438449637b595d0cb4be3c8b9c54317c9d58c294aba2a06facb3d7b1e",
+      "bytes": 622
+    },
+    {
+      "path": "reference/desktop/assets/icons/fullscreen-exit.svg",
+      "sha256": "0a8954af5dca33e7c781d060df61f8afc0b61a70be44adc36a474625ded0198d",
+      "bytes": 305
+    },
+    {
+      "path": "reference/desktop/assets/icons/fullscreen.svg",
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a",
+      "bytes": 305
+    },
+    {
+      "path": "reference/desktop/assets/icons/minimize.svg",
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee",
+      "bytes": 183
+    },
+    {
+      "path": "reference/desktop/assets/icons/power.svg",
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5",
+      "bytes": 215
+    },
+    {
+      "path": "reference/desktop/assets/icons/preferences.svg",
+      "sha256": "2b06691b5cf3b4dc7ccd2252487c77c52b7d17b7271a73144a6b3f0cfb3571b0",
+      "bytes": 502
+    },
+    {
+      "path": "reference/desktop/assets/icons/search.svg",
+      "sha256": "083ffab2b908e1ff515ef8dc66c3c7c9147bc7287b67e3354ad5330c1e57b779",
+      "bytes": 237
+    },
+    {
+      "path": "reference/desktop/assets/icons/stremio-official.svg",
+      "sha256": "33ff6f851753093937519b63f8fd7828890b09a478a7b2d67801cb606126ee6a",
+      "bytes": 979
+    },
+    {
+      "path": "reference/desktop/assets/icons/sync.svg",
+      "sha256": "342cb7688becca9fa0bb482da697dec41892b3290a37f1f1b1097021196471c3",
+      "bytes": 294
+    },
+    {
+      "path": "reference/desktop/assets/icons/trackers/anilist.svg",
+      "sha256": "ca755657cf6bbe3a5116c2ef826623624ba4105c08d9f8eb031d14e95264b09a",
+      "bytes": 388
+    },
+    {
+      "path": "reference/desktop/assets/icons/trackers/myanimelist.svg",
+      "sha256": "e0286728a3fddd93abb6efaf2a920bc678f74841084e03f3155e9eb5e9c99db1",
+      "bytes": 444
+    },
+    {
+      "path": "reference/desktop/assets/icons/trackers/simkl.svg",
+      "sha256": "a4a4e022c8c26053df49c77e6012ed4acf9731dd041d071dcd613f487052d2d0",
+      "bytes": 1370
+    },
+    {
+      "path": "reference/desktop/assets/icons/trackers/trakt.svg",
+      "sha256": "f8929cd9cb85dc839fa4e4c1c8daff166ed30aa9c0533dcf16207c782ec4fab4",
+      "bytes": 793
+    },
+    {
+      "path": "reference/desktop/assets/icons/universes-atom.svg",
+      "sha256": "f0facaa83c8693ccb1bc5053240ee445c836a64bf9b833828d3351752554510f",
+      "bytes": 402
+    },
+    {
+      "path": "reference/desktop/assets/icons/vault-door.svg",
+      "sha256": "208b63678623fab75a663b52f058b3c990248151819b6fd5fea5567d885c1a25",
+      "bytes": 482
+    },
+    {
+      "path": "reference/desktop/assets/icons/vault-folder.svg",
+      "sha256": "9f9b50a791a4f8f2289be07d449ac9828fe1529f46cb459b144d6b10c06e3760",
+      "bytes": 292
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/captured-motion.jpg",
+      "sha256": "9f56f69ee6d80fcd612e8ff43f23ed9744114868575a873f840191ddbdd48289",
+      "bytes": 1019877
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/cold-ripple.jpg",
+      "sha256": "e53040f1ed25876fc96a0dd5ec6554b81b778adf69e803443d6c6d3d59b15e8c",
+      "bytes": 460861
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/dune.jpg",
+      "sha256": "ef9fc905b6dbdce583d36eefdfebc3fa1d3a7df2fc82a5cff81f1f2a55155b6f",
+      "bytes": 118367
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/harry-potter.jpg",
+      "sha256": "431dce5caf16b766a812760728af9b00214faa2ec3cff69b21a505f7b1815271",
+      "bytes": 110715
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/ice-and-fire.jpg",
+      "sha256": "a6f746609261b0fe7d586afed48e75fab0dee6b662f8814b7625a567d64f5f52",
+      "bytes": 133010
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/jurassic-park.jpg",
+      "sha256": "d89a28066905a947a83e9f6c441ae66ff75dedfb1dc4e162fb400df465ea3647",
+      "bytes": 303796
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/lord-of-the-rings.jpg",
+      "sha256": "bf399c25885b79c278609cba73f8409cbdbf56ec691e354bc226d18b9a4620e3",
+      "bytes": 158295
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/percy-jackson.jpg",
+      "sha256": "575035b804d444be542873599963e9db4c468965d4500aeeec7000850c570c62",
+      "bytes": 288193
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/sherlock-holmes.jpg",
+      "sha256": "866c98889bdf99032359dc1b745deb9127d93fb12827db8791aae9de16be4c02",
+      "bytes": 117948
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/sagas/the-witcher.jpg",
+      "sha256": "bd81e60fed2df8d25039c769aa70cfddc257cfd87e1e31acb4154d53b4359629",
+      "bytes": 196870
+    },
+    {
+      "path": "reference/local-fonts/segoeui.ttf",
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e",
+      "bytes": 960076
+    },
+    {
+      "path": "reference/local-fonts/segoeuib.ttf",
+      "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2",
+      "bytes": 947364
+    },
+    {
+      "path": "reference/local-fonts/seguisb.ttf",
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501",
+      "bytes": 974760
+    }
+  ],
+  "kde": "kde-assets.json"
+}

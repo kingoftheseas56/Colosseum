@@ -1,0 +1,2025 @@
+{
+  "at": "2026-10-31T23:43:41.532Z",
+  "records": [
+    {
+      "page": "tracker-connections",
+      "preset": "portrait",
+      "w": 412,
+      "h": 900,
+      "receipt": "evidence/after-tracker-connections-portrait.json",
+      "image": "evidence/after-tracker-connections-portrait.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "landscape",
+      "w": 900,
+      "h": 412,
+      "receipt": "evidence/after-tracker-connections-landscape.json",
+      "image": "evidence/after-tracker-connections-landscape.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "compact",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-tracker-connections-compact.json",
+      "image": "evidence/after-tracker-connections-compact.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "compactland",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-tracker-connections-compactland.json",
+      "image": "evidence/after-tracker-connections-compactland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "receipt": "evidence/after-tracker-connections-desktop.json",
+      "image": "evidence/after-tracker-connections-desktop.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "panelBounds": [],
+        "chromeVisible": [
+          "window-buttons",
+          "desktop-dock"
+        ],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "tablet",
+      "w": 800,
+      "h": 1280,
+      "receipt": "evidence/after-tracker-connections-tablet.json",
+      "image": "evidence/after-tracker-connections-tablet.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "tabletland",
+      "w": 1280,
+      "h": 800,
+      "receipt": "evidence/after-tracker-connections-tabletland.json",
+      "image": "evidence/after-tracker-connections-tabletland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "compact-stress",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-tracker-connections-compact-stress.json",
+      "image": "evidence/after-tracker-connections-compact-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-connections",
+      "preset": "compactland-stress",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-tracker-connections-compactland-stress.json",
+      "image": "evidence/after-tracker-connections-compactland-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "portrait",
+      "w": 412,
+      "h": 900,
+      "receipt": "evidence/after-tracker-dossier-portrait.json",
+      "image": "evidence/after-tracker-dossier-portrait.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 18,
+              "y": 18,
+              "w": 376,
+              "h": 864,
+              "right": 394,
+              "bottom": 882
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "landscape",
+      "w": 900,
+      "h": 412,
+      "receipt": "evidence/after-tracker-dossier-landscape.json",
+      "image": "evidence/after-tracker-dossier-landscape.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 272,
+              "y": 18,
+              "w": 610,
+              "h": 376,
+              "right": 882,
+              "bottom": 394
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "compact",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-tracker-dossier-compact.json",
+      "image": "evidence/after-tracker-dossier-compact.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 18,
+              "y": 18,
+              "w": 318,
+              "h": 756,
+              "right": 336,
+              "bottom": 774
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "compactland",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-tracker-dossier-compactland.json",
+      "image": "evidence/after-tracker-dossier-compactland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 164,
+              "y": 18,
+              "w": 610,
+              "h": 318,
+              "right": 774,
+              "bottom": 336
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "receipt": "evidence/after-tracker-dossier-desktop.json",
+      "image": "evidence/after-tracker-dossier-desktop.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 652,
+              "y": 18,
+              "w": 610,
+              "h": 664,
+              "right": 1262,
+              "bottom": 682
+            }
+          }
+        ],
+        "chromeVisible": [
+          "window-buttons",
+          "desktop-dock"
+        ],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "tablet",
+      "w": 800,
+      "h": 1280,
+      "receipt": "evidence/after-tracker-dossier-tablet.json",
+      "image": "evidence/after-tracker-dossier-tablet.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 172,
+              "y": 18,
+              "w": 610,
+              "h": 1244,
+              "right": 782,
+              "bottom": 1262
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "tabletland",
+      "w": 1280,
+      "h": 800,
+      "receipt": "evidence/after-tracker-dossier-tabletland.json",
+      "image": "evidence/after-tracker-dossier-tabletland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 652,
+              "y": 18,
+              "w": 610,
+              "h": 764,
+              "right": 1262,
+              "bottom": 782
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "compact-stress",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-tracker-dossier-compact-stress.json",
+      "image": "evidence/after-tracker-dossier-compact-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-dossier",
+      "preset": "compactland-stress",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-tracker-dossier-compactland-stress.json",
+      "image": "evidence/after-tracker-dossier-compactland-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "portrait",
+      "w": 412,
+      "h": 900,
+      "receipt": "evidence/after-tracker-preferences-portrait.json",
+      "image": "evidence/after-tracker-preferences-portrait.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 18,
+              "y": 18,
+              "w": 376,
+              "h": 864,
+              "right": 394,
+              "bottom": 882
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "landscape",
+      "w": 900,
+      "h": 412,
+      "receipt": "evidence/after-tracker-preferences-landscape.json",
+      "image": "evidence/after-tracker-preferences-landscape.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 272,
+              "y": 18,
+              "w": 610,
+              "h": 376,
+              "right": 882,
+              "bottom": 394
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "compact",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-tracker-preferences-compact.json",
+      "image": "evidence/after-tracker-preferences-compact.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 18,
+              "y": 18,
+              "w": 318,
+              "h": 756,
+              "right": 336,
+              "bottom": 774
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "compactland",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-tracker-preferences-compactland.json",
+      "image": "evidence/after-tracker-preferences-compactland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 164,
+              "y": 18,
+              "w": 610,
+              "h": 318,
+              "right": 774,
+              "bottom": 336
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "receipt": "evidence/after-tracker-preferences-desktop.json",
+      "image": "evidence/after-tracker-preferences-desktop.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 652,
+              "y": 18,
+              "w": 610,
+              "h": 664,
+              "right": 1262,
+              "bottom": 682
+            }
+          }
+        ],
+        "chromeVisible": [
+          "window-buttons",
+          "desktop-dock"
+        ],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "tablet",
+      "w": 800,
+      "h": 1280,
+      "receipt": "evidence/after-tracker-preferences-tablet.json",
+      "image": "evidence/after-tracker-preferences-tablet.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 172,
+              "y": 18,
+              "w": 610,
+              "h": 1244,
+              "right": 782,
+              "bottom": 1262
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "tabletland",
+      "w": 1280,
+      "h": 800,
+      "receipt": "evidence/after-tracker-preferences-tabletland.json",
+      "image": "evidence/after-tracker-preferences-tabletland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "panelBounds": [
+          {
+            "class": "dossier",
+            "box": {
+              "x": 652,
+              "y": 18,
+              "w": 610,
+              "h": 764,
+              "right": 1262,
+              "bottom": 782
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "compact-stress",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-tracker-preferences-compact-stress.json",
+      "image": "evidence/after-tracker-preferences-compact-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "tracker-preferences",
+      "preset": "compactland-stress",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-tracker-preferences-compactland-stress.json",
+      "image": "evidence/after-tracker-preferences-compactland-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "portrait",
+      "w": 412,
+      "h": 900,
+      "receipt": "evidence/after-wallpaper-search-portrait.json",
+      "image": "evidence/after-wallpaper-search-portrait.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "panelBounds": [
+          {
+            "class": "wall-panel",
+            "box": {
+              "x": 12,
+              "y": 12,
+              "w": 388,
+              "h": 876,
+              "right": 400,
+              "bottom": 888
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [
+          {
+            "scene": "noir",
+            "rendered": "true"
+          },
+          {
+            "scene": "aurora",
+            "rendered": "true"
+          },
+          {
+            "scene": "poly",
+            "rendered": "true"
+          },
+          {
+            "scene": "twilight",
+            "rendered": "true"
+          },
+          {
+            "scene": "ember",
+            "rendered": "true"
+          },
+          {
+            "scene": "mint",
+            "rendered": "true"
+          }
+        ],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "landscape",
+      "w": 900,
+      "h": 412,
+      "receipt": "evidence/after-wallpaper-search-landscape.json",
+      "image": "evidence/after-wallpaper-search-landscape.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "panelBounds": [
+          {
+            "class": "wall-panel",
+            "box": {
+              "x": 12,
+              "y": 8,
+              "w": 530,
+              "h": 396,
+              "right": 542,
+              "bottom": 404
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [
+          {
+            "scene": "noir",
+            "rendered": "true"
+          },
+          {
+            "scene": "aurora",
+            "rendered": "true"
+          },
+          {
+            "scene": "poly",
+            "rendered": "true"
+          },
+          {
+            "scene": "twilight",
+            "rendered": "true"
+          },
+          {
+            "scene": "ember",
+            "rendered": "true"
+          },
+          {
+            "scene": "mint",
+            "rendered": "true"
+          }
+        ],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "compact",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-wallpaper-search-compact.json",
+      "image": "evidence/after-wallpaper-search-compact.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "panelBounds": [
+          {
+            "class": "wall-panel",
+            "box": {
+              "x": 12,
+              "y": 12,
+              "w": 330,
+              "h": 768,
+              "right": 342,
+              "bottom": 780
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [
+          {
+            "scene": "noir",
+            "rendered": "true"
+          },
+          {
+            "scene": "aurora",
+            "rendered": "true"
+          },
+          {
+            "scene": "poly",
+            "rendered": "true"
+          },
+          {
+            "scene": "twilight",
+            "rendered": "true"
+          },
+          {
+            "scene": "ember",
+            "rendered": "true"
+          },
+          {
+            "scene": "mint",
+            "rendered": "true"
+          }
+        ],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "compactland",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-wallpaper-search-compactland.json",
+      "image": "evidence/after-wallpaper-search-compactland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "panelBounds": [
+          {
+            "class": "wall-panel",
+            "box": {
+              "x": 12,
+              "y": 8,
+              "w": 530,
+              "h": 338,
+              "right": 542,
+              "bottom": 346
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [
+          {
+            "scene": "noir",
+            "rendered": "true"
+          },
+          {
+            "scene": "aurora",
+            "rendered": "true"
+          },
+          {
+            "scene": "poly",
+            "rendered": "true"
+          },
+          {
+            "scene": "twilight",
+            "rendered": "true"
+          },
+          {
+            "scene": "ember",
+            "rendered": "true"
+          },
+          {
+            "scene": "mint",
+            "rendered": "true"
+          }
+        ],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "receipt": "evidence/after-wallpaper-search-desktop.json",
+      "image": "evidence/after-wallpaper-search-desktop.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "panelBounds": [
+          {
+            "class": "wall-panel",
+            "box": {
+              "x": 40,
+              "y": 60,
+              "w": 520,
+              "h": 580,
+              "right": 560,
+              "bottom": 640
+            }
+          }
+        ],
+        "chromeVisible": [
+          "window-controls"
+        ],
+        "canvas": [
+          {
+            "scene": "noir",
+            "rendered": "true"
+          },
+          {
+            "scene": "aurora",
+            "rendered": "true"
+          },
+          {
+            "scene": "poly",
+            "rendered": "true"
+          },
+          {
+            "scene": "twilight",
+            "rendered": "true"
+          },
+          {
+            "scene": "ember",
+            "rendered": "true"
+          },
+          {
+            "scene": "mint",
+            "rendered": "true"
+          }
+        ],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "tablet",
+      "w": 800,
+      "h": 1280,
+      "receipt": "evidence/after-wallpaper-search-tablet.json",
+      "image": "evidence/after-wallpaper-search-tablet.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "panelBounds": [
+          {
+            "class": "wall-panel",
+            "box": {
+              "x": 40,
+              "y": 60,
+              "w": 520,
+              "h": 1160,
+              "right": 560,
+              "bottom": 1220
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [
+          {
+            "scene": "noir",
+            "rendered": "true"
+          },
+          {
+            "scene": "aurora",
+            "rendered": "true"
+          },
+          {
+            "scene": "poly",
+            "rendered": "true"
+          },
+          {
+            "scene": "twilight",
+            "rendered": "true"
+          },
+          {
+            "scene": "ember",
+            "rendered": "true"
+          },
+          {
+            "scene": "mint",
+            "rendered": "true"
+          }
+        ],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "tabletland",
+      "w": 1280,
+      "h": 800,
+      "receipt": "evidence/after-wallpaper-search-tabletland.json",
+      "image": "evidence/after-wallpaper-search-tabletland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "panelBounds": [
+          {
+            "class": "wall-panel",
+            "box": {
+              "x": 40,
+              "y": 60,
+              "w": 520,
+              "h": 680,
+              "right": 560,
+              "bottom": 740
+            }
+          }
+        ],
+        "chromeVisible": [],
+        "canvas": [
+          {
+            "scene": "noir",
+            "rendered": "true"
+          },
+          {
+            "scene": "aurora",
+            "rendered": "true"
+          },
+          {
+            "scene": "poly",
+            "rendered": "true"
+          },
+          {
+            "scene": "twilight",
+            "rendered": "true"
+          },
+          {
+            "scene": "ember",
+            "rendered": "true"
+          },
+          {
+            "scene": "mint",
+            "rendered": "true"
+          }
+        ],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "compact-stress",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-wallpaper-search-compact-stress.json",
+      "image": "evidence/after-wallpaper-search-compact-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "wallpaper-search",
+      "preset": "compactland-stress",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-wallpaper-search-compactland-stress.json",
+      "image": "evidence/after-wallpaper-search-compactland-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "extensions-store",
+      "preset": "portrait",
+      "w": 412,
+      "h": 900,
+      "receipt": "evidence/after-extensions-store-portrait.json",
+      "image": "evidence/after-extensions-store-portrait.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "extensions-store",
+      "preset": "landscape",
+      "w": 900,
+      "h": 412,
+      "receipt": "evidence/after-extensions-store-landscape.json",
+      "image": "evidence/after-extensions-store-landscape.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "extensions-store",
+      "preset": "compact",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-extensions-store-compact.json",
+      "image": "evidence/after-extensions-store-compact.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "extensions-store",
+      "preset": "compactland",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-extensions-store-compactland.json",
+      "image": "evidence/after-extensions-store-compactland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "extensions-store",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "receipt": "evidence/after-extensions-store-desktop.json",
+      "image": "evidence/after-extensions-store-desktop.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "panelBounds": [],
+        "chromeVisible": [
+          "window-controls"
+        ],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "extensions-store",
+      "preset": "tablet",
+      "w": 800,
+      "h": 1280,
+      "receipt": "evidence/after-extensions-store-tablet.json",
+      "image": "evidence/after-extensions-store-tablet.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "extensions-store",
+      "preset": "tabletland",
+      "w": 1280,
+      "h": 800,
+      "receipt": "evidence/after-extensions-store-tabletland.json",
+      "image": "evidence/after-extensions-store-tabletland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "extensions-store",
+      "preset": "compact-stress",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-extensions-store-compact-stress.json",
+      "image": "evidence/after-extensions-store-compact-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "extensions-store",
+      "preset": "compactland-stress",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-extensions-store-compactland-stress.json",
+      "image": "evidence/after-extensions-store-compactland-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "update",
+      "preset": "portrait",
+      "w": 412,
+      "h": 900,
+      "receipt": "evidence/after-update-portrait.json",
+      "image": "evidence/after-update-portrait.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "update",
+      "preset": "landscape",
+      "w": 900,
+      "h": 412,
+      "receipt": "evidence/after-update-landscape.json",
+      "image": "evidence/after-update-landscape.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "update",
+      "preset": "compact",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-update-compact.json",
+      "image": "evidence/after-update-compact.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "update",
+      "preset": "compactland",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-update-compactland.json",
+      "image": "evidence/after-update-compactland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "update",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "receipt": "evidence/after-update-desktop.json",
+      "image": "evidence/after-update-desktop.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "panelBounds": [],
+        "chromeVisible": [
+          "window-controls"
+        ],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "update",
+      "preset": "tablet",
+      "w": 800,
+      "h": 1280,
+      "receipt": "evidence/after-update-tablet.json",
+      "image": "evidence/after-update-tablet.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "update",
+      "preset": "tabletland",
+      "w": 1280,
+      "h": 800,
+      "receipt": "evidence/after-update-tabletland.json",
+      "image": "evidence/after-update-tabletland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": true
+        }
+      }
+    },
+    {
+      "page": "update",
+      "preset": "compact-stress",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-update-compact-stress.json",
+      "image": "evidence/after-update-compact-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "update",
+      "preset": "compactland-stress",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-update-compactland-stress.json",
+      "image": "evidence/after-update-compactland-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "collections",
+      "preset": "portrait",
+      "w": 412,
+      "h": 900,
+      "receipt": "evidence/after-collections-portrait.json",
+      "image": "evidence/after-collections-portrait.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "collections",
+      "preset": "landscape",
+      "w": 900,
+      "h": 412,
+      "receipt": "evidence/after-collections-landscape.json",
+      "image": "evidence/after-collections-landscape.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "collections",
+      "preset": "compact",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-collections-compact.json",
+      "image": "evidence/after-collections-compact.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "collections",
+      "preset": "compactland",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-collections-compactland.json",
+      "image": "evidence/after-collections-compactland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "collections",
+      "preset": "desktop",
+      "w": 1280,
+      "h": 700,
+      "receipt": "evidence/after-collections-desktop.json",
+      "image": "evidence/after-collections-desktop.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "panelBounds": [],
+        "chromeVisible": [
+          "window-controls",
+          "collections-dock"
+        ],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "collections",
+      "preset": "tablet",
+      "w": 800,
+      "h": 1280,
+      "receipt": "evidence/after-collections-tablet.json",
+      "image": "evidence/after-collections-tablet.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 800,
+          "h": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "collections",
+      "preset": "tabletland",
+      "w": 1280,
+      "h": 800,
+      "receipt": "evidence/after-collections-tabletland.json",
+      "image": "evidence/after-collections-tabletland.png",
+      "errors": [],
+      "blocked": [],
+      "missing": [],
+      "audit": {
+        "mainFrame": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "panelBounds": [],
+        "chromeVisible": [],
+        "canvas": [],
+        "fontChecks": {
+          "segoe": true,
+          "fraunces": true,
+          "inter": false
+        }
+      }
+    },
+    {
+      "page": "collections",
+      "preset": "compact-stress",
+      "w": 354,
+      "h": 792,
+      "receipt": "evidence/after-collections-compact-stress.json",
+      "image": "evidence/after-collections-compact-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    },
+    {
+      "page": "collections",
+      "preset": "compactland-stress",
+      "w": 792,
+      "h": 354,
+      "receipt": "evidence/after-collections-compactland-stress.json",
+      "image": "evidence/after-collections-compactland-stress.png",
+      "errors": [],
+      "blocked": [],
+      "missing": []
+    }
+  ]
+}

@@ -1,0 +1,746 @@
+{
+  "at": "2026-11-01T00:53:35.649Z",
+  "base": "http://127.0.0.1:6216",
+  "checks": [
+    {
+      "name": "phone-portrait connected-card simkl Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait connected-card simkl explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait connected-card mal Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "mal",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait connected-card mal explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "mal",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait catalogue-card trakt Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "trakt",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait catalogue-card trakt explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "trakt",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait catalogue-card simkl Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait catalogue-card simkl explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait Preferences Escape",
+      "pass": true
+    },
+    {
+      "name": "phone-portrait Preferences explicit",
+      "pass": true
+    },
+    {
+      "name": "phone-portrait Preferences veil",
+      "pass": true
+    },
+    {
+      "name": "phone-portrait nested review-import Escape",
+      "pass": true,
+      "detail": {
+        "action": "review-import",
+        "classes": "review-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait nested review-import Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "review-import",
+        "classes": "review-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait nested review-export Escape",
+      "pass": true,
+      "detail": {
+        "action": "review-export",
+        "classes": "review-btn gold",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait nested review-export Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "review-export",
+        "classes": "review-btn gold",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait nested disconnect Escape",
+      "pass": true,
+      "detail": {
+        "action": "disconnect",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait nested disconnect Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "disconnect",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait nested remove-data Escape",
+      "pass": true,
+      "detail": {
+        "action": "remove-data",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait nested remove-data Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "remove-data",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-portrait title match Escape returns Find match",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Find match",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait title match explicit returns Find match",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Find match",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait title match selection focuses separate decision",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Use tracker progress",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait bulk Escape returns review control",
+      "pass": true,
+      "detail": {
+        "action": "bulk-review",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait bulk Cancel returns review control",
+      "pass": true,
+      "detail": {
+        "action": "bulk-review",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-portrait removed opener falls back to Preferences",
+      "pass": true
+    },
+    {
+      "name": "phone-portrait deliberate external review navigation retains focus",
+      "pass": true
+    },
+    {
+      "name": "phone-landscape connected-card simkl Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape connected-card simkl explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape connected-card mal Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "mal",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape connected-card mal explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "mal",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape catalogue-card trakt Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "trakt",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape catalogue-card trakt explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "trakt",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape catalogue-card simkl Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape catalogue-card simkl explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape Preferences Escape",
+      "pass": true
+    },
+    {
+      "name": "phone-landscape Preferences explicit",
+      "pass": true
+    },
+    {
+      "name": "phone-landscape Preferences veil",
+      "pass": true
+    },
+    {
+      "name": "phone-landscape nested review-import Escape",
+      "pass": true,
+      "detail": {
+        "action": "review-import",
+        "classes": "review-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape nested review-import Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "review-import",
+        "classes": "review-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape nested review-export Escape",
+      "pass": true,
+      "detail": {
+        "action": "review-export",
+        "classes": "review-btn gold",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape nested review-export Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "review-export",
+        "classes": "review-btn gold",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape nested disconnect Escape",
+      "pass": true,
+      "detail": {
+        "action": "disconnect",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape nested disconnect Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "disconnect",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape nested remove-data Escape",
+      "pass": true,
+      "detail": {
+        "action": "remove-data",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape nested remove-data Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "remove-data",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "phone-landscape title match Escape returns Find match",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Find match",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape title match explicit returns Find match",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Find match",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape title match selection focuses separate decision",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Use tracker progress",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape bulk Escape returns review control",
+      "pass": true,
+      "detail": {
+        "action": "bulk-review",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape bulk Cancel returns review control",
+      "pass": true,
+      "detail": {
+        "action": "bulk-review",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "phone-landscape removed opener falls back to Preferences",
+      "pass": true
+    },
+    {
+      "name": "phone-landscape deliberate external review navigation retains focus",
+      "pass": true
+    },
+    {
+      "name": "desktop connected-card simkl Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop connected-card simkl explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop connected-card mal Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "mal",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop connected-card mal explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "mal",
+        "classes": "connected-card ",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop catalogue-card trakt Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "trakt",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop catalogue-card trakt explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "trakt",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop catalogue-card simkl Escape",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop catalogue-card simkl explicit",
+      "pass": true,
+      "detail": {
+        "action": "open-provider",
+        "key": "simkl",
+        "classes": "catalogue-card",
+        "dialog": false,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop Preferences Escape",
+      "pass": true
+    },
+    {
+      "name": "desktop Preferences explicit",
+      "pass": true
+    },
+    {
+      "name": "desktop Preferences veil",
+      "pass": true
+    },
+    {
+      "name": "desktop nested review-import Escape",
+      "pass": true,
+      "detail": {
+        "action": "review-import",
+        "classes": "review-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop nested review-import Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "review-import",
+        "classes": "review-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop nested review-export Escape",
+      "pass": true,
+      "detail": {
+        "action": "review-export",
+        "classes": "review-btn gold",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop nested review-export Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "review-export",
+        "classes": "review-btn gold",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop nested disconnect Escape",
+      "pass": true,
+      "detail": {
+        "action": "disconnect",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop nested disconnect Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "disconnect",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop nested remove-data Escape",
+      "pass": true,
+      "detail": {
+        "action": "remove-data",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop nested remove-data Cancel/close",
+      "pass": true,
+      "detail": {
+        "action": "remove-data",
+        "classes": "panel-btn",
+        "dialog": false,
+        "dossier": true
+      }
+    },
+    {
+      "name": "desktop title match Escape returns Find match",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Find match",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop title match explicit returns Find match",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Find match",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop title match selection focuses separate decision",
+      "pass": true,
+      "detail": {
+        "action": "import-choice",
+        "item": "aot",
+        "choice": "Use tracker progress",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop bulk Escape returns review control",
+      "pass": true,
+      "detail": {
+        "action": "bulk-review",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop bulk Cancel returns review control",
+      "pass": true,
+      "detail": {
+        "action": "bulk-review",
+        "classes": "panel-btn",
+        "dialog": true,
+        "dossier": false
+      }
+    },
+    {
+      "name": "desktop removed opener falls back to Preferences",
+      "pass": true
+    },
+    {
+      "name": "desktop deliberate external review navigation retains focus",
+      "pass": true
+    }
+  ],
+  "passed": 78,
+  "failed": 0,
+  "errors": [],
+  "external": [],
+  "originalBefore": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4",
+  "originalAfter": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4",
+  "corrected": "866b0560ac0794cf305676e063fbf362f9d2badb580dbe1417b4379e9f5b75c7",
+  "closed": true
+}

@@ -1,0 +1,11 @@
+{
+  "time": "2026-11-01T00:08:30.390Z",
+  "reason": "Initial static QA harness called unsupported Page.listeners before changing request interception; no page checks ran. Owned loopback server closed before retry.",
+  "closed": [
+    {
+      "address": "127.0.0.1",
+      "family": "IPv4",
+      "port": 4359
+    }
+  ]
+}

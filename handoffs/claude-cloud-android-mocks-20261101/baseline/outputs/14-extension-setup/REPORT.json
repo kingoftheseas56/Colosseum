@@ -1,0 +1,217 @@
+{
+  "task": "14-extension-setup",
+  "status": "ready-for-review",
+  "sourceRefs": {
+    "approvedDesktop": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41"
+    },
+    "alphaRecovery": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\alpha\\qml",
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "use": "Keyboard behavior reference only"
+    },
+    "rejectedContrast": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\android-drift\\qml",
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "use": "Comparison only; no drift components adopted"
+    },
+    "approvedQml": [
+      "ExtensionsSetupSheetAndroid.qml",
+      "ExtensionsSetupSheet.qml",
+      "TankoyomiConfigurationPage.qml",
+      "TankoyomiFlag.qml",
+      "Theme.qml",
+      "Main.qml",
+      "ExtensionsStorePage.qml",
+      "ExtensionsHouseHero.qml",
+      "ExtensionsInstalledSection.qml",
+      "ExtensionsInstalledCard.qml",
+      "ExtensionsStoreRail.qml",
+      "ExtensionsStoreCard.qml",
+      "ExtensionsStoreApi.js",
+      "WorldPage.qml",
+      "TopBar.qml",
+      "BackAction.qml"
+    ],
+    "viewportContract": "context/VIEWPORTS.json",
+    "classification": "context/ANDROID-PORT-CLASSIFICATION.md",
+    "excludedHelpers": "SettingsScaffold.qml and TouchComboBox.qml exist only in rejected drift and were not used for visual design"
+  },
+  "pages": [
+    {
+      "file": "extension-setup.html",
+      "title": "Extension setup",
+      "states": [
+        "Original Android setup panel open",
+        "Panel closed with Extensions Store context",
+        "Original desktop embedded-sheet failure fallback",
+        "External setup action (local inspector feedback only)",
+        "Empty link and populated link input",
+        "Paste link → Install label",
+        "Local Adding… status",
+        "Optional vs required setup (skip hidden)",
+        "Long real add-on name elision",
+        "Short-landscape internal scroll / keyboard-visible link field"
+      ],
+      "viewports": [
+        "412×900 (phone portrait)",
+        "354×792 (small phone portrait)",
+        "900×412 (phone landscape)",
+        "792×354 (small phone landscape)",
+        "1280×700 (desktop comparison)",
+        "800×1280 (tablet portrait)",
+        "1280×800 (tablet landscape)"
+      ],
+      "captures": [
+        "captures/extension-setup/portrait.png",
+        "captures/extension-setup/landscape.png",
+        "captures/extension-setup/desktop.png",
+        "captures/extension-setup-small.png",
+        "captures/extension-setup-long-addon.png",
+        "captures/extension-setup-short-keyboard.png",
+        "captures/extension-setup-short-long.png",
+        "captures/extension-setup-portrait-keyboard.png",
+        "captures/extension-setup-short-keyboard-focused.png",
+        "captures/extension-setup-closed.png",
+        "captures/extension-setup-tablet.png",
+        "captures/extension-setup-tablet-landscape.png"
+      ]
+    },
+    {
+      "file": "tankoyomi-configuration.html",
+      "title": "Tankoyomi configuration",
+      "states": [
+        "Configuration and About tabs",
+        "Master enable switch on/off",
+        "Language list selected, active and default states",
+        "Original inline default-language menu closed/open",
+        "Locally update default chapter language",
+        "Populated Spanish provider ladder",
+        "English provider route and empty other-language route",
+        "Provider enabled/disabled",
+        "Move up / down / Reset order",
+        "Longer labels and 1.3× font",
+        "Scanned provider rows and behavior after scroll",
+        "Portrait, short landscape, simulated keyboard, desktop and tablet layouts"
+      ],
+      "viewports": [
+        "412×900 (phone portrait)",
+        "354×792 (small phone portrait)",
+        "900×412 (phone landscape)",
+        "792×354 (small phone landscape)",
+        "1280×700 (desktop comparison)",
+        "800×1280 (tablet portrait)",
+        "1280×800 (tablet landscape)"
+      ],
+      "captures": [
+        "captures/tankoyomi-configuration/portrait.png",
+        "captures/tankoyomi-configuration/landscape.png",
+        "captures/tankoyomi-configuration/desktop.png",
+        "captures/tankoyomi-configuration-small.png",
+        "captures/tankoyomi-configuration-short.png",
+        "captures/tankoyomi-configuration-menu-open.png",
+        "captures/tankoyomi-configuration-about.png",
+        "captures/tankoyomi-configuration-keyboard.png",
+        "captures/tankoyomi-configuration-tablet.png",
+        "captures/tankoyomi-configuration-tablet-landscape.png",
+        "captures/tankoyomi-configuration-provider-portrait.png",
+        "captures/tankoyomi-configuration-provider-landscape.png",
+        "captures/tankoyomi-configuration-provider-short.png",
+        "captures/tankoyomi-configuration-provider-small.png"
+      ]
+    }
+  ],
+  "index": "index.html",
+  "fidelity": "FIDELITY.md",
+  "commonFiles": [
+    "style.css",
+    "app.js"
+  ],
+  "tools": [
+    "render-mocks.js",
+    "verify-mocks.js",
+    "audit-existing.js"
+  ],
+  "preservedDesign": [
+    "Approved Store Jolly Roger wallpaper, restored House banner/tray, real icon art, installed and Essentials component silhouettes behind setup",
+    "Original Android centered #0e1016 setup panel, scrim, Fraunces heading, exact guidance, cream/open setup pill, link field, paste/install/skip pills and gold status",
+    "Original desktop setup WebEngine panel geometry represented only by its built-in offline failure state and original footer",
+    "Tankoyomi breadcrumb, project logo, Fraunces title, gold separator, master switch, original configuration and About tabs",
+    "Original in-panel default chapter language dropdown, not rejected modal selector",
+    "Language flags, selected row treatment, provider gold rank circles, serif letter tiles, toggle and move actions, reset control, behavior card",
+    "Source fonts, typography hierarchy, colors, translucent borders, link/accessibility labels and original user-facing copy",
+    "No synthetic product controls or new full-screen sheet; all inspector controls outside the simulated app viewport"
+  ],
+  "fittingChanges": [
+    "Original panels reflow and stack for portrait; two source panels display side by side in short landscape when they fit",
+    "Scroll-aware setup panel with keyboard/safe inset clamping, header remains reachable; contents remain original",
+    "Provider text remains in original rows; narrow phone wraps arrow/switch hit-area group under the letter/info while preserving each glyph and toggle track",
+    "Source Store House tray scrolls horizontally on phone instead of shrinking every source icon to an unreadable size",
+    "Font-scale and four-inset controls, simulated IME area and viewport presets affect only local geometry",
+    "Desktop, tablet and phone comparison run from the same markup without duplicating the product or replacing its controls",
+    "Local sample addon picker outside viewport exercises a real longer addon name without inventing product copy"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "OnePlus dimensions, actual Android safe-area/IME and DPR were unavailable; all logical viewports and insets are provisional.",
+    "Native Manga and Extensions bridge inventories, default language, installed state, hostnames and real setup-provider behavior were inaccessible and are represented only by clearly disclosed local samples.",
+    "No external setup page, system browser, clipboard permission, provider interaction or install was run.",
+    "Actual WebEngine embedded setup contents and live Store catalogue descriptions are not rendered; the approved desktop offline recovery state is shown.",
+    "Latest expanded 21-state concurrent screenshot attempt stalled after 13 clean emitted state logs and was terminated within its own isolated process tree. An earlier completed 19-state render sweep and the final 26/26 interaction rerun remain valid. The runner has been returned to sequential execution but not subsequently fully rerun.",
+    "HTML mock matching does not establish native QML pixel parity, platform accessibility, app integration or deployed APK."
+  ],
+  "verification": {
+    "state": "HTML authored, JS statically syntax-checked, rendered in isolated headless Chrome, mock interactions checked, screenshot headers/dimensions reconciled; NOT QML integrated/tested/runtime-verified/deployed",
+    "executionHost": "Brotherhood Desktop Commander on Laptop 1 (Windows)",
+    "browser": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "tool": "Existing local Puppeteer library and isolated headless Chrome; no dependency installations or shared browser tabs",
+    "command": {
+      "render": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\14-extension-setup\\render-mocks.js\"",
+      "interact": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\14-extension-setup\\verify-mocks.js\"",
+      "reconcile": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\14-extension-setup\\audit-existing.js\""
+    },
+    "initialBdcRenderer": "render_html returned HTML_RENDER_OUTPUT_MISSING; replaced by isolated headless Chrome",
+    "completedRenderEvidence": {
+      "audit": "captures/render-audit.json",
+      "specimens": 19,
+      "allBrowserErrorsZero": true,
+      "allBrokenImagesZero": true,
+      "allHorizontalControlOverflowsZero": true
+    },
+    "finalExpandedRenderAttempt": {
+      "specimensPlanned": 21,
+      "completed": false,
+      "reason": "Stalled in isolated headless Chrome under laptop load; owned child process terminated after partial output",
+      "cleanOutputEmitted": 13,
+      "renderScriptRevertedToSequentialAfterwards": true
+    },
+    "interaction": {
+      "audit": "captures/interaction-audit.json",
+      "passed": 26,
+      "total": 26,
+      "browserErrors": 0,
+      "networkRequests": 0,
+      "verifiedOperations": [
+        "original dropdown open/set default",
+        "language change",
+        "provider reorder/reset",
+        "master and source toggles",
+        "About tab",
+        "provider scroll in portrait/landscape/small",
+        "44px phone target widths",
+        "setup paste/install feedback and open/close",
+        "short keyboard focus"
+      ]
+    },
+    "screenshotIntegrity": {
+      "audit": "captures/capture-reconciliation.json",
+      "pngHeadersDimensionsCorrect": 26,
+      "expected": 26,
+      "perPageCanonicalPortraitLandscapeDesktop": true,
+      "method": "PNG magic and IHDR dimensions plus byte-identity for canonical copies (not full re-render)"
+    },
+    "staticSyntax": "node --check passed for app.js, render-mocks.js, verify-mocks.js, audit-existing.js",
+    "runtimeBoundary": "No native QML or Android runtime, browser/provider service, external account, APK, ADB, build, publication, repository, or beta test."
+  }
+}

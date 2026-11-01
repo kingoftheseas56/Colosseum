@@ -1,0 +1,523 @@
+{
+  "file": "manga-chapters.html",
+  "tested_at": "2026-10-31T23:32:06.040Z",
+  "tests": [
+    {
+      "name": "portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 412,
+              "height": 900,
+              "right": 412,
+              "bottom": 900
+            },
+            "scrollTop": 0,
+            "maxScroll": 1001,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 900,
+              "height": 412,
+              "right": 900,
+              "bottom": 412
+            },
+            "scrollTop": 0,
+            "maxScroll": 1242,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-small-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 354,
+              "height": 792,
+              "right": 354,
+              "bottom": 792
+            },
+            "scrollTop": 0,
+            "maxScroll": 1142,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-small-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 792,
+              "height": 354,
+              "right": 792,
+              "bottom": 354
+            },
+            "scrollTop": 0,
+            "maxScroll": 1300,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "desktop assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-desktop",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "scrollers": [
+          {
+            "id": "contentScroll",
+            "class": "content-scroll",
+            "rect": {
+              "x": 0,
+              "y": 270,
+              "width": 1280,
+              "height": 430,
+              "right": 1280,
+              "bottom": 700
+            },
+            "scrollTop": 0,
+            "maxScroll": 1318,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-tablet-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 800,
+          "height": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "scrollers": [
+          {
+            "id": "contentScroll",
+            "class": "content-scroll",
+            "rect": {
+              "x": 0,
+              "y": 270,
+              "width": 800,
+              "height": 1010,
+              "right": 800,
+              "bottom": 1280
+            },
+            "scrollTop": 0,
+            "maxScroll": 738,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-tablet-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "scrollers": [
+          {
+            "id": "contentScroll",
+            "class": "content-scroll",
+            "rect": {
+              "x": 0,
+              "y": 270,
+              "width": 1280,
+              "height": 530,
+              "right": 1280,
+              "bottom": 800
+            },
+            "scrollTop": 0,
+            "maxScroll": 1218,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-stress-portrait",
+        "app": {
+          "x": 0,
+          "y": 24,
+          "width": 354,
+          "height": 744,
+          "right": 354,
+          "bottom": 768
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "width": 354,
+              "height": 744,
+              "right": 354,
+              "bottom": 768
+            },
+            "scrollTop": 0,
+            "maxScroll": 1299,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-chapters-stress-landscape",
+        "app": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "right": 792,
+          "bottom": 330
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "width": 792,
+              "height": 306,
+              "right": 792,
+              "bottom": 330
+            },
+            "scrollTop": 0,
+            "maxScroll": 1368,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "More expands existing synopsis",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "bookmark toggles original icon",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "portrait language dropdown clamped and focused",
+      "pass": true,
+      "details": {
+        "x": 106,
+        "y": 490.859375,
+        "right": 330,
+        "bottom": 678.859375,
+        "app": {
+          "x": 0,
+          "y": 24,
+          "right": 354,
+          "bottom": 768
+        },
+        "focus": "popup-option current"
+      }
+    },
+    {
+      "name": "portrait language choice changes label",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "portrait page selector reaches final ten chapters",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "portrait Escape restores selector focus",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "landscape language dropdown clamped and focused",
+      "pass": true,
+      "details": {
+        "x": 542,
+        "y": 32,
+        "right": 766,
+        "bottom": 220,
+        "app": {
+          "x": 0,
+          "y": 24,
+          "right": 792,
+          "bottom": 330
+        },
+        "focus": "popup-option current"
+      }
+    },
+    {
+      "name": "landscape language choice changes label",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "landscape page selector reaches final ten chapters",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "landscape Escape restores selector focus",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "failed chapter retry queues",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "queued transitions to downloading",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "cancel prevents late completion and keeps focus",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "local fixture completes with original downloaded state",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "delete returns available",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "long chapter rows and last action reachable",
+      "pass": true,
+      "details": [
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        },
+        {
+          "h": 44,
+          "hit": true,
+          "inside": true,
+          "overflow": 0
+        }
+      ]
+    },
+    {
+      "name": "loading state implemented",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "empty state implemented",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "error state implemented",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "disabled state implemented",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "chapter Extensions route local only",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "saved-unavailable state implemented",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "separate rebuilt component Go-to preserved",
+      "pass": true,
+      "details": {}
+    }
+  ],
+  "total": 32,
+  "passed": 32
+}

@@ -1,0 +1,46 @@
+{
+  "time": "2026-10-31T22:49:53.190Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html?capture=1",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 412,
+    "h": 900,
+    "outerWidth": 412,
+    "outerHeight": 1335,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 410.703125,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 1310.703125
+        }
+      }
+    ],
+    "scrolls": [],
+    "buttons": []
+  },
+  "errors": [
+    "missing ) after argument list"
+  ],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html",
+      "sha256": "8e71a506caa498ea696d89d75c85fc341ec526fe5cf44e111d7b3e73caada598"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+      "sha256": "3d2aba5e676b8a14dbc181d06a36594dd3c509552ab7701b83c9c16f2cb14d5c"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+      "sha256": "77522d19b57d974096475e83d48f868c3e47b065597724b7805f25b3cb35141b"
+    }
+  ]
+}

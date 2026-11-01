@@ -1,0 +1,167 @@
+{
+  "task": "01-theatre-sources",
+  "status": "ready-for-review",
+  "authority": {
+    "approvedDesktopCommit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+    "alphaRecoveryCommit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+    "rejectedComparisonCommit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+    "publication": "HELD; no implementation or beta changes"
+  },
+  "sourceRefs": [
+    "reference/desktop/qml/SourcesSheet.qml",
+    "reference/desktop/qml/Theme.qml",
+    "reference/desktop/qml/Glass.qml",
+    "reference/desktop/qml/BackAction.qml",
+    "reference/desktop/qml/TheatreSeriesView.qml",
+    "reference/desktop/qml/Main.qml",
+    "reference/alpha/qml (recovery only)",
+    "reference/android-drift/qml/SourceCard.qml (rejected comparison only)",
+    "reference/android-drift/qml/SourcePickerList.qml (rejected comparison only)",
+    "context/ANDROID-PORT-CLASSIFICATION.md",
+    "context/VIEWPORTS.json"
+  ],
+  "pages": [
+    {
+      "file": "film-sources.html",
+      "title": "Star Wars: A New Hope — film source picker (illustrative fixtures)",
+      "states": [
+        "Play",
+        "Download",
+        "source list scrolled",
+        "quality All/filtered",
+        "extension dropdown open/closed",
+        "provider filter",
+        "copy tick",
+        "per-title queued tick",
+        "whole-row activation",
+        "source context actions",
+        "Back closed/reopen",
+        "long release/multiple language chips",
+        "font scale 1.3"
+      ],
+      "viewports": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "800x1280"
+      ],
+      "captures": [
+        "captures/film-portrait.png",
+        "captures/film-landscape.png",
+        "captures/film-desktop.png",
+        "captures/film-small-portrait.png",
+        "captures/film-small-landscape.png",
+        "captures/film-tablet-portrait.png",
+        "captures/film-provider-open.png",
+        "captures/film-large-font.png",
+        "captures/film-closed.png",
+        "captures/film-provider-filter.png"
+      ]
+    },
+    {
+      "file": "episode-sources.html",
+      "title": "The Mandalorian — S1E1 episode source picker (illustrative fixtures)",
+      "states": [
+        "Play",
+        "Download pick closes",
+        "Full-season torrent-only mode",
+        "quality All/filtered",
+        "extension dropdown open/closed",
+        "copy confirmation",
+        "whole-row activation",
+        "context menu open/closed",
+        "Back closed/reopen",
+        "unknown seeders omitted",
+        "long release/multi-language/multi-tag",
+        "font scale 1.3",
+        "illustrative safe-area inset"
+      ],
+      "viewports": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "1280x800"
+      ],
+      "captures": [
+        "captures/episode-portrait.png",
+        "captures/episode-landscape.png",
+        "captures/episode-desktop.png",
+        "captures/episode-small-portrait.png",
+        "captures/episode-small-landscape.png",
+        "captures/episode-tablet-landscape.png",
+        "captures/episode-download.png",
+        "captures/episode-season.png",
+        "captures/episode-insets.png",
+        "captures/episode-context-open.png",
+        "captures/episode-quality-filter.png",
+        "captures/episode-large-font-landscape.png"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Original full-screen banner/scrim and plain vector BackAction",
+    "Fraunces/Segoe UI, warm ink, Colosseum gold and glass/borders",
+    "Letter tile; separate provider heading, gold quality and bounded release",
+    "Seeder count, size and source origin remain separate metadata; missing/negative seeder values never printed",
+    "Audio, languages, format tags and stream-kind/label all retained",
+    "Round gold Play/down-arrow, round Copy and independent Download/queued controls",
+    "Whole-row source activation; original extension dropdown with counts and quick quality pills",
+    "Internal glass-table scrolling and original keyboard/right-click context options",
+    "Download and full-season mode using original selection semantics, locally simulated"
+  ],
+  "fittingChanges": [
+    "Portrait preserves 200px hero, 16px margins and stacked responsive inline original source row",
+    "Landscape compresses hero to 96px or 82px when height<385px, repositions existing title next to Back",
+    "Landscape row circular actions move into a 174px right-side column so all stay visible without wrapping",
+    "Glass header switches between 70px two-line phone portrait and 44px one-line landscape; all rows scroll",
+    "Phone detection uses min(width,height)<600 so landscape phones remain phones and 800px tablets stay tablets",
+    "Outside-frame editable logical width/height, four safe insets, two font scales and Play/Download/Season state"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "OnePlus exact logical viewport/DPR and safe insets remain unmeasured; prescribed values are provisional",
+    "Franchise/scene local art is a declared fallback, not a verified per-title runtime backdrop",
+    "Source rows and provider data are illustrative; no stream/provider availability is claimed",
+    "Browser backdrop-filter approximates rather than proves Qt MultiEffect/Glass pixel matching",
+    "No APK, QML integration, native pointer/IME, real provider, clipboard, playback, download or on-device verification",
+    "Closed Theatre parent is a minimal contextual preview rather than a full independent detail-page study"
+  ],
+  "verification": {
+    "scope": "headless local HTML/CSS/JS only; ready for human visual review, not verified app implementation",
+    "tool": "Existing installed Google Chrome headless via Puppeteer on BDC Laptop 1",
+    "exactCommand": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\01-theatre-sources\\capture.js\"",
+    "server": "Ephemeral localhost HTTP server rooted at D:\\Colosseum-Android-Phone-Mocks-20261101; browser profile isolated in temporary owned captures folder and removed on exit",
+    "record": "captures/verification.json",
+    "capturedPngs": 22,
+    "viewportDimensionsMatch": true,
+    "javascriptSyntaxCheck": "node --check app.js and capture.js passed",
+    "sourceFontsLoaded": true,
+    "browserPageErrors": 0,
+    "missingLocalAssets": 0,
+    "horizontalOverflowPixels": 0,
+    "tableHorizontalOverflowPixels": 0,
+    "inaccessibleActionButtonsAfterListScroll": 0,
+    "invalidSeederCountsRendered": 0,
+    "visualInspection": "Film portrait/landscape/desktop/small-landscape/large-font and episode context popup inspected; landscape action-wrap defect corrected",
+    "interactions": {
+      "film1080pFilter": "3 sources",
+      "filmProviderNoTorrent": "2 sources",
+      "originalExtensionPopupOpens": true,
+      "copyTick": "✓",
+      "backClosesPicker": true,
+      "watchReopensPicker": true,
+      "seasonPackCount": "4 sources",
+      "seasonPackOnly": true,
+      "downloadModeSourcePickClosesPicker": true
+    },
+    "specialCase": "A deliberately closed source sheet has zero-size hidden table and inactive buttons; omitted from action reachability assertions",
+    "outcomes": [
+      "CAPTURE_OK 22",
+      "INTERACTIONS_OK"
+    ]
+  }
+}

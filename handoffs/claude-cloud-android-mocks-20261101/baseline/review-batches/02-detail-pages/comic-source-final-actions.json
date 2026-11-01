@@ -1,0 +1,413 @@
+{
+  "utc": "2026-10-31T23:54:18.267Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "portrait-small-possible-outcome",
+      "result": {
+        "incomplete": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-manual\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "portrait-small-manual-search",
+      "result": {
+        "queryFocused": true,
+        "rows": 3
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "portrait-small-strong-outcome",
+      "result": {
+        "combined": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "portrait-small-strong-queued",
+      "result": {
+        "sourceClosed": true,
+        "queued": false,
+        "rowText": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"2\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"weak-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "portrait-small-weak-outcome",
+      "result": {
+        "ambiguous": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".archive-file[data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "portrait-small-weak-queued",
+      "result": {
+        "sourceClosed": true,
+        "queued": false,
+        "rowText": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "landscape-small-possible-outcome",
+      "result": {
+        "incomplete": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-manual\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "landscape-small-manual-search",
+      "result": {
+        "queryFocused": true,
+        "rows": 3
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "landscape-small-strong-outcome",
+      "result": {
+        "combined": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "landscape-small-strong-queued",
+      "result": {
+        "sourceClosed": true,
+        "queued": false,
+        "rowText": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"2\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"weak-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "landscape-small-weak-outcome",
+      "result": {
+        "ambiguous": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".archive-file[data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "landscape-small-weak-queued",
+      "result": {
+        "sourceClosed": true,
+        "queued": false,
+        "rowText": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "desktop-possible-outcome",
+      "result": {
+        "incomplete": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-manual\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "desktop-manual-search",
+      "result": {
+        "queryFocused": true,
+        "rows": 3
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "desktop-strong-outcome",
+      "result": {
+        "combined": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "desktop-strong-queued",
+      "result": {
+        "sourceClosed": true,
+        "queued": false,
+        "rowText": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "focusReturned": true
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24&state=alt",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"2\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"weak-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "ready": true
+      }
+    },
+    {
+      "op": "eval",
+      "name": "desktop-weak-outcome",
+      "result": {
+        "ambiguous": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".archive-file[data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "desktop-weak-queued",
+      "result": {
+        "sourceClosed": true,
+        "queued": false,
+        "rowText": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "focusReturned": true
+      }
+    }
+  ]
+}

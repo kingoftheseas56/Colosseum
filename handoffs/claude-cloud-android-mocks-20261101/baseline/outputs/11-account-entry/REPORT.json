@@ -1,0 +1,87 @@
+{
+  "task": "11-account-entry",
+  "status": "ready-for-review",
+  "sourceRefs": [
+    {
+      "reference": "approved-committed-desktop",
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "includedReview": "05c961914",
+      "path": "../../reference/desktop/qml/account/",
+      "files": [
+        "AccountWelcome.qml",
+        "AccountWelcomePhone.qml",
+        "AccountFlyout.qml",
+        "AccountCenter.qml",
+        "AccountButton.qml",
+        "AccountPageFrame.qml",
+        "AccountChoice.qml",
+        "AccountWelcomeChoice.qml",
+        "AccountPanelHeader.qml",
+        "AccountProfilePage.qml",
+        "AccountSecurityPage.qml",
+        "AccountDevicesPage.qml",
+        "AccountRecoveryPage.qml",
+        "AccountDataPrivacyPage.qml",
+        "AccountAvatarGlyph.qml",
+        "AccountSecurityIcon.qml",
+        "AccountRecoveryIcon.qml",
+        "AccountDataPrivacyIcon.qml",
+        "AccountDeviceIcon.qml",
+        "AccountAuthoritativeSwitch.qml"
+      ]
+    },
+    {
+      "reference": "transitive-visual-shell",
+      "path": "../../reference/desktop/qml/",
+      "files": [
+        "Main.qml",
+        "Theme.qml",
+        "Glass.qml",
+        "TopBar.qml",
+        "+android/TopBar.qml",
+        "HouseWindowControls.qml",
+        "PhoneShellHost.qml",
+        "PhoneProfilePage.qml",
+        "PhoneWorldTabBar.qml"
+      ]
+    },
+    {
+      "reference": "task-contract",
+      "paths": [
+        "../../context/ANDROID-PORT-CLASSIFICATION.md",
+        "../../context/VIEWPORTS.json"
+      ]
+    },
+    {
+      "reference": "assets",
+      "paths": [
+        "../../reference/desktop/assets",
+        "../../reference/local-fonts"
+      ]
+    }
+  ],
+  "pages": [
+    {
+      "file": "account-welcome.html",
+      "title": "Account welcome",
+      "states": [
+        "logged-out/local welcome",
+        "Continue without account",
+        "Sign in / Create account placeholder destination",
+        "1.3x font scale with insets",
+        "portrait/landscape scroll"
+      ],
+      "viewports": [
+        "412x900",
+        "900x412",
+        "354x792",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800"
+      ],
+      "captures": [
+        "captures/account-welcome/portrait.png",
+        "captures/account-welcome/landscape.png",
+        "captures/account-welcome/desktop.png",
+        "captures/account-welcome-narrow.png",

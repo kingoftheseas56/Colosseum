@@ -1,0 +1,169 @@
+{
+  "task": "13-stremio-sync",
+  "status": "ready-for-review",
+  "sourceRefs": [
+    {
+      "path": "reference/desktop/qml/StremioSyncPanel.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "approved panel authority"
+    },
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "approved color/type tokens"
+    },
+    {
+      "path": "reference/desktop/qml/Main.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "overlay and Connections entry route"
+    },
+    {
+      "path": "reference/desktop/qml/TrackerSyncCenterPage.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "role": "parent page composition"
+    },
+    {
+      "path": "reference/alpha/qml/StremioSyncPanel.qml",
+      "revision": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "role": "approved original phone fitting recovery"
+    },
+    {
+      "path": "reference/alpha/qml/Theme.qml",
+      "revision": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "role": "phone font-scale precedent"
+    },
+    {
+      "path": "reference/android-drift/qml/SettingsScaffold.qml",
+      "revision": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "role": "rejected comparison only; not adopted"
+    },
+    {
+      "path": "context/ANDROID-PORT-CLASSIFICATION.md",
+      "role": "restore panel/no auto IME"
+    },
+    {
+      "path": "context/VIEWPORTS.json",
+      "role": "provisional logical viewports/insets"
+    }
+  ],
+  "pages": [
+    {
+      "file": "stremio-sync.html",
+      "title": "Stremio Sync — original centered-panel phone-fitting study",
+      "states": [
+        "synced (connected)",
+        "notConnected",
+        "connecting",
+        "syncing",
+        "reconnectRequired",
+        "syncFailed",
+        "paused",
+        "unavailable",
+        "switch confirmation",
+        "disconnect confirmation",
+        "closed and reopened",
+        "long account/result content",
+        "manual keyboard-open preview",
+        "font scale 1.0 and 1.3",
+        "editable insets and viewport"
+      ],
+      "viewports": [
+        {
+          "width": 412,
+          "height": 900,
+          "label": "phone portrait — provisional"
+        },
+        {
+          "width": 900,
+          "height": 412,
+          "label": "phone landscape — provisional"
+        },
+        {
+          "width": 354,
+          "height": 792,
+          "label": "small phone portrait — provisional"
+        },
+        {
+          "width": 792,
+          "height": 354,
+          "label": "small phone landscape — provisional"
+        },
+        {
+          "width": 1280,
+          "height": 700,
+          "label": "desktop reference"
+        },
+        {
+          "width": 800,
+          "height": 1280,
+          "label": "tablet portrait"
+        },
+        {
+          "width": 1280,
+          "height": 800,
+          "label": "tablet landscape"
+        }
+      ],
+      "captures": [
+        "captures/portrait.png",
+        "captures/landscape.png",
+        "captures/desktop.png",
+        "captures/small-portrait.png",
+        "captures/small-landscape.png",
+        "captures/tablet-portrait.png",
+        "captures/tablet-landscape.png",
+        "captures/switch-confirm-portrait.png",
+        "captures/disconnect-confirm-landscape.png",
+        "captures/keyboard-portrait.png",
+        "captures/keyboard-portrait-actions.png",
+        "captures/keyboard-landscape.png",
+        "captures/keyboard-landscape-actions.png",
+        "captures/closed-portrait.png"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Original centered dark Stremio panel and scrim, never replaced with a sheet",
+    "Official source Stremio SVG, Theme gold/ink/edge palette, Fraunces and Segoe UI",
+    "Exact source status headings, explanatory copy, account/last-sync metadata and result slot",
+    "Source switch/disconnect confirmations and primary/secondary button presentation",
+    "Original Close/Cancel, busy/paused/unavailable disabled states, Escape and keyboard-button focus",
+    "Source-derived Connections background with original Stremio Open settings route",
+    "Original alpha's phone-sized header close button and action flow retained on phones"
+  ],
+  "fittingChanges": [
+    "620px width cap plus viewport-side clamping, 440/470px height cap plus vertical clamping",
+    "Phone uses original 12px outer/inner spacing, 16px radius, 30px icon, 22px heading and 48px buttons",
+    "Wrap existing action buttons and long dynamic data instead of replacing controls",
+    "Retain centered panel while scrolling original content and revealing focused action",
+    "Edit viewport dimensions, insets, font scale, fixture status and IME preview only in outer review controls",
+    "Noninteractive, clearly labelled simulated IME mask reserved outside app content"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "OnePlus viewport, DPR, real safe-area values, native font scaling and keyboard rectangle have not been measured",
+    "Exact QML FocusRing, Qt ScrollBar, real account-status and native IME suppression not runtime-tested",
+    "Connections background is source-derived representative context, not complete QML pixel parity",
+    "At 792x354 with hypothetical 260px keyboard and 24px top/bottom insets, 46px remains: a full 48px phone action cannot fit; checked keyboard-landscape uses explicit 140px reserve",
+    "Real Colosseum implementation, Android install, beta and publication intentionally untouched"
+  ],
+  "verification": {
+    "method": "Installed Puppeteer + Google Chrome, isolated headless browser contexts and disposable profile; temporary loopback HTTP server rooted at batch directory",
+    "command": "node D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\13-stremio-sync\\capture-and-verify.cjs",
+    "auditFile": "captures/audit.json",
+    "staticChecks": "node --check app.js and capture-and-verify.cjs passed",
+    "captureCases": 12,
+    "casesPassed": 12,
+    "casesFailed": 0,
+    "capturesProduced": 14,
+    "panelBoundsAndClipping": "All checked cases pass safe/IME bounds and no horizontal overflow",
+    "touchTargetReachability": "All checked original actions can be scrolled into view with at least 42px button height; phone actions use 48px",
+    "fontsLoaded": "FrauncesMock and SegoeMock loaded from existing local reference assets in every tested case",
+    "externalNetwork": "No external requests; only localhost serving batch-root assets",
+    "interactions": "Switch → Cancel → Disconnect → Connect → Close → Reopen exercised in HTML fixture; no provider calls",
+    "alternativeRenderer": "BDC render_html returned HTML_RENDER_OUTPUT_MISSING; not relied on. Captures and audit were produced by standalone Puppeteer/Chrome.",
+    "evidenceLevel": "Authored and headless-browser-rendered/tested HTML mock; NOT QML runtime, native Android or device validated",
+    "repoAppDeviceMutations": false,
+    "publication": "HELD"
+  }
+}

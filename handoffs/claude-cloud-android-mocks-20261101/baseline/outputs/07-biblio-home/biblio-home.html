@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Colosseum · Biblio phone fitting study</title>
+<link rel="stylesheet" href="./style.css">
+</head>
+<body>
+<div id="studio">
+  <aside id="inspector" aria-label="Mock-only review controls">
+    <div class="inspector-kicker">LOCAL FITTING STUDY · 07</div>
+    <h1>Biblio</h1>
+    <p>Approved desktop UI rearranged for the phone. These controls are outside the app; they are not proposed Colosseum UI.</p>
+    <label for="viewport">Viewport preset</label>
+    <select id="viewport">
+      <option value="412x900">Phone · 412 × 900 portrait</option>
+      <option value="354x792">Phone · 354 × 792 portrait</option>
+      <option value="900x412">Phone · 900 × 412 landscape</option>
+      <option value="792x354">Phone · 792 × 354 landscape</option>
+      <option value="1280x700">Desktop · 1280 × 700</option>
+      <option value="800x1280">Tablet · 800 × 1280</option>
+      <option value="1280x800">Tablet · 1280 × 800</option>
+    </select>
+    <div class="inspector-pair">
+      <label>Width <input id="view-width" type="number" min="320" max="2560" value="412"></label>
+      <label>Height <input id="view-height" type="number" min="240" max="1800" value="900"></label>
+    </div>
+    <div class="inspector-pair">
+      <label>Top inset <input id="inset-top" type="number" min="0" max="80" value="0"></label>
+      <label>Bottom inset <input id="inset-bottom" type="number" min="0" max="80" value="0"></label>
+    </div>
+    <label for="font-scale">Font scale</label>
+    <select id="font-scale"><option value="1">100% · native size</option><option value="1.3">130% · accessibility test</option></select>
+    <label for="scene">Source surface</label>
+    <select id="scene"><option value="world">Biblio world · Featured / Continue / tabs</option><option value="home">Reading Desk · global Home</option></select>
+    <label for="review-tab">Biblio tab</label>
+    <select id="review-tab"><option value="discover">Discover · original entry</option><option value="explore">Explore · original shelves</option><option value="library">Library · saved book preview</option></select>
+    <div class="inspector-actions">
+      <button type="button" id="jump-shelves">Jump to Explore shelves</button>
+      <button type="button" id="jump-continue">Jump to Continue Reading</button>
+      <button type="button" id="jump-discover">Open Discover category menu</button>
+      <button type="button" id="jump-index">Expand original row index</button>
+    </div>
+    <p class="inspector-foot">Data, shelf order, ratings and reading progress are illustrative. The real local saga stills substitute for unavailable Biblio book covers, never blank cards. Viewport sizes and insets are provisional. No accounts, sources, network, app code or publication touched.</p>
+    <a href="index.html">Mock index</a>
+  </aside>
+  <main id="studio-stage">
+    <div class="stage-caption">Biblio home / Discover / Explore · source-fidelity review · not a validated app build</div>
+    <div id="scale-box">
+      <div id="mock-frame">
+        <div id="mock-app" role="region" aria-label="Colosseum Biblio page mock">
+          <div id="wallpaper"></div>
+          <aside id="wide-shell" aria-label="Worlds"></aside>
+          <header id="top-bar" aria-label="Colosseum top bar"></header>
+          <div id="world-scroll" tabindex="0">
+            <div id="world-board"></div>
+            <div id="home-board" hidden></div>
+          </div>
+          <footer id="phone-navigation" aria-label="World navigation"></footer>
+          <div id="app-popup-host" hidden></div>
+        </div>
+      </div>
+    </div>
+    <div class="stage-foot">Resize, rotate, scroll, focus covers and open the original controls. Artwork substitutions are itemized in FIDELITY.md.</div>
+  </main>
+</div>
+<script src="./app.js"></script>
+</body>
+</html>

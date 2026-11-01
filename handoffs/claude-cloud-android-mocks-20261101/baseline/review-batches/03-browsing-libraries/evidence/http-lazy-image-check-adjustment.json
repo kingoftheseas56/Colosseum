@@ -1,0 +1,7 @@
+{
+  "time": "2026-11-01T00:14:42.766Z",
+  "url": "http://127.0.0.1:13656/review-batches/03-browsing-libraries/finished-mocks/09-catalogue-index/manga-catalogue.html?capture=1&vp=412x900",
+  "reason": "Explicit decode was waiting on offscreen lazy images. Verification now eagerly loads all image assets, as the file capture harness already does.",
+  "offscreenImages": 30,
+  "delayedRenderingAdjustment": "Some worker fixtures populate images in a later DOMContentLoaded handler. The owned verification browser also marks subsequently inserted images eager; this changes capture loading only."
+}

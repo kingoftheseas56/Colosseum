@@ -1,0 +1,118 @@
+{
+  "started": "2026-11-01T00:38:58.455Z",
+  "hashes": [
+    {
+      "manifest": "INPUT-VERSIONS-START.json",
+      "count": 78,
+      "mismatches": []
+    },
+    {
+      "manifest": "FINAL-ARTIFACT-VERSIONS.json",
+      "count": 47,
+      "mismatches": []
+    },
+    {
+      "manifest": "FINAL-CAPTURE-INPUTS.json",
+      "count": 37,
+      "mismatches": []
+    }
+  ],
+  "pages": [
+    {
+      "page": "theatre-home.html",
+      "views": []
+    },
+    {
+      "page": "tankoban-home.html",
+      "views": []
+    },
+    {
+      "page": "universes-home.html",
+      "views": []
+    },
+    {
+      "page": "search.html",
+      "views": []
+    }
+  ],
+  "checks": [
+    {
+      "name": "theatre-home.html carousel controls change slide",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": "Dune: Part Two",
+        "after": "Shogun"
+      }
+    },
+    {
+      "name": "tankoban-home.html carousel controls change slide",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": "One Piece",
+        "after": "Saga"
+      }
+    },
+    {
+      "name": "universes-home.html carousel controls change slide",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": "One Piece",
+        "after": "Star Wars"
+      }
+    },
+    {
+      "name": "Search normal slow typing retains query focus caret",
+      "pass": false,
+      "detail": {
+        "pass": false,
+        "observed": {
+          "value": "",
+          "active": true,
+          "start": 0,
+          "end": 0
+        }
+      }
+    },
+    {
+      "name": "Search query submission retains typing focus",
+      "pass": false,
+      "detail": {
+        "pass": false,
+        "before": {
+          "value": "Sherlock",
+          "active": true
+        },
+        "observed": {
+          "value": "Sherlock",
+          "active": false,
+          "start": 0,
+          "end": 0,
+          "activeTag": "BODY"
+        },
+        "after": "Sherlock"
+      }
+    },
+    {
+      "name": "Search matching query ordinary keyboard replacement",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Dune",
+        "active": true,
+        "text": "Back\n×\nTOP MATCH\nDune\nSCI-FI & FANTASY · FRANK HERBERT · 1965\nOpen  ›\nBOOKS · 1 FOUND"
+      }
+    }
+  ],
+  "resources": [
+    {
+      "url": "http://127.0.0.1:2001/favicon.ico",
+      "status": 404
+    }
+  ],
+  "errors": [],
+  "origin": "http://127.0.0.1:2001",
+  "closed": "2026-11-01T00:39:13.144Z"
+}

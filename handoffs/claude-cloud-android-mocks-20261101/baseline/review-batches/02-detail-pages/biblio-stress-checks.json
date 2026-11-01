@@ -1,0 +1,613 @@
+{
+  "utc": "2026-10-31T22:47:23.328Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait&scale=1.3&insetTop=24&insetBottom=24",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-collections-portrait-stress",
+      "result": {
+        "name": "biblio-finished-collections-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-collections-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:08.575Z",
+        "sha256": "65d061aa1044d1e7051633413e619fd41caf90afd537ef7c53f7abbb146cde60",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 380,
+          "h": 631.875,
+          "left": 16,
+          "top": 134.0625,
+          "right": 396,
+          "bottom": 765.9375,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-new"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#cp-name"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-save"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "createdAndClosed": true,
+        "state": {
+          "open": false,
+          "committed": [
+            [
+              "book-way-of-kings",
+              [
+                "local-3"
+              ]
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#read-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-read-portrait-stress",
+      "result": {
+        "name": "biblio-finished-read-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-read-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portrait&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:10.174Z",
+        "sha256": "620d49657aed57404475fff669e80d7db865cdd78a36bdc64313f17b98d9d636",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          412,
+          900
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 380,
+          "h": 800,
+          "left": 16,
+          "top": 50,
+          "right": 396,
+          "bottom": 850,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#library-button"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "libraryLabel": "In Library"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-collections-portrait-small-stress",
+      "result": {
+        "name": "biblio-finished-collections-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-collections-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:11.920Z",
+        "sha256": "a2ece8a4ce5dc432a1a83df3f5d3ffbfab15c7a15bdd667415cfe08ac091dadc",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 322,
+          "h": 693.75,
+          "left": 16,
+          "top": 49.125,
+          "right": 338,
+          "bottom": 742.875,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-new"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#cp-name"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-save"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "createdAndClosed": true,
+        "state": {
+          "open": false,
+          "committed": [
+            [
+              "book-way-of-kings",
+              [
+                "local-3"
+              ]
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#read-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-read-portrait-small-stress",
+      "result": {
+        "name": "biblio-finished-read-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-read-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=portraitSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:13.578Z",
+        "sha256": "ae90ec62cdccce58b1f1b79523ea11e45453554d45d0d298ba74b874f7c4714c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          354,
+          792
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 322,
+          "h": 692,
+          "left": 16,
+          "top": 50,
+          "right": 338,
+          "bottom": 742,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#library-button"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "libraryLabel": "In Library"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape&scale=1.3&insetTop=24&insetBottom=24",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-collections-landscape-stress",
+      "result": {
+        "name": "biblio-finished-collections-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-collections-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:16.215Z",
+        "sha256": "7120dead2013467ae8f9a20519601a6645b77e90aed93722098e877d38b3afbc",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 560,
+          "h": 332,
+          "left": 170,
+          "top": 40,
+          "right": 730,
+          "bottom": 372,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-new"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#cp-name"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-save"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "createdAndClosed": true,
+        "state": {
+          "open": false,
+          "committed": [
+            [
+              "book-way-of-kings",
+              [
+                "local-3"
+              ]
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#read-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-read-landscape-stress",
+      "result": {
+        "name": "biblio-finished-read-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-read-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscape&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:18.233Z",
+        "sha256": "3805df65ac8b39fda7d0a81b5b825066130f0c7d726d771f6a27120272516c2e",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          900,
+          412
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 620,
+          "h": 312,
+          "left": 140,
+          "top": 50,
+          "right": 760,
+          "bottom": 362,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#library-button"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "libraryLabel": "In Library"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#collections-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-collections-landscape-small-stress",
+      "result": {
+        "name": "biblio-finished-collections-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-collections-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:21.128Z",
+        "sha256": "88dd04ff6de2b91690ba43c95ca2b2137bad924bead6dc1fae2501053bec2f26",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 560,
+          "h": 274,
+          "left": 116,
+          "top": 40,
+          "right": 676,
+          "bottom": 314,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-new"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#cp-name"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-save"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "createdAndClosed": true,
+        "state": {
+          "open": false,
+          "committed": [
+            [
+              "book-way-of-kings",
+              [
+                "local-3"
+              ]
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#read-button"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-read-landscape-small-stress",
+      "result": {
+        "name": "biblio-finished-read-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-read-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?preset=landscapeSmall&scale=1.3&insetTop=24&insetBottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:47:23.232Z",
+        "sha256": "08d2d60d148938cdf4ab4537e13d836e4c114b6996813e7c8317df7c9daa99fa",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "app": [
+          792,
+          354
+        ],
+        "horizontalOverflow": 0,
+        "dialog": {
+          "w": 620,
+          "h": 254,
+          "left": 86,
+          "top": 50,
+          "right": 706,
+          "bottom": 304,
+          "overflowX": 0
+        },
+        "missingImages": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "#library-button"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "libraryLabel": "In Library"
+      }
+    }
+  ]
+}

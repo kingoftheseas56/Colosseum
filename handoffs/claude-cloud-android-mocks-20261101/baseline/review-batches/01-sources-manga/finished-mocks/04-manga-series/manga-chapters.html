@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="en">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Manga chapters · Chapter Mode — phone-fitting study 04</title><link rel="stylesheet" href="style.css"></head>
+<body data-page="chapters">
+<section class="lab" aria-label="Mock laboratory controls outside Colosseum">
+ <div class="labtop"><div><h1>Manga chapters · Chapter Mode / fitting study 04</h1>
+ <p>Approved QML visual vocabulary; standalone HTML/CSS/JS study, not a running app.</p></div>
+ <nav class="page-links"><a href="index.html">Index</a><a href="manga-series.html">Tankoban Mode</a><a href="manga-chapters.html">Chapter Mode</a></nav></div>
+ <div class="labfields">
+ <label>Viewport preset<select id="preset"><option value="portrait">Phone portrait · 412×900</option><option value="landscape">Phone landscape · 900×412</option><option value="compact">Narrow portrait · 354×792</option><option value="short">Short landscape · 792×354</option><option value="desktop">Desktop · 1280×700</option><option value="tablet">Tablet portrait · 800×1280</option><option value="tabletLandscape">Tablet landscape · 1280×800</option><option value="custom">Custom dimensions</option></select></label>
+ <label>Width <input type="number" id="width" min="320" max="1920" step="1" value="412"></label>
+ <label>Height <input type="number" id="height" min="240" max="1600" step="1" value="900"></label>
+ <label>Top inset <input type="number" id="insetTop" min="0" max="120" value="0"></label>
+ <label>Bottom inset <input type="number" id="insetBottom" min="0" max="120" value="0"></label>
+ <label>Left inset <input type="number" id="insetLeft" min="0" max="120" value="0"></label>
+ <label>Right inset <input type="number" id="insetRight" min="0" max="120" value="0"></label>
+ <label>Font scale <select id="fontScale"><option value="1">1.0</option><option value="1.3">1.3</option></select></label></div>
+ <p class="labnote">OnePlus measurements are provisional. All numbers, chapter/download states and reuse of titled One Piece project artwork are illustrative. Insets are blank padding, not invented OS chrome. Long content remains scrollable.</p>
+ <p class="labstatus" id="labStatus" role="status"></p>
+</section>
+<div class="stage"><div class="device phone" id="device"><div class="safe-pad"><main class="app" id="app" aria-label="Manga chapters · Chapter Mode — Colosseum mock"></main></div></div></div>
+<p class="small-note">No backend, provider, app account, device operation or publishing. Select the existing modes, original dropdowns and actions inside the frame.</p>
+<script src="app.js" defer></script>
+</body></html>

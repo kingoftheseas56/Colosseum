@@ -1,0 +1,444 @@
+{
+  "records": [
+    {
+      "name": "00-overview",
+      "at": "2026-10-31T23:47:39.744Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "0c364267c71fbed1075a2b353f5be6f61f4637215020f1b0d93b692e0ad0f0d2",
+      "pngSha256": "cbea037b4c8ec58e63769c57c6b95f452fc11405acfcfb379df2bb552b65972f",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-connections-portrait.png",
+          "sha256": "4344b2725fd353accbb343ec54f5166ff5ddfd152984e594984f3a59e775800d"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-connections-landscape.png",
+          "sha256": "53f6a4e3ce5bf6b3bfcc1d1814fe0f7d2de05af94660d616f9036849e41e078b"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-dossier-portrait.png",
+          "sha256": "929d682c12cf4e5bf9013261a0badc8a831595782b5aa2544e971a4c1b1a79b3"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-dossier-landscape.png",
+          "sha256": "0de68d0bc8d5d1a7e01d1a3a555ba216c273d78c6f8e8e8668bb1341a18fc100"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-preferences-portrait.png",
+          "sha256": "30c9f6bdfe2411e9ab7429c424b755d6b9ed8c54cd085c671aaee8383fbd0f68"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-preferences-landscape.png",
+          "sha256": "c0113f4fb1bc9c3c1b4b12f6e36a31f77e8860586c2ed08bff7d729ef0725c4e"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-search-portrait.png",
+          "sha256": "9eb47c804f97813be8d7201f3b3996414d39656c07edd8afe8eb9100645a5e87"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-search-landscape.png",
+          "sha256": "7981435d0afc68d4cefd31b408f3012543dfee79433438fc99a32bb2af743634"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-store-portrait.png",
+          "sha256": "7f276555c6102e91772a56c059faa61f810c42e595b468ba29b3520f31fa50f9"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-store-landscape.png",
+          "sha256": "da6951533f50da557eeb248198739015f2e3f5f1c2ea765dd5f38fc908e48a3c"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-update-portrait.png",
+          "sha256": "6151d35d425ea92b445198ed978558209932fd144f888a6e8f3fac73e16a1fa0"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-update-landscape.png",
+          "sha256": "ebd1f0727e108f7998b239c0f9c2dae53f9947e87b91afd11bd3284ad6d786d2"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-portrait.png",
+          "sha256": "ab6f588988f028926a5710fa101cfc8e5dbc2b43733fb51d84765e7ec4975efc"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-landscape.png",
+          "sha256": "6befcc259c84cb4d41de9732b5f08717714121c7d6fdeb8402cceeb893818fcb"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "tracker-connections",
+      "at": "2026-10-31T23:47:41.399Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "cd207126ee8b2a9dc1be912bbd433ad8fbc80a090018ab7121c8b96eb8e371dd",
+      "pngSha256": "f7e91cb7d152f8fa01fa412c06bbd2e877a0bf4edb605b4daad3c40e7853bf94",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-connections-portrait.png",
+          "sha256": "aeceee96dc139324386591c7889c709a85d5b06b17c9367bfd0aa98986465a17"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-connections-portrait.png",
+          "sha256": "4344b2725fd353accbb343ec54f5166ff5ddfd152984e594984f3a59e775800d"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-connections-landscape.png",
+          "sha256": "89f7636bf30ad9b6b7c581444efb66b8b95504f3a67d2edd9cd0ce73c00f87eb"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-connections-landscape.png",
+          "sha256": "53f6a4e3ce5bf6b3bfcc1d1814fe0f7d2de05af94660d616f9036849e41e078b"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-connections-desktop.png",
+          "sha256": "24912c46f2d280602d9ac9629ba4efda33bb2260055b71d75568985a32f2ada1"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-connections-desktop.png",
+          "sha256": "ac1212d319f66b740883e293d92b3f58ef8caa5eb57b324a470a3d977e66e8f6"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "tracker-dossier",
+      "at": "2026-10-31T23:47:43.179Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "4129333daeec4f3d738112a57b480e2015549ae92d528cd0235fe39f83c4f2ea",
+      "pngSha256": "3d76dde94ab8bae241b8b465283b17719e5d8e5200a292e14294206fcd3bab9a",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-dossier-portrait.png",
+          "sha256": "d7e72a54f6d067d787bf8751e64fe44a7bdf62f0718721154cb1a2f7da11eba9"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-dossier-portrait.png",
+          "sha256": "929d682c12cf4e5bf9013261a0badc8a831595782b5aa2544e971a4c1b1a79b3"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-dossier-landscape.png",
+          "sha256": "53e94d343b01b292cc5197a8584c982d55728a1176eac239a0981b1dc5c42430"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-dossier-landscape.png",
+          "sha256": "0de68d0bc8d5d1a7e01d1a3a555ba216c273d78c6f8e8e8668bb1341a18fc100"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-dossier-desktop.png",
+          "sha256": "9526f0b0374b1058286c508d076345c867c4872855edbbe2e98f6cedd01ce472"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-dossier-desktop.png",
+          "sha256": "c3df9a9396c85411127c8656adb5d7c36f316c201b0eb31e2fc7203e00e970f2"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "tracker-preferences",
+      "at": "2026-10-31T23:47:44.961Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "dec65dd053e58ad608db2a08cd509198e9f971986ba986928793426866de5a35",
+      "pngSha256": "a92c0cdf4275cecb30b548339573232fe16f612ef739736bd2e636a64f953b17",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-preferences-portrait.png",
+          "sha256": "45aeb9cd8472c83c4404de8bdda9744db22ebfbe8ee37f5dca8de5862dc50e69"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-preferences-portrait.png",
+          "sha256": "30c9f6bdfe2411e9ab7429c424b755d6b9ed8c54cd085c671aaee8383fbd0f68"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-preferences-landscape.png",
+          "sha256": "8d583c087d83e16ab1647976603e701c6c7e021c7e1329469fedeed90de093b9"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-preferences-landscape.png",
+          "sha256": "c0113f4fb1bc9c3c1b4b12f6e36a31f77e8860586c2ed08bff7d729ef0725c4e"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-tracker-preferences-desktop.png",
+          "sha256": "5517445443fae5e6ab1d1ac0274a4c22828cfd9545af6973f3bc4bbf35a37511"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-preferences-desktop.png",
+          "sha256": "c6eba81b9ec8a698c05db06d90b4a5dcc8a52723d72d1ecf566230ce0bcfb951"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "wallpaper-search",
+      "at": "2026-10-31T23:47:58.073Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "37b20d94ff364ce6fed8c444303abb9afc38b53e02f198e07195dd9b875d69ea",
+      "pngSha256": "fd78ebbfc2065ba3c8c32e8699f641e5f6cf4784af208e1d0d8261026e16b41b",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-wallpaper-search-portrait.png",
+          "sha256": "c0072c531e4ec7d0e2760748d7bfbc38dd988e7c38677c9be14c29b7e43c5078"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-search-portrait.png",
+          "sha256": "9eb47c804f97813be8d7201f3b3996414d39656c07edd8afe8eb9100645a5e87"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-wallpaper-search-landscape.png",
+          "sha256": "3d17c51551d88c36500bfdb6be740f0348dd4f1eb960e9b89c0d97b28d6a5f1f"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-search-landscape.png",
+          "sha256": "7981435d0afc68d4cefd31b408f3012543dfee79433438fc99a32bb2af743634"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-wallpaper-search-desktop.png",
+          "sha256": "be09dce3c49ac691e0b41e6f553f6823c41470314c2b2185cddce62e94059d20"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-search-desktop.png",
+          "sha256": "976d8615b86e160a7e30bdd724602a932a42451e979dec46854a6e629a09ec24"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "extensions-store",
+      "at": "2026-10-31T23:47:59.992Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "0541da4e49619609b89d369e05bc5eaba6908ed8e694f220162c9f76f153f939",
+      "pngSha256": "38b82238b9a7094154f7cc078c2893d52d2088ce700e6dcb3b8e391463eceb41",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-extensions-store-portrait.png",
+          "sha256": "0b172707189c675f36f1f6a15cf6bf67572e612222c1f8aab93298414cc2ab7c"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-store-portrait.png",
+          "sha256": "7f276555c6102e91772a56c059faa61f810c42e595b468ba29b3520f31fa50f9"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-extensions-store-landscape.png",
+          "sha256": "36a436620220e249afe163735ae47a7c9ac6386564ab5fcf042aafc83fea0d84"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-store-landscape.png",
+          "sha256": "da6951533f50da557eeb248198739015f2e3f5f1c2ea765dd5f38fc908e48a3c"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-extensions-store-desktop.png",
+          "sha256": "3a239751e5731f27b2d4dd44202d5f721d627385f4b7138706ae5715ae7ae891"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-store-desktop.png",
+          "sha256": "d8957cab0b0f16f8b96f890ab67c8691cca68bfd80c98a25d5c71ead1f6f25b9"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "update",
+      "at": "2026-10-31T23:48:01.728Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "010fd062579211ffd568e97717b7384b9981983c2659131b7d913d6bf25fcfad",
+      "pngSha256": "3a9d435add1b61431a62daa4acae2452dff902134ed126d965486a5291f51fa6",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-update-portrait.png",
+          "sha256": "badadc5441964720c3adc27b414f45a44ad353a05c1ef6c9e99674634b6d84e1"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-update-portrait.png",
+          "sha256": "6151d35d425ea92b445198ed978558209932fd144f888a6e8f3fac73e16a1fa0"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-update-landscape.png",
+          "sha256": "90a1f339998f2ffde2b6062d56315264075a4ac8858cd8e8448885007ac76a91"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-update-landscape.png",
+          "sha256": "ebd1f0727e108f7998b239c0f9c2dae53f9947e87b91afd11bd3284ad6d786d2"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-update-desktop.png",
+          "sha256": "9df90f9c26ea467adab94ae673e8cf6cd59fe64884e65bc6f58342a70b55d8e0"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-update-desktop.png",
+          "sha256": "36c51b48e9ec4407460141db1e57eef00f606fbc8f97eae423beb46fffd42f05"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "collections",
+      "at": "2026-10-31T23:48:03.228Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "123f130dbfc5ca9c03375ae28e0e1f89bd49ca2d2d62d1500056d8bfa424b987",
+      "pngSha256": "00231a1d2bcc4749bf66ae7b40a65160b1411f1b7017091c6813692e73f0dbca",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-collections-portrait.png",
+          "sha256": "557c02dc0332b22def731723a7eba135c378f09a22f2627db646c19874ea97dd"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-portrait.png",
+          "sha256": "ab6f588988f028926a5710fa101cfc8e5dbc2b43733fb51d84765e7ec4975efc"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-collections-landscape.png",
+          "sha256": "6464245f7d3e5b86de13f90581398445b5d52d92b19e9d1d1dac7629afa7682c"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-landscape.png",
+          "sha256": "6befcc259c84cb4d41de9732b5f08717714121c7d6fdeb8402cceeb893818fcb"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/before-collections-desktop.png",
+          "sha256": "47bba4fb2a8cc53a3f52153f3a190ee2c4a8f97f61254ada3f5bb304a3358566"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-desktop.png",
+          "sha256": "3763a8d0ac68f828c3117c2af4a2c51693d3554389c6707423b72076e24c73bb"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "01-stress",
+      "at": "2026-10-31T23:48:04.979Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "443be2afbfbcde6cf40d436796301f5b49d4537ad20b1c1c9016037529080742",
+      "pngSha256": "e17d6a3c0f0ec0f1e81211979c14a1d09cc6869d19091c15ed3a9185cad4c10e",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-connections-compactland-stress.png",
+          "sha256": "9d4e10aea3da4b2c1463970fc55903004ba87f81fc1fea952f52ab1b3bf18903"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-dossier-compactland-stress.png",
+          "sha256": "5b483f5b1475c6897d485249bc16712a783cbb9fe1f8d7ba7c85471d845ecc35"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-preferences-compactland-stress.png",
+          "sha256": "2b8f8bd898eb5413ee0dc893587a1089908575f59a59e1318f39060a72f9962b"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-search-compactland-stress.png",
+          "sha256": "8553ecfe1198ea2f9d91672579467f2c1a274c40ec8c9108b371138eb1c29efd"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-store-compactland-stress.png",
+          "sha256": "fcc7a2227c77b179f073ec82965b94d3c4464721a10246c0fedd1ea9985dc2e7"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-update-compactland-stress.png",
+          "sha256": "ebc00884564725d0ee2786529f92ef22890d12a3dae4e928a121f588dccfd083"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-compactland-stress.png",
+          "sha256": "1b92342056044875fb9d86bbbcb3c53d53c8ee2483a0f6a3adb864961cd40e0c"
+        }
+      ],
+      "missing": []
+    },
+    {
+      "name": "02-keyboard",
+      "at": "2026-10-31T23:48:07.713Z",
+      "browser": "Edg/156.0.4314.50",
+      "viewport": {
+        "width": 1160,
+        "height": 900
+      },
+      "htmlSha256": "b67a0aa94d5f7686f8eaadb6a3105b8b761458ed95aba835b968ce59fcfc8a79",
+      "pngSha256": "7fa84bc10bc0596a658d33cb88400a0ae41e4338aad9055fd2503519979ea77c",
+      "inputImages": [
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-keyboard-match-portrait.png",
+          "sha256": "80e678efb3c549a75989e6408b5bb352029bc97d1dae9de0ae8668cc5b3ae03f"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-tracker-keyboard-match-landscape.png",
+          "sha256": "eaf02ab6fae10f600b3d87fd1cf2befde0f15f58e8d6d65e6cdc0c19809eba22"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-keyboard-apply-portrait.png",
+          "sha256": "71623ebfe46afbc3d1da8f8ad43bd3ae305890025e3c40d67edd71e9863feb84"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-wallpaper-keyboard-apply-landscape.png",
+          "sha256": "46aaf646743a060a51f5651713f4866c3418670332e2fd44481d769a762716e3"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-keyboard-preview-portrait.png",
+          "sha256": "5a2c9a9996d7f93655cc53b29819a404172265707368c770cb20a00230dd2eae"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-keyboard-preview-landscape.png",
+          "sha256": "321bf70ec80d6c6fd58693e5fa2a21455a184816803418071791c588021e0f06"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-keyboard-setup-portrait.png",
+          "sha256": "db174b1a025050b9578466959c6c369ed95e527e22aad4570d6d55beada848f8"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-extensions-keyboard-setup-landscape.png",
+          "sha256": "4e35beee5ae855db6bd2ec3091b9097f0435d3b8993845d38e24e1f1932d6f5f"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-keyboard-create-add-portrait.png",
+          "sha256": "5cb062ece35b1a16a59381a271b537f53771b425415310ede3ba535051e8c674"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-keyboard-create-add-landscape.png",
+          "sha256": "34ba094a992ce0874a1905d5b51c0b3a47877bad83124d04e934bcd64ed7ccaf"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-keyboard-note-portrait.png",
+          "sha256": "5ec94d4f7157dc19f83c66ca13e1736b32ba1c01bf0f868f28eec70e6cfbcfbb"
+        },
+        {
+          "path": "/review-batches/05-tracker-utilities/evidence/after-collections-keyboard-note-landscape.png",
+          "sha256": "76ea849b7fc5fc36d4cd82f0b4c577267bda47dc651d64a1ade1c64dc8cb8d5e"
+        }
+      ],
+      "missing": []
+    }
+  ]
+}

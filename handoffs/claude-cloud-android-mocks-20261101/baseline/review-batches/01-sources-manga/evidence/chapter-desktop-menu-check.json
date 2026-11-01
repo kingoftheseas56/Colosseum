@@ -1,0 +1,27 @@
+{
+  "tested_at": "2026-10-31T23:32:06.752Z",
+  "passed": true,
+  "details": {
+    "menu": {
+      "x": 1075,
+      "y": 326,
+      "width": 150,
+      "height": 300,
+      "top": 326,
+      "right": 1225,
+      "bottom": 626,
+      "left": 1075
+    },
+    "row": {
+      "x": 1082,
+      "y": 333,
+      "width": 136,
+      "height": 36,
+      "top": 333,
+      "right": 1218,
+      "bottom": 369,
+      "left": 1082
+    },
+    "background": "rgba(255, 255, 255, 0.14)"
+  }
+}

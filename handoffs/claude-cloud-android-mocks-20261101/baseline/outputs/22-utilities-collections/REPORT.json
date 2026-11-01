@@ -1,0 +1,271 @@
+{
+  "task": "22-utilities-collections",
+  "status": "ready-for-review",
+  "scope": "Standalone offline HTML/CSS/JS Android phone fitting study; no Colosseum application or repository changes",
+  "outputDirectory": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\22-utilities-collections",
+  "entrypoint": "index.html",
+  "sourceRefs": {
+    "approvedDesktopCommit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+    "reviewedConnectionsChange": "05c961914",
+    "desktopQml": [
+      "reference/desktop/qml/Theme.qml",
+      "reference/desktop/qml/Main.qml",
+      "reference/desktop/qml/WallpaperSearch.qml",
+      "reference/desktop/qml/WallpaperApi.js",
+      "reference/desktop/qml/ExtensionsStorePage.qml",
+      "reference/desktop/qml/ExtensionsInstalledPage.qml",
+      "reference/desktop/qml/ExtensionsHouseHero.qml",
+      "reference/desktop/qml/ExtensionsInstalledSection.qml",
+      "reference/desktop/qml/ExtensionsInstalledCard.qml",
+      "reference/desktop/qml/ExtensionsStoreRail.qml",
+      "reference/desktop/qml/ExtensionsStoreCard.qml",
+      "reference/desktop/qml/ExtensionsSeeAllPage.qml",
+      "reference/desktop/qml/ExtensionsStoreApi.js",
+      "reference/desktop/qml/ExtensionsCatalog.js",
+      "reference/desktop/qml/UpdatePage.qml",
+      "reference/desktop/qml/update/UpdateLivingGallery.qml",
+      "reference/desktop/qml/collections/CollectionsPanel.qml",
+      "reference/desktop/qml/collections/YourCollectionsPage.qml",
+      "reference/desktop/qml/collections/CollectionPage.qml",
+      "reference/desktop/qml/collections/CollectionShelfCard.qml",
+      "reference/desktop/qml/collections/CollectionMediaCard.qml",
+      "reference/desktop/qml/collections/CollectionActionButton.qml",
+      "reference/desktop/qml/collections/CollectionSearchField.qml",
+      "reference/desktop/qml/collections/CollectionMembershipRow.qml",
+      "reference/desktop/qml/collections/AddToCollectionsPopup.qml",
+      "reference/desktop/qml/collections/DeleteCollectionPopup.qml",
+      "reference/desktop/qml/BackAction.qml",
+      "reference/desktop/qml/WorldPage.qml",
+      "reference/desktop/qml/TopBar.qml",
+      "reference/desktop/qml/Taskbar.qml",
+      "reference/desktop/qml/+android/Taskbar.qml"
+    ],
+    "expectedHelperNamesAbsentFromApprovedDesktop": [
+      "reference/desktop/qml/CollectionGrid.qml",
+      "reference/desktop/qml/CollectionMenu.qml"
+    ],
+    "context": [
+      "context/ANDROID-PORT-CLASSIFICATION.md",
+      "context/VIEWPORTS.json"
+    ],
+    "referenceImages": "reference/desktop/assets (real local project art, logos, icons and fonts)"
+  },
+  "pages": [
+    {
+      "file": "wallpaper-search.html",
+      "title": "Wallpapers — picker, animated/native/KDE shelves, Wallhaven results, selected scope",
+      "states": [
+        "Default",
+        "Selected",
+        "Search",
+        "Selected + keyboard",
+        "Relevance / Top / Random",
+        "Apply scopes inert"
+      ],
+      "viewports": [
+        "412x900 portrait",
+        "900x412 landscape",
+        "354x792 compact portrait",
+        "792x354 compact landscape",
+        "1280x700 desktop",
+        "800x1280 tablet portrait",
+        "1280x800 tablet landscape"
+      ],
+      "captures": [
+        "captures/wallpaper-portrait.png",
+        "captures/wallpaper-landscape.png",
+        "captures/wallpaper-desktop.png",
+        "captures/wallpaper-compact-keyboard.png"
+      ]
+    },
+    {
+      "file": "extensions-store.html",
+      "title": "Extensions — original House hero, Your Add-ons, Store rails, search, management, URL preview",
+      "states": [
+        "Store",
+        "Search",
+        "Your Add-ons",
+        "URL dialog",
+        "URL preview",
+        "Remove confirmation",
+        "See all",
+        "house source toggles"
+      ],
+      "viewports": [
+        "412x900 portrait",
+        "900x412 landscape",
+        "354x792 compact portrait",
+        "792x354 compact landscape",
+        "1280x700 desktop",
+        "800x1280 tablet portrait",
+        "1280x800 tablet landscape"
+      ],
+      "captures": [
+        "captures/extensions-portrait.png",
+        "captures/extensions-landscape.png",
+        "captures/extensions-desktop.png",
+        "captures/extensions-url-preview.png",
+        "captures/extensions-manage.png"
+      ]
+    },
+    {
+      "file": "update.html",
+      "title": "Update — monochrome living gallery, chapters and status strip",
+      "states": [
+        "Available",
+        "Downloading",
+        "Paused",
+        "Ready",
+        "UpToDate",
+        "RecoverableError",
+        "ManualUpdateRequired",
+        "chapter Next/selector"
+      ],
+      "viewports": [
+        "412x900 portrait",
+        "900x412 landscape",
+        "354x792 compact portrait",
+        "792x354 compact landscape",
+        "1280x700 desktop",
+        "800x1280 tablet portrait",
+        "1280x800 tablet landscape"
+      ],
+      "captures": [
+        "captures/update-portrait.png",
+        "captures/update-landscape.png",
+        "captures/update-desktop.png",
+        "captures/update-downloading.png"
+      ]
+    },
+    {
+      "file": "collections.html",
+      "title": "Collections — editorial shelves, private collection details, edit, create/delete and memberships",
+      "states": [
+        "Overview",
+        "Detail",
+        "Editing",
+        "New collection",
+        "Add to Collections",
+        "Delete collection",
+        "Discard edits",
+        "search/filter/reorder"
+      ],
+      "viewports": [
+        "412x900 portrait",
+        "900x412 landscape",
+        "354x792 compact portrait",
+        "792x354 compact landscape",
+        "1280x700 desktop",
+        "800x1280 tablet portrait",
+        "1280x800 tablet landscape"
+      ],
+      "captures": [
+        "captures/collections-portrait.png",
+        "captures/collections-landscape.png",
+        "captures/collections-desktop.png",
+        "captures/collections-new.png",
+        "captures/collections-membership.png",
+        "captures/collections-edit.png"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Approved desktop Segoe UI/Inter/Fraunces family choices, text hierarchy, gold controls, glass, borders and source icons",
+    "144x92 wallpaper thumbnails and horizontal named shelves with selection outline and original two scope actions",
+    "Original eight white-square House icon tiles with translucent pearl tray, label chips and small circular source glyphs",
+    "Extensions dark installed cards, genuine add-on logos, editorial Store rails and original centered URL/manage/remove controls",
+    "Update full-bleed monochrome source fallback artwork, chapter layout, version/section lettering, Back and distinct status strip",
+    "Collections fanned/rotated real local artwork, serif title shelf, user search/create, private detail, media covers, filters, edit, membership and delete dialogs",
+    "Original Back/close hierarchy with desktop-only window chrome and no invented Android OS chrome"
+  ],
+  "fittingChanges": [
+    "Responsive reflow at provisional short-side phone geometry instead of replacing source components",
+    "Phone wallpaper glass panel fits insets/keyboard; landscape selection card fits on the right; desktop selection card anchored right52/bottom52",
+    "House tile tray horizontally scrolls on phone with enlarged 44px touch target around original 28px circle",
+    "Store art cards stack vertically on phone while installed cards stay in an original horizontal rail; management is a distinct layer over original background",
+    "Update chapter and status lanes stack in portrait, split into two spatial lanes in landscape, all actions retained",
+    "Collections shelves reflow into 1/2/3 columns, detail posters into 2/3/5 columns; Back and action row remain reachable",
+    "Modal max heights and viewport reservations respond to editable top/bottom safe insets and simulated keyboard",
+    "Outside-app controls expose 7 editable presets, custom width/height, insets, font scale and state; no phone UI control was invented"
+  ],
+  "behaviourProposals": [],
+  "offlineSimulationNotes": [
+    "All display data is illustrative and labeled outside the mock; the current OnePlus size and actual backend results are unverified",
+    "Wallpaper QML shader/live art uses declared real local project image stand-ins; Wallhaven/KDE sample thumbnails are also offline local-art stand-ins",
+    "Store/install/URL preview/enable/disable/remove actions are local UI demonstrations only; no manifest/provider/account operation",
+    "Update ready/download/progress labels and 1.2.0 target are an illustrative scenario, not a confirmed available release; never contacts updater",
+    "Collection creation/membership/edit/delete/reordering only mutates JavaScript fixture state, never user data",
+    "Player/reader/bespoke universes are untouched"
+  ],
+  "unresolved": [
+    "Exact disconnected OnePlus logical size, safe areas, IME and real touch/runtime behaviour",
+    "Qt Quick scene shader fidelity, blur rendering and native font metrics cannot be validated by HTML",
+    "Real Wallhaven/store/provider/installed add-ons, current personal collections and actual update metadata not available offline",
+    "Two Puppeteer HTTP navigation timeouts on wallpaper portrait/landscape in a heavily loaded Laptop 1; independent isolated Edge PNGs exist at both required sizes",
+    "Initial audit identified narrow icon-only Extensions Back hit width; CSS corrected to minimum44px afterwards, but that one computed-style measurement was not re-audited",
+    "HTML-only visual/interaction study; no app integration, APK, ADB or physical device verification"
+  ],
+  "verification": {
+    "result": "Ready for visual review as a standalone mock; not implementation acceptance",
+    "tools": [
+      "Brotherhood Desktop Commander read_file/list_directory/write_file/edit_block/start_process",
+      "installed Node.js --check",
+      "isolated headless Microsoft Edge",
+      "existing BDC-host Puppeteer (test-only, no package installation)"
+    ],
+    "renderedWith": "node D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\22-utilities-collections\\capture-audit.cjs",
+    "renderDescription": "Puppeteer launches a private headless Edge and a temporary 127.0.0.1-only HTTP server rooted at D:\\Colosseum-Android-Phone-Mocks-20261101; rejects nonlocal requests; individual fallback captures made via Edge --headless=new --screenshot with private output-directory profiles",
+    "viewportPixelRatio": 1,
+    "expectedCaptureDimensions": {
+      "portrait": [
+        412,
+        900
+      ],
+      "landscape": [
+        900,
+        412
+      ],
+      "desktop": [
+        1280,
+        700
+      ]
+    },
+    "canonicalCaptureCount": 12,
+    "additionalStressAndModalCaptureCount": 7,
+    "allCanonicalPngDimensionsVerified": true,
+    "totalPngCount": 19,
+    "nodeSyntaxChecks": {
+      "app.js": "passed",
+      "capture-audit.cjs": "passed"
+    },
+    "headlessAudit": {
+      "path": "captures/audit.json",
+      "completed": true,
+      "scenariosAttempted": 19,
+      "scenariosCompleted": 17,
+      "navigationTimeouts": [
+        "wallpaper-portrait",
+        "wallpaper-landscape"
+      ],
+      "independentFallbackPngExistsForTimedOutViewports": true,
+      "successfullyAuditedCases": "0 unloaded images, 0 outer-page overflow; update status/nav did not overlap; no unnamed on-screen buttons",
+      "localRequestPolicy": "External requests blocked",
+      "interactionChecks": {
+        "total": 8,
+        "passed": 8
+      },
+      "initialIssuesResolvedAfterAudit": [
+        "Standalone-HTML modal field used wrong CSS color; corrected to original dark translucent",
+        "Qt ARGB tint in local membership checkbox incorrectly interpreted by CSS; corrected to gold",
+        "Store management ghosted store rails; subpage now hides underlying rails and header",
+        "30px wide icon-only Extensions Back made at least 44px wide"
+      ],
+      "auditAgeCaveat": "audit.json describes an earlier visual pass; corrected modal/management PNGs were re-rendered independently after final CSS/JS edits; full computed-rectangle audit was not repeated",
+      "nonBlockingBrowserNoise": "One local browser favicon 404 appeared in one initial completed audit; no sampled visible image failed"
+    },
+    "visualChecks": "Portrait, landscape and desktop primary page captures inspected; wallpaper desktop card alignment, collection detail Back, source tile tray and Update lanes checked; compact modal and editing captures inspected and fixes captured",
+    "scopeChecks": "No reference/context/sibling/repository file mutated; no worker spawned; no account, upload, install, download, APK, ADB, deployment or publishing action",
+    "publication": "HELD"
+  },
+  "notesFile": "FIDELITY.md"
+}

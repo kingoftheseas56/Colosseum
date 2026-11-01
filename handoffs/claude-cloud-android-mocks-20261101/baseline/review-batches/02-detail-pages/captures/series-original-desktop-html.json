@@ -1,0 +1,16 @@
+{
+  "name": "series-original-desktop-html",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-desktop-html.png",
+  "input": "outputs/17-theatre-details/series-detail.html?capture=1",
+  "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 1280,
+    "height": 700,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:48:30.219Z",
+  "sha256": "d97a48a2fb8e64c3a00b5a1777bc1ed85dd31b83e31034b98dcefd12dfec6ff5",
+  "errors": [],
+  "blocked": []
+}

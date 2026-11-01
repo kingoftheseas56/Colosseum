@@ -1,0 +1,196 @@
+{
+  "task": "17-theatre-details",
+  "status": "ready-for-review",
+  "sourceRefs": {
+    "batchRoot": "D:\\Colosseum-Android-Phone-Mocks-20261101",
+    "approvedDesktopCommit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+    "alphaRecoveryCommit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+    "reviewedOnly": [
+      "reference/desktop/qml/Main.qml",
+      "reference/desktop/qml/TheatreSeries.qml",
+      "reference/desktop/qml/TheatreSeriesView.qml",
+      "reference/desktop/qml/Theme.qml",
+      "reference/desktop/qml/TitlePageBar.qml",
+      "reference/desktop/qml/BackAction.qml",
+      "reference/desktop/qml/LibraryButton.qml",
+      "reference/desktop/qml/collections/AddToCollectionsButton.qml",
+      "reference/desktop/qml/collections/CollectionIcon.qml",
+      "reference/desktop/qml/PlayerIcon.qml",
+      "reference/desktop/qml/TheatreFacts.js",
+      "reference/desktop/qml/CastRow.qml",
+      "reference/desktop/qml/MoreLikeThisRow.qml",
+      "context/ANDROID-PORT-CLASSIFICATION.md",
+      "context/VIEWPORTS.json"
+    ],
+    "rejectedDriftPolicy": "MediaDetailScaffold.qml is absent from approved desktop and alpha; android-drift-only helper was not adopted.",
+    "authority": "Main.qml defaults to TheatreSeries.qml; TheatreSeriesView.qml is an opt-in source comparison only"
+  },
+  "pages": [
+    {
+      "file": "film-detail.html",
+      "title": "Theatre — Harry Potter and the Deathly Hallows: Part 2 (illustrative film detail)",
+      "states": [
+        "approved legacy hero, metadata and synopsis",
+        "original film action buttons and local Library toggle",
+        "long title at 354x792 and 412x900",
+        "desktop 360px hero",
+        "opt-in rebuilt synopsis More/Less expanded",
+        "cast initial circles and All cast expansion",
+        "More Like This source-format rail",
+        "back and native-window actions shown only in desktop mock"
+      ],
+      "viewports": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800 editable preset"
+      ],
+      "captures": [
+        "captures/film-portrait.png",
+        "captures/film-portrait-small.png",
+        "captures/film-landscape.png",
+        "captures/film-landscape-small.png",
+        "captures/film-desktop.png",
+        "captures/film-tablet.png",
+        "captures/film-synopsis-open.png"
+      ]
+    },
+    {
+      "file": "series-detail.html",
+      "title": "Theatre — One Piece (illustrative series detail and episode ledger)",
+      "states": [
+        "approved legacy hero/actions",
+        "23-item illustrative season dropdown closed and open",
+        "season selection to Season 17",
+        "Absolute/Seasons source order selector",
+        "legacy Go to episode popup and number jump",
+        "long episode names and next-up/watched/progress states",
+        "per-episode round Play/Download",
+        "episode context menu Play/Download",
+        "cast/recommendations",
+        "opt-in rebuilt title bar and inline Go to #",
+        "24px insets at 1.3 font scale"
+      ],
+      "viewports": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "1280x800 editable preset"
+      ],
+      "captures": [
+        "captures/series-portrait.png",
+        "captures/series-portrait-small.png",
+        "captures/series-landscape.png",
+        "captures/series-landscape-small.png",
+        "captures/series-desktop.png",
+        "captures/series-tablet.png",
+        "captures/series-episodes-portrait.png",
+        "captures/series-episodes-landscape.png",
+        "captures/series-season-open-portrait.png",
+        "captures/series-season-open-landscape.png",
+        "captures/series-jump-open-portrait.png",
+        "captures/series-rebuilt-episodes.png",
+        "captures/series-insets-scale.png"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Theme.qml #f0c44a gold, white/gray inks, glass/edge palette, Fraunces display and Segoe UI type",
+    "original art-wash hero, metadata/IMDb badge, synopsis, facts and gold Watch primary",
+    "LibraryButton and AddToCollectionsButton original ghost treatment, original notification label",
+    "BackAction canonical chevron, desktop window icons and opt-in TitlePageBar",
+    "underlined legacy order selector, rounded original season dropdown, floating original Go-to panel",
+    "episode ledger number rail, real arc still art, gold next-up rail, separate 38px Play/Download round icons",
+    "CastRow circle monograms/All cast and MoreLikeThisRow 120x172 title art rail",
+    "real original asset paths; no stock/poster placeholders; no app chrome invention"
+  ],
+  "fittingChanges": [
+    "portrait stacks banner above copy, wraps long title/actions/facts without cropping or horizontal scrolling",
+    "landscape uses the same art wash with natural one-owner vertical scroll and shallow-height fitting",
+    "keeps Part 2 together as typography, preserves original wording",
+    "Android 800x1280 tablet applies source width<840 narrow branch, landscape tablet retains wider layout",
+    "season popup keeps original menu styling, constrains visible scroll height below its trigger in 792x354 landscape",
+    "original upward dark sticky scrim hides hero copy under fixed Back when episode header pins",
+    "44px hit regions around unchanged 38px episode action visuals",
+    "editable workbench for seven viewport presets, safe insets, font-scale and renderer mode outside app frame"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "No QML compilation, real app runtime, APK, device or OnePlus measurements: mock fitting only.",
+    "Provider-specific episode stills/metadata and catalog mappings are illustrative; exact per-title art not frozen in assets.",
+    "Film Watch, episode Play/Download, season Download and Collections pickers do not fetch a source, change accounts or open actual SourcesSheet; the local off-frame status states the existing action boundary.",
+    "The source's virtualized episode window was approximated with 15 full illustrative rows for offline inspection, not tested for large live datasets.",
+    "The HTTP server contract was checked by relative-path structure and file:// headless rendering; no HTTP server was started due to no-shared-server constraint.",
+    "The system UI, keyboard, actual cutouts and platform device dimensions are intentionally not claimed."
+  ],
+  "verification": {
+    "kind": "HTML-only browser rendering and local interaction; not an app acceptance test",
+    "exactCommands": [
+      "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture.js\"",
+      "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture.js\" quick",
+      "node --check \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\app.js\"",
+      "node --check \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture.js\""
+    ],
+    "browser": "Installed Google Chrome headless via locally installed BDC Puppeteer, isolated temporary profile inside this output and removed",
+    "reportFiles": [
+      "captures/validation.json",
+      "captures/validation-quick.json",
+      "FIDELITY.md"
+    ],
+    "fullRun": {
+      "captured": 20,
+      "checkedSizes": [
+        "412x900",
+        "354x792",
+        "900x412",
+        "792x354",
+        "1280x700",
+        "800x1280",
+        "412x900 with 24px safe insets and 1.3 font scale"
+      ],
+      "horizontalOverflowCount": 0,
+      "missingImageResultCount": 0,
+      "pageScriptErrorCount": 0,
+      "initialClickHarnessError": "The first test clicked a hidden review-only shortcut in capture mode; screenshots passed but the interaction portion failed."
+    },
+    "correctedRun": {
+      "revisedScreenshots": 7,
+      "errorCount": 0,
+      "seasonMenuOpens": true,
+      "selectedSeason": "Season 17",
+      "jumpOpens": true,
+      "jumpClosesAfterSubmit": true,
+      "shallowLandscapeMenuBounds": {
+        "viewport": "792x354",
+        "left": 24,
+        "right": 260,
+        "top": 182,
+        "bottom": 344,
+        "inside": true
+      },
+      "checkedNoHorizontalOverflow": true,
+      "checkedNoMissingImage": true,
+      "checkedNoPageScriptError": true
+    },
+    "snapshotsReviewed": [
+      "film-portrait.png",
+      "film-desktop.png",
+      "film-tablet.png",
+      "series-portrait.png",
+      "series-episodes-portrait.png",
+      "series-episodes-landscape.png",
+      "series-season-open-portrait.png",
+      "series-season-open-landscape.png",
+      "series-jump-open-portrait.png",
+      "series-rebuilt-episodes.png"
+    ],
+    "isolation": "Only assigned output directory changed. No source, context, sibling job, app, account, worker, repository, device, upload or publication operation.",
+    "userReviewPending": true
+  }
+}

@@ -1,0 +1,21 @@
+{
+  "name": "shelves-original-continue-context-absent-portrait-small-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-continue-context-absent-portrait-small-stress.png",
+  "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+  "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&scale=1.3&top=24&bottom=24",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:34:25.271Z",
+  "sha256": "fdf24f7c3ef413ff568be56902f9bcfa9b0771ec4e744668a4d46ae2b9065636",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

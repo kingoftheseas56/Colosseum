@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1.0"><title>Universes home — Colosseum fitting mock</title><link rel="stylesheet" href="style.css"></head><body data-world="universes">
+<div class="review-layout">
+<div class="review-panel" id="reviewPanel">
+<h1>World home · fitting study</h1>
+<p>Standalone visual study of the approved desktop UI reflowed for provisional Android logical viewports. Controls here are <strong>outside</strong> Colosseum. No runtime or provider connection.</p>
+<label>Viewport preset<select id="preset">
+<option value="portrait" selected>Phone portrait · 412 × 900</option>
+<option value="landscape">Phone landscape · 900 × 412</option>
+<option value="compact">Compact portrait · 354 × 792</option>
+<option value="compactLandscape">Compact landscape · 792 × 354</option>
+<option value="desktop">Desktop reference · 1280 × 700</option>
+<option value="tabletPortrait">Tablet portrait · 800 × 1280</option>
+<option value="tabletLandscape">Tablet landscape · 1280 × 800</option>
+</select></label>
+<div class="twocol"><label>Width (dp)<input id="width" type="number" min="280" step="1" value="412"></label><label>Height (dp)<input id="height" type="number" min="300" step="1" value="900"></label></div>
+<div class="twocol"><label>Safe top<input id="insetTop" type="number" min="0" step="1" value="0"></label><label>Safe bottom<input id="insetBottom" type="number" min="0" step="1" value="0"></label></div>
+<div class="twocol"><label>Safe left<input id="insetLeft" type="number" min="0" step="1" value="0"></label><label>Safe right<input id="insetRight" type="number" min="0" step="1" value="0"></label></div>
+<label>Font scale<input id="fontScale" type="number" min="0.8" max="1.8" step="0.1" value="1.0"></label>
+<h2>Review states</h2>
+<label>Representative original control state<select id="reviewState">
+<option value="default">Default · first featured slide</option>
+<option value="carousel-two">Carousel · second slide</option>
+<option value="source-open">Discover · source rail expanded</option>
+<option value="category-open">Discover · catalogue picker open</option>
+<option value="filter-open">Discover · filter picker open</option>
+<option value="context-open">Continue · original context menu open</option>
+<option value="long-title">Long editorial title</option>
+<option value="empty-progress">Empty progress (rows hidden)</option>
+<option value="facets-books">Universes · Books facet</option>
+</select></label>
+<p class="annotation" id="fixtureState"></p>
+<p class="annotation"><strong>Illustrative source data.</strong> Entries and progress are a representative local fixture, not live account state. Portrait and landscape widths are provisional, not measurements of the disconnected OnePlus.</p>
+<p class="activity" id="reviewActivity" aria-live="polite">Mock actions stay local. Browse and click a native-looking control to inspect its intent.</p>
+</div>
+<div class="stage-wrap"><div class="stage" id="stage" aria-label="Universes home device viewport"><div id="app"></div></div></div>
+</div>
+<script src="app.js"></script>
+</body></html>

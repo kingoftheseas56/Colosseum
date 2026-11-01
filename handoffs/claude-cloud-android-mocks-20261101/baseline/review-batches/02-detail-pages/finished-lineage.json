@@ -1,0 +1,122 @@
+[
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\biblio-book.html",
+    "originalSha256": "0c3860f09f5438bc5a1070edb0a24d486e8a5c3e8ec58a9801e881f6b4fdee00",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\06-biblio-book\\biblio-book.html",
+    "initialSha256": "514557a622e02053bc70390a4ebd979ffe9794cd7ce08026dd3f56710296b48c"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\index.html",
+    "originalSha256": "2b082ce5444e96cdd876c1057727683746c84f2658ce08b2bf927b400c340b5f",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\06-biblio-book\\index.html",
+    "initialSha256": "437ef41c73db96836c3a05666e401d604dfa2fc7bb31c596eafca79c6422bf82"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\style.css",
+    "originalSha256": "249061fba7851ee205e6f5ddd638bdcc523d1caf781c1e15bb1ed9c2cd042abd",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\06-biblio-book\\style.css",
+    "initialSha256": "daf3163e5aaee98141e7ddd4831560f9674b4fb3eb748e94bf98c99fd2923609"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\app.js",
+    "originalSha256": "1f8f9cd138724c62cbe38180af19da4c27c413ca62335e3215c76a2b6d336ac1",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\06-biblio-book\\app.js",
+    "initialSha256": "9a2e4a572c8c57955deb68cb0c1269fc5db1f40fc2abb735130604dd71b72697"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\film-detail.html",
+    "originalSha256": "eb4903c56a3ce0f8e772f9ccbd9f02823cbd66a873e34d034c427f28280bfeb6",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\17-theatre-details\\film-detail.html",
+    "initialSha256": "f7fb5ea5b66331d6ebcd496c60e7066210fdb0be050dace2902dceefd3bf0608"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\series-detail.html",
+    "originalSha256": "9017072f53ac2526e130da5087426e455b90b844a5643bf9fb694b30ed718127",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\17-theatre-details\\series-detail.html",
+    "initialSha256": "cc9fc635275f3a8ae66d8a89322e00fa2b777dedc833b9857f982fd4dbbde6e9"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\index.html",
+    "originalSha256": "1c5fc3baa1875d3929c9ab23de7bdc23b20d647211d0a5b307e05e8cc0aebb73",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\17-theatre-details\\index.html",
+    "initialSha256": "b914f0e5438639b2a6bef2bfb3ee3cf98b1ec3121948e8b48904738dcfda1bfd"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\style.css",
+    "originalSha256": "d57fc5ef200815f3ea6bac3239f0748328c1d127f47d65f509e1b250fb4a5f55",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\17-theatre-details\\style.css",
+    "initialSha256": "44a5cf33bf22e15d9945e55ea6f8d849946d799a7fef0b33ed6da587aefee03f"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\app.js",
+    "originalSha256": "7f25ef4a5fafec88d1d3cc617908816aeb7a02b3e005d2572a741a7bf59f69ec",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\17-theatre-details\\app.js",
+    "initialSha256": "da2ad9e97b93ba38b5cf08819cb3f25000b0d2f0ac4c0aed4e733859662569d7"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\comic-series.html",
+    "originalSha256": "9870b519ddca48652aa3730d201d79a2ae474d57395a1acc72752c0fe3a82cb5",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\18-comic-details\\comic-series.html",
+    "initialSha256": "717c7187fc47f16ffa58be3c3fc3fd5a323e1da59d6caa24aba45b561a5c1631"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\comic-edition.html",
+    "originalSha256": "246f2a289630e9c2467e4f51237fe50829c56f38e170d38e8b9ccfb783441cfe",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\18-comic-details\\comic-edition.html",
+    "initialSha256": "66a8d0fc1212ec182af3d9faafdada76a4d0329c47df19314abbb803ae9a07e3"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\comic-archive.html",
+    "originalSha256": "00bbed7ae664cb9aa93dc8c139c1a9399da1f8e5043a03f2c79140f51bcf69f1",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\18-comic-details\\comic-archive.html",
+    "initialSha256": "0770ebe98ad5c4f244d1876fe4b7210f51c6175474dd4909d81c9b6d8bc56107"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\index.html",
+    "originalSha256": "6cee2754f97641a01a495610abc7773703e1125c9d143843eb5da690b298eab3",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\18-comic-details\\index.html",
+    "initialSha256": "fdda8d247b5ec5559eea13fdbce98655cbf569c15e25782100d81663fa243add"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\style.css",
+    "originalSha256": "63baeba44b187c648c2196934f2323fb2ad1634afca7b065d53ed0b1a50feff2",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\18-comic-details\\style.css",
+    "initialSha256": "a93310c4326cc18597e8a3e31a7689152f7f7732809f5510b406a702a97bea09"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\app.js",
+    "originalSha256": "732c9534e75a33ca3da78b6b5cabc2c84a08e88917b8d066b4290921f38f9548",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\18-comic-details\\app.js",
+    "initialSha256": "899dd677c8d92f73f044124a007e92dbb0c6511d8a4f1494947f53a67723be92"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\saga-universe.html",
+    "originalSha256": "bfa6f093ebb97ef816009b356aaab13ce865ce0b7a8a78a9eb4a871693a9a4b8",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\19-generic-universes\\saga-universe.html",
+    "initialSha256": "0fd5325a8edff19a590735b920f87aab330deb75489d93edb852f1d3dc1f729b"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\shelves-universe.html",
+    "originalSha256": "c673d0705ef33dc49f31bd9eea1f8ec19c31e38aa6685076fafc527f34a8fc72",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\19-generic-universes\\shelves-universe.html",
+    "initialSha256": "1cf7aec7b4ed6052a6e094ee8472fa05b7ae5776a1984d04cee4d4bc626ec169"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\index.html",
+    "originalSha256": "f573e7f17320ee12bce8f98131dab182aa2b3ff5020750e0487097c2f98858f9",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\19-generic-universes\\index.html",
+    "initialSha256": "fe161b19966009e5984a216af0a8320a8c042fa206a3f4c8aa32305c5d6356ff"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\style.css",
+    "originalSha256": "0293cc54acbb5d6e348dbc5b7e711ee9c5c32537286489cd23f6ae6435b8c00b",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\19-generic-universes\\style.css",
+    "initialSha256": "c42b64e488b127c0cc77fbf5e0b103e49c19c293f7d4cc2d27013caf4edde41e"
+  },
+  {
+    "original": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\app.js",
+    "originalSha256": "e7f30060ab4402a83b5bc3b91ba81e808b3bd8663aa76a6456abcb652792a1bc",
+    "finished": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\19-generic-universes\\app.js",
+    "initialSha256": "bc7bfbf164467cd1f7e19cf45bce7ed6596d67dd5200a27be1776699a3eb66d3"
+  }
+]

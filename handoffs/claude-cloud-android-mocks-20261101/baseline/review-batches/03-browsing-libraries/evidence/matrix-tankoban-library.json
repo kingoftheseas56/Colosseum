@@ -1,0 +1,162 @@
+[
+  {
+    "page": "tankoban-library.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  }
+]

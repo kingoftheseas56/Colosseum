@@ -1,0 +1,1064 @@
+{
+  "time": "2026-10-31T22:48:44.761Z",
+  "url": "http://127.0.0.1:13213/outputs/22-utilities-collections/extensions-store.html?capture=1&preset=portrait&state=URL+dialog",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 412,
+    "h": 900,
+    "outerWidth": 412,
+    "outerHeight": 900,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone portrait",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        }
+      },
+      {
+        "class": "app-surface ext-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 412,
+          "h": 900,
+          "right": 412,
+          "bottom": 900
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "ext-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 16,
+          "y": 73,
+          "w": 380,
+          "h": 819,
+          "right": 396,
+          "bottom": 892
+        },
+        "scrollHeight": 7166,
+        "clientHeight": 819
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Back",
+        "action": "extExit",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 9.5,
+          "w": 44,
+          "h": 44,
+          "right": 60,
+          "bottom": 53.5
+        }
+      },
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "+Install from URL",
+        "action": "extUrl",
+        "disabled": false,
+        "box": {
+          "x": 165.84375,
+          "y": 96,
+          "w": 128.890625,
+          "h": 44,
+          "right": 294.734375,
+          "bottom": 140
+        }
+      },
+      {
+        "text": "Search",
+        "action": "extSearch",
+        "disabled": false,
+        "box": {
+          "x": 301.734375,
+          "y": 96,
+          "w": 81.265625,
+          "h": 44,
+          "right": 383,
+          "bottom": 140
+        }
+      },
+      {
+        "text": "",
+        "action": "heroOpen",
+        "disabled": false,
+        "box": {
+          "x": 73.109375,
+          "y": 199.5,
+          "w": 82,
+          "h": 82,
+          "right": 155.109375,
+          "bottom": 281.5
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 218.109375,
+          "y": 199.5,
+          "w": 82,
+          "h": 82,
+          "right": 300.109375,
+          "bottom": 281.5
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 363.109375,
+          "y": 191.5,
+          "w": 82,
+          "h": 82,
+          "right": 445.109375,
+          "bottom": 273.5
+        }
+      },
+      {
+        "text": "Toggle Nyaa",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 405.859375,
+          "y": 283.5,
+          "w": 44,
+          "h": 44,
+          "right": 449.859375,
+          "bottom": 327.5
+        }
+      },
+      {
+        "text": "",
+        "action": "heroOpen",
+        "disabled": false,
+        "box": {
+          "x": 508.109375,
+          "y": 191.5,
+          "w": 82,
+          "h": 82,
+          "right": 590.109375,
+          "bottom": 273.5
+        }
+      },
+      {
+        "text": "Toggle Tankoyomi",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 563.328125,
+          "y": 283.5,
+          "w": 44,
+          "h": 44,
+          "right": 607.328125,
+          "bottom": 327.5
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 653.109375,
+          "y": 191.5,
+          "w": 82,
+          "h": 82,
+          "right": 735.109375,
+          "bottom": 273.5
+        }
+      },
+      {
+        "text": "Toggle GetComics",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 708.328125,
+          "y": 283.5,
+          "w": 44,
+          "h": 44,
+          "right": 752.328125,
+          "bottom": 327.5
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 798.109375,
+          "y": 191.5,
+          "w": 82,
+          "h": 82,
+          "right": 880.109375,
+          "bottom": 273.5
+        }
+      },
+      {
+        "text": "Toggle Tankorent",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 851.328125,
+          "y": 283.5,
+          "w": 44,
+          "h": 44,
+          "right": 895.328125,
+          "bottom": 327.5
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 943.109375,
+          "y": 191.5,
+          "w": 82,
+          "h": 82,
+          "right": 1025.109375,
+          "bottom": 273.5
+        }
+      },
+      {
+        "text": "Toggle LibGen",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 989.984375,
+          "y": 283.5,
+          "w": 44,
+          "h": 44,
+          "right": 1033.984375,
+          "bottom": 327.5
+        }
+      },
+      {
+        "text": "",
+        "disabled": true,
+        "box": {
+          "x": 1088.109375,
+          "y": 191.5,
+          "w": 82,
+          "h": 82,
+          "right": 1170.109375,
+          "bottom": 273.5
+        }
+      },
+      {
+        "text": "Toggle AudioBookBay",
+        "action": "heroToggle",
+        "disabled": false,
+        "box": {
+          "x": 1151.796875,
+          "y": 283.5,
+          "w": 44,
+          "h": 44,
+          "right": 1195.796875,
+          "bottom": 327.5
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 323.34375,
+          "y": 387.1875,
+          "w": 72.65625,
+          "h": 44,
+          "right": 396,
+          "bottom": 431.1875
+        }
+      },
+      {
+        "text": "Anime KitsuCore · Always onCatalogs · Details",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 445.1875,
+          "w": 320,
+          "h": 138,
+          "right": 336,
+          "bottom": 583.1875
+        }
+      },
+      {
+        "text": "TorrentioEnabledStreams",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 348,
+          "y": 445.1875,
+          "w": 320,
+          "h": 138,
+          "right": 668,
+          "bottom": 583.1875
+        }
+      },
+      {
+        "text": "OpenSubtitles v3Core · Always onSubtitles",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 680,
+          "y": 445.1875,
+          "w": 320,
+          "h": 138,
+          "right": 1000,
+          "bottom": 583.1875
+        }
+      },
+      {
+        "text": "TankoyomiCore · Always onCatalogs · Details",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 1012,
+          "y": 445.1875,
+          "w": 320,
+          "h": 138,
+          "right": 1332,
+          "bottom": 583.1875
+        }
+      },
+      {
+        "text": "NyaaEnabledStreams",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 1344,
+          "y": 445.1875,
+          "w": 320,
+          "h": 138,
+          "right": 1664,
+          "bottom": 583.1875
+        }
+      },
+      {
+        "text": "MediaFusionEnabledStreams",
+        "action": "extManage",
+        "disabled": false,
+        "box": {
+          "x": 1676,
+          "y": 445.1875,
+          "w": 320,
+          "h": 138,
+          "right": 1996,
+          "bottom": 583.1875
+        }
+      },
+      {
+        "text": "OpenSubtitles v3",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 688.375,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 907.40625
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 919.40625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 963.40625
+        }
+      },
+      {
+        "text": "Streaming Catalogs",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 981.40625,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 1200.4375
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 1212.4375,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 1256.4375
+        }
+      },
+      {
+        "text": "Comet",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 1274.4375,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 1473.453125
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 1485.453125,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 1529.453125
+        }
+      },
+      {
+        "text": "Anime Kitsu",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 1547.453125,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 1766.484375
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 1778.484375,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 1822.484375
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 1840.484375,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 2059.515625
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 2071.515625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 2115.515625
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 342.484375,
+          "y": 2164.703125,
+          "w": 53.515625,
+          "h": 44,
+          "right": 396,
+          "bottom": 2208.703125
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 2225.703125,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 2444.734375
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 2456.734375,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 2500.734375
+        }
+      },
+      {
+        "text": "Comet",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 2518.734375,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 2717.75
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 2729.75,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 2773.75
+        }
+      },
+      {
+        "text": "MediaFusion",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 2791.75,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 2990.765625
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 3002.765625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 3046.765625
+        }
+      },
+      {
+        "text": "AIOStreams",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 3064.765625,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 3283.796875
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 3295.796875,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 3339.796875
+        }
+      },
+      {
+        "text": "Netflix Catalog",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 3357.796875,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 3556.8125
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 3568.8125,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 3612.8125
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 342.484375,
+          "y": 3681.59375,
+          "w": 53.515625,
+          "h": 44,
+          "right": 396,
+          "bottom": 3725.59375
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 3742.59375,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 3961.625
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 3973.625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 4017.625
+        }
+      },
+      {
+        "text": "Comet",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 4035.625,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 4234.640625
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 4246.640625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 4290.640625
+        }
+      },
+      {
+        "text": "MediaFusion",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 4308.640625,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 4507.65625
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 4519.65625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 4563.65625
+        }
+      },
+      {
+        "text": "AIOStreams",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 4581.65625,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 4800.6875
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 4812.6875,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 4856.6875
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 342.484375,
+          "y": 4905.875,
+          "w": 53.515625,
+          "h": 44,
+          "right": 396,
+          "bottom": 4949.875
+        }
+      },
+      {
+        "text": "Streaming Catalogs",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 4966.875,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 5185.90625
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 5197.90625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 5241.90625
+        }
+      },
+      {
+        "text": "Netflix Catalog",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 5259.90625,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 5458.921875
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 5470.921875,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 5514.921875
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 342.484375,
+          "y": 5564.109375,
+          "w": 53.515625,
+          "h": 44,
+          "right": 396,
+          "bottom": 5608.109375
+        }
+      },
+      {
+        "text": "Anime Kitsu",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 5625.109375,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 5844.140625
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 5856.140625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 5900.140625
+        }
+      },
+      {
+        "text": "Torrentio",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 5918.140625,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 6137.171875
+        }
+      },
+      {
+        "text": "Set up",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 6149.171875,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 6193.171875
+        }
+      },
+      {
+        "text": "See all ›",
+        "action": "extSeeAll",
+        "disabled": false,
+        "box": {
+          "x": 342.484375,
+          "y": 6242.359375,
+          "w": 53.515625,
+          "h": 44,
+          "right": 396,
+          "bottom": 6286.359375
+        }
+      },
+      {
+        "text": "OpenSubtitles v3",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 6303.359375,
+          "w": 380,
+          "h": 219.03125,
+          "right": 396,
+          "bottom": 6522.390625
+        }
+      },
+      {
+        "text": "Installed",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 6534.390625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 6578.390625
+        }
+      },
+      {
+        "text": "SubDL",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 6596.390625,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 6795.40625
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 6807.40625,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 6851.40625
+        }
+      },
+      {
+        "text": "OpenSubtitles",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 16,
+          "y": 6869.40625,
+          "w": 380,
+          "h": 199.015625,
+          "right": 396,
+          "bottom": 7068.421875
+        }
+      },
+      {
+        "text": "Install",
+        "action": "storeAction",
+        "disabled": false,
+        "box": {
+          "x": 266,
+          "y": 7080.421875,
+          "w": 130,
+          "h": 44,
+          "right": 396,
+          "bottom": 7124.421875
+        }
+      },
+      {
+        "text": "Close",
+        "action": "closeModal",
+        "disabled": false,
+        "box": {
+          "x": 332,
+          "y": 312.5,
+          "w": 44,
+          "h": 44,
+          "right": 376,
+          "bottom": 356.5
+        }
+      },
+      {
+        "text": "Cancel",
+        "action": "closeModal",
+        "disabled": false,
+        "box": {
+          "x": 118,
+          "y": 543.5,
+          "w": 102,
+          "h": 44,
+          "right": 220,
+          "bottom": 587.5
+        }
+      },
+      {
+        "text": "Preview add-on",
+        "action": "urlPreview",
+        "disabled": true,
+        "box": {
+          "x": 230,
+          "y": 543.5,
+          "w": 146,
+          "h": 44,
+          "right": 376,
+          "bottom": 587.5
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "outputs/22-utilities-collections/extensions-store.html",
+      "sha256": "de3b28dbd3425a78dbb99e4f64a1248b85589c804954cea38287d2383d7c846f"
+    },
+    {
+      "path": "outputs/22-utilities-collections/style.css",
+      "sha256": "a7fe372fa2b22f00e64d0b39fe1f6e12b588b732b3486fb9d159e7d7ac35d9ce"
+    },
+    {
+      "path": "outputs/22-utilities-collections/app.js",
+      "sha256": "1b765457dff74f11bf1b57b9fef3da663dc1f90bc8b39b60691f7ddceb818272"
+    }
+  ]
+}

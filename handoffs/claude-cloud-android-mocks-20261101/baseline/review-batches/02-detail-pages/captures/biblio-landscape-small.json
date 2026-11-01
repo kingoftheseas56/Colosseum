@@ -1,0 +1,16 @@
+{
+  "name": "biblio-landscape-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-landscape-small.png",
+  "input": "outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+  "url": "http://127.0.0.1:8667/outputs/06-biblio-book/biblio-book.html?preset=landscapeSmall",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 1450,
+    "height": 1500,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:42:35.998Z",
+  "sha256": "2f094e8839f954a044b82f185783cfbb1a822e8301d2c8b222a42da5a978ffa5",
+  "errors": [],
+  "blocked": []
+}

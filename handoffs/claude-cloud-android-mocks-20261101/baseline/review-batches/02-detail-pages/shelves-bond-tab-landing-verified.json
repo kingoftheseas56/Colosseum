@@ -1,0 +1,581 @@
+{
+  "utc": "2026-11-01T00:05:46.075Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "portrait",
+        "mode": "original",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 123.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 123.3125,
+          "right": 121.890625,
+          "bottom": 157.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 24,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 330.6875,
+          "bottom": 92,
+          "left": 24
+        },
+        "headingClear": true,
+        "barContained": true,
+        "position": "beside-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-bond-landing-portrait-stress",
+      "result": {
+        "name": "shelves-tabs-original-bond-landing-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-bond-landing-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:36.187Z",
+        "sha256": "f0f472af1dcfb350124703294a8b14215fb3b71ef591242bd19a73b24a41c465",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "portrait",
+        "mode": "proposed",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 175.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 175.3125,
+          "right": 121.890625,
+          "bottom": 209.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 24,
+          "y": 98,
+          "width": 306.6875,
+          "height": 46,
+          "top": 98,
+          "right": 330.6875,
+          "bottom": 144,
+          "left": 24
+        },
+        "headingClear": true,
+        "barContained": true,
+        "position": "below-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-bond-landing-portrait-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-bond-landing-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-bond-landing-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:37.619Z",
+        "sha256": "8e0b8f7a48d3fd3f6e0d14e7c652338e661f59d61e06706084773ba9cc928460",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "portrait-small",
+        "mode": "original",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 123.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 123.3125,
+          "right": 121.890625,
+          "bottom": 157.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 108.109375,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 414.796875,
+          "bottom": 92,
+          "left": 108.109375
+        },
+        "headingClear": true,
+        "barContained": false,
+        "position": "beside-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-bond-landing-portrait-small-stress",
+      "result": {
+        "name": "shelves-tabs-original-bond-landing-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-bond-landing-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:39.162Z",
+        "sha256": "34c554b1834c56c91997c354553ccfc91c29d3ca4587478ad5f7320251a21803",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "portrait-small",
+        "mode": "proposed",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 175.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 175.3125,
+          "right": 121.890625,
+          "bottom": 209.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 24,
+          "y": 98,
+          "width": 306,
+          "height": 46,
+          "top": 98,
+          "right": 330,
+          "bottom": 144,
+          "left": 24
+        },
+        "headingClear": true,
+        "barContained": true,
+        "position": "below-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-bond-landing-portrait-small-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-bond-landing-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-bond-landing-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:40.644Z",
+        "sha256": "c7069eb3e6918249a8ea410e47f77e6192a2b5d2dbfb40335fa3310fb1a50472",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "landscape",
+        "mode": "original",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 123.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 123.3125,
+          "right": 121.890625,
+          "bottom": 157.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 24,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 330.6875,
+          "bottom": 92,
+          "left": 24
+        },
+        "headingClear": true,
+        "barContained": true,
+        "position": "beside-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-bond-landing-landscape-stress",
+      "result": {
+        "name": "shelves-tabs-original-bond-landing-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-bond-landing-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:41.922Z",
+        "sha256": "5c3409f1a00831f4f6915e635845bf4a6b041dd5f39e8e537d2bc22a9392f1f2",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "landscape",
+        "mode": "proposed",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 123.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 123.3125,
+          "right": 121.890625,
+          "bottom": 157.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 24,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 330.6875,
+          "bottom": 92,
+          "left": 24
+        },
+        "headingClear": true,
+        "barContained": true,
+        "position": "beside-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-bond-landing-landscape-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-bond-landing-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-bond-landing-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:43.218Z",
+        "sha256": "095507713499f6e5440a285688835a44e95b9ca60cf04fc930d1b87485adba6f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "landscape-small",
+        "mode": "original",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 123.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 123.3125,
+          "right": 121.890625,
+          "bottom": 157.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 24,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 330.6875,
+          "bottom": 92,
+          "left": 24
+        },
+        "headingClear": true,
+        "barContained": true,
+        "position": "beside-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-original-bond-landing-landscape-small-stress",
+      "result": {
+        "name": "shelves-tabs-original-bond-landing-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-original-bond-landing-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=original&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:44.703Z",
+        "sha256": "9e49642e507d89e7a65f3b692bb45c68699a59867c781575f259083448ee7634",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".tab:first-child"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "page": "shelves",
+        "size": "landscape-small",
+        "mode": "proposed",
+        "passed": true,
+        "heading": "Films",
+        "headingRect": {
+          "x": 49,
+          "y": 123.3125,
+          "width": 72.890625,
+          "height": 34.3125,
+          "top": 123.3125,
+          "right": 121.890625,
+          "bottom": 157.625,
+          "left": 49
+        },
+        "tabRect": {
+          "x": 24,
+          "y": 46,
+          "width": 306.6875,
+          "height": 46,
+          "top": 46,
+          "right": 330.6875,
+          "bottom": 92,
+          "left": 24
+        },
+        "headingClear": true,
+        "barContained": true,
+        "position": "beside-back",
+        "pageOverflow": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-tabs-proposed-bond-landing-landscape-small-stress",
+      "result": {
+        "name": "shelves-tabs-proposed-bond-landing-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-tabs-proposed-bond-landing-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land&tabs=proposed&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-11-01T00:05:46.069Z",
+        "sha256": "39b7bcd4141aa84fdfa721d0fd9a9b347cc576bf4bebb4b21bd5e53ebdb06439",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

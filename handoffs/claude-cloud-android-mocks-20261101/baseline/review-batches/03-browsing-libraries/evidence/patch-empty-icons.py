@@ -1,0 +1,8 @@
+from pathlib import Path
+p=Path("D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\finished-mocks")
+f=p/"20-search-browse/app.js";s=f.read_text(encoding="utf-8");a="+'</div></div></div></div></div>';";assert a in s,a[:100];f.write_text(s.replace(a,"+'</div></div></div></div></div>';"),encoding="utf-8")
+f=p/"20-search-browse/app.js";s=f.read_text(encoding="utf-8");a="items.map((item,i)=>S.compact?genreCoverCard(item,i):genreDetailCard(item,i)).join('')";assert a in s,a[:100];f.write_text(s.replace(a,"(items.length?items.map((item,i)=>S.compact?genreCoverCard(item,i):genreDetailCard(item,i)).join(''):'<p class=\"no-results\">Nothing in this genre yet — try another.</p>')"),encoding="utf-8")
+f=p/"20-search-browse/app.js";s=f.read_text(encoding="utf-8");a="'<span class=\"rating\"><em>★</em> 8.4</span>'";assert a in s,a[:100];f.write_text(s.replace(a,"'<span class=\"rating\"><em>★</em> '+(item.score||8.4).toFixed(1)+'</span>'"),encoding="utf-8")
+f=p/"20-search-browse/app.js";s=f.read_text(encoding="utf-8");a="S.lane==='Biblio'?item.author:'4K readers'";assert a in s,a[:100];f.write_text(s.replace(a,"S.lane==='Biblio'?item.author:(item.readers||4)+'K readers'"),encoding="utf-8")
+f=p/"07-biblio-home/app.js";s=f.read_text(encoding="utf-8");a="data-book=\"'+books.indexOf(e.book)+'\">▶</button>";assert a in s,a[:100];f.write_text(s.replace(a,"data-book=\"'+books.indexOf(e.book)+'\"><img src=\"'+icon('book-library')+'\" alt=\"\" style=\"width:21px;height:21px\"></button>"),encoding="utf-8")
+print("Empty states and resume icon patched")

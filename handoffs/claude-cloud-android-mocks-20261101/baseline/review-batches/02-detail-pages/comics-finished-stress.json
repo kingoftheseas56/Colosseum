@@ -1,0 +1,1928 @@
+{
+  "utc": "2026-10-31T23:04:03.477Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#release-filter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-empty-portrait-stress",
+      "result": {
+        "name": "comic-series-finished-empty-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-empty-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:32.215Z",
+        "sha256": "ef0952586c03482933fc0685102614af58d4551a29e3ed312a09b21159b9025c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "empty": "No releases match “ZZZ”.",
+        "rows": 0
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"clear-search\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"sort\"][data-sort=\"old\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "titles": [
+          "Batman: Detective Comics: The Rebirth Deluxe Edition Book 1",
+          "Batman Vol. 1: I Am Gotham (2024 Edition)",
+          "Batman Vol. 2: I Am Suicide (2024 Edition)",
+          "Batman Vol. 3: I Am Bane (2024 Edition)",
+          "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)",
+          "Batman #1",
+          "Batman #2",
+          "Batman #3"
+        ],
+        "focus": "sort"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-collections-portrait-stress",
+      "result": {
+        "name": "comic-series-finished-collections-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-collections-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:32.614Z",
+        "sha256": "b09cb0033e9427724c5ff94526d765cd0288aceb16dbef5a3251d8f2a1864786",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-membership[data-cp-id=\"favorites\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-cancel"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelDiscarded": true,
+        "dialog": {
+          "x": 16,
+          "y": 140.0625,
+          "width": 380,
+          "height": 619.875,
+          "top": 140.0625,
+          "right": 396,
+          "bottom": 759.9375,
+          "left": 16
+        }
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)2025Read↓"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-last-row-portrait-stress",
+      "result": {
+        "name": "comic-series-finished-last-row-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-last-row-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:32.951Z",
+        "sha256": "b385cc0c8bc10eff5d131b5471d1a5a56d6af3a52abfa9e50badb35aca899b1a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#release-filter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-empty-portrait-small-stress",
+      "result": {
+        "name": "comic-series-finished-empty-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-empty-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:34.098Z",
+        "sha256": "40eefa363aad9b4ec979b684cd4a0ba64240a575f83e908c2be044f8379deb01",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "empty": "No releases match “ZZZ”.",
+        "rows": 0
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"clear-search\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"sort\"][data-sort=\"old\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "titles": [
+          "Batman: Detective Comics: The Rebirth Deluxe Edition Book 1",
+          "Batman Vol. 1: I Am Gotham (2024 Edition)",
+          "Batman Vol. 2: I Am Suicide (2024 Edition)",
+          "Batman Vol. 3: I Am Bane (2024 Edition)",
+          "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)",
+          "Batman #1",
+          "Batman #2",
+          "Batman #3"
+        ]
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-collections-portrait-small-stress",
+      "result": {
+        "name": "comic-series-finished-collections-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-collections-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:34.387Z",
+        "sha256": "a69546b3688231c709f893bcd3bd7200a4b677719c60cc70b7c3ba3e7d4fb27f",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-membership[data-cp-id=\"favorites\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-cancel"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelDiscarded": true,
+        "dialog": {
+          "x": 16,
+          "y": 55.125,
+          "width": 322,
+          "height": 681.75,
+          "top": 55.125,
+          "right": 338,
+          "bottom": 736.875,
+          "left": 16
+        }
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)2025Read↓"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-last-row-portrait-small-stress",
+      "result": {
+        "name": "comic-series-finished-last-row-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-last-row-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:34.717Z",
+        "sha256": "5f3eaef8e2f64c3759b62ea4a6b5f339c3b49d03aba373937d4dbbe845f6751b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#release-filter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-empty-landscape-stress",
+      "result": {
+        "name": "comic-series-finished-empty-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-empty-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:36.109Z",
+        "sha256": "6d064bc0b7ea0d45e0f21f6ecef600fee33e5b4514195fca159d9d7541444aa6",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "empty": "No releases match “ZZZ”.",
+        "rows": 0
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"clear-search\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"sort\"][data-sort=\"old\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "titles": [
+          "Batman: Detective Comics: The Rebirth Deluxe Edition Book 1",
+          "Batman Vol. 1: I Am Gotham (2024 Edition)",
+          "Batman Vol. 2: I Am Suicide (2024 Edition)",
+          "Batman Vol. 3: I Am Bane (2024 Edition)",
+          "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)",
+          "Batman #1",
+          "Batman #2",
+          "Batman #3"
+        ]
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-collections-landscape-stress",
+      "result": {
+        "name": "comic-series-finished-collections-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-collections-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:36.421Z",
+        "sha256": "6b1d349012259584c8cbe5dab74796d0392e3532416f86f99b0d991b0632fbcb",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-membership[data-cp-id=\"favorites\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-cancel"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelDiscarded": true,
+        "dialog": {
+          "x": 170,
+          "y": 40,
+          "width": 560,
+          "height": 332,
+          "top": 40,
+          "right": 730,
+          "bottom": 372,
+          "left": 170
+        }
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)2025Read↓"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-last-row-landscape-stress",
+      "result": {
+        "name": "comic-series-finished-last-row-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-last-row-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:36.743Z",
+        "sha256": "fb36a359c81597a9c63f203ca7464e73a0bf51500ffad4f2e11e282dd5657ba1",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#release-filter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-empty-landscape-small-stress",
+      "result": {
+        "name": "comic-series-finished-empty-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-empty-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:38.100Z",
+        "sha256": "8c7011a51fb46b5bb1e09a93bc0bb2a1bc374f60b787e01f5e887089d73c446a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "empty": "No releases match “ZZZ”.",
+        "rows": 0
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"clear-search\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"sort\"][data-sort=\"old\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "titles": [
+          "Batman: Detective Comics: The Rebirth Deluxe Edition Book 1",
+          "Batman Vol. 1: I Am Gotham (2024 Edition)",
+          "Batman Vol. 2: I Am Suicide (2024 Edition)",
+          "Batman Vol. 3: I Am Bane (2024 Edition)",
+          "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)",
+          "Batman #1",
+          "Batman #2",
+          "Batman #3"
+        ]
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-collections-landscape-small-stress",
+      "result": {
+        "name": "comic-series-finished-collections-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-collections-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:38.388Z",
+        "sha256": "9ffc24fb6a111e11a377cdf70e5d71c41e88b32fa3e0250aaeb572721d9a1c9c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-membership[data-cp-id=\"favorites\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".cp-cancel"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelDiscarded": true,
+        "dialog": {
+          "x": 116,
+          "y": 40,
+          "width": 560,
+          "height": 274,
+          "top": 40,
+          "right": 676,
+          "bottom": 314,
+          "left": 116
+        }
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "last": "Batman Vol. 4: The War of Jokes and Riddles (2025 Edition)2025Read↓"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-last-row-landscape-small-stress",
+      "result": {
+        "name": "comic-series-finished-last-row-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-last-row-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:38.695Z",
+        "sha256": "3a288c0c23acff7baa2cfbaf44bf89fb567eee31b973b1a24d390d40d277d85b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "sourceOpened": true,
+        "editionStillEnabled": "<img src=\"../../../../reference/desktop/assets/icons/download.svg\" alt=\"Download verified GetComics release\">",
+        "inert": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "sourceClosed": true,
+        "focus": "alt",
+        "id": "3603805"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"alt\"][data-id=\"3603805\"]"
+      }
+    },
+    {
+      "op": "type",
+      "result": {
+        "typed": "#source-query"
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-empty",
+      "result": {
+        "name": "comic-edition-finished-source-empty",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-empty.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:40.213Z",
+        "sha256": "cd9c914ef58f62ffe42dbb829927e282c37c7849657aed74a901b52d567d625a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": "No torrents matched this query. Try another title or ISBN."
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-alt-portrait-stress",
+      "result": {
+        "name": "comic-edition-finished-alt-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-alt-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:41.414Z",
+        "sha256": "05f086b7c4e9af013d97156c8dfc2d7bb0ef81d59155b2f5be5d089cb509386a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 412,
+          "height": 852,
+          "top": 24,
+          "right": 412,
+          "bottom": 876,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-incomplete-portrait-stress",
+      "result": {
+        "name": "comic-edition-finished-source-incomplete-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-incomplete-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:42.735Z",
+        "sha256": "ebbd9533737d0643d12889872cd8b19580c71caef7753aba9c3dec52391a7007",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 412,
+          "height": 852,
+          "top": 24,
+          "right": 412,
+          "bottom": 876,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-combined-portrait-stress",
+      "result": {
+        "name": "comic-edition-finished-source-combined-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-combined-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:44.065Z",
+        "sha256": "949378ba4ab453a3016fb29338f013513dee8749b00e9a24bb82ed70ce8bf744",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 412,
+          "height": 852,
+          "top": 24,
+          "right": 412,
+          "bottom": 876,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-ambiguous-portrait-stress",
+      "result": {
+        "name": "comic-edition-finished-source-ambiguous-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-ambiguous-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:45.183Z",
+        "sha256": "503eca9a19e32d77e37c22f5bd32591d715d3f153b7d74b193954af8e6ef2a2f",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 412,
+          "height": 852,
+          "top": 24,
+          "right": 412,
+          "bottom": 876,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-weak-portrait-stress",
+      "result": {
+        "name": "comic-edition-finished-source-weak-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-weak-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:46.528Z",
+        "sha256": "c06f51af9cba7bbf0753bd749b9556c2dccee611cce105a44de60d285e7ac9d5",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 412,
+          "height": 852,
+          "top": 24,
+          "right": 412,
+          "bottom": 876,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "weak": {
+          "x": 20,
+          "y": 330.921875,
+          "width": 372,
+          "height": 238.15625,
+          "top": 330.921875,
+          "right": 392,
+          "bottom": 569.078125,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-alt-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-finished-alt-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-alt-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:47.871Z",
+        "sha256": "790b136ca3527bb219fd911576975b7a9e223f42a0a09a1f22854460406ae6ac",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 354,
+          "height": 744,
+          "top": 24,
+          "right": 354,
+          "bottom": 768,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-incomplete-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-incomplete-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-incomplete-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:49.073Z",
+        "sha256": "06f31782942e538e01fe45384097f76d6b2de03594e6880351819b5832d28246",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 354,
+          "height": 744,
+          "top": 24,
+          "right": 354,
+          "bottom": 768,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-combined-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-combined-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-combined-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:50.119Z",
+        "sha256": "a548be01e9867d7e31bdf68142ed464ff5a8827b977143be36bae09e61791148",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 354,
+          "height": 744,
+          "top": 24,
+          "right": 354,
+          "bottom": 768,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-ambiguous-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-ambiguous-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-ambiguous-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:51.111Z",
+        "sha256": "0b9aba72e9873eb324c083ae04db8a28e4e860237d03c018b96e9b733f4791dd",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 354,
+          "height": 744,
+          "top": 24,
+          "right": 354,
+          "bottom": 768,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-weak-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-weak-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-weak-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:52.123Z",
+        "sha256": "2d7e1b730d28f379d3ca1117a20d19978dcfe412755f4978922015b3f3d692b7",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 354,
+          "height": 744,
+          "top": 24,
+          "right": 354,
+          "bottom": 768,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "weak": {
+          "x": 20,
+          "y": 220.125,
+          "width": 314,
+          "height": 351.734375,
+          "top": 220.125,
+          "right": 334,
+          "bottom": 571.859375,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-alt-landscape-stress",
+      "result": {
+        "name": "comic-edition-finished-alt-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-alt-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:53.153Z",
+        "sha256": "4f2c0563ba99e1dcb7937a03e2d707636713c1af5de73562d3d3f12bbf9a2eb7",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 900,
+          "height": 364,
+          "top": 24,
+          "right": 900,
+          "bottom": 388,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-incomplete-landscape-stress",
+      "result": {
+        "name": "comic-edition-finished-source-incomplete-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-incomplete-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:54.160Z",
+        "sha256": "fbb6fa5bf90352a647f8a40c7fd1768c1bd890d8fa92bcce9c3beb3c72de3a70",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 900,
+          "height": 364,
+          "top": 24,
+          "right": 900,
+          "bottom": 388,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-combined-landscape-stress",
+      "result": {
+        "name": "comic-edition-finished-source-combined-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-combined-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:55.174Z",
+        "sha256": "fb6337dc5eb0a6111c793a7b3777af808c682e0cb9b331fd49adcf6c71ad0f17",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 900,
+          "height": 364,
+          "top": 24,
+          "right": 900,
+          "bottom": 388,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-ambiguous-landscape-stress",
+      "result": {
+        "name": "comic-edition-finished-source-ambiguous-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-ambiguous-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:56.195Z",
+        "sha256": "e78d04de79ecb3ff259c9ad944cff8dc455fea38d33d210a6e5aec17d77e55bc",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 900,
+          "height": 364,
+          "top": 24,
+          "right": 900,
+          "bottom": 388,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-weak-landscape-stress",
+      "result": {
+        "name": "comic-edition-finished-source-weak-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-weak-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:57.379Z",
+        "sha256": "0323cc89349fec0c712773c91190fed9cd20ab99ab84a9fa6a72de5be8f4726c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 900,
+          "height": 364,
+          "top": 24,
+          "right": 900,
+          "bottom": 388,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "weak": {
+          "x": 170,
+          "y": 80.921875,
+          "width": 560,
+          "height": 250.15625,
+          "top": 80.921875,
+          "right": 730,
+          "bottom": 331.078125,
+          "left": 170
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-alt-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-finished-alt-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-alt-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:03:59.033Z",
+        "sha256": "823ba856d39357b8b6179048040f3b136b6e71a6785490b931f0012ca6634a0f",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "top": 24,
+          "right": 792,
+          "bottom": 330,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-incomplete-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-incomplete-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-incomplete-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-incomplete&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:04:00.011Z",
+        "sha256": "c98b2ca8e3bfab694c0c262d21c4390078d28d7e18e8755a9450e45a042152fa",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "top": 24,
+          "right": 792,
+          "bottom": 330,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-combined-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-combined-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-combined-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-combined&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:04:01.187Z",
+        "sha256": "d664cb0a172dbbc6332a03ab0208f75a22c4908e37353f52eb4ed33fd710570c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "top": 24,
+          "right": 792,
+          "bottom": 330,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-ambiguous-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-ambiguous-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-ambiguous-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-ambiguous&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:04:02.310Z",
+        "sha256": "484eb203be6aa75a7028886e3bda9023fb2f63d787dbc6b315614fbf489f8cbd",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "top": 24,
+          "right": 792,
+          "bottom": 330,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "missing": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": true
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-source-weak-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-finished-source-weak-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-source-weak-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=source-weak&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:04:03.471Z",
+        "sha256": "f7d729dc169ab86c0084e1a130adf1676ab45eb948fa0b5c64c4925acd0fa051",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "source": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "top": 24,
+          "right": 792,
+          "bottom": 330,
+          "left": 0
+        },
+        "horizontalOverflow": 0,
+        "back": {
+          "x": 20,
+          "y": 52,
+          "width": 72.8125,
+          "height": 44,
+          "top": 52,
+          "right": 92.8125,
+          "bottom": 96,
+          "left": 20
+        },
+        "weak": {
+          "x": 116,
+          "y": 51.921875,
+          "width": 560,
+          "height": 250.15625,
+          "top": 51.921875,
+          "right": 676,
+          "bottom": 302.078125,
+          "left": 116
+        },
+        "missing": []
+      }
+    }
+  ]
+}

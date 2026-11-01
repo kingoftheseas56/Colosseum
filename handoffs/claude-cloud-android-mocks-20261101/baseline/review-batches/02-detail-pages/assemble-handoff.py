@@ -1,0 +1,131 @@
+from pathlib import Path
+from PIL import Image, ImageDraw, ImageFont
+import json,csv,html,datetime,hashlib,re
+B=Path(__file__).parent; F=B/'finished-mocks'; C=B/'captures'; S=B/'contact-sheets'; X=B/'comparisons'
+S.mkdir(exist_ok=True);X.mkdir(exist_ok=True)
+data=json.loads((B/'pack-content.json').read_text(encoding='utf-8'));spec=data['spec'];pages=spec['pages']
+now=lambda:datetime.datetime.now(datetime.timezone.utc).isoformat()
+def write(p,s):p.parent.mkdir(parents=True,exist_ok=True);p.write_text(s,encoding='utf-8')
+for name,content in data['docs'].items():write(B/name,content)
+write(B/'review-data.json',json.dumps(spec,indent=2,ensure_ascii=False))
+# Consolidate only the latest verified normal case for each page/size; retain raw ledgers unchanged.
+chosen={}
+for name in ['final-layout-matrix.json','biblio-final-layout-retest.json','universes-final-layout-retest.json','chrome-theatre-final-retest.json','chrome-comic-final-retest.json','handoff-theatre-layouts.json','handoff-comics-layouts.json']:
+ j=json.loads((B/name).read_text(encoding='utf-8'));a=j['result']
+ for i,row in enumerate(a):
+  r=row.get('result',{})
+  if row.get('op')=='eval' and isinstance(r,dict) and 'expected' in r:
+   cap=a[i+1]['result'] if i+1<len(a) and a[i+1]['op']=='capture' else None
+   chosen[(r['page'],r['layout'])]={'ledger':name,'metrics':r,'capture':cap}
+issues=[v for v in chosen.values() if not v['metrics']['frameCorrect'] or v['metrics']['appOverflow'] or v['metrics']['missingImages'] or (v['metrics']['layout']!='desktop-html' and v['metrics']['windowControls'])]
+assert len(chosen)==56 and not issues,(len(chosen),issues)
+write(B/'verified-layouts.json',json.dumps({'utc':now(),'count':len(chosen),'passed':56,'issues':issues,'layouts':list(chosen.values())},indent=2))
+headers=['task','page','portrait','landscape','desktop_reference','source_fidelity','existing_controls','long_content','findings','status','tablet','stress_sizes','finished_path','evidence','verification_state']
+with (B/'COVERAGE.csv').open('w',newline='',encoding='utf-8-sig') as f:
+ w=csv.writer(f);w.writerow(headers)
+ for p in pages:
+  universe=p['task']=='19-generic-universes'
+  w.writerow([p['task'],p['page'],'checked — 412x900 and 354x792','checked — 900x412 and 792x354','checked — approved QML + 1280x700 HTML comparison; native screenshot unavailable',
+   'issue — B2-018 pending decision; B2-020 art limitation' if universe else 'checked against source; B2-020 art limitation',
+   'checked — '+p['checks'],'checked — final rows/items and scrolling; see evidence',p['findings'],'finished; verified HTML; decision pending' if universe else 'finished; verified HTML',
+   'checked — 800x1280 and 1280x800','checked — four phone sizes, scale 1.3, illustrative 24px top/bottom',
+   'finished-mocks/'+p['task']+'/'+p['page'],p['evidence'],'verified (HTML); native runtime unavailable'])
+fh=['finding_id','affected_pages','severity','category','observed_issue','inferred_cause','source_reference','before_evidence','after_evidence','status','recommended_next_action']
+with (B/'FINDINGS.csv').open('w',newline='',encoding='utf-8-sig') as f:
+ w=csv.writer(f);w.writerow(fh);w.writerows(spec['findings'])
+css='''*{box-sizing:border-box}body{margin:0;background:#101319;color:#f3f4f7;font:16px/1.55 "Segoe UI",sans-serif}main{max-width:1320px;margin:auto;padding:32px 24px 64px}h1{font-size:34px;line-height:1.15}h2{margin-top:36px}h3{margin:0 0 10px}a{color:#f0c44a}a:focus-visible{outline:2px solid #f0c44a;outline-offset:4px}.note{padding:15px 18px;background:#24252a;border-left:4px solid #f0c44a}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:18px}.card,figure{background:#1a1e27;border:1px solid #3b424f;border-radius:10px;padding:18px;margin:0}.card p{color:#c6cbd5}.links{display:flex;gap:16px;flex-wrap:wrap}.pair{display:grid;grid-template-columns:1fr 1fr;gap:16px;align-items:start}.pair img{display:block;max-width:100%;height:auto;margin:12px auto;background:#090a0e}.meta{font:12px/1.5 monospace;overflow-wrap:anywhere;color:#aeb8c6}table{border-collapse:collapse;width:100%}td,th{padding:10px;border:1px solid #3b424f;text-align:left;vertical-align:top}code{color:#e7d49b}footer{margin-top:40px;color:#aeb8c6;font-size:13px}@media(max-width:700px){.pair{grid-template-columns:1fr}main{padding:22px 14px}.grid{grid-template-columns:1fr}}'''
+def doc(title,body):return '<!doctype html><html lang="en"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>'+html.escape(title)+'</title><style>'+css+'</style><main><h1>'+html.escape(title)+'</h1>'+body+'<footer>Batch 2 only · local HTML evidence · no native app acceptance implied.</footer></main></html>'
+def capname(p,size):return chosen[(p['slug'],size)]['capture']['name']
+def original(p,size):return p['slug']+'-'+size if p['slug']=='biblio' else p['slug']+'-original-'+size
+def meta(name):
+ p=C/(name+'.json');assert p.exists(),str(p);return json.loads(p.read_text(encoding='utf-8'))
+def figure(name,label):
+ m=meta(name);im=Image.open(C/(name+'.png'));dims=f'{im.width}×{im.height}'
+ return '<figure><strong>'+html.escape(label)+'</strong><a href="../captures/'+name+'.png"><img loading="lazy" src="../captures/'+name+'.png" alt="'+html.escape(label+'; '+dims)+'"></a><figcaption class="meta">'+html.escape(dims+' · '+m['utc']+' · SHA-256 '+m['sha256'])+'<br><a href="../captures/'+name+'.json">Capture metadata</a><br>'+html.escape(name)+'</figcaption></figure>'
+def pairhtml(title,a,b,left='Original worker HTML',right='Finished HTML'):
+ return '<section><h2>'+html.escape(title)+'</h2><div class="pair">'+figure(a,left)+figure(b,right)+'</div></section>'
+fontroot=B.parent.parent/'reference'/'local-fonts'
+font=lambda n:ImageFont.truetype(str(fontroot/'segoeui.ttf'),n)
+ft,fs,fsmall=font(28),font(21),font(14)
+def sheet(name,title,rows,legend='Left: original worker HTML | Right: finished HTML. Desktop is an HTML source comparison, not native QML.'):
+ width=1280;pad=24;gap=24;cell=(width-pad*2-gap)//2;prepared=[];height=108
+ for label,left,right,lname,rname in rows:
+  ims=[]
+  for nm in [left,right]:
+   im=Image.open(C/(nm+'.png')).convert('RGB');scale=min(1,cell/im.width);im=im.resize((round(im.width*scale),round(im.height*scale)),Image.Resampling.LANCZOS);ims.append(im)
+  rowh=max(x.height for x in ims)+119;prepared.append((label,left,right,lname,rname,ims,rowh));height+=rowh
+ out=Image.new('RGB',(width,height+24),'#101319');d=ImageDraw.Draw(out);d.text((pad,18),title,font=ft,fill='#f5f5f6');d.text((pad,61),legend,font=fsmall,fill='#c7cbd2');y=108
+ for label,left,right,lname,rname,ims,rowh in prepared:
+  d.line((pad,y,width-pad,y),fill='#49505e');d.text((pad,y+10),label,font=fs,fill='#f0c44a')
+  for col,(nm,lbl,im) in enumerate(zip([left,right],[lname,rname],ims)):
+   x=pad+col*(cell+gap);d.text((x,y+42),lbl,font=fsmall,fill='#e3e5e9');raw=Image.open(C/(nm+'.png'));d.text((x,y+61),str(raw.width)+' x '+str(raw.height)+' capture; settings in linked metadata',font=fsmall,fill='#aeb8c6');out.paste(im,(x+(cell-im.width)//2,y+86));m=meta(nm);d.text((x,y+90+im.height),nm[:75],font=fsmall,fill='#b7bdc7')
+  y+=rowh
+ out.save(S/(name+'.png'))
+ return {'file':'contact-sheets/'+name+'.png','title':title,'sources':[v for r in rows for v in r[1:3]],'dimensions':[width,height+24]}
+sheets=[];extras={
+'biblio':[('Collections fidelity and draft lifecycle','biblio-original-collections-portrait','biblio-finished-collections-portrait'),
+('Android tablet window controls','biblio-original-tablet-landscape-controls','biblio-finished-verified-tablet-landscape')],
+'film':[('Opt-in phone synopsis: hidden clamp restored to full text','film-original-synopsis-visible-portrait-small-stress','film-finished-synopsis-visible-portrait-small-stress')],
+'series':[('Opt-in full synopsis at matched portrait stress','series-original-synopsis-visible-portrait-small-stress','series-finished-synopsis-visible-portrait-small-stress'),
+('Open season picker at landscape stress','series-original-season-landscape-stress','series-finished-verified-season-landscape-stress'),
+('Go to the final episode — original failed target versus corrected target','series-original-jump-misses-last-episode','series-finished-verified-last-episode-landscape-small-stress')],
+'comic-series':[('Existing Collections restored','comic-series-original-collections','comic-series-finished-collections-portrait-stress')],
+'comic-edition':[('Source scrolling: original top / finished final results at landscape stress','comic-edition-original-alt-landscape-stress','comic-edition-verified-alt-landscape-stress')],
+'comic-archive':[('All releases destination — original loses identity and review parameters','comic-archive-original-all-releases-wrong-route','comic-archive-finished-all-releases-portrait-small-stress')],
+'saga':[('Continue context surface restored','saga-original-continue-context-absent-portrait-small-stress','saga-finished-continue-context-portrait-small-stress'),
+('Tablet source typography restored','saga-original-tablet-portrait','saga-finished-verified-tablet-portrait')],
+'shelves':[('Continue context surface restored','shelves-original-continue-context-absent-portrait-small-stress','shelves-finished-continue-context-portrait-small-stress'),
+('Magazine text grows at stress scale','shelves-original-jump-portrait-stress','shelves-finished-jump-portrait-small-stress'),
+('Tablet source typography restored','shelves-original-tablet-portrait','shelves-finished-verified-tablet-portrait')]}
+for p in pages:
+ body='<p><a href="../finished-mocks/index.html">Finished index</a> · <a href="../REVIEW.md">Review</a> · <a href="../QML-PORTING-NOTES.md">QML notes</a></p>'
+ body+='<p class="links"><a href="../finished-mocks/'+p['task']+'/'+p['page']+'">Run finished workbench</a><a href="../../../outputs/'+p['task']+'/'+p['page']+'">Run preserved original</a></p>'
+ body+='<p class="note">Original worker HTML is a baseline, not approved native output. Both versions retain disclosed project artwork stand-ins. Full screenshots and metadata are linked below. Different-state comparisons explicitly name the tested transition.</p><p>'+html.escape(p['checks'])+'</p>'
+ rows=[]
+ for size,label in [('portrait','412×900 portrait'),('landscape','900×412 landscape'),('desktop-html','1280×700 desktop HTML comparison')]:
+  a=original(p,size);z=capname(p,size);body+=pairhtml(label,a,z);rows.append((label,a,z,'Original worker HTML','Finished HTML'))
+ sheets.append(sheet(p['slug']+'-before-after',p['title']+' — before / after',rows))
+ for size,label in [('portrait-small','354×792 portrait'),('landscape-small','792×354 landscape')]:body+=pairhtml(label,original(p,size),capname(p,size))
+ body+='<h2>Tablets — finished versions</h2><div class="pair">'+figure(capname(p,'tablet-portrait'),'800×1280 Android tablet')+figure(capname(p,'tablet-landscape'),'1280×800 Android tablet')+'</div>'
+ for title,a,z in extras.get(p['slug'],[]):body+=pairhtml(title,a,z)
+ if p['slug'] in ['saga','shelves']:body+='<p class="note"><a href="decision-B2-018.html">B2-018 original tab attempt / proposed alternative</a> is pending Hemanth’s choice.</p>'
+ body+='<h2>Evidence ledgers</h2><ul>'+''.join('<li><a href="../'+e+'">'+e+'</a></li>' for e in p['evidence'].split(';'))+'</ul>'
+ write(X/(p['slug']+'.html'),doc(p['title']+' — comparison',body))
+ if extras.get(p['slug']):sheets.append(sheet(p['slug']+'-key-fixes',p['title']+' — key fixes',[(t,a,z,'Original worker HTML / attempted state','Finished corrected state') for t,a,z in extras[p['slug']]]))
+# Decision evidence preserves original source attempt versus the proposed alternative separately.
+decision='<p><a href="../finished-mocks/index.html">Finished index</a> · <a href="../DECISION-B2-018.md">Measured obstacle and decision brief</a></p><p class="note">PENDING HEMANTH DECISION. Left is a fresh HTML reproduction of original QML tab geometry; right is the proposed conditional docking. Neither is a native app screenshot. Both use scale 1.3 and 24px illustrative top/bottom insets after the same first-tab action; each mode uses its own correct landing offset. Earlier fixed-scroll captures are preserved.</p>'
+for slug in ['saga','shelves']:
+ rows=[]
+ for size,label in [('portrait','412×900'),('portrait-small','354×792'),('landscape','900×412'),('landscape-small','792×354')]:
+  middle='-bond-landing-' if slug=='shelves' else '-landing-';a=slug+'-tabs-original'+middle+size+'-stress';z=slug+'-tabs-proposed'+middle+size+'-stress'
+  decision+=pairhtml(slug.title()+' · '+label,a,z,'Original source-geometry attempt','Proposed alternative — not approved')
+  rows.append((label+' · 1.3× text · 24px top/bottom',a,z,'Original source-geometry attempt','Proposed — decision pending'))
+ sheets.append(sheet(slug+'-tab-decision',slug.title()+' — B2-018 tab decision',rows,'Matched HTML attempts. Original source geometry versus proposed fitting; Hemanth approval remains pending.'))
+write(X/'decision-B2-018.html',doc('B2-018 — original tab attempt / proposed alternative',decision))
+# Source flow: state pairs show the completed existing outcomes, not invented original screenshots.
+outcomes=[('Weak confirmation and incomplete pack','comic-edition-verified-source-weak-portrait-small-stress','comic-edition-verified-source-incomplete-portrait-small-stress'),
+('Combined and ambiguous packs','comic-edition-verified-source-combined-landscape-small-stress','comic-edition-verified-source-ambiguous-landscape-small-stress')]
+sheets.append(sheet('comic-source-outcomes','Comic source inspection — completed states',[(t,a,z,'Finished source state','Finished source state') for t,a,z in outcomes],'Finished HTML fixtures of existing source outcomes. No actual source inspection or download was performed.'))
+write(B/'contact-sheets'/'manifest.json',json.dumps({'utc':now(),'sheets':sheets},indent=2))
+cards=[]
+for p in pages:
+ cards.append('<article class="card"><h2>'+html.escape(p['title'])+'</h2><p>'+html.escape(p['checks'])+'</p><p class="links"><a href="'+p['task']+'/'+p['page']+'">Open finished mock</a><a href="../../../outputs/'+p['task']+'/'+p['page']+'">Original worker</a><a href="../comparisons/'+p['slug']+'.html">Before / after</a></p><p class="meta">'+p['task']+'/'+p['page']+'</p></article>')
+intro='<p>Eight corrected local HTML pages. All four phone sizes, two tablets and desktop have verified final layout evidence. Use each workbench to select dimensions, insets, text scale and local states.</p><p class="note"><strong>Universe tab behavior is a pending proposal.</strong> <a href="../comparisons/decision-B2-018.html">Compare the original attempt and proposed alternative</a>. Original outputs and frozen references are preserved.</p>'
+nav='<p class="links"><a href="README.md">Run and fixture guide</a><a href="../REVIEW.md">Final review</a><a href="../COVERAGE.csv">Coverage</a><a href="../FINDINGS.csv">Findings</a><a href="../QML-PORTING-NOTES.md">QML porting notes</a><a href="../contact-sheets/index.html">Contact sheets</a><a href="../REPORT.json">Report</a></p>'
+write(F/'index.html',doc('Batch 2 — finished detail-page mocks',intro+nav+'<div class="grid">'+''.join(cards)+'</div>'))
+for task in sorted(set(p['task'] for p in pages)):
+ links=''.join('<li><a href="'+p['page']+'">'+html.escape(p['title'])+'</a> · <a href="../../comparisons/'+p['slug']+'.html">Before / after</a> · <a href="../../../../outputs/'+task+'/'+p['page']+'">Original</a></li>' for p in pages if p['task']==task)
+ write(F/task/'index.html',doc(task,'<p><a href="../index.html">All eight finished pages</a></p><ul>'+links+'</ul><p><a href="../../QML-PORTING-NOTES.md">QML notes</a></p>'))
+sheetcards=''.join('<article class="card"><h2>'+html.escape(s['title'])+'</h2><a href="'+Path(s['file']).name+'"><img style="width:100%;height:auto" loading="lazy" src="'+Path(s['file']).name+'" alt="'+html.escape(s['title'])+'"></a></article>' for s in sheets)
+write(S/'index.html',doc('Batch 2 — contact sheets','<p><a href="../finished-mocks/index.html">Finished index</a> · <a href="manifest.json">Composite provenance</a></p><p>Open each image at full size. Originals are worker HTML; desktop images are HTML comparisons to source. All source captures and metadata are preserved in ../captures/.</p><div class="grid">'+sheetcards+'</div>'))
+write(B/'index.html',doc('Batch 2 — handoff','<p><a href="finished-mocks/index.html">Open all finished mocks and comparisons</a></p><p class="links"><a href="REVIEW.md">Review</a><a href="QML-PORTING-NOTES.md">QML porting notes</a><a href="COVERAGE.csv">Coverage</a><a href="FINDINGS.csv">Findings</a><a href="REPORT.json">Final report</a><a href="contact-sheets/index.html">Contact sheets</a></p>'))
+write(F/'RUN-LOCAL.cmd','@echo off\ncd /d "%~dp0"\necho Open http://127.0.0.1:8766/review-batches/02-detail-pages/finished-mocks/index.html\necho Stop this local preview with Ctrl+C.\npython -m http.server 8766 --bind 127.0.0.1 --directory "%~dp0..\\..\\.."\n')
+# Review summary remains transparent about what was and was not verified.
+table='\n'.join('| '+p['title']+' | '+p['checks']+' | [Comparison](comparisons/'+p['slug']+'.html) |' for p in pages)
+review='# Batch 2 — finished detail-page mock handoff\n\n**Eight of eight assigned pages are finished and usable as local HTML mocks.** The consolidated final matrix verifies 56 page/size combinations. The completed interaction fixes are verified in HTML; one behavior proposal remains for Hemanth and two input/fixture limitations remain explicit. This is not native app acceptance.\n\nStart with [finished-mocks/index.html](finished-mocks/index.html). It links every finished page, its preserved original and its comparison. Use [QML-PORTING-NOTES.md](QML-PORTING-NOTES.md) for original component ownership and concrete fitting changes.\n\n## Scope and preservation\n\nThe user’s later scope update authorized repairing and completing mocks under finished-mocks, superseding review-only wording in the initial brief and unchanged README. Work stayed within this batch folder. Original workers, frozen references and other batches were preserved. No app/repository edit, build, install, device interaction, live service operation, upload or publication was performed. Check preservation-check.json for the start/end file comparison.\n\n## Pages and useful finished behavior\n\n| Page | Verified behavior | Evidence |\n|---|---|---|\n'+table+'\n\n## Principal fixes\n\n- Restored the existing Collections component across six detail surfaces, with original cover/count/search/create controls, draft-versus-committed membership, Cancel/Escape and focus return.\n- Restored Biblio chooser keyboard movement and corrected Android tablet window-control visibility. Full book information and source lists remain.\n- Kept Theatre’s original default branch; fixed full handset synopsis in the opt-in branch, season menu fitting, final-episode jump coordinates, short-landscape sticky controls, nested keyboard actions and the original removal dialog.\n- Corrected Comics Android chrome, long rows, alternate-source keyboard handling, archive identity/navigation and missing original source inspection states. The parked edition route remains explicitly parked.\n- Corrected Universe Continue geometry/icons/badge/context controls, one-owner event handling, grid/rail keyboard navigation, Saga selected detail states, magazine text scaling/wrapping and source 72px tablet titles.\n- Restored the approved ChromeScrim recipe and Theatre’s phone/pinned scroll shading after final visual comparison exposed the missing/approximate source treatment.\n\nAll eighteen grouped repair findings are fixed and verified in the relevant HTML evidence. FINDINGS.csv retains observed symptoms separately from inferred causes. No fixed-but-unverified repair is presented as verified. Source/provider routing and persistence remain local fixture boundaries, described below.\n\n## Verification\n\nEvery page was checked at 412×900, 354×792, 900×412, 792×354, 1280×700 desktop, 800×1280 tablet and 1280×800 tablet. Final normal layouts have the expected inner frame dimensions, zero application-width overflow, no missing local images and desktop window controls hidden on the reviewed Android sizes. Native rendering is unavailable; the desktop column is approved QML inspection plus HTML before/after comparison.\n\nThe comic source page also passes 34 final state/size cases, including all original outcome states on desktop and the Android Back boundary. Possible/strong/weak actions and the source queued-state indicator were retested through real row entry, with focus and visibility restored.\n\nFour phone stress sizes use actual 1.3 text scale with illustrative 24px top/bottom insets. Relevant checks include long synopsis, last source/episode/release/poster/magazine row, open Collections and Read controls, season/jump/context menus, removal confirmation, source inspection outcomes, scrolling, keyboard selection and return focus. All ten Continue context cases (both pages at four phone sizes plus desktop) fit and pass their action/dismissal checks. Two-column magazine order is verified at both tablets and desktop.\n\nUse verified-layouts.json as the final matrix. It consolidates final-layout-matrix.json with the Biblio tablet, Universe Continue-control and Theatre/Comics ChromeScrim retests. Earlier failed attempts remain in their raw ledgers, with superseding evidence identified in ASSETS-AND-PROVENANCE.md. A temporary syntax error is retained in the browser’s cumulative history; final checks must not mistake that retained history for recurring errors.\n\n## Hemanth decision — B2-018\n\nThe original source tab bar fits both phone landscapes but extends past both narrow portraits at 1.3 text. Saga reaches approximately x=627px; Shelves reaches x=449px. The verified proposal keeps the original beside-Back arrangement wherever it fits and moves the original-size scrollable bar below Back when it does not.\n\nBoth attempts are runnable and have matched action-based evidence. Actual tab landings clear their headings in all 24 final cases (Saga, Bond shelves and magazine shelves; both modes at four phone sizes). The proposed default is labeled “decision pending” outside the app. See [DECISION-B2-018.md](DECISION-B2-018.md) and [the eight matched comparisons](comparisons/decision-B2-018.html). Hemanth’s behavior choice is still required before a QML port uses that adaptation.\n\n## Remaining findings and exact next work\n\n1. **B2-018 — decision pending.** Choose the Universe narrow-phone tab docking. No additional unaffected mock implementation is waiting on this decision.\n2. **B2-019 — unavailable original handoff.** outputs/19-generic-universes/REPORT.json is absent. Fresh evidence covers the available HTML/source; the absent worker report was not fabricated.\n3. **B2-020 — actual item artwork/live data unavailable.** Existing frozen project artwork is retained as declared stand-ins, and provider/catalogue/progress data is fixture-only. Supply exact approved item assets to replace stand-ins later, then recheck image crop, contrast and title association.\n4. **Native implementation and integration remain outside scope.** Apply the component-specific fitting in QML after the behavior decision, then verify actual native fonts, focus, clipping, device insets, routes and services. The frozen Saga/Shelves parents do not connect Continue removeRequested; the mock faithfully emits that intent and leaves the card, with the boundary visible in its external log. Connecting persistence requires separate app ownership.\n\nThere are no deliberately unfinished assigned HTML pages. Unavailable app/provider/device checks are not counted as passes. Archive routes without bundled detail data emit the selected intent rather than misleadingly opening Batman. The optional linked-account removal choice is only a local UI fixture. These limitations do not prevent running the finished layouts or using the evidence for the approved QML owners.\n\n## Deliverables and evidence\n\n- [Finished index](finished-mocks/index.html), eight workbenches, shared Collections runtime and local launch command.\n- [Comparison pages](comparisons/biblio.html) and [contact sheets](contact-sheets/index.html), with original/finished labels and capture provenance.\n- [COVERAGE.csv](COVERAGE.csv), [FINDINGS.csv](FINDINGS.csv), [QML-PORTING-NOTES.md](QML-PORTING-NOTES.md), [ASSETS-AND-PROVENANCE.md](ASSETS-AND-PROVENANCE.md) and [REPORT.json](REPORT.json).\n- Per-page CHECKPOINT files, original/start/end manifests, final runtime hashes, raw browser ledgers, capture PNG/JSON pairs and the final preservation check.\n\nREPORT.json is written last after final artifact validation and closure of the owned browser.\n'
+write(B/'REVIEW.md',review)
+write(B/'CHECKPOINT.json',json.dumps({'utc':now(),'batch':'02-detail-pages','scope':'User-authorized finished-only mock repairs; original inputs preserved','pages_usable':8,'normal_layouts_verified':56,'fixed_verified_findings':18,'fixed_unverified':[],'decision_pending':'B2-018','remaining':['Visual review of generated contact sheets','Artifact link and provenance validation','Preservation comparison','Close owned browser','Write REPORT.json last']},indent=2))
+# Add final per-page checkpoint records without replacing the earlier checkpoints.
+for p in pages:
+ write(B/('CHECKPOINT-FINAL-'+p['slug'].upper()+'.md'),'# Final page checkpoint — '+p['title']+'\n\nCheckpoint UTC: '+now()+'\n\nUsable finished HTML: finished-mocks/'+p['task']+'/'+p['page']+'\n\nAll seven normal layouts verified; four phone stress sizes and relevant long-content/actions verified. '+p['checks']+'\n\nEvidence: '+p['evidence']+'\n\n'+('B2-018 remains a verified, unapproved phone-tab proposal. Original and proposed modes are runnable. ' if p['task']=='19-generic-universes' else '')+'Native app/provider/device integration and exact remote item artwork remain outside this local fixture verification. Final pack visual/link/preservation checks are underway.\n')
+print(json.dumps({'written_pages':len(pages),'normal_layouts_verified':56,'contact_sheets':len(sheets),'comparisons':9,'csv_rows':{'coverage':8,'findings':len(spec['findings'])},'utc':now()}))

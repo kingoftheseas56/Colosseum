@@ -1,0 +1,360 @@
+{
+  "utc": "2026-10-31T22:48:32.743Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-original-portrait",
+      "result": {
+        "name": "film-original-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-portrait.png",
+        "input": "outputs/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:17.398Z",
+        "sha256": "44531c2e76c6a41f54ae021d31abd370dd299bf89de42cbf89750dbf78e20aba",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-original-portrait-small",
+      "result": {
+        "name": "film-original-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-portrait-small.png",
+        "input": "outputs/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:18.773Z",
+        "sha256": "70bb30e1e8466424158ef7e4e626a3fbcacf3f112a406e0ec1d1cda9e80d0492",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-original-landscape",
+      "result": {
+        "name": "film-original-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-landscape.png",
+        "input": "outputs/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:19.863Z",
+        "sha256": "fd5b00daf3874b0ca24e0d40d0a4f2d0f949561546f02e9ed3359e2a2832c6ac",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-original-landscape-small",
+      "result": {
+        "name": "film-original-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-landscape-small.png",
+        "input": "outputs/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:21.331Z",
+        "sha256": "e9fd35ff017c78f6f0d096fdd2c4fdad7b327a676120ac8280c17c6465158461",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-original-desktop-html",
+      "result": {
+        "name": "film-original-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-desktop-html.png",
+        "input": "outputs/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:22.891Z",
+        "sha256": "105b2e187d21d749efc3487d1813e89859aacfa9635a0e128af0df25b3f9f45c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-original-portrait",
+      "result": {
+        "name": "series-original-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-portrait.png",
+        "input": "outputs/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:24.969Z",
+        "sha256": "7a790c9952476e4838f4219136d0e4628b0eb9a8aafe091e9b6104be9bbe8bc4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-original-portrait-small",
+      "result": {
+        "name": "series-original-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-portrait-small.png",
+        "input": "outputs/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:26.263Z",
+        "sha256": "e22e9e3af00be170dc16156e1ba4ead4d81196260ce78562a93eb0ee869bde4a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-original-landscape",
+      "result": {
+        "name": "series-original-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-landscape.png",
+        "input": "outputs/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:27.457Z",
+        "sha256": "4f2be5b22a8bf6c9bc3d3676594f6f788479e4da1e61218170544d8498b83b39",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-original-landscape-small",
+      "result": {
+        "name": "series-original-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-landscape-small.png",
+        "input": "outputs/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:28.809Z",
+        "sha256": "00ef7b11d7ccb66d0faa43758a8f420bcd8eb5340922391cc1ea01b3ec61762c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-original-desktop-html",
+      "result": {
+        "name": "series-original-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-desktop-html.png",
+        "input": "outputs/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:30.219Z",
+        "sha256": "d97a48a2fb8e64c3a00b5a1777bc1ed85dd31b83e31034b98dcefd12dfec6ff5",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "moreVisible": false,
+        "clamped": true,
+        "textHeight": 131,
+        "shownHeight": 65
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-original-rebuilt-hidden-more",
+      "result": {
+        "name": "film-original-rebuilt-hidden-more",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-original-rebuilt-hidden-more.png",
+        "input": "outputs/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/film-detail.html?capture=1&renderer=rebuilt",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:31.366Z",
+        "sha256": "fb1094616bc5e65aa237179fdebf57b92d43fd36bf52b78718be386a19e3ff78",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-original-season-landscape-stress",
+      "result": {
+        "name": "series-original-season-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-season-landscape-stress.png",
+        "input": "outputs/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1&state=season-open&scale=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T22:48:32.734Z",
+        "sha256": "567c23755f19192f002725690c7ec69a4b0e298f5ae5304a66a8d08e2fde424b",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "ArrowDown"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focused": "<body data-kind=\"series\" class=\"capture\">\n  <aside id=\"review-tools\" aria-label=\"Review controls outside Colosseum mock\">\n    <div class=\"review-heading\">17 / T",
+        "popup": {
+          "x": 24,
+          "y": 201,
+          "width": 236,
+          "height": 143,
+          "top": 201,
+          "right": 260,
+          "bottom": 344,
+          "left": 24
+        }
+      }
+    }
+  ]
+}

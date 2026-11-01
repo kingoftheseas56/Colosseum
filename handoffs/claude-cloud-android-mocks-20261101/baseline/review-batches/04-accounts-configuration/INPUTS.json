@@ -1,0 +1,113 @@
+{
+  "batch": "04-accounts-configuration",
+  "title": "Accounts and configuration",
+  "pageCount": 13,
+  "purpose": "Independent mock review input manifest; not a worker registry or acceptance record.",
+  "reviewStatus": "not-started",
+  "references": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  },
+  "batchRoot": "D:\\Colosseum-Android-Phone-Mocks-20261101",
+  "ownedReviewOutput": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\04-accounts-configuration",
+  "jobs": [
+    {
+      "task": "10-profile",
+      "title": "Phone Profile rows",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-10-PROFILE.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\10-profile",
+      "pages": [
+        "profile.html"
+      ],
+      "sources": [
+        "PhoneProfilePage.qml",
+        "PhoneActionRow.qml"
+      ]
+    },
+    {
+      "task": "11-account-entry",
+      "title": "Account welcome, flyout and account centre",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-11-ACCOUNT-ENTRY.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\11-account-entry",
+      "pages": [
+        "account-welcome.html",
+        "account-flyout.html",
+        "account-centre.html"
+      ],
+      "sources": [
+        "account/AccountWelcome.qml",
+        "account/AccountWelcomePhone.qml",
+        "account/AccountFlyout.qml",
+        "account/AccountCenter.qml",
+        "account/AccountButton.qml",
+        "account/AccountPageFrame.qml"
+      ]
+    },
+    {
+      "task": "12-account-forms",
+      "title": "Account profile/security/recovery/privacy/devices surfaces",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-12-ACCOUNT-FORMS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\12-account-forms",
+      "pages": [
+        "account-profile.html",
+        "account-security.html",
+        "account-recovery.html",
+        "account-privacy.html",
+        "account-devices.html",
+        "account-your-colosseum.html"
+      ],
+      "sources": [
+        "account/AccountProfilePage.qml",
+        "account/AccountSecurityPage.qml",
+        "account/AccountRecoveryPage.qml",
+        "account/AccountDataPrivacyPage.qml",
+        "account/AccountDevicesPage.qml",
+        "account/AccountYourColosseumPage.qml",
+        "account/AccountField.qml",
+        "account/AccountPageFrame.qml"
+      ]
+    },
+    {
+      "task": "13-stremio-sync",
+      "title": "Stremio sync panel",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-13-STREMIO-SYNC.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\13-stremio-sync",
+      "pages": [
+        "stremio-sync.html"
+      ],
+      "sources": [
+        "StremioSyncPanel.qml",
+        "SettingsScaffold.qml"
+      ]
+    },
+    {
+      "task": "14-extension-setup",
+      "title": "Extension setup and Tankoyomi configuration",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-14-EXTENSION-SETUP.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\14-extension-setup",
+      "pages": [
+        "extension-setup.html",
+        "tankoyomi-configuration.html"
+      ],
+      "sources": [
+        "ExtensionsSetupSheetAndroid.qml",
+        "TankoyomiConfigurationPage.qml",
+        "SettingsScaffold.qml",
+        "TouchComboBox.qml"
+      ]
+    }
+  ]
+}

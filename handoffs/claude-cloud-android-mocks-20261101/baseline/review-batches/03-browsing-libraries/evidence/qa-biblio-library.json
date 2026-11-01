@@ -1,0 +1,161 @@
+{
+  "job": "16-libraries",
+  "name": "biblio-library.html",
+  "checks": [
+    {
+      "name": "Card menu opens within portrait bounds",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 8,
+        "y": 358,
+        "w": 200,
+        "h": 159,
+        "right": 208,
+        "bottom": 517,
+        "visible": true,
+        "client": 157,
+        "scroll": 157
+      },
+      "time": "2026-11-01T00:01:22.180Z"
+    },
+    {
+      "name": "Phone menu starts selection",
+      "pass": true,
+      "time": "2026-11-01T00:01:22.554Z"
+    },
+    {
+      "name": "Invert and Select all operate on visible identities",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "visible": 8,
+        "inverted": 7,
+        "all": 8
+      },
+      "time": "2026-11-01T00:01:23.055Z"
+    },
+    {
+      "name": "Removal confirmation can Keep without losing entries",
+      "pass": true,
+      "time": "2026-11-01T00:01:23.522Z"
+    },
+    {
+      "name": "Confirm remove updates local library and empty state",
+      "pass": true,
+      "time": "2026-11-01T00:01:23.843Z"
+    },
+    {
+      "name": "Card menu scrolls within short landscape",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 8,
+        "y": 108,
+        "w": 200,
+        "h": 142,
+        "right": 208,
+        "bottom": 250,
+        "visible": true,
+        "client": 140,
+        "scroll": 157
+      },
+      "time": "2026-11-01T00:01:24.718Z"
+    },
+    {
+      "name": "Short landscape selection bar uses reserved 72px plus inset",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 0,
+        "y": 258,
+        "w": 792,
+        "h": 96,
+        "right": 792,
+        "bottom": 354,
+        "visible": true,
+        "client": 94,
+        "scroll": 94
+      },
+      "time": "2026-11-01T00:01:25.030Z"
+    },
+    {
+      "name": "Short landscape confirmation fits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 176,
+        "y": 82.09375,
+        "w": 440,
+        "h": 189.8125,
+        "right": 616,
+        "bottom": 271.90625,
+        "visible": true,
+        "client": 188,
+        "scroll": 188
+      },
+      "time": "2026-11-01T00:01:25.327Z"
+    },
+    {
+      "name": "Wide phone retains selection eligibility",
+      "pass": true,
+      "time": "2026-11-01T00:01:26.270Z"
+    },
+    {
+      "name": "Tablet omits phone selection action",
+      "pass": true,
+      "time": "2026-11-01T00:01:27.205Z"
+    },
+    {
+      "name": "Desktop omits phone selection action",
+      "pass": true,
+      "time": "2026-11-01T00:01:28.079Z"
+    },
+    {
+      "name": "Local library search filters and can clear",
+      "pass": true,
+      "time": "2026-11-01T00:01:29.687Z"
+    },
+    {
+      "name": "Long library wall reaches last row",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 148,
+        "scrollHeight": 898,
+        "clientHeight": 750
+      },
+      "time": "2026-11-01T00:01:29.913Z"
+    },
+    {
+      "name": "Pointer hold opens original card menu",
+      "pass": true,
+      "time": "2026-11-01T00:01:31.581Z"
+    },
+    {
+      "name": "Enlarged library title reserves exactly two lines",
+      "pass": true,
+      "time": "2026-11-01T00:02:48.044Z"
+    },
+    {
+      "name": "Final fit: enlarged tab labels stay inside their pills",
+      "pass": true,
+      "time": "2026-11-01T00:03:00.392Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\biblio-library\\menu-portrait-stress.png",
+    "evidence\\after\\biblio-library\\selection-portrait-stress.png",
+    "evidence\\after\\biblio-library\\confirm-portrait-stress.png",
+    "evidence\\after\\biblio-library\\empty-after-remove.png",
+    "evidence\\after\\biblio-library\\menu-short-stress.png",
+    "evidence\\after\\biblio-library\\selection-short-stress.png",
+    "evidence\\after\\biblio-library\\confirm-short-stress.png",
+    "evidence\\after\\biblio-library\\menu-desktop.png",
+    "evidence\\after\\biblio-library\\long-content-bottom.png",
+    "evidence\\after\\biblio-library\\two-line-title-stress.png",
+    "evidence\\after\\biblio-library\\tabs-elide-portrait-stress.png"
+  ],
+  "completedAt": "2026-11-01T00:03:00.561Z",
+  "pass": true
+}

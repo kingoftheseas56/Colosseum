@@ -1,0 +1,77 @@
+{
+  "job": "15-world-home",
+  "name": "universes-home.html",
+  "checks": [
+    {
+      "name": "Carousel dot changes title and active indicator",
+      "pass": true,
+      "time": "2026-10-31T23:42:40.838Z"
+    },
+    {
+      "name": "Carousel keyboard arrow changes slide",
+      "pass": true,
+      "time": "2026-10-31T23:42:41.422Z"
+    },
+    {
+      "name": "Hero actions stay inside hero with long text",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "hero": [
+          112,
+          372
+        ],
+        "actions": [
+          249,
+          349
+        ]
+      },
+      "time": "2026-10-31T23:42:42.720Z"
+    },
+    {
+      "name": "Books filter matches banner forms",
+      "pass": true,
+      "time": "2026-10-31T23:42:44.849Z"
+    },
+    {
+      "name": "Films filter includes all matching banners",
+      "pass": true,
+      "time": "2026-10-31T23:42:45.464Z"
+    },
+    {
+      "name": "Last form chip scrolls into reach",
+      "pass": true,
+      "time": "2026-10-31T23:42:45.773Z"
+    },
+    {
+      "name": "Wide shell uses original 92px rail",
+      "pass": true,
+      "time": "2026-10-31T23:42:47.166Z"
+    },
+    {
+      "name": "World long content scrolls to end",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 1148,
+        "scrollHeight": 1484,
+        "clientHeight": 336
+      },
+      "time": "2026-10-31T23:42:47.408Z"
+    },
+    {
+      "name": "Desktop compact hero title follows 42px source branch",
+      "pass": true,
+      "time": "2026-10-31T23:42:48.895Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\universes-home\\carousel-second.png",
+    "evidence\\after\\universes-home\\long-title-stress.png",
+    "evidence\\after\\universes-home\\books-filter.png",
+    "evidence\\after\\universes-home\\comics-filter.png",
+    "evidence\\after\\universes-home\\long-content-bottom.png"
+  ],
+  "completedAt": "2026-10-31T23:42:48.895Z",
+  "pass": true
+}

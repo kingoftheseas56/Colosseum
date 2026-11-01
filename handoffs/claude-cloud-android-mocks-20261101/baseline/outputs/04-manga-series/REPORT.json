@@ -1,0 +1,289 @@
+{
+  "task": "04-manga-series",
+  "status": "ready-for-review",
+  "kind": "standalone local HTML/CSS/JS fitting study; not Colosseum implementation",
+  "ownerOutput": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series",
+  "frozenDesktopCommit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+  "sourceRefs": [
+    "reference/desktop/qml/MangaSeries.qml",
+    "reference/desktop/qml/MangaSeriesSharedHeader.qml",
+    "reference/desktop/qml/MangaReadingRoom.qml",
+    "reference/desktop/qml/MangaReadingRoomThumbnailMock.qml",
+    "reference/desktop/qml/MangaChapterSeriesView.qml",
+    "reference/desktop/qml/TankobanChapterList.qml",
+    "reference/desktop/qml/TankobanSeriesView.qml",
+    "reference/desktop/qml/MangaTankobanLibrary.qml",
+    "reference/desktop/qml/MangaContinueButton.qml",
+    "reference/desktop/qml/BackAction.qml",
+    "reference/desktop/qml/collections/AddToCollectionsButton.qml",
+    "reference/desktop/qml/Theme.qml",
+    "reference/desktop/qml/Main.qml",
+    "reference/desktop/assets/universes/one-piece/",
+    "reference/desktop/assets/fonts/",
+    "reference/local-fonts/",
+    "context/ANDROID-PORT-CLASSIFICATION.md",
+    "context/VIEWPORTS.json"
+  ],
+  "pages": [
+    {
+      "file": "manga-series.html",
+      "title": "One Piece — Tankoban Mode / manga reading room",
+      "states": [
+        "closed portrait/landscape/desktop",
+        "354x792 and 792x354",
+        "tablet portrait/landscape",
+        "selected cover flow",
+        "Select and Done with batch tray",
+        "synopsis More/Less",
+        "local bookmark",
+        "current volume Read/Download bar",
+        "24px insets and 1.3 font scale",
+        "scrolled action row"
+      ],
+      "viewports": [
+        {
+          "label": "phone portrait",
+          "width": 412,
+          "height": 900
+        },
+        {
+          "label": "phone landscape",
+          "width": 900,
+          "height": 412
+        },
+        {
+          "label": "narrow phone portrait",
+          "width": 354,
+          "height": 792
+        },
+        {
+          "label": "short phone landscape",
+          "width": 792,
+          "height": 354
+        },
+        {
+          "label": "desktop reference",
+          "width": 1280,
+          "height": 700
+        },
+        {
+          "label": "tablet portrait",
+          "width": 800,
+          "height": 1280
+        },
+        {
+          "label": "tablet landscape",
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "captures": [
+        "captures/manga-series/portrait.png",
+        "captures/manga-series/landscape.png",
+        "captures/manga-series/desktop.png",
+        "captures/manga-series-portrait.png",
+        "captures/manga-series-landscape.png",
+        "captures/manga-series-desktop.png",
+        "captures/manga-series-compact.png",
+        "captures/manga-series-short.png",
+        "captures/manga-series-tablet.png",
+        "captures/manga-series-tabletLandscape.png",
+        "captures/manga-series-selected.png",
+        "captures/manga-series-expanded.png",
+        "captures/manga-series-insetsScale.png",
+        "captures/manga-series-synopsis-open-compact.png",
+        "captures/manga-series-action-scrolled.png"
+      ]
+    },
+    {
+      "file": "manga-chapters.html",
+      "title": "One Piece — Chapter Mode / language and page selectors",
+      "states": [
+        "closed portrait/landscape/desktop",
+        "354x792 and 792x354",
+        "tablet portrait/landscape",
+        "language combo popup open/closed/Português (Brasil)",
+        "page dropdown open/closed/selected",
+        "page 13 ten-row window",
+        "Go to chapter 42",
+        "saved Continue reading",
+        "round download states",
+        "last row reachable by scroll",
+        "24px insets and 1.3 font scale",
+        "354x792 large-type wordmark reflow",
+        "compact page popup open"
+      ],
+      "viewports": [
+        {
+          "label": "phone portrait",
+          "width": 412,
+          "height": 900
+        },
+        {
+          "label": "phone landscape",
+          "width": 900,
+          "height": 412
+        },
+        {
+          "label": "narrow phone portrait",
+          "width": 354,
+          "height": 792
+        },
+        {
+          "label": "short phone landscape",
+          "width": 792,
+          "height": 354
+        },
+        {
+          "label": "desktop reference",
+          "width": 1280,
+          "height": 700
+        },
+        {
+          "label": "tablet portrait",
+          "width": 800,
+          "height": 1280
+        },
+        {
+          "label": "tablet landscape",
+          "width": 1280,
+          "height": 800
+        }
+      ],
+      "captures": [
+        "captures/manga-chapters/portrait.png",
+        "captures/manga-chapters/landscape.png",
+        "captures/manga-chapters/desktop.png",
+        "captures/manga-chapters-portrait.png",
+        "captures/manga-chapters-landscape.png",
+        "captures/manga-chapters-desktop.png",
+        "captures/manga-chapters-compact.png",
+        "captures/manga-chapters-short.png",
+        "captures/manga-chapters-tablet.png",
+        "captures/manga-chapters-tabletLandscape.png",
+        "captures/manga-chapters-language-open.png",
+        "captures/manga-chapters-page-open.png",
+        "captures/manga-chapters-page-open-landscape.png",
+        "captures/manga-chapters-insetsScale.png",
+        "captures/manga-chapters-rows-scrolled.png",
+        "captures/manga-chapters-compact-scale.png",
+        "captures/manga-chapters-compact-page-popup.png"
+      ]
+    }
+  ],
+  "files": [
+    "index.html",
+    "manga-series.html",
+    "manga-chapters.html",
+    "style.css",
+    "app.js",
+    "FIDELITY.md",
+    "capture.cjs",
+    "verify.cjs",
+    "captures/checks.json",
+    "captures/interaction-checks.json"
+  ],
+  "preservedDesign": [
+    "COLOSSEUM · TANKOBAN chrome, real Back chevron and desktop window glyphs",
+    "Segoe UI and Fraunces visual hierarchy; #f0c44a gold over deep navy/black glass",
+    "one One Piece masthead with title, facts, genres, library, Add to Collections, More/Less",
+    "two original mode pills and the anchored language dropdown (no mobile sheet)",
+    "ON THIS DEVICE progress and the centred scaled Tankoban volume continuum",
+    "VOLUMES label, owned marks, Select/Done, Download next 10, selection bar, shallow Read/Download action",
+    "gold Continue reading and original page selector with arrows, Go to chapter and Download page",
+    "chapter number / artwork / label / status / round trailing action rows"
+  ],
+  "fittingChanges": [
+    "Portrait reorders existing masthead controls into a single readable vertical continuum.",
+    "Phone landscape keeps poster/title/facts with right-side controls and scrollable remainder.",
+    "Viewport-aware cover sizing and horizontal carousel centring preserve the approved flow rather than flattening cards.",
+    "Wrapped chapter labels and a compact actions layout keep all chapter controls reachable.",
+    "Language and page dropdowns remain floating and bounded; they reposition when the content scrolls instead of closing from a delayed scroll-to-anchor event.",
+    "At 354px width with 1.3× text, the same chrome wordmark moves below Back in a taller toolbar to prevent collision.",
+    "1280×700 desktop explicitly uses desktop header columns; 1280×800 and 800×1280 remain tablet.",
+    "Insets/font-scale/viewport controls are outside the app; no simulated operating-system chrome."
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "Exact OnePlus logical dimensions, device pixel ratio, safe areas and runtime font scaling are unknown because the device is disconnected; all requested presets are provisional.",
+    "Frozen assets lack exact per-volume One Piece manga cover files and matching chapter thumbnails; the mock explicitly substitutes named existing One Piece project artwork only.",
+    "The frozen default MangaSeries and optional rebuilt TankobanSeriesView differ in masthead/chrome; the requested visible label/progress and the approved component treatments were reconciled for review, not asserted as a byte-for-byte runtime screenshot.",
+    "Account/provider actions are intentionally stubbed; local mode HTML navigation does not preserve transient state across pages.",
+    "No QML compilation, actual Colosseum runtime, physical phone, APK or production integration was tested. Publication is HELD."
+  ],
+  "verification": {
+    "laptop": "Laptop 1 through Brotherhood Desktop Commander",
+    "methods": [
+      "read-only inspection of named frozen QML and transitive shared components/assets",
+      "node --check app.js (exit code 0)",
+      "isolated headless Edge screenshots",
+      "DOM viewport/clipping/missing-image/pageerror checks",
+      "interactive Puppeteer popup, selection, Go to chapter, scroll-reachability, and font-scale adversarial pass",
+      "manual inspection of portrait, landscape, desktop, popup and scrolled captures"
+    ],
+    "browser": "Microsoft Edge headless using pre-existing local Puppeteer package and isolated temporary user-data dir inside captures/",
+    "renderCommand": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series\\capture.cjs\"",
+    "interactiveCommand": "node \"D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series\\verify.cjs\"",
+    "renderUrls": [
+      "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/04-manga-series/manga-series.html?capture=1",
+      "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/04-manga-series/manga-chapters.html?capture=1"
+    ],
+    "devicePixelRatio": 1,
+    "renderViewportSet": [
+      {
+        "label": "phone portrait",
+        "width": 412,
+        "height": 900
+      },
+      {
+        "label": "phone landscape",
+        "width": 900,
+        "height": 412
+      },
+      {
+        "label": "narrow phone portrait",
+        "width": 354,
+        "height": 792
+      },
+      {
+        "label": "short phone landscape",
+        "width": 792,
+        "height": 354
+      },
+      {
+        "label": "desktop reference",
+        "width": 1280,
+        "height": 700
+      },
+      {
+        "label": "tablet portrait",
+        "width": 800,
+        "height": 1280
+      },
+      {
+        "label": "tablet landscape",
+        "width": 1280,
+        "height": 800
+      }
+    ],
+    "capturesUnique": 26,
+    "capturesExactNameAliases": 6,
+    "captureCountTotal": 32,
+    "screenshotChecks": 21,
+    "interactionChecks": 38,
+    "interactionPassed": 38,
+    "imageLoadFailures": 0,
+    "browserPageErrors": 0,
+    "pageHorizontalOverflowFailures": 0,
+    "headerBackCollisionFailures": 0,
+    "popupBoundsFailures": 0,
+    "artifacts": [
+      "captures/checks.json",
+      "captures/interaction-checks.json"
+    ],
+    "failedBuiltInCaptureAttempt": "BDC render_html returned HTML_RENDER_OUTPUT_MISSING; verified successful isolated Edge/Puppeteer fallback used instead.",
+    "assuranceBoundary": "Static/headless mock verified only. QML and real Android device remain unverified."
+  },
+  "publication": "HELD",
+  "reportWrittenLast": true
+}

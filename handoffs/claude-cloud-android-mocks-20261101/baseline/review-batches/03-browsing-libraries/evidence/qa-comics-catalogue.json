@@ -1,0 +1,194 @@
+{
+  "job": "09-catalogue-index",
+  "name": "comics-catalogue.html",
+  "checks": [
+    {
+      "name": "Collapsed rail chevron points towards content",
+      "pass": true,
+      "time": "2026-10-31T23:42:05.939Z"
+    },
+    {
+      "name": "Expanded rail reserves readable shelf space",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "rail": 152.625,
+        "content": 149.375,
+        "gap": 16
+      },
+      "time": "2026-10-31T23:42:06.631Z"
+    },
+    {
+      "name": "Last index item can be reached and activated",
+      "pass": true,
+      "time": "2026-10-31T23:42:07.456Z"
+    },
+    {
+      "name": "Long catalogue reaches its final section",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 5907,
+        "scrollHeight": 6551,
+        "clientHeight": 644
+      },
+      "time": "2026-10-31T23:42:08.137Z"
+    },
+    {
+      "name": "Short-landscape rail toggle remains within screen",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 257,
+        "y": 188,
+        "w": 28,
+        "h": 28,
+        "right": 285,
+        "bottom": 216,
+        "visible": true,
+        "client": 26,
+        "scroll": 32
+      },
+      "time": "2026-10-31T23:42:09.602Z"
+    },
+    {
+      "name": "Horizontal shelf can scroll",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "left": 460,
+        "width": 308,
+        "content": 1168
+      },
+      "time": "2026-10-31T23:42:11.209Z"
+    },
+    {
+      "name": "Non-pinnable decade rows omit See all",
+      "pass": true,
+      "time": "2026-10-31T23:42:11.592Z"
+    },
+    {
+      "name": "Desktop retains all six world pills",
+      "pass": true,
+      "time": "2026-10-31T23:42:12.670Z"
+    },
+    {
+      "name": "Desktop shows original account silhouette",
+      "pass": true,
+      "time": "2026-10-31T23:42:12.684Z"
+    },
+    {
+      "name": "Library tab reaches matching finished library",
+      "pass": true,
+      "time": "2026-10-31T23:42:14.364Z"
+    },
+    {
+      "name": "Collection preserves native manga glyph and 46px circle",
+      "pass": true,
+      "time": "2026-11-01T00:02:35.819Z"
+    },
+    {
+      "name": "Final glyph: Collection manga glyph is centered at 354x792",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "a": {
+          "x": 143,
+          "y": 311.53125,
+          "w": 46,
+          "h": 46,
+          "right": 189,
+          "bottom": 357.53125,
+          "visible": true,
+          "client": 44,
+          "scroll": 44
+        },
+        "b": {
+          "x": 155.5,
+          "y": 324.03125,
+          "w": 21,
+          "h": 21,
+          "right": 176.5,
+          "bottom": 345.03125,
+          "visible": true,
+          "client": 21,
+          "scroll": 21
+        }
+      },
+      "time": "2026-11-01T00:06:36.162Z"
+    },
+    {
+      "name": "Final glyph: Collection manga glyph is centered at 900x412",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "a": {
+          "x": 261,
+          "y": 288.9375,
+          "w": 46,
+          "h": 46,
+          "right": 307,
+          "bottom": 334.9375,
+          "visible": true,
+          "client": 44,
+          "scroll": 44
+        },
+        "b": {
+          "x": 273.5,
+          "y": 301.4375,
+          "w": 21,
+          "h": 21,
+          "right": 294.5,
+          "bottom": 322.4375,
+          "visible": true,
+          "client": 21,
+          "scroll": 21
+        }
+      },
+      "time": "2026-11-01T00:06:37.002Z"
+    },
+    {
+      "name": "Final glyph: Collection manga glyph is centered at 1280x700",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "a": {
+          "x": 191,
+          "y": 303,
+          "w": 46,
+          "h": 46,
+          "right": 237,
+          "bottom": 349,
+          "visible": true,
+          "client": 44,
+          "scroll": 44
+        },
+        "b": {
+          "x": 203.5,
+          "y": 315.5,
+          "w": 21,
+          "h": 21,
+          "right": 224.5,
+          "bottom": 336.5,
+          "visible": true,
+          "client": 21,
+          "scroll": 21
+        }
+      },
+      "time": "2026-11-01T00:06:38.515Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\comics-catalogue\\index-open.png",
+    "evidence\\after\\comics-catalogue\\index-last-row.png",
+    "evidence\\after\\comics-catalogue\\long-content-bottom.png",
+    "evidence\\after\\comics-catalogue\\index-short-stress.png",
+    "evidence\\after\\comics-catalogue\\horizontal-scroll.png",
+    "evidence\\after\\comics-catalogue\\collection-glyph-stress.png",
+    "evidence\\after\\comics-catalogue\\centered-collection-354.png",
+    "evidence\\after\\comics-catalogue\\centered-collection-900.png",
+    "evidence\\after\\comics-catalogue\\centered-collection-1280.png"
+  ],
+  "completedAt": "2026-11-01T00:06:38.880Z",
+  "pass": true
+}

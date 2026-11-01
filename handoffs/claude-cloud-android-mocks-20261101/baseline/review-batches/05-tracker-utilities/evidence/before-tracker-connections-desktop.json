@@ -1,0 +1,269 @@
+{
+  "time": "2026-10-31T22:46:09.318Z",
+  "url": "http://127.0.0.1:13213/outputs/21-tracker-connections/tracker-connections.html?capture=1&preset=desktop&w=1280&h=700",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 1280,
+    "h": 700,
+    "outerWidth": 1280,
+    "outerHeight": 924,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 200.359375,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 900.359375
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "MAIN",
+        "class": "page-scroll",
+        "id": "pageScroll",
+        "box": {
+          "x": 0,
+          "y": 260.359375,
+          "w": 1280,
+          "h": 560,
+          "right": 1280,
+          "bottom": 820.359375
+        },
+        "scrollHeight": 1169,
+        "clientHeight": 560
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Back",
+        "action": "back",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 214.359375,
+          "w": 69.625,
+          "h": 34,
+          "right": 123.625,
+          "bottom": 248.359375
+        }
+      },
+      {
+        "text": "Minimize",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 1120,
+          "y": 214.359375,
+          "w": 22,
+          "h": 22,
+          "right": 1142,
+          "bottom": 236.359375
+        }
+      },
+      {
+        "text": "Exit fullscreen",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 1162,
+          "y": 214.359375,
+          "w": 22,
+          "h": 22,
+          "right": 1184,
+          "bottom": 236.359375
+        }
+      },
+      {
+        "text": "Quit Colosseum",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 1204,
+          "y": 214.359375,
+          "w": 22,
+          "h": 22,
+          "right": 1226,
+          "bottom": 236.359375
+        }
+      },
+      {
+        "text": "Preferences",
+        "action": "preferences",
+        "disabled": false,
+        "box": {
+          "x": 993.359375,
+          "y": 292.078125,
+          "w": 123.40625,
+          "h": 44.453125,
+          "right": 1116.765625,
+          "bottom": 336.53125
+        }
+      },
+      {
+        "text": "Sync all",
+        "action": "sync-all",
+        "disabled": false,
+        "box": {
+          "x": 1126.765625,
+          "y": 292.078125,
+          "w": 99.234375,
+          "h": 44.453125,
+          "right": 1226,
+          "bottom": 336.53125
+        }
+      },
+      {
+        "text": "Simkl, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 597.390625,
+          "w": 579,
+          "h": 140,
+          "right": 633,
+          "bottom": 737.390625
+        }
+      },
+      {
+        "text": "MyAnimeList, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 647,
+          "y": 597.390625,
+          "w": 579,
+          "h": 140,
+          "right": 1226,
+          "bottom": 737.390625
+        }
+      },
+      {
+        "text": "Simkl, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 812.640625,
+          "w": 580,
+          "h": 126,
+          "right": 634,
+          "bottom": 938.640625
+        }
+      },
+      {
+        "text": "MyAnimeList, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 646,
+          "y": 812.640625,
+          "w": 580,
+          "h": 126,
+          "right": 1226,
+          "bottom": 938.640625
+        }
+      },
+      {
+        "text": "Trakt, Connect",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 950.640625,
+          "w": 580,
+          "h": 126,
+          "right": 634,
+          "bottom": 1076.640625
+        }
+      },
+      {
+        "text": "AniList, Coming soon",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 646,
+          "y": 950.640625,
+          "w": 580,
+          "h": 126,
+          "right": 1226,
+          "bottom": 1076.640625
+        }
+      },
+      {
+        "text": "Open settings ›",
+        "action": "open-stremio",
+        "disabled": false,
+        "box": {
+          "x": 1065,
+          "y": 1225,
+          "w": 142,
+          "h": 40,
+          "right": 1207,
+          "bottom": 1265
+        }
+      },
+      {
+        "text": "Colosseum taskbar",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 66.59375,
+          "y": 828.359375,
+          "w": 48,
+          "h": 48,
+          "right": 114.59375,
+          "bottom": 876.359375
+        }
+      },
+      {
+        "text": "Vault",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 128.59375,
+          "y": 828.359375,
+          "w": 48,
+          "h": 48,
+          "right": 176.59375,
+          "bottom": 876.359375
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 190.59375,
+          "y": 828.359375,
+          "w": 48,
+          "h": 48,
+          "right": 238.59375,
+          "bottom": 876.359375
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "outputs/21-tracker-connections/tracker-connections.html",
+      "sha256": "6a452ec35107dc1c36b5b89d3935d148a1c3973ed698bd28d2e711daee2b3f4f"
+    },
+    {
+      "path": "outputs/21-tracker-connections/style.css",
+      "sha256": "075d838f03993010e54827e49e3379ba19d787b0297714c4da3d0937eb90ab04"
+    },
+    {
+      "path": "outputs/21-tracker-connections/app.js",
+      "sha256": "90441eaf3156d2cb09dcde4939367790a3f9d709d513bd9682ab99bed0428c6d"
+    }
+  ]
+}

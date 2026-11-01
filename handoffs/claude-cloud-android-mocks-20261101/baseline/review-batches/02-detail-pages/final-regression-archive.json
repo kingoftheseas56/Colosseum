@@ -1,0 +1,62 @@
+{
+  "utc": "2026-10-31T23:22:57.817Z",
+  "result": [
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"all-releases\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"collections\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "archive-collections-identity",
+      "result": {
+        "hasDCIdentity": true,
+        "notBatmanIdentity": true,
+        "title": "Add to CollectionsKeep this title in one collection, or a few.DC ComicsComic · DC ComicsFavorites3 titlesFor later0 titlesStories to revisit5 titlesNew collectionCollection namePrivate, just for youCancelSave",
+        "inspect": {
+          "open": true,
+          "creating": false,
+          "committed": []
+        }
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-all-releases-collections",
+      "result": {
+        "name": "comic-archive-finished-all-releases-collections",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-all-releases-collections.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&state=index&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&state=index&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:22:57.800Z",
+        "sha256": "be71dc97fb98e384ec59c83eea851dbc466d56b0ade8fed94cf0bef07ea0f374",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    }
+  ]
+}

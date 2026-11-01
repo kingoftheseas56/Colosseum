@@ -1,0 +1,82 @@
+[
+  {
+    "job": "07-biblio-home",
+    "name": "biblio-home.html",
+    "title": "Biblio Discover/home shelves and book rails"
+  },
+  {
+    "job": "08-theatre-discover",
+    "name": "theatre-discover.html",
+    "title": "Theatre Discover category, filter and source sidebar"
+  },
+  {
+    "job": "09-catalogue-index",
+    "name": "theatre-catalogue.html",
+    "title": "Catalogue pages, row index rail and tablet/landscape layout"
+  },
+  {
+    "job": "09-catalogue-index",
+    "name": "manga-catalogue.html",
+    "title": "Catalogue pages, row index rail and tablet/landscape layout"
+  },
+  {
+    "job": "09-catalogue-index",
+    "name": "comics-catalogue.html",
+    "title": "Catalogue pages, row index rail and tablet/landscape layout"
+  },
+  {
+    "job": "15-world-home",
+    "name": "theatre-home.html",
+    "title": "Theatre/Tankoban/Universes home shells and featured controls"
+  },
+  {
+    "job": "15-world-home",
+    "name": "tankoban-home.html",
+    "title": "Theatre/Tankoban/Universes home shells and featured controls"
+  },
+  {
+    "job": "15-world-home",
+    "name": "universes-home.html",
+    "title": "Theatre/Tankoban/Universes home shells and featured controls"
+  },
+  {
+    "job": "16-libraries",
+    "name": "theatre-library.html",
+    "title": "Theatre/Tankoban/Biblio libraries and selection"
+  },
+  {
+    "job": "16-libraries",
+    "name": "tankoban-library.html",
+    "title": "Theatre/Tankoban/Biblio libraries and selection"
+  },
+  {
+    "job": "16-libraries",
+    "name": "biblio-library.html",
+    "title": "Theatre/Tankoban/Biblio libraries and selection"
+  },
+  {
+    "job": "20-search-browse",
+    "name": "search.html",
+    "title": "Search, Explore, genre and see-all pages"
+  },
+  {
+    "job": "20-search-browse",
+    "name": "biblio-explore.html",
+    "title": "Search, Explore, genre and see-all pages"
+  },
+  {
+    "job": "20-search-browse",
+    "name": "genre-index.html",
+    "title": "Search, Explore, genre and see-all pages"
+  },
+  {
+    "job": "20-search-browse",
+    "name": "genre-results.html",
+    "title": "Search, Explore, genre and see-all pages"
+  },
+  {
+    "job": "20-search-browse",
+    "name": "continue-see-all.html",
+    "title": "Search, Explore, genre and see-all pages"
+  }
+]

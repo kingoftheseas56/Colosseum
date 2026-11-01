@@ -1,0 +1,981 @@
+{
+  "utc": "2026-10-31T23:05:54.179Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "incomplete": "This pack is missing issues this edition needs.#5 · #6Try another sourceSearch manually"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-manual\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focus": "source-query",
+        "rows": 3
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "combined": "Only a combined archive covers this edition — it likely includes other editions too.Go backDownload whole archive anyway"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-return\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"2\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "weak": true,
+        "backgroundInert": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "weakCancelled": true,
+        "sourceRemains": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"2\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"weak-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "choices": 2
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"archive-choose\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "closed": true,
+        "queued": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "status": "Pack choice accepted in this local fixture; no download or service operation."
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-pack-queued-portrait-small-stress",
+      "result": {
+        "name": "comic-edition-finished-pack-queued-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-pack-queued-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:33.093Z",
+        "sha256": "91109101c2b571ede6c77cea7262f9424c1c44b2653fd29bd12943305aae842c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "readIntent": "Reading when ready"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"release-download\"][data-id=\"4696839\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelled": "2025"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"release-read\"][data-id=\"7579956\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Read / Continue would open the existing comic reader; reader UI is out of scope."
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"1\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "incomplete": "This pack is missing issues this edition needs.#5 · #6Try another sourceSearch manually"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-manual\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "focus": "source-query",
+        "rows": 3
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "combined": "Only a combined archive covers this edition — it likely includes other editions too.Go backDownload whole archive anyway"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-return\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"2\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "weak": true,
+        "backgroundInert": true
+      }
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Escape"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "weakCancelled": true,
+        "sourceRemains": true
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"source-choose\"][data-index=\"2\"]"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"weak-confirm\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "choices": 2
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"archive-choose\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "closed": true,
+        "queued": "Detective Comics: The Rebirth Deluxe Edition Book 1James Tynion IV·388 Pages·2017Someone is targeting Batman’s allies in Gotham—young and untested heroes who model themselves after the Dark Knight but don’t yet have his ...…",
+        "status": "Pack choice accepted in this local fixture; no download or service operation."
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-pack-queued-landscape-small-stress",
+      "result": {
+        "name": "comic-edition-finished-pack-queued-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-pack-queued-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1&state=alt&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:38.874Z",
+        "sha256": "8acc54c203ddd58a4521d8fea7c27d6437c14b24f7326eab88dff4934d21dacd",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval"
+    },
+    {
+      "op": "key",
+      "result": {
+        "key": "Enter"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "readIntent": "Reading when ready"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"release-download\"][data-id=\"4696839\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "cancelled": "2025"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"release-read\"][data-id=\"7579956\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Read / Continue would open the existing comic reader; reader UI is out of scope."
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tiles": 10
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-box-portrait-stress",
+      "result": {
+        "name": "comic-archive-finished-last-box-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-box-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:42.483Z",
+        "sha256": "e8e96e544ee7a08df696d4ec67bdc4cf4dd6c45f13e20f60d704a2e3aef11f51",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"archive-box\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "scroll": 0,
+        "posters": 8
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-index-portrait-stress",
+      "result": {
+        "name": "comic-archive-finished-index-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-index-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:43.072Z",
+        "sha256": "b4f784399f1c445b4ebab4a25724573e5c6ef2c67e85b0a1a5a2df820515e1a7",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Action Comics"
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-poster-portrait-stress",
+      "result": {
+        "name": "comic-archive-finished-last-poster-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-poster-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:43.463Z",
+        "sha256": "7802da0e138b3a1106561ae00d1867d331cf0250da9e934ac74452dcd8bd1e69",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"all-releases\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "rows": 8,
+        "scroll": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-all-releases-portrait-stress",
+      "result": {
+        "name": "comic-archive-finished-all-releases-portrait-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-all-releases-portrait-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:43.858Z",
+        "sha256": "cb37661db52a9891fbecfef93f400757b3ffe3f8744acf7c943ef5e03c5cb303",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedIndex": true,
+        "scroll": 0
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedBoard": true,
+        "scroll": 136,
+        "overflow": 0
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tiles": 10
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-box-portrait-small-stress",
+      "result": {
+        "name": "comic-archive-finished-last-box-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-box-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:45.605Z",
+        "sha256": "e5e6cb5f4e5331b42c22c7fbf17b95cdc98534c2985233507931c362308bcaff",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"archive-box\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "scroll": 0,
+        "posters": 8
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-index-portrait-small-stress",
+      "result": {
+        "name": "comic-archive-finished-index-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-index-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:45.990Z",
+        "sha256": "277e18ae295684e4508347a0abb82b2f05151c0475dde8d442f9f2602555455d",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Action Comics"
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-poster-portrait-small-stress",
+      "result": {
+        "name": "comic-archive-finished-last-poster-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-poster-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:46.358Z",
+        "sha256": "a54e53b6ff9efa955e57ca7a43e3d7990782f0ae330e2d268a9d6e879562d06d",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"all-releases\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "rows": 8,
+        "scroll": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-all-releases-portrait-small-stress",
+      "result": {
+        "name": "comic-archive-finished-all-releases-portrait-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-all-releases-portrait-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:46.855Z",
+        "sha256": "e411f546267de3506238d7e08b500f54461471481bcd7580ad1c8625f7138b97",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedIndex": true,
+        "scroll": 0
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedBoard": true,
+        "scroll": 244,
+        "overflow": 0
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tiles": 10
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-box-landscape-stress",
+      "result": {
+        "name": "comic-archive-finished-last-box-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-box-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:48.456Z",
+        "sha256": "92f63937abed75b009fcaaaab32838240cb3c90ed41b2c5ce3c89eb182527409",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"archive-box\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "scroll": 0,
+        "posters": 8
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-index-landscape-stress",
+      "result": {
+        "name": "comic-archive-finished-index-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-index-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:48.842Z",
+        "sha256": "b5a76cd7f4cec21a4741d67cc6f55f97db28c0907d1fa00b38e43474cca826c6",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Action Comics"
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-poster-landscape-stress",
+      "result": {
+        "name": "comic-archive-finished-last-poster-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-poster-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:49.170Z",
+        "sha256": "69d20fa77711f35902dcde7b46e704c35cfc06ef2a0042f28a4ba8b250ce4a9a",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"all-releases\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "rows": 8,
+        "scroll": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-all-releases-landscape-stress",
+      "result": {
+        "name": "comic-archive-finished-all-releases-landscape-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-all-releases-landscape-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:49.576Z",
+        "sha256": "93a6de7da31e08dc87cd3009c80cb3d427b1e26c5be1e73caa046615ef803ac5",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedIndex": true,
+        "scroll": 45
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedBoard": true,
+        "scroll": 135,
+        "overflow": 0
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "tiles": 10
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-box-landscape-small-stress",
+      "result": {
+        "name": "comic-archive-finished-last-box-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-box-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:51.062Z",
+        "sha256": "1fe10d51e4759558d686648e9deac5b6808b63ae2f965a5df99d0a4b343b7c53",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"archive-box\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "scroll": 0,
+        "posters": 8
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-index-landscape-small-stress",
+      "result": {
+        "name": "comic-archive-finished-index-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-index-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:51.407Z",
+        "sha256": "5639f4ed231aa6bbd475d0bf47cb75b99de4bd904c6dd12f4b4941e62eca745c",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "eval",
+      "result": "Action Comics"
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-last-poster-landscape-small-stress",
+      "result": {
+        "name": "comic-archive-finished-last-poster-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-last-poster-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:51.901Z",
+        "sha256": "f9c656ec6eb46a3daaa33cb978aab579c1f2ed2fb094a19156913081eaed97b4",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"all-releases\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "title": "DC Comics",
+        "rows": 8,
+        "scroll": 0
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-all-releases-landscape-small-stress",
+      "result": {
+        "name": "comic-archive-finished-all-releases-landscape-small-stress",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-all-releases-landscape-small-stress.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:05:52.308Z",
+        "sha256": "1f2c270868039fc79883e2745cae471b584de65b8e8f9e97b392a699e0e4a052",
+        "errors": [],
+        "blocked": []
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedIndex": true,
+        "scroll": 74
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": ".chrome [data-action=\"back\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "returnedBoard": true,
+        "scroll": 164,
+        "overflow": 0
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&state=index&font=1.3&top=24&bottom=24",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "click",
+      "result": {
+        "clicked": "[data-action=\"archive-series\"][data-index=\"0\"]"
+      }
+    },
+    {
+      "op": "eval",
+      "result": {
+        "path": "/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html",
+        "search": "?capture=1&font=1.3&top=24&bottom=24",
+        "app": [
+          354,
+          792
+        ]
+      }
+    }
+  ]
+}

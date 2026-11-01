@@ -1,0 +1,1923 @@
+{
+  "generated_at": "2026-10-31T23:35:56.408006+00:00",
+  "sheets": [
+    {
+      "file": "contact-sheets/01-film-phone.png",
+      "title": "Film sources",
+      "note": "Initial positions shown. Full resolution screenshots and version receipts are linked from the sheet index. HTML desktop captures do not establish native app acceptance.",
+      "sha256": "f9995dd0692873682c991739684cc435db877e292ed6bb64cd08618e0944a3e2",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/film-portrait.png",
+          "image_sha256": "0a068d2904071a33efa9912a6c8b103373763a9212740d2fa6123a6cb62e6ae9",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/film-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "147c02c2e3f2b468d052b1f6d1fca420af07cd741a9cf4954efe5a2306f42eb1",
+          "captured_at": "2026-10-31T22:42:21.928Z",
+          "params": {
+            "render": 1,
+            "w": 412,
+            "h": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-film-portrait.png",
+          "image_sha256": "670e1763caf94dece2c0f00442e5e0abc1e082c8974cfbc51ed62f88764b517a",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-film-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "e1e937a42f16b09eaf931260c95e8395556a38fb5ea21f3e680e4e973c634e55",
+          "captured_at": "2026-10-31T22:47:20.003Z",
+          "params": {
+            "render": 1,
+            "w": 412,
+            "h": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/film-landscape.png",
+          "image_sha256": "8b263ebc84fb54b14f069b2fa0d16b8473009ae3e8cbdf8c1aabe685841fb065",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/film-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "624918e5edb129fe43ee18e70335858325903c2366a89f1736e2ea0750723f9c",
+          "captured_at": "2026-10-31T22:42:24.688Z",
+          "params": {
+            "render": 1,
+            "w": 900,
+            "h": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-film-landscape.png",
+          "image_sha256": "94c64328434f7df26e58154ae2bdd5e98af7c5f5235057ee7bdaf9e9edf53562",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-film-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "d537b35348bac5fca62ac1099009f1695476732e14be00547d7761c890943a5d",
+          "captured_at": "2026-10-31T22:47:21.878Z",
+          "params": {
+            "render": 1,
+            "w": 900,
+            "h": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/02-episode-phone.png",
+      "title": "Episode sources",
+      "note": "Initial positions shown. Full resolution screenshots and version receipts are linked from the sheet index. HTML desktop captures do not establish native app acceptance.",
+      "sha256": "42a2d79fb6884f0361bd3906c7e8e16459ddca3578cc723ef02be96f57da43a7",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/episode-portrait.png",
+          "image_sha256": "6bd5cb7fe14bc86eee1182df99e2abcb950c8c9595fa40043a771c5fb4f5a79c",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/episode-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "0e462f1e87c7f42524ca1ebeeacf7d8f1987dd6b62d265b8c5acdcea89a445f2",
+          "captured_at": "2026-10-31T22:48:07.047Z",
+          "params": {
+            "render": 1,
+            "w": 412,
+            "h": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-episode-portrait.png",
+          "image_sha256": "616536db9bcdb1dd9e68275a3e7fd93dd3fbcf5ced80c6536cce5c838cd90587",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-episode-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "67364f812f276527e807cefeeb9ee9d3c49a6fa21e64c8fc4229f5f0b55e726c",
+          "captured_at": "2026-10-31T22:48:11.225Z",
+          "params": {
+            "render": 1,
+            "w": 412,
+            "h": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/episode-landscape.png",
+          "image_sha256": "4d32c3e9797fa5d0716d82c32ef80a1e6c0571bbb5195bccac269db9ae3ea148",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/episode-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "c97588077232c56e3d14f89a98bfb91d1f102a31fbbbf197d4372015419c4f75",
+          "captured_at": "2026-10-31T22:48:07.889Z",
+          "params": {
+            "render": 1,
+            "w": 900,
+            "h": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-episode-landscape.png",
+          "image_sha256": "caa05b8d6716971641cdfec2906da37c8a2e081ee26249f96262fb35926645c4",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-episode-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "b191b27c20f5467ab19c53e54aff0aeca5b17b2a1309a5de938e58bae04938dd",
+          "captured_at": "2026-10-31T22:48:12.029Z",
+          "params": {
+            "render": 1,
+            "w": 900,
+            "h": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/03-comic-phone.png",
+      "title": "Comic sources",
+      "note": "Initial positions shown. Full resolution screenshots and version receipts are linked from the sheet index. HTML desktop captures do not establish native app acceptance.",
+      "sha256": "6a480baa3acab0c7cae9c2c3328ad7ec2f044bd25bb0e69466ee75f91fc2a1fe",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/comic-portrait.png",
+          "image_sha256": "475e80a9c6b5ae3b8972fe60ebd160a2757825bc7901a31d5c00ad8d3a7fc752",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/comic-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "48262a1c4ab0c4f21149e14c5b43c4107fe6911653a06353a1a9d7db0003c7f1",
+          "captured_at": "2026-10-31T22:50:40.332Z",
+          "params": {
+            "capture": 1,
+            "vw": 412,
+            "vh": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-comic-portrait.png",
+          "image_sha256": "475e80a9c6b5ae3b8972fe60ebd160a2757825bc7901a31d5c00ad8d3a7fc752",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-comic-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "65f4a69705a1daf8a7bf01a97b205eaa142c5b40e3fa7e663fc1acf7715190ea",
+          "captured_at": "2026-10-31T22:52:16.530Z",
+          "params": {
+            "capture": 1,
+            "vw": 412,
+            "vh": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/comic-landscape.png",
+          "image_sha256": "a11554500035f91c43469a118909523afb7a5f4753baa3410732b1a9d35d5d17",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/comic-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "8511f88a1cc24202fa0c94aea0dd4eef3902024520d550d8192c75af9883ce84",
+          "captured_at": "2026-10-31T22:50:40.815Z",
+          "params": {
+            "capture": 1,
+            "vw": 900,
+            "vh": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-comic-landscape.png",
+          "image_sha256": "a11554500035f91c43469a118909523afb7a5f4753baa3410732b1a9d35d5d17",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-comic-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "1b29f0050e13314b1fd88d907c67d4afe9178f0ad4ddcc40ba0ce92cc14ec7a1",
+          "captured_at": "2026-10-31T22:52:17.026Z",
+          "params": {
+            "capture": 1,
+            "vw": 900,
+            "vh": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/04-comic-confirm-phone.png",
+      "title": "Comic source confirmation",
+      "note": "Initial positions shown. Full resolution screenshots and version receipts are linked from the sheet index. HTML desktop captures do not establish native app acceptance.",
+      "sha256": "c0e7bd2ac53860db08cc903fa21211354070e66462d69a1a0b8896ebcb51a36f",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/comic-confirm-portrait.png",
+          "image_sha256": "db00f0c2b970775882f7627cdb315ebb1c8e1b591acbfe93af801e70835ca33a",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/comic-confirm-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "9f80e02b542ca191dd0bbb737b4d181248f58ac8c2c11d01855b161d40601a2e",
+          "captured_at": "2026-10-31T22:50:43.083Z",
+          "params": {
+            "capture": 1,
+            "vw": 412,
+            "vh": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-comic-confirm-portrait.png",
+          "image_sha256": "78a521ebbee52b1ef882f8550f7a691d68da96f33ce79883e708f9a5884e27d1",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-comic-confirm-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "f2d6afe73ddc5f17ede9cca83de94c0d598ea78ed62cb53e1d8ccddbf66f6bd6",
+          "captured_at": "2026-10-31T22:52:26.043Z",
+          "params": {
+            "capture": 1,
+            "vw": 412,
+            "vh": 900
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/comic-confirm-landscape.png",
+          "image_sha256": "93985f3188ea3f625e9ee18afacfdd0f9b43c785d59547772b22112897e400f9",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/comic-confirm-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "c00e21fda60b594b6c12f479a9a87c3c8ccbe27b123bd0e4cf34ecc7767421c4",
+          "captured_at": "2026-10-31T22:50:43.657Z",
+          "params": {
+            "capture": 1,
+            "vw": 900,
+            "vh": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-comic-confirm-landscape.png",
+          "image_sha256": "403057955c9275ad324c37063565b87464f0cfbaa58400943e5435b40379a1e8",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-comic-confirm-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "ab2509e0c8401b94aea4826bd9d29d88090420437c532e25cda13a07b17fe28e",
+          "captured_at": "2026-10-31T22:52:26.520Z",
+          "params": {
+            "capture": 1,
+            "vw": 900,
+            "vh": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/05-manga-sources-phone.png",
+      "title": "Manga volume sources",
+      "note": "Initial positions shown. Full resolution screenshots and version receipts are linked from the sheet index. HTML desktop captures do not establish native app acceptance.",
+      "sha256": "460c7a3f10897aa7e17e14695811be697b1646f5589e05c4927ff1d1c93ebb38",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/manga-sources-portrait.png",
+          "image_sha256": "dfa8ef5785dd5becc8c2dc0f9e4158ff4e65c84e3eb5c7cf4a26eb6a51aede1b",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/manga-sources-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "2c200d7a03dde3472cb7dcb02b5d9a7aaa00afdde7b9ecd9bbf16c55f6927861",
+          "captured_at": "2026-10-31T22:53:13.409Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-manga-sources-portrait.png",
+          "image_sha256": "dfa8ef5785dd5becc8c2dc0f9e4158ff4e65c84e3eb5c7cf4a26eb6a51aede1b",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-manga-sources-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "7644b04532e58588dd598414a7e4f245d29b4b4d91617bdda3325215a38a435d",
+          "captured_at": "2026-10-31T23:19:12.249Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/manga-sources-landscape.png",
+          "image_sha256": "b869d2fdf22f5a84348d059c9a43c1bee14767e6e6f5c25c04083c3425117d24",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/manga-sources-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "156a4131dfaaa844649ce9204640e4157df8f92a1a0a36498c4b7efa328ae7b7",
+          "captured_at": "2026-10-31T22:53:13.966Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-manga-sources-landscape.png",
+          "image_sha256": "b869d2fdf22f5a84348d059c9a43c1bee14767e6e6f5c25c04083c3425117d24",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-manga-sources-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "6ce56f591c6724b155028bbe5ca6e580b9bdb60039bb9eff8dc8db6b585a04b2",
+          "captured_at": "2026-10-31T23:19:13.049Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/06-series-phone.png",
+      "title": "Manga series",
+      "note": "The finished target uses the Main.qml default composition plus the brief’s explicit header restorations. The full 107-volume fixture is reachable; scrolling views are also saved.",
+      "sha256": "7c64b9d811a38c1bf3b323ed6027aef0adfd29038e12d33df5915b2a4c7f6f5b",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/series-portrait.png",
+          "image_sha256": "57262a876a19f56a64f8912648bbd8fc5c0955aab2a2f38f8f3b27b78a947298",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/series-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "3dcd2683ee2aa029c56e0fe7ffc4c4830513e4cc39f7e0953b617b7679931174",
+          "captured_at": "2026-10-31T22:56:30.893Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-series-portrait.png",
+          "image_sha256": "3c10eddf21683a26eccfa5613eac7912e77eb4bfefc799e052ace8c02ba1514c",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-series-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "7cebefd97f03efe12341ece9b0079bc0eeabfa586f58cfd921ca8214f0f73575",
+          "captured_at": "2026-10-31T23:31:16.677Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/series-landscape.png",
+          "image_sha256": "e1eb89bfb73829bf8f0f9ed226f5aee4a13fd7922c289097db6bf746a56ab38a",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/series-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "290c9520a3d3c05f0c9f5b5c053ee1278a6d5f0b327c08906459d81eb968a96a",
+          "captured_at": "2026-10-31T22:56:31.619Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-series-landscape.png",
+          "image_sha256": "2de27fe287cf41a6b2faeb673f60c05168dbb54f20a04b559105361b14aa9a65",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-series-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "3059b46e4929813af1b635c38a100bb30eaeacb318df9a14b9c51968f88dc620",
+          "captured_at": "2026-10-31T23:31:18.426Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/07-chapters-phone.png",
+      "title": "Manga chapters",
+      "note": "The finished target uses the default shared header and MangaChapterSeriesView ledger. Optional rebuilt controls remain separately labeled, not silently combined.",
+      "sha256": "ad15ee6783e98dc03a7e34e6bf84f7a4bbd5f71c3862701523c05e4a319e49bc",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/chapters-portrait.png",
+          "image_sha256": "8fd53cc4ca5d04049ab0e492cf66c0ded90d11c83bb84230fb0341e368eb1d22",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/chapters-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "d00e52229a856a43ad142029e8cec8b5bc82dc4d6b365eecbeb3497ec0080a92",
+          "captured_at": "2026-10-31T22:56:35.136Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-chapters-portrait.png",
+          "image_sha256": "015f9213c79d3f78343d7b72ffa590bc90701e8c9b4418f1cfc5ca873acdbbbf",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-chapters-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "7f205051456ca6cb558e3a84e71d1297ef8fbbd69d7608fbc53d3f8156e2303e",
+          "captured_at": "2026-10-31T23:31:40.515Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/chapters-landscape.png",
+          "image_sha256": "e85562404edb471ab16dce7b373c5ae2a01c7e1758984244d4e757b4f2513454",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/chapters-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "23eeb6e3eb96a9ddd3b646d923a44b3cd6ef31750dbfeb8a520413fc1d8adb18",
+          "captured_at": "2026-10-31T22:56:36.360Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-chapters-landscape.png",
+          "image_sha256": "eed89af76795a0c099411ea6ba1415e32969afa2b466cab58cd05c7625eae077",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-chapters-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "c8dbc399eb8f6773e38818e6a8225e813a0f36bc0340afa514933a7803d435d4",
+          "captured_at": "2026-10-31T23:31:41.802Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/08-flow-original-phone.png",
+      "title": "Volume flow: constrained original attempt",
+      "note": "This constrained attempt is comparison evidence, not the recommended phone fit. It remains below the source 190 px cover minimum at six tested sizes. See the flow decision sheet.",
+      "sha256": "79500dd15d1a620c662f9d7c40a7464556e284c18248c66278c85df121f279c0",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/flow-original-portrait.png",
+          "image_sha256": "0de33a26b6f3c0760e13b5610095295bfd01d8507ffc14b343f44a247d07cb69",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/flow-original-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "be1d87d911be6f509f98e009e57fa068951aa9e795abd2f09641c28899315a47",
+          "captured_at": "2026-10-31T23:06:59.337Z",
+          "params": {
+            "capture": 1,
+            "preset": "portrait"
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-original-portrait.png",
+          "image_sha256": "9dcf4f971b53fb3ddc83091e2cb1e23bbb552ddecea2458ad12b119e2071b4e3",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-flow-original-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "cd705301b39bf599c10d59dfec5c749bb45a7b5144738808aa962f4258201d5f",
+          "captured_at": "2026-10-31T23:15:56.681Z",
+          "params": {
+            "capture": 1,
+            "preset": "portrait"
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/flow-original-landscape.png",
+          "image_sha256": "105b4f4b85787e7e225b44a5abf0646eae900dd40a8c5d135c76899a853b5122",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/flow-original-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "9e9764da632150a9d0fcbf82a65f717a847f0b836d96f3594a04efd79780bdff",
+          "captured_at": "2026-10-31T23:07:01.361Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape"
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-original-landscape.png",
+          "image_sha256": "325c46fafb096126da4e68ac71b9ce42ce39cd429da1b98d6787363715a90247",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-flow-original-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "7c3a61ebb2213c1be4422cd4800a3d927e982d3bc0f28c77c9dc786d4a075b23",
+          "captured_at": "2026-10-31T23:15:57.974Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape"
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/09-flow-alternative-phone.png",
+      "title": "Volume flow: proposed readable alternative",
+      "note": "Verified proposal; Hemanth decision pending. More vertical scrolling preserves readable covers. The initial view is shown here; gallery and action positions are on the decision sheet.",
+      "sha256": "03f9a8d11dce3bca92918b2ca35a8730210f62f7ea2c2df0acdd24cbebe824da",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/flow-alternative-portrait.png",
+          "image_sha256": "0de33a26b6f3c0760e13b5610095295bfd01d8507ffc14b343f44a247d07cb69",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Unmodified worker · portrait",
+          "receipt": "evidence/flow-alternative-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "764cc54142e7f3b4b48efb84cc3177d8cb13e57b49cc9b4504b6cd7e9b91874e",
+          "captured_at": "2026-10-31T23:07:09.488Z",
+          "params": {
+            "capture": 1,
+            "preset": "portrait"
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait.png",
+          "image_sha256": "011a8ff52aefafc9d5433fdc7156dd3ffc14761a36c53ae8f550fd64c2080a3c",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished copy · portrait",
+          "receipt": "evidence/finished-flow-alternative-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "b7fde1d88bead5d0e34600782f3b50d7a7c7d7663504dc417ccd31b337735de1",
+          "captured_at": "2026-10-31T23:16:12.800Z",
+          "params": {
+            "capture": 1,
+            "preset": "portrait"
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/flow-alternative-landscape.png",
+          "image_sha256": "105b4f4b85787e7e225b44a5abf0646eae900dd40a8c5d135c76899a853b5122",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Unmodified worker · landscape",
+          "receipt": "evidence/flow-alternative-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "208c0fd802f30a16d815e5d47e266180457ae64e14ffa561a205c3b93b934ae6",
+          "captured_at": "2026-10-31T23:07:12.143Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape"
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-landscape.png",
+          "image_sha256": "c2a51c3bd4e3df99a316a9e4c2f5279dd11744383947bbf597dd0f761ff4dae1",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Finished copy · landscape",
+          "receipt": "evidence/finished-flow-alternative-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "671876fe98d7479bc3f068ad7c1b281a3732f933dda18fcfe95be825f56d2634",
+          "captured_at": "2026-10-31T23:16:13.932Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape"
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/desktop-1.png",
+      "title": "Desktop before / after 1",
+      "note": "",
+      "sha256": "80600fc9273ad8a0d3ccfce858ba21d8acc9f14bf98a08bd58644e39dc9313e1",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/film-desktop.png",
+          "image_sha256": "df0a1373901ff8d0885c8e382bf8f1dac23b8e74daf00f6e215e249dfce202b1",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/film-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "e283dafcd9b4a3225d77e9e429192971d92c3bd7aca3767d4bb968c988e6ae25",
+          "captured_at": "2026-10-31T22:42:29.013Z",
+          "params": {
+            "render": 1,
+            "w": 1280,
+            "h": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-film-desktop.png",
+          "image_sha256": "8d03681c16b4f86de51e1dcc26c903ba4401c8e501a18f5888a966c71e21a5d1",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-film-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "a925d928f064078f5832b4c8069a46f541700e21345bf70dcebee8f83a2278a3",
+          "captured_at": "2026-10-31T22:47:26.389Z",
+          "params": {
+            "render": 1,
+            "w": 1280,
+            "h": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/episode-desktop.png",
+          "image_sha256": "5ceec36a5d59e8ce0c7a1fe613ac6d13ce9527dc1434274872c4b09c3ee09094",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/episode-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "c6be4402ad671e77913b01565ecafe81bddc67fc7ede077df0d916da03cf3499",
+          "captured_at": "2026-10-31T22:48:10.236Z",
+          "params": {
+            "render": 1,
+            "w": 1280,
+            "h": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-episode-desktop.png",
+          "image_sha256": "427249f0bbe9974bcca7b8d0248656b0bb031390ad4ba6c1060b575dbd4fdb8b",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-episode-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "1921ff4644b2c59b38d062892e6551602f02da5c8e16ad51c51bca6642779a7b",
+          "captured_at": "2026-10-31T22:48:14.026Z",
+          "params": {
+            "render": 1,
+            "w": 1280,
+            "h": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/comic-desktop.png",
+          "image_sha256": "3d966906d8d773b56245dc8fa06d9f19e356d4d91b6bbdd30db626e38be5323d",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/comic-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "a9c8c4e32442663d1167cb6a8bc74665d6c13658533814f5aab0f2b9eca4e850",
+          "captured_at": "2026-10-31T22:50:42.449Z",
+          "params": {
+            "capture": 1,
+            "vw": 1280,
+            "vh": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-comic-desktop.png",
+          "image_sha256": "d5f0de04ec864b738a627a2d43aa537321cc4f84767452abf887c45840b4bd87",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-comic-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "e7326f92d0b35c8fb96df999f93898606d9cc780b5222a2cc02d72d552278b45",
+          "captured_at": "2026-10-31T22:52:18.634Z",
+          "params": {
+            "capture": 1,
+            "vw": 1280,
+            "vh": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/desktop-2.png",
+      "title": "Desktop before / after 2",
+      "note": "",
+      "sha256": "8347d09bd5aba846a44a084ca3cd38346c9ca5df6ce5a84a33205331b4b26401",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/comic-confirm-desktop.png",
+          "image_sha256": "0140e62ef1018a78c8690444a417d4970b09f3f700280ec36f3a1770c089d397",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/comic-confirm-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "ef6d8c4f09d99664f473883f97ed81bfbc6cc8b52c0d7ff8363789b21750e38a",
+          "captured_at": "2026-10-31T22:50:45.140Z",
+          "params": {
+            "capture": 1,
+            "vw": 1280,
+            "vh": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-comic-confirm-desktop.png",
+          "image_sha256": "6ec2aff3b70c4c99550b91cfa5b64164a84585118d9ee4cda5ce3ce92707bbd0",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-comic-confirm-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "052f820457a1186d87d79de4a5a892199da48f870d1b7004c537f9f6c14a4c7c",
+          "captured_at": "2026-10-31T22:52:28.057Z",
+          "params": {
+            "capture": 1,
+            "vw": 1280,
+            "vh": 700
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/manga-sources-desktop.png",
+          "image_sha256": "21f9de58b4198d900aee0cc926006145cde2d04258ebaedc54a122a27b64f547",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/manga-sources-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "601e5d931d25d08ac46188c0aa4029322fb14089f65ad3454a28999e193055a5",
+          "captured_at": "2026-10-31T22:53:15.610Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-manga-sources-desktop.png",
+          "image_sha256": "21f9de58b4198d900aee0cc926006145cde2d04258ebaedc54a122a27b64f547",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-manga-sources-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "a6690d5ea0bf2dc878085794fea409cb11a29ca176def56ea551e5a84710897e",
+          "captured_at": "2026-10-31T23:19:15.395Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/series-desktop.png",
+          "image_sha256": "443246799cb3a5f7e863d07e9327ac2cb3e1ddbc6ab6770270e7539659645927",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/series-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "2753cc9bfec1b5d59ca4a62bb48a617a047ec892e7b6e1b8f496638dcfe5ffed",
+          "captured_at": "2026-10-31T22:56:34.277Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-series-desktop.png",
+          "image_sha256": "8f3e7695b9886ec2c18923209ecf86405737107024cbbef48526113db22c6b55",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-series-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "57010e00d853924a000f1b3b19311e59ae371a1ab0dadbb53ff31ce1637279e1",
+          "captured_at": "2026-10-31T23:31:23.478Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/desktop-3.png",
+      "title": "Desktop before / after 3",
+      "note": "",
+      "sha256": "5b8ddda0b1edc56bf3a7bf5f859e09bffb79c08a1df19c2ef0f9bf27efba7721",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/chapters-desktop.png",
+          "image_sha256": "08f7bb2081863afa86c46f08c3031651b124b0d183b4eddf2da10d84560d8fa9",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/chapters-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "a862445ad6c6dbdea0ee24f023d0dd8ee46728928be8f78c87052e1700566fed",
+          "captured_at": "2026-10-31T22:56:40.191Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-chapters-desktop.png",
+          "image_sha256": "69de52b2a3dd46988a5fbddd41bfa32603e9ead6fe4dfeefc8b2c58c5134ac6d",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-chapters-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "c14a9ffbb19794ffb6fb4f88f95f8ae0a2b5e3f0ba8015ffbf404c7eca3c0cd8",
+          "captured_at": "2026-10-31T23:31:45.664Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/flow-original-desktop.png",
+          "image_sha256": "2603dbb9a2fdcd13f0a22c2611ec70ce3e6ab04cf596217321ade55a73f598b7",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/flow-original-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "397562ab6209547b747ecb658622520b0677a4807540337011f1603a69202f98",
+          "captured_at": "2026-10-31T23:07:07.900Z",
+          "params": {
+            "capture": 1,
+            "preset": "desktop"
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-original-desktop.png",
+          "image_sha256": "89882ade2ccdb32cd47ceb641025f406e13edecdf01a467c9ff284bbe95f0ef8",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target",
+          "receipt": "evidence/finished-flow-original-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "559b2a6b009ea574c38d94dfc894ca8b3ee7b099cd52cc1858b4f84eb5c5129a",
+          "captured_at": "2026-10-31T23:16:01.116Z",
+          "params": {
+            "capture": 1,
+            "preset": "desktop"
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/flow-alternative-desktop.png",
+          "image_sha256": "2603dbb9a2fdcd13f0a22c2611ec70ce3e6ab04cf596217321ade55a73f598b7",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Unmodified worker",
+          "receipt": "evidence/flow-alternative-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "32ef6f677fbe2c761503ef609665ff0ae0e05bbf1a45704cfb3f2e9c5eb84ca3",
+          "captured_at": "2026-10-31T23:07:18.652Z",
+          "params": {
+            "capture": 1,
+            "preset": "desktop"
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-desktop.png",
+          "image_sha256": "89882ade2ccdb32cd47ceb641025f406e13edecdf01a467c9ff284bbe95f0ef8",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished target · proposal",
+          "receipt": "evidence/finished-flow-alternative-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "ddde3106a8929f6216089de05754e56b582732b43fbcc90195a4a176df339a4c",
+          "captured_at": "2026-10-31T23:16:17.256Z",
+          "params": {
+            "capture": 1,
+            "preset": "desktop"
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/decision-flow-stress.png",
+      "title": "Volume flow decision at short landscape stress",
+      "note": "190 px minimum preserved by additional vertical scrolling; chrome scrolls at the tightest stress size.",
+      "sha256": "eed8e8be5422192ff5a516e184752a10e0b42ef0ea315a6250f8f2c4539d5359",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-original-stress-landscape.png",
+          "image_sha256": "3f538eb8aa192345d2e53737808db928bd6357a731ce54dd66f796156fae934e",
+          "pixel_size": [
+            792,
+            354
+          ],
+          "label": "Original constrained attempt · initial",
+          "receipt": "evidence/finished-flow-original-stress-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "7c6d8b65d6b18cc46d3feb88e07c8142e1b317971fbd92f0175751193031e242",
+          "captured_at": "2026-10-31T23:16:06.215Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape-small",
+            "top": 24,
+            "bottom": 24,
+            "font": 1.3
+          },
+          "viewport": {
+            "width": 792,
+            "height": 354
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-stress-landscape-gallery.png",
+          "image_sha256": "604f8b6f60b9e2ba67716687ba86f540a14d9f1910c1843945578e6805d38191",
+          "pixel_size": [
+            792,
+            354
+          ],
+          "label": "Proposed alternative · gallery position",
+          "receipt": "evidence/finished-flow-alternative-stress-landscape-gallery.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "66e96d7287077ef4c29bfad0387653da7f14ec2839768c640389978b629a1c45",
+          "captured_at": "2026-10-31T23:16:22.951Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape-small",
+            "top": 24,
+            "bottom": 24,
+            "font": 1.3
+          },
+          "viewport": {
+            "width": 792,
+            "height": 354
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-original-stress-landscape-gallery.png",
+          "image_sha256": "3a73701ee04737ceeedf66a8334bb8aea6adaf6ad0f4f0886d98ba424225a289",
+          "pixel_size": [
+            792,
+            354
+          ],
+          "label": "Original constrained attempt · gallery position",
+          "receipt": "evidence/finished-flow-original-stress-landscape-gallery.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "c3f4d3d6a7becbdff3c50ad5bbd8eedbcd55406fae91db05c918f40f3dee16cb",
+          "captured_at": "2026-10-31T23:16:06.433Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape-small",
+            "top": 24,
+            "bottom": 24,
+            "font": 1.3
+          },
+          "viewport": {
+            "width": 792,
+            "height": 354
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-stress-landscape-actions.png",
+          "image_sha256": "4fb3447a830ffc3574e3453be2e8ebb7f19836df53723170189fae7ded8912d8",
+          "pixel_size": [
+            792,
+            354
+          ],
+          "label": "Proposed alternative · action position",
+          "receipt": "evidence/finished-flow-alternative-stress-landscape-actions.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "2efac89f370cfc8b124d16f9e035d86c7ead8d20e07b8ef06ac92e5c7a42f1e1",
+          "captured_at": "2026-10-31T23:16:23.074Z",
+          "params": {
+            "capture": 1,
+            "preset": "landscape-small",
+            "top": 24,
+            "bottom": 24,
+            "font": 1.3
+          },
+          "viewport": {
+            "width": 792,
+            "height": 354
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/decision-flow-portrait.png",
+      "title": "Volume flow portrait comparison",
+      "note": "Proposal retains centered enlargement and cover minimum, with 56 px gallery-position scroll in this fixture.",
+      "sha256": "b1406f1aa931ba0a95f015b28afad065471e58955567c11bca694fffe8fd9283",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-original-portrait.png",
+          "image_sha256": "9dcf4f971b53fb3ddc83091e2cb1e23bbb552ddecea2458ad12b119e2071b4e3",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Original attempt · initial",
+          "receipt": "evidence/finished-flow-original-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "cd705301b39bf599c10d59dfec5c749bb45a7b5144738808aa962f4258201d5f",
+          "captured_at": "2026-10-31T23:15:56.681Z",
+          "params": {
+            "capture": 1,
+            "preset": "portrait"
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait.png",
+          "image_sha256": "011a8ff52aefafc9d5433fdc7156dd3ffc14761a36c53ae8f550fd64c2080a3c",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Proposed · initial",
+          "receipt": "evidence/finished-flow-alternative-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "b7fde1d88bead5d0e34600782f3b50d7a7c7d7663504dc417ccd31b337735de1",
+          "captured_at": "2026-10-31T23:16:12.800Z",
+          "params": {
+            "capture": 1,
+            "preset": "portrait"
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait-gallery.png",
+          "image_sha256": "2e93644bd0940210585cf85f13a3ef3fa811201be30e6e31b21f73fae2aacd8e",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Proposed · gallery scrolled",
+          "receipt": "evidence/finished-flow-alternative-portrait-gallery.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "af02a84b039beb349f691293ef285fdcc93ea13b94705d0300ba20a700e48aeb",
+          "captured_at": "2026-10-31T23:16:13.098Z",
+          "params": {
+            "capture": 1,
+            "preset": "portrait"
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/controls-and-states.png",
+      "title": "Open controls and local states",
+      "note": "",
+      "sha256": "96befc6bb64902e767f8b16924cebda08e94f81d5d2eb0ac3736087912263b48",
+      "sources": [
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-film-provider-open-landscape.png",
+          "image_sha256": "918e63f0158df1589d2db54b592c8de133ff3394995c8d02ee804319adc36983",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Film provider menu · 900 × 412",
+          "receipt": "evidence/finished-film-provider-open-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "8b654f59b93e4fc9e02a516d725b55abf43bb48e50645bf52149777425a54f51",
+          "captured_at": "2026-10-31T22:47:36.932Z",
+          "params": {
+            "render": 1,
+            "w": 900,
+            "h": 412
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-chapters-page-open-landscape.png",
+          "image_sha256": "02a16fb759cdf8cdf4e38d342843ed1743e0719ad89437d6c8f1fb421dc774d8",
+          "pixel_size": [
+            792,
+            354
+          ],
+          "label": "Chapter page menu · 900 × 412",
+          "receipt": "evidence/finished-chapters-page-open-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "8f7fbc16c8033bae0531aed26e56e7595a1c7fd9d35a55bec2b78b6ea06bc3ef",
+          "captured_at": "2026-10-31T23:31:54.669Z",
+          "params": {
+            "capture": 1,
+            "top": 24,
+            "bottom": 24,
+            "scale": 1.3
+          },
+          "viewport": {
+            "width": 792,
+            "height": 354
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-comic-combined-stress.png",
+          "image_sha256": "97888f2e3f35f3ff2ed0e024fc385ea92062d50adac521a9ed1c0d9eceef93f3",
+          "pixel_size": [
+            792,
+            354
+          ],
+          "label": "Comic confirmation / archive stress",
+          "receipt": "evidence/finished-comic-combined-stress.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "06e511d5804d38054559e5dcb659e7ce05097dabd3522f842d863d1cf6a06350",
+          "captured_at": "2026-10-31T22:52:23.316Z",
+          "params": {
+            "capture": 1,
+            "vw": 792,
+            "vh": 354,
+            "state": "combined",
+            "top": 24,
+            "bottom": 24,
+            "scale": 1.3
+          },
+          "viewport": {
+            "width": 792,
+            "height": 354
+          }
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-manga-sources-downloading-landscape.png",
+          "image_sha256": "ffd61a2a4aaa4d7184cee8c869ea5b899ca6c009ac0651080b1da93b175ffee9",
+          "pixel_size": [
+            900,
+            412
+          ],
+          "label": "Manga source progress disc",
+          "receipt": "evidence/finished-manga-sources-downloading-landscape.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "a6abdf0d7984ac053d682bae9b3c4b6f8e7cb6d0e7a8aefc2471945e412410c3",
+          "captured_at": "2026-10-31T23:34:21.219Z",
+          "params": {
+            "capture": 1,
+            "scene": "downloading"
+          },
+          "viewport": {
+            "width": 900,
+            "height": 412
+          }
+        }
+      ]
+    },
+    {
+      "file": "contact-sheets/reference-t5-sources.png",
+      "title": "Archival T5 source component reference",
+      "note": "Historical capture provenance does not establish current runtime behavior.",
+      "sha256": "0dcb35da08bafbff162a4bd61868b43fd2467b8f74c65537594bef1346f403bb",
+      "sources": [
+        {
+          "image": "reference/historical-captures/T5-sources-before-412x900.png",
+          "image_sha256": "28fd0719056a3f42b1c76264ba6c32a6d6bffdceba39d57d2afbe8baa8aa1d16",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Archival T5 · 412 × 900",
+          "receipt": null,
+          "reference_kind": "archival component capture; exact runtime/input revision unverified"
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-manga-sources-portrait.png",
+          "image_sha256": "dfa8ef5785dd5becc8c2dc0f9e4158ff4e65c84e3eb5c7cf4a26eb6a51aede1b",
+          "pixel_size": [
+            412,
+            900
+          ],
+          "label": "Finished HTML · 412 × 900",
+          "receipt": "evidence/finished-manga-sources-portrait.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "7644b04532e58588dd598414a7e4f245d29b4b4d91617bdda3325215a38a435d",
+          "captured_at": "2026-10-31T23:19:12.249Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 412,
+            "height": 900
+          }
+        },
+        {
+          "image": "reference/historical-captures/T5-sources-before-1280x700.png",
+          "image_sha256": "0a1152f56cfd55a29dce84e0c583eb76b3d367847c69ae759451fd6807bd179a",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Archival T5 · 1280 × 700",
+          "receipt": null,
+          "reference_kind": "archival component capture; exact runtime/input revision unverified"
+        },
+        {
+          "image": "review-batches/01-sources-manga/captures/finished-manga-sources-desktop.png",
+          "image_sha256": "21f9de58b4198d900aee0cc926006145cde2d04258ebaedc54a122a27b64f547",
+          "pixel_size": [
+            1280,
+            700
+          ],
+          "label": "Finished HTML · 1280 × 700",
+          "receipt": "evidence/finished-manga-sources-desktop.json",
+          "reference_kind": "fresh HTML mock capture",
+          "receipt_sha256": "a6690d5ea0bf2dc878085794fea409cb11a29ca176def56ea551e5a84710897e",
+          "captured_at": "2026-10-31T23:19:15.395Z",
+          "params": {
+            "capture": 1
+          },
+          "viewport": {
+            "width": 1280,
+            "height": 700
+          }
+        }
+      ]
+    }
+  ],
+  "resource_hash_checks": [
+    {
+      "image": "review-batches/01-sources-manga/captures/film-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-film-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/film-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-film-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/episode-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-episode-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/episode-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-episode-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/comic-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-comic-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/comic-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-comic-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/comic-confirm-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-comic-confirm-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/comic-confirm-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-comic-confirm-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/manga-sources-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-manga-sources-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/manga-sources-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-manga-sources-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/series-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-series-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/series-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-series-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/chapters-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-chapters-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/chapters-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-chapters-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/flow-original-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-original-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/flow-original-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-original-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/flow-alternative-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/flow-alternative-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/film-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-film-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/episode-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-episode-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/comic-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-comic-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/comic-confirm-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-comic-confirm-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/manga-sources-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-manga-sources-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/series-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-series-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/chapters-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-chapters-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/flow-original-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-original-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/flow-alternative-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-original-stress-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-stress-landscape-gallery.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-original-stress-landscape-gallery.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-stress-landscape-actions.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-original-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-flow-alternative-portrait-gallery.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-film-provider-open-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-chapters-page-open-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-comic-combined-stress.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-manga-sources-downloading-landscape.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-manga-sources-portrait.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    },
+    {
+      "image": "review-batches/01-sources-manga/captures/finished-manga-sources-desktop.png",
+      "current_resource_hashes_match": true,
+      "mismatches": []
+    }
+  ]
+}

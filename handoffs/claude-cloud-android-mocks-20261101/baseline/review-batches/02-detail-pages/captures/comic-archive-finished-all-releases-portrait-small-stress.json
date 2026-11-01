@@ -1,0 +1,16 @@
+{
+  "name": "comic-archive-finished-all-releases-portrait-small-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-all-releases-portrait-small-stress.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1&font=1.3&top=24&bottom=24",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:05:46.855Z",
+  "sha256": "e411f546267de3506238d7e08b500f54461471481bcd7580ad1c8625f7138b97",
+  "errors": [],
+  "blocked": []
+}

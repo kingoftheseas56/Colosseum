@@ -1,0 +1,154 @@
+{
+  "captured_at": "2026-10-31T23:40:27.249Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks",
+  "file": "index.html",
+  "viewport": {
+    "width": 1500,
+    "height": 1080
+  },
+  "params": {},
+  "png": "captures/handoff-index.png",
+  "metrics": {
+    "app": null,
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [],
+    "scrollers": [],
+    "fonts": []
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\index.html",
+      "bytes": 9161,
+      "sha256": "32e641641dfdeb9d85793705a6330094cf6683623c98b24862b077f3dadbf2e7"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\REVIEW.md",
+      "bytes": 13016,
+      "sha256": "9b79dc4b94e79a2549de0332567c0357696f2cfe3f9c78eb336e9fb094b94317"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\QML-PORTING.md",
+      "bytes": 20519,
+      "sha256": "fac85b54e62de56b0cd9e4377486944b4ba254804d3745526912685e86c300a2"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\DECISIONS.md",
+      "bytes": 6984,
+      "sha256": "ac24e30e201705b0b936cf5ca3f65cc384834b314b52ce8cdb0f0cfbb3c4bb16"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\COVERAGE.csv",
+      "bytes": 3800,
+      "sha256": "dba43628a20ccf9476902a574b99de78f25e5612b51b22884dd89c5ce6ac2eb2"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\FINDINGS.csv",
+      "bytes": 7807,
+      "sha256": "f1bb0777a4b96d95b4432cd16f352b4a2f101f116c9c697c73079795fd03dcc6"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\contact-sheets\\index.html",
+      "bytes": 20062,
+      "sha256": "769a85d03220870f335da450ddec2fb1ea702f588b83e4f1d47c518cf76eda3b"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\film-sources.html",
+      "bytes": 4886,
+      "sha256": "2f9178619a05268c0373d6912dd3f63afccec29ee16f9d64785eaeff42c309ac"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\compare.html",
+      "bytes": 10037,
+      "sha256": "ae17a2d2782859bf5097ae141dc0acc809288f1dc94c1fb4e01bf5ae202e0704"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\film-sources.html",
+      "bytes": 4880,
+      "sha256": "cc2c3a07bd966ac5dc48c2ac4b1deee80e6e113d4b433d27de7e79c6c4ecf101"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\episode-sources.html",
+      "bytes": 4904,
+      "sha256": "e9cf50c04027ec54fdceca65e01ae906ec4434876defc1581eed5e28de25dc77"
+    },
+    {
+      "path": "outputs\\01-theatre-sources\\episode-sources.html",
+      "bytes": 4898,
+      "sha256": "eda9322fdbe1fbf236ee5d149eca76a6173021fd25054648531b2ddf86587ace"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\comic-sources.html",
+      "bytes": 355,
+      "sha256": "f748355006000c64471f99e495dfbfabf5c1e3352bd33d3d19ca10d9ae3103dd"
+    },
+    {
+      "path": "outputs\\02-comic-sources\\comic-sources.html",
+      "bytes": 355,
+      "sha256": "f748355006000c64471f99e495dfbfabf5c1e3352bd33d3d19ca10d9ae3103dd"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\comic-source-confirmation.html",
+      "bytes": 364,
+      "sha256": "284a6da39c9f0d2ee5bb35de1f7c99d8e754f782cff1679eeeb4c36364d7b4c3"
+    },
+    {
+      "path": "outputs\\02-comic-sources\\comic-source-confirmation.html",
+      "bytes": 364,
+      "sha256": "284a6da39c9f0d2ee5bb35de1f7c99d8e754f782cff1679eeeb4c36364d7b4c3"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\03-manga-sources\\manga-volume-sources.html",
+      "bytes": 5318,
+      "sha256": "642900338165b8ef62a55482d1952540d466aa376b95d8b694f52dfa30a4417f"
+    },
+    {
+      "path": "outputs\\03-manga-sources\\manga-volume-sources.html",
+      "bytes": 5058,
+      "sha256": "bc9a01569581e7b377325fd9064dc5ff594f0fdceeac950b836c2bc3f94ee7f1"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\manga-series.html",
+      "bytes": 2669,
+      "sha256": "c57421616e1f3c6e698a365482b8bddd76241a0f6a5e871c48c3859645971dfb"
+    },
+    {
+      "path": "outputs\\04-manga-series\\manga-series.html",
+      "bytes": 2669,
+      "sha256": "c57421616e1f3c6e698a365482b8bddd76241a0f6a5e871c48c3859645971dfb"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\manga-chapters.html",
+      "bytes": 2677,
+      "sha256": "6fc5193ff4b5603279b3a781f1db56e9622d98377230592407f4e62cece3b64b"
+    },
+    {
+      "path": "outputs\\04-manga-series\\manga-chapters.html",
+      "bytes": 2677,
+      "sha256": "6fc5193ff4b5603279b3a781f1db56e9622d98377230592407f4e62cece3b64b"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\volume-flow-original-fit.html",
+      "bytes": 8571,
+      "sha256": "9c16b1a18ca392d79f623ff9d338323431a5e6a45810d4b4fad9b2d309c37bb7"
+    },
+    {
+      "path": "outputs\\05-volume-flow\\volume-flow-original-fit.html",
+      "bytes": 8047,
+      "sha256": "11491924bf3005bb078fb1d20540157f8504cc5bf883a11b28a7c28c585a5472"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\volume-flow-minimal-alternative.html",
+      "bytes": 8784,
+      "sha256": "612a1e045d7f8bc2eee0a474783c43b8f570389f919911abd5851534bc7d2e5c"
+    },
+    {
+      "path": "outputs\\05-volume-flow\\volume-flow-minimal-alternative.html",
+      "bytes": 8127,
+      "sha256": "8268ee1123714e09616d3d165a10776d40e8bb07be2361d942e0781a25307525"
+    }
+  ],
+  "extra": {}
+}

@@ -1,0 +1,661 @@
+{
+  "utc": "2026-10-31T23:32:36.560Z",
+  "cases": 33,
+  "passed": 33,
+  "failures": [],
+  "results": [
+    {
+      "name": "catalogue",
+      "path": "index.html",
+      "utc": "2026-10-31T23:32:11.036Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "finishedPageRows": 13
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true,
+      "screenshot": "evidence/pack-smoke/catalogue.png"
+    },
+    {
+      "name": "keyboard-decision",
+      "path": "keyboard-decision.html",
+      "utc": "2026-10-31T23:32:11.630Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true,
+      "screenshot": "evidence/pack-smoke/keyboard-decision.png"
+    },
+    {
+      "name": "workbench-profile",
+      "path": "10-profile/profile.html",
+      "utc": "2026-10-31T23:32:12.260Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum Profile · Fidelity mock",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-profile",
+      "path": "comparisons/profile.html",
+      "utc": "2026-10-31T23:32:12.843Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/10-profile/profile.html?capture=1&w=900&h=412"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/10-profile/profile.html?capture=1&w=900&h=412"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-welcome",
+      "path": "11-account-entry/account-welcome.html",
+      "utc": "2026-10-31T23:32:13.717Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · Account welcome · Android fitting study",
+        "frame": {
+          "w": 410,
+          "h": 898
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-welcome",
+      "path": "comparisons/account-welcome.html",
+      "utc": "2026-10-31T23:32:14.197Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/11-account-entry/account-welcome.html?capture=1&v=landscape"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/11-account-entry/account-welcome.html?capture=1&v=landscape"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-flyout",
+      "path": "11-account-entry/account-flyout.html",
+      "utc": "2026-10-31T23:32:15.551Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · Account flyout · Android fitting study",
+        "frame": {
+          "w": 410,
+          "h": 898
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-flyout",
+      "path": "comparisons/account-flyout.html",
+      "utc": "2026-10-31T23:32:16.136Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/11-account-entry/account-flyout.html?capture=1&v=landscape"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/11-account-entry/account-flyout.html?capture=1&v=landscape"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-centre",
+      "path": "11-account-entry/account-centre.html",
+      "utc": "2026-10-31T23:32:17.663Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Account Centre · Finished Batch 4",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-centre",
+      "path": "comparisons/account-centre.html",
+      "utc": "2026-10-31T23:32:18.331Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/11-account-entry/account-centre.html?capture=1&v=landscape"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/11-account-entry/account-centre.html?capture=1&v=landscape"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-profile",
+      "path": "12-account-forms/account-profile.html",
+      "utc": "2026-10-31T23:32:19.352Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · account profile",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-profile",
+      "path": "comparisons/account-profile.html",
+      "utc": "2026-10-31T23:32:19.836Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/12-account-forms/account-profile.html?capture=1&preset=landscape900"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-profile.html?capture=1&preset=landscape900"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-security",
+      "path": "12-account-forms/account-security.html",
+      "utc": "2026-10-31T23:32:21.054Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · account security",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-security",
+      "path": "comparisons/account-security.html",
+      "utc": "2026-10-31T23:32:21.515Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/12-account-forms/account-security.html?capture=1&preset=landscape900"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-security.html?capture=1&preset=landscape900"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-recovery",
+      "path": "12-account-forms/account-recovery.html",
+      "utc": "2026-10-31T23:32:22.549Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · account recovery",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-recovery",
+      "path": "comparisons/account-recovery.html",
+      "utc": "2026-10-31T23:32:23.069Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/12-account-forms/account-recovery.html?capture=1&preset=landscape900"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-recovery.html?capture=1&preset=landscape900"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-privacy",
+      "path": "12-account-forms/account-privacy.html",
+      "utc": "2026-10-31T23:32:24.024Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · account privacy",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-privacy",
+      "path": "comparisons/account-privacy.html",
+      "utc": "2026-10-31T23:32:24.527Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/12-account-forms/account-privacy.html?capture=1&preset=landscape900"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-privacy.html?capture=1&preset=landscape900"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-devices",
+      "path": "12-account-forms/account-devices.html",
+      "utc": "2026-10-31T23:32:25.470Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · account devices",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-devices",
+      "path": "comparisons/account-devices.html",
+      "utc": "2026-10-31T23:32:25.926Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/12-account-forms/account-devices.html?capture=1&preset=landscape900"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-devices.html?capture=1&preset=landscape900"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-account-your-colosseum",
+      "path": "12-account-forms/account-your-colosseum.html",
+      "utc": "2026-10-31T23:32:26.907Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · account your colosseum",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-account-your-colosseum",
+      "path": "comparisons/account-your-colosseum.html",
+      "utc": "2026-10-31T23:32:27.508Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/12-account-forms/account-your-colosseum.html?capture=1&preset=landscape900"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/12-account-forms/account-your-colosseum.html?capture=1&preset=landscape900"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-stremio-sync",
+      "path": "13-stremio-sync/stremio-sync.html",
+      "utc": "2026-10-31T23:32:28.582Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Stremio Sync | Colosseum Phone Fitting Study",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-stremio-sync",
+      "path": "comparisons/stremio-sync.html",
+      "utc": "2026-10-31T23:32:29.175Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/13-stremio-sync/stremio-sync.html?capture=landscape"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/13-stremio-sync/stremio-sync.html?capture=landscape"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-extension-setup",
+      "path": "14-extension-setup/extension-setup.html",
+      "utc": "2026-10-31T23:32:30.722Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · Extension setup fitting study",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-extension-setup",
+      "path": "comparisons/extension-setup.html",
+      "utc": "2026-10-31T23:32:31.370Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/14-extension-setup/extension-setup.html?capture=1&preset=landscape"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/extension-setup.html?capture=1&preset=landscape"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "workbench-tankoyomi-configuration",
+      "path": "14-extension-setup/tankoyomi-configuration.html",
+      "utc": "2026-10-31T23:32:32.718Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "title": "Colosseum · Tankoyomi configuration fitting study",
+        "frame": {
+          "w": 412,
+          "h": 900
+        }
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "compare-tankoyomi-configuration",
+      "path": "comparisons/tankoyomi-configuration.html",
+      "utc": "2026-10-31T23:32:33.350Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true,
+        "sizes": [
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/outputs/14-extension-setup/tankoyomi-configuration.html?capture=1&preset=landscape"
+          },
+          {
+            "w": 900,
+            "h": 412,
+            "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/04-accounts-configuration/finished-mocks/14-extension-setup/tankoyomi-configuration.html?capture=1&preset=landscape"
+          }
+        ]
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "subindex-10-profile",
+      "path": "10-profile/index.html",
+      "utc": "2026-10-31T23:32:34.642Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "subindex-11-account-entry",
+      "path": "11-account-entry/index.html",
+      "utc": "2026-10-31T23:32:34.983Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "subindex-12-account-forms",
+      "path": "12-account-forms/index.html",
+      "utc": "2026-10-31T23:32:35.386Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "subindex-13-stremio-sync",
+      "path": "13-stremio-sync/index.html",
+      "utc": "2026-10-31T23:32:35.827Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    },
+    {
+      "name": "subindex-14-extension-setup",
+      "path": "14-extension-setup/index.html",
+      "utc": "2026-10-31T23:32:36.164Z",
+      "errors": [],
+      "blocked": [],
+      "detail": {
+        "pass": true
+      },
+      "brokenImages": [],
+      "fontErrors": [],
+      "pass": true
+    }
+  ]
+}

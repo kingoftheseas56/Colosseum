@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>07 · Biblio Home — Android layout fitting review</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#0b0e17;color:#f7f7f5;font:15px/1.55 "Segoe UI",Arial,sans-serif}
+main{max-width:1080px;margin:auto;padding:46px 25px 65px}
+.kicker{color:#f0c44a;letter-spacing:2px;font-size:11px;font-weight:700}
+h1{font:44px Georgia,serif;margin:10px 0 14px}p{color:#c3c3cc;max-width:760px}
+a{color:#f0c44a;text-decoration:none}a:hover{text-decoration:underline}
+.primary{display:inline-block;background:#f0c44a;color:#1c160d;border-radius:12px;font-weight:700;padding:13px 20px;margin:14px 0 20px}
+.primary:hover{text-decoration:none;background:#f6d46d}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:18px;margin-top:26px}
+figure{margin:0;background:rgba(255,255,255,.04);padding:14px;border:1px solid rgba(255,255,255,.12);border-radius:15px}
+figure a{display:block;text-align:center}
+figure img{width:100%;height:300px;object-fit:contain;object-position:center center}
+figcaption{text-align:center;font-size:13px;color:#e2dfe3;margin-top:8px}
+.docs{display:flex;gap:18px;flex-wrap:wrap;margin-top:26px}
+.small{font-size:12px;color:#aaa8b3;margin-top:28px}
+</style>
+</head>
+<body><main>
+<div class="kicker">COLOSSEUM · STANDALONE LOCAL HTML STUDY · TASK 07</div>
+<h1>Biblio / home &amp; shelves</h1>
+<p>The approved desktop Biblio world and its Explore book rails, fitted to provisional Android phone, landscape and tablet viewports. The original Discover catalogue, Continue Reading, Reading Desk reference, shelf customization and existing popups are included in one interactive reviewer.</p>
+<a class="primary" href="./biblio-home.html">Open interactive Biblio study</a>
+<p>Inside the study, use the external review controls to rotate, change insets or font size, jump to Explore, and inspect open controls. The app mock has no backend, provider calls or external network dependencies.</p>
+<div class="grid">
+<figure><a href="./captures/portrait.png"><img src="./captures/portrait.png" alt="412 by 900 portrait Biblio Explore capture"></a><figcaption>Portrait · 412 × 900</figcaption></figure>
+<figure><a href="./captures/landscape.png"><img src="./captures/landscape.png" alt="900 by 412 landscape Biblio Explore capture"></a><figcaption>Landscape · 900 × 412</figcaption></figure>
+<figure><a href="./captures/desktop.png"><img src="./captures/desktop.png" alt="1280 by 700 desktop Biblio reference capture"></a><figcaption>Desktop comparison · 1280 × 700</figcaption></figure>
+</div>
+<div class="docs"><a href="./FIDELITY.md">Fidelity and deviations</a><a href="./REPORT.json">Completion report</a><a href="./captures/QA.json">Headless QA evidence</a></div>
+<p class="small">All charts, shelf orders, progress and ratings are illustrative. Local titled saga images stand in for actual book covers not bundled with the frozen sources. OnePlus viewport sizes are provisional; screenshots verify only headless HTML rendering, not QML runtime or hardware behaviour.</p>
+</main></body></html>

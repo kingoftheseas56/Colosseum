@@ -1,0 +1,13 @@
+from pathlib import Path
+p=Path(r'D:\Colosseum-Android-Phone-Mocks-20261101\review-batches\01-sources-manga\finished-mocks\02-comic-sources')
+f=p/'app.js';s=f.read_text(encoding='utf-8');s=s.replace("let queryValue = '';","let queryValue = '';\n  let returnRow = null;")
+s=s.replace("esc(r.path) + '</div><div class=\"archive-size\">'", "esc(r.path.split('/').pop()) + '</div><div class=\"archive-size\">'")
+s=s.replace("    renderRows(); renderStatePanel();", "    const scrollBefore=el('rowsScroll').scrollTop;\n    renderRows(); renderStatePanel();\n    el('rowsScroll').scrollTop=scrollBefore;\n    document.querySelector('.shell-flow').inert=overlay;\n    document.querySelector('.back-action').inert=overlay;")
+s=s.replace("    // QML does not force initial focus into this dialog; both actions remain keyboard reachable.", "    if(overlay) document.querySelector('[data-action=cancel-weak]').focus({preventScroll:true});")
+s=s.replace("    state = next;\n    if (state==='weak') selected=rows[1];\n    if (state==='results') visibleRows=rows.slice();\n    renderState();", "    const wasWeak=state==='weak';\n    state = next;\n    renderState();\n    if(wasWeak && next==='results' && returnRow!==null) document.querySelector('[data-row=\"'+returnRow+'\"]')?.focus({preventScroll:true});")
+s=s.replace("      selected=visibleRows[Number(row.dataset.row)];", "      if(state==='weak')return;\n      returnRow=Number(row.dataset.row);\n      selected=visibleRows[returnRow];")
+s=s.replace("  document.addEventListener('keydown',function (event) {", "  document.addEventListener('keydown',function (event) {\n    if(state==='weak' && event.key==='Tab'){event.preventDefault();const a=[...document.querySelectorAll('#weakLayer button')];const i=a.indexOf(document.activeElement);a[(i+(event.shiftKey?-1:1)+a.length)%a.length].focus();return;}")
+s=s.replace("setState(event.target.value);", "if(event.target.value==='weak')selected=rows[1];if(event.target.value==='results')visibleRows=rows.slice();setState(event.target.value);")
+f.write_text(s,encoding='utf-8')
+f=p/'style.css';s=f.read_text(encoding='utf-8');s+='\n/* Finished fitting pass: retain the source components; allow their long states to scroll. */\n.weak-dialog{max-height:100%;overflow-y:auto;overscroll-behavior:contain}\n#stateView{overflow-y:auto;overscroll-behavior:contain}\n.app-viewport[data-form=desktop] .title-block{min-height:130px}\n.app-viewport:not([data-form=desktop]) .shell-flow{overflow-y:auto;overscroll-behavior:contain}\n.app-viewport:not([data-form=desktop]) .glass-panel{flex:1 0 160px}\n';f.write_text(s,encoding='utf-8')
+print('Comic fixes saved within finished-mocks only')

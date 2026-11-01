@@ -1,0 +1,4 @@
+const qa=require("./qa-core.cjs"),path=require("path"),{pathToFileURL}=require("url");
+exports.run=async env=>{const opened=await qa.prepare(env.browser,pathToFileURL(path.join(env.batch,"finished-mocks/12-account-forms/account-profile.html")).href+"?capture=1&preset=phone412",412,900),p=opened.page;const out=[];
+const snap=async label=>out.push({label,...await p.evaluate(()=>({value:document.querySelector("#profile-name").value,hero:document.querySelector(".hero-name").textContent,disabled:document.querySelector("#profile-save").disabled,active:document.activeElement.id,intents:window.Batch4.intents}))});
+await snap("initial");await p.click("#profile-name",{clickCount:3});await p.type("#profile-name","Ariadne Studio");await snap("typed");await p.keyboard.press("Enter");await snap("submitted");await p.close();return {out,errors:opened.errors};};

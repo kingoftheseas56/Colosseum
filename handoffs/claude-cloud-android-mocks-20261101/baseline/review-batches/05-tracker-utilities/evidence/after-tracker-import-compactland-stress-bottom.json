@@ -1,0 +1,1454 @@
+{
+  "time": "2026-10-31T23:35:48.445Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/tracker-dossier.html?capture=1&w=792&h=354&fontScale=1.3&top=24&bottom=24&dialog=import&long=1",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 792,
+    "h": 354,
+    "outerWidth": 792,
+    "outerHeight": 354,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 792,
+          "h": 354,
+          "right": 792,
+          "bottom": 354
+        }
+      },
+      {
+        "class": "dossier",
+        "box": {
+          "x": 164,
+          "y": 42,
+          "w": 610,
+          "h": 270,
+          "right": 774,
+          "bottom": 312
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "MAIN",
+        "class": "page-scroll",
+        "id": "pageScroll",
+        "box": {
+          "x": 0,
+          "y": 84,
+          "w": 792,
+          "h": 246,
+          "right": 792,
+          "bottom": 330
+        },
+        "scrollHeight": 1457,
+        "clientHeight": 246
+      },
+      {
+        "tag": "DIV",
+        "class": "dossier-scroll",
+        "id": "dossierScroll",
+        "box": {
+          "x": 165,
+          "y": 132.484375,
+          "w": 608,
+          "h": 178.515625,
+          "right": 773,
+          "bottom": 311
+        },
+        "scrollHeight": 1211,
+        "clientHeight": 179
+      },
+      {
+        "tag": "SECTION",
+        "class": "dialog dialog-import",
+        "id": "",
+        "box": {
+          "x": 38,
+          "y": 42,
+          "w": 716,
+          "h": 270,
+          "right": 754,
+          "bottom": 312
+        },
+        "scrollHeight": 3361,
+        "clientHeight": 268
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Back",
+        "action": "back",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 38,
+          "w": 78.8125,
+          "h": 34,
+          "right": 118.40625,
+          "bottom": 72
+        }
+      },
+      {
+        "text": "Minimize",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Exit fullscreen",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Quit Colosseum",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Preferences",
+        "action": "preferences",
+        "disabled": false,
+        "box": {
+          "x": 485.96875,
+          "y": 122.84375,
+          "w": 143.9375,
+          "h": 50,
+          "right": 629.90625,
+          "bottom": 172.84375
+        }
+      },
+      {
+        "text": "Sync all",
+        "action": "sync-all",
+        "disabled": false,
+        "box": {
+          "x": 639.90625,
+          "y": 122.84375,
+          "w": 112.5,
+          "h": 50,
+          "right": 752.40625,
+          "bottom": 172.84375
+        }
+      },
+      {
+        "text": "Simkl, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 491.515625,
+          "w": 712.8125,
+          "h": 150.4375,
+          "right": 752.40625,
+          "bottom": 641.953125
+        }
+      },
+      {
+        "text": "MyAnimeList, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 655.953125,
+          "w": 712.8125,
+          "h": 150.4375,
+          "right": 752.40625,
+          "bottom": 806.390625
+        }
+      },
+      {
+        "text": "Simkl, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 891.015625,
+          "w": 350.40625,
+          "h": 127.453125,
+          "right": 390,
+          "bottom": 1018.46875
+        }
+      },
+      {
+        "text": "MyAnimeList, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 402,
+          "y": 891.015625,
+          "w": 350.40625,
+          "h": 127.453125,
+          "right": 752.40625,
+          "bottom": 1018.46875
+        }
+      },
+      {
+        "text": "Trakt, Connect",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 39.59375,
+          "y": 1030.46875,
+          "w": 350.40625,
+          "h": 127.453125,
+          "right": 390,
+          "bottom": 1157.921875
+        }
+      },
+      {
+        "text": "AniList, Coming soon",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 402,
+          "y": 1030.46875,
+          "w": 350.40625,
+          "h": 127.453125,
+          "right": 752.40625,
+          "bottom": 1157.921875
+        }
+      },
+      {
+        "text": "Open settings ›",
+        "action": "open-stremio",
+        "disabled": false,
+        "box": {
+          "x": 591.40625,
+          "y": 1330.796875,
+          "w": 142,
+          "h": 40,
+          "right": 733.40625,
+          "bottom": 1370.796875
+        }
+      },
+      {
+        "text": "Colosseum taskbar",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Close tracker details",
+        "action": "close-dossier",
+        "disabled": false,
+        "box": {
+          "x": 707,
+          "y": 67.234375,
+          "w": 40,
+          "h": 40,
+          "right": 747,
+          "bottom": 107.234375
+        }
+      },
+      {
+        "text": "Disconnect from this profile",
+        "action": "disconnect",
+        "disabled": false,
+        "box": {
+          "x": 193,
+          "y": 369.96875,
+          "w": 206.171875,
+          "h": 46.296875,
+          "right": 399.171875,
+          "bottom": 416.265625
+        }
+      },
+      {
+        "text": "Remove imported data",
+        "action": "remove-data",
+        "disabled": false,
+        "box": {
+          "x": 193,
+          "y": 425.265625,
+          "w": 175.203125,
+          "h": 46.296875,
+          "right": 368.203125,
+          "bottom": 471.5625
+        }
+      },
+      {
+        "text": "Review import",
+        "action": "review-import",
+        "disabled": false,
+        "box": {
+          "x": 611.109375,
+          "y": 699.0625,
+          "w": 119.890625,
+          "h": 46.296875,
+          "right": 731,
+          "bottom": 745.359375
+        }
+      },
+      {
+        "text": "Pull changes automatically",
+        "action": "toggle",
+        "disabled": false,
+        "box": {
+          "x": 193,
+          "y": 1052.140625,
+          "w": 552,
+          "h": 58,
+          "right": 745,
+          "bottom": 1110.140625
+        }
+      },
+      {
+        "text": "Send Colosseum progress",
+        "action": "toggle",
+        "disabled": false,
+        "box": {
+          "x": 193,
+          "y": 1110.140625,
+          "w": 552,
+          "h": 58,
+          "right": 745,
+          "bottom": 1168.140625
+        }
+      },
+      {
+        "text": "Review Colosseum updates before sending",
+        "action": "review-export",
+        "disabled": false,
+        "box": {
+          "x": 193,
+          "y": 1178.140625,
+          "w": 303.640625,
+          "h": 46.296875,
+          "right": 496.640625,
+          "bottom": 1224.4375
+        }
+      },
+      {
+        "text": "Live playback tracking",
+        "action": "toggle",
+        "disabled": false,
+        "box": {
+          "x": 193,
+          "y": 1233.4375,
+          "w": 552,
+          "h": 58,
+          "right": 745,
+          "bottom": 1291.4375
+        }
+      },
+      {
+        "text": "Close review",
+        "action": "dialog-close",
+        "disabled": false,
+        "box": {
+          "x": 688,
+          "y": -3025,
+          "w": 40,
+          "h": 40,
+          "right": 728,
+          "bottom": -2985
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2899.625,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -2865.015625
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2829.578125,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -2791.125
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -2829.578125,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -2791.125
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -2829.578125,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -2791.125
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2754.125,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -2719.515625
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2684.078125,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -2645.625
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -2684.078125,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -2645.625
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -2684.078125,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -2645.625
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2608.625,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -2574.015625
+        }
+      },
+      {
+        "text": "Find match",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2538.578125,
+          "w": 87.484375,
+          "h": 38.453125,
+          "right": 165.484375,
+          "bottom": -2500.125
+        }
+      },
+      {
+        "text": "Leave unmatched",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 173.484375,
+          "y": -2538.578125,
+          "w": 125.5,
+          "h": 38.453125,
+          "right": 298.984375,
+          "bottom": -2500.125
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2463.125,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -2428.515625
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2366.578125,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 251.734375,
+          "bottom": -2328.125
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2291.125,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -2256.515625
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2207.6875,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -2169.234375
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -2207.6875,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -2169.234375
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -2207.6875,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -2169.234375
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2132.234375,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -2097.625
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -2048.796875,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -2010.34375
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -2048.796875,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -2010.34375
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -2048.796875,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -2010.34375
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1973.34375,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -1938.734375
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1889.90625,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -1851.453125
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -1889.90625,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -1851.453125
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -1889.90625,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -1851.453125
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1814.453125,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -1779.84375
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1731.015625,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -1692.5625
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -1731.015625,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -1692.5625
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -1731.015625,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -1692.5625
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1655.5625,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -1620.953125
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1572.125,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -1533.671875
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -1572.125,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -1533.671875
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -1572.125,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -1533.671875
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1496.671875,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -1462.0625
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1413.234375,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -1374.78125
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -1413.234375,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -1374.78125
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -1413.234375,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -1374.78125
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1337.78125,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -1303.171875
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1254.34375,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -1215.890625
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -1254.34375,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -1215.890625
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -1254.34375,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -1215.890625
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1178.890625,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -1144.28125
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1095.453125,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -1057
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -1095.453125,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -1057
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -1095.453125,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -1057
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -1020,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -985.390625
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -936.5625,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -898.109375
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -936.5625,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -898.109375
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -936.5625,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -898.109375
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -861.109375,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -826.5
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -777.671875,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -739.21875
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -777.671875,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -739.21875
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -777.671875,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -739.21875
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -702.21875,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -667.609375
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -618.78125,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -580.328125
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -618.78125,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -580.328125
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -618.78125,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -580.328125
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -543.328125,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -508.71875
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -459.890625,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -421.4375
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -459.890625,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -421.4375
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -459.890625,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -421.4375
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -384.4375,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -349.828125
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -301,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -262.546875
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -301,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -262.546875
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -301,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -262.546875
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -225.546875,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -190.9375
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -142.109375,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": -103.65625
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": -142.109375,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": -103.65625
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": -142.109375,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": -103.65625
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": -66.65625,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": -32.046875
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": 16.78125,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": 55.234375
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": 16.78125,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": 55.234375
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": 16.78125,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": 55.234375
+        }
+      },
+      {
+        "text": "Select",
+        "action": "select-import",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": 92.234375,
+          "w": 48.65625,
+          "h": 34.609375,
+          "right": 126.65625,
+          "bottom": 126.84375
+        }
+      },
+      {
+        "text": "Use tracker progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 78,
+          "y": 175.671875,
+          "w": 142.46875,
+          "h": 38.453125,
+          "right": 220.46875,
+          "bottom": 214.125
+        }
+      },
+      {
+        "text": "Keep Colosseum progress",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 228.46875,
+          "y": 175.671875,
+          "w": 173.734375,
+          "h": 38.453125,
+          "right": 402.203125,
+          "bottom": 214.125
+        }
+      },
+      {
+        "text": "Leave for later",
+        "action": "import-choice",
+        "disabled": false,
+        "box": {
+          "x": 410.203125,
+          "y": 175.671875,
+          "w": 106.171875,
+          "h": 38.453125,
+          "right": 516.375,
+          "bottom": 214.125
+        }
+      },
+      {
+        "text": "Confirm import review",
+        "action": "confirm-import",
+        "disabled": true,
+        "box": {
+          "x": 64,
+          "y": 240.125,
+          "w": 172.859375,
+          "h": 46.296875,
+          "right": 236.859375,
+          "bottom": 286.421875
+        }
+      },
+      {
+        "text": "Close",
+        "action": "dialog-close",
+        "disabled": false,
+        "box": {
+          "x": 667.078125,
+          "y": 240.125,
+          "w": 60.921875,
+          "h": 46.296875,
+          "right": 728,
+          "bottom": 286.421875
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-dossier.html",
+      "sha256": "490fb73920546a08b9e8e8cefa8cfc870145cd968a7facb6e1ab9337dffd0149"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+      "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+      "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+    }
+  ]
+}

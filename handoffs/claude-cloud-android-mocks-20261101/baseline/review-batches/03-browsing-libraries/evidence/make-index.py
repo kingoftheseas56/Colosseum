@@ -1,0 +1,17 @@
+from pathlib import Path
+import json,html
+p=Path("D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries")
+m=json.loads((p/"INPUTS.json").read_text(encoding="utf-8-sig"))
+pages=[{"job":j["task"],"name":n,"title":j["title"]} for j in m["jobs"] for n in j["pages"]]
+css="body{margin:0;background:#101219;color:#eee;font:16px/1.5 Segoe UI,Arial,sans-serif}header,main{max-width:1360px;margin:auto;padding:26px}h1{font:36px Georgia,serif;margin:8px 0}h2{font:26px Georgia,serif;color:#f0c44a}a{color:#f0c44a}p{max-width:1000px;color:#c8c9d1}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:16px}.card{background:#1b1e29;border:1px solid #353948;border-radius:14px;padding:18px}.links{display:flex;gap:10px;flex-wrap:wrap}.links a{padding:8px 12px;border:1px solid #5f5538;border-radius:9px;text-decoration:none}.card h3{margin:0 0 15px;font-size:18px}small{color:#a5a9b7}.badge{color:#f0c44a;font-size:12px;text-transform:uppercase;letter-spacing:2px}"
+cards=[]
+for d in pages:
+ job,name=d["job"],d["name"];stem=Path(name).stem
+ cards.append('<article class="card"><small>'+html.escape(job)+'</small><h3>'+html.escape(stem.replace("-"," ").title())+'</h3><div class="links"><a href="finished-mocks/'+job+'/'+name+'">Finished mock</a><a href="compare.html?job='+job+'&page='+name+'">Live comparison</a><a href="../../outputs/'+job+'/'+name+'">Original worker</a><a href="contact-sheets/'+stem+'-comparison.jpg">Before / after sheet</a></div></article>')
+index='<!doctype html><html><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Batch 3 · Finished mock handoff</title><style>'+css+'</style><header><div class="badge">Colosseum · Batch 3 only</div><h1>Browsing and libraries</h1><p>16 runnable HTML mocks with preserved worker originals, before/after evidence and QML porting notes. These are local fixture demonstrations. The approved frozen QML is the design authority; the screenshots are browser renders, not native app acceptance.</p><div class="links"><a href="REVIEW.md">Final review</a><a href="QML-PORTING.md">QML porting notes</a><a href="COVERAGE.csv">Coverage</a><a href="FINDINGS.csv">Findings</a><a href="CHECKPOINT.md">Checkpoints</a><a href="REPORT.json">Report</a></div></header><main><div class="grid">'+''.join(cards)+'</div></main></html>'
+(p/"index.html").write_text(index,encoding="utf-8")
+(p/"finished-mocks"/"index.html").write_text(index.replace('href="finished-mocks/','href="').replace('href="compare.html','href="../compare.html').replace('href="../../outputs/','href="../../../outputs/').replace('href="contact-sheets/','href="../contact-sheets/').replace('href="REVIEW.md','href="../REVIEW.md').replace('href="QML-PORTING.md','href="../QML-PORTING.md').replace('href="COVERAGE.csv','href="../COVERAGE.csv').replace('href="FINDINGS.csv','href="../FINDINGS.csv').replace('href="CHECKPOINT.md','href="../CHECKPOINT.md').replace('href="REPORT.json','href="../REPORT.json'),encoding="utf-8")
+for j in m["jobs"]:
+ (p/"finished-mocks"/j["task"]/"index.html").write_text('<!doctype html><meta charset="utf-8"><title>Batch 3 studies</title><meta http-equiv="refresh" content="0;url=../index.html"><a href="../index.html">All finished Batch 3 studies</a>',encoding="utf-8")
+(p/"evidence"/"page-manifest.json").write_text(json.dumps(pages,indent=2),encoding="utf-8")
+print("Created both batch indexes and six job indexes")

@@ -1,0 +1,259 @@
+{
+  "status": "CORRECTED_CANDIDATE_READY_FOR_PRIMARY_REVIEW",
+  "initialFindings": {
+    "SOL-B3-01": "fixed in candidate only; 6/6 lane/viewport pause and slow-typing checks pass",
+    "SOL-B3-02": "fixed in candidate only; 6/6 lane/viewport Enter intent/focus and continued-typing checks pass"
+  },
+  "hashes": {
+    "original": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\finished-mocks\\20-search-browse\\app.js",
+      "sha256": "175b0d07ba5d5b4bd3024f1591c37b2896139f0cb1ad9dbcc48d6c9ca37af0fb"
+    },
+    "candidate": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\codex-review-sol\\candidate\\app.js",
+      "sha256": "2b956240a6970ba6d020c3fe9e5567dbbe1c49313a791be66edf4c9115164044"
+    },
+    "entry": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\codex-review-sol\\candidate\\search.html",
+      "sha256": "25ef1819f1a2daad96c312fc47d2715fd88fab63bf1f1464faa3ca4b5b80704d"
+    },
+    "patch": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\codex-review-sol\\search-correction.patch",
+      "sha256": "a82aaa8ae5ccca7ab35d67554aecc189d6c2265145bb3d00fe5bb0035a69b07d"
+    },
+    "driver": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\codex-review-sol\\test-search-correction.cjs",
+      "sha256": "267fd38b5e3b728c339ae7344d66dec4fcdc1fda72f37728f5240360062504a5"
+    }
+  },
+  "scope": "Only codex-review-sol candidate overlay; Pro original mocks/output/reports and initial receiving findings preserved. No other 15-page implementation changes.",
+  "runnableEntry": "candidate/search.html?capture=1&preset=portrait&lane=Biblio&state=empty",
+  "relativeBase": "Entry base points to ../../finished-mocks/20-search-browse/ for unchanged CSS/assets and batch runtime; script points back to complete candidate/app.js. Original batch directory must remain present.",
+  "changes": [
+    "Input value and clear visibility use S.query directly, independent of empty/results presentation.",
+    "Search rerender helper preserves selection start/end/direction and field focus only when that field was focused (or native-like Clear explicitly requests focus).",
+    "Pending debounce preserves intentionally focused existing result/control identity when still present and does not steal focus back from outside controls.",
+    "Clear cancels pending debounce and preserves cleared field focus.",
+    "Enter cancels debounce, renders matching results with appropriate fixture focus/caret and invokes the existing local top item-open action; no match emits no intent.",
+    "Initial inline-browse fixture explicitly clears query instead of relying on rendering to hide stored text."
+  ],
+  "nativeEnterEvidence": [
+    {
+      "file": "reference/desktop/qml/BiblioSearch.qml",
+      "lines": [
+        190,
+        202
+      ],
+      "behavior": "Return/Enter stops debounce, searches, commits current query and opens top result."
+    },
+    {
+      "file": "reference/desktop/qml/SearchSurface.qml",
+      "lines": [
+        211,
+        218,
+        280
+      ],
+      "behavior": "Return/Enter stops debounce, searches and commits; local/no-provider route opens top. searchProvider may own activation."
+    }
+  ],
+  "focusBoundary": "Retaining field focus after Enter is fixture-only because item-open stops at a status/intention boundary. Native title activation may navigate or hide Search; never force focus back into Search after real navigation. No native changes are proposed.",
+  "verification": {
+    "browser": "Chrome/156.0.8078.74",
+    "checks": 72,
+    "failures": [],
+    "lanes": [
+      "Biblio",
+      "Theatre",
+      "Tankoban"
+    ],
+    "viewports": [
+      [
+        412,
+        900
+      ],
+      [
+        900,
+        412
+      ]
+    ],
+    "casesPerCombination": 12,
+    "cases": [
+      "first-character pause",
+      "slow ordinary typing at 260 ms/key",
+      "fast replacement",
+      "Enter top-intent and selection retention",
+      "typing after Enter and Backspace",
+      "middle caret insertion/deletion",
+      "selection range retention",
+      "intentional result focus during debounce",
+      "intentional other-control focus during debounce",
+      "clear with pending work",
+      "Backspace through one character to empty",
+      "no-match Enter emits no action"
+    ],
+    "syntax": "node --check candidate/app.js passed",
+    "screenshots": [
+      {
+        "lane": "Biblio",
+        "w": 412,
+        "h": 900,
+        "file": "corrected-biblio-412x900.png",
+        "state": {
+          "value": "Sherlock",
+          "focus": true,
+          "start": 8,
+          "end": 8,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "resources": {
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      },
+      {
+        "lane": "Biblio",
+        "w": 900,
+        "h": 412,
+        "file": "corrected-biblio-900x412.png",
+        "state": {
+          "value": "Sherlock",
+          "focus": true,
+          "start": 8,
+          "end": 8,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "resources": {
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      },
+      {
+        "lane": "Theatre",
+        "w": 412,
+        "h": 900,
+        "file": "corrected-theatre-412x900.png",
+        "state": {
+          "value": "Empire",
+          "focus": true,
+          "start": 6,
+          "end": 6,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "resources": {
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      },
+      {
+        "lane": "Theatre",
+        "w": 900,
+        "h": 412,
+        "file": "corrected-theatre-900x412.png",
+        "state": {
+          "value": "Empire",
+          "focus": true,
+          "start": 6,
+          "end": 6,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "resources": {
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      },
+      {
+        "lane": "Tankoban",
+        "w": 412,
+        "h": 900,
+        "file": "corrected-tankoban-412x900.png",
+        "state": {
+          "value": "Arlong",
+          "focus": true,
+          "start": 6,
+          "end": 6,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "resources": {
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      },
+      {
+        "lane": "Tankoban",
+        "w": 900,
+        "h": 412,
+        "file": "corrected-tankoban-900x412.png",
+        "state": {
+          "value": "Arlong",
+          "focus": true,
+          "start": 6,
+          "end": 6,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "resources": {
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      }
+    ],
+    "pageErrors": [],
+    "resourceFailures": [
+      {
+        "url": "http://127.0.0.1:1844/favicon.ico",
+        "status": 404
+      }
+    ],
+    "results": "remediation-test-results.json",
+    "initialEncodingCorrection": "First local candidate used Python default decoding and displayed mojibake despite passing interactions. Explicit UTF-8 read/write corrected it; final 72-case suite and six captures rerun on corrected candidate. Earlier test record retained as remediation-test-results-before-utf8-correction.json.",
+    "regressionCommand": "node test-search-correction.cjs"
+  },
+  "preservedOriginalProof": [
+    {
+      "manifest": "INPUT-VERSIONS-START.json",
+      "files": 78,
+      "mismatches": []
+    },
+    {
+      "manifest": "FINAL-ARTIFACT-VERSIONS.json",
+      "files": 47,
+      "mismatches": []
+    }
+  ],
+  "cleanup": {
+    "browserAndContextClosed": true,
+    "loopbackServerClosed": true,
+    "origin": "http://127.0.0.1:1844",
+    "closedUtc": "2026-11-01T00:50:57.028Z"
+  },
+  "nativeQualification": "Not performed; no device, QML/app repository, providers, persistence or actual title-navigation qualification. Final acceptance belongs to primary."
+}

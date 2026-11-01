@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Biblio · Book detail fitting study</title>
+<link rel="stylesheet" href="style.css">
+<script src="app.js" defer></script>
+</head>
+<body>
+<div class="review-frame">
+  <header class="review-heading">
+    <div><a class="review-back" href="index.html">← All 06-biblio-book mocks</a><h1>Biblio book detail</h1>
+    <p>Standalone fitting study · approved desktop dust-jacket treatment · local illustrative fixture only.</p></div>
+    <div class="fixture-note">Illustrative title, source rows and statuses; Cosmere project artwork stands in for the actual retail book cover. No providers or app services are connected.</div>
+  </header>
+  <section class="review-controls" aria-label="Review settings outside the Colosseum mock">
+    <label>Viewport <select id="preset"><option value="portrait" selected>Phone · 412 × 900</option><option value="portraitSmall">Phone · 354 × 792</option><option value="landscape">Phone landscape · 900 × 412</option><option value="landscapeSmall">Phone landscape · 792 × 354</option><option value="desktop">Desktop · 1280 × 700</option><option value="tabletPortrait">Tablet · 800 × 1280</option><option value="tabletLandscape">Tablet · 1280 × 800</option><option value="custom">Custom size</option></select></label>
+    <label>Width <input id="viewport-width" type="number" min="300" max="1920" value="412"></label>
+    <label>Height <input id="viewport-height" type="number" min="300" max="1600" value="900"></label>
+    <label>Top inset <input id="inset-top" type="number" min="0" max="120" value="0"></label>
+    <label>Bottom inset <input id="inset-bottom" type="number" min="0" max="120" value="0"></label>
+    <label>Font scale <select id="font-scale"><option value="1" selected>1.0 ×</option><option value="1.3">1.3 ×</option></select></label>
+    <label>Scenario <select id="scenario"><option value="full" selected>Full synopsis</option><option value="short">Shorter synopsis fixture</option><option value="read">Read choice open</option><option value="collections">Collections picker open</option><option value="expanded">Torrents expanded</option><option value="saved">Saved in Library</option></select></label>
+    <button class="reset-view" type="button" id="reset-fixture">Reset demo</button>
+  </section>
+  <p class="review-hint"><span id="measure">412 × 900 · 0px / 0px safe insets</span> · Controls above this line are reviewer tools, not Colosseum UI. Scroll inside the book page to see the full synopsis and source sections.</p>
+  <div class="review-stage">
+    <div class="app-screen" id="app-screen" data-mode="phone-portrait" aria-label="Colosseum Biblio book detail mock">
+      <div class="safe-zone" id="safe-zone">
+        <header class="book-bar glass">
+          <div class="bar-start"><button type="button" class="back-action" id="book-back" aria-label="Back">
+            <svg width="20" height="20" viewBox="0 0 24 24" aria-hidden="true"><path d="M14.5 5.5 8 12l6.5 6.5" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg><span>Back</span></button>
+            <span class="world-title">Biblio</span></div>
+          <div class="window-actions" aria-label="Desktop window controls">
+            <button type="button" data-window="min" aria-label="Minimize">—</button><button type="button" data-window="full" aria-label="Toggle fullscreen">⛶</button><button type="button" data-window="close" aria-label="Close">⏻</button>
+          </div>
+        </header>
+        <div class="book-scroll" id="book-scroll" tabindex="0" aria-label="Scrollable book details">
+          <div class="book-layout">
+            <div class="cover-column">
+              <div class="book-jacket" role="img" aria-label="Cosmere project artwork, shown only as an illustrative substitute for The Way of Kings cover">
+                <div class="paper-edge"></div>
+                <img src="../../reference/desktop/assets/extensions/house/cosmere.jpg" alt="Actual Colosseum Cosmere project artwork, not a retail book cover">
+                <div class="cover-spine"></div>
+              </div>
+              <div class="action-column">
+                <button class="read-cta" type="button" id="read-button">Read</button>
+                <p id="read-status" class="read-status">Read will choose a tracked edition</p>
+                <button type="button" class="ghost-action library-action" id="library-button"><span class="action-glyph" id="library-glyph">+</span><span id="library-label">Library</span></button>
+                <button type="button" class="ghost-action collections-action" id="collections-button">
+                  <svg class="collections-symbol" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="6" y="7" width="15" height="14" rx="2"/><path d="M3 17V5a2 2 0 0 1 2-2h12M10 11h7m-7 5h5"/></svg><span>Add to Collections</span>
+                </button>
+              </div>
+            </div>
+            <div class="copy-column">
+              <div class="book-heading">
+                <p class="eyebrow">EPIC FANTASY &nbsp;·&nbsp; BRANDON SANDERSON &nbsp;·&nbsp; 2010</p>
+                <h2 class="book-title">The Way of Kings: Book One of the Stormlight Archive</h2>
+                <p class="tagline">“Life before death. Strength before weakness. Journey before destination.”</p>
+                <div class="gold-rule" aria-hidden="true"><span></span></div>
+              </div>
+              <div class="book-information">
+                <p class="synopsis" id="synopsis">On Roshar, highstorms shape the lives of kingdoms and the people who struggle to survive them. Kaladin, once a surgeon’s apprentice and a soldier, finds himself enslaved on the Shattered Plains, where bridge crews are sent into battles few return from. He must find a reason to protect others while everything he believes about honor is being tested. In a distant city, Shallan Davar seeks knowledge from the scholar Jasnah Kholin, concealing a desperate plan of her own. The visions of Dalinar Kholin, a highprince and veteran of the wars, point toward a danger far greater than any struggle over territory. Their stories follow separate paths through a world of ancient oaths, unusual powers, and the consequences of long-forgotten decisions. The questions that bind them together grow larger as each tries to decide what kind of person to become when duty, survival, and trust collide.</p>
+                <section class="sources-section" aria-label="Torrent sources">
+                  <h3 class="source-heading" id="torrent-heading">TORRENTS · 7</h3>
+                  <div class="glass source-list" id="torrent-list" role="group" aria-labelledby="torrent-heading"></div>
+                </section>
+                <section class="sources-section" aria-label="Book editions">
+                  <h3 class="source-heading" id="edition-heading">EDITIONS · 3</h3>
+                  <div class="glass source-list" id="edition-list" role="group" aria-labelledby="edition-heading"></div>
+                </section>
+                <section class="sources-section audiobook-section" aria-label="Audiobook sources">
+                  <h3 class="source-heading" id="audiobook-heading">AUDIOBOOK · 2</h3>
+                  <div class="glass source-list" id="audiobook-list" role="group" aria-labelledby="audiobook-heading"></div>
+                </section>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-shade" id="read-shade" hidden>
+          <section class="read-choice glass" role="dialog" aria-modal="true" aria-labelledby="read-title">
+            <h2 id="read-title">Choose an edition</h2>
+            <p>Read will continue into Reader2 when this exact edition is ready.</p>
+            <div class="choice-list" id="read-choices"></div>
+            <button class="modal-cancel" type="button" id="read-cancel">Cancel</button>
+          </section>
+        </div>
+        <div class="modal-shade" id="collections-shade" hidden>
+          <section class="collections-picker glass" role="dialog" aria-modal="true" aria-labelledby="collections-title">
+            <div class="picker-header"><h2 id="collections-title">Add to Collections</h2><button class="picker-close" type="button" id="collections-close" aria-label="Close">×</button></div>
+            <p class="picker-note">Keep this title in one collection, or a few.</p>
+            <div class="picker-book"><img src="../../reference/desktop/assets/extensions/house/cosmere.jpg" alt=""><div><strong>The Way of Kings: Book One of the Stormlight Archive</strong><small>Book · 2010</small></div></div>
+            <input class="picker-search" id="collection-search" type="text" aria-label="Find a collection" placeholder="Find a collection">
+            <div class="picker-memberships" id="picker-memberships"></div>
+            <button class="picker-secondary" id="new-collection" type="button">+ &nbsp; New collection</button>
+            <div class="picker-create" id="picker-create" hidden><label for="collection-name">Collection name</label><input type="text" id="collection-name" maxlength="100" placeholder="Something worth keeping"></div>
+            <div class="picker-footer"><button id="picker-cancel" type="button">Cancel</button><button id="picker-done" type="button">Done</button></div>
+          </section>
+        </div>
+      </div>
+    </div>
+  </div>
+  <p class="review-footer" id="review-result" role="status">Local display only. Buttons simulate visible states; nothing downloads, opens an account, or edits Colosseum.</p>
+</div>
+</body>
+</html>

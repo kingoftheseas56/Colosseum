@@ -1,0 +1,103 @@
+{
+  "batch": "01-sources-manga",
+  "title": "Sources and manga controls",
+  "pageCount": 9,
+  "purpose": "Independent mock review input manifest; not a worker registry or acceptance record.",
+  "reviewStatus": "not-started",
+  "references": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  },
+  "batchRoot": "D:\\Colosseum-Android-Phone-Mocks-20261101",
+  "ownedReviewOutput": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga",
+  "jobs": [
+    {
+      "task": "01-theatre-sources",
+      "title": "Theatre film/episode sources picker",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-01-THEATRE-SOURCES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\01-theatre-sources",
+      "pages": [
+        "film-sources.html",
+        "episode-sources.html"
+      ],
+      "sources": [
+        "SourcesSheet.qml",
+        "SourcePickerList.qml",
+        "SourceCard.qml"
+      ]
+    },
+    {
+      "task": "02-comic-sources",
+      "title": "Comic collected-edition torrent source picker",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-02-COMIC-SOURCES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\02-comic-sources",
+      "pages": [
+        "comic-sources.html",
+        "comic-source-confirmation.html"
+      ],
+      "sources": [
+        "ComicTorrentSourcesPage.qml",
+        "ComicTorrentArchivePicker.qml"
+      ]
+    },
+    {
+      "task": "03-manga-sources",
+      "title": "Manga volume torrent sources",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-03-MANGA-SOURCES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\03-manga-sources",
+      "pages": [
+        "manga-volume-sources.html"
+      ],
+      "sources": [
+        "MangaTankobanSourcesPage.qml"
+      ]
+    },
+    {
+      "task": "04-manga-series",
+      "title": "Manga series and reading-room header/chapter selectors",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-04-MANGA-SERIES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series",
+      "pages": [
+        "manga-series.html",
+        "manga-chapters.html"
+      ],
+      "sources": [
+        "MangaSeries.qml",
+        "MangaSeriesSharedHeader.qml",
+        "MangaReadingRoom.qml",
+        "MangaReadingRoomThumbnailMock.qml",
+        "MangaChapterSeriesView.qml",
+        "TankobanChapterList.qml",
+        "TankobanSeriesView.qml"
+      ]
+    },
+    {
+      "task": "05-volume-flow",
+      "title": "Tankoban volume cover-flow behaviour comparison",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-05-VOLUME-FLOW.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\05-volume-flow",
+      "pages": [
+        "volume-flow-original-fit.html",
+        "volume-flow-minimal-alternative.html"
+      ],
+      "sources": [
+        "MangaTankobanLibrary.qml",
+        "MangaTankobanLibraryThumbnailMock.qml",
+        "MangaReadingRoomThumbnailMock.qml"
+      ]
+    }
+  ]
+}

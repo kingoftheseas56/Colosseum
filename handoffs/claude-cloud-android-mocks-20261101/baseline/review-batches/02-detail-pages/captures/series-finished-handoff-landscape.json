@@ -1,0 +1,21 @@
+{
+  "name": "series-finished-handoff-landscape",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-handoff-landscape.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 900,
+    "height": 412,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:54:57.298Z",
+  "sha256": "fe104bd236b24e3fef75bffe53b864fdc7255b543de688da79d931c241b5d576",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

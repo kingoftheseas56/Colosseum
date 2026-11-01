@@ -1,0 +1,239 @@
+{
+  "captured_at": "2026-10-31T22:50:41.313Z",
+  "job": "02-comic-sources",
+  "file": "comic-sources.html",
+  "viewport": {
+    "width": 354,
+    "height": 792
+  },
+  "params": {
+    "capture": 1,
+    "vw": 354,
+    "vh": 792
+  },
+  "png": "captures/comic-small-portrait.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 354,
+      "height": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 9,
+          "width": 64,
+          "height": 44,
+          "right": 80,
+          "bottom": 53
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "INPUT",
+        "id": "queryInput",
+        "class": "query-input",
+        "text": "",
+        "label": "Search another title or ISBN",
+        "disabled": false,
+        "rect": {
+          "x": 16,
+          "y": 213.84375,
+          "width": 322,
+          "height": 48,
+          "right": 338,
+          "bottom": 261.84375
+        },
+        "radius": "14px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<input id=\"queryInput\" class=\"query-input\" type=\"text\" autocomplete=\"off\" placeholder=\"Search another title or ISBN\" aria-label=\"Search another title or ISBN\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "search-button",
+        "text": "Search",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 218,
+          "y": 271.84375,
+          "width": 120,
+          "height": 44,
+          "right": 338,
+          "bottom": 315.84375
+        },
+        "radius": "14px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<button class=\"search-button\" type=\"submit\">Search</button>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "P\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Batman #404-407 [CBZ] [Digital]\nFORMAT RANGE\nISSUES\nTRUSTED · ComicsArchive\n456 MB   ·   ",
+        "label": "Choose Batman - Year One (1987) Batman #404-407 [CBZ] [Digital]",
+        "rect": {
+          "x": 17,
+          "y": 397.03125,
+          "width": 320,
+          "height": 186.359375,
+          "right": 337,
+          "bottom": 583.390625
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<div class=\"release-title\">Batman - Year One (1987) Batman #404-407 [CBZ] [Digital]</div>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "E\nExtraTorrents\nWEAK MATCH\nBatman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]\n1.3 GB\n↓",
+        "label": "Choose Batman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]",
+        "rect": {
+          "x": 17,
+          "y": 583.390625,
+          "width": 320,
+          "height": 158.25,
+          "right": 337,
+          "bottom": 741.640625
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<div class=\"release-title\">Batman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]</div>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "T\nTorrents-CSV\nPOSSIBLE MATCH\nBatman Year One Deluxe 1987-1988 [CBR] Four Issue Edition\nFORMAT RANGE\n398 MB   ·   👤 26\n↓",
+        "label": "Choose Batman Year One Deluxe 1987-1988 [CBR] Four Issue Edition",
+        "rect": {
+          "x": 17,
+          "y": 741.640625,
+          "width": 320,
+          "height": 175.65625,
+          "right": 337,
+          "bottom": 917.296875
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "P\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Complete #404 #405 #406 #407 [CBZ] [Digital Remaster] Very Long Release Name\nFORMAT RANGE",
+        "label": "Choose Batman - Year One (1987) Complete #404 #405 #406 #407 [CBZ] [Digital Remaster] Very Long Release Name",
+        "rect": {
+          "x": 17,
+          "y": 917.296875,
+          "width": 320,
+          "height": 205.25,
+          "right": 337,
+          "bottom": 1122.546875
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "rowsScroll",
+        "class": "rows-scroll",
+        "rect": {
+          "x": 17,
+          "y": 393.03125,
+          "width": 320,
+          "height": 383.96875,
+          "right": 337,
+          "bottom": 777
+        },
+        "scrollTop": 0,
+        "maxScroll": 354,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\nSearch\n4 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Batman #404-407 [CBZ] [Digital]\nFORMAT RANGE\nISSUES\nTRUSTED · ComicsArchive\n456 MB   ·   👤 83\n↓\nE\nExtraTorrents\nWEAK MATCH\nBatman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]\n1.3 GB\n↓\nT\nTorrents-CSV\nPOSSIBLE MATCH\nBatman Year One Deluxe 1987-1988 [CBR] Four Issue Edition\nFORMAT RANGE\n398 MB   ·   👤 26\n↓\nP\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Complete #404 #405 #406 #407 [CBZ] [Digital Remaster] Very Long Release Name\nFORMAT RANGE\nISSUES\nTRUSTED · ComicsArchive\n512 MB   ·   👤 17\n↓",
+    "fonts": [
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "unloaded"
+      },
+      {
+        "family": "Colosseum Fraunces",
+        "status": "loaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "outputs\\02-comic-sources\\comic-sources.html",
+      "bytes": 355,
+      "sha256": "f748355006000c64471f99e495dfbfabf5c1e3352bd33d3d19ca10d9ae3103dd"
+    },
+    {
+      "path": "outputs\\02-comic-sources\\style.css",
+      "bytes": 16348,
+      "sha256": "d11bddf996d2088a02c8d5e7e1ac2c0110e3b9d6dd0714bf1c435b31588a0a48"
+    },
+    {
+      "path": "outputs\\02-comic-sources\\app.js",
+      "bytes": 16718,
+      "sha256": "b14f7917bf214468d8b20d8e38bf9cc69b3fdd7e17d0f1b2a0c07cb853db8c31"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\dcau\\portals\\gotham.jpg",
+      "bytes": 3637,
+      "sha256": "070d01527b1903a4f5c861066517e2649363b4f27a44cc41cd70232d97795701"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    }
+  ],
+  "extra": {}
+}

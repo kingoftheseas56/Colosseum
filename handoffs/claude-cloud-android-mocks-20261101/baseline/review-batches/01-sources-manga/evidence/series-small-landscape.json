@@ -1,0 +1,581 @@
+{
+  "captured_at": "2026-10-31T22:56:33.216Z",
+  "job": "04-manga-series",
+  "file": "manga-series.html",
+  "viewport": {
+    "width": 792,
+    "height": 354
+  },
+  "params": {
+    "capture": 1
+  },
+  "png": "captures/series-small-landscape.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 792,
+      "height": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "bodyOverflowX": 0,
+    "images": [
+      {
+        "src": "../../reference/desktop/assets/icons/minimize.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/icons/fullscreen.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/icons/power.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/paradise/badges/arabasta.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/paradise/badges/skypiea.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/paradise/badges/water-7.png",
+        "loaded": true
+      },
+      {
+        "src": "../../reference/desktop/assets/universes/one-piece/paradise/badges/enies-lobby.png",
+        "loaded": true
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 20,
+          "y": 6.5,
+          "width": 69.625,
+          "height": 44,
+          "right": 89.625,
+          "bottom": 50.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "bookmark",
+        "class": "bookmark",
+        "text": "",
+        "label": "Add to Library",
+        "disabled": false,
+        "rect": {
+          "x": 253.703125,
+          "y": 92,
+          "width": 36,
+          "height": 36,
+          "right": 289.703125,
+          "bottom": 128
+        },
+        "radius": "10px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px",
+        "hit": "<img id=\"bookmarkImg\" src=\"../../reference/desktop/assets/icons/lucide/bookmark-plus.svg\" alt=\"\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "collection-btn",
+        "text": "Add to Collections",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 123,
+          "y": 136,
+          "width": 139.265625,
+          "height": 38,
+          "right": 262.265625,
+          "bottom": 174
+        },
+        "radius": "11px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<button class=\"collection-btn\" data-do=\"collections\"><svg viewBox=\"0 0 24 24\" aria-hidden=\"true\"><rect x=\"3\" y=\"5\" width=\"13\" height=\"14\" rx=\"2\"></rect><path d=\"M7 2h12a2 2 0 0 1 2 2v12M7 9h6M10 6v6\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "synopsisMore",
+        "class": "synopsis-more",
+        "text": "More",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 477,
+          "y": 279.6875,
+          "width": 40,
+          "height": 32,
+          "right": 517,
+          "bottom": 311.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "13px",
+        "hit": "<button class=\"synopsis-more\" id=\"synopsisMore\" data-do=\"synopsis\" aria-expanded=\"false\">More</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "languageSelector",
+        "class": "combo-button",
+        "text": "English",
+        "label": null,
+        "disabled": true,
+        "rect": {
+          "x": 696.375,
+          "y": 128,
+          "width": 69.625,
+          "height": 36,
+          "right": 766,
+          "bottom": 164
+        },
+        "radius": "15px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "12px",
+        "hit": "<span id=\"languageText\">English</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "selectToggle",
+        "class": "text-action",
+        "text": "Select",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 736.171875,
+          "y": 370.6875,
+          "width": 35.828125,
+          "height": 40,
+          "right": 772,
+          "bottom": 410.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "11px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 1\nRomance Dawn",
+        "label": "Volume 1, Romance Dawn, downloaded",
+        "disabled": false,
+        "rect": {
+          "x": 42,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 174,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 2\nBuggy the Clown",
+        "label": "Volume 2, Buggy the Clown, downloaded",
+        "disabled": false,
+        "rect": {
+          "x": 186,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 318,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card active",
+        "text": "VOL 3\nDon't Get Fooled Again\nContinue · p. 78",
+        "label": "Volume 3, Don't Get Fooled Again, downloaded",
+        "disabled": false,
+        "rect": {
+          "x": 330,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 462,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 4\nThe Black Cat Pirates",
+        "label": "Volume 4, The Black Cat Pirates, available",
+        "disabled": false,
+        "rect": {
+          "x": 474,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 606,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 5\nFor Whom the Bell Tolls",
+        "label": "Volume 5, For Whom the Bell Tolls, available",
+        "disabled": false,
+        "rect": {
+          "x": 618,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 750,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 6\nThe Oath",
+        "label": "Volume 6, The Oath, available",
+        "disabled": false,
+        "rect": {
+          "x": 762,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 894,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 7\nThe Crap-Geezer",
+        "label": "Volume 7, The Crap-Geezer, available",
+        "disabled": false,
+        "rect": {
+          "x": 906,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 1038,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 8\nI Won't Die",
+        "label": "Volume 8, I Won't Die, available",
+        "disabled": false,
+        "rect": {
+          "x": 1050,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 1182,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 9\nTears",
+        "label": "Volume 9, Tears, available",
+        "disabled": false,
+        "rect": {
+          "x": 1194,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 1326,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "volume-card",
+        "text": "VOL 10\nOK, Let's Stand Up!",
+        "label": "Volume 10, OK, Let's Stand Up!, available",
+        "disabled": false,
+        "rect": {
+          "x": 1338,
+          "y": 429.6875,
+          "width": 132,
+          "height": 240,
+          "right": 1470,
+          "bottom": 669.6875
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "14px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "btn-outline",
+        "text": "↓  Download",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 556.921875,
+          "y": 714.6875,
+          "width": 96.125,
+          "height": 36,
+          "right": 653.046875,
+          "bottom": 750.6875
+        },
+        "radius": "9px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "11px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "readVolume",
+        "class": "btn-gold",
+        "text": "Continue Vol. 3",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 662.046875,
+          "y": 714.6875,
+          "width": 109.953125,
+          "height": 36,
+          "right": 772,
+          "bottom": 750.6875
+        },
+        "radius": "9px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "11px"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "appScroll",
+        "class": "app-scroll",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollTop": 0,
+        "maxScroll": 405,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nCOLOSSEUM · TANKOBAN\nMANGA  ·  TANKOBAN\nOne Piece\nAdd to Collections\nEiichiro Oda\nPublishing\n1997\n★ 9.22\n107 volumes · 3 on this device\nAction\nAdventure\nFantasy\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. With the Straw Hat Pirates, he crosses treacherous seas, meets unlikely allies, and challenges powerful enemies on the way to becoming King of the Pirates. Along the Grand Line and into the New World, every island brings new friendships and an adventure of its own.\n\nMore\nTankoban Mode\nChapter Mode\nLanguage\nEnglish\nON THIS DEVICE\n3 OF 107\nVOLUMES\n107\nSelect\nVOL 1\nRomance Dawn\nVOL 2\nBuggy the Clown\nVOL 3\nDon't Get Fooled Again\nContinue · p. 78\nVOL 4\nThe Black Cat Pirates\nVOL 5\nFor Whom the Bell Tolls\nVOL 6\nThe Oath\nVOL 7\nThe Crap-Geezer\nVOL 8\nI Won't Die\nVOL 9\nTears\nVOL 10\nOK, Let's Stand Up!\nVol. 3\nDon't Get Fooled Again\n↓  Download\nContinue Vol. 3",
+    "fonts": [
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "unloaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "outputs\\04-manga-series\\manga-series.html",
+      "bytes": 2669,
+      "sha256": "c57421616e1f3c6e698a365482b8bddd76241a0f6a5e871c48c3859645971dfb"
+    },
+    {
+      "path": "outputs\\04-manga-series\\style.css",
+      "bytes": 21948,
+      "sha256": "b6502c3ec1e6111001033823d690897d3ed4f131d7a33821b5a7ba07a6325037"
+    },
+    {
+      "path": "outputs\\04-manga-series\\app.js",
+      "bytes": 21482,
+      "sha256": "82c389c8ce39c9fbc66bc5b472d2421af49693ed88dfc91e56cb6667239b9fbe"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\banners\\romance.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\minimize.svg",
+      "bytes": 183,
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\fullscreen.svg",
+      "bytes": 305,
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\romance-dawn.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\lucide\\bookmark-plus.svg",
+      "bytes": 456,
+      "sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\power.svg",
+      "bytes": 215,
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\orange-town.png",
+      "bytes": 1469896,
+      "sha256": "d87f36ce8e6c303a8970e44f48b248d8e5323727285bd11822bdadcb5f2a8cae"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\syrup-village.png",
+      "bytes": 4604348,
+      "sha256": "547e46629d6a38f4f4532b31b493c3a9715b933072eaef7f3860da978a558169"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\baratie.png",
+      "bytes": 3362230,
+      "sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\arlong-park.png",
+      "bytes": 3298285,
+      "sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\loguetown.png",
+      "bytes": 3525891,
+      "sha256": "28fc9ccefdab2444b54fc6d55c854cf7c1671280878129527c0698be71837dde"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\badges\\arabasta.png",
+      "bytes": 239559,
+      "sha256": "41b8678349257541ffb5daa1efcb5e8aa5c9c82b9e9bcaf34c3599db90c4558f"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\badges\\skypiea.png",
+      "bytes": 194887,
+      "sha256": "2fc240cf927f796e1c84e9e8e46bda069911d347d728dffcdea5760744ba019a"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\badges\\water-7.png",
+      "bytes": 235088,
+      "sha256": "582326b2020cc663d6a0982b9a2ee869b0f7363712bddaa6ce295c800108d8fd"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\paradise\\badges\\enies-lobby.png",
+      "bytes": 285077,
+      "sha256": "7ce9f7e3918da9e391489b113003286dd27f70fc622fe93de135815406e9ec31"
+    }
+  ],
+  "extra": {}
+}

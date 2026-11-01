@@ -1,0 +1,441 @@
+{
+  "file": "manga-series.html",
+  "tested_at": "2026-10-31T23:31:39.110Z",
+  "tests": [
+    {
+      "name": "portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 412,
+              "height": 900,
+              "right": 412,
+              "bottom": 900
+            },
+            "scrollTop": 0,
+            "maxScroll": 21,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "portrait centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 204.99999237060547,
+        "fx": 206,
+        "cTop": 520.6500244140625,
+        "fTop": 515,
+        "cBottom": 803.3499755859375,
+        "fBottom": 809,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 900,
+              "height": 412,
+              "right": 900,
+              "bottom": 412
+            },
+            "scrollTop": 0,
+            "maxScroll": 370,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "landscape centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 449.00001525878906,
+        "fx": 450,
+        "cTop": 64.14999389648438,
+        "fTop": 58.5,
+        "cBottom": 346.8500061035156,
+        "fBottom": 352.5,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "small-portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-small-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 354,
+              "height": 792,
+              "right": 354,
+              "bottom": 792
+            },
+            "scrollTop": 0,
+            "maxScroll": 129,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-portrait centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 175.99999237060547,
+        "fx": 177,
+        "cTop": 412.6499938964844,
+        "fTop": 407,
+        "cBottom": 695.3499755859375,
+        "fBottom": 701,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "small-landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-small-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 0,
+              "width": 792,
+              "height": 354,
+              "right": 792,
+              "bottom": 354
+            },
+            "scrollTop": 0,
+            "maxScroll": 428,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-landscape centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 395.00001525878906,
+        "fx": 396,
+        "cTop": 35.149993896484375,
+        "fTop": 29.5,
+        "cBottom": 317.8500061035156,
+        "fBottom": 323.5,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "desktop assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-desktop",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "scrollers": [],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "desktop centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 639,
+        "fx": 640,
+        "cTop": 357.5500183105469,
+        "fTop": 352,
+        "cBottom": 642.4500122070312,
+        "fBottom": 648,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "tablet-portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-tablet-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 800,
+          "height": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "scrollers": [],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-portrait centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 400,
+        "fx": 400,
+        "cTop": 608.5,
+        "fTop": 352,
+        "cBottom": 971.5,
+        "fBottom": 1228,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "tablet-landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-tablet-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "scrollers": [],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-landscape centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 640.0000305175781,
+        "fx": 640,
+        "cTop": 368.5,
+        "fTop": 352,
+        "cBottom": 731.5,
+        "fBottom": 748,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "stress-portrait assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-stress-portrait",
+        "app": {
+          "x": 0,
+          "y": 24,
+          "width": 354,
+          "height": 744,
+          "right": 354,
+          "bottom": 768
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "width": 354,
+              "height": 744,
+              "right": 354,
+              "bottom": 768
+            },
+            "scrollTop": 0,
+            "maxScroll": 219,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-portrait centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 175.99999237060547,
+        "fx": 177,
+        "cTop": 382.9156188964844,
+        "fTop": 377.265625,
+        "cBottom": 665.6156005859375,
+        "fBottom": 671.265625,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "stress-landscape assets, safe app bounds and overflow",
+      "pass": true,
+      "details": {
+        "name": "finished-series-stress-landscape",
+        "app": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "right": 792,
+          "bottom": 330
+        },
+        "scrollers": [
+          {
+            "id": "appScroll",
+            "class": "app-scroll",
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "width": 792,
+              "height": 306,
+              "right": 792,
+              "bottom": 330
+            },
+            "scrollTop": 0,
+            "maxScroll": 498,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-landscape centered enlarged volume and full collection",
+      "pass": true,
+      "details": {
+        "cx": 395.00001525878906,
+        "fx": 396,
+        "cTop": 35.415618896484375,
+        "fTop": 29.765625,
+        "cBottom": 318.1156311035156,
+        "fBottom": 323.765625,
+        "cardCount": 107
+      }
+    },
+    {
+      "name": "More expands existing synopsis",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "bookmark toggles original icon",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "End reaches volume 107",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "PageDown jumps ten volumes",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "focused cover activates local Read",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "selection tray reflects picked volume",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "selected download emits chosen number",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "Done clears selection",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "desktop action bar visible without scroll",
+      "pass": true,
+      "details": {
+        "bar": 700,
+        "scroll": 0,
+        "mode": 38
+      }
+    }
+  ],
+  "total": 27,
+  "passed": 27
+}

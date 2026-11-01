@@ -1,0 +1,135 @@
+[
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\01-theatre-sources\\film-sources.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\film-sources.html",
+    "source_sha256": "cc2c3a07bd966ac5dc48c2ac4b1deee80e6e113d4b433d27de7e79c6c4ecf101",
+    "copied_sha256": "2f9178619a05268c0373d6912dd3f63afccec29ee16f9d64785eaeff42c309ac",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\01-theatre-sources\\episode-sources.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\episode-sources.html",
+    "source_sha256": "eda9322fdbe1fbf236ee5d149eca76a6173021fd25054648531b2ddf86587ace",
+    "copied_sha256": "e9cf50c04027ec54fdceca65e01ae906ec4434876defc1581eed5e28de25dc77",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\01-theatre-sources\\app.js",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\app.js",
+    "source_sha256": "c56aebfee46556a811183b93c2f34cf61d2f8fe21e9a1b18c12a276404a3ca8f",
+    "copied_sha256": "bc23415192a2d6895db1b820e1e04d3c682b85cecb0a0f4e795a8c1f1820c0c9",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\01-theatre-sources\\style.css",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\01-theatre-sources\\style.css",
+    "source_sha256": "c438f02e5470c9dfb3aeacbac35fbcefd6f8861019f8372f8a98366b470eab5e",
+    "copied_sha256": "4b3fbc4a02b4f4ecc6366e3430a1603ade14f66abcfadf0099a3189d30a3f3e4",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\02-comic-sources\\comic-sources.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\comic-sources.html",
+    "source_sha256": "f748355006000c64471f99e495dfbfabf5c1e3352bd33d3d19ca10d9ae3103dd",
+    "copied_sha256": "f748355006000c64471f99e495dfbfabf5c1e3352bd33d3d19ca10d9ae3103dd",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\02-comic-sources\\comic-source-confirmation.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\comic-source-confirmation.html",
+    "source_sha256": "284a6da39c9f0d2ee5bb35de1f7c99d8e754f782cff1679eeeb4c36364d7b4c3",
+    "copied_sha256": "284a6da39c9f0d2ee5bb35de1f7c99d8e754f782cff1679eeeb4c36364d7b4c3",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\02-comic-sources\\app.js",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\app.js",
+    "source_sha256": "b14f7917bf214468d8b20d8e38bf9cc69b3fdd7e17d0f1b2a0c07cb853db8c31",
+    "copied_sha256": "b14f7917bf214468d8b20d8e38bf9cc69b3fdd7e17d0f1b2a0c07cb853db8c31",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\02-comic-sources\\style.css",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\style.css",
+    "source_sha256": "d11bddf996d2088a02c8d5e7e1ac2c0110e3b9d6dd0714bf1c435b31588a0a48",
+    "copied_sha256": "5e7c82c142ffd29199fa338032eb64f0f1344e1e7335c9fb9c2c5970dd99c71d",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\03-manga-sources\\manga-volume-sources.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\03-manga-sources\\manga-volume-sources.html",
+    "source_sha256": "bc9a01569581e7b377325fd9064dc5ff594f0fdceeac950b836c2bc3f94ee7f1",
+    "copied_sha256": "bc9a01569581e7b377325fd9064dc5ff594f0fdceeac950b836c2bc3f94ee7f1",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\03-manga-sources\\app.js",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\03-manga-sources\\app.js",
+    "source_sha256": "6a75d116b33afdfa9e4a75e5688a72d1c83387cc8d9b6fd6ed41e673e764f5fa",
+    "copied_sha256": "6a75d116b33afdfa9e4a75e5688a72d1c83387cc8d9b6fd6ed41e673e764f5fa",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\03-manga-sources\\style.css",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\03-manga-sources\\style.css",
+    "source_sha256": "62c39a546839495c391aca37f60c87d12b3800778cf1402dc65e37ec3b6a5441",
+    "copied_sha256": "460b247866957e77e7340c201f467e5d64992aedc88ede2b3df37c8637d943a7",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series\\manga-series.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\manga-series.html",
+    "source_sha256": "c57421616e1f3c6e698a365482b8bddd76241a0f6a5e871c48c3859645971dfb",
+    "copied_sha256": "c57421616e1f3c6e698a365482b8bddd76241a0f6a5e871c48c3859645971dfb",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series\\manga-chapters.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\manga-chapters.html",
+    "source_sha256": "6fc5193ff4b5603279b3a781f1db56e9622d98377230592407f4e62cece3b64b",
+    "copied_sha256": "6fc5193ff4b5603279b3a781f1db56e9622d98377230592407f4e62cece3b64b",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series\\app.js",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\app.js",
+    "source_sha256": "82c389c8ce39c9fbc66bc5b472d2421af49693ed88dfc91e56cb6667239b9fbe",
+    "copied_sha256": "1e8aaba53329493b5d74f38ea41d5b3573bfb62ae42726d235ec44694eb349d8",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series\\style.css",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\style.css",
+    "source_sha256": "b6502c3ec1e6111001033823d690897d3ed4f131d7a33821b5a7ba07a6325037",
+    "copied_sha256": "2b824b2971d43ed03555d5df121986974e16981e50fee32d3c26443328e136d2",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\05-volume-flow\\volume-flow-original-fit.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\volume-flow-original-fit.html",
+    "source_sha256": "11491924bf3005bb078fb1d20540157f8504cc5bf883a11b28a7c28c585a5472",
+    "copied_sha256": "383f2d13dcab486687fee2f9ac193ec7b511af133039225929d56708795c98af",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\05-volume-flow\\volume-flow-minimal-alternative.html",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\volume-flow-minimal-alternative.html",
+    "source_sha256": "8268ee1123714e09616d3d165a10776d40e8bb07be2361d942e0781a25307525",
+    "copied_sha256": "eca0be98f34adbea10d607e7c50954ec969afdf3e24926519a0c2170b4145194",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\05-volume-flow\\app.js",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\app.js",
+    "source_sha256": "a7c19088d869674433c2bb855afd85cbb1acec469df3ad614a17f89fe952276d",
+    "copied_sha256": "cb1e183b5d8267b4cfa10b3c969bfdd5dd5c9a5d021f3ab4174087e06e3f3f2d",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  },
+  {
+    "source": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\05-volume-flow\\style.css",
+    "destination": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\01-sources-manga\\finished-mocks\\05-volume-flow\\style.css",
+    "source_sha256": "5b0245d479fdc4d09829f07466b210c2be6c9710629932f532fb439d40b9e048",
+    "copied_sha256": "43e6d100f5fd037b5efc0f0d273dcd176ff934d5fb1a0f1831878ea9b386d680",
+    "change": "relative local reference paths adjusted for finished-mocks nesting only"
+  }
+]

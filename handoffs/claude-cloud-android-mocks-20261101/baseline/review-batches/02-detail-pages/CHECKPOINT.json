@@ -1,0 +1,24 @@
+{
+  "utc": "2026-11-01T00:13:42.360956+00:00",
+  "batch": "02-detail-pages",
+  "state": "handoff-complete-report-written-next",
+  "pages_usable": 8,
+  "normal_layouts_verified": 56,
+  "fixed_verified_findings": 18,
+  "fixed_unverified": [],
+  "original_input_records_unchanged": 75,
+  "browser_closed": true,
+  "remaining_assigned_html_work": [],
+  "decision_pending": [
+    "B2-018"
+  ],
+  "input_limitations": [
+    "B2-019",
+    "B2-020"
+  ],
+  "out_of_scope": [
+    "Native QML implementation and runtime/device checks",
+    "Live data/provider/persistence integration"
+  ],
+  "final_step": "Write REPORT.json last; then read-only verification"
+}

@@ -1,0 +1,17 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Colosseum · Connections</title><link rel="stylesheet" href="style.css"></head>
+<body data-start="connections"><div class="lab" id="lab">
+<div class="lab-heading"><div><strong>Colosseum / Connections</strong><span>Faithful standalone fitting study · frozen a40f66b desktop reference</span></div><nav><a href="index.html">Index</a><a href="tracker-connections.html">Connections</a><a href="tracker-dossier.html">Dossier</a><a href="tracker-preferences.html">Preferences</a></nav></div>
+<div class="lab-controls" aria-label="Review controls outside Colosseum">
+<label>Viewport <select id="preset"><option value="412x900">Phone · 412×900 portrait</option><option value="900x412">Phone · 900×412 landscape</option><option value="354x792">Small phone · 354×792</option><option value="792x354">Small landscape · 792×354</option><option value="1280x700">Desktop · 1280×700</option><option value="800x1280">Tablet · 800×1280</option><option value="1280x800">Tablet · 1280×800</option></select></label>
+<label>Width <input id="vw" type="number" min="320" max="1920" value="412"></label><label>Height <input id="vh" type="number" min="260" max="1800" value="900"></label>
+<label>Top inset <input id="topInset" type="number" min="0" max="100" value="0"></label><label>Bottom inset <input id="bottomInset" type="number" min="0" max="100" value="0"></label>
+<label>Font scale <select id="fontScale"><option value="1">100%</option><option value="1.3">130%</option></select></label>
+<label>Scenario <select id="scenario"><option value="connected">Connected + review</option><option value="disconnected">No trackers</option><option value="attention">Needs attention</option></select></label>
+<label>Provider <select id="provider"><option value="simkl">Simkl</option><option value="mal">MyAnimeList</option><option value="trakt">Trakt</option><option value="anilist">AniList</option><option value="global">All trackers</option></select></label>
+<button id="reset" type="button">Reset page</button></div>
+<div class="lab-note"><strong>Sample only.</strong> Account labels, states, numbers and import entries are illustrative fixtures, not connected accounts or live provider results. OnePlus dimensions and insets are provisional; no backend calls, app changes or publication.</div>
+<div class="lab-status" id="labStatus" role="status" aria-live="polite">Interactions remain inside this local mock.</div></div>
+<div class="stage"><div class="app-window" id="appWindow"><div class="app" id="app"></div></div></div>
+<script src="app.js"></script></body></html>

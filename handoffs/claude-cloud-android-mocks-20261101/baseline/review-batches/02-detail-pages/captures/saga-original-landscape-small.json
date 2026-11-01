@@ -1,0 +1,16 @@
+{
+  "name": "saga-original-landscape-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-original-landscape-small.png",
+  "input": "outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+  "url": "http://127.0.0.1:8667/outputs/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 792,
+    "height": 354,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:06:44.501Z",
+  "sha256": "14c3889f819ad9ac50f1c6c694648d404cda5e2eeef120610bfd6ba30f00e9f4",
+  "errors": [],
+  "blocked": []
+}

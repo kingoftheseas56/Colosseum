@@ -1,0 +1,42 @@
+[
+  {
+    "file": "finished-mocks\\batch-runtime.js",
+    "ok": true,
+    "error": ""
+  },
+  {
+    "file": "finished-mocks\\07-biblio-home\\app.js",
+    "ok": true,
+    "error": ""
+  },
+  {
+    "file": "finished-mocks\\08-theatre-discover\\app.js",
+    "ok": true,
+    "error": ""
+  },
+  {
+    "file": "finished-mocks\\08-theatre-discover\\world-context.js",
+    "ok": true,
+    "error": ""
+  },
+  {
+    "file": "finished-mocks\\09-catalogue-index\\app.js",
+    "ok": true,
+    "error": ""
+  },
+  {
+    "file": "finished-mocks\\15-world-home\\app.js",
+    "ok": true,
+    "error": ""
+  },
+  {
+    "file": "finished-mocks\\16-libraries\\app.js",
+    "ok": true,
+    "error": ""
+  },
+  {
+    "file": "finished-mocks\\20-search-browse\\app.js",
+    "ok": true,
+    "error": ""
+  }
+]

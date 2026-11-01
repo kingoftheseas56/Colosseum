@@ -1,0 +1,269 @@
+{
+  "time": "2026-10-31T23:41:59.405Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html?capture=1&w=900&h=412&platform=android&preset=portrait",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 900,
+    "h": 412,
+    "outerWidth": 900,
+    "outerHeight": 412,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 900,
+          "h": 412,
+          "right": 900,
+          "bottom": 412
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "MAIN",
+        "class": "page-scroll",
+        "id": "pageScroll",
+        "box": {
+          "x": 0,
+          "y": 60,
+          "w": 900,
+          "h": 352,
+          "right": 900,
+          "bottom": 412
+        },
+        "scrollHeight": 1169,
+        "clientHeight": 352
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Back",
+        "action": "back",
+        "disabled": false,
+        "box": {
+          "x": 45,
+          "y": 14,
+          "w": 69.625,
+          "h": 34,
+          "right": 114.625,
+          "bottom": 48
+        }
+      },
+      {
+        "text": "Minimize",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Exit fullscreen",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Quit Colosseum",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Preferences",
+        "action": "preferences",
+        "disabled": false,
+        "box": {
+          "x": 622.359375,
+          "y": 91.71875,
+          "w": 123.40625,
+          "h": 44.453125,
+          "right": 745.765625,
+          "bottom": 136.171875
+        }
+      },
+      {
+        "text": "Sync all",
+        "action": "sync-all",
+        "disabled": false,
+        "box": {
+          "x": 755.765625,
+          "y": 91.71875,
+          "w": 99.234375,
+          "h": 44.453125,
+          "right": 855,
+          "bottom": 136.171875
+        }
+      },
+      {
+        "text": "Simkl, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 45,
+          "y": 397.03125,
+          "w": 398,
+          "h": 140,
+          "right": 443,
+          "bottom": 537.03125
+        }
+      },
+      {
+        "text": "MyAnimeList, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 457,
+          "y": 397.03125,
+          "w": 398,
+          "h": 140,
+          "right": 855,
+          "bottom": 537.03125
+        }
+      },
+      {
+        "text": "Simkl, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 45,
+          "y": 612.28125,
+          "w": 399,
+          "h": 126,
+          "right": 444,
+          "bottom": 738.28125
+        }
+      },
+      {
+        "text": "MyAnimeList, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 456,
+          "y": 612.28125,
+          "w": 399,
+          "h": 126,
+          "right": 855,
+          "bottom": 738.28125
+        }
+      },
+      {
+        "text": "Trakt, Connect",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 45,
+          "y": 750.28125,
+          "w": 399,
+          "h": 126,
+          "right": 444,
+          "bottom": 876.28125
+        }
+      },
+      {
+        "text": "AniList, Coming soon",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 456,
+          "y": 750.28125,
+          "w": 399,
+          "h": 126,
+          "right": 855,
+          "bottom": 876.28125
+        }
+      },
+      {
+        "text": "Open settings ›",
+        "action": "open-stremio",
+        "disabled": false,
+        "box": {
+          "x": 694,
+          "y": 1024.640625,
+          "w": 142,
+          "h": 40,
+          "right": 836,
+          "bottom": 1064.640625
+        }
+      },
+      {
+        "text": "Colosseum taskbar",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-connections.html",
+      "sha256": "9bcb29731a7571beafe6af947d2226fa9bf88562fb5e709d40e4ae851d428a99"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+      "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+      "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+    }
+  ]
+}

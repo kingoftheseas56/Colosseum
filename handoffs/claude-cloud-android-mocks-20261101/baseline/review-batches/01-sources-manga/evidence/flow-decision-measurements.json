@@ -1,0 +1,302 @@
+{
+  "source": "per-page final checks",
+  "cases": [
+    {
+      "name": "portrait",
+      "viewport": "412 \u00d7 900",
+      "text_scale": 1,
+      "insets": [
+        0,
+        0
+      ],
+      "original": {
+        "book": 139,
+        "cx": 205.99999237060547,
+        "vx": 206,
+        "top": 591.4343872070312,
+        "bottom": 803.734375,
+        "viewTop": 583.09375,
+        "viewBottom": 812,
+        "scale": "matrix(1.1, 0, 0, 1.1, -55.5, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 190,
+        "cx": 206,
+        "vx": 206,
+        "top": 535.3812255859375,
+        "bottom": 803.78125,
+        "viewTop": 527.09375,
+        "viewBottom": 812.09375,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 56,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "landscape",
+      "viewport": "900 \u00d7 412",
+      "text_scale": 1,
+      "insets": [
+        0,
+        0
+      ],
+      "original": {
+        "book": 16,
+        "cx": 449.99998474121094,
+        "vx": 450,
+        "top": 275.296875,
+        "bottom": 352.296875,
+        "viewTop": 267.296875,
+        "viewBottom": 360.296875,
+        "scale": "matrix(1.1, 0, 0, 1.1, -14.5, 0)",
+        "scrollTop": 73,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 190,
+        "cx": 450,
+        "vx": 450,
+        "top": 83.58438110351562,
+        "bottom": 351.984375,
+        "viewTop": 75.296875,
+        "viewBottom": 360.296875,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 265,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "small-portrait",
+      "viewport": "354 \u00d7 792",
+      "text_scale": 1,
+      "insets": [
+        0,
+        0
+      ],
+      "original": {
+        "book": 66,
+        "cx": 177,
+        "vx": 177,
+        "top": 567.875,
+        "bottom": 699.875,
+        "viewTop": 559.375,
+        "viewBottom": 708,
+        "scale": "matrix(1.1, 0, 0, 1.1, -31, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 190,
+        "cx": 177,
+        "vx": 177,
+        "top": 431.6625061035156,
+        "bottom": 700.0625,
+        "viewTop": 423.375,
+        "viewBottom": 708.375,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 136,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "small-landscape",
+      "viewport": "792 \u00d7 354",
+      "text_scale": 1,
+      "insets": [
+        0,
+        0
+      ],
+      "original": {
+        "book": 16,
+        "cx": 395.99998474121094,
+        "vx": 396,
+        "top": 217.296875,
+        "bottom": 294.296875,
+        "viewTop": 209.296875,
+        "viewBottom": 302.296875,
+        "scale": "matrix(1.1, 0, 0, 1.1, -14.5, 0)",
+        "scrollTop": 131,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 190,
+        "cx": 396,
+        "vx": 396,
+        "top": 66.58438110351562,
+        "bottom": 334.984375,
+        "viewTop": 58.296875,
+        "viewBottom": 343.296875,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 282,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "desktop",
+      "viewport": "1280 \u00d7 700",
+      "text_scale": 1,
+      "insets": [
+        0,
+        0
+      ],
+      "original": {
+        "book": 210,
+        "cx": 639.9999694824219,
+        "vx": 640,
+        "top": 349.2875061035156,
+        "bottom": 639.6875,
+        "viewTop": 341,
+        "viewBottom": 648,
+        "scale": "matrix(1.1, 0, 0, 1.1, -79, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 210,
+        "cx": 639.9999694824219,
+        "vx": 640,
+        "top": 349.2875061035156,
+        "bottom": 639.6875,
+        "viewTop": 341,
+        "viewBottom": 648,
+        "scale": "matrix(1.1, 0, 0, 1.1, -79, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "tablet-portrait",
+      "viewport": "800 \u00d7 1280",
+      "text_scale": 1,
+      "insets": [
+        0,
+        0
+      ],
+      "original": {
+        "book": 276,
+        "cx": 400,
+        "vx": 400,
+        "top": 632,
+        "bottom": 995,
+        "viewTop": 399,
+        "viewBottom": 1228,
+        "scale": "matrix(1.1, 0, 0, 1.1, -101, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 276,
+        "cx": 400,
+        "vx": 400,
+        "top": 632,
+        "bottom": 995,
+        "viewTop": 399,
+        "viewBottom": 1228,
+        "scale": "matrix(1.1, 0, 0, 1.1, -101, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "tablet-landscape",
+      "viewport": "1280 \u00d7 800",
+      "text_scale": 1,
+      "insets": [
+        0,
+        0
+      ],
+      "original": {
+        "book": 276,
+        "cx": 640.0000305175781,
+        "vx": 640,
+        "top": 363,
+        "bottom": 726,
+        "viewTop": 341,
+        "viewBottom": 748,
+        "scale": "matrix(1.1, 0, 0, 1.1, -101, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 276,
+        "cx": 640.0000305175781,
+        "vx": 640,
+        "top": 363,
+        "bottom": 726,
+        "viewTop": 341,
+        "viewBottom": 748,
+        "scale": "matrix(1.1, 0, 0, 1.1, -101, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "stress-portrait",
+      "viewport": "354 \u00d7 792",
+      "text_scale": 1.3,
+      "insets": [
+        24,
+        24
+      ],
+      "original": {
+        "book": 16,
+        "cx": 177.00000762939453,
+        "vx": 177,
+        "top": 580.1749877929688,
+        "bottom": 675.875,
+        "viewTop": 572.03125,
+        "viewBottom": 684.03125,
+        "scale": "matrix(1.1, 0, 0, 1.1, -14.5, 0)",
+        "scrollTop": 43,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 190,
+        "cx": 177,
+        "vx": 177,
+        "top": 388.4781188964844,
+        "bottom": 675.578125,
+        "viewTop": 380.03125,
+        "viewBottom": 684.03125,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 235,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "stress-landscape",
+      "viewport": "792 \u00d7 354",
+      "text_scale": 1.3,
+      "insets": [
+        24,
+        24
+      ],
+      "original": {
+        "book": 16,
+        "cx": 395.99998474121094,
+        "vx": 396,
+        "top": 174.12811279296875,
+        "bottom": 269.828125,
+        "viewTop": 165.984375,
+        "viewBottom": 277.984375,
+        "scale": "matrix(1.1, 0, 0, 1.1, -14.5, 0)",
+        "scrollTop": 208,
+        "chromeScrolls": false
+      },
+      "proposal": {
+        "book": 190,
+        "cx": 396,
+        "vx": 396,
+        "top": 32.431243896484375,
+        "bottom": 319.53125,
+        "viewTop": 23.984375,
+        "viewBottom": 327.984375,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 350,
+        "chromeScrolls": true
+      }
+    }
+  ]
+}

@@ -1,0 +1,145 @@
+{
+  "task": "02-comic-sources",
+  "status": "ready-for-review",
+  "sourceRefs": [
+    "reference/desktop/qml/ComicTorrentSourcesPage.qml @ a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+    "reference/desktop/qml/ComicTorrentArchivePicker.qml @ a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+    "reference/desktop/qml/Theme.qml, BackAction.qml, Glass.qml, ComicSeriesPage.qml; Main.qml font context",
+    "reference/alpha/qml/ComicTorrentSourcesPage.qml @ 77844eef0bd3b7fee2c1f884be4a76db6d63321d (recovery/fitting reference only)",
+    "context/ANDROID-PORT-CLASSIFICATION.md",
+    "context/VIEWPORTS.json",
+    "reference/desktop/assets/universes/dcau/portals/gotham.jpg (genuine local artwork, NOT the exact sample edition cover)"
+  ],
+  "pages": [
+    {
+      "file": "comic-sources.html",
+      "title": "Comic collected-edition torrent source picker",
+      "states": [
+        "populated results (strong, possible and weak matches)",
+        "source row selection",
+        "weak-match confirmation opened by a row",
+        "local query Search",
+        "empty results",
+        "inspecting pack",
+        "closed overlay"
+      ],
+      "viewports": [
+        "412x900 portrait",
+        "354x792 narrow portrait",
+        "900x412 landscape",
+        "792x354 short landscape",
+        "1280x700 desktop",
+        "800x1280 tablet portrait",
+        "1280x800 tablet landscape",
+        "412x900 with 1.3 font/24px top-bottom insets",
+        "354x792 with 1.3 font/24px insets",
+        "792x354 with 1.3 font/24px insets"
+      ],
+      "captures": [
+        "captures/comic-sources-portrait.png",
+        "captures/comic-sources-narrow.png",
+        "captures/comic-sources-insets-scale.png",
+        "captures/comic-sources-narrow-scale-insets.png",
+        "captures/comic-sources-landscape.png",
+        "captures/comic-sources-short.png",
+        "captures/comic-sources-desktop.png",
+        "captures/comic-sources-landscape-scale-insets.png",
+        "captures/comic-sources-tablet-portrait.png",
+        "captures/comic-sources-tablet-landscape.png"
+      ]
+    },
+    {
+      "file": "comic-source-confirmation.html",
+      "title": "Comic source weak-match confirmation and pack inspection",
+      "states": [
+        "weak-match confirmation open",
+        "weak-match confirmation cancelled via Go back/Escape",
+        "Choose anyway -> inspecting",
+        "ambiguous archive picker (CBZ, CBR, CB7, CBT)",
+        "archive choice -> inspecting",
+        "combined archive with Go back or Download whole archive anyway",
+        "incomplete pack with Try another source or Search manually",
+        "loading/empty/closed selectable in external controls"
+      ],
+      "viewports": [
+        "412x900 portrait",
+        "354x792 narrow portrait with 1.3 font/24px insets",
+        "900x412 landscape",
+        "792x354 short landscape",
+        "1280x700 desktop",
+        "792x354 with 1.3 font/24px insets"
+      ],
+      "captures": [
+        "captures/comic-source-confirmation-portrait.png",
+        "captures/comic-source-confirmation-narrow.png",
+        "captures/comic-source-confirmation-landscape.png",
+        "captures/comic-source-confirmation-desktop.png",
+        "captures/comic-source-confirmation-ambiguous-portrait.png",
+        "captures/comic-source-confirmation-combined-short.png",
+        "captures/comic-source-confirmation-incomplete-short.png",
+        "captures/comic-source-confirmation-landscape-scale-insets.png",
+        "captures/comic-source-confirmation-combined-short-scale.png",
+        "captures/comic-source-confirmation-incomplete-short-scale.png",
+        "captures/comic-source-confirmation-archive-landscape.png"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Full-screen black source picker, Gotham project-art fallback hero wash and gold editorial eyebrow; no generic phone-card/sheet substitution.",
+    "Fraunces edition heading, Segoe UI body type, collection identity rail (edition title, ISBN, collected issue range), glass rounded table and original Back vector/label.",
+    "First-letter source tiles, original STRONG MATCH/POSSIBLE MATCH/WEAK MATCH labels and exact semantic colours.",
+    "FORMAT RANGE, ISSUES and TRUSTED uploader badges; release title, size, valid seeders and 56px round gold download action; entire source row selection.",
+    "Centered original weak-match warning with Go back and Choose anyway; original archive CHOOSE ONE picker and inspecting/incomplete/combined states."
+  ],
+  "fittingChanges": [
+    "Portrait stacks the original Search input and gold Search button and wraps the heading, identity line, long source names, release title and evidence chips.",
+    "Narrow portrait uses tighter margins and a 36px letter tile while preserving the 56px gold selection action and accessible whole-row hit area.",
+    "Short landscape moves the original edition title/identity beside Back, shortens hero, keeps Search inline and allows the original glass results table to scroll.",
+    "Retains 44px minimum Search/Back/action hit targets, including a corrected Search button height after adversarial checks.",
+    "Handles provisional insets and 1.3x font scaling with content wrapping/scroll rather than removing information or adding new controls.",
+    "Tablet presets retain desktop-family presentation instead of phone-only component substitutions."
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "OnePlus device disconnected: exact logical viewport, DPR, safe areas, IME and physical touch behaviour unmeasured.",
+    "Sample Gotham portal art is an actual bundled project image but not the exact collected-edition cover; an exact matching local cover was unavailable.",
+    "CSS glass/backdrop blur and header art wash approximate QML effects; no Qt/QML pixel or runtime parity has been established.",
+    "All source metadata, ISBN and archive candidates are explicitly illustrative fixtures; no live provider, download, ledger or backend was exercised."
+  ],
+  "verification": {
+    "status": "passed-local-mock-checks",
+    "scope": "isolated headless HTML mock browser only; not app implementation, APK or device verification",
+    "method": "Preinstalled Brotherhood Desktop Commander Puppeteer with isolated local headless Chrome context and exact viewport screenshots; no shared Windows mouse, keyboard or browser tabs.",
+    "command": "powershell -NoProfile -ExecutionPolicy Bypass -File .\\capture.ps1",
+    "evidence": "captures/verification.json",
+    "screenshotsTotal": 21,
+    "screenshotDimensionsVerified": true,
+    "geometryCases": 21,
+    "geometryPassed": 21,
+    "interactionCases": 10,
+    "interactionPassed": 10,
+    "fontCheckCases": 21,
+    "fontCheckPassed": 21,
+    "externalHttpRequests": 0,
+    "testCoverage": [
+      "header/query/glass geometry and viewport bounds",
+      "44px action target minima",
+      "round download glyph visibility and size",
+      "whole-row keyboard focusability",
+      "modal bounds and action non-overlap",
+      "weak-match selection and cancellation",
+      "archive choice",
+      "local Search no-results",
+      "Enter and Escape handling",
+      "overlay Back behaviour"
+    ],
+    "appCodeModified": false,
+    "repoMutated": false,
+    "apkBuiltOrInstalled": false,
+    "deviceOperated": false,
+    "providerOrAccountOperated": false,
+    "published": false,
+    "betaHoldPreserved": true,
+    "runtimeAppVerified": false
+  }
+}

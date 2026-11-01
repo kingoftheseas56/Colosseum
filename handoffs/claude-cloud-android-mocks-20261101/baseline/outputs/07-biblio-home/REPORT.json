@@ -1,0 +1,152 @@
+{
+  "task": "07-biblio-home",
+  "status": "ready-for-review",
+  "outputDirectory": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\07-biblio-home",
+  "sourceRefs": {
+    "approvedDesktop": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop @ a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+    "reviewedConnections": "05c961914 included in approved desktop reference",
+    "alphaRecovery": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\alpha\\qml @ 77844eef0bd3b7fee2c1f884be4a76db6d63321d (reference only)",
+    "rejectedAndroid": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\android-drift\\qml @ 9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9 (comparison only, not design authority)",
+    "classification": "D:\\Colosseum-Android-Phone-Mocks-20261101\\context\\ANDROID-PORT-CLASSIFICATION.md",
+    "viewportContract": "D:\\Colosseum-Android-Phone-Mocks-20261101\\context\\VIEWPORTS.json",
+    "qml": [
+      "BiblioWorld.qml",
+      "BiblioDiscoverPage.qml",
+      "BiblioBookRail.qml",
+      "ReadingDesk.qml",
+      "WidgetHeader.qml",
+      "WorldPage.qml",
+      "Theme.qml",
+      "Main.qml",
+      "TopBar.qml",
+      "+android/TopBar.qml",
+      "PhoneWorldTabBar.qml",
+      "WideWorldRail.qml",
+      "PhoneShellHost.qml",
+      "FeaturedCarousel.qml",
+      "CarouselSlide.qml",
+      "ContinueRow.qml",
+      "ContinueTile.qml",
+      "WorldTabBar.qml",
+      "DiscoverBrowser.qml",
+      "DiscoverSidebar.qml",
+      "DiscoverPicker.qml",
+      "RowIndexSidebar.qml",
+      "BiblioExplorePage.qml",
+      "BiblioDiscoverApi.js",
+      "BiblioLibraryPage.qml",
+      "AddonLogo.qml",
+      "AddonLogos.js"
+    ],
+    "localArt": "reference/desktop/assets/wallpaper/sagas (8 named artworks), assets/extensions/house (2), assets/icons, assets/fonts; local-fonts referenced, not copied"
+  },
+  "pages": [
+    {
+      "file": "biblio-home.html",
+      "title": "Colosseum Biblio — Discover, home and Explore shelves",
+      "states": [
+        "Discover initial catalogue wall (Apple Books Popular) and source rail closed",
+        "Discover source rail expanded and selectable Apple Books/Open Library with correct house categories",
+        "Original floating category menu open/closed and category selection",
+        "Original genre filter open/closed, option selection and clearing",
+        "Explore shelves default, ranked Top 10 plus six house rails, three mosaics",
+        "Original row-index collapsed 52px and expanded 240px",
+        "Customize shelves / Done, reorder, hide/show",
+        "See All to Discover pinned catalogue and original Back to Explore",
+        "Continue Reading populated fixtures, resume/details/remove action surfaces",
+        "Featured slides and dots/gesture; Read and Details as routes out of scope",
+        "Library contextual tab only, not full library behaviour",
+        "Reading Desk as separate global Home comparison",
+        "Viewport dimensions, insets and font scale adjusted from controls outside app"
+      ],
+      "viewports": [
+        "412x900 portrait phone",
+        "354x792 small portrait phone",
+        "900x412 wide Android landscape",
+        "792x354 short landscape phone",
+        "1280x700 desktop comparison",
+        "800x1280 portrait tablet",
+        "1280x800 landscape tablet",
+        "354x792 portrait at 130% text and 24px safe-area insets"
+      ],
+      "captures": [
+        "captures/portrait.png",
+        "captures/landscape.png",
+        "captures/desktop.png",
+        "captures/portrait-small-discover.png",
+        "captures/landscape-small.png",
+        "captures/tablet-portrait.png",
+        "captures/tablet-landscape.png",
+        "captures/category-open.png",
+        "captures/row-index-open.png",
+        "captures/customize-shelves.png",
+        "captures/reading-desk-phone.png",
+        "captures/category-short-landscape.png",
+        "captures/filter-short-landscape.png",
+        "captures/font130-insets.png"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "Approved desktop/Android shell distinct from rejected Android drift: no generic cards or sheets",
+    "Fraunces display and Segoe UI family, existing gold/ink/glass/border design and spacing rhythm",
+    "BiblioBookRail heading at 20px and exact small See All without chevron; WidgetHeader Continue See all › distinct",
+    "130x182 book covers, 12px title/11px author, ranked 92px translucent numerals, original row padding/gaps",
+    "Distinct Discover catalogue wall and Explore shelf surface; source ownership Apple Books vs Open Library",
+    "Approved Apple Books bundled icon plus Open Library O monogram fallback; source-drawn row index glyphs",
+    "Continue Reading tile imagery, progress, round resume, Featured slide and action layouts",
+    "Existing lower Android five-tab bar and 92px wide-world rail with current Biblio state",
+    "No new in-app labels, buttons, external data routes or page designs beyond illustrative title/fixture data"
+  ],
+  "fittingChanges": [
+    "Adaptive stacking and source spacing at 354/412/792/900 logical px; horizontal book rails pan without changing artwork size",
+    "Expand 240px source/index rails as overlays on narrow screens instead of crushing content; originals remain 52px closed",
+    "Use existing Android bottom bar below 840px and 92px left rail at and above 840px",
+    "Retain 22px visual topbar glyphs while offering 44px Android tap bounds",
+    "Move and scroll the original rounded catalogue/filter popup on short landscape to keep options above bottom world navigation",
+    "Reserve editable top/bottom safe insets and apply external reviewer font scaling without inventing OS chrome",
+    "Keep ReadingDesk in a separate external Home scene, not as a new Biblio shelf"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "OnePlus device disconnected; logical dimensions/insets provisional and not verified on real hardware",
+    "No native QML runtime, executable, compiled app, APK, ADB or device verification; HTML design review only",
+    "No exact matching Biblio book-cover assets bundled; ten real titled local saga/house assets used as explicitly declared substitutes",
+    "Ranking, titles, author pairings to asset substitutes, review ratings, order, chapter labels and reading progress are illustrative fixtures; not current provider/account data",
+    "Native reader/details/account/provider/Library flows and data service bindings not exercised or implemented",
+    "No pixel-level runtime capture of approved frozen desktop binary for strict visual difference comparison",
+    "User design approval and any future production implementation remain separate; publication held"
+  ],
+  "verification": {
+    "type": "isolated local headless Chrome HTML/CSS/JS validation, not QML or device validation",
+    "result": "pass",
+    "screenshotsVerified": 14,
+    "renderCommand": "node captures/qa.cjs",
+    "browserTool": "Puppeteer installed with Brotherhood Desktop Commander; isolated headless Google Chrome on Laptop 1; no shared tabs/input",
+    "evidence": "captures/QA.json",
+    "checks": [
+      "All referenced local image assets loaded; missing assets=0",
+      "No HTTP(S) external requests",
+      "Exact frame dimensions in all preset captures",
+      "No accidental outer-page horizontal overflow",
+      "BiblioBookRail physical art rectangle 130x182",
+      "Source Android bottom/wide world navigation breakpoint",
+      "Android topbar interactive hit dimensions >=44px",
+      "Short landscape category/filter popup contained above bottom navigation; long filter options scroll",
+      "Original row index expands/collapses 52 to 240 to 52",
+      "Customize shelves toggle and hide/show verified",
+      "See All to Discover and Back to Explore verified",
+      "Apple Books and Open Library category/source selection verified",
+      "Genre selector selection verified",
+      "Font-scale 130% plus 24px top and bottom safe-area capture generated and inspected"
+    ],
+    "afterRunCleanup": "QA-owned headless Chrome processes 0; temporary browser profiles 0; auxiliary temporary capture harnesses removed",
+    "boundaries": {
+      "nativeAppVerified": false,
+      "onePlusDeviceVerified": false,
+      "actualAccountDataUsed": false,
+      "publicationPerformed": false,
+      "repositoryModified": false
+    }
+  }
+}

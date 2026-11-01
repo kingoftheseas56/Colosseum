@@ -1,0 +1,589 @@
+{
+  "file": "volume-flow-minimal-alternative.html",
+  "tested_at": "2026-10-31T23:16:28.679Z",
+  "tests": [
+    {
+      "name": "portrait assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "scrollers": [
+          {
+            "id": "seriesScroll",
+            "class": "series-scroll",
+            "rect": {
+              "x": 0,
+              "y": 58,
+              "width": 412,
+              "height": 842,
+              "right": 412,
+              "bottom": 900
+            },
+            "scrollTop": 0,
+            "maxScroll": 56,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "portrait readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 190,
+        "cx": 206,
+        "vx": 206,
+        "top": 535.3812255859375,
+        "bottom": 803.78125,
+        "viewTop": 527.09375,
+        "viewBottom": 812.09375,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 56,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "portrait Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 848.59375,
+        "bottom": 892.59375,
+        "height": 44,
+        "hit": true
+      }
+    },
+    {
+      "name": "landscape assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "scrollers": [
+          {
+            "id": "seriesScroll",
+            "class": "series-scroll",
+            "rect": {
+              "x": 0,
+              "y": 58,
+              "width": 900,
+              "height": 354,
+              "right": 900,
+              "bottom": 412
+            },
+            "scrollTop": 0,
+            "maxScroll": 265,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "landscape readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 190,
+        "cx": 450,
+        "vx": 450,
+        "top": 83.58438110351562,
+        "bottom": 351.984375,
+        "viewTop": 75.296875,
+        "viewBottom": 360.296875,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 265,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "landscape Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 364.296875,
+        "bottom": 408.296875,
+        "height": 44,
+        "hit": true
+      }
+    },
+    {
+      "name": "small-portrait assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-small-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "seriesScroll",
+            "class": "series-scroll",
+            "rect": {
+              "x": 0,
+              "y": 78,
+              "width": 354,
+              "height": 714,
+              "right": 354,
+              "bottom": 792
+            },
+            "scrollTop": 0,
+            "maxScroll": 136,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-portrait readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 190,
+        "cx": 177,
+        "vx": 177,
+        "top": 431.6625061035156,
+        "bottom": 700.0625,
+        "viewTop": 423.375,
+        "viewBottom": 708.375,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 136,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "small-portrait Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 742.375,
+        "bottom": 786.375,
+        "height": 44,
+        "hit": true
+      }
+    },
+    {
+      "name": "small-landscape assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-small-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "seriesScroll",
+            "class": "series-scroll",
+            "rect": {
+              "x": 0,
+              "y": 58,
+              "width": 792,
+              "height": 296,
+              "right": 792,
+              "bottom": 354
+            },
+            "scrollTop": 0,
+            "maxScroll": 323,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-landscape readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 190,
+        "cx": 396,
+        "vx": 396,
+        "top": 66.58438110351562,
+        "bottom": 334.984375,
+        "viewTop": 58.296875,
+        "viewBottom": 343.296875,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 282,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "small-landscape Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 306.296875,
+        "bottom": 350.296875,
+        "height": 44,
+        "hit": true
+      }
+    },
+    {
+      "name": "desktop assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-desktop",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "scrollers": [],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "desktop readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 210,
+        "cx": 639.9999694824219,
+        "vx": 640,
+        "top": 349.2875061035156,
+        "bottom": 639.6875,
+        "viewTop": 341,
+        "viewBottom": 648,
+        "scale": "matrix(1.1, 0, 0, 1.1, -79, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "desktop Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 657,
+        "bottom": 691,
+        "height": 34,
+        "hit": true
+      }
+    },
+    {
+      "name": "tablet-portrait assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-tablet-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 800,
+          "height": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "scrollers": [],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-portrait readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 276,
+        "cx": 400,
+        "vx": 400,
+        "top": 632,
+        "bottom": 995,
+        "viewTop": 399,
+        "viewBottom": 1228,
+        "scale": "matrix(1.1, 0, 0, 1.1, -101, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "tablet-portrait Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 1237,
+        "bottom": 1271,
+        "height": 34,
+        "hit": true
+      }
+    },
+    {
+      "name": "tablet-landscape assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-tablet-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "scrollers": [],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-landscape readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 276,
+        "cx": 640.0000305175781,
+        "vx": 640,
+        "top": 363,
+        "bottom": 726,
+        "viewTop": 341,
+        "viewBottom": 748,
+        "scale": "matrix(1.1, 0, 0, 1.1, -101, 0)",
+        "scrollTop": 0,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "tablet-landscape Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 757,
+        "bottom": 791,
+        "height": 34,
+        "hit": true
+      }
+    },
+    {
+      "name": "stress-portrait assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-stress-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "seriesScroll",
+            "class": "series-scroll",
+            "rect": {
+              "x": 0,
+              "y": 102,
+              "width": 354,
+              "height": 666,
+              "right": 354,
+              "bottom": 768
+            },
+            "scrollTop": 0,
+            "maxScroll": 235,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-portrait readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 190,
+        "cx": 177,
+        "vx": 177,
+        "top": 388.4781188964844,
+        "bottom": 675.578125,
+        "viewTop": 380.03125,
+        "viewBottom": 684.03125,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 235,
+        "chromeScrolls": false
+      }
+    },
+    {
+      "name": "stress-portrait Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 718.03125,
+        "bottom": 762.03125,
+        "height": 44,
+        "hit": true
+      }
+    },
+    {
+      "name": "stress-landscape assets and bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-flow-alternative-stress-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "seriesScroll",
+            "class": "series-scroll",
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "width": 792,
+              "height": 306,
+              "right": 792,
+              "bottom": 330
+            },
+            "scrollTop": 0,
+            "maxScroll": 400,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-landscape readable centered full focused volume",
+      "pass": true,
+      "details": {
+        "book": 190,
+        "cx": 396,
+        "vx": 396,
+        "top": 32.431243896484375,
+        "bottom": 319.53125,
+        "viewTop": 23.984375,
+        "viewBottom": 327.984375,
+        "scale": "matrix(1.1, 0, 0, 1.1, -72.5, 0)",
+        "scrollTop": 350,
+        "chromeScrolls": true
+      }
+    },
+    {
+      "name": "stress-landscape Read action reachable after scrolling",
+      "pass": true,
+      "details": {
+        "top": 281.984375,
+        "bottom": 325.984375,
+        "height": 44,
+        "hit": true
+      }
+    },
+    {
+      "name": "neighbor tap centers volume",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "keyboard focus survives repeated rerender",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "End reaches 48",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "PageDown jumps ten",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "focused Enter emits Read signal",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "selection local count updates",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "selected batch identity retained",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "next ten excludes owned and in-flight fixture volumes",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "Done clears selection",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "bookmark is visible and updates accessible name",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "restored More expands synopsis",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "pending Read uses original outline and progress",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "failed Read offers retry",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "source NO COVER fallback exists without failed image",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "browser touch swipe changes focus without Read activation",
+      "pass": true,
+      "details": {
+        "volume": "Vol. 4",
+        "event": "Tap a neighbouring volume to centre it; tap the focused volume to request its existing action."
+      }
+    }
+  ],
+  "knownConstraints": [],
+  "total": 42,
+  "passed": 42,
+  "proposal": "Unapproved scroll allocation proposal"
+}

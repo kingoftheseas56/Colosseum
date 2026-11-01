@@ -1,0 +1,369 @@
+{
+  "time": "2026-10-31T22:58:34.254Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/wallpaper-search.html?capture=1&preset=desktop",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 1280,
+    "h": 700,
+    "outerWidth": 1280,
+    "outerHeight": 700,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device desktop desktop-platform landscape",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        }
+      },
+      {
+        "class": "app-surface wall-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        }
+      },
+      {
+        "class": "wall-panel",
+        "box": {
+          "x": 40,
+          "y": 60,
+          "w": 520,
+          "h": 580,
+          "right": 560,
+          "bottom": 640
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "wall-body scroll-y",
+        "id": "",
+        "box": {
+          "x": 63,
+          "y": 269,
+          "w": 474,
+          "h": 348,
+          "right": 537,
+          "bottom": 617
+        },
+        "scrollHeight": 720,
+        "clientHeight": 348
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 1102,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1136,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 1150,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1184,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 1198,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1232,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Close wallpaper picker",
+        "action": "wallClose",
+        "disabled": false,
+        "box": {
+          "x": 499,
+          "y": 85,
+          "w": 38,
+          "h": 38,
+          "right": 537,
+          "bottom": 123
+        }
+      },
+      {
+        "text": "Search",
+        "disabled": false,
+        "box": {
+          "x": 445,
+          "y": 139,
+          "w": 92,
+          "h": 42,
+          "right": 537,
+          "bottom": 181
+        }
+      },
+      {
+        "text": "Relevance",
+        "action": "wallSort",
+        "disabled": false,
+        "box": {
+          "x": 63,
+          "y": 195,
+          "w": 82.21875,
+          "h": 30,
+          "right": 145.21875,
+          "bottom": 225
+        }
+      },
+      {
+        "text": "Top",
+        "action": "wallSort",
+        "disabled": false,
+        "box": {
+          "x": 153.21875,
+          "y": 195,
+          "w": 47.203125,
+          "h": 30,
+          "right": 200.421875,
+          "bottom": 225
+        }
+      },
+      {
+        "text": "Random",
+        "action": "wallSort",
+        "disabled": false,
+        "box": {
+          "x": 208.421875,
+          "y": 195,
+          "w": 72.515625,
+          "h": 30,
+          "right": 280.9375,
+          "bottom": 225
+        }
+      },
+      {
+        "text": "Select Noir Flow",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 64,
+          "y": 301,
+          "w": 144,
+          "h": 92,
+          "right": 208,
+          "bottom": 393
+        }
+      },
+      {
+        "text": "Select Aurora Flow",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 218,
+          "y": 301,
+          "w": 144,
+          "h": 92,
+          "right": 362,
+          "bottom": 393
+        }
+      },
+      {
+        "text": "Select Low Poly",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 372,
+          "y": 301,
+          "w": 144,
+          "h": 92,
+          "right": 516,
+          "bottom": 393
+        }
+      },
+      {
+        "text": "Select Twilight",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 64,
+          "y": 446,
+          "w": 144,
+          "h": 92,
+          "right": 208,
+          "bottom": 538
+        }
+      },
+      {
+        "text": "Select Ember",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 218,
+          "y": 446,
+          "w": 144,
+          "h": 92,
+          "right": 362,
+          "bottom": 538
+        }
+      },
+      {
+        "text": "Select Mint",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 372,
+          "y": 446,
+          "w": 144,
+          "h": 92,
+          "right": 516,
+          "bottom": 538
+        }
+      },
+      {
+        "text": "Select Cold Ripple",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 64,
+          "y": 591,
+          "w": 144,
+          "h": 92,
+          "right": 208,
+          "bottom": 683
+        }
+      },
+      {
+        "text": "Select Dune",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 63,
+          "y": 704,
+          "w": 151.328125,
+          "h": 92,
+          "right": 214.328125,
+          "bottom": 796
+        }
+      },
+      {
+        "text": "Select Lord of the Rings",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 224.328125,
+          "y": 704,
+          "w": 151.328125,
+          "h": 92,
+          "right": 375.65625,
+          "bottom": 796
+        }
+      },
+      {
+        "text": "Select The Witcher",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 385.65625,
+          "y": 704,
+          "w": 151.328125,
+          "h": 92,
+          "right": 536.984375,
+          "bottom": 796
+        }
+      },
+      {
+        "text": "Select Percy Jackson",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 63,
+          "y": 808,
+          "w": 151.328125,
+          "h": 92,
+          "right": 214.328125,
+          "bottom": 900
+        }
+      },
+      {
+        "text": "Select Sherlock Holmes",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 224.328125,
+          "y": 808,
+          "w": 151.328125,
+          "h": 92,
+          "right": 375.65625,
+          "bottom": 900
+        }
+      },
+      {
+        "text": "Select Harry Potter",
+        "action": "wallPick",
+        "disabled": false,
+        "box": {
+          "x": 385.65625,
+          "y": 808,
+          "w": 151.328125,
+          "h": 92,
+          "right": 536.984375,
+          "bottom": 900
+        }
+      },
+      {
+        "text": "Load more",
+        "action": "wallMore",
+        "disabled": false,
+        "box": {
+          "x": 243.46875,
+          "y": 927,
+          "w": 113.046875,
+          "h": 36,
+          "right": 356.515625,
+          "bottom": 963
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/wallpaper-search.html",
+      "sha256": "e3591498c08654d143421194f5caeef34c808cae28f19c26afac3e68deda598e"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "e9ba9742b59e25c1988efc3784b995d06f65300695653d278a2bdb32ac09c39a"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/native-wallpapers.js",
+      "sha256": "cc5d04ad266f2df9788509f52a860b096d040f4dc403c1913f16ea0d60b615d3"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "225ffed5fd0304903e062e7f9d43da243feccf73531d50e0edbd94f94c725433"
+    }
+  ]
+}

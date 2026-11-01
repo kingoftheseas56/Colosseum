@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark">
+<title>Colosseum — Tankoban volume sources • fitting study</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div class="review-panel" id="reviewPanel" aria-label="Reviewer controls outside the app mock">
+  <div class="review-heading"><strong>03 · Manga volume sources</strong><span>HTML fitting study · NOT app runtime</span></div>
+  <div class="controls">
+    <label>Viewport <select id="preset">
+      <option value="412x900">Phone portrait · 412 × 900</option>
+      <option value="900x412">Phone landscape · 900 × 412</option>
+      <option value="354x792">Small portrait · 354 × 792</option>
+      <option value="792x354">Small landscape · 792 × 354</option>
+      <option value="1280x700">Desktop · 1280 × 700</option>
+      <option value="800x1280">Tablet portrait · 800 × 1280</option>
+      <option value="1280x800">Tablet landscape · 1280 × 800</option>
+      <option value="custom">Custom</option>
+    </select></label>
+    <label>Width <input id="vpWidth" type="number" min="320" max="2560" value="412"></label>
+    <label>Height <input id="vpHeight" type="number" min="240" max="2560" value="900"></label>
+    <label>Top inset <input id="topInset" type="number" min="0" max="140" value="0"></label>
+    <label>Bottom inset <input id="bottomInset" type="number" min="0" max="140" value="0"></label>
+    <label>Left inset <input id="leftInset" type="number" min="0" max="80" value="0"></label>
+    <label>Right inset <input id="rightInset" type="number" min="0" max="80" value="0"></label>
+    <label>Font scale <select id="fontScale"><option value="1">100%</option><option value="1.3">130%</option></select></label>
+    <label>State <select id="scene">
+      <option value="sources">Populated sources</option>
+      <option value="disabled">Nyaa disabled · Extensions</option>
+      <option value="loading">Searching Nyaa</option>
+      <option value="empty">No matched releases</option>
+      <option value="long">Long synopsis and release</option>
+      <option value="resolving">Chosen · resolving</option>
+      <option value="downloading">Chosen · downloading 47%</option>
+      <option value="done">Chosen · complete</option>
+      <option value="failed">Chosen · failed</option>
+      <option value="closed">Picker closed (Back)</option>
+    </select></label>
+    <label>Context <select id="context"><option value="single">Single volume</option><option value="batch">Batch · 3 volumes</option><option value="series">Series search</option></select></label>
+    <button id="reopen" type="button" class="review-button">Reopen picker</button>
+  </div>
+  <p class="review-note">Source fidelity: approved desktop QML (a40f66b) · 77844eef alpha consulted. Source rows are illustrative fixtures, not real Nyaa search results. Hero art is an existing One Piece universe banner, not a volume-cover scan. The search query is contextual in the QML, not a visible input. Insets and sizes are provisional.</p>
+  <output id="reviewMessage" aria-live="polite"></output>
+</div>
+<main class="stage" id="stage">
+  <div class="app" id="app" aria-label="Colosseum full-screen Tankoban source picker fitting mock">
+    <div class="background-art"></div>
+    <div class="picker" id="picker">
+      <section class="hero" aria-label="Volume identity">
+        <div class="hero-art"></div><div class="hero-gradient"></div>
+        <button id="back" class="back" type="button" aria-label="Back">
+          <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true"><path d="M14.5 5.5 L8 12 L14.5 18.5" fill="none" stroke="currentColor" stroke-linejoin="round" stroke-linecap="round" stroke-width="2.5"/></svg><span>Back</span>
+        </button>
+        <div class="hero-copy">
+          <p class="eyebrow">SOURCES · TANKOBAN VOLUME</p>
+          <h1 id="heroTitle">Vol. 1</h1>
+          <div class="identity" id="heroIdentity">One Piece <span>·</span> Vol. 1</div>
+          <p class="synopsis is-empty" id="heroSynopsis">No synopsis for this volume yet.</p>
+        </div>
+      </section>
+      <div class="lower-veil"></div>
+      <section class="glass" id="glass" aria-label="Ranked Nyaa torrent sources">
+        <header class="table-head" id="tableHead"><strong id="sourceCount">3 sources</strong><span>Nyaa</span></header>
+        <div class="result-viewport" id="resultViewport">
+          <div class="source-rows" id="rows"></div>
+          <div class="empty-state" id="emptyState" hidden>
+            <p id="emptyText">No sources enabled — enable Nyaa in Extensions to search.</p>
+            <button class="extensions-link" id="extensionsRoute" type="button">Open Extensions</button>
+          </div>
+        </div>
+      </section>
+      <div class="toast" id="toast" role="status" hidden>Vol. 1 is downloading — follow it on the volume shelf</div>
+    </div>
+  </div>
+</main>
+<script src="app.js"></script>
+</body>
+</html>

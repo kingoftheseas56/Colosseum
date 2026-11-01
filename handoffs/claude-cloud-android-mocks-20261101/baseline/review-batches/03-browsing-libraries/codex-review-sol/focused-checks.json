@@ -1,0 +1,601 @@
+{
+  "started": "2026-11-01T00:36:47.125Z",
+  "hashes": [
+    {
+      "manifest": "INPUT-VERSIONS-START.json",
+      "count": 78,
+      "mismatches": []
+    },
+    {
+      "manifest": "FINAL-ARTIFACT-VERSIONS.json",
+      "count": 47,
+      "mismatches": []
+    },
+    {
+      "manifest": "FINAL-CAPTURE-INPUTS.json",
+      "count": 37,
+      "mismatches": []
+    }
+  ],
+  "pages": [
+    {
+      "page": "biblio-home.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "biblio-home-stress-792x354.png",
+          "title": "Colosseum · Biblio phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "FrauncesLocal",
+            "SegoeLocal",
+            "SegoeLocal"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-discover.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "theatre-discover-stress-792x354.png",
+          "title": "Colosseum · Theatre Discover / faithful phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-catalogue.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "theatre-catalogue-stress-792x354.png",
+          "title": "Theatre Catalogue — Colosseum phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "manga-catalogue.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "manga-catalogue-stress-792x354.png",
+          "title": "Tankoban Manga Catalogue — Colosseum phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "comics-catalogue.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "comics-catalogue-stress-792x354.png",
+          "title": "Tankoban Comics Catalogue — Colosseum phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-home.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "theatre-home-stress-792x354.png",
+          "title": "Theatre home — Colosseum fitting mock",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "tankoban-home.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "tankoban-home-stress-792x354.png",
+          "title": "Tankoban home — Colosseum fitting mock",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "universes-home.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "universes-home-stress-792x354.png",
+          "title": "Universes home — Colosseum fitting mock",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-library.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "theatre-library-stress-792x354.png",
+          "title": "Theatre Library · Colosseum Android fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "tankoban-library.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "tankoban-library-stress-792x354.png",
+          "title": "Tankoban Library · Colosseum Android fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "biblio-library.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "biblio-library-stress-792x354.png",
+          "title": "Biblio Library · Colosseum Android fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "search.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "search-stress-792x354.png",
+          "title": "Colosseum · Search surfaces · Phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "biblio-explore.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "biblio-explore-stress-792x354.png",
+          "title": "Colosseum · Biblio Explore · Phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "genre-index.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "genre-index-stress-792x354.png",
+          "title": "Colosseum · Genre index · Phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "genre-results.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "genre-results-stress-792x354.png",
+          "title": "Colosseum · Genre results · Phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "continue-see-all.html",
+      "views": [
+        {
+          "w": 792,
+          "h": 354,
+          "shot": "continue-see-all-stress-792x354.png",
+          "title": "Colosseum · Continue See All · Phone fitting study",
+          "doc": [
+            792,
+            792
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "Biblio home customize hides index entry",
+      "pass": true,
+      "detail": true
+    },
+    {
+      "name": "Discover original popup short-landscape fit",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "r": {
+          "x": 176,
+          "y": 32,
+          "right": 456,
+          "bottom": 153
+        }
+      }
+    },
+    {
+      "name": "Discover source sidebar expansion",
+      "pass": true,
+      "detail": true
+    },
+    {
+      "name": "theatre-catalogue.html expanding rail and final jump",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 912,
+        "after": 4563
+      }
+    },
+    {
+      "name": "manga-catalogue.html expanding rail and final jump",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 856,
+        "after": 3291
+      }
+    },
+    {
+      "name": "comics-catalogue.html expanding rail and final jump",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 856,
+        "after": 4074
+      }
+    },
+    {
+      "name": "theatre-home.html carousel next keyboard",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "title": "Dune: Part Two",
+        "buttons": [
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "tankoban-home.html carousel next keyboard",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "title": "One Piece",
+        "buttons": [
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          }
+        ]
+      }
+    },
+    {
+      "name": "universes-home.html carousel next keyboard",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "title": "One Piece",
+        "buttons": [
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "slide",
+            "t": ""
+          },
+          {
+            "a": "facet",
+            "v": "all",
+            "t": "All"
+          },
+          {
+            "a": "facet",
+            "v": "books",
+            "t": "Books"
+          },
+          {
+            "a": "facet",
+            "v": "manga",
+            "t": "Manga"
+          },
+          {
+            "a": "facet",
+            "v": "anime",
+            "t": "Anime"
+          },
+          {
+            "a": "facet",
+            "v": "films",
+            "t": "Films"
+          },
+          {
+            "a": "facet",
+            "v": "series",
+            "t": "Series"
+          },
+          {
+            "a": "facet",
+            "v": "comics",
+            "t": "Comics"
+          }
+        ]
+      }
+    },
+    {
+      "name": "theatre-library.html selection removal",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 10,
+        "after": 0
+      }
+    },
+    {
+      "name": "tankoban-library.html selection removal",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 10,
+        "after": 0
+      }
+    },
+    {
+      "name": "biblio-library.html selection removal",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 8,
+        "after": 0
+      }
+    },
+    {
+      "name": "search query produces empty then matching results",
+      "pass": false,
+      "detail": {
+        "pass": false,
+        "empty": "Back\n×\n\nNo books found",
+        "match": "Back\n×\n\nNo books found"
+      }
+    },
+    {
+      "name": "Explore keyboard reorder and retained return",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "reordered": true,
+        "discover": true
+      }
+    },
+    {
+      "name": "genre directory activation",
+      "pass": true,
+      "detail": true
+    },
+    {
+      "name": "genre view and membership",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 5,
+        "after": 5
+      }
+    },
+    {
+      "name": "continue keyboard menu dismiss focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "menu": true
+      }
+    }
+  ],
+  "resources": [
+    {
+      "url": "http://127.0.0.1:14875/favicon.ico",
+      "status": 404
+    }
+  ],
+  "errors": [],
+  "origin": "http://127.0.0.1:14875",
+  "closed": "2026-11-01T00:37:51.258Z"
+}

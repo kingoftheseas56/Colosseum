@@ -1,0 +1,330 @@
+{
+  "at": "2026-10-31T23:54:11.427Z",
+  "records": [
+    {
+      "page": "index.html",
+      "checked": 33,
+      "missing": [],
+      "expectedFinalWrite": true
+    },
+    {
+      "page": "comparisons.html?page=tracker-connections",
+      "checked": 17,
+      "missing": [],
+      "expectedFinalWrite": false
+    },
+    {
+      "page": "comparisons.html?page=tracker-dossier",
+      "checked": 17,
+      "missing": [],
+      "expectedFinalWrite": false
+    },
+    {
+      "page": "comparisons.html?page=tracker-preferences",
+      "checked": 17,
+      "missing": [],
+      "expectedFinalWrite": false
+    },
+    {
+      "page": "comparisons.html?page=wallpaper-search",
+      "checked": 17,
+      "missing": [],
+      "expectedFinalWrite": false
+    },
+    {
+      "page": "comparisons.html?page=extensions-store",
+      "checked": 17,
+      "missing": [],
+      "expectedFinalWrite": false
+    },
+    {
+      "page": "comparisons.html?page=update",
+      "checked": 17,
+      "missing": [],
+      "expectedFinalWrite": false
+    },
+    {
+      "page": "comparisons.html?page=collections",
+      "checked": 17,
+      "missing": [],
+      "expectedFinalWrite": false
+    }
+  ],
+  "gallery": {
+    "all": "171 captures shown · 171 in the final indexed sweep",
+    "page": "15 captures shown · 171 in the final indexed sweep",
+    "filtered": "2 captures shown · 171 in the final indexed sweep"
+  },
+  "markdown": [
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/index.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/tracker-connections.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/tracker-dossier.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/tracker-preferences.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/wallpaper-search.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/extensions-store.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/update.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/collections.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/README.md",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/evidence.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "contact-sheets/index.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "COVERAGE.csv",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "finished-mocks/comparisons.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/final-matrix.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/state-matrix.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/tracker-actions.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/utility-actions.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/final-keyboard-and-source-actions.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/final-capture-version-check.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/input-preservation.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "contact-sheets/provenance.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/standalone-server-check.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/browser-session.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/browser-closed.json",
+      "exists": false,
+      "deferred": true
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/before-cancel-regression.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/after-collections-cancel-preserves-six.png",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "FINDINGS.csv",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/reviewed-sources.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/reference-assets.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "evidence/kde-assets.json",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "QML-PORTING.md",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "COVERAGE.csv",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "REVIEW.md",
+      "link": "REPORT.json",
+      "exists": false,
+      "deferred": true
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "index.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "comparisons.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "evidence.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "../contact-sheets/index.html",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "../COVERAGE.csv",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "../FINDINGS.csv",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "../REVIEW.md",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "../QML-PORTING.md",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "../REPORT.json",
+      "exists": false,
+      "deferred": true
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "assets/ATTRIBUTION.md",
+      "exists": true,
+      "deferred": false
+    },
+    {
+      "from": "finished-mocks/README.md",
+      "link": "../evidence/kde-assets.json",
+      "exists": true,
+      "deferred": false
+    }
+  ],
+  "failed": [],
+  "deferredUntilFinalWrite": [
+    "REPORT.json"
+  ],
+  "standaloneProcessAbsent": true,
+  "closedReceiptVerified": true
+}

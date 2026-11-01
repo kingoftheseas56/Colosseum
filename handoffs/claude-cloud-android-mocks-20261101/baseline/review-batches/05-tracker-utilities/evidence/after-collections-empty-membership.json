@@ -1,0 +1,378 @@
+{
+  "time": "2026-10-31T23:41:01.480Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/collections.html?",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 1280,
+    "h": 1080,
+    "outerWidth": 1280,
+    "outerHeight": 1080,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android portrait",
+        "box": {
+          "x": 452.31109619140625,
+          "y": 154,
+          "w": 375.37774658203125,
+          "h": 820,
+          "right": 827.6888427734375,
+          "bottom": 974
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 452.31109619140625,
+          "y": 154,
+          "w": 375.37774658203125,
+          "h": 820,
+          "right": 827.6888427734375,
+          "bottom": 974
+        }
+      },
+      {
+        "class": "modal-panel collection-popup small",
+        "box": {
+          "x": 466.8888854980469,
+          "y": 243.51666259765625,
+          "w": 346.2221984863281,
+          "h": 640.9666748046875,
+          "right": 813.111083984375,
+          "bottom": 884.4833374023438
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 452.31109619140625,
+          "y": 189.5333251953125,
+          "w": 375.37774658203125,
+          "h": 771.7111206054688,
+          "right": 827.6888427734375,
+          "bottom": 961.2444458007812
+        },
+        "scrollHeight": 1881,
+        "clientHeight": 847
+      },
+      {
+        "tag": "DIV",
+        "class": "scroll-y membership-list",
+        "id": "",
+        "box": {
+          "x": 486.022216796875,
+          "y": 468.1055603027344,
+          "w": 307.95556640625,
+          "h": 273.3333435058594,
+          "right": 793.977783203125,
+          "bottom": 741.4389038085938
+        },
+        "scrollHeight": 373,
+        "clientHeight": 300
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Back",
+        "action": "collectionExit",
+        "disabled": false,
+        "box": {
+          "x": 472.35552978515625,
+          "y": 205.93333435058594,
+          "w": 335.28887939453125,
+          "h": 40.08888244628906,
+          "right": 807.6444091796875,
+          "bottom": 246.022216796875
+        }
+      },
+      {
+        "text": "New collection",
+        "action": "collectionNew",
+        "disabled": false,
+        "box": {
+          "x": 676.3162841796875,
+          "y": 341.8597412109375,
+          "w": 131.328125,
+          "h": 40.0888671875,
+          "right": 807.6444091796875,
+          "bottom": 381.9486083984375
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to, 6 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 472.35552978515625,
+          "y": 419.3041687011719,
+          "w": 335.28887939453125,
+          "h": 273.3333435058594,
+          "right": 807.6444091796875,
+          "bottom": 692.6375122070312
+        }
+      },
+      {
+        "text": "Open Stories worth revisiting, 4 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 472.35552978515625,
+          "y": 714.504150390625,
+          "w": 335.28887939453125,
+          "h": 273.3333740234375,
+          "right": 807.6444091796875,
+          "bottom": 987.8375244140625
+        }
+      },
+      {
+        "text": "Open Mysteries and detectives, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 472.35552978515625,
+          "y": 1009.7041625976562,
+          "w": 335.28887939453125,
+          "h": 273.33331298828125,
+          "right": 807.6444091796875,
+          "bottom": 1283.0374755859375
+        }
+      },
+      {
+        "text": "Open The worlds I keep coming back to, even after the last chapter, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 472.35552978515625,
+          "y": 1304.9041748046875,
+          "w": 335.28887939453125,
+          "h": 275.611083984375,
+          "right": 807.6444091796875,
+          "bottom": 1580.5152587890625
+        }
+      },
+      {
+        "text": "Open Empty fixture, 0 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 472.35552978515625,
+          "y": 1602.3819580078125,
+          "w": 335.28887939453125,
+          "h": 273.3333740234375,
+          "right": 807.6444091796875,
+          "bottom": 1875.71533203125
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Close",
+        "action": "closeModal",
+        "disabled": false,
+        "box": {
+          "x": 761.177734375,
+          "y": 262.6499938964844,
+          "w": 32.800048828125,
+          "h": 32.800018310546875,
+          "right": 793.977783203125,
+          "bottom": 295.45001220703125
+        }
+      },
+      {
+        "text": "Worlds worth returning to6 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 486.022216796875,
+          "y": 468.1055603027344,
+          "w": 307.95556640625,
+          "h": 63.777740478515625,
+          "right": 793.977783203125,
+          "bottom": 531.88330078125
+        }
+      },
+      {
+        "text": "Stories worth revisiting4 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 486.022216796875,
+          "y": 535.5277709960938,
+          "w": 307.95556640625,
+          "h": 63.77777099609375,
+          "right": 793.977783203125,
+          "bottom": 599.3055419921875
+        }
+      },
+      {
+        "text": "Mysteries and detectives3 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 486.022216796875,
+          "y": 602.9500122070312,
+          "w": 307.95556640625,
+          "h": 63.77777099609375,
+          "right": 793.977783203125,
+          "bottom": 666.727783203125
+        }
+      },
+      {
+        "text": "The worlds I keep coming back to, even after the last chapter3 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 486.022216796875,
+          "y": 670.3722534179688,
+          "w": 307.95556640625,
+          "h": 70.155517578125,
+          "right": 793.977783203125,
+          "bottom": 740.5277709960938
+        }
+      },
+      {
+        "text": "Empty fixture0 titles",
+        "action": "toggleMembership",
+        "disabled": false,
+        "box": {
+          "x": 486.022216796875,
+          "y": 744.1722412109375,
+          "w": 307.95556640625,
+          "h": 63.77777099609375,
+          "right": 793.977783203125,
+          "bottom": 807.9500122070312
+        }
+      },
+      {
+        "text": "New collection",
+        "action": "collectionNew",
+        "disabled": false,
+        "box": {
+          "x": 486.022216796875,
+          "y": 752.3722534179688,
+          "w": 307.95556640625,
+          "h": 40.0888671875,
+          "right": 793.977783203125,
+          "bottom": 792.4611206054688
+        }
+      },
+      {
+        "text": "Cancel",
+        "action": "closeModal",
+        "disabled": false,
+        "box": {
+          "x": 667.1197509765625,
+          "y": 825.2611083984375,
+          "w": 69.1163330078125,
+          "h": 40.0888671875,
+          "right": 736.236083984375,
+          "bottom": 865.3499755859375
+        }
+      },
+      {
+        "text": "Save",
+        "action": "saveMembership",
+        "disabled": false,
+        "box": {
+          "x": 745.34716796875,
+          "y": 825.2611083984375,
+          "w": 48.630615234375,
+          "h": 40.0888671875,
+          "right": 793.977783203125,
+          "bottom": 865.3499755859375
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

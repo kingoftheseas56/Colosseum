@@ -1,0 +1,16 @@
+{
+  "name": "shelves-original-jump-portrait-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-jump-portrait-stress.png",
+  "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump",
+  "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow&fixture=jump",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 354,
+    "height": 792,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:07:12.580Z",
+  "sha256": "32a2996fa682f0f7b6ad23e02521d2afdf71d7a8ff99f0b44fef2d290b50d615",
+  "errors": [],
+  "blocked": []
+}

@@ -1,0 +1,1282 @@
+{
+  "task": "PRO-REVIEW-05-TRACKER-UTILITIES",
+  "batch": "05-tracker-utilities",
+  "title": "Tracker and utilities — finished mocks",
+  "status": "ready-for-review",
+  "completionBoundary": "Finished and browser-verified HTML mocks, source fidelity review and QML implementation handoff. Not native application acceptance.",
+  "timing": {
+    "startedAt": "2026-10-31T22:40:16.000Z",
+    "completedAt": "2026-10-31T23:57:26.684Z",
+    "deadline": "2026-11-01T01:40:16.000Z",
+    "elapsedMinutes": 77,
+    "withinThreeHourLimit": true
+  },
+  "authority": {
+    "userScopeUpdate": "Own Batch 5 mock fixes end to end under finished-mocks; supersedes original review-only restriction.",
+    "ownedFolder": "D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/05-tracker-utilities",
+    "originalWorkerOutputsPreserved": true,
+    "frozenReferencesPreserved": true,
+    "otherBatchesTouched": false,
+    "applicationRepositoryChanged": false,
+    "buildsInstallsDevicesLiveServicesPublication": false,
+    "agentsOrMessagesUsed": false
+  },
+  "sourceRefs": {
+    "approvedDesktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "path": "../../reference/desktop",
+      "includes": "Reviewed Connections refinement and collection close behavior"
+    },
+    "alphaRecoveryOnly": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d"
+    },
+    "rejectedComparisonNotTarget": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9"
+    },
+    "classification": "../../context/ANDROID-PORT-CLASSIFICATION.md",
+    "viewportContract": "../../context/VIEWPORTS.json",
+    "sourceManifest": "evidence/reviewed-sources.json",
+    "sourceFilesInspected": 36,
+    "sourceInspectionLimit": "Main.qml and Taskbar.qml were inspected only for relevant integration sections; historical inventory has no directly matching current native Batch 5 raster."
+  },
+  "reviewedInputVersions": {
+    "manifest": "evidence/input-versions.json",
+    "sha256": "ae46293065249db4d7c8174689739d0c667812ca64f174faa28c25f3166cc90c",
+    "originalFiles": [
+      {
+        "path": "outputs/21-tracker-connections/app.js",
+        "bytes": 33913,
+        "sha256": "90441eaf3156d2cb09dcde4939367790a3f9d709d513bd9682ab99bed0428c6d"
+      },
+      {
+        "path": "outputs/21-tracker-connections/FIDELITY.md",
+        "bytes": 10822,
+        "sha256": "c8c70515a2f7f8676f5ce6c7aef641bb0db8d23f15f11fa09b492c269c9aaa0b"
+      },
+      {
+        "path": "outputs/21-tracker-connections/index.html",
+        "bytes": 1394,
+        "sha256": "39cb9dacdbc38ffb4886d094bae279a8e68837307146d0fe16a8e7a039f1e1f1"
+      },
+      {
+        "path": "outputs/21-tracker-connections/render-captures.py",
+        "bytes": 2500,
+        "sha256": "24401b01521d124ca1f338ed8c837c1e846ee53870a1186fdc96bb1bfd4b6b27"
+      },
+      {
+        "path": "outputs/21-tracker-connections/style.css",
+        "bytes": 25789,
+        "sha256": "075d838f03993010e54827e49e3379ba19d787b0297714c4da3d0937eb90ab04"
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-connections.html",
+        "bytes": 2709,
+        "sha256": "6a452ec35107dc1c36b5b89d3935d148a1c3973ed698bd28d2e711daee2b3f4f"
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-dossier.html",
+        "bytes": 2709,
+        "sha256": "a95a9710a78cfeba5a0ef4aa642de65b8bc688cb4990e0f3521d75d94c6b2571"
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-preferences.html",
+        "bytes": 2717,
+        "sha256": "3bd5c41faaca3d34737e4460e9b86f4696468d0afaed3e29feff3623b8e7ccce"
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-connections.html",
+        "bytes": 409,
+        "sha256": "3a9ddd18d08a335b19f50d9bdaf64ebd8277e90e2cf83ea50f38db450302330e"
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-dossier.html",
+        "bytes": 401,
+        "sha256": "3b383042da08341388f46e0644137035264b301995947db71ac2f499d1e0cce2"
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-preferences.html",
+        "bytes": 409,
+        "sha256": "eb082c0efba99a8c2a148e4a89ee86032e2c54aa77d6361ee242b0767e945445"
+      },
+      {
+        "path": "outputs/22-utilities-collections/app.js",
+        "bytes": 47713,
+        "sha256": "1b765457dff74f11bf1b57b9fef3da663dc1f90bc8b39b60691f7ddceb818272"
+      },
+      {
+        "path": "outputs/22-utilities-collections/capture-audit.cjs",
+        "bytes": 10251,
+        "sha256": "4b5cb36068c053209e16fa9fcb71cc406f505c7878d29648d5e094d0441d5093"
+      },
+      {
+        "path": "outputs/22-utilities-collections/collections.html",
+        "bytes": 612,
+        "sha256": "3152667a6e366c85590408e12234188a1c01a5d2755d410f0499819175393d54"
+      },
+      {
+        "path": "outputs/22-utilities-collections/extensions-store.html",
+        "bytes": 611,
+        "sha256": "de3b28dbd3425a78dbb99e4f64a1248b85589c804954cea38287d2383d7c846f"
+      },
+      {
+        "path": "outputs/22-utilities-collections/FIDELITY.md",
+        "bytes": 16894,
+        "sha256": "484599f5ad3735fa094d92e984feb2092716aa056175edcef979540287f80eb7"
+      },
+      {
+        "path": "outputs/22-utilities-collections/index.html",
+        "bytes": 1325,
+        "sha256": "749bb06a9bd26f490f9c2c1fcfada20a4121a836f2ee2f271cfbb963f8970575"
+      },
+      {
+        "path": "outputs/22-utilities-collections/REPORT.json",
+        "bytes": 12808,
+        "sha256": "78de8be55ad101e7d921e2fd2576a2938820899c615579a50496d93fcc6af19f"
+      },
+      {
+        "path": "outputs/22-utilities-collections/style.css",
+        "bytes": 37869,
+        "sha256": "a7fe372fa2b22f00e64d0b39fe1f6e12b588b732b3486fb9d159e7d7ac35d9ce"
+      },
+      {
+        "path": "outputs/22-utilities-collections/update.html",
+        "bytes": 607,
+        "sha256": "f8a52982fb8917c40b140c227d5efba11d465bec320045fa93cadec329cf17a0"
+      },
+      {
+        "path": "outputs/22-utilities-collections/wallpaper-search.html",
+        "bytes": 610,
+        "sha256": "0f9cb9c43d1a3dc6c0709eebcf2f71586a16718f4ebcf5231991d7b4d068c277"
+      },
+      {
+        "path": "reference/desktop/qml/TrackerSyncCenterPage.qml",
+        "bytes": 248252,
+        "sha256": "e8226f58e305f297660f7d124712763aa67627dab71d0987207fba546e038611"
+      },
+      {
+        "path": "reference/desktop/qml/Theme.qml",
+        "bytes": 1920,
+        "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495"
+      },
+      {
+        "path": "reference/desktop/qml/WallpaperSearch.qml",
+        "bytes": 33981,
+        "sha256": "8da9e6e5984c52740b2d34c8e8bf4c631dca757e814fb5feebef8f6a8107bac4"
+      },
+      {
+        "path": "reference/desktop/qml/ExtensionsStorePage.qml",
+        "bytes": 41254,
+        "sha256": "758b548c9d94e80cfa687df755f6f774d413687ec00a788132a58938dc6241cf"
+      },
+      {
+        "path": "reference/desktop/qml/ExtensionsInstalledPage.qml",
+        "bytes": 9352,
+        "sha256": "00889a1325c62cfbd1dfa59cee35fffdb994506a7f495db1b90499e030cb6c35"
+      },
+      {
+        "path": "reference/desktop/qml/UpdatePage.qml",
+        "bytes": 16493,
+        "sha256": "460c548232c31b7d70dea6b4196c05c13cf5b0083edefb9fcc5c785127c56879"
+      },
+      {
+        "path": "reference/desktop/qml/collections/CollectionsPanel.qml",
+        "bytes": 11964,
+        "sha256": "98e97ff7343ef38b8187d18c393bf96f101bf7505638883562721816fdaba0e0"
+      },
+      {
+        "path": "reference/desktop/qml/collections/YourCollectionsPage.qml",
+        "bytes": 8297,
+        "sha256": "a1942f7b3d757535c2ee74b582ac21ebc99575e0c207315e80cbeb55a862a0f0"
+      }
+    ],
+    "preservation": "evidence/input-preservation.json",
+    "unchanged": 29,
+    "missingOriginalHandoff": "../../outputs/21-tracker-connections/REPORT.json"
+  },
+  "pages": [
+    {
+      "file": "finished-mocks/tracker-connections.html",
+      "title": "Connections",
+      "original": "../../outputs/21-tracker-connections/tracker-connections.html",
+      "comparison": "finished-mocks/comparisons.html?page=tracker-connections",
+      "contactSheet": "contact-sheets/tracker-connections.png",
+      "source": "TrackerSyncCenterPage.qml",
+      "states": "Connected, disconnected, attention, provider catalogue and local connection transitions.",
+      "status": "fixed-verified",
+      "viewports": [
+        {
+          "name": "portrait",
+          "width": 412,
+          "height": 900,
+          "platform": "android"
+        },
+        {
+          "name": "landscape",
+          "width": 900,
+          "height": 412,
+          "platform": "android"
+        },
+        {
+          "name": "compact portrait",
+          "width": 354,
+          "height": 792,
+          "platform": "android"
+        },
+        {
+          "name": "compact landscape",
+          "width": 792,
+          "height": 354,
+          "platform": "android"
+        },
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 700,
+          "platform": "desktop"
+        },
+        {
+          "name": "tablet portrait",
+          "width": 800,
+          "height": 1280,
+          "platform": "android"
+        },
+        {
+          "name": "tablet landscape",
+          "width": 1280,
+          "height": 800,
+          "platform": "android"
+        }
+      ],
+      "captures": [
+        {
+          "preset": "portrait",
+          "image": "evidence/after-tracker-connections-portrait.png",
+          "receipt": "evidence/after-tracker-connections-portrait.json"
+        },
+        {
+          "preset": "landscape",
+          "image": "evidence/after-tracker-connections-landscape.png",
+          "receipt": "evidence/after-tracker-connections-landscape.json"
+        },
+        {
+          "preset": "compact",
+          "image": "evidence/after-tracker-connections-compact.png",
+          "receipt": "evidence/after-tracker-connections-compact.json"
+        },
+        {
+          "preset": "compactland",
+          "image": "evidence/after-tracker-connections-compactland.png",
+          "receipt": "evidence/after-tracker-connections-compactland.json"
+        },
+        {
+          "preset": "desktop",
+          "image": "evidence/after-tracker-connections-desktop.png",
+          "receipt": "evidence/after-tracker-connections-desktop.json"
+        },
+        {
+          "preset": "tablet",
+          "image": "evidence/after-tracker-connections-tablet.png",
+          "receipt": "evidence/after-tracker-connections-tablet.json"
+        },
+        {
+          "preset": "tabletland",
+          "image": "evidence/after-tracker-connections-tabletland.png",
+          "receipt": "evidence/after-tracker-connections-tabletland.json"
+        },
+        {
+          "preset": "compact-stress",
+          "image": "evidence/after-tracker-connections-compact-stress.png",
+          "receipt": "evidence/after-tracker-connections-compact-stress.json"
+        },
+        {
+          "preset": "compactland-stress",
+          "image": "evidence/after-tracker-connections-compactland-stress.png",
+          "receipt": "evidence/after-tracker-connections-compactland-stress.json"
+        }
+      ],
+      "openStateCaptureCount": 6,
+      "sourceFidelity": "checked against approved QML and assets",
+      "controls": "checked in original dialogs/panels with local fixture behavior",
+      "longContent": "Checked; see state matrix, scroll end and action receipts.",
+      "fixedButUnverified": [],
+      "unfinished": []
+    },
+    {
+      "file": "finished-mocks/tracker-dossier.html",
+      "title": "Tracker dossier",
+      "original": "../../outputs/21-tracker-connections/tracker-dossier.html",
+      "comparison": "finished-mocks/comparisons.html?page=tracker-dossier",
+      "contactSheet": "contact-sheets/tracker-dossier.png",
+      "source": "TrackerSyncCenterPage.qml",
+      "states": "Provider capabilities, import review, matching, bulk choice, export, disconnect and removal.",
+      "status": "fixed-verified",
+      "viewports": [
+        {
+          "name": "portrait",
+          "width": 412,
+          "height": 900,
+          "platform": "android"
+        },
+        {
+          "name": "landscape",
+          "width": 900,
+          "height": 412,
+          "platform": "android"
+        },
+        {
+          "name": "compact portrait",
+          "width": 354,
+          "height": 792,
+          "platform": "android"
+        },
+        {
+          "name": "compact landscape",
+          "width": 792,
+          "height": 354,
+          "platform": "android"
+        },
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 700,
+          "platform": "desktop"
+        },
+        {
+          "name": "tablet portrait",
+          "width": 800,
+          "height": 1280,
+          "platform": "android"
+        },
+        {
+          "name": "tablet landscape",
+          "width": 1280,
+          "height": 800,
+          "platform": "android"
+        }
+      ],
+      "captures": [
+        {
+          "preset": "portrait",
+          "image": "evidence/after-tracker-dossier-portrait.png",
+          "receipt": "evidence/after-tracker-dossier-portrait.json"
+        },
+        {
+          "preset": "landscape",
+          "image": "evidence/after-tracker-dossier-landscape.png",
+          "receipt": "evidence/after-tracker-dossier-landscape.json"
+        },
+        {
+          "preset": "compact",
+          "image": "evidence/after-tracker-dossier-compact.png",
+          "receipt": "evidence/after-tracker-dossier-compact.json"
+        },
+        {
+          "preset": "compactland",
+          "image": "evidence/after-tracker-dossier-compactland.png",
+          "receipt": "evidence/after-tracker-dossier-compactland.json"
+        },
+        {
+          "preset": "desktop",
+          "image": "evidence/after-tracker-dossier-desktop.png",
+          "receipt": "evidence/after-tracker-dossier-desktop.json"
+        },
+        {
+          "preset": "tablet",
+          "image": "evidence/after-tracker-dossier-tablet.png",
+          "receipt": "evidence/after-tracker-dossier-tablet.json"
+        },
+        {
+          "preset": "tabletland",
+          "image": "evidence/after-tracker-dossier-tabletland.png",
+          "receipt": "evidence/after-tracker-dossier-tabletland.json"
+        },
+        {
+          "preset": "compact-stress",
+          "image": "evidence/after-tracker-dossier-compact-stress.png",
+          "receipt": "evidence/after-tracker-dossier-compact-stress.json"
+        },
+        {
+          "preset": "compactland-stress",
+          "image": "evidence/after-tracker-dossier-compactland-stress.png",
+          "receipt": "evidence/after-tracker-dossier-compactland-stress.json"
+        }
+      ],
+      "openStateCaptureCount": 20,
+      "sourceFidelity": "checked against approved QML and assets",
+      "controls": "checked in original dialogs/panels with local fixture behavior",
+      "longContent": "Checked; see state matrix, scroll end and action receipts.",
+      "fixedButUnverified": [],
+      "unfinished": []
+    },
+    {
+      "file": "finished-mocks/tracker-preferences.html",
+      "title": "Tracker preferences",
+      "original": "../../outputs/21-tracker-connections/tracker-preferences.html",
+      "comparison": "finished-mocks/comparisons.html?page=tracker-preferences",
+      "contactSheet": "contact-sheets/tracker-preferences.png",
+      "source": "TrackerSyncCenterPage.qml",
+      "states": "Original preference switches, close/Back, keyboard focus and enlarged text.",
+      "status": "fixed-verified",
+      "viewports": [
+        {
+          "name": "portrait",
+          "width": 412,
+          "height": 900,
+          "platform": "android"
+        },
+        {
+          "name": "landscape",
+          "width": 900,
+          "height": 412,
+          "platform": "android"
+        },
+        {
+          "name": "compact portrait",
+          "width": 354,
+          "height": 792,
+          "platform": "android"
+        },
+        {
+          "name": "compact landscape",
+          "width": 792,
+          "height": 354,
+          "platform": "android"
+        },
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 700,
+          "platform": "desktop"
+        },
+        {
+          "name": "tablet portrait",
+          "width": 800,
+          "height": 1280,
+          "platform": "android"
+        },
+        {
+          "name": "tablet landscape",
+          "width": 1280,
+          "height": 800,
+          "platform": "android"
+        }
+      ],
+      "captures": [
+        {
+          "preset": "portrait",
+          "image": "evidence/after-tracker-preferences-portrait.png",
+          "receipt": "evidence/after-tracker-preferences-portrait.json"
+        },
+        {
+          "preset": "landscape",
+          "image": "evidence/after-tracker-preferences-landscape.png",
+          "receipt": "evidence/after-tracker-preferences-landscape.json"
+        },
+        {
+          "preset": "compact",
+          "image": "evidence/after-tracker-preferences-compact.png",
+          "receipt": "evidence/after-tracker-preferences-compact.json"
+        },
+        {
+          "preset": "compactland",
+          "image": "evidence/after-tracker-preferences-compactland.png",
+          "receipt": "evidence/after-tracker-preferences-compactland.json"
+        },
+        {
+          "preset": "desktop",
+          "image": "evidence/after-tracker-preferences-desktop.png",
+          "receipt": "evidence/after-tracker-preferences-desktop.json"
+        },
+        {
+          "preset": "tablet",
+          "image": "evidence/after-tracker-preferences-tablet.png",
+          "receipt": "evidence/after-tracker-preferences-tablet.json"
+        },
+        {
+          "preset": "tabletland",
+          "image": "evidence/after-tracker-preferences-tabletland.png",
+          "receipt": "evidence/after-tracker-preferences-tabletland.json"
+        },
+        {
+          "preset": "compact-stress",
+          "image": "evidence/after-tracker-preferences-compact-stress.png",
+          "receipt": "evidence/after-tracker-preferences-compact-stress.json"
+        },
+        {
+          "preset": "compactland-stress",
+          "image": "evidence/after-tracker-preferences-compactland-stress.png",
+          "receipt": "evidence/after-tracker-preferences-compactland-stress.json"
+        }
+      ],
+      "openStateCaptureCount": 0,
+      "sourceFidelity": "checked against approved QML and assets",
+      "controls": "checked in original dialogs/panels with local fixture behavior",
+      "longContent": "Enlarged labels and short-height scrolling; no variable data list.",
+      "fixedButUnverified": [],
+      "unfinished": []
+    },
+    {
+      "file": "finished-mocks/wallpaper-search.html",
+      "title": "Wallpaper search",
+      "original": "../../outputs/22-utilities-collections/wallpaper-search.html",
+      "comparison": "finished-mocks/comparisons.html?page=wallpaper-search",
+      "contactSheet": "contact-sheets/wallpaper-search.png",
+      "source": "WallpaperSearch.qml",
+      "states": "Original native scenes, local search, sort, selection, Load more and local Apply.",
+      "status": "fixed-verified",
+      "viewports": [
+        {
+          "name": "portrait",
+          "width": 412,
+          "height": 900,
+          "platform": "android"
+        },
+        {
+          "name": "landscape",
+          "width": 900,
+          "height": 412,
+          "platform": "android"
+        },
+        {
+          "name": "compact portrait",
+          "width": 354,
+          "height": 792,
+          "platform": "android"
+        },
+        {
+          "name": "compact landscape",
+          "width": 792,
+          "height": 354,
+          "platform": "android"
+        },
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 700,
+          "platform": "desktop"
+        },
+        {
+          "name": "tablet portrait",
+          "width": 800,
+          "height": 1280,
+          "platform": "android"
+        },
+        {
+          "name": "tablet landscape",
+          "width": 1280,
+          "height": 800,
+          "platform": "android"
+        }
+      ],
+      "captures": [
+        {
+          "preset": "portrait",
+          "image": "evidence/after-wallpaper-search-portrait.png",
+          "receipt": "evidence/after-wallpaper-search-portrait.json"
+        },
+        {
+          "preset": "landscape",
+          "image": "evidence/after-wallpaper-search-landscape.png",
+          "receipt": "evidence/after-wallpaper-search-landscape.json"
+        },
+        {
+          "preset": "compact",
+          "image": "evidence/after-wallpaper-search-compact.png",
+          "receipt": "evidence/after-wallpaper-search-compact.json"
+        },
+        {
+          "preset": "compactland",
+          "image": "evidence/after-wallpaper-search-compactland.png",
+          "receipt": "evidence/after-wallpaper-search-compactland.json"
+        },
+        {
+          "preset": "desktop",
+          "image": "evidence/after-wallpaper-search-desktop.png",
+          "receipt": "evidence/after-wallpaper-search-desktop.json"
+        },
+        {
+          "preset": "tablet",
+          "image": "evidence/after-wallpaper-search-tablet.png",
+          "receipt": "evidence/after-wallpaper-search-tablet.json"
+        },
+        {
+          "preset": "tabletland",
+          "image": "evidence/after-wallpaper-search-tabletland.png",
+          "receipt": "evidence/after-wallpaper-search-tabletland.json"
+        },
+        {
+          "preset": "compact-stress",
+          "image": "evidence/after-wallpaper-search-compact-stress.png",
+          "receipt": "evidence/after-wallpaper-search-compact-stress.json"
+        },
+        {
+          "preset": "compactland-stress",
+          "image": "evidence/after-wallpaper-search-compactland-stress.png",
+          "receipt": "evidence/after-wallpaper-search-compactland-stress.json"
+        }
+      ],
+      "openStateCaptureCount": 6,
+      "sourceFidelity": "checked against approved QML and assets",
+      "controls": "checked in original dialogs/panels with local fixture behavior",
+      "longContent": "Checked; see state matrix, scroll end and action receipts.",
+      "fixedButUnverified": [],
+      "unfinished": []
+    },
+    {
+      "file": "finished-mocks/extensions-store.html",
+      "title": "Extensions Store",
+      "original": "../../outputs/22-utilities-collections/extensions-store.html",
+      "comparison": "finished-mocks/comparisons.html?page=extensions-store",
+      "contactSheet": "contact-sheets/extensions-store.png",
+      "source": "ExtensionsStorePage.qml",
+      "states": "Store, search, installed management, URL preview, original text menu and source setup panels.",
+      "status": "fixed-verified",
+      "viewports": [
+        {
+          "name": "portrait",
+          "width": 412,
+          "height": 900,
+          "platform": "android"
+        },
+        {
+          "name": "landscape",
+          "width": 900,
+          "height": 412,
+          "platform": "android"
+        },
+        {
+          "name": "compact portrait",
+          "width": 354,
+          "height": 792,
+          "platform": "android"
+        },
+        {
+          "name": "compact landscape",
+          "width": 792,
+          "height": 354,
+          "platform": "android"
+        },
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 700,
+          "platform": "desktop"
+        },
+        {
+          "name": "tablet portrait",
+          "width": 800,
+          "height": 1280,
+          "platform": "android"
+        },
+        {
+          "name": "tablet landscape",
+          "width": 1280,
+          "height": 800,
+          "platform": "android"
+        }
+      ],
+      "captures": [
+        {
+          "preset": "portrait",
+          "image": "evidence/after-extensions-store-portrait.png",
+          "receipt": "evidence/after-extensions-store-portrait.json"
+        },
+        {
+          "preset": "landscape",
+          "image": "evidence/after-extensions-store-landscape.png",
+          "receipt": "evidence/after-extensions-store-landscape.json"
+        },
+        {
+          "preset": "compact",
+          "image": "evidence/after-extensions-store-compact.png",
+          "receipt": "evidence/after-extensions-store-compact.json"
+        },
+        {
+          "preset": "compactland",
+          "image": "evidence/after-extensions-store-compactland.png",
+          "receipt": "evidence/after-extensions-store-compactland.json"
+        },
+        {
+          "preset": "desktop",
+          "image": "evidence/after-extensions-store-desktop.png",
+          "receipt": "evidence/after-extensions-store-desktop.json"
+        },
+        {
+          "preset": "tablet",
+          "image": "evidence/after-extensions-store-tablet.png",
+          "receipt": "evidence/after-extensions-store-tablet.json"
+        },
+        {
+          "preset": "tabletland",
+          "image": "evidence/after-extensions-store-tabletland.png",
+          "receipt": "evidence/after-extensions-store-tabletland.json"
+        },
+        {
+          "preset": "compact-stress",
+          "image": "evidence/after-extensions-store-compact-stress.png",
+          "receipt": "evidence/after-extensions-store-compact-stress.json"
+        },
+        {
+          "preset": "compactland-stress",
+          "image": "evidence/after-extensions-store-compactland-stress.png",
+          "receipt": "evidence/after-extensions-store-compactland-stress.json"
+        }
+      ],
+      "openStateCaptureCount": 26,
+      "sourceFidelity": "checked against approved QML and assets",
+      "controls": "checked in original dialogs/panels with local fixture behavior",
+      "longContent": "Checked; see state matrix, scroll end and action receipts.",
+      "fixedButUnverified": [],
+      "unfinished": []
+    },
+    {
+      "file": "finished-mocks/update.html",
+      "title": "Update",
+      "original": "../../outputs/22-utilities-collections/update.html",
+      "comparison": "finished-mocks/comparisons.html?page=update",
+      "contactSheet": "contact-sheets/update.png",
+      "source": "UpdatePage.qml",
+      "states": "All 12 source update states, chapter navigation and unknown-size progress.",
+      "status": "fixed-verified",
+      "viewports": [
+        {
+          "name": "portrait",
+          "width": 412,
+          "height": 900,
+          "platform": "android"
+        },
+        {
+          "name": "landscape",
+          "width": 900,
+          "height": 412,
+          "platform": "android"
+        },
+        {
+          "name": "compact portrait",
+          "width": 354,
+          "height": 792,
+          "platform": "android"
+        },
+        {
+          "name": "compact landscape",
+          "width": 792,
+          "height": 354,
+          "platform": "android"
+        },
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 700,
+          "platform": "desktop"
+        },
+        {
+          "name": "tablet portrait",
+          "width": 800,
+          "height": 1280,
+          "platform": "android"
+        },
+        {
+          "name": "tablet landscape",
+          "width": 1280,
+          "height": 800,
+          "platform": "android"
+        }
+      ],
+      "captures": [
+        {
+          "preset": "portrait",
+          "image": "evidence/after-update-portrait.png",
+          "receipt": "evidence/after-update-portrait.json"
+        },
+        {
+          "preset": "landscape",
+          "image": "evidence/after-update-landscape.png",
+          "receipt": "evidence/after-update-landscape.json"
+        },
+        {
+          "preset": "compact",
+          "image": "evidence/after-update-compact.png",
+          "receipt": "evidence/after-update-compact.json"
+        },
+        {
+          "preset": "compactland",
+          "image": "evidence/after-update-compactland.png",
+          "receipt": "evidence/after-update-compactland.json"
+        },
+        {
+          "preset": "desktop",
+          "image": "evidence/after-update-desktop.png",
+          "receipt": "evidence/after-update-desktop.json"
+        },
+        {
+          "preset": "tablet",
+          "image": "evidence/after-update-tablet.png",
+          "receipt": "evidence/after-update-tablet.json"
+        },
+        {
+          "preset": "tabletland",
+          "image": "evidence/after-update-tabletland.png",
+          "receipt": "evidence/after-update-tabletland.json"
+        },
+        {
+          "preset": "compact-stress",
+          "image": "evidence/after-update-compact-stress.png",
+          "receipt": "evidence/after-update-compact-stress.json"
+        },
+        {
+          "preset": "compactland-stress",
+          "image": "evidence/after-update-compactland-stress.png",
+          "receipt": "evidence/after-update-compactland-stress.json"
+        }
+      ],
+      "openStateCaptureCount": 26,
+      "sourceFidelity": "checked against approved QML and assets",
+      "controls": "checked in original dialogs/panels with local fixture behavior",
+      "longContent": "Checked; see state matrix, scroll end and action receipts.",
+      "fixedButUnverified": [],
+      "unfinished": []
+    },
+    {
+      "file": "finished-mocks/collections.html",
+      "title": "Your Collections",
+      "original": "../../outputs/22-utilities-collections/collections.html",
+      "comparison": "finished-mocks/comparisons.html?page=collections",
+      "contactSheet": "contact-sheets/collections.png",
+      "source": "collections/YourCollectionsPage.qml",
+      "states": "Overview, detail, draft editing, notes, reorder, Undo, create, memberships, discard, delete and empty states.",
+      "status": "fixed-verified",
+      "viewports": [
+        {
+          "name": "portrait",
+          "width": 412,
+          "height": 900,
+          "platform": "android"
+        },
+        {
+          "name": "landscape",
+          "width": 900,
+          "height": 412,
+          "platform": "android"
+        },
+        {
+          "name": "compact portrait",
+          "width": 354,
+          "height": 792,
+          "platform": "android"
+        },
+        {
+          "name": "compact landscape",
+          "width": 792,
+          "height": 354,
+          "platform": "android"
+        },
+        {
+          "name": "desktop",
+          "width": 1280,
+          "height": 700,
+          "platform": "desktop"
+        },
+        {
+          "name": "tablet portrait",
+          "width": 800,
+          "height": 1280,
+          "platform": "android"
+        },
+        {
+          "name": "tablet landscape",
+          "width": 1280,
+          "height": 800,
+          "platform": "android"
+        }
+      ],
+      "captures": [
+        {
+          "preset": "portrait",
+          "image": "evidence/after-collections-portrait.png",
+          "receipt": "evidence/after-collections-portrait.json"
+        },
+        {
+          "preset": "landscape",
+          "image": "evidence/after-collections-landscape.png",
+          "receipt": "evidence/after-collections-landscape.json"
+        },
+        {
+          "preset": "compact",
+          "image": "evidence/after-collections-compact.png",
+          "receipt": "evidence/after-collections-compact.json"
+        },
+        {
+          "preset": "compactland",
+          "image": "evidence/after-collections-compactland.png",
+          "receipt": "evidence/after-collections-compactland.json"
+        },
+        {
+          "preset": "desktop",
+          "image": "evidence/after-collections-desktop.png",
+          "receipt": "evidence/after-collections-desktop.json"
+        },
+        {
+          "preset": "tablet",
+          "image": "evidence/after-collections-tablet.png",
+          "receipt": "evidence/after-collections-tablet.json"
+        },
+        {
+          "preset": "tabletland",
+          "image": "evidence/after-collections-tabletland.png",
+          "receipt": "evidence/after-collections-tabletland.json"
+        },
+        {
+          "preset": "compact-stress",
+          "image": "evidence/after-collections-compact-stress.png",
+          "receipt": "evidence/after-collections-compact-stress.json"
+        },
+        {
+          "preset": "compactland-stress",
+          "image": "evidence/after-collections-compactland-stress.png",
+          "receipt": "evidence/after-collections-compactland-stress.json"
+        }
+      ],
+      "openStateCaptureCount": 24,
+      "sourceFidelity": "checked against approved QML and assets",
+      "controls": "checked in original dialogs/panels with local fixture behavior",
+      "longContent": "Checked; see state matrix, scroll end and action receipts.",
+      "fixedButUnverified": [],
+      "unfinished": []
+    }
+  ],
+  "preservedDesign": [
+    "Approved latest Connections hierarchy and dossier dialogs",
+    "Source icon paths, Segoe UI/Fraunces/Inter families and real project artwork",
+    "Original wallpaper shelves, native scene parameters and Apply controls",
+    "Original extension House, card, installed-management, text-menu and centered setup components",
+    "Original update artwork, gallery composition and status/action states",
+    "Original collection covers, icons, edit controls, memberships and confirmation behavior"
+  ],
+  "fittingChanges": [
+    "Explicit Android platform gate with min(width,height)<600 phone reach",
+    "Viewport-bound original panels with single safe/keyboard reservation",
+    "Whole-panel vertical scrolling at short available heights",
+    "Existing grids, headings and actions wrap without new phone surfaces",
+    "Original horizontal strips made reachable",
+    "Modal focus containment, opener restoration and focused-item visibility",
+    "Phone touch regions enlarged while preserving original control vocabulary"
+  ],
+  "behaviourProposals": [],
+  "findings": {
+    "total": 14,
+    "fixedAndVerified": 13,
+    "fixedButUnverified": 0,
+    "remainingInputProvenanceGaps": 1,
+    "index": "FINDINGS.csv"
+  },
+  "verification": {
+    "kind": "Isolated Windows Edge HTML runtime; approved source inspection",
+    "browserVersion": "Edg/156.0.4314.50",
+    "browserPid": 2868,
+    "ownProfile": "D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/05-tracker-utilities/evidence/browser-profile",
+    "deviceScaleFactor": 1,
+    "presets": [
+      {
+        "name": "portrait",
+        "width": 412,
+        "height": 900,
+        "platform": "android"
+      },
+      {
+        "name": "landscape",
+        "width": 900,
+        "height": 412,
+        "platform": "android"
+      },
+      {
+        "name": "compact portrait",
+        "width": 354,
+        "height": 792,
+        "platform": "android"
+      },
+      {
+        "name": "compact landscape",
+        "width": 792,
+        "height": 354,
+        "platform": "android"
+      },
+      {
+        "name": "desktop",
+        "width": 1280,
+        "height": 700,
+        "platform": "desktop"
+      },
+      {
+        "name": "tablet portrait",
+        "width": 800,
+        "height": 1280,
+        "platform": "android"
+      },
+      {
+        "name": "tablet landscape",
+        "width": 1280,
+        "height": 800,
+        "platform": "android"
+      }
+    ],
+    "stress": {
+      "textScale": 1.3,
+      "topInset": 24,
+      "bottomInset": 24,
+      "keyboard": "Synthetic reservation outside OS chrome; provisional logical geometry"
+    },
+    "baselineCaptureCount": 21,
+    "finalViewportCaptureCount": 63,
+    "finalStateAndScrollCaptureCount": 108,
+    "finalIndexedCaptures": 171,
+    "captureCodeHashMatches": 171,
+    "missingImages": 0,
+    "scriptOrHttpErrors": 0,
+    "externalBrowserRequests": 0,
+    "androidDesktopChrome": 0,
+    "actionScenarios": {
+      "tracker": {
+        "passed": 8,
+        "total": 8,
+        "receipt": "evidence/tracker-actions.json"
+      },
+      "utilities": {
+        "passed": 21,
+        "total": 21,
+        "receipt": "evidence/utility-actions.json"
+      },
+      "keyboardAndSource": {
+        "passed": 15,
+        "total": 15,
+        "receipt": "evidence/final-keyboard-and-source-actions.json"
+      },
+      "total": 44,
+      "passed": 44
+    },
+    "standaloneServer": {
+      "checks": 12,
+      "pass": true,
+      "receipt": "evidence/standalone-server-check.json",
+      "processStopped": true
+    },
+    "linkChecks": {
+      "failures": [],
+      "receipt": "evidence/handoff-links.json",
+      "galleryFiltered": true
+    },
+    "visualReview": "evidence/visual-review.md",
+    "contactSheetCount": 10,
+    "sourceComparisonNotNativePixelCertification": true,
+    "applicationRuntimeTested": false,
+    "deviceTested": false
+  },
+  "assetProvenance": {
+    "frozenReferenceAssets": "evidence/reference-assets.json",
+    "finishedFiles": "evidence/finished-versions.json",
+    "nativeWallpaperAdapter": "finished-mocks/native-wallpapers.js",
+    "kdePicks": 13,
+    "kdeManifest": "evidence/kde-assets.json",
+    "kdeAttribution": "finished-mocks/assets/ATTRIBUTION.md",
+    "staticAssetRead": "12 unchanged still images read from the exact KDE repository paths named in WallpaperApi.js; no provider API or application service contacted. Cold Ripple uses the frozen project file. Upstream master bytes are identified by SHA-256 and ETag.",
+    "mockRuntimeExternalDependencies": false
+  },
+  "unresolved": [
+    {
+      "id": "B5-009",
+      "kind": "input-provenance",
+      "status": "unavailable",
+      "detail": "Original tracker worker REPORT.json was missing at intake. Original directory preserved. This batch supplies independent final evidence.",
+      "nextAction": "Supply the old handoff if it exists; does not block using the finished mocks."
+    },
+    {
+      "id": "native-reference",
+      "kind": "qualification-limit",
+      "status": "unavailable",
+      "detail": "No directly applicable current native Batch 5 approved capture was supplied; source QML and assets are the authority.",
+      "nextAction": "Compare the future QML implementation with an authorized native reference/runtime."
+    },
+    {
+      "id": "device-sizing",
+      "kind": "qualification-limit",
+      "status": "provisional",
+      "detail": "Logical viewport/DPR/insets/keyboard geometry are not physical-device measurements.",
+      "nextAction": "Hemanth or an authorized device owner measures and validates real geometry."
+    }
+  ],
+  "remainingWork": {
+    "unfinishedMockRepairs": [],
+    "fixedButUnverified": [],
+    "outsideThisAssignment": [
+      "Native QML implementation and application integration",
+      "Actual authentication, provider content and persistence",
+      "Device/DPR/safe-area/keyboard and native shader/font verification",
+      "Product acceptance and any later publication decision"
+    ],
+    "receivingGuide": "QML-PORTING.md"
+  },
+  "sessionCleanup": {
+    "browserReceipt": "evidence/browser-closed.json",
+    "ownedBrowserClosed": true,
+    "ownedMainPreviewServerClosed": true,
+    "standaloneCheckServerStopped": true,
+    "nodeReplWillExitAfterReportReadback": true
+  },
+  "artifacts": [
+    {
+      "path": "README.md",
+      "bytes": 6115,
+      "sha256": "e2ae6cd06b1c3fa8e919107b1b88bfe66b72c6c830ddc1a25f11bdf3eeddfcd9"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 14932,
+      "sha256": "cae4eab3b55c2bfe36b4790c46657cf993404fef0547d58d4798fa664bd61f03"
+    },
+    {
+      "path": "COVERAGE.csv",
+      "bytes": 5823,
+      "sha256": "3bcb45251655d0e9c975cd5263178db5c596f146f37bafb6729f95774b8bf7e2"
+    },
+    {
+      "path": "FINDINGS.csv",
+      "bytes": 6961,
+      "sha256": "0953417cdee254a2a5a73a8dbf9130dafce541c5925406fb25ae716a4f759738"
+    },
+    {
+      "path": "QML-PORTING.md",
+      "bytes": 21837,
+      "sha256": "cb3316a1755811fb416010633d753a4670a0eb388b137e665214a7ee5f39f0bc"
+    },
+    {
+      "path": "finished-mocks/index.html",
+      "bytes": 7137,
+      "sha256": "f8e9d332c17f89fee6b2a1e3a1c795de1e6f6aa517b6019115140194059a47e6"
+    },
+    {
+      "path": "finished-mocks/README.md",
+      "bytes": 3843,
+      "sha256": "5ca2d4b98e26c34b0f6c056498bb468013243b8c6e34942f01f738bd2dfc9e8a"
+    },
+    {
+      "path": "finished-mocks/comparisons.html",
+      "bytes": 4012,
+      "sha256": "f4b88ed9a6c9ef62e7dec93dc06d757f0b7f862ca69cd0e62e6ec47f926a3607"
+    },
+    {
+      "path": "finished-mocks/evidence.html",
+      "bytes": 3687,
+      "sha256": "94bcb09fd1eca49db19c7f9ba25cf5e1d32354a0fda0243536c88550e47bfd5a"
+    },
+    {
+      "path": "contact-sheets/index.html",
+      "bytes": 2648,
+      "sha256": "30476c55dd9a8a0a53134250c79bb3d8dc343eb807ac1232ab63c78e7ea620fb"
+    },
+    {
+      "path": "contact-sheets/00-overview.png",
+      "bytes": 651682,
+      "sha256": "cbea037b4c8ec58e63769c57c6b95f452fc11405acfcfb379df2bb552b65972f"
+    },
+    {
+      "path": "contact-sheets/01-stress.png",
+      "bytes": 660695,
+      "sha256": "e17d6a3c0f0ec0f1e81211979c14a1d09cc6869d19091c15ed3a9185cad4c10e"
+    },
+    {
+      "path": "contact-sheets/02-keyboard.png",
+      "bytes": 1685279,
+      "sha256": "7fa84bc10bc0596a658d33cb88400a0ae41e4338aad9055fd2503519979ea77c"
+    },
+    {
+      "path": "contact-sheets/provenance.json",
+      "bytes": 20199,
+      "sha256": "4879a579accabed951505fbd8207723dcacef5e9a6a0e6e5003c47581534bffe"
+    },
+    {
+      "path": "evidence/input-versions.json",
+      "bytes": 5396,
+      "sha256": "ae46293065249db4d7c8174689739d0c667812ca64f174faa28c25f3166cc90c"
+    },
+    {
+      "path": "evidence/input-preservation.json",
+      "bytes": 8733,
+      "sha256": "71feebe0c0359918751b7bfdb2404fb3e549456cbd399ada0835bd5794de6e12"
+    },
+    {
+      "path": "evidence/reviewed-sources.json",
+      "bytes": 6874,
+      "sha256": "eb3e9d59544fc56b5297b47632f61687d9988b4eb31fec14e4c0b7902ff32e58"
+    },
+    {
+      "path": "evidence/reference-assets.json",
+      "bytes": 9473,
+      "sha256": "fafeda498e07d40c113d90d0f0733264efbf86ea95736dc91256729da1bf7d4f"
+    },
+    {
+      "path": "evidence/kde-assets.json",
+      "bytes": 8122,
+      "sha256": "127dd29cf72822b40d918b9c98e4c3da9380398ab82f050c61a48d42835b57bf"
+    },
+    {
+      "path": "evidence/finished-versions.json",
+      "bytes": 5125,
+      "sha256": "352f83cba1b19202de5025a4015f8e28fa33d0d7fbb0a8c135996ddab8bbc84f"
+    },
+    {
+      "path": "evidence/final-evidence-manifest.json",
+      "bytes": 63646,
+      "sha256": "3d59b9ac4278545b1db5382a2b2900f20a6d57829f390065193b4c439a69abc1"
+    },
+    {
+      "path": "evidence/final-capture-version-check.json",
+      "bytes": 51455,
+      "sha256": "4783e556b3baa24a56109500fdcdde7caeb8ef93d68db150954e05e3d423d636"
+    },
+    {
+      "path": "evidence/tracker-actions.json",
+      "bytes": 954,
+      "sha256": "ad6ecffc209f94bbd5b24bae5fbae2eb45757c39b3ec9298f488fa5482ba367b"
+    },
+    {
+      "path": "evidence/utility-actions.json",
+      "bytes": 3503,
+      "sha256": "a1013d9477d73e8ac52d4e15685671f73119724fe868fc68a61fd99c656b0147"
+    },
+    {
+      "path": "evidence/final-keyboard-and-source-actions.json",
+      "bytes": 1762,
+      "sha256": "ff217a21fa113104ba06fb3dccc727287c46e53a27c85b6e3d97fa62a119a7cf"
+    },
+    {
+      "path": "evidence/browser-session.json",
+      "bytes": 249,
+      "sha256": "ad9f2070fa1d4ad8cf09644eb750de0a898ed7e36befa5b74c488ac6867bcfa5"
+    },
+    {
+      "path": "evidence/browser-closed.json",
+      "bytes": 123,
+      "sha256": "233fe225d0a98d94b94c99dbd616ad3ebf7489760ef060af45163b89d2c023df"
+    },
+    {
+      "path": "evidence/standalone-server-check.json",
+      "bytes": 2398,
+      "sha256": "009c52dd8573f1e22dd8c41a0a7905eb5f0109f90911b17303f7e4302643e8a1"
+    },
+    {
+      "path": "evidence/handoff-links.json",
+      "bytes": 7451,
+      "sha256": "440a75876d674f4ac56a721e0a5853cc0c6c01d88417eb1fe08786467b81ab60"
+    },
+    {
+      "path": "evidence/visual-review.md",
+      "bytes": 1478,
+      "sha256": "930531d8129ecdf34fcac79faed186fe579c2b5b6ff255b3b983557e07d6f85f"
+    },
+    {
+      "path": "tools/serve-mocks.mjs",
+      "bytes": 1502,
+      "sha256": "521aedaecf7d809b84484c82093163727370431e0e5a763f06edf1db5ecd3540"
+    }
+  ],
+  "reportWrittenLast": true
+}

@@ -1,0 +1,111 @@
+{
+  "time": "2026-11-01T00:03:28.196Z",
+  "checks": [
+    {
+      "name": "Biblio Library route",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/16-libraries/biblio-library.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F07-biblio-home%2Fbiblio-home.html%3Fcapture%3D1%26w%3D412%26h%3D900%26mode%3Dandroid"
+      }
+    },
+    {
+      "name": "Discover Shows route",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/09-catalogue-index/theatre-catalogue.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&tab=shows&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F08-theatre-discover%2Ftheatre-discover.html%3Fcapture%3D1%26view%3D412x900"
+      }
+    },
+    {
+      "name": "Discover desktop Universes route",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/15-world-home/universes-home.html?w=1280&h=700&width=1280&height=700&view=1280x700&vp=1280x700&preset=desktop&mode=desktop&platform=desktop&capture=1&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F08-theatre-discover%2Ftheatre-discover.html%3Fcapture%3D1%26view%3D1280x700"
+      }
+    },
+    {
+      "name": "theatre-catalogue.html Library route",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/16-libraries/theatre-library.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&tab=library&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F09-catalogue-index%2Ftheatre-catalogue.html%3Fcapture%3D1%26vp%3D412x900"
+      }
+    },
+    {
+      "name": "manga-catalogue.html Library route",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/16-libraries/tankoban-library.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&tab=library&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F09-catalogue-index%2Fmanga-catalogue.html%3Fcapture%3D1%26vp%3D412x900"
+      }
+    },
+    {
+      "name": "comics-catalogue.html Library route",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/16-libraries/tankoban-library.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&tab=library&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F09-catalogue-index%2Fcomics-catalogue.html%3Fcapture%3D1%26vp%3D412x900"
+      }
+    },
+    {
+      "name": "Catalogue prelude Continue route",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/continue-see-all.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&lane=Theatre&scope=video&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F09-catalogue-index%2Ftheatre-catalogue.html%3Fcapture%3D1%26vp%3D412x900"
+      }
+    },
+    {
+      "name": "theatre-home.html Continue See All scope",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/continue-see-all.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&lane=Theatre&scope=video&next=0&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F15-world-home%2Ftheatre-home.html%3Fcapture%3D1"
+      }
+    },
+    {
+      "name": "tankoban-home.html Continue See All scope",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "url": "file:///D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/continue-see-all.html?w=412&h=900&width=412&height=900&view=412x900&vp=412x900&preset=portrait&mode=android&platform=android&capture=1&lane=Tankoban&scope=tankoban&next=0&from=file%3A%2F%2F%2FD%3A%2FColosseum-Android-Phone-Mocks-20261101%2Freview-batches%2F03-browsing-libraries%2Ffinished-mocks%2F15-world-home%2Ftankoban-home.html%3Fcapture%3D1"
+      }
+    },
+    {
+      "name": "Genre transitions preserve stress viewport and Back",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "after": {
+          "font": 1.3,
+          "top": 24,
+          "bottom": 24,
+          "w": 792,
+          "h": 354
+        }
+      }
+    },
+    {
+      "name": "Explore See All restores hidden/order/scroll context",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "order": [
+          "Top 10",
+          "Top Rated",
+          "Popular",
+          "New Releases",
+          "Trending",
+          "Most Read",
+          "Classics"
+        ],
+        "hidden": [
+          "Top 10"
+        ],
+        "scroll": 350
+      }
+    }
+  ]
+}

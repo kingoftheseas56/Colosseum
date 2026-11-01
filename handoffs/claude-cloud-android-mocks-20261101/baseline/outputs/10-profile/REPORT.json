@@ -1,0 +1,181 @@
+{
+  "task": "10-profile",
+  "status": "ready-for-review",
+  "sourceRefs": [
+    {
+      "path": "reference/desktop/qml/PhoneProfilePage.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "purpose": "authoritative page and inline rows"
+    },
+    {
+      "path": "reference/desktop/qml/PhoneShellHost.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "purpose": "labels, notes, route keys and shell control"
+    },
+    {
+      "path": "reference/desktop/qml/PhoneWorldTabBar.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "purpose": "bottom navigation"
+    },
+    {
+      "path": "reference/desktop/qml/WideWorldRail.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "purpose": "wide navigation"
+    },
+    {
+      "path": "reference/desktop/qml/Main.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "purpose": "worldDefinitions and font registration"
+    },
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "revision": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "purpose": "font and palette tokens"
+    },
+    {
+      "path": "reference/alpha/qml/PhoneProfilePage.qml",
+      "revision": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "purpose": "accepted prior Android original-row treatment"
+    },
+    {
+      "path": "reference/android-drift/qml/PhoneActionRow.qml",
+      "revision": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "purpose": "rejected text-chevron substitution comparison only"
+    },
+    {
+      "path": "context/ANDROID-PORT-CLASSIFICATION.md",
+      "purpose": "restoration classification and authority boundaries"
+    },
+    {
+      "path": "context/VIEWPORTS.json",
+      "purpose": "provisional viewport dimensions"
+    }
+  ],
+  "pages": [
+    {
+      "file": "profile.html",
+      "title": "Profile · faithful original rows",
+      "states": [
+        "normal",
+        "pressed",
+        "rowRequested(key) locally recorded",
+        "landscape scroll",
+        "font scale 1.30 with 24px top/bottom inset"
+      ],
+      "viewports": [
+        {
+          "width": 412,
+          "height": 900,
+          "mode": "portrait",
+          "capture": "captures/portrait.png"
+        },
+        {
+          "width": 900,
+          "height": 412,
+          "mode": "landscape",
+          "capture": "captures/landscape.png"
+        },
+        {
+          "width": 1280,
+          "height": 700,
+          "mode": "desktop-reference phone-shell developer mode",
+          "capture": "captures/desktop.png"
+        },
+        {
+          "width": 354,
+          "height": 792,
+          "mode": "narrow portrait",
+          "capture": "captures/narrow-portrait.png"
+        },
+        {
+          "width": 792,
+          "height": 354,
+          "mode": "narrow landscape",
+          "capture": "captures/narrow-landscape.png"
+        },
+        {
+          "width": 800,
+          "height": 1280,
+          "mode": "tablet portrait",
+          "capture": "captures/tablet-portrait.png"
+        },
+        {
+          "width": 1280,
+          "height": 800,
+          "mode": "tablet landscape",
+          "capture": "captures/tablet-landscape.png"
+        },
+        {
+          "width": 354,
+          "height": 792,
+          "mode": "top/bottom=24px; font scale=1.30",
+          "capture": "captures/inset-font-stress.png"
+        }
+      ],
+      "captures": [
+        "captures/portrait.png",
+        "captures/landscape.png",
+        "captures/desktop.png",
+        "captures/narrow-portrait.png",
+        "captures/narrow-landscape.png",
+        "captures/tablet-portrait.png",
+        "captures/tablet-landscape.png",
+        "captures/inset-font-stress.png",
+        "captures/pressed.png",
+        "captures/studio.png"
+      ],
+      "controlsOutsideMock": [
+        "editable width",
+        "editable height",
+        "editable top/bottom insets",
+        "editable font scale",
+        "portrait/landscape/desktop/tablet presets",
+        "route event diagnostic"
+      ]
+    }
+  ],
+  "preservedDesign": [
+    "All seven exact source labels, notes and route keys in source order",
+    "17px Segoe UI DemiBold labels with 13px notes, Theme ink and inkDim",
+    "30px Fraunces Profile heading, gold 11px COLOSSEUM kicker, original gaps and content inset",
+    "Two actual rotated 9x2px rounded bars per chevron, not glyph text",
+    "1px inset dividers and radius-14 transient pressed feedback",
+    "Original local SVG world icons, shell order, active gold treatment, 72px bottom tabs and 92px wide rail",
+    "Opaque page floor, bottom navigation reservation and vertically scrollable content"
+  ],
+  "fittingChanges": [
+    "Safe top placement as max(36px, top inset), following accepted alpha treatment",
+    "Intrinsic rows can grow for wrapped labels/notes and accessibility font scaling without changing baseline fonts",
+    "Profile content scrolls inside its reserved viewport in short landscape and enlarged-text cases",
+    "Editable local diagnostics and viewport presets exist only outside simulated app frame"
+  ],
+  "behaviourProposals": [],
+  "unresolved": [
+    "Exact OnePlus logical viewport, safe-area, DPR and device font rendering are not available; presets are provisional",
+    "Approved PhoneShellHost uses width 840 breakpoint, while Android classification also refers to min(width,height)<600 phone reach; shell policy was not altered within this row assignment",
+    "CSS color filtering approximates Qt MultiEffect icon colorization and browser Fraunces weight may be synthesized; native QML pixel-parity unverified",
+    "Destination pages and account flyout belong to separate surfaces, so only original navigation requests are simulated"
+  ],
+  "verification": {
+    "scope": "isolated HTML mock only; not native QML, Android device, app build, integration or beta",
+    "headlessTool": "installed Puppeteer via Brotherhood Desktop Commander, isolated Google Chrome",
+    "command": "node D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\10-profile\\captures\\render-audit.cjs",
+    "evidence": "captures/audit.json",
+    "screenshotCount": 10,
+    "viewportCases": 8,
+    "allViewportChecksPassed": true,
+    "approvedSourceCopyMatches": true,
+    "originalRows": 7,
+    "geometry": "exact viewport; shell reservation; row alignment; min hit size; last row reachable; divider and chevron",
+    "interaction": "profile rowRequested event; pressed feedback; outside preset, inset, font-scale and navigation request controls",
+    "editorControlChecksPassed": true,
+    "externalNetworkRequests": 0,
+    "missingReferencedAssets": 0,
+    "missingOutputFiles": 0,
+    "realAndroidRuntimeVerified": false,
+    "nativeQmlValidated": false,
+    "appRepositoryEdited": false,
+    "publicationStatus": "HELD; no publishing or beta changes",
+    "note": "BDC render_html failed to save PNGs, independently recovered via installed headless Puppeteer and checked actual captures"
+  }
+}

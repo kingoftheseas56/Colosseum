@@ -1,0 +1,169 @@
+{
+  "captured_at": "2026-10-31T22:52:34.264Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks/02-comic-sources",
+  "file": "comic-source-confirmation.html",
+  "viewport": {
+    "width": 792,
+    "height": 354
+  },
+  "params": {
+    "capture": 1,
+    "vw": 792,
+    "vh": 354,
+    "state": "loading",
+    "top": 24,
+    "bottom": 24,
+    "scale": 1.3
+  },
+  "png": "captures/finished-comic-confirm-loading-stress.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 792,
+      "height": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 20,
+          "y": 32,
+          "width": 71.8125,
+          "height": 44,
+          "right": 91.8125,
+          "bottom": 76
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "19.5px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "INPUT",
+        "id": "queryInput",
+        "class": "query-input",
+        "text": "",
+        "label": "Search another title or ISBN",
+        "disabled": false,
+        "rect": {
+          "x": 20,
+          "y": 121.421875,
+          "width": 634,
+          "height": 44,
+          "right": 654,
+          "bottom": 165.421875
+        },
+        "radius": "14px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "18.2px",
+        "hit": "<input id=\"queryInput\" class=\"query-input\" type=\"text\" autocomplete=\"off\" placeholder=\"Search another title or ISBN\" aria-label=\"Search another title or ISBN\">"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "search-button",
+        "text": "Search",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 668,
+          "y": 121.421875,
+          "width": 104,
+          "height": 44,
+          "right": 772,
+          "bottom": 165.421875
+        },
+        "radius": "14px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "19.5px",
+        "hit": "<button class=\"search-button\" type=\"submit\">Search</button>"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "",
+        "class": "shell-flow",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollTop": 0,
+        "maxScroll": 11,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\nSearch\n\nSearching comic sources…",
+    "fonts": [
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "unloaded"
+      },
+      {
+        "family": "Colosseum Fraunces",
+        "status": "loaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\comic-source-confirmation.html",
+      "bytes": 364,
+      "sha256": "284a6da39c9f0d2ee5bb35de1f7c99d8e754f782cff1679eeeb4c36364d7b4c3"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\style.css",
+      "bytes": 16984,
+      "sha256": "d88357e1af6b1fee8c5b41de50465e28379be4b7b760b67de300a6d8fe5f3c83"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\app.js",
+      "bytes": 17670,
+      "sha256": "bfec63a176004a06def8806759f9d8867c66c81ad5f340896c2d4e74a1edf97b"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\dcau\\portals\\gotham.jpg",
+      "bytes": 3637,
+      "sha256": "070d01527b1903a4f5c861066517e2649363b4f27a44cc41cd70232d97795701"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    }
+  ],
+  "extra": {}
+}

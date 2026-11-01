@@ -1,0 +1,346 @@
+{
+  "captured_at": "2026-10-31T23:32:02.495Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks/04-manga-series",
+  "file": "manga-chapters.html",
+  "viewport": {
+    "width": 792,
+    "height": 354
+  },
+  "params": {
+    "capture": 1,
+    "fixture": "error",
+    "scale": 1.3,
+    "top": 24,
+    "bottom": 24
+  },
+  "png": "captures/finished-chapters-error.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 24,
+      "width": 792,
+      "height": 306,
+      "right": 792,
+      "bottom": 330
+    },
+    "bodyOverflowX": 0,
+    "images": [
+      {
+        "src": "../../../../reference/desktop/assets/icons/minimize.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/fullscreen.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/power.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/settings.svg",
+        "loaded": true
+      },
+      {
+        "src": "../../../../reference/desktop/assets/icons/comic-book.svg",
+        "loaded": true
+      }
+    ],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 20,
+          "y": 30.5,
+          "width": 78.8125,
+          "height": 44,
+          "right": 98.8125,
+          "bottom": 74.5
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "19.5px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "bookmark",
+        "class": "bookmark",
+        "text": "",
+        "label": "Add to Library",
+        "disabled": false,
+        "rect": {
+          "x": 293.59375,
+          "y": -285.40625,
+          "width": 36,
+          "height": 36,
+          "right": 329.59375,
+          "bottom": -249.40625
+        },
+        "radius": "9px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "18.2px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "collection-btn",
+        "text": "Add to Collections",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 123,
+          "y": -242.796875,
+          "width": 169.359375,
+          "height": 44,
+          "right": 292.359375,
+          "bottom": -198.796875
+        },
+        "radius": "11px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15.6px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "synopsisMore",
+        "class": "synopsis-more",
+        "text": "More",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 476.1875,
+          "y": -118.640625,
+          "width": 40.8125,
+          "height": 44,
+          "right": 517,
+          "bottom": -74.640625
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "16.9px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "languageSelector",
+        "class": "combo-button",
+        "text": "Default · English\n▾",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 615.796875,
+          "y": -252,
+          "width": 150.203125,
+          "height": 36,
+          "right": 766,
+          "bottom": -216
+        },
+        "radius": "7px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15.6px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "settings-btn",
+        "text": "Language settings",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 532,
+          "y": -204,
+          "width": 240,
+          "height": 44,
+          "right": 772,
+          "bottom": -160
+        },
+        "radius": "7px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15.6px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "chapter-continuation",
+        "text": "Continue reading\nChapter 7 · Page 14",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 508,
+          "y": -8.640625,
+          "width": 264,
+          "height": 60,
+          "right": 772,
+          "bottom": 51.359375
+        },
+        "radius": "14px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "18.2px",
+        "hit": "<div class=\"device phone landscape\" id=\"device\" style=\"--vw: 792px; --vh: 354px; --insetTop: 24px; --insetBottom: 24px; --insetLeft: 0px; --insetRight: 0px; --fontScale: 1.3;\"><div class=\"safe-pad\"><m"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "pageSelector",
+        "class": "pager-label",
+        "text": "Page 1 ▾",
+        "label": null,
+        "disabled": true,
+        "rect": {
+          "x": 21,
+          "y": 0.359375,
+          "width": 114,
+          "height": 42,
+          "right": 135,
+          "bottom": 42.359375
+        },
+        "radius": "0px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "16.9px",
+        "hit": "<div class=\"device phone landscape\" id=\"device\" style=\"--vw: 792px; --vh: 354px; --insetTop: 24px; --insetBottom: 24px; --insetLeft: 0px; --insetRight: 0px; --fontScale: 1.3;\"><div class=\"safe-pad\"><m"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "download-page",
+        "text": "↓  Download page",
+        "label": null,
+        "disabled": true,
+        "rect": {
+          "x": 603.5625,
+          "y": 76.359375,
+          "width": 159.4375,
+          "height": 44,
+          "right": 763,
+          "bottom": 120.359375
+        },
+        "radius": "8px",
+        "font": "SegoeMock, \"Segoe UI\", sans-serif",
+        "fontSize": "15.6px",
+        "hit": "<button class=\"download-page\" data-do=\"downloadPage\" disabled=\"\">↓ &nbsp;Download page</button>"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "appScroll",
+        "class": "app-scroll",
+        "rect": {
+          "x": 0,
+          "y": 24,
+          "width": 792,
+          "height": 306,
+          "right": 792,
+          "bottom": 330
+        },
+        "scrollTop": 404,
+        "maxScroll": 404,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nCOLOSSEUM · TANKOBAN\nMANGA\nOne Piece\nAdd to Collections\nEiichiro Oda\nPublishing\n1997\n★ 9.22\n\nMonkey D. Luffy sets sail in pursuit of the legendary treasure known as One Piece. With the Straw Hat Pirates, he crosses treacherous seas, meets unlikely allies, and challenges powerful enemies on the way to becoming King of the Pirates. Along the Grand Line and into the New World, every island brings new friendships and an adventure of its own.\n\nMore\nTankoban Mode\nChapter Mode\nLanguage\nDefault · English\n▾\nLanguage settings\nCHAPTERS 0\nContinue reading\nChapter 7 · Page 14\nPage 1 ▾\n0 chapters\n↓  Download page\n\nChapter source unavailable.",
+    "fonts": [
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "SegoeMock",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "loaded"
+      },
+      {
+        "family": "Fraunces",
+        "status": "unloaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\manga-chapters.html",
+      "bytes": 2677,
+      "sha256": "6fc5193ff4b5603279b3a781f1db56e9622d98377230592407f4e62cece3b64b"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\style.css",
+      "bytes": 31249,
+      "sha256": "2399d6187308779b7cc9b63d4b930c39f6eaf2e17261df6a02267cf83d770ceb"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\04-manga-series\\app.js",
+      "bytes": 31525,
+      "sha256": "cb42793d73d22243e11a7d75d5587c4956783f7a77baeb2000f630bc80e00656"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\banners\\romance.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\minimize.svg",
+      "bytes": 183,
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\fullscreen.svg",
+      "bytes": 305,
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\power.svg",
+      "bytes": 215,
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\one-piece\\east-blue\\canon\\romance-dawn.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\lucide\\bookmark-plus.svg",
+      "bytes": 456,
+      "sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\settings.svg",
+      "bytes": 296,
+      "sha256": "be11c362a2ca3acca8634af162570ded82ad14a790aa616b68a00374565e77b4"
+    },
+    {
+      "path": "reference\\desktop\\assets\\icons\\comic-book.svg",
+      "bytes": 536,
+      "sha256": "899b22dd3a501b123bb48d28b20636a32f967b9399f32e25439083f9c323bc47"
+    }
+  ],
+  "extra": {}
+}

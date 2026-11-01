@@ -1,0 +1,84 @@
+{
+  "utc": "2026-10-31T23:45:02.431Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "result": [
+        {
+          "html": "<button class=\"primary-action\" type=\"button\" data-route=\"bondBook0\">Read</button>",
+          "text": "Read",
+          "style": {
+            "color": "rgb(9, 12, 19)",
+            "font": "600 13px Switzer, \"Segoe UI\", sans-serif",
+            "overflow": "visible",
+            "clip": "none"
+          },
+          "r": {
+            "x": 24,
+            "y": 258,
+            "width": 128,
+            "height": 48,
+            "top": 258,
+            "right": 152,
+            "bottom": 306,
+            "left": 24
+          },
+          "hit": "<button class=\"primary-action\" type=\"button\" data-route=\"bondBook0\">Read</button>"
+        },
+        {
+          "html": "<button class=\"primary-action\" type=\"button\" data-route=\"bondFilm0-0\">Watch</button>",
+          "text": "Watch",
+          "style": {
+            "color": "rgb(9, 12, 19)",
+            "font": "600 13px Switzer, \"Segoe UI\", sans-serif",
+            "overflow": "visible",
+            "clip": "none"
+          },
+          "r": {
+            "x": 164,
+            "y": 258,
+            "width": 128,
+            "height": 48,
+            "top": 258,
+            "right": 292,
+            "bottom": 306,
+            "left": 164
+          },
+          "hit": "<button class=\"primary-action\" type=\"button\" data-route=\"bondFilm0-0\">Watch</button>"
+        }
+      ]
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-hero-label-diagnostic",
+      "result": {
+        "name": "shelves-finished-hero-label-diagnostic",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-hero-label-diagnostic.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:45:02.104Z",
+        "sha256": "5c717dadf729880f7e46dcd9aedea2460bd643e91f10f7a4a7d15afcee76e77f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

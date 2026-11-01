@@ -1,0 +1,1993 @@
+{
+  "started": "2026-11-01T00:49:52.083Z",
+  "checks": [
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pause after first character",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "S",
+        "focus": true,
+        "start": 1,
+        "end": 1,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "slow ordinary remaining characters",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "fast ordinary replacement",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "Enter dispatches original top intent and preserves field/caret",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "intents": [
+          "The Adventures of Sherlock Holmes"
+        ],
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "typing continues after Enter and Backspace edits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "added": {
+          "value": "Sherlockx",
+          "focus": true,
+          "start": 9,
+          "end": 9,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "caret insertion/deletion survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "inserted": {
+          "value": "Sh-erlock",
+          "focus": true,
+          "start": 3,
+          "end": 3,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Sherlock",
+        "focus": true,
+        "start": 2,
+        "end": 2,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "selection range survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "range": {
+          "value": "Sherlock!",
+          "focus": true,
+          "start": 8,
+          "end": 9,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pending debounce does not steal deliberate result focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Sherlock ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "item-open"
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pending debounce retains deliberate other-control focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": " Sherlock ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "search-clear"
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "clear cancels pending work and returns focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "Backspace to one character then empty",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "one": {
+          "value": "A",
+          "focus": true,
+          "start": 1,
+          "end": 1,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "empty/no-match Enter has no fabricated top action",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "zzzzzz",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pause after first character",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "S",
+        "focus": true,
+        "start": 1,
+        "end": 1,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "slow ordinary remaining characters",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "fast ordinary replacement",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "Enter dispatches original top intent and preserves field/caret",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "intents": [
+          "The Adventures of Sherlock Holmes"
+        ],
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "typing continues after Enter and Backspace edits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "added": {
+          "value": "Sherlockx",
+          "focus": true,
+          "start": 9,
+          "end": 9,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "caret insertion/deletion survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "inserted": {
+          "value": "Sh-erlock",
+          "focus": true,
+          "start": 3,
+          "end": 3,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Sherlock",
+        "focus": true,
+        "start": 2,
+        "end": 2,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "selection range survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "range": {
+          "value": "Sherlock!",
+          "focus": true,
+          "start": 8,
+          "end": 9,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pending debounce does not steal deliberate result focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Sherlock ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "item-open"
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pending debounce retains deliberate other-control focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": " Sherlock ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "search-clear"
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "clear cancels pending work and returns focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "Backspace to one character then empty",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "one": {
+          "value": "A",
+          "focus": true,
+          "start": 1,
+          "end": 1,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Biblio",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "empty/no-match Enter has no fabricated top action",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "zzzzzz",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pause after first character",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "E",
+        "focus": true,
+        "start": 1,
+        "end": 1,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "slow ordinary remaining characters",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "fast ordinary replacement",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "Enter dispatches original top intent and preserves field/caret",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "intents": [
+          "The Empire Strikes Back"
+        ],
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "typing continues after Enter and Backspace edits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "added": {
+          "value": "Empirex",
+          "focus": true,
+          "start": 7,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "caret insertion/deletion survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "inserted": {
+          "value": "Em-pire",
+          "focus": true,
+          "start": 3,
+          "end": 3,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Empire",
+        "focus": true,
+        "start": 2,
+        "end": 2,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "selection range survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "range": {
+          "value": "Empire!",
+          "focus": true,
+          "start": 6,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pending debounce does not steal deliberate result focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Empire ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "item-open"
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pending debounce retains deliberate other-control focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": " Empire ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "search-clear"
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "clear cancels pending work and returns focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "Backspace to one character then empty",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "one": {
+          "value": "A",
+          "focus": true,
+          "start": 1,
+          "end": 1,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "empty/no-match Enter has no fabricated top action",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "zzzzzz",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pause after first character",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "E",
+        "focus": true,
+        "start": 1,
+        "end": 1,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "slow ordinary remaining characters",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "fast ordinary replacement",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "Enter dispatches original top intent and preserves field/caret",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "intents": [
+          "The Empire Strikes Back"
+        ],
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "typing continues after Enter and Backspace edits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "added": {
+          "value": "Empirex",
+          "focus": true,
+          "start": 7,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "caret insertion/deletion survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "inserted": {
+          "value": "Em-pire",
+          "focus": true,
+          "start": 3,
+          "end": 3,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Empire",
+        "focus": true,
+        "start": 2,
+        "end": 2,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "selection range survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "range": {
+          "value": "Empire!",
+          "focus": true,
+          "start": 6,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pending debounce does not steal deliberate result focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Empire ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "item-open"
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pending debounce retains deliberate other-control focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": " Empire ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "search-clear"
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "clear cancels pending work and returns focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "Backspace to one character then empty",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "one": {
+          "value": "A",
+          "focus": true,
+          "start": 1,
+          "end": 1,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Theatre",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "empty/no-match Enter has no fabricated top action",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "zzzzzz",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pause after first character",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "A",
+        "focus": true,
+        "start": 1,
+        "end": 1,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "slow ordinary remaining characters",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "fast ordinary replacement",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "Enter dispatches original top intent and preserves field/caret",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "intents": [
+          "One Piece — Arlong Park"
+        ],
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "typing continues after Enter and Backspace edits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "added": {
+          "value": "Arlongx",
+          "focus": true,
+          "start": 7,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "caret insertion/deletion survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "inserted": {
+          "value": "Ar-long",
+          "focus": true,
+          "start": 3,
+          "end": 3,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Arlong",
+        "focus": true,
+        "start": 2,
+        "end": 2,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "selection range survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "range": {
+          "value": "Arlong!",
+          "focus": true,
+          "start": 6,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pending debounce does not steal deliberate result focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Arlong ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "item-open"
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "pending debounce retains deliberate other-control focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": " Arlong ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "search-clear"
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "clear cancels pending work and returns focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "Backspace to one character then empty",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "one": {
+          "value": "A",
+          "focus": true,
+          "start": 1,
+          "end": 1,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        412,
+        900
+      ],
+      "name": "empty/no-match Enter has no fabricated top action",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "zzzzzz",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pause after first character",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "A",
+        "focus": true,
+        "start": 1,
+        "end": 1,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "slow ordinary remaining characters",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "fast ordinary replacement",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "Enter dispatches original top intent and preserves field/caret",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "intents": [
+          "One Piece — Arlong Park"
+        ],
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "typing continues after Enter and Backspace edits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "added": {
+          "value": "Arlongx",
+          "focus": true,
+          "start": 7,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "caret insertion/deletion survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "inserted": {
+          "value": "Ar-long",
+          "focus": true,
+          "start": 3,
+          "end": 3,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Arlong",
+        "focus": true,
+        "start": 2,
+        "end": 2,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "selection range survives debounce",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "range": {
+          "value": "Arlong!",
+          "focus": true,
+          "start": 6,
+          "end": 7,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pending debounce does not steal deliberate result focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "Arlong ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "item-open"
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "pending debounce retains deliberate other-control focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": " Arlong ",
+        "focus": false,
+        "start": 0,
+        "end": 0,
+        "activeTag": "BUTTON",
+        "activeAction": "search-clear"
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "clear cancels pending work and returns focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "Backspace to one character then empty",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "one": {
+          "value": "A",
+          "focus": true,
+          "start": 1,
+          "end": 1,
+          "activeTag": "INPUT",
+          "activeAction": null
+        },
+        "value": "",
+        "focus": true,
+        "start": 0,
+        "end": 0,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "viewport": [
+        900,
+        412
+      ],
+      "name": "empty/no-match Enter has no fabricated top action",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "value": "zzzzzz",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      }
+    }
+  ],
+  "errors": [],
+  "failedResources": [
+    {
+      "url": "http://127.0.0.1:1844/favicon.ico",
+      "status": 404
+    }
+  ],
+  "requests": [
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/search.html?capture=1&preset=portrait&lane=Biblio&state=empty",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/batch-runtime.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/segoeui.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/seguisb.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/search.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/wallpaper/sagas/sherlock-holmes.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/minimize.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/fullscreen.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/power.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/search.html?capture=1&preset=landscape&lane=Biblio&state=empty",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/batch-runtime.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/search.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/segoeui.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/seguisb.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/wallpaper/sagas/sherlock-holmes.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/minimize.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/fullscreen.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/power.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/search.html?capture=1&preset=portrait&lane=Theatre&state=empty",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/batch-runtime.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/search.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/star.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/segoeui.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/seguisb.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/star-wars/hoth.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/star-wars/hoth.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/minimize.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/fullscreen.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/power.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/search.html?capture=1&preset=landscape&lane=Theatre&state=empty",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/batch-runtime.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/search.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/star.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/segoeui.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/seguisb.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/star-wars/hoth.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/star-wars/hoth.jpg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/minimize.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/fullscreen.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/power.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/search.html?capture=1&preset=portrait&lane=Tankoban&state=empty",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/batch-runtime.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/search.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/star.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/segoeui.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/seguisb.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/star.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/minimize.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/fullscreen.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/power.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/search.html?capture=1&preset=landscape&lane=Tankoban&state=empty",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/20-search-browse/style.css",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/finished-mocks/batch-runtime.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/search.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/segoeui.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/star.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/local-fonts/seguisb.ttf",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/star.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/minimize.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/fullscreen.svg",
+      "status": 200
+    },
+    {
+      "url": "http://127.0.0.1:1844/reference/desktop/assets/icons/power.svg",
+      "status": 200
+    }
+  ],
+  "captures": [
+    {
+      "lane": "Biblio",
+      "w": 412,
+      "h": 900,
+      "file": "corrected-biblio-412x900.png",
+      "state": {
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      },
+      "resources": {
+        "images": [],
+        "fonts": [
+          "ColosseumSegoe",
+          "ColosseumSegoe",
+          "Fraunces"
+        ]
+      }
+    },
+    {
+      "lane": "Biblio",
+      "w": 900,
+      "h": 412,
+      "file": "corrected-biblio-900x412.png",
+      "state": {
+        "value": "Sherlock",
+        "focus": true,
+        "start": 8,
+        "end": 8,
+        "activeTag": "INPUT",
+        "activeAction": null
+      },
+      "resources": {
+        "images": [],
+        "fonts": [
+          "ColosseumSegoe",
+          "ColosseumSegoe",
+          "Fraunces"
+        ]
+      }
+    },
+    {
+      "lane": "Theatre",
+      "w": 412,
+      "h": 900,
+      "file": "corrected-theatre-412x900.png",
+      "state": {
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      },
+      "resources": {
+        "images": [],
+        "fonts": [
+          "ColosseumSegoe",
+          "ColosseumSegoe",
+          "Fraunces"
+        ]
+      }
+    },
+    {
+      "lane": "Theatre",
+      "w": 900,
+      "h": 412,
+      "file": "corrected-theatre-900x412.png",
+      "state": {
+        "value": "Empire",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      },
+      "resources": {
+        "images": [],
+        "fonts": [
+          "ColosseumSegoe",
+          "ColosseumSegoe",
+          "Fraunces"
+        ]
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "w": 412,
+      "h": 900,
+      "file": "corrected-tankoban-412x900.png",
+      "state": {
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      },
+      "resources": {
+        "images": [],
+        "fonts": [
+          "ColosseumSegoe",
+          "ColosseumSegoe",
+          "Fraunces"
+        ]
+      }
+    },
+    {
+      "lane": "Tankoban",
+      "w": 900,
+      "h": 412,
+      "file": "corrected-tankoban-900x412.png",
+      "state": {
+        "value": "Arlong",
+        "focus": true,
+        "start": 6,
+        "end": 6,
+        "activeTag": "INPUT",
+        "activeAction": null
+      },
+      "resources": {
+        "images": [],
+        "fonts": [
+          "ColosseumSegoe",
+          "ColosseumSegoe",
+          "Fraunces"
+        ]
+      }
+    }
+  ],
+  "origin": "http://127.0.0.1:1844",
+  "browser": "Chrome/156.0.8078.74",
+  "closed": "2026-11-01T00:50:57.028Z"
+}

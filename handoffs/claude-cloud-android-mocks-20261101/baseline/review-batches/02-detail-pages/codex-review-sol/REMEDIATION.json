@@ -1,0 +1,210 @@
+{
+  "status": "CORRECTIVE_CANDIDATE_VERIFIED",
+  "primary_acceptance": "PENDING",
+  "addresses": "SOL-B2-001",
+  "changed_files": [
+    "remediation/app.js"
+  ],
+  "patch": "remediation/window-actions.patch",
+  "complete_changed_file": "remediation/app.js",
+  "runnable_entry": "remediation/RUN.cmd",
+  "server": "remediation/overlay-server.mjs",
+  "original_and_corrected_hashes": {
+    "original": {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\finished-mocks\\17-theatre-details\\app.js",
+      "sha256": "258347b94af24c7190cbb97384c197f08bc7a42e115c04c72a89252aee708dee",
+      "bytes": 35065
+    },
+    "corrected": {
+      "path": "app.js",
+      "sha256": "64fd16d35f596a89175e1c573924527a48a9c237acb3ba68a72dcac2053c7ce5",
+      "bytes": 35269
+    }
+  },
+  "verification": {
+    "passed": true,
+    "cases": 16,
+    "pages": [
+      "film",
+      "series"
+    ],
+    "renderers": [
+      "legacy",
+      "rebuilt"
+    ],
+    "hosts": {
+      "phone_portrait": [
+        354,
+        792
+      ],
+      "phone_landscape": [
+        792,
+        354
+      ],
+      "android_tablet": [
+        1280,
+        800
+      ],
+      "desktop": [
+        1280,
+        700
+      ]
+    },
+    "font_scale": 1.3,
+    "illustrative_top_bottom_insets": 24,
+    "android": "Desktop window trigger/actions absent from DOM, absent from focus traversal; Back and rebuilt Search clicked; no replacement UI.",
+    "desktop": "Legacy Minimize/Fullscreen/Quit actual clicks; rebuilt menu Enter opens, labels present, Minimize/Fullscreen clicks and Quit confirmation/cancel work.",
+    "resize": "Open desktop rebuilt menu converted to phone leaves only Back/Search in chrome; old menu state cleared.",
+    "errors": [],
+    "blocked_external_requests": [],
+    "evidence": "remediation/evidence/",
+    "machine_results": "remediation/focused-verification.json",
+    "browser_closed": true,
+    "server_closed": true,
+    "pid": 6084
+  },
+  "preservation": {
+    "original_finished_files_checked": 25,
+    "all_hashes_match": true,
+    "files": [
+      {
+        "path": "finished-mocks\\06-biblio-book\\app.js",
+        "sha256": "b4d2a548af1ad857ab16af0ae62c70774027edbe83a79dfa3e1987127ce485e5",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\06-biblio-book\\biblio-book.html",
+        "sha256": "1828594934a36e174f313f36ce6f51cdea13b4bf46ac01b312fc72fb8b2d1209",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\06-biblio-book\\index.html",
+        "sha256": "c8a31b4bf81b81a492a2b78c4de80893f3e3c5faeda788f5c37ac49604095e54",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\06-biblio-book\\style.css",
+        "sha256": "daf3163e5aaee98141e7ddd4831560f9674b4fb3eb748e94bf98c99fd2923609",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\17-theatre-details\\app.js",
+        "sha256": "258347b94af24c7190cbb97384c197f08bc7a42e115c04c72a89252aee708dee",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\17-theatre-details\\film-detail.html",
+        "sha256": "46c9fe0a4ce0ccf571c2a0cea0163e32ddba3c9cf693c4047ef04481c42e35dd",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\17-theatre-details\\index.html",
+        "sha256": "55ef52bd82ba795ed51d5eca913de97554034e6dd9aca0dcefce4a4a969f7ba5",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\17-theatre-details\\series-detail.html",
+        "sha256": "93d90d525b8f52b5abdf79acf9394393140cf2798b9ecbd3d08b34393b193178",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\17-theatre-details\\style.css",
+        "sha256": "b1d86b045dead67762f5134f5d366e07783554e9cf4272af0c5f1ea270e0196f",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\18-comic-details\\app.js",
+        "sha256": "93c503a5314f5b13c312b28ff2dcf316ba81203e2675ee035f90a417d2808668",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\18-comic-details\\comic-archive.html",
+        "sha256": "2cf02b1b41109d6d9a54b0b31a6a4bbc29e51852be0f7e1cdabb324d803bc755",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\18-comic-details\\comic-edition.html",
+        "sha256": "253bde3b48c327d9610bdc1cca9e8b38f1703d2030f67c77b5d251eda36b1591",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\18-comic-details\\comic-series.html",
+        "sha256": "aca8ba0f6185ad6680b6549a444d4e5f3f32d0ee14a7f6bd04accd836052015d",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\18-comic-details\\index.html",
+        "sha256": "1de04e69f0111c450554ac2cad305e83f02006176d4b334248c84a8f1d614d6d",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\18-comic-details\\style.css",
+        "sha256": "a2dcb047eab8b55c4da76367a0590cb9c7e1c37118b4d9890370ed625bee0470",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\19-generic-universes\\app.js",
+        "sha256": "ac5702169ccb6cb0668afb7ddcd98a7c9aa0cd6822265fdaf677baccd2944554",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\19-generic-universes\\index.html",
+        "sha256": "136cf01413a34eaa4afbc10653e9adb0b6cd8755ff09cd8f5e7d198b22aee789",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\19-generic-universes\\saga-universe.html",
+        "sha256": "14d8918a34a3b20b923abb4f9e1b685db8d82bfe12ad3b59916010871c32367a",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\19-generic-universes\\shelves-universe.html",
+        "sha256": "d1579399ebf00ce4ca521e0dbded5e581b9e1c7c41ee64030bd17db466089c16",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\19-generic-universes\\style.css",
+        "sha256": "2da63085c7714aa9c338e14969299e55f4de21bb09b545132da3030af4eb5ba0",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\index.html",
+        "sha256": "74d5679b1140f6cd41e4668bc29392507704520e0bb243d1e3b5597d7357dc50",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\README.md",
+        "sha256": "bfd9bcfe1c13ff1b41dbd5eff31d97fb086ea743979f9bf69a72a495fbe7e5ea",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\RUN-LOCAL.cmd",
+        "sha256": "54b3ea020fed19dfd6116540d024af68ff363137e2ab08377e7faf290ee5c2fc",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\shared\\collections-picker.css",
+        "sha256": "4838514ce98ef29defb907905ba46c7fea486d040ac9cfa4f20db32f18aa7ee3",
+        "matches_original": true
+      },
+      {
+        "path": "finished-mocks\\shared\\collections-picker.js",
+        "sha256": "0fdf66d64caad4918f6f33796b29a0e95c618894ff14cc8d2c25803b70bb416b",
+        "matches_original": true
+      }
+    ],
+    "original_review_unchanged_by_this_remediation": true,
+    "other_six_pages_untouched": true,
+    "qml_repo_git_device_service_mutations": false
+  },
+  "remaining_product_decisions": [
+    "Theatre source baseline legacy versus rebuilt remains unresolved; neither default nor feature flag changed.",
+    "B2-018 Universe tab docking remains pending and unchanged."
+  ],
+  "limits": [
+    "HTML only; no native/device/scenegraph or service qualification.",
+    "Android host detection reuses existing mock classifier; future native port must use actual host/platform.",
+    "Overlay is a candidate under receiving-review ownership; Pro originals remain unchanged."
+  ],
+  "utc": "2026-11-01T00:49:25.796634+00:00"
+}

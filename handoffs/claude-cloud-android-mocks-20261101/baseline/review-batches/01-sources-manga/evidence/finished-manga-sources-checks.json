@@ -1,0 +1,465 @@
+{
+  "file": "manga-volume-sources.html",
+  "tested_at": "2026-10-31T23:19:29.863Z",
+  "tests": [
+    {
+      "name": "portrait assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "scrollers": [
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 17,
+              "y": 318,
+              "width": 378,
+              "height": 565,
+              "right": 395,
+              "bottom": 883
+            },
+            "scrollTop": 0,
+            "maxScroll": 71,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "landscape assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "scrollers": [
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 17,
+              "y": 203,
+              "width": 866,
+              "height": 198,
+              "right": 883,
+              "bottom": 401
+            },
+            "scrollTop": 0,
+            "maxScroll": 334,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-portrait assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-small-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 17,
+              "y": 318,
+              "width": 320,
+              "height": 457,
+              "right": 337,
+              "bottom": 775
+            },
+            "scrollTop": 0,
+            "maxScroll": 191,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "small-landscape assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-small-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 17,
+              "y": 203,
+              "width": 758,
+              "height": 140,
+              "right": 775,
+              "bottom": 343
+            },
+            "scrollTop": 0,
+            "maxScroll": 392,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "desktop assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-desktop",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "scrollers": [
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 55,
+              "y": 373,
+              "width": 1170,
+              "height": 300,
+              "right": 1225,
+              "bottom": 673
+            },
+            "scrollTop": 0,
+            "maxScroll": 312,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-portrait assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-tablet-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 800,
+          "height": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "scrollers": [],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "tablet-landscape assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-tablet-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "scrollers": [
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 55,
+              "y": 373,
+              "width": 1170,
+              "height": 400,
+              "right": 1225,
+              "bottom": 773
+            },
+            "scrollTop": 0,
+            "maxScroll": 212,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-portrait assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-stress-portrait",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "scrollers": [
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 17,
+              "y": 375,
+              "width": 320,
+              "height": 376,
+              "right": 337,
+              "bottom": 751
+            },
+            "scrollTop": 0,
+            "maxScroll": 470,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "stress-landscape assets and app bounds",
+      "pass": true,
+      "details": {
+        "name": "finished-manga-sources-stress-landscape",
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "scrollers": [
+          {
+            "id": "picker",
+            "class": "picker",
+            "rect": {
+              "x": 0,
+              "y": 24,
+              "width": 792,
+              "height": 306,
+              "right": 792,
+              "bottom": 330
+            },
+            "scrollTop": 0,
+            "maxScroll": 60,
+            "overflowX": 0
+          },
+          {
+            "id": "resultViewport",
+            "class": "result-viewport",
+            "rect": {
+              "x": 17,
+              "y": 245,
+              "width": 758,
+              "height": 134,
+              "right": 775,
+              "bottom": 379
+            },
+            "scrollTop": 0,
+            "maxScroll": 420,
+            "overflowX": 0
+          }
+        ],
+        "errors": [],
+        "blocked": [],
+        "missingImages": []
+      }
+    },
+    {
+      "name": "portrait long rows actionable with safe insets",
+      "pass": true,
+      "details": [
+        {
+          "y": 507.109375,
+          "bottom": 557.109375,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        },
+        {
+          "y": 553.84375,
+          "bottom": 603.84375,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        },
+        {
+          "y": 553.578125,
+          "bottom": 603.578125,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        },
+        {
+          "y": 623.8125,
+          "bottom": 673.8125,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        }
+      ]
+    },
+    {
+      "name": "landscape long rows actionable with safe insets",
+      "pass": true,
+      "details": [
+        {
+          "y": 227.109375,
+          "bottom": 277.109375,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        },
+        {
+          "y": 227.34375,
+          "bottom": 277.34375,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        },
+        {
+          "y": 226.578125,
+          "bottom": 276.578125,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        },
+        {
+          "y": 226.8125,
+          "bottom": 276.8125,
+          "height": 50,
+          "hit": true,
+          "xOverflow": 0
+        }
+      ]
+    },
+    {
+      "name": "collection ArrowDown moves focus",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "source activates resolving disc and dims others",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "47 percent in original circular status disc",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "failure releases rows after 1600ms",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "another source can be chosen after failure",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "completion closes picker after 1400ms",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "review reopen restores source picker",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "disabled existing state visible without source rows",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "Extensions emits local route feedback",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "loading existing state visible without source rows",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "empty existing state visible without source rows",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "search-error existing state visible without source rows",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "batch count tightest-first and selected disc",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "series search identity and toast avoid invented volume",
+      "pass": true,
+      "details": {}
+    },
+    {
+      "name": "Back closes live picker",
+      "pass": true,
+      "details": {}
+    }
+  ],
+  "total": 26,
+  "passed": 26
+}

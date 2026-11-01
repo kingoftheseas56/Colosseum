@@ -1,0 +1,16 @@
+{
+  "name": "series-original-landscape-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-original-landscape-small.png",
+  "input": "outputs/17-theatre-details/series-detail.html?capture=1",
+  "url": "http://127.0.0.1:8667/outputs/17-theatre-details/series-detail.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 792,
+    "height": 354,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:48:28.809Z",
+  "sha256": "00ef7b11d7ccb66d0faa43758a8f420bcd8eb5340922391cc1ea01b3ec61762c",
+  "errors": [],
+  "blocked": []
+}

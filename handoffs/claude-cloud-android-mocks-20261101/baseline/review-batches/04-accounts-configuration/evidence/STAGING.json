@@ -1,0 +1,146 @@
+{
+  "utc": "2026-10-31T22:46:25.285Z",
+  "scope": "Owned finished copies only; source workers and references preserved",
+  "files": [
+    {
+      "file": "10-profile/profile.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "4779b81be52dc1a0a82b24838e3d0c8b2383b183cb6f594c3a56386c8d887580"
+    },
+    {
+      "file": "10-profile/index.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "f4b0bfd3d83664f2ef5fdb1b7a16a5a7e9a7aed61da6eaaa0f2cea51df8bc9dd"
+    },
+    {
+      "file": "10-profile/app.js",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "43756ecc4a53fcd16dba9b044ed05a48df01b782e0e08722ce17eca01f1eb456"
+    },
+    {
+      "file": "10-profile/style.css",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "a0c7b3881760f1cb22a4475b5ce9d65fe49c33f0d4a1f55ffebd34e66a76b359"
+    },
+    {
+      "file": "11-account-entry/account-welcome.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "1aa42868518d012d418f1cb9ce0f33f0b9b59469d75a1b787b57d25365fa6daa"
+    },
+    {
+      "file": "11-account-entry/account-flyout.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "4438c6e399b5deeb441b7ecf3a13df52cc83ff8be2ba426991a645e08c872f76"
+    },
+    {
+      "file": "11-account-entry/account-centre.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "56388e2361864143509ad895793ae204797edfcd93bd91e1f782f2280d35ccdf"
+    },
+    {
+      "file": "11-account-entry/index.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "b682929a1a9efcc8e97aca838b8513ed3de658157979fcb6927c6ec6500c30e5"
+    },
+    {
+      "file": "11-account-entry/app.js",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "a163201df233b89dc943e82f0cc7c6d0e4d0b54818261c1272e1e71f80141b9d"
+    },
+    {
+      "file": "11-account-entry/style.css",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "cf88682254c0ca8ce16b20ae38bea34d37265f3e7ec6422add78d533307429ff"
+    },
+    {
+      "file": "12-account-forms/account-profile.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "a18243ddc34d0a2904c9824bba47ce03efd763eca636bb7a2a1693a558be356c"
+    },
+    {
+      "file": "12-account-forms/account-security.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "6a016eda38bb96314890ab5d9d4660c06145df76bb0eaec97d8f516be6047ece"
+    },
+    {
+      "file": "12-account-forms/account-recovery.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "24826c364148c1b892b6c6024bb5aaf0a402d7793ea26c442d7f55d6e5a445cb"
+    },
+    {
+      "file": "12-account-forms/account-privacy.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "e34501fff8581c8df278741d1af3bd794e19fc0bf7d02af4d5a20c68010f4d3b"
+    },
+    {
+      "file": "12-account-forms/account-devices.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "e5a0fda403e828535b153babd001e161cf45c439d54653de706e665d980385bf"
+    },
+    {
+      "file": "12-account-forms/account-your-colosseum.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "3d89614968ffc40b225101b9837d2ee44ba053a8b11f91a62d6a27b1454e5bc4"
+    },
+    {
+      "file": "12-account-forms/index.html",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "774fb960336acc0287c7053cdaf30bbd86408714e91c4952470a0f04d61570f8"
+    },
+    {
+      "file": "12-account-forms/app.js",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "ce393e9c09ee03ca064d3ffd3ab8e105bf7828dbe88a5a51044bdf18175af5c9"
+    },
+    {
+      "file": "12-account-forms/style.css",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "13bc1d7815b7c39fc33814635b252ce96b72c83a8bee8bf813a54a31e3305051"
+    },
+    {
+      "file": "13-stremio-sync/stremio-sync.html",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "3be29ccdda38e2fde531cab8542ff291d4814eb700906ee074613ce432d19230"
+    },
+    {
+      "file": "13-stremio-sync/index.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "aa2e35350a4462f7550a4e02029da5c75f7bc16d2141a7100175f5db436adebb"
+    },
+    {
+      "file": "13-stremio-sync/app.js",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "dba45e68909e26c8b4e57f49166ebf71011a51d17c935046ed3bac6e819e2b76"
+    },
+    {
+      "file": "13-stremio-sync/style.css",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "fc710033ffe14bbcb5af1ba4134a76bab5f487aa762cb0a6985b2190aa6e4d07"
+    },
+    {
+      "file": "14-extension-setup/extension-setup.html",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "27396d3de0b925db68f7efd2a85b1128c8b09389c62180f5c071765e2ed40d9c"
+    },
+    {
+      "file": "14-extension-setup/tankoyomi-configuration.html",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "6afccb08a82089457ca75065be3e4a6c9f629e6b6d6eeb23a149c7aa46f2ca47"
+    },
+    {
+      "file": "14-extension-setup/index.html",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "f982742fd3512632b319e241302ab8a39d369e6b3d7e07a979ab1e1661664db0"
+    },
+    {
+      "file": "14-extension-setup/app.js",
+      "assetPrefixAdjusted": false,
+      "originalSha256": "5509135552fd002ba75902c13b4707f3f12b4644d15406493984ded4ac3932ce"
+    },
+    {
+      "file": "14-extension-setup/style.css",
+      "assetPrefixAdjusted": true,
+      "originalSha256": "501fe941434b233813faf05b24acad4f9f2544772775af70fca6a8e26b82aa9c"
+    }
+  ]
+}

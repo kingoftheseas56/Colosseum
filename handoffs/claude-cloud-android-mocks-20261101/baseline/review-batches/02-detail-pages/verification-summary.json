@@ -1,0 +1,230 @@
+{
+  "utc": "2026-11-01T00:13:41.449512+00:00",
+  "scope": "Local HTML verification only; no native app, provider or device qualification",
+  "normal_layouts": {
+    "distinct_page_size_cases": 56,
+    "pages": 8,
+    "sizes": [
+      [
+        412,
+        900
+      ],
+      [
+        354,
+        792
+      ],
+      [
+        900,
+        412
+      ],
+      [
+        792,
+        354
+      ],
+      [
+        1280,
+        700
+      ],
+      [
+        800,
+        1280
+      ],
+      [
+        1280,
+        800
+      ]
+    ],
+    "ledger": "verified-layouts.json",
+    "passed": 56
+  },
+  "stress_coverage": {
+    "pages": 8,
+    "phone_sizes": [
+      [
+        412,
+        900
+      ],
+      [
+        354,
+        792
+      ],
+      [
+        900,
+        412
+      ],
+      [
+        792,
+        354
+      ]
+    ],
+    "text_scale": 1.3,
+    "illustrative_insets": {
+      "top": 24,
+      "bottom": 24
+    },
+    "note": "Relevant long-content and interaction cases per page; this does not claim every possible state combination."
+  },
+  "targeted_final_cases": {
+    "comic_source_states": {
+      "cases": 34,
+      "ledger": "comic-source-final-states.json"
+    },
+    "comic_real_row_queue_returns": {
+      "flows": 6,
+      "ledger": "comic-source-queue-retest.json"
+    },
+    "continue_context": {
+      "cases": 10,
+      "assertion_groups": 50,
+      "ledger": "universe-continue-verified-tests.json"
+    },
+    "tab_landing_comparisons": {
+      "cases": 24,
+      "ledgers": [
+        "universe-tab-landing-verified.json",
+        "shelves-bond-tab-landing-verified.json"
+      ],
+      "original_overflow": "Expected evidence, not a pass for original narrow-phone fitting"
+    },
+    "theatre_visible_synopsis": {
+      "before_after_cases": 4,
+      "ledger": "theatre-synopsis-visible-comparisons.json"
+    },
+    "handoff_navigation": {
+      "checks": 5,
+      "ledger": "handoff-browser-checks.json"
+    }
+  },
+  "counts_are_not_additive": "Targeted cases overlap page/size coverage and include expected original failures.",
+  "fixed_verified_findings": 18,
+  "fixed_but_unverified": [],
+  "proposal_pending": "B2-018",
+  "pages": [
+    {
+      "page": "biblio",
+      "finished_path": "finished-mocks/06-biblio-book/biblio-book.html",
+      "verified_behaviors": "Full synopsis; Read chooser; 7 expanded torrents; final audiobook rows; library; Collections save/cancel/create.",
+      "evidence": [
+        "biblio-finished-checks.json",
+        "biblio-stress-checks.json",
+        "biblio-shared-final-checks.json",
+        "verified-layouts.json",
+        "biblio-final-layout-retest.json",
+        "biblio-tablet-popup-retest.json"
+      ]
+    },
+    {
+      "page": "film",
+      "finished_path": "finished-mocks/17-theatre-details/film-detail.html",
+      "verified_behaviors": "Full phone synopsis; opt-in More/Less; library/removal; Collections; Watch intent; 9-person expanded cast; recommendation rail.",
+      "evidence": [
+        "theatre-finished-layouts.json",
+        "theatre-finished-interactions.json",
+        "theatre-final-jump-retest.json",
+        "verified-layouts.json",
+        "source-chrome-targeted-checks.json",
+        "chrome-theatre-final-retest.json",
+        "handoff-theatre-layouts.json",
+        "theatre-synopsis-visible-comparisons.json"
+      ]
+    },
+    {
+      "page": "series",
+      "finished_path": "finished-mocks/17-theatre-details/series-detail.html",
+      "verified_behaviors": "23 season options; Go to final episode; keyboard/context Play and Download; notification toggle; library/removal; Collections.",
+      "evidence": [
+        "theatre-finished-layouts.json",
+        "theatre-finished-interactions.json",
+        "theatre-final-jump-retest.json",
+        "verified-layouts.json",
+        "source-chrome-targeted-checks.json",
+        "chrome-theatre-final-retest.json",
+        "handoff-theatre-layouts.json",
+        "theatre-synopsis-visible-comparisons.json"
+      ]
+    },
+    {
+      "page": "comic-series",
+      "finished_path": "finished-mocks/18-comic-details/comic-series.html",
+      "verified_behaviors": "Search/no-match/clear; sort; 8 release rows including final issue; whole-row read; queued intent; cancel; Collections.",
+      "evidence": [
+        "comics-finished-layouts.json",
+        "comics-finished-stress.json",
+        "comics-finished-actions.json",
+        "verified-layouts.json",
+        "source-chrome-targeted-checks.json",
+        "chrome-comic-final-retest.json",
+        "handoff-comics-layouts.json"
+      ]
+    },
+    {
+      "page": "comic-edition",
+      "finished_path": "finished-mocks/18-comic-details/comic-edition.html",
+      "verified_behaviors": "5 editions; alternate-source keyboard action; search; weak confirmation; incomplete/combined/ambiguous pack outcomes; return to queued row.",
+      "evidence": [
+        "comics-finished-layouts.json",
+        "comics-finished-stress.json",
+        "comics-finished-actions.json",
+        "verified-layouts.json",
+        "source-chrome-targeted-checks.json",
+        "chrome-comic-final-retest.json",
+        "handoff-comics-layouts.json",
+        "comic-source-final-states.json",
+        "comic-source-final-actions.json",
+        "comic-source-queue-retest.json"
+      ]
+    },
+    {
+      "page": "comic-archive",
+      "finished_path": "finished-mocks/18-comic-details/comic-archive.html",
+      "verified_behaviors": "10 boxes; 8 index posters; archive-titled raw shelf; Back restoration; supported Batman route preserves viewport/insets.",
+      "evidence": [
+        "comics-finished-layouts.json",
+        "comics-finished-actions.json",
+        "verified-layouts.json",
+        "final-regression-archive.json",
+        "source-chrome-targeted-checks.json",
+        "chrome-comic-final-retest.json",
+        "handoff-comics-layouts.json"
+      ]
+    },
+    {
+      "page": "saga",
+      "finished_path": "finished-mocks/19-generic-universes/saga-universe.html",
+      "verified_behaviors": "7 books/8 films; both Deathly Hallows parts; arrow-key grid; Continue/resume; branches; pending upcoming item; About and final section; tab alternatives. Continue context menu, focus return and Remove signal boundary.",
+      "evidence": [
+        "universes-finished-layouts.json",
+        "saga-finished-stress.json",
+        "verified-layouts.json",
+        "final-regressions.json",
+        "universe-continue-verified-tests.json",
+        "universes-final-layout-retest.json",
+        "universe-tab-landing-verified.json",
+        "shelves-bond-tab-landing-verified.json"
+      ]
+    },
+    {
+      "page": "shelves",
+      "finished_path": "finished-mocks/19-generic-universes/shelves-universe.html",
+      "verified_behaviors": "25 films; 14 books; final rail items; 40 magazine rows including last Now and Classics; actual 1.3 text growth; Continue; About; tab alternatives. Continue context menu, focus return and Remove signal boundary.",
+      "evidence": [
+        "universes-finished-layouts.json",
+        "shelves-finished-stress.json",
+        "verified-layouts.json",
+        "final-regressions.json",
+        "universe-continue-verified-tests.json",
+        "universes-final-layout-retest.json",
+        "universe-tab-landing-verified.json",
+        "shelves-bond-tab-landing-verified.json"
+      ]
+    }
+  ],
+  "historical_attempts": "Original defects, initial failed jump, an interim syntax error, hidden-dialog query, queued-text assertion and the first wrong tab selector remain in raw history; the named final ledgers supersede them.",
+  "browser": {
+    "closed": true,
+    "browserVersion": "Chrome/156.0.8078.74",
+    "profile": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\browser-profile-20261101"
+  },
+  "artifact_validation": "artifact-validation.json",
+  "preservation": "preservation-check.json"
+}

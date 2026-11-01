@@ -1,0 +1,1049 @@
+{
+  "BackAction.qml": {
+    "path": "reference/desktop/qml/BackAction.qml",
+    "lines": 158,
+    "anchors": [
+      {
+        "line": 8,
+        "text": "//                                                        icon system but shares this stroke grammar)"
+      },
+      {
+        "line": 46,
+        "text": "width: implicitWidth"
+      },
+      {
+        "line": 71,
+        "text": "width: root._chev; height: root._chev"
+      },
+      {
+        "line": 74,
+        "text": "// raisedLabel drop shadow for the chevron \u2014 a second Shape, offset 1px, stroked in"
+      },
+      {
+        "line": 75,
+        "text": "// translucent black, painted BEHIND the real chevron below. Shape/ShapePath has no"
+      },
+      {
+        "line": 76,
+        "text": "// styleColor (that's a Text-only property), so a duplicate offset stroke is the"
+      },
+      {
+        "line": 82,
+        "text": "width: root._chev; height: root._chev"
+      },
+      {
+        "line": 84,
+        "text": "ShapePath {"
+      },
+      {
+        "line": 85,
+        "text": "strokeColor: Qt.rgba(0, 0, 0, 0.5)"
+      },
+      {
+        "line": 86,
+        "text": "strokeWidth: 2.5 * root._chev / 24"
+      },
+      {
+        "line": 88,
+        "text": "capStyle: ShapePath.RoundCap"
+      },
+      {
+        "line": 89,
+        "text": "joinStyle: ShapePath.RoundJoin"
+      },
+      {
+        "line": 91,
+        "text": "PathLine { x: 8.0 * root._chev / 24; y: 12.0 * root._chev / 24 }"
+      },
+      {
+        "line": 92,
+        "text": "PathLine { x: 14.5 * root._chev / 24; y: 18.5 * root._chev / 24 }"
+      },
+      {
+        "line": 100,
+        "text": "ShapePath {"
+      },
+      {
+        "line": 101,
+        "text": "strokeColor: root._c"
+      },
+      {
+        "line": 102,
+        "text": "strokeWidth: 2.5 * root._chev / 24"
+      },
+      {
+        "line": 104,
+        "text": "capStyle: ShapePath.RoundCap"
+      },
+      {
+        "line": 105,
+        "text": "joinStyle: ShapePath.RoundJoin"
+      },
+      {
+        "line": 107,
+        "text": "PathLine { x: 8.0 * root._chev / 24; y: 12.0 * root._chev / 24 }"
+      },
+      {
+        "line": 108,
+        "text": "PathLine { x: 14.5 * root._chev / 24; y: 18.5 * root._chev / 24 }"
+      },
+      {
+        "line": 143,
+        "text": "width: tipText.implicitWidth + 18; height: 24; radius: 6"
+      },
+      {
+        "line": 145,
+        "text": "border.width: 1; border.color: theme.edge"
+      }
+    ]
+  },
+  "ComicTorrentArchivePicker.qml": {
+    "path": "reference/desktop/qml/ComicTorrentArchivePicker.qml",
+    "lines": 151,
+    "anchors": [
+      {
+        "line": 36,
+        "text": "function nameOf(row) {"
+      },
+      {
+        "line": 111,
+        "text": "text: picker.nameOf(fileRow.modelData)"
+      },
+      {
+        "line": 140,
+        "text": "accessibleName: \"Choose \" + picker.nameOf(fileRow.modelData)"
+      }
+    ]
+  },
+  "ComicTorrentSourcesPage.qml": {
+    "path": "reference/desktop/qml/ComicTorrentSourcesPage.qml",
+    "lines": 743,
+    "anchors": [
+      {
+        "line": 7,
+        "text": "// weak matches require an explicit confirmation; ambiguous packs open the"
+      },
+      {
+        "line": 41,
+        "text": "//   ambiguous   \u2014 two+ eligible files, user must pick (ComicTorrentArchivePicker)"
+      },
+      {
+        "line": 115,
+        "text": "if (row && row.confidence === \"weak\") { confirmingWeak = true; return }"
+      },
+      {
+        "line": 126,
+        "text": "function cancelWeakSelection() { confirmingWeak = false; pendingRow = null }"
+      },
+      {
+        "line": 204,
+        "text": "return \"#c98a8a\"                          // muted red \u2014 weak, still visible"
+      },
+      {
+        "line": 271,
+        "text": "BackAction {"
+      },
+      {
+        "line": 308,
+        "text": "id: queryBar"
+      },
+      {
+        "line": 375,
+        "text": "anchors.top: queryBar.bottom; anchors.topMargin: 16"
+      },
+      {
+        "line": 582,
+        "text": "ComicTorrentArchivePicker {"
+      },
+      {
+        "line": 679,
+        "text": "// \u2500\u2500 weak-match confirmation \u2500\u2500"
+      },
+      {
+        "line": 719,
+        "text": "cursorShape: Qt.PointingHandCursor; onClicked: sheet.cancelWeakSelection() }"
+      },
+      {
+        "line": 721,
+        "text": "onTriggered: sheet.cancelWeakSelection() }"
+      }
+    ]
+  },
+  "Main.qml": {
+    "path": "reference/desktop/qml/Main.qml",
+    "lines": 6553,
+    "anchors": [
+      {
+        "line": 576,
+        "text": "// TankobanSeriesView.qml are built to replace TheatreSeries.qml and MangaSeries.qml."
+      },
+      {
+        "line": 578,
+        "text": "// selects them: [views] rebuiltTitlePages=true."
+      },
+      {
+        "line": 583,
+        "text": "property bool rebuiltTitlePages: false"
+      },
+      {
+        "line": 4991,
+        "text": ": (viewSettings.rebuiltTitlePages ? \"TankobanSeriesView.qml\" : \"MangaSeries.qml\")"
+      },
+      {
+        "line": 5234,
+        "text": "source: viewSettings.rebuiltTitlePages ? \"TheatreSeriesView.qml\" : \"TheatreSeries.qml\""
+      }
+    ]
+  },
+  "MangaChapterSeriesView.qml": {
+    "path": "reference/desktop/qml/MangaChapterSeriesView.qml",
+    "lines": 544,
+    "anchors": [
+      {
+        "line": 28,
+        "text": "property var downloader: (typeof Downloads !== \"undefined\") ? Downloads : null"
+      },
+      {
+        "line": 43,
+        "text": "if (pageMatch && pageMatch.length > 1) details.push(qsTr(\"Page %1\").arg(pageMatch[1]))"
+      },
+      {
+        "line": 54,
+        "text": "readonly property bool pageMenuOpen: pagePopup.opened"
+      },
+      {
+        "line": 68,
+        "text": "readonly property string pageSelectorLabel: \"Page \" + (root.currentPageIndex + 1)"
+      },
+      {
+        "line": 96,
+        "text": "if (open && root.pageCount > 0) pagePopup.open()"
+      },
+      {
+        "line": 97,
+        "text": "else pagePopup.close()"
+      },
+      {
+        "line": 99,
+        "text": "function togglePageMenu() { root.setPageMenuOpen(!pagePopup.opened) }"
+      },
+      {
+        "line": 104,
+        "text": "pagePopup.close()"
+      },
+      {
+        "line": 109,
+        "text": "pagePopup.close()"
+      },
+      {
+        "line": 213,
+        "text": "Keys.onEscapePressed: pagePopup.close()"
+      },
+      {
+        "line": 215,
+        "text": "// Resume the exact saved/downloaded chapter. Missing downloads remain"
+      },
+      {
+        "line": 257,
+        "text": "chapterRows.implicitHeight)"
+      },
+      {
+        "line": 296,
+        "text": "if (!root.downloader) return"
+      },
+      {
+        "line": 299,
+        "text": "root.downloader.downloadChapter(String(c.id || \"\"), root.seriesId, root.seriesTitle, String(c.name || c.label || (\"Chapter \" + c.number)))"
+      },
+      {
+        "line": 307,
+        "text": "id: chapterRows"
+      },
+      {
+        "line": 325,
+        "text": "readonly property bool inFlight: dlState === \"queued\" || dlState === \"downloading\""
+      },
+      {
+        "line": 330,
+        "text": "if (!root.downloader) return \"\""
+      },
+      {
+        "line": 331,
+        "text": "var pages = root.downloader.localPages(row.chapterId) || []"
+      },
+      {
+        "line": 335,
+        "text": "if (!root.downloader) return"
+      },
+      {
+        "line": 336,
+        "text": "var st = root.downloader.statusOf(row.chapterId) || ({})"
+      },
+      {
+        "line": 341,
+        "text": "if (root.downloader && row.chapterId.length)"
+      },
+      {
+        "line": 342,
+        "text": "root.downloader.fetchThumb(root.sourceSeriesId.length ? root.sourceSeriesId : root.seriesId, row.chapterId)"
+      },
+      {
+        "line": 344,
+        "text": "function download() {"
+      },
+      {
+        "line": 345,
+        "text": "if (!root.downloader || !row.chapterId.length) return"
+      },
+      {
+        "line": 346,
+        "text": "root.downloader.downloadChapter(row.chapterId, root.seriesId, root.seriesTitle, row.chapterLabel)"
+      },
+      {
+        "line": 351,
+        "text": "target: root.downloader"
+      },
+      {
+        "line": 353,
+        "text": "function onProgress(id, done, total) { if (String(id) === row.chapterId) { row.dlState = \"downloading\"; row.dlDone = done; row.dlTotal = total } }"
+      },
+      {
+        "line": 399,
+        "text": ": row.dlState === \"downloading\" ? (row.dlTotal > 0 ? (\"Downloading \" + Math.round(row.dlDone / row.dlTotal * 100) + \"%\") : \"Downloading\u2026\")"
+      },
+      {
+        "line": 422,
+        "text": "if (!root.downloader) return"
+      },
+      {
+        "line": 423,
+        "text": "if (row.dlState === \"done\") root.downloader.deleteChapter(row.chapterId)"
+      },
+      {
+        "line": 424,
+        "text": "else if (row.inFlight) root.downloader.cancelDownload(row.chapterId)"
+      },
+      {
+        "line": 425,
+        "text": "else row.download()"
+      },
+      {
+        "line": 483,
+        "text": "id: pagePopup"
+      },
+      {
+        "line": 516,
+        "text": "Keys.onEscapePressed: pagePopup.close()"
+      },
+      {
+        "line": 520,
+        "text": "height: 36"
+      },
+      {
+        "line": 529,
+        "text": "text: \"Page \" + (index + 1)"
+      }
+    ]
+  },
+  "MangaReadingRoom.qml": {
+    "path": "reference/desktop/qml/MangaReadingRoom.qml",
+    "lines": 150,
+    "anchors": [
+      {
+        "line": 87,
+        "text": "MangaSeriesSharedHeader {"
+      },
+      {
+        "line": 113,
+        "text": "MangaTankobanLibrary {"
+      }
+    ]
+  },
+  "MangaReadingRoomThumbnailMock.qml": {
+    "path": "reference/desktop/qml/MangaReadingRoomThumbnailMock.qml",
+    "lines": 293,
+    "anchors": [
+      {
+        "line": 95,
+        "text": "text: \"COLOSSEUM \\u00b7 TANKOBAN\""
+      },
+      {
+        "line": 203,
+        "text": "text: root.synopsisExpanded ? \"less\" : \"more\""
+      },
+      {
+        "line": 218,
+        "text": "Text { id: deviceLabel; text: \"ON THIS DEVICE\"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.2 }"
+      }
+    ]
+  },
+  "MangaSeries.qml": {
+    "path": "reference/desktop/qml/MangaSeries.qml",
+    "lines": 1347,
+    "anchors": [
+      {
+        "line": 177,
+        "text": "// the masthead's \u2605 score (found live wiring this slice's harness). MangaReadingRoom's"
+      },
+      {
+        "line": 1167,
+        "text": "MangaReadingRoom {"
+      }
+    ]
+  },
+  "MangaSeriesSharedHeader.qml": {
+    "path": "reference/desktop/qml/MangaSeriesSharedHeader.qml",
+    "lines": 401,
+    "anchors": [
+      {
+        "line": 11,
+        "text": "height: root.phoneNarrow ? chrome.height + hero.height : 263"
+      },
+      {
+        "line": 14,
+        "text": "property bool allowTankobanMode: true"
+      },
+      {
+        "line": 44,
+        "text": "signal languageSettingsRequested()"
+      },
+      {
+        "line": 46,
+        "text": "function languageIndex(code) {"
+      },
+      {
+        "line": 66,
+        "text": "height: 58; z: 20"
+      },
+      {
+        "line": 82,
+        "text": "text: \"Tankoban\""
+      },
+      {
+        "line": 91,
+        "text": "width: 36; height: 36; activeFocusOnTab: true"
+      },
+      {
+        "line": 93,
+        "text": "Image { anchors.centerIn: parent; width: 20; height: 20; source: \"../assets/icons/minimize.svg\"; opacity: minMa.containsMouse ? 1 : .72 }"
+      },
+      {
+        "line": 98,
+        "text": "width: 36; height: 36; activeFocusOnTab: true"
+      },
+      {
+        "line": 101,
+        "text": "anchors.centerIn: parent; width: 20; height: 20"
+      },
+      {
+        "line": 110,
+        "text": "width: 36; height: 36; activeFocusOnTab: true"
+      },
+      {
+        "line": 112,
+        "text": "Image { anchors.centerIn: parent; width: 20; height: 20; source: \"../assets/icons/power.svg\"; opacity: closeMa.containsMouse ? 1 : .72 }"
+      },
+      {
+        "line": 121,
+        "text": "height: root.phoneNarrow"
+      },
+      {
+        "line": 146,
+        "text": "width: 112; height: 164"
+      },
+      {
+        "line": 198,
+        "text": "width: 36; height: 36"
+      },
+      {
+        "line": 215,
+        "text": "anchors.centerIn: parent; width: 20; height: 20"
+      },
+      {
+        "line": 217,
+        "text": "sourceSize.width: 40; sourceSize.height: 40"
+      },
+      {
+        "line": 247,
+        "text": "anchors.top: languageSettingsShortcut.visible ? languageSettingsShortcut.bottom : languageSelector.bottom; anchors.topMargin: 14"
+      },
+      {
+        "line": 273,
+        "text": "id: languageSelector"
+      },
+      {
+        "line": 282,
+        "text": "height: root.phoneNarrow ? 40 : 36"
+      },
+      {
+        "line": 293,
+        "text": "id: languageCombo"
+      },
+      {
+        "line": 297,
+        "text": "width: 166; height: 28"
+      },
+      {
+        "line": 298,
+        "text": "model: [{ \"code\": \"\", \"label\": \"Use preferred language\" }].concat(root.chapterLanguages)"
+      },
+      {
+        "line": 302,
+        "text": "? root.languageIndex(root.selectedChapterLanguage) + 1 : 0"
+      },
+      {
+        "line": 305,
+        "text": "var languageIndex = root.languageIndex(root.selectedChapterLanguage)"
+      },
+      {
+        "line": 306,
+        "text": "var name = languageIndex >= 0 && root.chapterLanguages[languageIndex]"
+      },
+      {
+        "line": 307,
+        "text": "? String(root.chapterLanguages[languageIndex].label || \"English\") : \"Unavailable\""
+      },
+      {
+        "line": 318,
+        "text": "text: languageCombo.displayText"
+      },
+      {
+        "line": 319,
+        "text": "color: languageCombo.enabled ? theme.ink : theme.inkDimmer"
+      },
+      {
+        "line": 323,
+        "text": "x: languageCombo.width - width - 9; anchors.verticalCenter: parent.verticalCenter"
+      },
+      {
+        "line": 324,
+        "text": "text: \"\u25be\"; visible: languageCombo.enabled; color: theme.inkDim"
+      },
+      {
+        "line": 328,
+        "text": "radius: 7; color: Qt.rgba(1,1,1, languageCombo.enabled ? .045 : .018)"
+      },
+      {
+        "line": 329,
+        "text": "border.width: 1; border.color: languageCombo.activeFocus ? theme.gold : Qt.rgba(1,1,1,.07)"
+      },
+      {
+        "line": 343,
+        "text": "id: languageSettingsShortcut"
+      },
+      {
+        "line": 347,
+        "text": "anchors.top: languageSelector.bottom"
+      },
+      {
+        "line": 348,
+        "text": "anchors.right: languageSelector.right"
+      },
+      {
+        "line": 349,
+        "text": "width: languageSelector.width; height: 32"
+      },
+      {
+        "line": 355,
+        "text": "icon.width: 14; icon.height: 14; icon.color: theme.gold"
+      },
+      {
+        "line": 358,
+        "text": "color: languageSettingsShortcut.down ? Qt.rgba(1,1,1,.12)"
+      },
+      {
+        "line": 359,
+        "text": ": languageSettingsShortcut.hovered ? Qt.rgba(1,1,1,.08) : Qt.rgba(1,1,1,.045)"
+      },
+      {
+        "line": 361,
+        "text": "border.color: languageSettingsShortcut.visualFocus ? theme.gold : Qt.rgba(1,1,1,.2)"
+      },
+      {
+        "line": 363,
+        "text": "onClicked: root.languageSettingsRequested()"
+      },
+      {
+        "line": 375,
+        "text": "width: root.phoneNarrow ? hero.width - 2 * theme.margin : (root.allowTankobanMode ? 258 : 133)"
+      },
+      {
+        "line": 376,
+        "text": "height: root.phoneNarrow ? 44 : 36"
+      },
+      {
+        "line": 383,
+        "text": "objectName: \"mangaModeTankoban\""
+      },
+      {
+        "line": 384,
+        "text": "visible: root.allowTankobanMode"
+      },
+      {
+        "line": 385,
+        "text": "enabled: root.allowTankobanMode"
+      },
+      {
+        "line": 386,
+        "text": "width: 125; height: 28; radius: 7"
+      },
+      {
+        "line": 388,
+        "text": "Text { anchors.centerIn: parent; text: \"Tankoban Mode\"; color: root.tankobanMode ? \"#191407\" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: root.tankobanMo"
+      },
+      {
+        "line": 393,
+        "text": "width: 125; height: 28; radius: 7"
+      },
+      {
+        "line": 396,
+        "text": "MouseArea { anchors.fill: parent; enabled: root.allowTankobanMode; cursorShape: Qt.PointingHandCursor; onClicked: root.chapterRequested() }"
+      }
+    ]
+  },
+  "MangaTankobanLibrary.qml": {
+    "path": "reference/desktop/qml/MangaTankobanLibrary.qml",
+    "lines": 1050,
+    "anchors": [
+      {
+        "line": 22,
+        "text": "//   - Range captions are dead (POLISH-DELTA ruling #1): the caption slot reads the volume's"
+      },
+      {
+        "line": 24,
+        "text": "//     nothing) and an in-flight/failed state line via stateLineFor()."
+      },
+      {
+        "line": 45,
+        "text": "// now drive the flow's own centring (scaleForIndex/centreFlow) \u2014 a real visual job, not the"
+      },
+      {
+        "line": 280,
+        "text": "// The caption's third line: acquisition state, never a chapter word. Empty when the"
+      },
+      {
+        "line": 282,
+        "text": "// action bar/owned mark, not the caption."
+      },
+      {
+        "line": 283,
+        "text": "function stateLineFor(row) {"
+      },
+      {
+        "line": 358,
+        "text": "function pressVolume(index) {"
+      },
+      {
+        "line": 543,
+        "text": "// The selected volume plus its caption always fits between them - never cropped, because"
+      },
+      {
+        "line": 544,
+        "text": "// bookHeight is derived from the measured space actually left over (POLISH-DELTA #10)."
+      },
+      {
+        "line": 549,
+        "text": "readonly property int captionHeight: 54"
+      },
+      {
+        "line": 550,
+        "text": "// The Cover-Flow current-item scale. Named so bookHeight's own budget and"
+      },
+      {
+        "line": 551,
+        "text": "// scaleForIndex's centre case read from one source instead of restating 1.10 twice."
+      },
+      {
+        "line": 556,
+        "text": "// caption block and a small breathing margin; the current-item scale divides the whole"
+      },
+      {
+        "line": 559,
+        "text": "readonly property int bookHeight: Math.max(190, Math.min(276,"
+      },
+      {
+        "line": 560,
+        "text": "Math.floor((flowViewport.height - root.captionHeight - 16) / root.currentItemScale)))"
+      },
+      {
+        "line": 561,
+        "text": "readonly property int bookWidth: Math.round(root.bookHeight * 2 / 3)"
+      },
+      {
+        "line": 587,
+        "text": "readonly property real maxScaledVolumeHeight: (root.bookHeight + root.captionHeight) * root.currentItemScale"
+      },
+      {
+        "line": 589,
+        "text": "function scaleForIndex(index) {"
+      },
+      {
+        "line": 717,
+        "text": "Keys.onPressed: (event) => volumeKeys.handle(event)"
+      },
+      {
+        "line": 722,
+        "text": "onActivated: (index) => root.pressVolume(index)"
+      },
+      {
+        "line": 762,
+        "text": "height: root.bookHeight + root.captionHeight"
+      },
+      {
+        "line": 764,
+        "text": "scale: root.scaleForIndex(card.index)"
+      },
+      {
+        "line": 775,
+        "text": "readonly property string stateText: root.stateLineFor(card.modelData)"
+      },
+      {
+        "line": 784,
+        "text": "height: root.bookHeight"
+      },
+      {
+        "line": 899,
+        "text": "onPressed: {"
+      },
+      {
+        "line": 904,
+        "text": "onClicked: root.pressVolume(card.index)"
+      }
+    ]
+  },
+  "MangaTankobanLibraryThumbnailMock.qml": {
+    "path": "reference/desktop/qml/MangaTankobanLibraryThumbnailMock.qml",
+    "lines": 1250,
+    "anchors": []
+  },
+  "MangaTankobanSourcesPage.qml": {
+    "path": "reference/desktop/qml/MangaTankobanSourcesPage.qml",
+    "lines": 899,
+    "anchors": [
+      {
+        "line": 148,
+        "text": "return (Number(b.seeders) || 0) - (Number(a.seeders) || 0) // then best seeded"
+      },
+      {
+        "line": 465,
+        "text": "interval: 1400"
+      },
+      {
+        "line": 478,
+        "text": "interval: 1600"
+      },
+      {
+        "line": 487,
+        "text": "interval: 3800"
+      },
+      {
+        "line": 505,
+        "text": "component StatusDisc: Rectangle {"
+      },
+      {
+        "line": 763,
+        "text": "// seeders, coverage) is then readable off this same name via qml-get."
+      },
+      {
+        "line": 848,
+        "text": "p.push(\"\\u{1F464} \" + (row.modelData ? Number(row.modelData.seeders || 0) : 0))"
+      },
+      {
+        "line": 873,
+        "text": "StatusDisc {"
+      }
+    ]
+  },
+  "SourcesSheet.qml": {
+    "path": "reference/desktop/qml/SourcesSheet.qml",
+    "lines": 1119,
+    "anchors": [
+      {
+        "line": 94,
+        "text": "if (sheet.mode !== \"play\") { sheet.downloadRequested(row); sheet.hide() }"
+      },
+      {
+        "line": 95,
+        "text": "else sheet.playRequested(row.infoHash, row.fileIdx, sheet.title, sheet.backdropUrl, sheet.subType, sheet.subId, sheet.rows, sheet.playbackContext)"
+      },
+      {
+        "line": 105,
+        "text": "sheet.downloadRequested(sheet.visibleRows[index]); sheet.titleQueued=true"
+      },
+      {
+        "line": 125,
+        "text": "signal playRequested(string infoHash, int fileIdx, string title, string backdropUrl, string subType, string subId, var streamCandidates, var playbackContext)"
+      },
+      {
+        "line": 127,
+        "text": "signal downloadRequested(var row)"
+      },
+      {
+        "line": 430,
+        "text": "height: sheet.phoneLayout ? 52 : 64; radius: 16"
+      },
+      {
+        "line": 442,
+        "text": "height: sheet.phoneLayout ? 36 : 44; radius: 12"
+      },
+      {
+        "line": 447,
+        "text": "delegate: Rectangle { width: 7; height: 7; radius: 2; color: theme.inkDim } }"
+      },
+      {
+        "line": 503,
+        "text": "height: 40; radius: 20"
+      },
+      {
+        "line": 542,
+        "text": "radius: 18"
+      },
+      {
+        "line": 653,
+        "text": "width: 54; height: 54; radius: 12"
+      },
+      {
+        "line": 700,
+        "text": "width: lg.implicitWidth + 12; height: 18; radius: 4"
+      },
+      {
+        "line": 714,
+        "text": "width: tg.implicitWidth + 16; height: 20; radius: 6"
+      },
+      {
+        "line": 733,
+        "text": "width: 56; height: 56; radius: 28; color: theme.gold"
+      },
+      {
+        "line": 763,
+        "text": "width: 40; height: 40; radius: 20"
+      },
+      {
+        "line": 793,
+        "text": "width: 40; height: 40; radius: 20"
+      },
+      {
+        "line": 835,
+        "text": "width: 44; height: 44; radius: 10"
+      },
+      {
+        "line": 891,
+        "text": "height: 24; radius: 5"
+      },
+      {
+        "line": 910,
+        "text": "height: 24; radius: 6"
+      },
+      {
+        "line": 935,
+        "text": "width: 56; height: 48; radius: 24; color: theme.gold"
+      },
+      {
+        "line": 952,
+        "text": "width: 48; height: 48; radius: 24"
+      },
+      {
+        "line": 973,
+        "text": "width: 48; height: 48; radius: 24"
+      },
+      {
+        "line": 1005,
+        "text": "width: 210; height: sourceContextCol.implicitHeight + 12; radius: 12"
+      },
+      {
+        "line": 1011,
+        "text": "if (event.key === Qt.Key_Escape) { sheet.closeSourceContext(true); event.accepted=true; return }"
+      },
+      {
+        "line": 1030,
+        "text": "width: sourceContextCol.width; height: 36; radius: 8"
+      },
+      {
+        "line": 1053,
+        "text": "radius: 16"
+      },
+      {
+        "line": 1060,
+        "text": "if (event.key === Qt.Key_Escape) { sheet.closeExtMenu(true); event.accepted=true; return }"
+      },
+      {
+        "line": 1088,
+        "text": "radius: 10"
+      }
+    ]
+  },
+  "TankobanChapterList.qml": {
+    "path": "reference/desktop/qml/TankobanChapterList.qml",
+    "lines": 628,
+    "anchors": [
+      {
+        "line": 6,
+        "text": "// gate). What changes now: one slim bar (count \u00b7 range \u00b7 \u2039 Page N of M \u203a \u00b7 Go to chapter \u00b7"
+      },
+      {
+        "line": 7,
+        "text": "// Download page), compact 88px rows with the loud gold focus, hover-is-focus, PgUp/PgDn to"
+      },
+      {
+        "line": 83,
+        "text": "// Go to a chapter by its number: find the page that holds it, open that page, focus the row."
+      },
+      {
+        "line": 124,
+        "text": "// ---- the one bar: count \u00b7 range \u00b7 pager \u00b7 Go to \u00b7 Download page ----"
+      },
+      {
+        "line": 231,
+        "text": "// Go to chapter: jumps to the page that holds it and focuses the row."
+      },
+      {
+        "line": 244,
+        "text": "text: \"Go to chapter\""
+      },
+      {
+        "line": 278,
+        "text": "text: \"\u2193  Download page\""
+      },
+      {
+        "line": 388,
+        "text": "height: 88"
+      }
+    ]
+  },
+  "TankobanSeriesView.qml": {
+    "path": "reference/desktop/qml/TankobanSeriesView.qml",
+    "lines": 1715,
+    "anchors": [
+      {
+        "line": 5,
+        "text": "// What is new: the shared TitlePageBar (Back pill, the Tankoban \u00b7 Biblio \u00b7 Theatre pills,"
+      },
+      {
+        "line": 8,
+        "text": "// picker only where it works (Chapter Mode), and TankobanChapterList for Chapter Mode."
+      },
+      {
+        "line": 1606,
+        "text": "TankobanChapterList {"
+      },
+      {
+        "line": 1624,
+        "text": "TitlePageBar {"
+      }
+    ]
+  },
+  "CollectionIcon.qml": {
+    "path": "reference/desktop/qml/collections/CollectionIcon.qml",
+    "lines": 49,
+    "anchors": [
+      {
+        "line": 13,
+        "text": "sourceSize.width: Math.max(1, Math.ceil(root.width))"
+      },
+      {
+        "line": 18,
+        "text": "+ '\" stroke-width=\"1.6\" stroke-linecap=\"round\" stroke-linejoin=\"round\">' + (root.paths[root.name] || root.paths.collections) + '</svg>')"
+      },
+      {
+        "line": 20,
+        "text": "readonly property var paths: ({"
+      },
+      {
+        "line": 21,
+        "text": "collections: '<rect x=\"6\" y=\"7\" width=\"15\" height=\"14\" rx=\"2\"/><path d=\"M3 17V5a2 2 0 0 1 2-2h12M10 11h7m-7 5h5\"/>',"
+      },
+      {
+        "line": 22,
+        "text": "folder: '<path d=\"M3 7a2 2 0 0 1 2-2h5l2 2h7a2 2 0 0 1 2 2v10H3Z\"/>',"
+      },
+      {
+        "line": 23,
+        "text": "colosseum: '<path d=\"M3 20h18M4 20V8l8-4 8 4v12M4 10h16M7 8V6m5 4V4m5 4V6M7 20v-5a2 2 0 0 1 4 0v5m2 0v-5a2 2 0 0 1 4 0v5\"/>',"
+      },
+      {
+        "line": 24,
+        "text": "plus: '<path d=\"M12 5v14M5 12h14\"/>',"
+      },
+      {
+        "line": 25,
+        "text": "close: '<path d=\"m6 6 12 12M6 18 18 6\"/>',"
+      },
+      {
+        "line": 26,
+        "text": "check: '<path d=\"m5 12 4 4L19 6\"/>',"
+      },
+      {
+        "line": 27,
+        "text": "search: '<circle cx=\"10.5\" cy=\"10.5\" r=\"6.5\"/><path d=\"m16 16 4.5 4.5\"/>',"
+      },
+      {
+        "line": 28,
+        "text": "back: '<path d=\"M19 12H5m5-5-5 5 5 5\"/>',"
+      },
+      {
+        "line": 29,
+        "text": "arrow: '<path d=\"M5 12h14m-5-5 5 5-5 5\"/>',"
+      },
+      {
+        "line": 30,
+        "text": "film: '<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M7 3v18m10-18v18M3 8h4m-4 8h4M17 8h4m-4 8h4\"/>',"
+      },
+      {
+        "line": 31,
+        "text": "series: '<rect x=\"3\" y=\"5\" width=\"18\" height=\"14\" rx=\"2\"/><path d=\"M8 22h8M9 2l3 3 3-3\"/>',"
+      },
+      {
+        "line": 33,
+        "text": "song: '<path d=\"M9 18V5l11-2v13M9 9l11-2\"/><ellipse cx=\"6\" cy=\"18\" rx=\"3\" ry=\"2\"/><ellipse cx=\"17\" cy=\"16\" rx=\"3\" ry=\"2\"/>',"
+      },
+      {
+        "line": 34,
+        "text": "artist: '<circle cx=\"12\" cy=\"7\" r=\"4\"/><path d=\"M4 21v-3a8 8 0 0 1 16 0v3\"/>',"
+      },
+      {
+        "line": 35,
+        "text": "manga: '<path d=\"M3 5c3-1 6-1 9 1 3-2 6-2 9-1v15c-3-1-6-1-9 1-3-2-6-2-9-1Z\"/><path d=\"M12 6v15M6 9h3m-3 4h3m6-4h3m-3 4h3\"/>',"
+      },
+      {
+        "line": 36,
+        "text": "book: '<path d=\"M6 4h14v17H6a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3Z\"/><path d=\"M6 4v12h14M6 18h13\"/>',"
+      },
+      {
+        "line": 37,
+        "text": "comic: '<rect x=\"3\" y=\"3\" width=\"18\" height=\"18\" rx=\"2\"/><path d=\"M3 10h18M11 10v11M3 15h8M16 3v7\"/>',"
+      },
+      {
+        "line": 39,
+        "text": "list: '<path d=\"M8 5h13M8 12h13M8 19h13M3 5h.01M3 12h.01M3 19h.01\"/>',"
+      },
+      {
+        "line": 40,
+        "text": "edit: '<path d=\"m15 5 4 4M4 20l4-1L20 7a2.1 2.1 0 0 0-3-3L5 16Z\"/>',"
+      },
+      {
+        "line": 41,
+        "text": "lock: '<rect x=\"5\" y=\"10\" width=\"14\" height=\"11\" rx=\"2\"/><path d=\"M8 10V6a4 4 0 0 1 8 0v4m-4 5v2\"/>',"
+      },
+      {
+        "line": 42,
+        "text": "up: '<path d=\"m6 15 6-6 6 6\"/>',"
+      },
+      {
+        "line": 43,
+        "text": "down: '<path d=\"m6 9 6 6 6-6\"/>',"
+      },
+      {
+        "line": 45,
+        "text": "trash: '<path d=\"M3 6h18M9 6V3h6v3M5 6l1 15h12l1-15M9 10v7m6-7v7\"/>',"
+      },
+      {
+        "line": 46,
+        "text": "note: '<path d=\"M5 3h14v18H5ZM8 7h8m-8 4h8m-8 4h5\"/>',"
+      },
+      {
+        "line": 47,
+        "text": "reset: '<path d=\"M3 10a9 9 0 1 1 1 8M3 4v6h6\"/>'"
+      }
+    ]
+  }
+}

@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Colosseum · Extension setup fitting study</title><link rel="stylesheet" href="style.css"><script>if(new URLSearchParams(location.search).get('capture')==='1')document.documentElement.classList.add('capture-pending')</script></head>
+<body data-page="setup">
+<header class="lab" id="lab"><h1>Extension setup · fitting study</h1><nav><a href="index.html">Index</a><a href="extension-setup.html" aria-current="page">Setup</a><a href="tankoyomi-configuration.html">Tankoyomi</a></nav>
+<div class="controls"><label>Preset <select id="preset"><option value="portrait">Phone · 412 × 900</option><option value="small">Phone · 354 × 792</option><option value="landscape">Landscape · 900 × 412</option><option value="smallLandscape">Landscape · 792 × 354</option><option value="desktop">Desktop · 1280 × 700</option><option value="tablet">Tablet · 800 × 1280</option><option value="tabletLandscape">Tablet · 1280 × 800</option></select></label>
+<label>W <input id="view-width" type="number" min="320" max="2000" value="412"></label><label>H <input id="view-height" type="number" min="240" max="2000" value="900"></label>
+<label>Top <input id="inset-top" type="number" min="0" max="120" value="0"></label><label>Right <input id="inset-right" type="number" min="0" max="120" value="0"></label><label>Bottom <input id="inset-bottom" type="number" min="0" max="120" value="0"></label><label>Left <input id="inset-left" type="number" min="0" max="120" value="0"></label>
+<label>Font × <select id="font-scale"><option value="1">1.0</option><option value="1.3">1.3</option></select></label><label><input id="ime-visible" type="checkbox">Keyboard reserved</label><label>IME px <input id="ime-height" type="number" min="0" max="500" value="230"></label>
+<label>Panel <select id="setup-state"><option value="open">Open</option><option value="closed">Closed</option></select></label><label>Add-on <select id="addon-choice"><option value="Torrentio">Torrentio</option><option>Comet | ElfHosted</option><option>OpenSubtitles v3</option><option>Streaming Catalogs</option><option>AIOStreams</option></select></label><label><input type="checkbox" id="setup-required">Required setup (hide skip)</label>
+<button id="preset-insets" type="button">24px top/bottom</button><button id="clear-insets" type="button">Clear insets</button></div><div id="lab-message" aria-live="polite">Local mock, illustrative add-on selection. No provider or browser operations.</div></header>
+<main class="stage"><div id="viewport" class="app-viewport" role="region" aria-label="Colosseum local responsive preview">
+<div class="art-bg"></div><div class="art-veil"></div>
+<div class="store-context" aria-label="Extensions Store context">
+<div class="store-top"><span class="store-back" aria-hidden="true"><svg class="back-chevron" viewBox="0 0 24 24"><path d="M14.5 5.5 8 12l6.5 6.5"/></svg></span><div><h2>Extensions</h2><p>Add-ons and sources for every world.</p></div></div>
+<section class="house-hero" aria-label="Extensions House">
+  <div class="house-actions" aria-hidden="true"><span><b>+</b> From URL</span><span><img src="../../reference/desktop/assets/icons/search.svg" alt="">Search</span></div>
+  <div class="house-tray">
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/icons/universes-atom.svg" alt=""></div><span class="house-chip">Tributes</span></div>
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/addon-logos/colosseum-grand-database.png" alt=""></div><span class="house-chip">Grand Database</span></div>
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/addon-logos/nyaa.png" alt=""></div><span class="house-chip">Nyaa</span><span class="house-on">✓</span></div>
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/addon-logos/tankoyomi.png" alt=""></div><span class="house-chip">Tankoyomi</span><span class="house-on">✓</span></div>
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/addon-logos/getcomics.png" alt=""></div><span class="house-chip">GetComics</span><span class="house-on">✓</span></div>
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/addon-logos/tankorent.png" alt=""></div><span class="house-chip">Tankorent</span><span class="house-on">✓</span></div>
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/addon-logos/libgen.ico" alt=""></div><span class="house-chip">LibGen</span><span class="house-on">✓</span></div>
+    <div class="house-app"><div class="house-icon"><img src="../../reference/desktop/assets/addon-logos/audiobookbay.png" alt=""></div><span class="house-chip">AudioBookBay</span><span class="house-on">✓</span></div>
+  </div></section>
+<div class="installed-head"><div><h3>Your Add-ons</h3><p>3 installed · Manage what powers your worlds.</p></div><span>See all ›</span></div>
+<div class="installed-rail" aria-label="Illustrative installed add-ons">
+  <article class="installed-card"><div class="installed-main"><img src="../../reference/desktop/assets/addon-logos/torrentio.png" alt=""><div><strong>Torrentio</strong><small>Enabled</small></div></div><p>Streams</p></article>
+  <article class="installed-card"><div class="installed-main"><img src="../../reference/desktop/assets/addon-logos/tankoyomi.png" alt=""><div><strong>Tankoyomi</strong><small>Enabled</small></div></div><p>Details</p></article>
+  <article class="installed-card"><div class="installed-main"><img src="../../reference/desktop/assets/addon-logos/aiostreams.png" alt=""><div><strong>AIOStreams</strong><small>Enabled</small></div></div><p>Streams</p></article>
+</div>
+<div class="installed-head essentials-head"><div><h3>Essentials</h3><p>The five a fresh Colosseum needs.</p></div></div>
+<div class="essentials-rail" aria-label="Illustrative Essentials add-on cards">
+  <article class="essentials-card"><div class="essentials-art"><img src="../../reference/desktop/assets/addon-logos/opensubtitles.png" alt=""></div><strong>OpenSubtitles v3</strong></article>
+  <article class="essentials-card"><div class="essentials-art"><img src="../../reference/desktop/assets/addon-logos/streaming-catalogs.png" alt=""></div><strong>Streaming Catalogs</strong></article>
+  <article class="essentials-card"><div class="essentials-art"><img src="../../reference/desktop/assets/addon-logos/comet.png" alt=""></div><strong>Comet | ElfHosted</strong></article>
+  <article class="essentials-card"><div class="essentials-art"><img src="../../reference/desktop/assets/addon-logos/anime-kitsu.png" alt=""></div><strong>Anime Kitsu</strong></article>
+  <article class="essentials-card"><div class="essentials-art"><img src="../../reference/desktop/assets/addon-logos/torrentio.png" alt=""></div><strong>Torrentio</strong></article>
+</div>
+</div>
+<div class="setup-shade" id="setup-shade">
+<div class="setup-area">
+<section class="setup-panel phone-setup" aria-label="Original Android add-on setup panel">
+<div class="setup-heading"><h2 class="fraunces">Set up Torrentio</h2><button type="button" class="setup-close" aria-label="Close setup" data-close-setup>×</button></div>
+<p class="setup-description">Setup opens in your browser. Finish it there, copy the add-on link it gives you, then come back and paste it.</p>
+<button class="setup-pill primary" type="button" data-open-browser>Open setup page</button>
+<input class="setup-link" id="paste-input" type="text" placeholder="Paste the add-on link the page gave you" aria-label="Paste the add-on link the page gave you" autocomplete="off">
+<button class="setup-pill" type="button" id="paste-button">Paste link</button>
+<button class="setup-pill optional" type="button" data-skip-setup>Install without setup</button>
+<div class="setup-status" id="setup-status" role="status" hidden></div></section>
+<section class="setup-desktop-panel" aria-label="Original desktop embedded setup panel, offline blocked state">
+<header class="desktop-head"><h2>Set up Torrentio</h2><div style="display:flex;align-items:center;gap:18px"><span id="desktop-status" class="gold small" role="status"></span><button type="button" aria-label="Close setup" data-close-setup>✕</button></div></header>
+<div class="desktop-page"><div class="blocked"><h3>This setup page won't open inside Colosseum.</h3><p>Try again, or set it up in your web browser, copy the add-on link it gives you, and paste it below.</p><button type="button" data-try-again>Try again</button></div></div>
+<footer class="desktop-foot"><span>Link only?</span><input id="desktop-paste" placeholder="Paste the add-on link the page gave you" aria-label="Paste add-on link"><button class="light" id="desktop-install" type="button" disabled>Install</button><button id="desktop-clip" type="button">Paste link</button><button data-skip-setup type="button">Install without setup</button></footer>
+</section></div></div>
+</div></main>
+<p class="lab-notes">Illustrative local setup state: Torrentio, using a real project add-on logo. The phone view preserves the approved <code>ExtensionsSetupSheetAndroid.qml</code> controls; desktop mode shows the approved embedded sheet's offline failure fallback, not a simulated remote configuration website. Keyboard reservation is geometry only; OS chrome is not rendered. All install/browser buttons are inert demonstrations.</p>
+<script src="app.js"></script>
+</body></html>

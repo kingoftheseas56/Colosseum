@@ -1,0 +1,2590 @@
+{
+  "time": "2026-10-31T23:45:31.000Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/collections.html?capture=1&w=354&h=792&fontScale=1.3&top=24&bottom=24&state=Editing&keyboard=1&long=1",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 354,
+    "h": 792,
+    "outerWidth": 354,
+    "outerHeight": 792,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android portrait keyboard text-enlarged",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 0,
+          "y": 63,
+          "w": 354,
+          "h": 391,
+          "right": 354,
+          "bottom": 454
+        },
+        "scrollHeight": 12341,
+        "clientHeight": 391
+      },
+      {
+        "tag": "TEXTAREA",
+        "class": "detail-description-input",
+        "id": "collectionDescriptionEdit",
+        "box": {
+          "x": 22,
+          "y": 220,
+          "w": 310,
+          "h": 76,
+          "right": 332,
+          "bottom": 296
+        },
+        "scrollHeight": 245,
+        "clientHeight": 74
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "collectionOverview",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 81,
+          "w": 192.703125,
+          "h": 44,
+          "right": 214.703125,
+          "bottom": 125
+        }
+      },
+      {
+        "text": "Cancel",
+        "action": "collectionCancel",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 312,
+          "w": 88.40625,
+          "h": 44,
+          "right": 110.40625,
+          "bottom": 356
+        }
+      },
+      {
+        "text": "Save changes",
+        "action": "collectionSave",
+        "disabled": false,
+        "box": {
+          "x": 118.40625,
+          "y": 312,
+          "w": 134.9375,
+          "h": 44,
+          "right": 253.34375,
+          "bottom": 356
+        }
+      },
+      {
+        "text": "DuneBook · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 433,
+          "w": 147,
+          "h": 258.125,
+          "right": 169,
+          "bottom": 691.125
+        }
+      },
+      {
+        "text": "Move Dune earlier",
+        "action": "mediaEarlier",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 820.125,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 864.125
+        }
+      },
+      {
+        "text": "Move Dune later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 820.125,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 864.125
+        }
+      },
+      {
+        "text": "Remove Dune from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 820.125,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 864.125
+        }
+      },
+      {
+        "text": "Harry PotterBook · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 433,
+          "w": 147,
+          "h": 258.125,
+          "right": 332,
+          "bottom": 691.125
+        }
+      },
+      {
+        "text": "Move Harry Potter earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 820.125,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 864.125
+        }
+      },
+      {
+        "text": "Move Harry Potter later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 820.125,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 864.125
+        }
+      },
+      {
+        "text": "Remove Harry Potter from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 820.125,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 864.125
+        }
+      },
+      {
+        "text": "The Lord of the RingsBook · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 888.125,
+          "w": 147,
+          "h": 283.46875,
+          "right": 169,
+          "bottom": 1171.59375
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1300.59375,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 1344.59375
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 1300.59375,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 1344.59375
+        }
+      },
+      {
+        "text": "Remove The Lord of the Rings from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 1300.59375,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 1344.59375
+        }
+      },
+      {
+        "text": "A Song of Ice and FireBook · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 888.125,
+          "w": 147,
+          "h": 302.046875,
+          "right": 332,
+          "bottom": 1190.171875
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 1319.171875,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 1363.171875
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 1319.171875,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 1363.171875
+        }
+      },
+      {
+        "text": "Remove A Song of Ice and Fire from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 1319.171875,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 1363.171875
+        }
+      },
+      {
+        "text": "The WitcherSeries",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 1387.171875,
+          "w": 147,
+          "h": 258.125,
+          "right": 169,
+          "bottom": 1645.296875
+        }
+      },
+      {
+        "text": "Move The Witcher earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1774.296875,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 1818.296875
+        }
+      },
+      {
+        "text": "Move The Witcher later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 1774.296875,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 1818.296875
+        }
+      },
+      {
+        "text": "Remove The Witcher from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 1774.296875,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 1818.296875
+        }
+      },
+      {
+        "text": "Percy JacksonBook · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 1387.171875,
+          "w": 147,
+          "h": 258.125,
+          "right": 332,
+          "bottom": 1645.296875
+        }
+      },
+      {
+        "text": "Move Percy Jackson earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 1774.296875,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 1818.296875
+        }
+      },
+      {
+        "text": "Move Percy Jackson later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 1774.296875,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 1818.296875
+        }
+      },
+      {
+        "text": "Remove Percy Jackson from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 1774.296875,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 1818.296875
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 1Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 1842.296875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 2151.109375
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 1 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2280.109375,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 2324.109375
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 1 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 2280.109375,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 2324.109375
+        }
+      },
+      {
+        "text": "Remove Dune — long collection fixture 1 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 2280.109375,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 2324.109375
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 2Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 1842.296875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 2151.109375
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 2 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 2280.109375,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 2324.109375
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 2 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 2280.109375,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 2324.109375
+        }
+      },
+      {
+        "text": "Remove Harry Potter — long collection fixture 2 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 2280.109375,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 2324.109375
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 3Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 2348.109375,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 2682.265625
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 3 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2811.265625,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 2855.265625
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 3 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 2811.265625,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 2855.265625
+        }
+      },
+      {
+        "text": "Remove The Lord of the Rings — long collection fixture 3 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 2811.265625,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 2855.265625
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 4Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 2348.109375,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 2700.84375
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 4 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 2829.84375,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 2873.84375
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 4 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 2829.84375,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 2873.84375
+        }
+      },
+      {
+        "text": "Remove A Song of Ice and Fire — long collection fixture 4 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 2829.84375,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 2873.84375
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 5Series",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 2897.84375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 3206.65625
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 5 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 3335.65625,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 3379.65625
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 5 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 3335.65625,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 3379.65625
+        }
+      },
+      {
+        "text": "Remove The Witcher — long collection fixture 5 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 3335.65625,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 3379.65625
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 6Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 2897.84375,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 3250.578125
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 6 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 3379.578125,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 3423.578125
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 6 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 3379.578125,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 3423.578125
+        }
+      },
+      {
+        "text": "Remove Sherlock Holmes — long collection fixture 6 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 3379.578125,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 3423.578125
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 7Movie",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 3447.578125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 3756.390625
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 7 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 3885.390625,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 3929.390625
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 7 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 3885.390625,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 3929.390625
+        }
+      },
+      {
+        "text": "Remove Jurassic Park — long collection fixture 7 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 3885.390625,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 3929.390625
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 8Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 3447.578125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 3756.390625
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 8 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 3885.390625,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 3929.390625
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 8 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 3885.390625,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 3929.390625
+        }
+      },
+      {
+        "text": "Remove Percy Jackson — long collection fixture 8 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 3885.390625,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 3929.390625
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 9Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 3953.390625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 4262.203125
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 9 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 4391.203125,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 4435.203125
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 9 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 4391.203125,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 4435.203125
+        }
+      },
+      {
+        "text": "Remove Dune — long collection fixture 9 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 4391.203125,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 4435.203125
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 10Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 3953.390625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 4262.203125
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 10 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 4391.203125,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 4435.203125
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 10 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 4391.203125,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 4435.203125
+        }
+      },
+      {
+        "text": "Remove Harry Potter — long collection fixture 10 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 4391.203125,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 4435.203125
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 11Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 4459.203125,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 4793.359375
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 11 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 4922.359375,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 4966.359375
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 11 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 4922.359375,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 4966.359375
+        }
+      },
+      {
+        "text": "Remove The Lord of the Rings — long collection fixture 11 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 4922.359375,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 4966.359375
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 12Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 4459.203125,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 4811.9375
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 12 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 4940.9375,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 4984.9375
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 12 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 4940.9375,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 4984.9375
+        }
+      },
+      {
+        "text": "Remove A Song of Ice and Fire — long collection fixture 12 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 4940.9375,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 4984.9375
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 13Series",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 5008.9375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 5317.75
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 13 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 5446.75,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 5490.75
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 13 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 5446.75,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 5490.75
+        }
+      },
+      {
+        "text": "Remove The Witcher — long collection fixture 13 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 5446.75,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 5490.75
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 14Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 5008.9375,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 5361.671875
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 14 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 5490.671875,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 5534.671875
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 14 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 5490.671875,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 5534.671875
+        }
+      },
+      {
+        "text": "Remove Sherlock Holmes — long collection fixture 14 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 5490.671875,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 5534.671875
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 15Movie",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 5558.671875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 5867.484375
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 15 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 5996.484375,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 6040.484375
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 15 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 5996.484375,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 6040.484375
+        }
+      },
+      {
+        "text": "Remove Jurassic Park — long collection fixture 15 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 5996.484375,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 6040.484375
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 16Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 5558.671875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 5867.484375
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 16 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 5996.484375,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 6040.484375
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 16 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 5996.484375,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 6040.484375
+        }
+      },
+      {
+        "text": "Remove Percy Jackson — long collection fixture 16 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 5996.484375,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 6040.484375
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 17Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 6064.484375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 6373.296875
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 17 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 6502.296875,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 6546.296875
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 17 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 6502.296875,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 6546.296875
+        }
+      },
+      {
+        "text": "Remove Dune — long collection fixture 17 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 6502.296875,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 6546.296875
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 18Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 6064.484375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 6373.296875
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 18 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 6502.296875,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 6546.296875
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 18 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 6502.296875,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 6546.296875
+        }
+      },
+      {
+        "text": "Remove Harry Potter — long collection fixture 18 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 6502.296875,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 6546.296875
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 19Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 6570.296875,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 6904.453125
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 19 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 7033.453125,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 7077.453125
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 19 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 7033.453125,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 7077.453125
+        }
+      },
+      {
+        "text": "Remove The Lord of the Rings — long collection fixture 19 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 7033.453125,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 7077.453125
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 20Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 6570.296875,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 6923.03125
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 20 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 7052.03125,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 7096.03125
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 20 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 7052.03125,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 7096.03125
+        }
+      },
+      {
+        "text": "Remove A Song of Ice and Fire — long collection fixture 20 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 7052.03125,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 7096.03125
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 21Series",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 7120.03125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 7428.84375
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 21 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 7557.84375,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 7601.84375
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 21 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 7557.84375,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 7601.84375
+        }
+      },
+      {
+        "text": "Remove The Witcher — long collection fixture 21 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 7557.84375,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 7601.84375
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 22Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 7120.03125,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 7472.765625
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 22 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 7601.765625,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 7645.765625
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 22 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 7601.765625,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 7645.765625
+        }
+      },
+      {
+        "text": "Remove Sherlock Holmes — long collection fixture 22 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 7601.765625,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 7645.765625
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 23Movie",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 7669.765625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 7978.578125
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 23 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 8107.578125,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 8151.578125
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 23 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 8107.578125,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 8151.578125
+        }
+      },
+      {
+        "text": "Remove Jurassic Park — long collection fixture 23 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 8107.578125,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 8151.578125
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 24Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 7669.765625,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 7978.578125
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 24 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 8107.578125,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 8151.578125
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 24 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 8107.578125,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 8151.578125
+        }
+      },
+      {
+        "text": "Remove Percy Jackson — long collection fixture 24 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 8107.578125,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 8151.578125
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 25Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 8175.578125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 8484.390625
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 25 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 8613.390625,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 8657.390625
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 25 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 8613.390625,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 8657.390625
+        }
+      },
+      {
+        "text": "Remove Dune — long collection fixture 25 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 8613.390625,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 8657.390625
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 26Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 8175.578125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 8484.390625
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 26 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 8613.390625,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 8657.390625
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 26 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 8613.390625,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 8657.390625
+        }
+      },
+      {
+        "text": "Remove Harry Potter — long collection fixture 26 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 8613.390625,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 8657.390625
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 27Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 8681.390625,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 9015.546875
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 27 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 9144.546875,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 9188.546875
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 27 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 9144.546875,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 9188.546875
+        }
+      },
+      {
+        "text": "Remove The Lord of the Rings — long collection fixture 27 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 9144.546875,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 9188.546875
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 28Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 8681.390625,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 9034.125
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 28 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 9163.125,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 9207.125
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 28 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 9163.125,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 9207.125
+        }
+      },
+      {
+        "text": "Remove A Song of Ice and Fire — long collection fixture 28 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 9163.125,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 9207.125
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 29Series",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 9231.125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 9539.9375
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 29 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 9668.9375,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 9712.9375
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 29 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 9668.9375,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 9712.9375
+        }
+      },
+      {
+        "text": "Remove The Witcher — long collection fixture 29 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 9668.9375,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 9712.9375
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 30Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 9231.125,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 9583.859375
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 30 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 9712.859375,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 9756.859375
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 30 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 9712.859375,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 9756.859375
+        }
+      },
+      {
+        "text": "Remove Sherlock Holmes — long collection fixture 30 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 9712.859375,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 9756.859375
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 31Movie",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 9780.859375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 10089.671875
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 31 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 10218.671875,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 10262.671875
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 31 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 10218.671875,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 10262.671875
+        }
+      },
+      {
+        "text": "Remove Jurassic Park — long collection fixture 31 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 10218.671875,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 10262.671875
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 32Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 9780.859375,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 10089.671875
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 32 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 10218.671875,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 10262.671875
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 32 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 10218.671875,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 10262.671875
+        }
+      },
+      {
+        "text": "Remove Percy Jackson — long collection fixture 32 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 10218.671875,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 10262.671875
+        }
+      },
+      {
+        "text": "Dune — long collection fixture 33Book · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 10286.671875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 10595.484375
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 33 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 10724.484375,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 10768.484375
+        }
+      },
+      {
+        "text": "Move Dune — long collection fixture 33 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 10724.484375,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 10768.484375
+        }
+      },
+      {
+        "text": "Remove Dune — long collection fixture 33 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 10724.484375,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 10768.484375
+        }
+      },
+      {
+        "text": "Harry Potter — long collection fixture 34Book · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 10286.671875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 10595.484375
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 34 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 10724.484375,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 10768.484375
+        }
+      },
+      {
+        "text": "Move Harry Potter — long collection fixture 34 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 10724.484375,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 10768.484375
+        }
+      },
+      {
+        "text": "Remove Harry Potter — long collection fixture 34 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 10724.484375,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 10768.484375
+        }
+      },
+      {
+        "text": "The Lord of the Rings — long collection fixture 35Book · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 10792.484375,
+          "w": 147,
+          "h": 334.15625,
+          "right": 169,
+          "bottom": 11126.640625
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 35 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 11255.640625,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 11299.640625
+        }
+      },
+      {
+        "text": "Move The Lord of the Rings — long collection fixture 35 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 11255.640625,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 11299.640625
+        }
+      },
+      {
+        "text": "Remove The Lord of the Rings — long collection fixture 35 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 11255.640625,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 11299.640625
+        }
+      },
+      {
+        "text": "A Song of Ice and Fire — long collection fixture 36Book · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 10792.484375,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 11145.21875
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 36 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 11274.21875,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 11318.21875
+        }
+      },
+      {
+        "text": "Move A Song of Ice and Fire — long collection fixture 36 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 11274.21875,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 11318.21875
+        }
+      },
+      {
+        "text": "Remove A Song of Ice and Fire — long collection fixture 36 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 11274.21875,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 11318.21875
+        }
+      },
+      {
+        "text": "The Witcher — long collection fixture 37Series",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 11342.21875,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 11651.03125
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 37 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 11780.03125,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 11824.03125
+        }
+      },
+      {
+        "text": "Move The Witcher — long collection fixture 37 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 11780.03125,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 11824.03125
+        }
+      },
+      {
+        "text": "Remove The Witcher — long collection fixture 37 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 11780.03125,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 11824.03125
+        }
+      },
+      {
+        "text": "Sherlock Holmes — long collection fixture 38Book · Arthur Conan Doyle",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 11342.21875,
+          "w": 147,
+          "h": 352.734375,
+          "right": 332,
+          "bottom": 11694.953125
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 38 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 11823.953125,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 11867.953125
+        }
+      },
+      {
+        "text": "Move Sherlock Holmes — long collection fixture 38 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 236.5,
+          "y": 11823.953125,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 11867.953125
+        }
+      },
+      {
+        "text": "Remove Sherlock Holmes — long collection fixture 38 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 11823.953125,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 11867.953125
+        }
+      },
+      {
+        "text": "Jurassic Park — long collection fixture 39Movie",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 22,
+          "y": 11891.953125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 169,
+          "bottom": 12200.765625
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 39 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 12329.765625,
+          "w": 44,
+          "h": 44,
+          "right": 66,
+          "bottom": 12373.765625
+        }
+      },
+      {
+        "text": "Move Jurassic Park — long collection fixture 39 later",
+        "action": "mediaLater",
+        "disabled": false,
+        "box": {
+          "x": 73.5,
+          "y": 12329.765625,
+          "w": 44,
+          "h": 44,
+          "right": 117.5,
+          "bottom": 12373.765625
+        }
+      },
+      {
+        "text": "Remove Jurassic Park — long collection fixture 39 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 125,
+          "y": 12329.765625,
+          "w": 44,
+          "h": 44,
+          "right": 169,
+          "bottom": 12373.765625
+        }
+      },
+      {
+        "text": "Percy Jackson — long collection fixture 40Book · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": true,
+        "box": {
+          "x": 185,
+          "y": 11891.953125,
+          "w": 147,
+          "h": 308.8125,
+          "right": 332,
+          "bottom": 12200.765625
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 40 earlier",
+        "action": "mediaEarlier",
+        "disabled": false,
+        "box": {
+          "x": 185,
+          "y": 12329.765625,
+          "w": 44,
+          "h": 44,
+          "right": 229,
+          "bottom": 12373.765625
+        }
+      },
+      {
+        "text": "Move Percy Jackson — long collection fixture 40 later",
+        "action": "mediaLater",
+        "disabled": true,
+        "box": {
+          "x": 236.5,
+          "y": 12329.765625,
+          "w": 44,
+          "h": 44,
+          "right": 280.5,
+          "bottom": 12373.765625
+        }
+      },
+      {
+        "text": "Remove Percy Jackson — long collection fixture 40 from this collection",
+        "action": "mediaRemove",
+        "disabled": false,
+        "box": {
+          "x": 288,
+          "y": 12329.765625,
+          "w": 44,
+          "h": 44,
+          "right": 332,
+          "bottom": 12373.765625
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

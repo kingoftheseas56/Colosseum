@@ -1,0 +1,311 @@
+{
+  "finding": "SOL-B5-001",
+  "status": "CORRECTED_IN_REVIEWER_OVERLAY",
+  "primaryAcceptance": "Pending primary review; Pro finished-mocks intentionally untouched.",
+  "files": {
+    "corrected": "tracker.js",
+    "patch": "tracker-focus.patch",
+    "server": "serve-overlay.mjs",
+    "tests": "test-remediation.mjs",
+    "results": "remediation-checks.json",
+    "build": "build-remediation.mjs"
+  },
+  "hashes": {
+    "original": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4",
+    "corrected": "866b0560ac0794cf305676e063fbf362f9d2badb580dbe1417b4379e9f5b75c7",
+    "patch": "e7fcf60bd9155b765512c1f046ec106ea2dffc762e11f87d3194cb4b5f7688a1"
+  },
+  "originalBefore": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4",
+  "originalAfter": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4",
+  "originalPreserved": true,
+  "testedCorrectedMatchesCurrent": true,
+  "preservation": {
+    "intake": [
+      {
+        "path": "outputs/21-tracker-connections/app.js",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/FIDELITY.md",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/index.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/render-captures.py",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/style.css",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-connections.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-dossier.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/tracker-preferences.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-connections.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-dossier.html",
+        "match": true
+      },
+      {
+        "path": "outputs/21-tracker-connections/_render-preferences.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/app.js",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/capture-audit.cjs",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/collections.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/extensions-store.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/FIDELITY.md",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/index.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/REPORT.json",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/style.css",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/update.html",
+        "match": true
+      },
+      {
+        "path": "outputs/22-utilities-collections/wallpaper-search.html",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/TrackerSyncCenterPage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/Theme.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/WallpaperSearch.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/ExtensionsStorePage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/ExtensionsInstalledPage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/UpdatePage.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/collections/CollectionsPanel.qml",
+        "match": true
+      },
+      {
+        "path": "reference/desktop/qml/collections/YourCollectionsPage.qml",
+        "match": true
+      }
+    ],
+    "finished": [
+      {
+        "path": "finished-mocks/assets/ATTRIBUTION.md",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/cascade.png",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/elarun.png",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/flow.jpg",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/honeywave.jpg",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/icecold.png",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/kay.png",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/kokkini.png",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/nexus.png",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/opal.png",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/pastelhills.jpg",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/shell.jpg",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/assets/kde/volna.jpg",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/collections.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/comparisons.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/evidence.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/extensions-store.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/index.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/native-wallpapers.js",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/README.md",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/review.css",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/tracker-connections.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/tracker-dossier.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/tracker-preferences.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/tracker.css",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/tracker.js",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/update.html",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/utilities.css",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/utilities.js",
+        "match": true
+      },
+      {
+        "path": "finished-mocks/wallpaper-search.html",
+        "match": true
+      }
+    ],
+    "initialReview": [
+      {
+        "path": "REVIEW.md",
+        "sha256": "f6e37e37903bb4949aa279658ea9f3af659dd0e6f4620cb6dc223974e7324d93"
+      },
+      {
+        "path": "REVIEW.json",
+        "sha256": "444d4e84537611c1b391affb8e076257a6c4df888ce9d4027c4a4d20fdb524d8"
+      }
+    ],
+    "initialReviewEdited": false
+  },
+  "verification": {
+    "scenarios": 78,
+    "passed": 78,
+    "failed": 0,
+    "errors": [],
+    "external": [],
+    "contexts": [
+      "354x792 Android phone portrait",
+      "792x354 Android phone landscape",
+      "1280x700 desktop"
+    ],
+    "patchApplyCheck": "git apply --check --ignore-space-change tracker-focus.patch: exit 0; no application performed",
+    "browserClosed": true,
+    "serverClosed": true
+  },
+  "behavior": [
+    "Stable opener identity uses DOM id plus action, provider key, item id, choice and connected/catalogue card distinction.",
+    "Only a visible enabled non-inert target in the active scope is eligible. Missing dossier opener falls back to Preferences, matching QML takeKeyboardFocus.",
+    "Nested invokers retain parent dialog; Cancel/Escape returns matcher and bulk review to their import parent, then import to its dossier control.",
+    "A matched title returns focus to its separate progress decision.",
+    "Explicit close, Escape, veil and Back handling share close helpers; confirmation paths use dialog closure without jumping to the page.",
+    "Deliberate external review navigation retains its own focus; no delayed restoration callback is queued."
+  ],
+  "sourceContracts": [
+    "reference/desktop/qml/TrackerSyncCenterPage.qml:433-451 closeImportReview",
+    "reference/desktop/qml/TrackerSyncCenterPage.qml:518-546 closeTitleMatchFinder",
+    "reference/desktop/qml/TrackerSyncCenterPage.qml:1381-1401 closeDossier",
+    "reference/desktop/qml/TrackerSyncCenterPage.qml:1410-1440 modal Escape order and takeKeyboardFocus"
+  ],
+  "limitations": [
+    "HTML overlay only; no QML/app/repository edits, native/device qualification or publication.",
+    "Original review verdict and failure evidence remain unchanged; this supplemental report records correction of its P2 finding.",
+    "No 171-capture matrix rerun. Existing final manifest still describes the untouched Pro output, not the overlay."
+  ],
+  "run": "node D:/Colosseum-Android-Phone-Mocks-20261101/review-batches/05-tracker-utilities/codex-review-sol/serve-overlay.mjs; open the printed loopback URL. Ctrl+C closes a manually started preview.",
+  "at": "2026-11-01T00:54:24.387Z"
+}

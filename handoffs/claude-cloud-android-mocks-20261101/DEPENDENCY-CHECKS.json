@@ -1,0 +1,1149 @@
+{
+  "manifestRawHashesVerified": 2604,
+  "pageCoverage": [
+    {
+      "batch": "01-sources-manga",
+      "required": 9,
+      "found": 9,
+      "missing": []
+    },
+    {
+      "batch": "02-detail-pages",
+      "required": 8,
+      "found": 8,
+      "missing": []
+    },
+    {
+      "batch": "03-browsing-libraries",
+      "required": 16,
+      "found": 16,
+      "missing": []
+    },
+    {
+      "batch": "04-accounts-configuration",
+      "required": 13,
+      "found": 13,
+      "missing": []
+    },
+    {
+      "batch": "05-tracker-utilities",
+      "required": 7,
+      "found": 7,
+      "missing": []
+    }
+  ],
+  "correctedHashesVerified": {
+    "review-batches/03-browsing-libraries/codex-review-sol/candidate/app.js": "5f3adf984432ea9a0fde19c7a8b6050c93e5b4682ed8d805f39235cba32e27f4",
+    "review-batches/05-tracker-utilities/codex-review-sol/tracker.js": "866b0560ac0794cf305676e063fbf362f9d2badb580dbe1417b4379e9f5b75c7"
+  },
+  "staticMissingLinkCount": 113,
+  "intentionalLocalFontLinks": 106,
+  "otherMissingLinks": [
+    {
+      "file": "baseline/outputs/05-volume-flow/index.html",
+      "ref": "./REPORT.json"
+    },
+    {
+      "file": "baseline/outputs/08-theatre-discover/index.html",
+      "ref": "FIDELITY.md"
+    },
+    {
+      "file": "baseline/outputs/08-theatre-discover/index.html",
+      "ref": "REPORT.json"
+    },
+    {
+      "file": "baseline/outputs/21-tracker-connections/index.html",
+      "ref": "REPORT.json"
+    },
+    {
+      "file": "baseline/review-batches/04-accounts-configuration/finished-mocks/index.html",
+      "ref": "../REVIEW.md"
+    },
+    {
+      "file": "baseline/outputs/17-theatre-details/style.css",
+      "ref": "../../reference/desktop/assets/icons/collections.svg"
+    },
+    {
+      "file": "baseline/outputs/17-theatre-details/style.css",
+      "ref": "../../reference/desktop/assets/icons/collections.svg"
+    }
+  ],
+  "referenceDesktopComparisonCounts": {
+    "raw-byte-identical": 118,
+    "strict-utf8-crlf-equivalent": 149
+  },
+  "referenceDesktopComparisons": [
+    {
+      "path": "assets/addon-logos/aiolists.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/aiostreams.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/anime-kitsu.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/audiobookbay.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/colosseum-grand-database.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/comet.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/dc.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/flixpatrol.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/getcomics.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/jikan.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/letterboxd.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/libgen.ico",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/marvel.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/mdblist.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/mediafusion.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/morelikethis.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/netflix-catalog.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/nyaa.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/omdb.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/one-piece.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/opensubtitles.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/streaming-catalogs.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/subdl.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/tankorent.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/tankoyomi.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/tmdb.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/torrentio.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/addon-logos/tvdb.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/addon-logos/weebcentral.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/extensions/store-jolly-roger.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/extensions/house/cosmere.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/extensions/house/dcau.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/extensions/house/starwars-banner.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/fonts/Fraunces-Italic.ttf",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/fonts/Fraunces-Regular.ttf",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/fonts/Inter-Regular.otf",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/fonts/Inter-SemiBold.otf",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/fonts/Switzer-Medium.otf",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/fonts/Switzer-Regular.otf",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/fonts/Switzer-Semibold.otf",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/icons/access-point-gold.svg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/icons/access-point.svg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/icons/book-library.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/books.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/colosseum.ico",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/icons/colosseum.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/comic-book.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/comics.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/download.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/extensions.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/feria-tv.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/feria.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/fullscreen-exit.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/fullscreen.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/link.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/make_app_icon.py",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/manga.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/minimize.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/movies.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/music.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/open-media.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/play-dark.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/play.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/power.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/preferences.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/projector-theatre.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/rating-star.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/search.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/settings.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/star.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/stremio-official.SOURCE.md",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/stremio-official.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/sync.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/tracker-activity.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/tracker-history.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/tracker-progress.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/trackers.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/universes-atom.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/update.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/vault-door.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/vault-folder.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/watch-party.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/your-colosseum-laurel.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/comicreader/search.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/lucide/bookmark-plus.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/lucide/circle-check.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/lucide/download.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/lucide/minimize.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/lucide/play.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/lucide/search.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/reader2/fullscreen-exit.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/reader2/fullscreen.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/reader2/minimize.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/reader2/search.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/trackers/anilist.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/trackers/myanimelist.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/trackers/simkl.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/icons/trackers/trakt.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/universes/dcau/environments/gotham-v11-bg.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/dcau/environments/justice-v11-bg.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/dcau/portals/future-gotham.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/dcau/portals/gotham.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/dcau/portals/metropolis.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/dcau/portals/watchtower.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/avatar.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/universes/marks/dc.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/harry-potter.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/james-bond.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/marvel.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/naruto.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/universes/marks/one-piece.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/shonen-jump.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/star-trek.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/star-wars.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/marks/studio-ghibli.svg",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/banners/arlong.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/banners/baratie.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/banners/loguetown.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/banners/orange.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/banners/romance.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/banners/syrup.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/canon/arlong-park.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/canon/baratie.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/canon/loguetown.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/canon/orange-town.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/canon/syrup-village.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/noncanon/03-oceans-navel.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue-markers/arlong.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue-markers/baratie.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue-markers/loguetown.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue-markers/orange.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue-markers/romance.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/east-blue-markers/syrup.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/final-sea/badges/egghead.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/final-sea/badges/elbaf.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/final-sea/banners/egghead.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/final-sea/banners/elbaf.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/new-world/badges/dressrosa.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/new-world/badges/manifest.json",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/universes/one-piece/new-world/badges/wano-country.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/new-world/badges/whole-cake-island.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/new-world/banners/dressrosa.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/new-world/banners/wano-country.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/new-world/banners/whole-cake-island.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/badges/arabasta.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/badges/enies-lobby.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/badges/impel-down.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/badges/manifest.json",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/badges/marineford.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/badges/skypiea.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/badges/water-7.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/banners/arabasta.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/banners/enies-lobby.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/banners/impel-down.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/banners/marineford.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/banners/skypiea.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/one-piece/paradise/banners/water-7.png",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/star-wars/ahch-to.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/star-wars/coruscant.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/star-wars/hoth.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/star-wars/jakku.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/star-wars/mustafar.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/star-wars/nevarro.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/universes/star-wars/valo.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/captured-motion.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/cold-ripple.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/dune.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/harry-potter.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/ice-and-fire.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/jurassic-park.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/lord-of-the-rings.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/percy-jackson.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/sherlock-holmes.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "assets/wallpaper/sagas/the-witcher.jpg",
+      "comparison": "raw-byte-identical"
+    },
+    {
+      "path": "qml/BiblioBook.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioBookRail.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioDiscoverPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioExplorePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioGenreIndex.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioGenrePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioLibraryPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioSearch.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/BiblioWorld.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/CarouselSlide.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ComicArchiveBoard.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ComicArchiveIndex.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ComicSeries.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ComicSeriesPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ComicTorrentArchivePicker.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ComicTorrentSourcesPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ContinueSeeAllPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ContinueTile.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/DiscoverBrowser.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/DiscoverPicker.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/DiscoverSidebar.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ExtensionsInstalledPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ExtensionsSeeAllPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ExtensionsSetupSheetAndroid.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ExtensionsStorePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/FeaturedCarousel.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/GenreIndex.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/GenrePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/LibraryPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/Main.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaChapterSeriesView.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaReadingRoom.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaReadingRoomThumbnailMock.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaSeries.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaSeriesSharedHeader.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaTankobanLibrary.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaTankobanLibraryThumbnailMock.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/MangaTankobanSourcesPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/PhoneProfilePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/PhoneWorldTabBar.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/PosterRail.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ReadingDesk.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/RowIndexSidebar.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/SagaUniversePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/SearchSurface.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/ShelvesUniversePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/SourcesSheet.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/StremioSyncPanel.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TankobanChapterList.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TankobanComicsTab.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TankobanLibraryTab.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TankobanMangaTab.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TankobanSeriesView.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TankobanWorld.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TankoyomiConfigurationPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TheatreCatalogPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TheatreGenreIndex.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TheatreGenrePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TheatreSeries.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TheatreSeriesView.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TheatreWorld.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TitlePageBar.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TrackerSyncCenterPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/TrendingTop10.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/UniverseChromeAction.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/UniverseExtensionPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/UniversesWorld.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/UniverseTile.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/UpdatePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/WallpaperSearch.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/WidgetHeader.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/WorldPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/WorldTabBar.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountButton.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountCenter.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountDataPrivacyPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountDevicesPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountField.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountFlyout.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountPageFrame.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountProfilePage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountRecoveryPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountSecurityPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountWelcome.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountWelcomePhone.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/account/AccountYourColosseumPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/collections/CollectionsPanel.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    },
+    {
+      "path": "qml/collections/YourCollectionsPage.qml",
+      "comparison": "strict-utf8-crlf-equivalent"
+    }
+  ],
+  "prohibitedArchiveBinaryStoreExtensions": 0,
+  "note": "Static preparation checks only; no browser/native qualification. Baseline preserves absent historical reports, overlays needing integration, and partial Batch4 evidence. Font omission intentional.",
+  "htmlBaseHrefChecked": true,
+  "batch3CandidateRuntimeDependencies": "Both style.css and ../batch-runtime.js resolve through supplied HTML base into finished-mocks and are included."
+}

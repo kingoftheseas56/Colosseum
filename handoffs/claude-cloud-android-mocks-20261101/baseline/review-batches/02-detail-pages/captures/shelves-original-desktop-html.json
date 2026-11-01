@@ -1,0 +1,16 @@
+{
+  "name": "shelves-original-desktop-html",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-desktop-html.png",
+  "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+  "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 1280,
+    "height": 700,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:07:01.898Z",
+  "sha256": "711b7d2e23bf7fd3f9a4da710a23fbce975aa1532c6160623d796160d8b29222",
+  "errors": [],
+  "blocked": []
+}

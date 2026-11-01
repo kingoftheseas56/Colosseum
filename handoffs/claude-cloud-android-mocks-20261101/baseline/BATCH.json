@@ -1,0 +1,413 @@
+{
+  "purpose": "faithful phone HTML fitting studies; not app implementation",
+  "references": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  },
+  "viewportStatus": "provisional logical sizes",
+  "publicationHeld": true,
+  "jobs": [
+    {
+      "task": "01-theatre-sources",
+      "title": "Theatre film/episode sources picker",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-01-THEATRE-SOURCES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\01-theatre-sources",
+      "pages": [
+        "film-sources.html",
+        "episode-sources.html"
+      ],
+      "sources": [
+        "SourcesSheet.qml",
+        "SourcePickerList.qml",
+        "SourceCard.qml"
+      ]
+    },
+    {
+      "task": "02-comic-sources",
+      "title": "Comic collected-edition torrent source picker",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-02-COMIC-SOURCES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\02-comic-sources",
+      "pages": [
+        "comic-sources.html",
+        "comic-source-confirmation.html"
+      ],
+      "sources": [
+        "ComicTorrentSourcesPage.qml",
+        "ComicTorrentArchivePicker.qml"
+      ]
+    },
+    {
+      "task": "03-manga-sources",
+      "title": "Manga volume torrent sources",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-03-MANGA-SOURCES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\03-manga-sources",
+      "pages": [
+        "manga-volume-sources.html"
+      ],
+      "sources": [
+        "MangaTankobanSourcesPage.qml"
+      ]
+    },
+    {
+      "task": "04-manga-series",
+      "title": "Manga series and reading-room header/chapter selectors",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-04-MANGA-SERIES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\04-manga-series",
+      "pages": [
+        "manga-series.html",
+        "manga-chapters.html"
+      ],
+      "sources": [
+        "MangaSeries.qml",
+        "MangaSeriesSharedHeader.qml",
+        "MangaReadingRoom.qml",
+        "MangaReadingRoomThumbnailMock.qml",
+        "MangaChapterSeriesView.qml",
+        "TankobanChapterList.qml",
+        "TankobanSeriesView.qml"
+      ]
+    },
+    {
+      "task": "05-volume-flow",
+      "title": "Tankoban volume cover-flow behaviour comparison",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-05-VOLUME-FLOW.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\05-volume-flow",
+      "pages": [
+        "volume-flow-original-fit.html",
+        "volume-flow-minimal-alternative.html"
+      ],
+      "sources": [
+        "MangaTankobanLibrary.qml",
+        "MangaTankobanLibraryThumbnailMock.qml",
+        "MangaReadingRoomThumbnailMock.qml"
+      ]
+    },
+    {
+      "task": "06-biblio-book",
+      "title": "Biblio book detail and book header",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-06-BIBLIO-BOOK.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book",
+      "pages": [
+        "biblio-book.html"
+      ],
+      "sources": [
+        "BiblioBook.qml",
+        "MediaDetailScaffold.qml"
+      ]
+    },
+    {
+      "task": "07-biblio-home",
+      "title": "Biblio Discover/home shelves and book rails",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-07-BIBLIO-HOME.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\07-biblio-home",
+      "pages": [
+        "biblio-home.html"
+      ],
+      "sources": [
+        "BiblioWorld.qml",
+        "BiblioDiscoverPage.qml",
+        "BiblioBookRail.qml",
+        "ReadingDesk.qml",
+        "WidgetHeader.qml",
+        "WorldPage.qml"
+      ]
+    },
+    {
+      "task": "08-theatre-discover",
+      "title": "Theatre Discover category, filter and source sidebar",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-08-THEATRE-DISCOVER.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\08-theatre-discover",
+      "pages": [
+        "theatre-discover.html"
+      ],
+      "sources": [
+        "DiscoverBrowser.qml",
+        "DiscoverPicker.qml",
+        "DiscoverSidebar.qml",
+        "TheatreCatalogPage.qml",
+        "PhoneFilterSheet.qml",
+        "PhoneChoiceHost.qml"
+      ]
+    },
+    {
+      "task": "09-catalogue-index",
+      "title": "Catalogue pages, row index rail and tablet/landscape layout",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-09-CATALOGUE-INDEX.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\09-catalogue-index",
+      "pages": [
+        "theatre-catalogue.html",
+        "manga-catalogue.html",
+        "comics-catalogue.html"
+      ],
+      "sources": [
+        "RowIndexSidebar.qml",
+        "TheatreCatalogPage.qml",
+        "TankobanMangaTab.qml",
+        "TankobanComicsTab.qml",
+        "BrowseLayout.qml",
+        "BrowseScaffold.qml"
+      ]
+    },
+    {
+      "task": "10-profile",
+      "title": "Phone Profile rows",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-10-PROFILE.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\10-profile",
+      "pages": [
+        "profile.html"
+      ],
+      "sources": [
+        "PhoneProfilePage.qml",
+        "PhoneActionRow.qml"
+      ]
+    },
+    {
+      "task": "11-account-entry",
+      "title": "Account welcome, flyout and account centre",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-11-ACCOUNT-ENTRY.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\11-account-entry",
+      "pages": [
+        "account-welcome.html",
+        "account-flyout.html",
+        "account-centre.html"
+      ],
+      "sources": [
+        "account/AccountWelcome.qml",
+        "account/AccountWelcomePhone.qml",
+        "account/AccountFlyout.qml",
+        "account/AccountCenter.qml",
+        "account/AccountButton.qml",
+        "account/AccountPageFrame.qml"
+      ]
+    },
+    {
+      "task": "12-account-forms",
+      "title": "Account profile/security/recovery/privacy/devices surfaces",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-12-ACCOUNT-FORMS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\12-account-forms",
+      "pages": [
+        "account-profile.html",
+        "account-security.html",
+        "account-recovery.html",
+        "account-privacy.html",
+        "account-devices.html",
+        "account-your-colosseum.html"
+      ],
+      "sources": [
+        "account/AccountProfilePage.qml",
+        "account/AccountSecurityPage.qml",
+        "account/AccountRecoveryPage.qml",
+        "account/AccountDataPrivacyPage.qml",
+        "account/AccountDevicesPage.qml",
+        "account/AccountYourColosseumPage.qml",
+        "account/AccountField.qml",
+        "account/AccountPageFrame.qml"
+      ]
+    },
+    {
+      "task": "13-stremio-sync",
+      "title": "Stremio sync panel",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-13-STREMIO-SYNC.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\13-stremio-sync",
+      "pages": [
+        "stremio-sync.html"
+      ],
+      "sources": [
+        "StremioSyncPanel.qml",
+        "SettingsScaffold.qml"
+      ]
+    },
+    {
+      "task": "14-extension-setup",
+      "title": "Extension setup and Tankoyomi configuration",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-14-EXTENSION-SETUP.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\14-extension-setup",
+      "pages": [
+        "extension-setup.html",
+        "tankoyomi-configuration.html"
+      ],
+      "sources": [
+        "ExtensionsSetupSheetAndroid.qml",
+        "TankoyomiConfigurationPage.qml",
+        "SettingsScaffold.qml",
+        "TouchComboBox.qml"
+      ]
+    },
+    {
+      "task": "15-world-home",
+      "title": "Theatre/Tankoban/Universes home shells and featured controls",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-15-WORLD-HOME.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\15-world-home",
+      "pages": [
+        "theatre-home.html",
+        "tankoban-home.html",
+        "universes-home.html"
+      ],
+      "sources": [
+        "TheatreWorld.qml",
+        "TankobanWorld.qml",
+        "UniversesWorld.qml",
+        "WorldPage.qml",
+        "WorldTabBar.qml",
+        "PhoneWorldTabBar.qml",
+        "PhoneWorldActions.qml",
+        "FeaturedCarousel.qml",
+        "CarouselSlide.qml",
+        "PosterRail.qml",
+        "ContinueTile.qml",
+        "TrendingTop10.qml"
+      ]
+    },
+    {
+      "task": "16-libraries",
+      "title": "Theatre/Tankoban/Biblio libraries and selection",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-16-LIBRARIES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\16-libraries",
+      "pages": [
+        "theatre-library.html",
+        "tankoban-library.html",
+        "biblio-library.html"
+      ],
+      "sources": [
+        "LibraryPage.qml",
+        "TankobanLibraryTab.qml",
+        "BiblioLibraryPage.qml",
+        "LibrarySelectionHost.qml",
+        "LibrarySelectionState.qml",
+        "LibrarySelectionMark.qml",
+        "CollectionCardMenu.qml",
+        "CollectionMenu.qml"
+      ]
+    },
+    {
+      "task": "17-theatre-details",
+      "title": "Theatre film/series details and episode list",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-17-THEATRE-DETAILS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details",
+      "pages": [
+        "film-detail.html",
+        "series-detail.html"
+      ],
+      "sources": [
+        "TheatreSeries.qml",
+        "TheatreSeriesView.qml",
+        "MediaDetailScaffold.qml"
+      ]
+    },
+    {
+      "task": "18-comic-details",
+      "title": "Comics series/edition/archive detail pages",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-18-COMIC-DETAILS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details",
+      "pages": [
+        "comic-series.html",
+        "comic-edition.html",
+        "comic-archive.html"
+      ],
+      "sources": [
+        "ComicSeries.qml",
+        "ComicSeriesPage.qml",
+        "ComicArchiveBoard.qml",
+        "ComicArchiveIndex.qml",
+        "MediaDetailScaffold.qml"
+      ]
+    },
+    {
+      "task": "19-generic-universes",
+      "title": "Generic Saga and Shelves universe pages",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-19-GENERIC-UNIVERSES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes",
+      "pages": [
+        "saga-universe.html",
+        "shelves-universe.html"
+      ],
+      "sources": [
+        "SagaUniversePage.qml",
+        "ShelvesUniversePage.qml",
+        "UniverseScaffold.qml",
+        "UniverseFeed.qml",
+        "UniversePosterRail.qml",
+        "UniverseShelfViewport.qml",
+        "UniverseTile.qml",
+        "UniverseChromeAction.qml",
+        "UniverseExtensionPage.qml"
+      ]
+    },
+    {
+      "task": "20-search-browse",
+      "title": "Search, Explore, genre and see-all pages",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-20-SEARCH-BROWSE.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\20-search-browse",
+      "pages": [
+        "search.html",
+        "biblio-explore.html",
+        "genre-index.html",
+        "genre-results.html",
+        "continue-see-all.html"
+      ],
+      "sources": [
+        "SearchSurface.qml",
+        "BiblioSearch.qml",
+        "BiblioExplorePage.qml",
+        "GenrePage.qml",
+        "GenreIndex.qml",
+        "TheatreGenrePage.qml",
+        "TheatreGenreIndex.qml",
+        "BiblioGenrePage.qml",
+        "BiblioGenreIndex.qml",
+        "ContinueSeeAllPage.qml",
+        "ExtensionsSeeAllPage.qml"
+      ]
+    },
+    {
+      "task": "21-tracker-connections",
+      "title": "Latest approved tracker Connections and dossiers",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-21-TRACKER-CONNECTIONS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\21-tracker-connections",
+      "pages": [
+        "tracker-connections.html",
+        "tracker-dossier.html",
+        "tracker-preferences.html"
+      ],
+      "sources": [
+        "TrackerSyncCenterPage.qml",
+        "SettingsScaffold.qml"
+      ]
+    },
+    {
+      "task": "22-utilities-collections",
+      "title": "Wallpaper, extensions store, update and collections surfaces",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-22-UTILITIES-COLLECTIONS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\22-utilities-collections",
+      "pages": [
+        "wallpaper-search.html",
+        "extensions-store.html",
+        "update.html",
+        "collections.html"
+      ],
+      "sources": [
+        "WallpaperSearch.qml",
+        "ExtensionsStorePage.qml",
+        "ExtensionsInstalledPage.qml",
+        "UpdatePage.qml",
+        "collections/CollectionsPanel.qml",
+        "collections/YourCollectionsPage.qml",
+        "CollectionGrid.qml",
+        "CollectionMenu.qml"
+      ]
+    }
+  ]
+}

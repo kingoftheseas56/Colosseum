@@ -1,0 +1,1510 @@
+{
+  "tool": "Puppeteer headless Chrome (isolated temporary profile; source-only local assets)",
+  "command": "node captures/qa.cjs",
+  "dateUtc": "2026-10-31T21:53:31.952Z",
+  "status": "pass",
+  "errors": [],
+  "interactionChecks": [
+    "row index 52→240→52",
+    "customize and hide/show",
+    "See All→Discover→Back",
+    "Apple Books / Open Library source and catalogue selection",
+    "filter dropdown selection"
+  ],
+  "summaries": [
+    {
+      "case": "portrait",
+      "viewport": "412x900",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "nav": {
+          "x": 0,
+          "y": 828,
+          "width": 412,
+          "height": 72,
+          "right": 412,
+          "bottom": 900
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 18,
+          "y": 12,
+          "width": 376,
+          "height": 56,
+          "right": 394,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": {
+          "x": 116,
+          "y": 352,
+          "width": 130,
+          "height": 182,
+          "right": 246,
+          "bottom": 534
+        },
+        "topIcons": [
+          {
+            "x": 218,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 262,
+            "bottom": 62
+          },
+          {
+            "x": 262,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 306,
+            "bottom": 62
+          },
+          {
+            "x": 306,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 350,
+            "bottom": 62
+          },
+          {
+            "x": 350,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 394,
+            "bottom": 62
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 18,
+          "y": 240,
+          "width": 52,
+          "height": 692,
+          "right": 70,
+          "bottom": 932
+        },
+        "railMain": {
+          "x": 86,
+          "y": 240,
+          "width": 308,
+          "height": 2769,
+          "right": 394,
+          "bottom": 3009
+        },
+        "actualScroll": 510,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "landscape",
+      "viewport": "900x412",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 900,
+          "height": 412,
+          "right": 900,
+          "bottom": 412
+        },
+        "nav": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 92,
+          "height": 412,
+          "right": 92,
+          "bottom": 412
+        },
+        "top": {
+          "x": 146,
+          "y": 30,
+          "width": 700,
+          "height": 56,
+          "right": 846,
+          "bottom": 86
+        },
+        "navDisplay": "none",
+        "wideDisplay": "flex",
+        "bookCover": {
+          "x": 256,
+          "y": 267,
+          "width": 130,
+          "height": 182,
+          "right": 386,
+          "bottom": 449
+        },
+        "topIcons": [
+          {
+            "x": 670,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 714,
+            "bottom": 80
+          },
+          {
+            "x": 714,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 758,
+            "bottom": 80
+          },
+          {
+            "x": 758,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 802,
+            "bottom": 80
+          },
+          {
+            "x": 802,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 846,
+            "bottom": 80
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 146,
+          "y": 155,
+          "width": 52,
+          "height": 204,
+          "right": 198,
+          "bottom": 359
+        },
+        "railMain": {
+          "x": 226,
+          "y": 155,
+          "width": 620,
+          "height": 2769,
+          "right": 846,
+          "bottom": 2924
+        },
+        "actualScroll": 737,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "desktop",
+      "viewport": "1280x700",
+      "mode": "desktop",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 700,
+          "right": 1280,
+          "bottom": 700
+        },
+        "nav": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 54,
+          "y": 30,
+          "width": 1172,
+          "height": 56,
+          "right": 1226,
+          "bottom": 86
+        },
+        "navDisplay": "none",
+        "wideDisplay": "none",
+        "bookCover": {
+          "x": 164,
+          "y": 434,
+          "width": 130,
+          "height": 182,
+          "right": 294,
+          "bottom": 616
+        },
+        "topIcons": [
+          {
+            "x": 958,
+            "y": 46,
+            "width": 22,
+            "height": 24,
+            "right": 980,
+            "bottom": 70
+          },
+          {
+            "x": 999,
+            "y": 46,
+            "width": 22,
+            "height": 24,
+            "right": 1021,
+            "bottom": 70
+          },
+          {
+            "x": 1040,
+            "y": 46,
+            "width": 22,
+            "height": 24,
+            "right": 1062,
+            "bottom": 70
+          },
+          {
+            "x": 1081,
+            "y": 46,
+            "width": 22,
+            "height": 24,
+            "right": 1103,
+            "bottom": 70
+          },
+          {
+            "x": 1122,
+            "y": 46,
+            "width": 22,
+            "height": 24,
+            "right": 1144,
+            "bottom": 70
+          },
+          {
+            "x": 1163,
+            "y": 46,
+            "width": 22,
+            "height": 24,
+            "right": 1185,
+            "bottom": 70
+          },
+          {
+            "x": 1204,
+            "y": 46,
+            "width": 22,
+            "height": 24,
+            "right": 1226,
+            "bottom": 70
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 54,
+          "y": 322,
+          "width": 52,
+          "height": 560,
+          "right": 106,
+          "bottom": 882
+        },
+        "railMain": {
+          "x": 134,
+          "y": 322,
+          "width": 1092,
+          "height": 2769,
+          "right": 1226,
+          "bottom": 3091
+        },
+        "actualScroll": 570,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "portrait-small-discover",
+      "viewport": "354x792",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "nav": {
+          "x": 0,
+          "y": 720,
+          "width": 354,
+          "height": 72,
+          "right": 354,
+          "bottom": 792
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 18,
+          "y": 12,
+          "width": 318,
+          "height": 56,
+          "right": 336,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": null,
+        "topIcons": [
+          {
+            "x": 160,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 204,
+            "bottom": 62
+          },
+          {
+            "x": 204,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 248,
+            "bottom": 62
+          },
+          {
+            "x": 248,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 292,
+            "bottom": 62
+          },
+          {
+            "x": 292,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 336,
+            "bottom": 62
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 0,
+        "railLeft": {
+          "x": 18,
+          "y": 230,
+          "width": 52,
+          "height": 584,
+          "right": 70,
+          "bottom": 814
+        },
+        "railMain": {
+          "x": 86,
+          "y": 230,
+          "width": 250,
+          "height": 2870,
+          "right": 336,
+          "bottom": 3100
+        },
+        "actualScroll": 520,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "landscape-small",
+      "viewport": "792x354",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "nav": {
+          "x": 0,
+          "y": 282,
+          "width": 792,
+          "height": 72,
+          "right": 792,
+          "bottom": 354
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 32,
+          "y": 12,
+          "width": 728,
+          "height": 56,
+          "right": 760,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": {
+          "x": 130,
+          "y": 128,
+          "width": 130,
+          "height": 182,
+          "right": 260,
+          "bottom": 310
+        },
+        "topIcons": [
+          {
+            "x": 584,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 628,
+            "bottom": 62
+          },
+          {
+            "x": 628,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 672,
+            "bottom": 62
+          },
+          {
+            "x": 672,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 716,
+            "bottom": 62
+          },
+          {
+            "x": 716,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 760,
+            "bottom": 62
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 32,
+          "y": 86,
+          "width": 52,
+          "height": 160,
+          "right": 84,
+          "bottom": 246
+        },
+        "railMain": {
+          "x": 100,
+          "y": 16,
+          "width": 660,
+          "height": 2769,
+          "right": 760,
+          "bottom": 2785
+        },
+        "actualScroll": 792,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "tablet-portrait",
+      "viewport": "800x1280",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 800,
+          "height": 1280,
+          "right": 800,
+          "bottom": 1280
+        },
+        "nav": {
+          "x": 0,
+          "y": 1208,
+          "width": 800,
+          "height": 72,
+          "right": 800,
+          "bottom": 1280
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 32,
+          "y": 12,
+          "width": 736,
+          "height": 56,
+          "right": 768,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": {
+          "x": 130,
+          "y": 320,
+          "width": 130,
+          "height": 182,
+          "right": 260,
+          "bottom": 502
+        },
+        "topIcons": [
+          {
+            "x": 592,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 636,
+            "bottom": 62
+          },
+          {
+            "x": 636,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 680,
+            "bottom": 62
+          },
+          {
+            "x": 680,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 724,
+            "bottom": 62
+          },
+          {
+            "x": 724,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 768,
+            "bottom": 62
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 32,
+          "y": 208,
+          "width": 52,
+          "height": 1072,
+          "right": 84,
+          "bottom": 1280
+        },
+        "railMain": {
+          "x": 100,
+          "y": 208,
+          "width": 668,
+          "height": 2769,
+          "right": 768,
+          "bottom": 2977
+        },
+        "actualScroll": 600,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "tablet-landscape",
+      "viewport": "1280x800",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 1280,
+          "height": 800,
+          "right": 1280,
+          "bottom": 800
+        },
+        "nav": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 92,
+          "height": 800,
+          "right": 92,
+          "bottom": 800
+        },
+        "top": {
+          "x": 146,
+          "y": 30,
+          "width": 1080,
+          "height": 56,
+          "right": 1226,
+          "bottom": 86
+        },
+        "navDisplay": "none",
+        "wideDisplay": "flex",
+        "bookCover": {
+          "x": 256,
+          "y": 434,
+          "width": 130,
+          "height": 182,
+          "right": 386,
+          "bottom": 616
+        },
+        "topIcons": [
+          {
+            "x": 1050,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 1094,
+            "bottom": 80
+          },
+          {
+            "x": 1094,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 1138,
+            "bottom": 80
+          },
+          {
+            "x": 1138,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 1182,
+            "bottom": 80
+          },
+          {
+            "x": 1182,
+            "y": 36,
+            "width": 44,
+            "height": 44,
+            "right": 1226,
+            "bottom": 80
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 146,
+          "y": 322,
+          "width": 52,
+          "height": 592,
+          "right": 198,
+          "bottom": 914
+        },
+        "railMain": {
+          "x": 226,
+          "y": 322,
+          "width": 1000,
+          "height": 2769,
+          "right": 1226,
+          "bottom": 3091
+        },
+        "actualScroll": 570,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "category-open",
+      "viewport": "412x900",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "nav": {
+          "x": 0,
+          "y": 828,
+          "width": 412,
+          "height": 72,
+          "right": 412,
+          "bottom": 900
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 18,
+          "y": 12,
+          "width": 376,
+          "height": 56,
+          "right": 394,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": null,
+        "topIcons": [
+          {
+            "x": 218,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 262,
+            "bottom": 62
+          },
+          {
+            "x": 262,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 306,
+            "bottom": 62
+          },
+          {
+            "x": 306,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 350,
+            "bottom": 62
+          },
+          {
+            "x": 350,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 394,
+            "bottom": 62
+          }
+        ],
+        "menu": {
+          "x": 134,
+          "y": 377,
+          "width": 260,
+          "height": 166,
+          "right": 394,
+          "bottom": 543
+        },
+        "menuScrollable": false,
+        "menuScrollHeight": 164,
+        "menuClientHeight": 164,
+        "missingImages": [],
+        "books": 0,
+        "railLeft": {
+          "x": 18,
+          "y": 240,
+          "width": 52,
+          "height": 692,
+          "right": 70,
+          "bottom": 932
+        },
+        "railMain": {
+          "x": 86,
+          "y": 240,
+          "width": 308,
+          "height": 1554,
+          "right": 394,
+          "bottom": 1794
+        },
+        "actualScroll": 510,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "row-index-open",
+      "viewport": "412x900",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "nav": {
+          "x": 0,
+          "y": 828,
+          "width": 412,
+          "height": 72,
+          "right": 412,
+          "bottom": 900
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 18,
+          "y": 12,
+          "width": 376,
+          "height": 56,
+          "right": 394,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": {
+          "x": 116,
+          "y": 792,
+          "width": 130,
+          "height": 182,
+          "right": 246,
+          "bottom": 974
+        },
+        "topIcons": [
+          {
+            "x": 218,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 262,
+            "bottom": 62
+          },
+          {
+            "x": 262,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 306,
+            "bottom": 62
+          },
+          {
+            "x": 306,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 350,
+            "bottom": 62
+          },
+          {
+            "x": 350,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 394,
+            "bottom": 62
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 18,
+          "y": 98,
+          "width": 240,
+          "height": 692,
+          "right": 258,
+          "bottom": 790
+        },
+        "railMain": {
+          "x": 86,
+          "y": 98,
+          "width": 308,
+          "height": 3351,
+          "right": 394,
+          "bottom": 3449
+        },
+        "actualScroll": 652,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "customize-shelves",
+      "viewport": "412x900",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "nav": {
+          "x": 0,
+          "y": 828,
+          "width": 412,
+          "height": 72,
+          "right": 412,
+          "bottom": 900
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 18,
+          "y": 12,
+          "width": 376,
+          "height": 56,
+          "right": 394,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": {
+          "x": 116,
+          "y": 256,
+          "width": 130,
+          "height": 182,
+          "right": 246,
+          "bottom": 438
+        },
+        "topIcons": [
+          {
+            "x": 218,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 262,
+            "bottom": 62
+          },
+          {
+            "x": 262,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 306,
+            "bottom": 62
+          },
+          {
+            "x": 306,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 350,
+            "bottom": 62
+          },
+          {
+            "x": 350,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 394,
+            "bottom": 62
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 18,
+          "y": 108,
+          "width": 52,
+          "height": 692,
+          "right": 70,
+          "bottom": 800
+        },
+        "railMain": {
+          "x": 86,
+          "y": 108,
+          "width": 308,
+          "height": 3021,
+          "right": 394,
+          "bottom": 3129
+        },
+        "actualScroll": 642,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "reading-desk-phone",
+      "viewport": "412x900",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 412,
+          "height": 900,
+          "right": 412,
+          "bottom": 900
+        },
+        "nav": {
+          "x": 0,
+          "y": 828,
+          "width": 412,
+          "height": 72,
+          "right": 412,
+          "bottom": 900
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 18,
+          "y": 12,
+          "width": 376,
+          "height": 56,
+          "right": 394,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": null,
+        "topIcons": [
+          {
+            "x": 218,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 262,
+            "bottom": 62
+          },
+          {
+            "x": 262,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 306,
+            "bottom": 62
+          },
+          {
+            "x": 306,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 350,
+            "bottom": 62
+          },
+          {
+            "x": 350,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 394,
+            "bottom": 62
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 0,
+        "railLeft": null,
+        "railMain": null,
+        "actualScroll": 0,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "category-short-landscape",
+      "viewport": "792x354",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "nav": {
+          "x": 0,
+          "y": 282,
+          "width": 792,
+          "height": 72,
+          "right": 792,
+          "bottom": 354
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 32,
+          "y": 12,
+          "width": 728,
+          "height": 56,
+          "right": 760,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": null,
+        "topIcons": [
+          {
+            "x": 584,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 628,
+            "bottom": 62
+          },
+          {
+            "x": 628,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 672,
+            "bottom": 62
+          },
+          {
+            "x": 672,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 716,
+            "bottom": 62
+          },
+          {
+            "x": 716,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 760,
+            "bottom": 62
+          }
+        ],
+        "menu": {
+          "x": 500,
+          "y": 80,
+          "width": 260,
+          "height": 166,
+          "right": 760,
+          "bottom": 246
+        },
+        "menuScrollable": false,
+        "menuScrollHeight": 164,
+        "menuClientHeight": 164,
+        "missingImages": [],
+        "books": 0,
+        "railLeft": {
+          "x": 32,
+          "y": 86,
+          "width": 52,
+          "height": 160,
+          "right": 84,
+          "bottom": 246
+        },
+        "railMain": {
+          "x": 100,
+          "y": 86,
+          "width": 660,
+          "height": 1018,
+          "right": 760,
+          "bottom": 1104
+        },
+        "actualScroll": 722,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "filter-short-landscape",
+      "viewport": "792x354",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 792,
+          "height": 354,
+          "right": 792,
+          "bottom": 354
+        },
+        "nav": {
+          "x": 0,
+          "y": 282,
+          "width": 792,
+          "height": 72,
+          "right": 792,
+          "bottom": 354
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 32,
+          "y": 12,
+          "width": 728,
+          "height": 56,
+          "right": 760,
+          "bottom": 68
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": null,
+        "topIcons": [
+          {
+            "x": 584,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 628,
+            "bottom": 62
+          },
+          {
+            "x": 628,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 672,
+            "bottom": 62
+          },
+          {
+            "x": 672,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 716,
+            "bottom": 62
+          },
+          {
+            "x": 716,
+            "y": 18,
+            "width": 44,
+            "height": 44,
+            "right": 760,
+            "bottom": 62
+          }
+        ],
+        "menu": {
+          "x": 154,
+          "y": 80,
+          "width": 260,
+          "height": 196,
+          "right": 414,
+          "bottom": 276
+        },
+        "menuScrollable": true,
+        "menuScrollHeight": 278,
+        "menuClientHeight": 194,
+        "missingImages": [],
+        "books": 0,
+        "railLeft": {
+          "x": 32,
+          "y": 86,
+          "width": 52,
+          "height": 160,
+          "right": 84,
+          "bottom": 246
+        },
+        "railMain": {
+          "x": 100,
+          "y": 86,
+          "width": 660,
+          "height": 1018,
+          "right": 760,
+          "bottom": 1104
+        },
+        "actualScroll": 722,
+        "bodyHorizontalOverflow": false
+      }
+    },
+    {
+      "case": "font130-insets",
+      "viewport": "354x792",
+      "mode": "android",
+      "diagnostic": {
+        "app": {
+          "x": 0,
+          "y": 0,
+          "width": 354,
+          "height": 792,
+          "right": 354,
+          "bottom": 792
+        },
+        "nav": {
+          "x": 0,
+          "y": 696,
+          "width": 354,
+          "height": 96,
+          "right": 354,
+          "bottom": 792
+        },
+        "wide": {
+          "x": 0,
+          "y": 0,
+          "width": 0,
+          "height": 0,
+          "right": 0,
+          "bottom": 0
+        },
+        "top": {
+          "x": 18,
+          "y": 36,
+          "width": 318,
+          "height": 56,
+          "right": 336,
+          "bottom": 92
+        },
+        "navDisplay": "flex",
+        "wideDisplay": "none",
+        "bookCover": {
+          "x": 116,
+          "y": 350,
+          "width": 130,
+          "height": 182,
+          "right": 246,
+          "bottom": 532
+        },
+        "topIcons": [
+          {
+            "x": 160,
+            "y": 42,
+            "width": 44,
+            "height": 44,
+            "right": 204,
+            "bottom": 86
+          },
+          {
+            "x": 204,
+            "y": 42,
+            "width": 44,
+            "height": 44,
+            "right": 248,
+            "bottom": 86
+          },
+          {
+            "x": 248,
+            "y": 42,
+            "width": 44,
+            "height": 44,
+            "right": 292,
+            "bottom": 86
+          },
+          {
+            "x": 292,
+            "y": 42,
+            "width": 44,
+            "height": 44,
+            "right": 336,
+            "bottom": 86
+          }
+        ],
+        "menu": null,
+        "menuScrollable": false,
+        "menuScrollHeight": 0,
+        "menuClientHeight": 0,
+        "missingImages": [],
+        "books": 70,
+        "railLeft": {
+          "x": 18,
+          "y": 186,
+          "width": 52,
+          "height": 584,
+          "right": 70,
+          "bottom": 770
+        },
+        "railMain": {
+          "x": 86,
+          "y": 186,
+          "width": 250,
+          "height": 2884,
+          "right": 336,
+          "bottom": 3070
+        },
+        "actualScroll": 622,
+        "bodyHorizontalOverflow": false
+      }
+    }
+  ]
+}

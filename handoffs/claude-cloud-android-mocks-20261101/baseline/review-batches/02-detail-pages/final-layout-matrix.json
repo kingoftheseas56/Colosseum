@@ -1,0 +1,6225 @@
+{
+  "utc": "2026-10-31T23:24:51.038Z",
+  "result": [
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-portrait",
+      "result": {
+        "page": "biblio",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 412,
+            "sw": 412,
+            "h": 816,
+            "sh": 2147
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-final-portrait",
+      "result": {
+        "name": "biblio-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=412&height=900",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:34.919Z",
+        "sha256": "083d5a7bc926f400d00261d6551a3f1f8e59b8bdd2ecf4b487681e1d864d4229",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=354&height=792",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-portrait-small",
+      "result": {
+        "page": "biblio",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 354,
+            "sw": 354,
+            "h": 708,
+            "sh": 2252
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-final-portrait-small",
+      "result": {
+        "name": "biblio-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=354&height=792",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=354&height=792",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:36.351Z",
+        "sha256": "ee40f0e3f4523b23edef20f62ff4f742261c8608dd6c52323dfb7d73e24038e7",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=900&height=412",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-landscape",
+      "result": {
+        "page": "biblio",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 900,
+            "sw": 900,
+            "h": 345,
+            "sh": 1278
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-final-landscape",
+      "result": {
+        "name": "biblio-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=900&height=412",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=900&height=412",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:37.893Z",
+        "sha256": "044e9995393b5712d1cae755ca9f9ea26af1c0b012e88ed45f33fdb7ed1b73ad",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=792&height=354",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-landscape-small",
+      "result": {
+        "page": "biblio",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 792,
+            "sw": 792,
+            "h": 287,
+            "sh": 1329
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-final-landscape-small",
+      "result": {
+        "name": "biblio-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=792&height=354",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=792&height=354",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:39.367Z",
+        "sha256": "2f094e8839f954a044b82f185783cfbb1a822e8301d2c8b222a42da5a978ffa5",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=700",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-desktop-html",
+      "result": {
+        "page": "biblio",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-actions"
+        ],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 592,
+            "sh": 1581
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-final-desktop-html",
+      "result": {
+        "name": "biblio-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=700",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=700",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:40.775Z",
+        "sha256": "cb248d36f890447f3109a6de47f518d02459575fe964ef78658e87180306c3ff",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=800&height=1280",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-tablet-portrait",
+      "result": {
+        "page": "biblio",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 800,
+            "sw": 800,
+            "h": 1172,
+            "sh": 1792
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-final-tablet-portrait",
+      "result": {
+        "name": "biblio-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=800&height=1280",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=800&height=1280",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:42.405Z",
+        "sha256": "1c7f112ef4f0b0e22b4840ce8357b301d2db99559bdc1d861ba7c32875b7809c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800",
+        "title": "Biblio · Book detail fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "biblio-tablet-landscape",
+      "result": {
+        "page": "biblio",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Colosseum Segoe",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-actions"
+        ],
+        "scrollContainers": [
+          {
+            "id": "book-scroll",
+            "cls": "book-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 692,
+            "sh": 1581
+          },
+          {
+            "id": "",
+            "cls": "read-choice glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "",
+            "cls": "collections-picker glass",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          },
+          {
+            "id": "picker-memberships",
+            "cls": "picker-memberships",
+            "w": 0,
+            "sw": 0,
+            "h": 0,
+            "sh": 0
+          }
+        ],
+        "headings": []
+      }
+    },
+    {
+      "op": "capture",
+      "name": "biblio-finished-final-tablet-landscape",
+      "result": {
+        "name": "biblio-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\biblio-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/06-biblio-book/biblio-book.html?width=1280&height=800",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1450,
+          "height": 1500,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:43.850Z",
+        "sha256": "019dd3ed845ec4414dd3230b81be0e0964e45ca1efee114a50e3789430b00d8d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-portrait",
+      "result": {
+        "page": "film",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 412,
+            "sw": 412,
+            "h": 900,
+            "sh": 1689
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 372,
+            "sw": 396,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter and the Deathly Hallows: Part 2",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-final-portrait",
+      "result": {
+        "name": "film-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:45.286Z",
+        "sha256": "44531c2e76c6a41f54ae021d31abd370dd299bf89de42cbf89750dbf78e20aba",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-portrait-small",
+      "result": {
+        "page": "film",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 354,
+            "sw": 354,
+            "h": 792,
+            "sh": 1992
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 314,
+            "sw": 396,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter and the Deathly Hallows: Part 2",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-final-portrait-small",
+      "result": {
+        "name": "film-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:46.595Z",
+        "sha256": "70bb30e1e8466424158ef7e4e626a3fbcacf3f112a406e0ec1d1cda9e80d0492",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-landscape",
+      "result": {
+        "page": "film",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 900,
+            "sw": 900,
+            "h": 412,
+            "sh": 1297
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 852,
+            "sw": 852,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter and the Deathly Hallows: Part 2",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "43px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-final-landscape",
+      "result": {
+        "name": "film-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:47.643Z",
+        "sha256": "fd5b00daf3874b0ca24e0d40d0a4f2d0f949561546f02e9ed3359e2a2832c6ac",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-landscape-small",
+      "result": {
+        "page": "film",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 792,
+            "sw": 792,
+            "h": 354,
+            "sh": 1297
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 744,
+            "sw": 744,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter and the Deathly Hallows: Part 2",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "43px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-final-landscape-small",
+      "result": {
+        "name": "film-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:48.756Z",
+        "sha256": "e9fd35ff017c78f6f0d096fdd2c4fdad7b327a676120ac8280c17c6465158461",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-desktop-html",
+      "result": {
+        "page": "film",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-controls"
+        ],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 1280,
+            "sw": 1280,
+            "h": 700,
+            "sh": 1015
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 1172,
+            "sw": 1172,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter and the Deathly Hallows: Part 2",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "64px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-final-desktop-html",
+      "result": {
+        "name": "film-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:50.145Z",
+        "sha256": "105b2e187d21d749efc3487d1813e89859aacfa9635a0e128af0df25b3f9f45c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-tablet-portrait",
+      "result": {
+        "page": "film",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 800,
+            "sw": 800,
+            "h": 1280,
+            "sh": 1380
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 760,
+            "sw": 760,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter and the Deathly Hallows: Part 2",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-final-tablet-portrait",
+      "result": {
+        "name": "film-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:51.608Z",
+        "sha256": "2fe539330021fab7e37a50c0b3252e99d48de6a54673eef91ec405e36b3608c4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "title": "Film detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "film-tablet-landscape",
+      "result": {
+        "page": "film",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 1280,
+            "sw": 1280,
+            "h": 800,
+            "sh": 1015
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 1216,
+            "sw": 1216,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter and the Deathly Hallows: Part 2",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "64px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "film-finished-final-tablet-landscape",
+      "result": {
+        "name": "film-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\film-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/film-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:52.961Z",
+        "sha256": "926e7a8714fb53c575b21d15a1abf6a42f7a0b063d3ffb1d09892050e469a22a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-portrait",
+      "result": {
+        "page": "series",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 412,
+            "sw": 412,
+            "h": 900,
+            "sh": 6019
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 372,
+            "sw": 396,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "One Piece",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-final-portrait",
+      "result": {
+        "name": "series-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:54.380Z",
+        "sha256": "7a790c9952476e4838f4219136d0e4628b0eb9a8aafe091e9b6104be9bbe8bc4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-portrait-small",
+      "result": {
+        "page": "series",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 354,
+            "sw": 354,
+            "h": 792,
+            "sh": 6349
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 314,
+            "sw": 396,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "One Piece",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-final-portrait-small",
+      "result": {
+        "name": "series-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:55.695Z",
+        "sha256": "e22e9e3af00be170dc16156e1ba4ead4d81196260ce78562a93eb0ee869bde4a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-landscape",
+      "result": {
+        "page": "series",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 900,
+            "sw": 900,
+            "h": 412,
+            "sh": 3089
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 852,
+            "sw": 852,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "One Piece",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "43px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-final-landscape",
+      "result": {
+        "name": "series-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:57.140Z",
+        "sha256": "b7c0288167673f7d92a64741e3afe8af1da9f11ea5c52217ea511a96715c5686",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-landscape-small",
+      "result": {
+        "page": "series",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 792,
+            "sw": 792,
+            "h": 354,
+            "sh": 3089
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 744,
+            "sw": 744,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "One Piece",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "43px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-final-landscape-small",
+      "result": {
+        "name": "series-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:58.517Z",
+        "sha256": "c65c711a1fc701262e32a0979dd54f429346c1c74dd62c15f2cd59c122b82923",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-desktop-html",
+      "result": {
+        "page": "series",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-controls"
+        ],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 1280,
+            "sw": 1280,
+            "h": 700,
+            "sh": 2871
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 1172,
+            "sw": 1172,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "One Piece",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "64px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-final-desktop-html",
+      "result": {
+        "name": "series-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:23:59.822Z",
+        "sha256": "d97a48a2fb8e64c3a00b5a1777bc1ed85dd31b83e31034b98dcefd12dfec6ff5",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-tablet-portrait",
+      "result": {
+        "page": "series",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 800,
+            "sw": 800,
+            "h": 1280,
+            "sh": 5758
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 760,
+            "sw": 760,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "One Piece",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-final-tablet-portrait",
+      "result": {
+        "name": "series-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:01.226Z",
+        "sha256": "0163ea7554e8542517ecc9a32c0ea41a2b33808931efca883a76c5b016673e3c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "title": "Series detail — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "series-tablet-landscape",
+      "result": {
+        "page": "series",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Segoe Review",
+            "status": "loaded"
+          },
+          {
+            "family": "Fraunces Review",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "page-scroll",
+            "cls": "",
+            "w": 1280,
+            "sw": 1280,
+            "h": 800,
+            "sh": 2871
+          },
+          {
+            "id": "",
+            "cls": "rec-rail",
+            "w": 1216,
+            "sw": 1216,
+            "h": 205,
+            "sh": 205
+          }
+        ],
+        "headings": [
+          {
+            "text": "One Piece",
+            "font": "\"Fraunces Review\", Georgia, serif",
+            "size": "64px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "series-finished-final-tablet-landscape",
+      "result": {
+        "name": "series-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:02.704Z",
+        "sha256": "798f3adfa47b4d25675c2b2b227973788fd29118f9aae23d84216417ac9d51e9",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-series-portrait",
+      "result": {
+        "page": "comic-series",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 412,
+            "sw": 412,
+            "h": 900,
+            "sh": 1738
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "39px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-final-portrait",
+      "result": {
+        "name": "comic-series-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:03.814Z",
+        "sha256": "fa3ffb7870002fd4533ec5f27efcae67998a6decfea9f295ca057cdaf7b59853",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-series-portrait-small",
+      "result": {
+        "page": "comic-series",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 354,
+            "sw": 354,
+            "h": 792,
+            "sh": 1763
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "39px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-final-portrait-small",
+      "result": {
+        "name": "comic-series-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:04.989Z",
+        "sha256": "66fcf796986c44f48ff0f4bd81ac1295f0a47a909b999d7a778992578bc3921c",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-series-landscape",
+      "result": {
+        "page": "comic-series",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 900,
+            "sw": 900,
+            "h": 412,
+            "sh": 1242
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "34px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-final-landscape",
+      "result": {
+        "name": "comic-series-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:06.125Z",
+        "sha256": "56e100144a557d433ddbd7cea53a17517f2e3ea344a956acd8a0bf6dff08786b",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-series-landscape-small",
+      "result": {
+        "page": "comic-series",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 792,
+            "sw": 792,
+            "h": 354,
+            "sh": 1242
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "34px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-final-landscape-small",
+      "result": {
+        "name": "comic-series-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:07.308Z",
+        "sha256": "7afb7b6fb5bc1e0a25982a77cef3a5a02e0a9b399c8fe6e47192455ddab58c09",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-series-desktop-html",
+      "result": {
+        "page": "comic-series",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-controls"
+        ],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 700,
+            "sh": 1336
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "54px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-final-desktop-html",
+      "result": {
+        "name": "comic-series-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:08.605Z",
+        "sha256": "96823fa7682fbcca930f22b177ba8171018efdb1cd0bfc45cd34d9b8413aec4e",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-series-tablet-portrait",
+      "result": {
+        "page": "comic-series",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 800,
+            "sw": 800,
+            "h": 1280,
+            "sh": 1336
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "54px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-final-tablet-portrait",
+      "result": {
+        "name": "comic-series-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:10.040Z",
+        "sha256": "81549dbc87fd04d8ece645999cf325fbde41969312987e524f56cceebb36fd0d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "title": "Comic series · GetComics releases — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-series-tablet-landscape",
+      "result": {
+        "page": "comic-series",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 800,
+            "sh": 1336
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "54px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-series-finished-final-tablet-landscape",
+      "result": {
+        "name": "comic-series-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-series-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-series.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:11.516Z",
+        "sha256": "381d242b2f5315cc8260a4d517bbd9e1cf20fc373f8bdc6f9f6451042704e2f4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-edition-portrait",
+      "result": {
+        "page": "comic-edition",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 412,
+            "sw": 412,
+            "h": 900,
+            "sh": 1678
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-final-portrait",
+      "result": {
+        "name": "comic-edition-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:12.653Z",
+        "sha256": "950dadb2f0b79698533e6d07b114e9df908f6d0f65f39eb39d2465b8f6896903",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-edition-portrait-small",
+      "result": {
+        "page": "comic-edition",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 354,
+            "sw": 354,
+            "h": 792,
+            "sh": 1723
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-final-portrait-small",
+      "result": {
+        "name": "comic-edition-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:13.798Z",
+        "sha256": "1c03ae19a5444268ed9263d77e29180b47cefe1e210ee8a5672f2b429f3200d5",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-edition-landscape",
+      "result": {
+        "page": "comic-edition",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 900,
+            "sw": 900,
+            "h": 412,
+            "sh": 1478
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-final-landscape",
+      "result": {
+        "name": "comic-edition-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:14.947Z",
+        "sha256": "14baa6f6bfffe8ae00cea165cfa98134302a94e77697423c4ad7ee1fe8608969",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-edition-landscape-small",
+      "result": {
+        "page": "comic-edition",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 792,
+            "sw": 792,
+            "h": 354,
+            "sh": 1478
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "36px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-final-landscape-small",
+      "result": {
+        "name": "comic-edition-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:16.187Z",
+        "sha256": "74423434c2c4429e056d9f30fc3cafb9c098e26b08c84445cf51e8cefdceb188",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-edition-desktop-html",
+      "result": {
+        "page": "comic-edition",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-controls"
+        ],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 700,
+            "sh": 1545
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "50px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-final-desktop-html",
+      "result": {
+        "name": "comic-edition-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:17.671Z",
+        "sha256": "ec11bf55aae18086f54894ef8446cdbd11a4dcefc2231f2aba05d0d244cb54a4",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-edition-tablet-portrait",
+      "result": {
+        "page": "comic-edition",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 800,
+            "sw": 800,
+            "h": 1280,
+            "sh": 1564
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "50px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-final-tablet-portrait",
+      "result": {
+        "name": "comic-edition-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:19.326Z",
+        "sha256": "a8d145d91726a6a710286dc426b37e30dc16100acc015b92eb4e319ac41d017d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "title": "Comic editions · catalogue ledger — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-edition-tablet-landscape",
+      "result": {
+        "page": "comic-edition",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 800,
+            "sh": 1545
+          }
+        ],
+        "headings": [
+          {
+            "text": "Batman",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "50px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-edition-finished-final-tablet-landscape",
+      "result": {
+        "name": "comic-edition-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-edition-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-edition.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:20.943Z",
+        "sha256": "424a85627bed0fee565a171e07e1b8257d1a22b72afb3a8df6939a0b037dc319",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-archive-portrait",
+      "result": {
+        "page": "comic-archive",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 412,
+            "sw": 412,
+            "h": 900,
+            "sh": 903
+          }
+        ],
+        "headings": [
+          {
+            "text": "GetComics Archives",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "37px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-final-portrait",
+      "result": {
+        "name": "comic-archive-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:22.573Z",
+        "sha256": "35c772adef8b94013a38d9b7f239362637442dae44fd5616d6a262950891c4d1",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-archive-portrait-small",
+      "result": {
+        "page": "comic-archive",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 354,
+            "sw": 354,
+            "h": 792,
+            "sh": 946
+          }
+        ],
+        "headings": [
+          {
+            "text": "GetComics Archives",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "37px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-final-portrait-small",
+      "result": {
+        "name": "comic-archive-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:23.846Z",
+        "sha256": "45f3b144e6f4df251fe6d68e56286ea49bcdcf490a8c511b883546e247d8de6d",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-archive-landscape",
+      "result": {
+        "page": "comic-archive",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 900,
+            "sw": 900,
+            "h": 412,
+            "sh": 800
+          }
+        ],
+        "headings": [
+          {
+            "text": "GetComics Archives",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "48px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-final-landscape",
+      "result": {
+        "name": "comic-archive-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:25.351Z",
+        "sha256": "d171b1768b163bbbabb7031fb2e5b396f1430a6641c866db8737f2081eb267e3",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-archive-landscape-small",
+      "result": {
+        "page": "comic-archive",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 792,
+            "sw": 792,
+            "h": 354,
+            "sh": 800
+          }
+        ],
+        "headings": [
+          {
+            "text": "GetComics Archives",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "48px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-final-landscape-small",
+      "result": {
+        "name": "comic-archive-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:27.090Z",
+        "sha256": "ba8447fbac33d295a3487fbd39c3b6e07e32e9938ce01a859780b28399c9e702",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-archive-desktop-html",
+      "result": {
+        "page": "comic-archive",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [
+          "window-controls"
+        ],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 700,
+            "sh": 700
+          }
+        ],
+        "headings": [
+          {
+            "text": "GetComics Archives",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "48px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-final-desktop-html",
+      "result": {
+        "name": "comic-archive-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:28.660Z",
+        "sha256": "1b6d526a8891317de474f6f9bd4eb39b2a7fa9ae2b397452eb005b011b085467",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-archive-tablet-portrait",
+      "result": {
+        "page": "comic-archive",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 800,
+            "sw": 800,
+            "h": 1280,
+            "sh": 1280
+          }
+        ],
+        "headings": [
+          {
+            "text": "GetComics Archives",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "48px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-final-tablet-portrait",
+      "result": {
+        "name": "comic-archive-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:30.052Z",
+        "sha256": "99f647bacbcc0c5879561aba5163d62f3fe470664c1676005c3f895eb0bdbf88",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "title": "Comic archives · board and index — Colosseum fitting study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "comic-archive-tablet-landscape",
+      "result": {
+        "page": "comic-archive",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "FrauncesLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "loaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "SegoeLocal",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchFraunces",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          },
+          {
+            "family": "BatchSegoe",
+            "status": "unloaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "app-scroll",
+            "cls": "app-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 800,
+            "sh": 800
+          }
+        ],
+        "headings": [
+          {
+            "text": "GetComics Archives",
+            "font": "FrauncesLocal, Georgia, serif",
+            "size": "48px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "comic-archive-finished-final-tablet-landscape",
+      "result": {
+        "name": "comic-archive-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/18-comic-details/comic-archive.html?capture=1",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:31.577Z",
+        "sha256": "0ad7baf46f526ad4bc2254d901451bfd8c59194d41c6516adcca92be95fcaa1b",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait",
+      "result": {
+        "page": "saga",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 412,
+            "sw": 412,
+            "h": 900,
+            "sh": 4679
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 364,
+            "sw": 364,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "matrixWindow",
+            "cls": "matrix-window",
+            "w": 330,
+            "sw": 1104,
+            "h": 510,
+            "sh": 510
+          },
+          {
+            "id": "",
+            "cls": "creators",
+            "w": 364,
+            "sw": 364,
+            "h": 175,
+            "sh": 175
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 354,
+            "sw": 400,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-final-portrait",
+      "result": {
+        "name": "saga-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:33.199Z",
+        "sha256": "b397cc26dd0f4e5780a6a9e65df0de4697f0d56d8eadc3fc43bede3591f2f5e6",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-portrait-small",
+      "result": {
+        "page": "saga",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 354,
+            "sw": 354,
+            "h": 792,
+            "sh": 5108
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 306,
+            "sw": 306,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "matrixWindow",
+            "cls": "matrix-window",
+            "w": 272,
+            "sw": 1104,
+            "h": 510,
+            "sh": 510
+          },
+          {
+            "id": "",
+            "cls": "creators",
+            "w": 306,
+            "sw": 306,
+            "h": 175,
+            "sh": 175
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 296,
+            "sw": 400,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-final-portrait-small",
+      "result": {
+        "name": "saga-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:34.718Z",
+        "sha256": "60bc542673f378286390a10d5d052856662591a05b5303b4b8e8442de7503aad",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape",
+      "result": {
+        "page": "saga",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 900,
+            "sw": 900,
+            "h": 412,
+            "sh": 4661
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 852,
+            "sw": 852,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "matrixWindow",
+            "cls": "matrix-window",
+            "w": 818,
+            "sw": 1104,
+            "h": 510,
+            "sh": 510
+          },
+          {
+            "id": "",
+            "cls": "creators",
+            "w": 852,
+            "sw": 852,
+            "h": 175,
+            "sh": 175
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 400,
+            "sw": 400,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-final-landscape",
+      "result": {
+        "name": "saga-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:35.988Z",
+        "sha256": "9b8734cf3812d3bc814564f321b0e25ed6657c0700b29b6d6e2b21bd89418aa0",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-landscape-small",
+      "result": {
+        "page": "saga",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 792,
+            "sw": 792,
+            "h": 354,
+            "sh": 4539
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 744,
+            "sw": 744,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "matrixWindow",
+            "cls": "matrix-window",
+            "w": 710,
+            "sw": 1104,
+            "h": 510,
+            "sh": 510
+          },
+          {
+            "id": "",
+            "cls": "creators",
+            "w": 744,
+            "sw": 744,
+            "h": 175,
+            "sh": 175
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 400,
+            "sw": 400,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-final-landscape-small",
+      "result": {
+        "name": "saga-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=narrow-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:37.242Z",
+        "sha256": "cb46256e3bae15dcd3403e76e2aa46bb6f767211b8408393f70e296140096fcc",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-desktop-html",
+      "result": {
+        "page": "saga",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [
+          "window-actions"
+        ],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 700,
+            "sh": 3354
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 1152,
+            "sw": 1152,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "matrixWindow",
+            "cls": "matrix-window",
+            "w": 1102,
+            "sw": 1104,
+            "h": 510,
+            "sh": 510
+          },
+          {
+            "id": "",
+            "cls": "creators",
+            "w": 1152,
+            "sw": 1152,
+            "h": 175,
+            "sh": 175
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 400,
+            "sw": 400,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter",
+            "font": "Fraunces, Georgia, serif",
+            "size": "72px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-final-desktop-html",
+      "result": {
+        "name": "saga-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:38.671Z",
+        "sha256": "86c4d5f9090e01028f3b71a3f7024595f2cdb5ba37a29240c081dc5f0d90e3ea",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-tablet-portrait",
+      "result": {
+        "page": "saga",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 800,
+            "sw": 800,
+            "h": 1280,
+            "sh": 3502
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 672,
+            "sw": 672,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "matrixWindow",
+            "cls": "matrix-window",
+            "w": 622,
+            "sw": 1104,
+            "h": 510,
+            "sh": 510
+          },
+          {
+            "id": "",
+            "cls": "creators",
+            "w": 672,
+            "sw": 672,
+            "h": 175,
+            "sh": 175
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 400,
+            "sw": 400,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter",
+            "font": "Fraunces, Georgia, serif",
+            "size": "72px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-final-tablet-portrait",
+      "result": {
+        "name": "saga-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:40.156Z",
+        "sha256": "d0a9b43958ec665d4aff7e04fcb5b3c8c128536f7747080748fe594c146aecd9",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "title": "Saga universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "saga-tablet-landscape",
+      "result": {
+        "page": "saga",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 800,
+            "sh": 3359
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 1152,
+            "sw": 1152,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "matrixWindow",
+            "cls": "matrix-window",
+            "w": 1102,
+            "sw": 1104,
+            "h": 510,
+            "sh": 510
+          },
+          {
+            "id": "",
+            "cls": "creators",
+            "w": 1152,
+            "sw": 1152,
+            "h": 175,
+            "sh": 175
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 400,
+            "sw": 400,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "Harry Potter",
+            "font": "Fraunces, Georgia, serif",
+            "size": "72px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "saga-finished-final-tablet-landscape",
+      "result": {
+        "name": "saga-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\saga-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=tablet-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:41.749Z",
+        "sha256": "344a8f2478d01b41f808187fe569f200113ffe6815dc527cb49f0066e7fb68ee",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait",
+      "result": {
+        "page": "shelves",
+        "layout": "portrait",
+        "expected": [
+          412,
+          900
+        ],
+        "actual": [
+          412,
+          900
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 412,
+            "sw": 412,
+            "h": 900,
+            "sh": 2998
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 364,
+            "sw": 364,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "shelf-0-rail",
+            "cls": "rail",
+            "w": 338,
+            "sw": 4544,
+            "h": 337,
+            "sh": 337
+          },
+          {
+            "id": "shelf-1-rail",
+            "cls": "rail",
+            "w": 338,
+            "sw": 2504,
+            "h": 293,
+            "sh": 293
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 258,
+            "sw": 258,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "James Bond",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-final-portrait",
+      "result": {
+        "name": "shelves-finished-final-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-final-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=portrait",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 412,
+          "height": 900,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:42.986Z",
+        "sha256": "4368f97c9f88d3846038c56847878c2c83e210f7b0a3de01ec568316ed3d4e0a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-portrait-small",
+      "result": {
+        "page": "shelves",
+        "layout": "portrait-small",
+        "expected": [
+          354,
+          792
+        ],
+        "actual": [
+          354,
+          792
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 354,
+            "sw": 354,
+            "h": 792,
+            "sh": 3060
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 306,
+            "sw": 306,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "shelf-0-rail",
+            "cls": "rail",
+            "w": 280,
+            "sw": 4544,
+            "h": 337,
+            "sh": 337
+          },
+          {
+            "id": "shelf-1-rail",
+            "cls": "rail",
+            "w": 280,
+            "sw": 2504,
+            "h": 293,
+            "sh": 293
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 258,
+            "sw": 258,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "James Bond",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-final-portrait-small",
+      "result": {
+        "name": "shelves-finished-final-portrait-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-final-portrait-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 354,
+          "height": 792,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:44.306Z",
+        "sha256": "ad738de773dbaea7ebb1ec35b10bc6e4ebc305dfed2f95ce455df23e1a9efbc0",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape",
+      "result": {
+        "page": "shelves",
+        "layout": "landscape",
+        "expected": [
+          900,
+          412
+        ],
+        "actual": [
+          900,
+          412
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 900,
+            "sw": 900,
+            "h": 412,
+            "sh": 3309
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 852,
+            "sw": 852,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "shelf-0-rail",
+            "cls": "rail",
+            "w": 826,
+            "sw": 4544,
+            "h": 337,
+            "sh": 337
+          },
+          {
+            "id": "shelf-1-rail",
+            "cls": "rail",
+            "w": 826,
+            "sw": 2504,
+            "h": 293,
+            "sh": 293
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 258,
+            "sw": 258,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "James Bond",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-final-landscape",
+      "result": {
+        "name": "shelves-finished-final-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-final-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=landscape",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 900,
+          "height": 412,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:45.402Z",
+        "sha256": "145a68d0bdae71823c7fa9a021be7fb350146230acc478f2ad95825d6a7ecdcb",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-landscape-small",
+      "result": {
+        "page": "shelves",
+        "layout": "landscape-small",
+        "expected": [
+          792,
+          354
+        ],
+        "actual": [
+          792,
+          354
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 792,
+            "sw": 792,
+            "h": 354,
+            "sh": 3210
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 744,
+            "sw": 744,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "shelf-0-rail",
+            "cls": "rail",
+            "w": 718,
+            "sw": 4544,
+            "h": 337,
+            "sh": 337
+          },
+          {
+            "id": "shelf-1-rail",
+            "cls": "rail",
+            "w": 718,
+            "sw": 2504,
+            "h": 293,
+            "sh": 293
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 258,
+            "sw": 258,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "James Bond",
+            "font": "Fraunces, Georgia, serif",
+            "size": "40px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-final-landscape-small",
+      "result": {
+        "name": "shelves-finished-final-landscape-small",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-final-landscape-small.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 792,
+          "height": 354,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:46.518Z",
+        "sha256": "8d6ac0e1652a12783d0d0e753cc129b84b8f48f3f01ed9d9c8442d7e78be7450",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-desktop-html",
+      "result": {
+        "page": "shelves",
+        "layout": "desktop-html",
+        "expected": [
+          1280,
+          700
+        ],
+        "actual": [
+          1280,
+          700
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [
+          "window-actions"
+        ],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 700,
+            "sh": 2493
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 1152,
+            "sw": 1152,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "shelf-0-rail",
+            "cls": "rail",
+            "w": 1126,
+            "sw": 4544,
+            "h": 337,
+            "sh": 337
+          },
+          {
+            "id": "shelf-1-rail",
+            "cls": "rail",
+            "w": 1126,
+            "sw": 2504,
+            "h": 293,
+            "sh": 293
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 258,
+            "sw": 258,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "James Bond",
+            "font": "Fraunces, Georgia, serif",
+            "size": "72px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-final-desktop-html",
+      "result": {
+        "name": "shelves-finished-final-desktop-html",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-final-desktop-html.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=desktop",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 700,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:47.858Z",
+        "sha256": "0638d5ec12b8f6c7192a3b5d72d10defb3c789fe0c81522894739c5995f44332",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-tablet-portrait",
+      "result": {
+        "page": "shelves",
+        "layout": "tablet-portrait",
+        "expected": [
+          800,
+          1280
+        ],
+        "actual": [
+          800,
+          1280
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 800,
+            "sw": 800,
+            "h": 1280,
+            "sh": 2449
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 672,
+            "sw": 672,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "shelf-0-rail",
+            "cls": "rail",
+            "w": 646,
+            "sw": 4544,
+            "h": 337,
+            "sh": 337
+          },
+          {
+            "id": "shelf-1-rail",
+            "cls": "rail",
+            "w": 646,
+            "sw": 2504,
+            "h": 293,
+            "sh": 293
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 258,
+            "sw": 258,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "James Bond",
+            "font": "Fraunces, Georgia, serif",
+            "size": "72px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-final-tablet-portrait",
+      "result": {
+        "name": "shelves-finished-final-tablet-portrait",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-final-tablet-portrait.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 800,
+          "height": 1280,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:49.343Z",
+        "sha256": "2f16e068864e1079190a1118566ce37e50b7ab27c5c074387be14aa582d4833a",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    },
+    {
+      "op": "goto",
+      "result": {
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "title": "Shelves universe — Colosseum layout study"
+      }
+    },
+    {
+      "op": "eval",
+      "name": "shelves-tablet-landscape",
+      "result": {
+        "page": "shelves",
+        "layout": "tablet-landscape",
+        "expected": [
+          1280,
+          800
+        ],
+        "actual": [
+          1280,
+          800
+        ],
+        "frameCorrect": true,
+        "appOverflow": 0,
+        "missingImages": [],
+        "fonts": [
+          {
+            "family": "Fraunces",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "Switzer",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          },
+          {
+            "family": "UniverseSegoe",
+            "status": "loaded"
+          }
+        ],
+        "windowControls": [],
+        "scrollContainers": [
+          {
+            "id": "pageScroll",
+            "cls": "page-scroll",
+            "w": 1280,
+            "sw": 1280,
+            "h": 800,
+            "sh": 2498
+          },
+          {
+            "id": "",
+            "cls": "continue-cards",
+            "w": 1152,
+            "sw": 1152,
+            "h": 148,
+            "sh": 148
+          },
+          {
+            "id": "shelf-0-rail",
+            "cls": "rail",
+            "w": 1126,
+            "sw": 4544,
+            "h": 337,
+            "sh": 337
+          },
+          {
+            "id": "shelf-1-rail",
+            "cls": "rail",
+            "w": 1126,
+            "sw": 2504,
+            "h": 293,
+            "sh": 293
+          },
+          {
+            "id": "",
+            "cls": "tabs-track",
+            "w": 258,
+            "sw": 258,
+            "h": 36,
+            "sh": 36
+          }
+        ],
+        "headings": [
+          {
+            "text": "James Bond",
+            "font": "Fraunces, Georgia, serif",
+            "size": "72px"
+          }
+        ]
+      }
+    },
+    {
+      "op": "capture",
+      "name": "shelves-finished-final-tablet-landscape",
+      "result": {
+        "name": "shelves-finished-final-tablet-landscape",
+        "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-finished-final-tablet-landscape.png",
+        "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/19-generic-universes/shelves-universe.html?capture=1&v=tablet-land",
+        "browserVersion": "Chrome/156.0.8078.74",
+        "viewport": {
+          "width": 1280,
+          "height": 800,
+          "deviceScaleFactor": 1
+        },
+        "utc": "2026-10-31T23:24:51.032Z",
+        "sha256": "b8fd98f47a9ef6b42b1e17bcb0dd0c551812ad83a881c59b55fd1846af7ef91f",
+        "errors": [
+          {
+            "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+            "error": "Unexpected token ';'"
+          }
+        ],
+        "blocked": []
+      }
+    }
+  ]
+}

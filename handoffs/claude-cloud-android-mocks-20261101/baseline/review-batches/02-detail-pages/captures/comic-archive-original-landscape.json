@@ -1,0 +1,16 @@
+{
+  "name": "comic-archive-original-landscape",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\comic-archive-original-landscape.png",
+  "input": "outputs/18-comic-details/comic-archive.html?capture=1",
+  "url": "http://127.0.0.1:8667/outputs/18-comic-details/comic-archive.html?capture=1",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 900,
+    "height": 412,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T22:58:00.875Z",
+  "sha256": "b81195d0831ee32ca2f6c2efe0b537d30dc6daacf09a253e6ba155489ed1696e",
+  "errors": [],
+  "blocked": []
+}

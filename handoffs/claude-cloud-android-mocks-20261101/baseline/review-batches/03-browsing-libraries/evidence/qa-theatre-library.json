@@ -1,0 +1,167 @@
+{
+  "job": "16-libraries",
+  "name": "theatre-library.html",
+  "checks": [
+    {
+      "name": "Card menu opens within portrait bounds",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 8,
+        "y": 386,
+        "w": 200,
+        "h": 304,
+        "right": 208,
+        "bottom": 690,
+        "visible": true,
+        "client": 302,
+        "scroll": 302
+      },
+      "time": "2026-11-01T00:00:57.800Z"
+    },
+    {
+      "name": "Phone menu starts selection",
+      "pass": true,
+      "time": "2026-11-01T00:00:58.284Z"
+    },
+    {
+      "name": "Invert and Select all operate on visible identities",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "visible": 10,
+        "inverted": 9,
+        "all": 10
+      },
+      "time": "2026-11-01T00:00:59.157Z"
+    },
+    {
+      "name": "Removal confirmation can Keep without losing entries",
+      "pass": true,
+      "time": "2026-11-01T00:00:59.661Z"
+    },
+    {
+      "name": "Confirm remove updates local library and empty state",
+      "pass": true,
+      "time": "2026-11-01T00:01:00.047Z"
+    },
+    {
+      "name": "Card menu scrolls within short landscape",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 8,
+        "y": 108,
+        "w": 200,
+        "h": 142,
+        "right": 208,
+        "bottom": 250,
+        "visible": true,
+        "client": 140,
+        "scroll": 302
+      },
+      "time": "2026-11-01T00:01:01.226Z"
+    },
+    {
+      "name": "Short landscape selection bar uses reserved 72px plus inset",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 0,
+        "y": 258,
+        "w": 792,
+        "h": 96,
+        "right": 792,
+        "bottom": 354,
+        "visible": true,
+        "client": 94,
+        "scroll": 94
+      },
+      "time": "2026-11-01T00:01:01.650Z"
+    },
+    {
+      "name": "Short landscape confirmation fits",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "x": 176,
+        "y": 82.09375,
+        "w": 440,
+        "h": 189.8125,
+        "right": 616,
+        "bottom": 271.90625,
+        "visible": true,
+        "client": 188,
+        "scroll": 188
+      },
+      "time": "2026-11-01T00:01:02.447Z"
+    },
+    {
+      "name": "Wide phone retains selection eligibility",
+      "pass": true,
+      "time": "2026-11-01T00:01:03.630Z"
+    },
+    {
+      "name": "Tablet omits phone selection action",
+      "pass": true,
+      "time": "2026-11-01T00:01:04.574Z"
+    },
+    {
+      "name": "Desktop omits phone selection action",
+      "pass": true,
+      "time": "2026-11-01T00:01:05.434Z"
+    },
+    {
+      "name": "Local library search filters and can clear",
+      "pass": true,
+      "time": "2026-11-01T00:01:06.692Z"
+    },
+    {
+      "name": "Long library wall reaches last row",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "scrollTop": 458,
+        "scrollHeight": 1208,
+        "clientHeight": 750
+      },
+      "time": "2026-11-01T00:01:06.916Z"
+    },
+    {
+      "name": "Pointer hold opens original card menu",
+      "pass": true,
+      "time": "2026-11-01T00:01:08.648Z"
+    },
+    {
+      "name": "Mark watched updates fixture appearance",
+      "pass": true,
+      "time": "2026-11-01T00:01:08.801Z"
+    },
+    {
+      "name": "Enlarged library title reserves exactly two lines",
+      "pass": true,
+      "time": "2026-11-01T00:02:43.344Z"
+    },
+    {
+      "name": "Final fit: enlarged tab labels stay inside their pills",
+      "pass": true,
+      "time": "2026-11-01T00:02:57.953Z"
+    }
+  ],
+  "evidence": [
+    "evidence\\after\\theatre-library\\menu-portrait-stress.png",
+    "evidence\\after\\theatre-library\\selection-portrait-stress.png",
+    "evidence\\after\\theatre-library\\confirm-portrait-stress.png",
+    "evidence\\after\\theatre-library\\empty-after-remove.png",
+    "evidence\\after\\theatre-library\\menu-short-stress.png",
+    "evidence\\after\\theatre-library\\selection-short-stress.png",
+    "evidence\\after\\theatre-library\\confirm-short-stress.png",
+    "evidence\\after\\theatre-library\\menu-desktop.png",
+    "evidence\\after\\theatre-library\\long-content-bottom.png",
+    "evidence\\after\\theatre-library\\marked-watched.png",
+    "evidence\\after\\theatre-library\\two-line-title-stress.png",
+    "evidence\\after\\theatre-library\\tabs-elide-portrait-stress.png"
+  ],
+  "completedAt": "2026-11-01T00:02:58.155Z",
+  "pass": true
+}

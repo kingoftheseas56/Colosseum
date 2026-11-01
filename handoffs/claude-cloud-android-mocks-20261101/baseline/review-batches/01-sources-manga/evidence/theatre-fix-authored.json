@@ -1,0 +1,13 @@
+{
+  "at": "2026-10-31T22:44:49.012193+00:00",
+  "appBefore": "bc23415192a2d6895db1b820e1e04d3c682b85cecb0a0f4e795a8c1f1820c0c9",
+  "appAfter": "7fcb0c6a1689836a3a4488fb5287e32564d398490bc3ffb932225482f10697a0",
+  "changes": [
+    "click-away overlay catches input",
+    "Escape stops propagation; Tab constrained; arrows wrap",
+    "row/context focus restoration",
+    "download/season desktop gold action right aligned",
+    "all four safe inset parameters supported",
+    "phone language chip tokens match frozen original"
+  ]
+}

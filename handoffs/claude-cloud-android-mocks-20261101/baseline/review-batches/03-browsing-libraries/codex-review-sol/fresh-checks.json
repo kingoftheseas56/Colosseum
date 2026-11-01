@@ -1,0 +1,961 @@
+{
+  "started": "2026-11-01T00:33:49.717Z",
+  "hashes": [
+    {
+      "manifest": "INPUT-VERSIONS-START.json",
+      "count": 78,
+      "mismatches": []
+    },
+    {
+      "manifest": "FINAL-ARTIFACT-VERSIONS.json",
+      "count": 47,
+      "mismatches": []
+    },
+    {
+      "manifest": "FINAL-CAPTURE-INPUTS.json",
+      "count": 37,
+      "mismatches": []
+    }
+  ],
+  "pages": [
+    {
+      "page": "biblio-home.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "biblio-home-412x900.png",
+          "title": "Colosseum · Biblio phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "FrauncesLocal",
+            "SegoeLocal",
+            "SegoeLocal"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "biblio-home-900x412.png",
+          "title": "Colosseum · Biblio phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "FrauncesLocal",
+            "SegoeLocal",
+            "SegoeLocal"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "biblio-home-1280x700.png",
+          "title": "Colosseum · Biblio phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "FrauncesLocal",
+            "SegoeLocal",
+            "SegoeLocal"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-discover.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "theatre-discover-412x900.png",
+          "title": "Colosseum · Theatre Discover / faithful phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "theatre-discover-900x412.png",
+          "title": "Colosseum · Theatre Discover / faithful phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "theatre-discover-1280x700.png",
+          "title": "Colosseum · Theatre Discover / faithful phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-catalogue.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "theatre-catalogue-412x900.png",
+          "title": "Theatre Catalogue — Colosseum phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "theatre-catalogue-900x412.png",
+          "title": "Theatre Catalogue — Colosseum phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "theatre-catalogue-1280x700.png",
+          "title": "Theatre Catalogue — Colosseum phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "manga-catalogue.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "manga-catalogue-412x900.png",
+          "title": "Tankoban Manga Catalogue — Colosseum phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "manga-catalogue-900x412.png",
+          "title": "Tankoban Manga Catalogue — Colosseum phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "manga-catalogue-1280x700.png",
+          "title": "Tankoban Manga Catalogue — Colosseum phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "comics-catalogue.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "comics-catalogue-412x900.png",
+          "title": "Tankoban Comics Catalogue — Colosseum phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "comics-catalogue-900x412.png",
+          "title": "Tankoban Comics Catalogue — Colosseum phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "comics-catalogue-1280x700.png",
+          "title": "Tankoban Comics Catalogue — Colosseum phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Colosseum Fraunces",
+            "Colosseum Segoe",
+            "Colosseum Segoe"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-home.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "theatre-home-412x900.png",
+          "title": "Theatre home — Colosseum fitting mock",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "theatre-home-900x412.png",
+          "title": "Theatre home — Colosseum fitting mock",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "theatre-home-1280x700.png",
+          "title": "Theatre home — Colosseum fitting mock",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "tankoban-home.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "tankoban-home-412x900.png",
+          "title": "Tankoban home — Colosseum fitting mock",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "tankoban-home-900x412.png",
+          "title": "Tankoban home — Colosseum fitting mock",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "tankoban-home-1280x700.png",
+          "title": "Tankoban home — Colosseum fitting mock",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "universes-home.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "universes-home-412x900.png",
+          "title": "Universes home — Colosseum fitting mock",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "universes-home-900x412.png",
+          "title": "Universes home — Colosseum fitting mock",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "universes-home-1280x700.png",
+          "title": "Universes home — Colosseum fitting mock",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "theatre-library.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "theatre-library-412x900.png",
+          "title": "Theatre Library · Colosseum Android fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "theatre-library-900x412.png",
+          "title": "Theatre Library · Colosseum Android fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "theatre-library-1280x700.png",
+          "title": "Theatre Library · Colosseum Android fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "tankoban-library.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "tankoban-library-412x900.png",
+          "title": "Tankoban Library · Colosseum Android fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "tankoban-library-900x412.png",
+          "title": "Tankoban Library · Colosseum Android fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "tankoban-library-1280x700.png",
+          "title": "Tankoban Library · Colosseum Android fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "biblio-library.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "biblio-library-412x900.png",
+          "title": "Biblio Library · Colosseum Android fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "biblio-library-900x412.png",
+          "title": "Biblio Library · Colosseum Android fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "biblio-library-1280x700.png",
+          "title": "Biblio Library · Colosseum Android fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "Local Segoe",
+            "Local Segoe",
+            "Fraunces Local"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "search.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "search-412x900.png",
+          "title": "Colosseum · Search surfaces · Phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "search-900x412.png",
+          "title": "Colosseum · Search surfaces · Phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "search-1280x700.png",
+          "title": "Colosseum · Search surfaces · Phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "biblio-explore.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "biblio-explore-412x900.png",
+          "title": "Colosseum · Biblio Explore · Phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "biblio-explore-900x412.png",
+          "title": "Colosseum · Biblio Explore · Phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "biblio-explore-1280x700.png",
+          "title": "Colosseum · Biblio Explore · Phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "genre-index.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "genre-index-412x900.png",
+          "title": "Colosseum · Genre index · Phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "genre-index-900x412.png",
+          "title": "Colosseum · Genre index · Phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "genre-index-1280x700.png",
+          "title": "Colosseum · Genre index · Phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "genre-results.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "genre-results-412x900.png",
+          "title": "Colosseum · Genre results · Phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "genre-results-900x412.png",
+          "title": "Colosseum · Genre results · Phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "genre-results-1280x700.png",
+          "title": "Colosseum · Genre results · Phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    },
+    {
+      "page": "continue-see-all.html",
+      "views": [
+        {
+          "w": 412,
+          "h": 900,
+          "shot": "continue-see-all-412x900.png",
+          "title": "Colosseum · Continue See All · Phone fitting study",
+          "doc": [
+            412,
+            412
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 900,
+          "h": 412,
+          "shot": "continue-see-all-900x412.png",
+          "title": "Colosseum · Continue See All · Phone fitting study",
+          "doc": [
+            900,
+            900
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        },
+        {
+          "w": 1280,
+          "h": 700,
+          "shot": "continue-see-all-1280x700.png",
+          "title": "Colosseum · Continue See All · Phone fitting study",
+          "doc": [
+            1280,
+            1280
+          ],
+          "images": [],
+          "fonts": [
+            "ColosseumSegoe",
+            "ColosseumSegoe",
+            "Fraunces",
+            "Fraunces"
+          ]
+        }
+      ]
+    }
+  ],
+  "checks": [
+    {
+      "name": "theatre-catalogue.html expanding rail and final jump",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 912,
+        "after": 4347
+      }
+    },
+    {
+      "name": "manga-catalogue.html expanding rail and final jump",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 856,
+        "after": 3114
+      }
+    },
+    {
+      "name": "comics-catalogue.html expanding rail and final jump",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 856,
+        "after": 3797
+      }
+    },
+    {
+      "name": "theatre-library.html selection removal",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 10,
+        "after": 0
+      }
+    },
+    {
+      "name": "tankoban-library.html selection removal",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 10,
+        "after": 0
+      }
+    },
+    {
+      "name": "biblio-library.html selection removal",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 8,
+        "after": 0
+      }
+    },
+    {
+      "name": "search query produces empty then matching results",
+      "pass": false,
+      "error": "Node is detached from document"
+    },
+    {
+      "name": "genre view and membership",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "before": 5,
+        "after": 5
+      }
+    },
+    {
+      "name": "continue keyboard menu dismiss focus",
+      "pass": true,
+      "detail": {
+        "pass": true,
+        "menu": true
+      }
+    }
+  ],
+  "resources": [
+    {
+      "url": "http://127.0.0.1:8148/favicon.ico",
+      "status": 404
+    }
+  ],
+  "errors": [],
+  "origin": "http://127.0.0.1:8148",
+  "closed": "2026-11-01T00:35:45.432Z"
+}

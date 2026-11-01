@@ -1,0 +1,313 @@
+{
+  "time": "2026-10-31T23:25:10.268Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/collections.html?capture=1&w=1280&h=700&preset=desktop&state=Editing",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 1280,
+    "h": 700,
+    "outerWidth": 1280,
+    "outerHeight": 700,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device desktop desktop-platform landscape",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 1280,
+          "h": 700,
+          "right": 1280,
+          "bottom": 700
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 0,
+          "y": 56,
+          "w": 1280,
+          "h": 548,
+          "right": 1280,
+          "bottom": 604
+        },
+        "scrollHeight": 1054,
+        "clientHeight": 548
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 1102,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1136,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 1150,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1184,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 1198,
+          "y": 26,
+          "w": 34,
+          "h": 34,
+          "right": 1232,
+          "bottom": 60
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "collectionOverview",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 78,
+          "w": 162.078125,
+          "h": 44,
+          "right": 216.078125,
+          "bottom": 122
+        }
+      },
+      {
+        "text": "Edit collection",
+        "action": "collectionEdit",
+        "disabled": false,
+        "box": {
+          "x": 1024.21875,
+          "y": 146,
+          "w": 149.78125,
+          "h": 44,
+          "right": 1174,
+          "bottom": 190
+        }
+      },
+      {
+        "text": "Delete collection",
+        "action": "collectionDelete",
+        "disabled": false,
+        "box": {
+          "x": 1182,
+          "y": 146,
+          "w": 44,
+          "h": 44,
+          "right": 1226,
+          "bottom": 190
+        }
+      },
+      {
+        "text": "All",
+        "action": "collectionFilter",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 273.59375,
+          "w": 43.8125,
+          "h": 42,
+          "right": 97.8125,
+          "bottom": 315.59375
+        }
+      },
+      {
+        "text": "Books",
+        "action": "collectionFilter",
+        "disabled": false,
+        "box": {
+          "x": 102.8125,
+          "y": 273.59375,
+          "w": 65.34375,
+          "h": 42,
+          "right": 168.15625,
+          "bottom": 315.59375
+        }
+      },
+      {
+        "text": "Series",
+        "action": "collectionFilter",
+        "disabled": false,
+        "box": {
+          "x": 173.15625,
+          "y": 273.59375,
+          "w": 64.28125,
+          "h": 42,
+          "right": 237.4375,
+          "bottom": 315.59375
+        }
+      },
+      {
+        "text": "DuneBook · Frank Herbert",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 364.59375,
+          "w": 212,
+          "h": 340.953125,
+          "right": 266,
+          "bottom": 705.546875
+        }
+      },
+      {
+        "text": "Harry PotterBook · J. K. Rowling",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 294,
+          "y": 364.59375,
+          "w": 212,
+          "h": 340.953125,
+          "right": 506,
+          "bottom": 705.546875
+        }
+      },
+      {
+        "text": "The Lord of the RingsBook · J. R. R. Tolkien",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 534,
+          "y": 364.59375,
+          "w": 212,
+          "h": 340.953125,
+          "right": 746,
+          "bottom": 705.546875
+        }
+      },
+      {
+        "text": "A Song of Ice and FireBook · George R. R. Martin",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 774,
+          "y": 364.59375,
+          "w": 212,
+          "h": 340.953125,
+          "right": 986,
+          "bottom": 705.546875
+        }
+      },
+      {
+        "text": "The WitcherSeries",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 1014,
+          "y": 364.59375,
+          "w": 212,
+          "h": 340.953125,
+          "right": 1226,
+          "bottom": 705.546875
+        }
+      },
+      {
+        "text": "Percy JacksonBook · Rick Riordan",
+        "action": "mediaOpen",
+        "disabled": false,
+        "box": {
+          "x": 54,
+          "y": 733.546875,
+          "w": 212,
+          "h": 340.953125,
+          "right": 266,
+          "bottom": 1074.5
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 66.59375,
+          "y": 629.5,
+          "w": 45,
+          "h": 45,
+          "right": 111.59375,
+          "bottom": 674.5
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 123.59375,
+          "y": 629.5,
+          "w": 45,
+          "h": 45,
+          "right": 168.59375,
+          "bottom": 674.5
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 180.59375,
+          "y": 630.5,
+          "w": 43,
+          "h": 43,
+          "right": 223.59375,
+          "bottom": 673.5
+        }
+      },
+      {
+        "text": "dismissCollectionMessage",
+        "action": "dismissCollectionMessage",
+        "disabled": false,
+        "box": {
+          "x": 905,
+          "y": 541,
+          "w": 44,
+          "h": 44,
+          "right": 949,
+          "bottom": 585
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "8708304ff6c607f400b1adb011c2f5ae7cac7b06a71e32ee58b3cf4794b82110"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "f345c5e555b34d782dee81bd45a21cbac9c35f07551071d4189c05a2c28fae98"
+    }
+  ]
+}

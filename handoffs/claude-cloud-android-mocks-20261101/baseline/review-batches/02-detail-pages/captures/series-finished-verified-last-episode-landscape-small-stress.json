@@ -1,0 +1,21 @@
+{
+  "name": "series-finished-verified-last-episode-landscape-small-stress",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\series-finished-verified-last-episode-landscape-small-stress.png",
+  "input": "review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=jump-open&scale=1.3&top=24&bottom=24",
+  "url": "http://127.0.0.1:8667/review-batches/02-detail-pages/finished-mocks/17-theatre-details/series-detail.html?capture=1&state=jump-open&scale=1.3&top=24&bottom=24",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 792,
+    "height": 354,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:43:52.222Z",
+  "sha256": "0064eb8714d450cfb65c8750444618cae342e5498ed3df600b1472db42b9d102",
+  "errors": [
+    {
+      "input": "review-batches/02-detail-pages/finished-mocks/19-generic-universes/saga-universe.html?capture=1&v=portrait",
+      "error": "Unexpected token ';'"
+    }
+  ],
+  "blocked": []
+}

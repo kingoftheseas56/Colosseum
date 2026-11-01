@@ -1,0 +1,65 @@
+{
+  "batch": "05-tracker-utilities",
+  "title": "Tracker and utilities",
+  "pageCount": 7,
+  "purpose": "Independent mock review input manifest; not a worker registry or acceptance record.",
+  "reviewStatus": "not-started",
+  "references": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  },
+  "batchRoot": "D:\\Colosseum-Android-Phone-Mocks-20261101",
+  "ownedReviewOutput": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\05-tracker-utilities",
+  "jobs": [
+    {
+      "task": "21-tracker-connections",
+      "title": "Latest approved tracker Connections and dossiers",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-21-TRACKER-CONNECTIONS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\21-tracker-connections",
+      "pages": [
+        "tracker-connections.html",
+        "tracker-dossier.html",
+        "tracker-preferences.html"
+      ],
+      "sources": [
+        "TrackerSyncCenterPage.qml",
+        "SettingsScaffold.qml"
+      ]
+    },
+    {
+      "task": "22-utilities-collections",
+      "title": "Wallpaper, extensions store, update and collections surfaces",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-22-UTILITIES-COLLECTIONS.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\22-utilities-collections",
+      "pages": [
+        "wallpaper-search.html",
+        "extensions-store.html",
+        "update.html",
+        "collections.html"
+      ],
+      "sources": [
+        "WallpaperSearch.qml",
+        "ExtensionsStorePage.qml",
+        "ExtensionsInstalledPage.qml",
+        "UpdatePage.qml",
+        "collections/CollectionsPanel.qml",
+        "collections/YourCollectionsPage.qml",
+        "CollectionGrid.qml",
+        "CollectionMenu.qml"
+      ]
+    }
+  ]
+}

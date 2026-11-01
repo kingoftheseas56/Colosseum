@@ -1,0 +1,386 @@
+{
+  "time": "2026-10-31T23:43:45.904Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/tracker-dossier.html?capture=1&w=354&h=792&fontScale=1.3&top=24&bottom=24&provider=mal",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 354,
+    "h": 792,
+    "outerWidth": 354,
+    "outerHeight": 792,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "app-window",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      },
+      {
+        "class": "dossier",
+        "box": {
+          "x": 18,
+          "y": 42,
+          "w": 318,
+          "h": 708,
+          "right": 336,
+          "bottom": 750
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "MAIN",
+        "class": "page-scroll",
+        "id": "pageScroll",
+        "box": {
+          "x": 0,
+          "y": 84,
+          "w": 354,
+          "h": 684,
+          "right": 354,
+          "bottom": 768
+        },
+        "scrollHeight": 1963,
+        "clientHeight": 684
+      },
+      {
+        "tag": "DIV",
+        "class": "dossier-scroll",
+        "id": "dossierScroll",
+        "box": {
+          "x": 19,
+          "y": 131,
+          "w": 316,
+          "h": 618,
+          "right": 335,
+          "bottom": 749
+        },
+        "scrollHeight": 955,
+        "clientHeight": 618
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Back",
+        "action": "back",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 38,
+          "w": 78.8125,
+          "h": 34,
+          "right": 100.8125,
+          "bottom": 72
+        }
+      },
+      {
+        "text": "Minimize",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Exit fullscreen",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Quit Colosseum",
+        "action": "window-control",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Preferences",
+        "action": "preferences",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 200.875,
+          "w": 139.9375,
+          "h": 48,
+          "right": 161.9375,
+          "bottom": 248.875
+        }
+      },
+      {
+        "text": "Sync all",
+        "action": "sync-all",
+        "disabled": false,
+        "box": {
+          "x": 169.9375,
+          "y": 200.875,
+          "w": 108.5,
+          "h": 48,
+          "right": 278.4375,
+          "bottom": 248.875
+        }
+      },
+      {
+        "text": "Simkl, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 640.828125,
+          "w": 310,
+          "h": 162.734375,
+          "right": 332,
+          "bottom": 803.5625
+        }
+      },
+      {
+        "text": "MyAnimeList, Confirmed",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 817.5625,
+          "w": 310,
+          "h": 162.734375,
+          "right": 332,
+          "bottom": 980.296875
+        }
+      },
+      {
+        "text": "Simkl, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1064.921875,
+          "w": 310,
+          "h": 126,
+          "right": 332,
+          "bottom": 1190.921875
+        }
+      },
+      {
+        "text": "MyAnimeList, Connected",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1202.921875,
+          "w": 310,
+          "h": 126,
+          "right": 332,
+          "bottom": 1328.921875
+        }
+      },
+      {
+        "text": "Trakt, Connect",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1340.921875,
+          "w": 310,
+          "h": 126,
+          "right": 332,
+          "bottom": 1466.921875
+        }
+      },
+      {
+        "text": "AniList, Coming soon",
+        "action": "open-provider",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1478.921875,
+          "w": 310,
+          "h": 126,
+          "right": 332,
+          "bottom": 1604.921875
+        }
+      },
+      {
+        "text": "Open settings ›",
+        "action": "open-stremio",
+        "disabled": false,
+        "box": {
+          "x": 171,
+          "y": 1844.3125,
+          "w": 142,
+          "h": 40,
+          "right": 313,
+          "bottom": 1884.3125
+        }
+      },
+      {
+        "text": "Colosseum taskbar",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "action": "dock-route",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Close tracker details",
+        "action": "close-dossier",
+        "disabled": false,
+        "box": {
+          "x": 279,
+          "y": 66.5,
+          "w": 40,
+          "h": 40,
+          "right": 319,
+          "bottom": 106.5
+        }
+      },
+      {
+        "text": "Disconnect from this profile",
+        "action": "disconnect",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 412.328125,
+          "w": 206.171875,
+          "h": 46.296875,
+          "right": 243.171875,
+          "bottom": 458.625
+        }
+      },
+      {
+        "text": "Remove imported data",
+        "action": "remove-data",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 467.625,
+          "w": 175.203125,
+          "h": 46.296875,
+          "right": 212.203125,
+          "bottom": 513.921875
+        }
+      },
+      {
+        "text": "Review import",
+        "action": "review-import",
+        "disabled": false,
+        "box": {
+          "x": 183.109375,
+          "y": 699.96875,
+          "w": 119.890625,
+          "h": 46.296875,
+          "right": 303,
+          "bottom": 746.265625
+        }
+      },
+      {
+        "text": "Pull changes automatically",
+        "action": "toggle",
+        "disabled": false,
+        "box": {
+          "x": 37,
+          "y": 864.265625,
+          "w": 280,
+          "h": 58,
+          "right": 317,
+          "bottom": 922.265625
+        }
+      },
+      {
+        "text": "Send Colosseum progress",
+        "action": "toggle",
+        "disabled": true,
+        "box": {
+          "x": 37,
+          "y": 922.265625,
+          "w": 280,
+          "h": 58,
+          "right": 317,
+          "bottom": 980.265625
+        }
+      },
+      {
+        "text": "Live playback tracking",
+        "action": "toggle",
+        "disabled": true,
+        "box": {
+          "x": 37,
+          "y": 990.265625,
+          "w": 280,
+          "h": 58,
+          "right": 317,
+          "bottom": 1048.265625
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker-dossier.html",
+      "sha256": "490fb73920546a08b9e8e8cefa8cfc870145cd968a7facb6e1ab9337dffd0149"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.css",
+      "sha256": "8b89def585359c6407a231de063b3431348a0ecad6be90b26a110b5014fc46b4"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/tracker.js",
+      "sha256": "f9b0de416b8cfc9ad76ecae3c235691d7be8c1ae1f6327e1cf3517d7334b37a4"
+    }
+  ]
+}

@@ -1,0 +1,1719 @@
+{
+  "at": "2026-10-31T23:47:56.429Z",
+  "captures": 171,
+  "emptyInputHashes": [],
+  "mismatchedCaptures": [],
+  "failedAssetsOrScripts": [],
+  "records": [
+    {
+      "image": "evidence/after-tracker-connections-portrait.png",
+      "receipt": "evidence/after-tracker-connections-portrait.json",
+      "at": "2026-10-31T23:41:58.200Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-landscape.png",
+      "receipt": "evidence/after-tracker-connections-landscape.json",
+      "at": "2026-10-31T23:41:59.405Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-compact.png",
+      "receipt": "evidence/after-tracker-connections-compact.json",
+      "at": "2026-10-31T23:42:00.264Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-compactland.png",
+      "receipt": "evidence/after-tracker-connections-compactland.json",
+      "at": "2026-10-31T23:42:02.926Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-desktop.png",
+      "receipt": "evidence/after-tracker-connections-desktop.json",
+      "at": "2026-10-31T23:42:04.365Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-tablet.png",
+      "receipt": "evidence/after-tracker-connections-tablet.json",
+      "at": "2026-10-31T23:42:05.729Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-tabletland.png",
+      "receipt": "evidence/after-tracker-connections-tabletland.json",
+      "at": "2026-10-31T23:42:06.748Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-compact-stress.png",
+      "receipt": "evidence/after-tracker-connections-compact-stress.json",
+      "at": "2026-10-31T23:42:07.560Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-connections-compactland-stress.png",
+      "receipt": "evidence/after-tracker-connections-compactland-stress.json",
+      "at": "2026-10-31T23:42:08.436Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-portrait.png",
+      "receipt": "evidence/after-tracker-dossier-portrait.json",
+      "at": "2026-10-31T23:42:09.662Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-landscape.png",
+      "receipt": "evidence/after-tracker-dossier-landscape.json",
+      "at": "2026-10-31T23:42:10.498Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-compact.png",
+      "receipt": "evidence/after-tracker-dossier-compact.json",
+      "at": "2026-10-31T23:42:11.149Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-compactland.png",
+      "receipt": "evidence/after-tracker-dossier-compactland.json",
+      "at": "2026-10-31T23:42:11.875Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-desktop.png",
+      "receipt": "evidence/after-tracker-dossier-desktop.json",
+      "at": "2026-10-31T23:42:12.886Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-tablet.png",
+      "receipt": "evidence/after-tracker-dossier-tablet.json",
+      "at": "2026-10-31T23:42:14.102Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-tabletland.png",
+      "receipt": "evidence/after-tracker-dossier-tabletland.json",
+      "at": "2026-10-31T23:42:15.429Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-compact-stress.png",
+      "receipt": "evidence/after-tracker-dossier-compact-stress.json",
+      "at": "2026-10-31T23:42:16.176Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-dossier-compactland-stress.png",
+      "receipt": "evidence/after-tracker-dossier-compactland-stress.json",
+      "at": "2026-10-31T23:42:17.012Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-portrait.png",
+      "receipt": "evidence/after-tracker-preferences-portrait.json",
+      "at": "2026-10-31T23:42:18.113Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-landscape.png",
+      "receipt": "evidence/after-tracker-preferences-landscape.json",
+      "at": "2026-10-31T23:42:19.161Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-compact.png",
+      "receipt": "evidence/after-tracker-preferences-compact.json",
+      "at": "2026-10-31T23:42:19.889Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-compactland.png",
+      "receipt": "evidence/after-tracker-preferences-compactland.json",
+      "at": "2026-10-31T23:42:20.915Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-desktop.png",
+      "receipt": "evidence/after-tracker-preferences-desktop.json",
+      "at": "2026-10-31T23:42:21.695Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-tablet.png",
+      "receipt": "evidence/after-tracker-preferences-tablet.json",
+      "at": "2026-10-31T23:42:22.624Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-tabletland.png",
+      "receipt": "evidence/after-tracker-preferences-tabletland.json",
+      "at": "2026-10-31T23:42:23.347Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-compact-stress.png",
+      "receipt": "evidence/after-tracker-preferences-compact-stress.json",
+      "at": "2026-10-31T23:42:24.242Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-tracker-preferences-compactland-stress.png",
+      "receipt": "evidence/after-tracker-preferences-compactland-stress.json",
+      "at": "2026-10-31T23:42:25.216Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-portrait.png",
+      "receipt": "evidence/after-wallpaper-search-portrait.json",
+      "at": "2026-10-31T23:42:29.927Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-landscape.png",
+      "receipt": "evidence/after-wallpaper-search-landscape.json",
+      "at": "2026-10-31T23:42:34.535Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-compact.png",
+      "receipt": "evidence/after-wallpaper-search-compact.json",
+      "at": "2026-10-31T23:42:39.761Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-compactland.png",
+      "receipt": "evidence/after-wallpaper-search-compactland.json",
+      "at": "2026-10-31T23:42:45.199Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-desktop.png",
+      "receipt": "evidence/after-wallpaper-search-desktop.json",
+      "at": "2026-10-31T23:42:49.701Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-tablet.png",
+      "receipt": "evidence/after-wallpaper-search-tablet.json",
+      "at": "2026-10-31T23:42:55.118Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-tabletland.png",
+      "receipt": "evidence/after-wallpaper-search-tabletland.json",
+      "at": "2026-10-31T23:42:58.584Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-compact-stress.png",
+      "receipt": "evidence/after-wallpaper-search-compact-stress.json",
+      "at": "2026-10-31T23:43:00.369Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-wallpaper-search-compactland-stress.png",
+      "receipt": "evidence/after-wallpaper-search-compactland-stress.json",
+      "at": "2026-10-31T23:43:01.590Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-portrait.png",
+      "receipt": "evidence/after-extensions-store-portrait.json",
+      "at": "2026-10-31T23:43:03.257Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-landscape.png",
+      "receipt": "evidence/after-extensions-store-landscape.json",
+      "at": "2026-10-31T23:43:04.528Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-compact.png",
+      "receipt": "evidence/after-extensions-store-compact.json",
+      "at": "2026-10-31T23:43:05.743Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-compactland.png",
+      "receipt": "evidence/after-extensions-store-compactland.json",
+      "at": "2026-10-31T23:43:07.203Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-desktop.png",
+      "receipt": "evidence/after-extensions-store-desktop.json",
+      "at": "2026-10-31T23:43:09.187Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-tablet.png",
+      "receipt": "evidence/after-extensions-store-tablet.json",
+      "at": "2026-10-31T23:43:10.673Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-tabletland.png",
+      "receipt": "evidence/after-extensions-store-tabletland.json",
+      "at": "2026-10-31T23:43:12.180Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-compact-stress.png",
+      "receipt": "evidence/after-extensions-store-compact-stress.json",
+      "at": "2026-10-31T23:43:13.454Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-extensions-store-compactland-stress.png",
+      "receipt": "evidence/after-extensions-store-compactland-stress.json",
+      "at": "2026-10-31T23:43:15.018Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-portrait.png",
+      "receipt": "evidence/after-update-portrait.json",
+      "at": "2026-10-31T23:43:16.546Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-landscape.png",
+      "receipt": "evidence/after-update-landscape.json",
+      "at": "2026-10-31T23:43:17.798Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-compact.png",
+      "receipt": "evidence/after-update-compact.json",
+      "at": "2026-10-31T23:43:18.853Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-compactland.png",
+      "receipt": "evidence/after-update-compactland.json",
+      "at": "2026-10-31T23:43:19.913Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-desktop.png",
+      "receipt": "evidence/after-update-desktop.json",
+      "at": "2026-10-31T23:43:20.994Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-tablet.png",
+      "receipt": "evidence/after-update-tablet.json",
+      "at": "2026-10-31T23:43:23.068Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-tabletland.png",
+      "receipt": "evidence/after-update-tabletland.json",
+      "at": "2026-10-31T23:43:24.592Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-compact-stress.png",
+      "receipt": "evidence/after-update-compact-stress.json",
+      "at": "2026-10-31T23:43:25.626Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-update-compactland-stress.png",
+      "receipt": "evidence/after-update-compactland-stress.json",
+      "at": "2026-10-31T23:43:26.799Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-portrait.png",
+      "receipt": "evidence/after-collections-portrait.json",
+      "at": "2026-10-31T23:43:28.661Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-landscape.png",
+      "receipt": "evidence/after-collections-landscape.json",
+      "at": "2026-10-31T23:43:30.046Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-compact.png",
+      "receipt": "evidence/after-collections-compact.json",
+      "at": "2026-10-31T23:43:31.258Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-compactland.png",
+      "receipt": "evidence/after-collections-compactland.json",
+      "at": "2026-10-31T23:43:33.999Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-desktop.png",
+      "receipt": "evidence/after-collections-desktop.json",
+      "at": "2026-10-31T23:43:35.899Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-tablet.png",
+      "receipt": "evidence/after-collections-tablet.json",
+      "at": "2026-10-31T23:43:37.874Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-tabletland.png",
+      "receipt": "evidence/after-collections-tabletland.json",
+      "at": "2026-10-31T23:43:39.581Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-compact-stress.png",
+      "receipt": "evidence/after-collections-compact-stress.json",
+      "at": "2026-10-31T23:43:40.492Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/after-collections-compactland-stress.png",
+      "receipt": "evidence/after-collections-compactland-stress.json",
+      "at": "2026-10-31T23:43:41.520Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-connections-disconnected-portrait.png",
+      "receipt": "evidence/state-tracker-connections-disconnected-portrait.json",
+      "at": "2026-10-31T23:43:42.610Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-connections-disconnected-landscape.png",
+      "receipt": "evidence/state-tracker-connections-disconnected-landscape.json",
+      "at": "2026-10-31T23:43:43.485Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-connections-attention-portrait.png",
+      "receipt": "evidence/state-tracker-connections-attention-portrait.json",
+      "at": "2026-10-31T23:43:44.495Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-connections-attention-landscape.png",
+      "receipt": "evidence/state-tracker-connections-attention-landscape.json",
+      "at": "2026-10-31T23:43:45.151Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-mal-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-mal-portrait.json",
+      "at": "2026-10-31T23:43:45.904Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-mal-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-mal-landscape.json",
+      "at": "2026-10-31T23:43:46.527Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-trakt-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-trakt-portrait.json",
+      "at": "2026-10-31T23:43:47.276Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-trakt-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-trakt-landscape.json",
+      "at": "2026-10-31T23:43:48.270Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-anilist-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-anilist-portrait.json",
+      "at": "2026-10-31T23:43:49.094Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-anilist-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-anilist-landscape.json",
+      "at": "2026-10-31T23:43:49.923Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-import-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-import-portrait.json",
+      "at": "2026-10-31T23:43:50.832Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-import-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-import-landscape.json",
+      "at": "2026-10-31T23:43:51.639Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-export-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-export-portrait.json",
+      "at": "2026-10-31T23:43:52.326Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-export-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-export-landscape.json",
+      "at": "2026-10-31T23:43:53.022Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-disconnect-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-disconnect-portrait.json",
+      "at": "2026-10-31T23:43:53.627Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-disconnect-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-disconnect-landscape.json",
+      "at": "2026-10-31T23:43:54.409Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-remove-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-remove-portrait.json",
+      "at": "2026-10-31T23:43:55.400Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-remove-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-remove-landscape.json",
+      "at": "2026-10-31T23:43:55.996Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-bulk-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-bulk-portrait.json",
+      "at": "2026-10-31T23:43:56.627Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-bulk-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-bulk-landscape.json",
+      "at": "2026-10-31T23:43:58.092Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-match-portrait.png",
+      "receipt": "evidence/state-tracker-dossier-match-portrait.json",
+      "at": "2026-10-31T23:43:59.427Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-tracker-dossier-match-landscape.png",
+      "receipt": "evidence/state-tracker-dossier-match-landscape.json",
+      "at": "2026-10-31T23:44:00.208Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-wallpaper-search-selected-keyboard-portrait.png",
+      "receipt": "evidence/state-wallpaper-search-selected-keyboard-portrait.json",
+      "at": "2026-10-31T23:44:02.196Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-wallpaper-search-selected-keyboard-landscape.png",
+      "receipt": "evidence/state-wallpaper-search-selected-keyboard-landscape.json",
+      "at": "2026-10-31T23:44:03.938Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-wallpaper-search-search-portrait.png",
+      "receipt": "evidence/state-wallpaper-search-search-portrait.json",
+      "at": "2026-10-31T23:44:06.752Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-wallpaper-search-search-landscape.png",
+      "receipt": "evidence/state-wallpaper-search-search-landscape.json",
+      "at": "2026-10-31T23:44:09.065Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-search-portrait.png",
+      "receipt": "evidence/state-extensions-store-search-portrait.json",
+      "at": "2026-10-31T23:44:11.555Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-search-landscape.png",
+      "receipt": "evidence/state-extensions-store-search-landscape.json",
+      "at": "2026-10-31T23:44:12.875Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-your-add-ons-portrait.png",
+      "receipt": "evidence/state-extensions-store-your-add-ons-portrait.json",
+      "at": "2026-10-31T23:44:14.032Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-your-add-ons-landscape.png",
+      "receipt": "evidence/state-extensions-store-your-add-ons-landscape.json",
+      "at": "2026-10-31T23:44:15.009Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-dialog-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-dialog-portrait.json",
+      "at": "2026-10-31T23:44:16.107Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-dialog-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-dialog-landscape.json",
+      "at": "2026-10-31T23:44:16.968Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-ready-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-ready-portrait.json",
+      "at": "2026-10-31T23:44:18.005Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-ready-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-ready-landscape.json",
+      "at": "2026-10-31T23:44:19.026Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-preview-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-preview-portrait.json",
+      "at": "2026-10-31T23:44:20.223Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-preview-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-preview-landscape.json",
+      "at": "2026-10-31T23:44:21.901Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-complete-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-complete-portrait.json",
+      "at": "2026-10-31T23:44:23.400Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-complete-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-complete-landscape.json",
+      "at": "2026-10-31T23:44:24.341Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-setup-portrait.png",
+      "receipt": "evidence/state-extensions-store-setup-portrait.json",
+      "at": "2026-10-31T23:44:25.284Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-setup-landscape.png",
+      "receipt": "evidence/state-extensions-store-setup-landscape.json",
+      "at": "2026-10-31T23:44:26.699Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-remove-confirmation-portrait.png",
+      "receipt": "evidence/state-extensions-store-remove-confirmation-portrait.json",
+      "at": "2026-10-31T23:44:27.900Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-remove-confirmation-landscape.png",
+      "receipt": "evidence/state-extensions-store-remove-confirmation-landscape.json",
+      "at": "2026-10-31T23:44:28.729Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-see-all-portrait.png",
+      "receipt": "evidence/state-extensions-store-see-all-portrait.json",
+      "at": "2026-10-31T23:44:29.828Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-see-all-landscape.png",
+      "receipt": "evidence/state-extensions-store-see-all-landscape.json",
+      "at": "2026-10-31T23:44:30.692Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-ready-keyboard-portrait.png",
+      "receipt": "evidence/state-extensions-store-url-ready-keyboard-portrait.json",
+      "at": "2026-10-31T23:44:31.621Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-url-ready-keyboard-landscape.png",
+      "receipt": "evidence/state-extensions-store-url-ready-keyboard-landscape.json",
+      "at": "2026-10-31T23:44:32.570Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-setup-keyboard-portrait.png",
+      "receipt": "evidence/state-extensions-store-setup-keyboard-portrait.json",
+      "at": "2026-10-31T23:44:34.142Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-store-setup-keyboard-landscape.png",
+      "receipt": "evidence/state-extensions-store-setup-keyboard-landscape.json",
+      "at": "2026-10-31T23:44:35.315Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-idle-portrait.png",
+      "receipt": "evidence/state-update-idle-portrait.json",
+      "at": "2026-10-31T23:44:36.099Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-idle-landscape.png",
+      "receipt": "evidence/state-update-idle-landscape.json",
+      "at": "2026-10-31T23:44:36.948Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-checking-portrait.png",
+      "receipt": "evidence/state-update-checking-portrait.json",
+      "at": "2026-10-31T23:44:38.022Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-checking-landscape.png",
+      "receipt": "evidence/state-update-checking-landscape.json",
+      "at": "2026-10-31T23:44:39.224Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-uptodate-portrait.png",
+      "receipt": "evidence/state-update-uptodate-portrait.json",
+      "at": "2026-10-31T23:44:41.447Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-uptodate-landscape.png",
+      "receipt": "evidence/state-update-uptodate-landscape.json",
+      "at": "2026-10-31T23:44:42.573Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-available-portrait.png",
+      "receipt": "evidence/state-update-available-portrait.json",
+      "at": "2026-10-31T23:44:43.711Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-available-landscape.png",
+      "receipt": "evidence/state-update-available-landscape.json",
+      "at": "2026-10-31T23:44:44.499Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-downloading-portrait.png",
+      "receipt": "evidence/state-update-downloading-portrait.json",
+      "at": "2026-10-31T23:44:45.697Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-downloading-landscape.png",
+      "receipt": "evidence/state-update-downloading-landscape.json",
+      "at": "2026-10-31T23:44:46.536Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-paused-portrait.png",
+      "receipt": "evidence/state-update-paused-portrait.json",
+      "at": "2026-10-31T23:44:47.664Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-paused-landscape.png",
+      "receipt": "evidence/state-update-paused-landscape.json",
+      "at": "2026-10-31T23:44:53.993Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-verifying-portrait.png",
+      "receipt": "evidence/state-update-verifying-portrait.json",
+      "at": "2026-10-31T23:44:55.714Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-verifying-landscape.png",
+      "receipt": "evidence/state-update-verifying-landscape.json",
+      "at": "2026-10-31T23:44:57.810Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-ready-portrait.png",
+      "receipt": "evidence/state-update-ready-portrait.json",
+      "at": "2026-10-31T23:44:59.010Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-ready-landscape.png",
+      "receipt": "evidence/state-update-ready-landscape.json",
+      "at": "2026-10-31T23:45:00.624Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-installing-portrait.png",
+      "receipt": "evidence/state-update-installing-portrait.json",
+      "at": "2026-10-31T23:45:01.636Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-installing-landscape.png",
+      "receipt": "evidence/state-update-installing-landscape.json",
+      "at": "2026-10-31T23:45:02.807Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-recoverableerror-portrait.png",
+      "receipt": "evidence/state-update-recoverableerror-portrait.json",
+      "at": "2026-10-31T23:45:04.181Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-recoverableerror-landscape.png",
+      "receipt": "evidence/state-update-recoverableerror-landscape.json",
+      "at": "2026-10-31T23:45:05.338Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-verificationfailure-portrait.png",
+      "receipt": "evidence/state-update-verificationfailure-portrait.json",
+      "at": "2026-10-31T23:45:06.312Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-verificationfailure-landscape.png",
+      "receipt": "evidence/state-update-verificationfailure-landscape.json",
+      "at": "2026-10-31T23:45:08.254Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-manualupdaterequired-portrait.png",
+      "receipt": "evidence/state-update-manualupdaterequired-portrait.json",
+      "at": "2026-10-31T23:45:09.251Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-update-manualupdaterequired-landscape.png",
+      "receipt": "evidence/state-update-manualupdaterequired-landscape.json",
+      "at": "2026-10-31T23:45:10.111Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-detail-portrait.png",
+      "receipt": "evidence/state-collections-detail-portrait.json",
+      "at": "2026-10-31T23:45:11.933Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-detail-landscape.png",
+      "receipt": "evidence/state-collections-detail-landscape.json",
+      "at": "2026-10-31T23:45:12.960Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-editing-portrait.png",
+      "receipt": "evidence/state-collections-editing-portrait.json",
+      "at": "2026-10-31T23:45:13.973Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-editing-landscape.png",
+      "receipt": "evidence/state-collections-editing-landscape.json",
+      "at": "2026-10-31T23:45:14.904Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-new-collection-portrait.png",
+      "receipt": "evidence/state-collections-new-collection-portrait.json",
+      "at": "2026-10-31T23:45:16.325Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-new-collection-landscape.png",
+      "receipt": "evidence/state-collections-new-collection-landscape.json",
+      "at": "2026-10-31T23:45:18.367Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-add-to-collections-portrait.png",
+      "receipt": "evidence/state-collections-add-to-collections-portrait.json",
+      "at": "2026-10-31T23:45:19.655Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-add-to-collections-landscape.png",
+      "receipt": "evidence/state-collections-add-to-collections-landscape.json",
+      "at": "2026-10-31T23:45:20.818Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-delete-collection-portrait.png",
+      "receipt": "evidence/state-collections-delete-collection-portrait.json",
+      "at": "2026-10-31T23:45:21.520Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-delete-collection-landscape.png",
+      "receipt": "evidence/state-collections-delete-collection-landscape.json",
+      "at": "2026-10-31T23:45:22.551Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-discard-edits-portrait.png",
+      "receipt": "evidence/state-collections-discard-edits-portrait.json",
+      "at": "2026-10-31T23:45:23.482Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-discard-edits-landscape.png",
+      "receipt": "evidence/state-collections-discard-edits-landscape.json",
+      "at": "2026-10-31T23:45:24.519Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-empty-collection-portrait.png",
+      "receipt": "evidence/state-collections-empty-collection-portrait.json",
+      "at": "2026-10-31T23:45:25.418Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-empty-collection-landscape.png",
+      "receipt": "evidence/state-collections-empty-collection-landscape.json",
+      "at": "2026-10-31T23:45:26.494Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-empty-overview-portrait.png",
+      "receipt": "evidence/state-collections-empty-overview-portrait.json",
+      "at": "2026-10-31T23:45:28.435Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-empty-overview-landscape.png",
+      "receipt": "evidence/state-collections-empty-overview-landscape.json",
+      "at": "2026-10-31T23:45:29.913Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-editing-keyboard-portrait.png",
+      "receipt": "evidence/state-collections-editing-keyboard-portrait.json",
+      "at": "2026-10-31T23:45:31.000Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-editing-keyboard-landscape.png",
+      "receipt": "evidence/state-collections-editing-keyboard-landscape.json",
+      "at": "2026-10-31T23:45:32.274Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-new-collection-keyboard-portrait.png",
+      "receipt": "evidence/state-collections-new-collection-keyboard-portrait.json",
+      "at": "2026-10-31T23:45:33.325Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-new-collection-keyboard-landscape.png",
+      "receipt": "evidence/state-collections-new-collection-keyboard-landscape.json",
+      "at": "2026-10-31T23:45:34.381Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-add-to-collections-keyboard-portrait.png",
+      "receipt": "evidence/state-collections-add-to-collections-keyboard-portrait.json",
+      "at": "2026-10-31T23:45:35.063Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-collections-add-to-collections-keyboard-landscape.png",
+      "receipt": "evidence/state-collections-add-to-collections-keyboard-landscape.json",
+      "at": "2026-10-31T23:45:35.785Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-tracker-connections-portrait.png",
+      "receipt": "evidence/scroll-tracker-connections-portrait.json",
+      "at": "2026-10-31T23:45:36.555Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-tracker-dossier-portrait.png",
+      "receipt": "evidence/scroll-tracker-dossier-portrait.json",
+      "at": "2026-10-31T23:45:37.347Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-wallpaper-search-portrait.png",
+      "receipt": "evidence/scroll-wallpaper-search-portrait.json",
+      "at": "2026-10-31T23:45:41.895Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-collections-portrait.png",
+      "receipt": "evidence/scroll-collections-portrait.json",
+      "at": "2026-10-31T23:45:42.754Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-extensions-store-portrait.png",
+      "receipt": "evidence/scroll-extensions-store-portrait.json",
+      "at": "2026-10-31T23:45:45.082Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-update-portrait.png",
+      "receipt": "evidence/scroll-update-portrait.json",
+      "at": "2026-10-31T23:45:49.812Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-tracker-connections-landscape.png",
+      "receipt": "evidence/scroll-tracker-connections-landscape.json",
+      "at": "2026-10-31T23:45:50.452Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-tracker-dossier-landscape.png",
+      "receipt": "evidence/scroll-tracker-dossier-landscape.json",
+      "at": "2026-10-31T23:45:51.080Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-wallpaper-search-landscape.png",
+      "receipt": "evidence/scroll-wallpaper-search-landscape.json",
+      "at": "2026-10-31T23:45:53.288Z",
+      "inputCount": 4,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-collections-landscape.png",
+      "receipt": "evidence/scroll-collections-landscape.json",
+      "at": "2026-10-31T23:45:54.729Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-extensions-store-landscape.png",
+      "receipt": "evidence/scroll-extensions-store-landscape.json",
+      "at": "2026-10-31T23:45:56.754Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/scroll-update-landscape.png",
+      "receipt": "evidence/scroll-update-landscape.json",
+      "at": "2026-10-31T23:45:58.091Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-text-menu-portrait.png",
+      "receipt": "evidence/state-extensions-text-menu-portrait.json",
+      "at": "2026-10-31T23:45:59.804Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    },
+    {
+      "image": "evidence/state-extensions-text-menu-landscape.png",
+      "receipt": "evidence/state-extensions-text-menu-landscape.json",
+      "at": "2026-10-31T23:46:01.042Z",
+      "inputCount": 3,
+      "mismatches": [],
+      "errors": [],
+      "missing": [],
+      "blocked": []
+    }
+  ]
+}

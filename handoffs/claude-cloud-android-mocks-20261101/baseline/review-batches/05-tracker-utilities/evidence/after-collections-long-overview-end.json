@@ -1,0 +1,742 @@
+{
+  "time": "2026-10-31T23:41:51.539Z",
+  "url": "http://127.0.0.1:13213/review-batches/05-tracker-utilities/finished-mocks/collections.html?capture=1&w=354&h=792&fontScale=1.3&top=24&bottom=24&keyboard=0&state=Overview&long=1",
+  "browser": "Edg/156.0.4314.50",
+  "metrics": {
+    "w": 354,
+    "h": 792,
+    "outerWidth": 354,
+    "outerHeight": 792,
+    "fonts": "loaded",
+    "missingImages": [],
+    "roots": [
+      {
+        "class": "device phone android portrait text-enlarged",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      },
+      {
+        "class": "app-surface collections-page",
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 354,
+          "h": 792,
+          "right": 354,
+          "bottom": 792
+        }
+      }
+    ],
+    "scrolls": [
+      {
+        "tag": "DIV",
+        "class": "collections-scroll scroll-y",
+        "id": "",
+        "box": {
+          "x": 0,
+          "y": 63,
+          "w": 354,
+          "h": 691,
+          "right": 354,
+          "bottom": 754
+        },
+        "scrollHeight": 15615,
+        "clientHeight": 691
+      }
+    ],
+    "buttons": [
+      {
+        "text": "Minimize",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Fullscreen",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Power",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Back",
+        "action": "collectionExit",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -12141,
+          "w": 310,
+          "h": 44,
+          "right": 332,
+          "bottom": -12097
+        }
+      },
+      {
+        "text": "New collection",
+        "action": "collectionNew",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -11866.546875,
+          "w": 172.390625,
+          "h": 44,
+          "right": 194.390625,
+          "bottom": -11822.546875
+        }
+      },
+      {
+        "text": "Open The worlds I keep coming back to, even after the last chapter, 46 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -11781.546875,
+          "w": 310,
+          "h": 352.625,
+          "right": 332,
+          "bottom": -11428.921875
+        }
+      },
+      {
+        "text": "Open Stories worth revisiting, 4 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -11404.921875,
+          "w": 310,
+          "h": 300,
+          "right": 332,
+          "bottom": -11104.921875
+        }
+      },
+      {
+        "text": "Open Mysteries and detectives, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -11080.921875,
+          "w": 310,
+          "h": 300,
+          "right": 332,
+          "bottom": -10780.921875
+        }
+      },
+      {
+        "text": "Open The worlds I keep coming back to, even after the last chapter, 3 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -10756.921875,
+          "w": 310,
+          "h": 352.625,
+          "right": 332,
+          "bottom": -10404.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 1, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -10380.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -10058.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 2, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -10034.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -9712.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 3, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -9688.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -9367.046875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 4, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -9343.046875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -9021.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 5, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -8997.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -8675.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 6, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -8651.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -8329.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 7, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -8305.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -7984.046875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 8, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -7960.046875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -7638.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 9, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -7614.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -7292.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 10, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -7268.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -6946.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 11, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -6922.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -6601.046875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 12, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -6577.046875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -6255.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 13, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -6231.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -5909.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 14, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -5885.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -5563.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 15, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -5539.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -5218.046875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 16, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -5194.046875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -4872.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 17, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -4848.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -4526.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 18, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -4502.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -4180.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 19, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -4156.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -3835.046875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 20, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -3811.046875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -3489.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 21, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -3465.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -3143.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 22, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -3119.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -2797.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 23, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -2773.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -2452.046875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 24, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -2428.046875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -2106.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 25, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -2082.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -1760.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 26, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -1736.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -1414.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 27, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -1390.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -1069.046875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 28, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -1045.046875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -723.296875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 29, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -699.296875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -377.546875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 30, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -353.546875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": -31.796875
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 31, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": -7.796875,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 313.953125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 32, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 337.953125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 659.703125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 33, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 683.703125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 1005.453125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 34, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1029.453125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 1351.203125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 35, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1375.203125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 1696.953125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 36, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 1720.953125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 2042.703125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 37, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2066.703125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 2388.453125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 38, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2412.453125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 2734.203125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 39, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 2758.203125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 3079.953125
+        }
+      },
+      {
+        "text": "Open Worlds worth returning to — collection 40, 2 titles",
+        "action": "openCollection",
+        "disabled": false,
+        "box": {
+          "x": 22,
+          "y": 3103.953125,
+          "w": 310,
+          "h": 321.75,
+          "right": 332,
+          "bottom": 3425.703125
+        }
+      },
+      {
+        "text": "Open taskbar",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Vault",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      },
+      {
+        "text": "Your Collections",
+        "disabled": false,
+        "box": {
+          "x": 0,
+          "y": 0,
+          "w": 0,
+          "h": 0,
+          "right": 0,
+          "bottom": 0
+        }
+      }
+    ]
+  },
+  "errors": [],
+  "blocked": [],
+  "inputHashes": [
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/collections.html",
+      "sha256": "38f4dde7db78629d68d2581583b3a2dc0b2e4e9cb126f0a7ee8cded3efcdff61"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.css",
+      "sha256": "30eb2943c402a7c4a2c716548cd433edbdde9dd58d825c00d8b45686d0de96cf"
+    },
+    {
+      "path": "review-batches/05-tracker-utilities/finished-mocks/utilities.js",
+      "sha256": "0c66f373ccb984250a8eb340f223b80c44b0be749bb6aa7d92c83691379fbf93"
+    }
+  ]
+}

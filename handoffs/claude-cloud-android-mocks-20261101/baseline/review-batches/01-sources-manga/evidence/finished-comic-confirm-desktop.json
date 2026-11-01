@@ -1,0 +1,279 @@
+{
+  "captured_at": "2026-10-31T22:52:28.057Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks/02-comic-sources",
+  "file": "comic-source-confirmation.html",
+  "viewport": {
+    "width": 1280,
+    "height": 700
+  },
+  "params": {
+    "capture": 1,
+    "vw": 1280,
+    "vh": 700
+  },
+  "png": "captures/finished-comic-confirm-desktop.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 1280,
+      "height": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 54,
+          "y": 30,
+          "width": 64,
+          "height": 44,
+          "right": 118,
+          "bottom": 74
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<div id=\"weakLayer\" class=\"weak-layer\" aria-hidden=\"false\"><div class=\"weak-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"warningTitle\"><p id=\"warningTitle\" class=\"warning\">This release doe"
+      },
+      {
+        "tag": "INPUT",
+        "id": "queryInput",
+        "class": "query-input",
+        "text": "",
+        "label": "Search another title or ISBN",
+        "disabled": false,
+        "rect": {
+          "x": 54,
+          "y": 320,
+          "width": 1038,
+          "height": 56,
+          "right": 1092,
+          "bottom": 376
+        },
+        "radius": "14px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<p id=\"pendingRelease\" class=\"pending-release\">Batman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]</p>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "search-button",
+        "text": "Search",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 1106,
+          "y": 326,
+          "width": 120,
+          "height": 44,
+          "right": 1226,
+          "bottom": 370
+        },
+        "radius": "14px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<div id=\"weakLayer\" class=\"weak-layer\" aria-hidden=\"false\"><div class=\"weak-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"warningTitle\"><p id=\"warningTitle\" class=\"warning\">This release doe"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "P\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Batman #404-407 [CBZ] [Digital]\nFORMAT RANGE\nISSUES\nTRUSTED · ComicsArchive\n456 MB   ·   ",
+        "label": "Choose Batman - Year One (1987) Batman #404-407 [CBZ] [Digital]",
+        "rect": {
+          "x": 55,
+          "y": 449,
+          "width": 1170,
+          "height": 150,
+          "right": 1225,
+          "bottom": 599
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<div id=\"weakLayer\" class=\"weak-layer\" aria-hidden=\"false\"><div class=\"weak-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"warningTitle\"><p id=\"warningTitle\" class=\"warning\">This release doe"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "E\nExtraTorrents\nWEAK MATCH\nBatman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]\n1.3 GB\n↓",
+        "label": "Choose Batman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]",
+        "rect": {
+          "x": 55,
+          "y": 599,
+          "width": 1170,
+          "height": 150,
+          "right": 1225,
+          "bottom": 749
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<div id=\"weakLayer\" class=\"weak-layer\" aria-hidden=\"false\"><div class=\"weak-dialog\" role=\"dialog\" aria-modal=\"true\" aria-labelledby=\"warningTitle\"><p id=\"warningTitle\" class=\"warning\">This release doe"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "T\nTorrents-CSV\nPOSSIBLE MATCH\nBatman Year One Deluxe 1987-1988 [CBR] Four Issue Edition\nFORMAT RANGE\n398 MB   ·   👤 26\n↓",
+        "label": "Choose Batman Year One Deluxe 1987-1988 [CBR] Four Issue Edition",
+        "rect": {
+          "x": 55,
+          "y": 749,
+          "width": 1170,
+          "height": 150,
+          "right": 1225,
+          "bottom": 899
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "source-row",
+        "text": "P\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Complete #404 #405 #406 #407 [CBZ] [Digital Remaster] Very Long Release Name\nFORMAT RANGE",
+        "label": "Choose Batman - Year One (1987) Complete #404 #405 #406 #407 [CBZ] [Digital Remaster] Very Long Release Name",
+        "rect": {
+          "x": 55,
+          "y": 899,
+          "width": 1170,
+          "height": 150,
+          "right": 1225,
+          "bottom": 1049
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "option-btn",
+        "text": "Go back",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 607,
+          "y": 376.734375,
+          "width": 120,
+          "height": 44,
+          "right": 727,
+          "bottom": 420.734375
+        },
+        "radius": "12px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"option-btn\" data-action=\"cancel-weak\">Go back</button>"
+      },
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "option-btn gold-btn",
+        "text": "Choose anyway",
+        "label": null,
+        "disabled": false,
+        "rect": {
+          "x": 741,
+          "y": 376.734375,
+          "width": 150,
+          "height": 44,
+          "right": 891,
+          "bottom": 420.734375
+        },
+        "radius": "12px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "15px",
+        "hit": "<button type=\"button\" class=\"option-btn gold-btn\" data-action=\"confirm-weak\">Choose anyway</button>"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "rowsScroll",
+        "class": "rows-scroll",
+        "rect": {
+          "x": 55,
+          "y": 445,
+          "width": 1170,
+          "height": 228,
+          "right": 1225,
+          "bottom": 673
+        },
+        "scrollTop": 0,
+        "maxScroll": 384,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\nSearch\n4 results\nPirate Bay · ExtraTorrents · Torrents-CSV\nP\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Batman #404-407 [CBZ] [Digital]\nFORMAT RANGE\nISSUES\nTRUSTED · ComicsArchive\n456 MB   ·   👤 83\n↓\nE\nExtraTorrents\nWEAK MATCH\nBatman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]\n1.3 GB\n↓\nT\nTorrents-CSV\nPOSSIBLE MATCH\nBatman Year One Deluxe 1987-1988 [CBR] Four Issue Edition\nFORMAT RANGE\n398 MB   ·   👤 26\n↓\nP\nPirate Bay\nSTRONG MATCH\nBatman - Year One (1987) Complete #404 #405 #406 #407 [CBZ] [Digital Remaster] Very Long Release Name\nFORMAT RANGE\nISSUES\nTRUSTED · ComicsArchive\n512 MB   ·   👤 17\n↓\n\nThis release does not closely match the collected edition.\n\nBatman - Gotham Knights (2000-2001) #001-012 Complete Digital Remaster [CBR] [HQ Scans] [English]\n\nGo back\nChoose anyway",
+    "fonts": [
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "unloaded"
+      },
+      {
+        "family": "Colosseum Fraunces",
+        "status": "loaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\comic-source-confirmation.html",
+      "bytes": 364,
+      "sha256": "284a6da39c9f0d2ee5bb35de1f7c99d8e754f782cff1679eeeb4c36364d7b4c3"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\style.css",
+      "bytes": 16984,
+      "sha256": "d88357e1af6b1fee8c5b41de50465e28379be4b7b760b67de300a6d8fe5f3c83"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\app.js",
+      "bytes": 17670,
+      "sha256": "bfec63a176004a06def8806759f9d8867c66c81ad5f340896c2d4e74a1edf97b"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\dcau\\portals\\gotham.jpg",
+      "bytes": 3637,
+      "sha256": "070d01527b1903a4f5c861066517e2649363b4f27a44cc41cd70232d97795701"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    }
+  ],
+  "extra": {}
+}

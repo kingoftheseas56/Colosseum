@@ -1,0 +1,2562 @@
+[
+  {
+    "page": "biblio-home.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-home.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-home\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-home.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-home\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-home.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-home\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "universes-home.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\universes-home\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-library.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-library\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "tankoban-library.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\tankoban-library\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-library.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-library\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "search.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\search\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "biblio-explore.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\biblio-explore\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-index.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-index\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "genre-results.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\genre-results\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "continue-see-all.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\continue-see-all\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-catalogue.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-catalogue\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "manga-catalogue.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\manga-catalogue\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "comics-catalogue.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\comics-catalogue\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 412,
+      "h": 900,
+      "right": 412,
+      "bottom": 900
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "desktop",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\desktop.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 700,
+      "right": 1280,
+      "bottom": 700
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "compact-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\compact-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "compact-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\compact-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "tablet-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\tablet-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 800,
+      "h": 1280,
+      "right": 800,
+      "bottom": 1280
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "tablet-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\tablet-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 1280,
+      "h": 800,
+      "right": 1280,
+      "bottom": 800
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "stress-portrait",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\stress-portrait.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 354,
+      "h": 792,
+      "right": 354,
+      "bottom": 792
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "stress-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\stress-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 792,
+      "h": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  },
+  {
+    "page": "theatre-discover.html",
+    "tag": "stress-wide-landscape",
+    "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries\\evidence\\after\\theatre-discover\\stress-wide-landscape.png",
+    "root": {
+      "x": 0,
+      "y": 0,
+      "w": 900,
+      "h": 412,
+      "right": 900,
+      "bottom": 412
+    },
+    "overflow": false,
+    "missing": 0,
+    "errors": []
+  }
+]

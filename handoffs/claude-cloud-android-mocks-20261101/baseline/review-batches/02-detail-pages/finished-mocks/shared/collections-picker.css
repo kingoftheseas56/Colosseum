@@ -1,0 +1,37 @@
+@font-face{font-family:BatchFraunces;src:url("../../../../reference/desktop/assets/fonts/Fraunces-Regular.ttf")}
+@font-face{font-family:BatchSegoe;src:url("../../../../reference/local-fonts/segoeui.ttf");font-weight:400}
+@font-face{font-family:BatchSegoe;src:url("../../../../reference/local-fonts/seguisb.ttf");font-weight:600}
+.cp-overlay{position:absolute;inset:0;z-index:1000;background:rgba(0,2,9,.706);padding:16px;display:flex;align-items:center;justify-content:center;color:#f7f7f5;font:calc(14px * var(--cp-scale,1)) BatchSegoe,"Segoe UI",sans-serif;isolation:isolate}
+.cp-overlay *{box-sizing:border-box}.cp-overlay [hidden]{display:none!important}
+.cp-dialog{background:#171b26;border:1px solid #ffffff38;border-radius:18px;width:min(560px,100%);max-height:100%;overflow:auto;overscroll-behavior:contain;padding:26px;display:flex;flex-direction:column;gap:12px;scrollbar-width:thin;scrollbar-color:#ffffff44 transparent;container-type:inline-size}
+.cp-dialog>*{flex-shrink:0;min-width:0}.cp-header{display:flex;align-items:center;gap:12px}.cp-header h2{flex:1;font:calc(29px * var(--cp-scale,1))/1.15 BatchFraunces,serif;color:#f7f7f5;margin:0;overflow-wrap:anywhere}
+.cp-overlay svg{width:20px;height:20px;flex:none}.cp-button{font:600 calc(14px * var(--cp-scale,1)) BatchSegoe,sans-serif;display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:44px;padding:8px 16px;border:1px solid transparent;border-radius:10px;background:transparent;color:#f7f7f5;cursor:pointer}
+.cp-button:hover{background:#ffffff18}.cp-close{width:36px;min-height:36px;height:36px;padding:8px;flex:none;position:relative}.cp-close:before{content:"";position:absolute;inset:-4px}
+.cp-note{margin:0;color:#9a99a5;font-size:calc(13px * var(--cp-scale,1));line-height:1.45}
+.cp-media{display:flex;align-items:center;gap:14px;padding:10px;min-height:78px;border-radius:10px;background:#ffffff08}.cp-media>img{width:39px;height:58px;object-fit:cover;flex:none}.cp-media>div{min-width:0;flex:1}.cp-media strong{display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:calc(16px * var(--cp-scale,1));font-weight:600}
+.cp-media small{display:block;margin-top:4px;color:#9a99a5;font-size:calc(12px * var(--cp-scale,1))}.cp-media>svg{color:#9a99a5}
+.cp-search{position:relative;min-height:44px}.cp-search>svg{position:absolute;left:14px;top:14px;width:17px;height:17px;color:#9a99a5}
+.cp-search input{width:100%;min-width:0;min-height:44px;border:1px solid #ffffff2e;border-radius:10px;color:#f7f7f5;background:#ffffff0b;padding:10px 40px;font:inherit}
+.cp-search input::placeholder,.cp-create input::placeholder{color:#9a99a5}.cp-clear{position:absolute;right:4px;top:5px;width:34px;min-height:34px;height:34px;padding:7px}
+.cp-memberships{min-height:110px;max-height:300px;overflow:auto;overscroll-behavior:contain;scrollbar-width:thin}
+.cp-membership{display:flex;align-items:center;gap:14px;width:100%;min-height:70px;text-align:left;padding:8px 12px 8px 10px;background:transparent;border:1px solid transparent;border-radius:10px;color:#f7f7f5;font:inherit;cursor:pointer}
+.cp-membership+.cp-membership{margin-top:4px}.cp-membership:hover{background:#ffffff12}.cp-membership[aria-checked=true]{background:#f0c44a15;border-color:#f0c44a40}
+.cp-cover{width:48px;height:52px;flex:none;border-radius:5px;overflow:hidden;background:#ffffff1a;display:grid;place-items:center}.cp-cover img{width:100%;height:100%;object-fit:cover}
+.cp-row-copy{min-width:0;flex:1;display:flex;flex-direction:column;gap:3px}.cp-row-copy strong{white-space:nowrap;overflow:hidden;text-overflow:ellipsis;font-size:calc(15px * var(--cp-scale,1));font-weight:600}.cp-row-copy small{color:#9a99a5;font-size:calc(12px * var(--cp-scale,1))}
+.cp-check{width:22px;height:22px;border-radius:6px;flex:none;border:1px solid #ffffff66;display:grid;place-items:center}.cp-check svg{width:16px;height:16px}
+.cp-membership[aria-checked=true] .cp-check{background:#f0c44a;border-color:#f0c44a;color:#15130c}
+.cp-new{width:100%}.cp-empty{text-align:center;color:#9a99a5;font-size:calc(14px * var(--cp-scale,1));line-height:1.5}
+.cp-create{display:flex;flex-direction:column;gap:8px}.cp-create label{font-size:calc(13px * var(--cp-scale,1));color:#c9c8d0}.cp-create input{width:100%;min-height:46px;border:1px solid #ffffff2e;border-radius:9px;background:#080b12;color:#f7f7f5;padding:10px 13px;font:calc(15px * var(--cp-scale,1)) BatchSegoe,sans-serif}
+.cp-error{min-height:34px;margin:0;color:#e5a4a4;font-size:calc(13px * var(--cp-scale,1));line-height:1.4}
+.cp-footer{display:flex;align-items:center;justify-content:flex-end;gap:10px;border-top:1px solid #ffffff1c;padding-top:12px}.cp-private{margin-right:auto;color:#9a99a5;font-size:calc(12px * var(--cp-scale,1))}.cp-primary{background:#f0c44a;color:#17140a}.cp-primary:hover{background:#f7d67c}
+.cp-overlay button:focus-visible,.cp-overlay input:focus-visible{outline:2px solid #f0c44a;outline-offset:-1px}
+@container(max-width:420px){.cp-header h2{font-size:calc(25px * var(--cp-scale,1))}.cp-private{display:none}}
+
+
+/* Preserve the shared component inside worker pages with ID-scoped button resets. */
+#app .cp-overlay .cp-button{font:600 calc(14px * var(--cp-scale,1)) BatchSegoe,sans-serif;color:#f7f7f5;background:transparent;border:1px solid transparent}
+#app .cp-overlay .cp-button:hover{background:#ffffff18}
+#app .cp-overlay .cp-primary{background:#f0c44a;color:#17140a}
+#app .cp-overlay .cp-primary:hover{background:#f7d67c}
+#app .cp-overlay .cp-membership{background:transparent;border:1px solid transparent;color:#f7f7f5;font:inherit}
+#app .cp-overlay .cp-membership[aria-checked=true]{background:#f0c44a15;border-color:#f0c44a40}

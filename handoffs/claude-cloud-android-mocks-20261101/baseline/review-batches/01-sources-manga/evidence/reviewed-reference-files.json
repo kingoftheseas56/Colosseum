@@ -1,0 +1,306 @@
+{
+  "recorded_at": "2026-10-31T23:42:59.902730+00:00",
+  "note": "Supplemental file hashes for sources and resources actually referenced/read; declared snapshot pins remain in INPUTS.json. Files not in the start inventory are not retroactively claimed to have start hashes.",
+  "files": [
+    {
+      "path": "reference/desktop/assets/extensions/house/starwars-banner.jpg",
+      "bytes": 500855,
+      "sha256": "f77aed3b2b5d1b65279055d49a7e2d2171ccca2b5fdb3dab670fbee1835201a6"
+    },
+    {
+      "path": "reference/desktop/assets/fonts/Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference/desktop/assets/icons/colosseum.ico",
+      "bytes": 28715,
+      "sha256": "b61b14bf4e3a005a39f35855cb0123eca6aa4de09fe19810656bf53cd11a2eeb"
+    },
+    {
+      "path": "reference/desktop/assets/icons/comic-book.svg",
+      "bytes": 536,
+      "sha256": "899b22dd3a501b123bb48d28b20636a32f967b9399f32e25439083f9c323bc47"
+    },
+    {
+      "path": "reference/desktop/assets/icons/download.svg",
+      "bytes": 238,
+      "sha256": "49bdfb176bf6a8fe8b008e88b4597500c4d4fc90a2014d06445c63791d089b67"
+    },
+    {
+      "path": "reference/desktop/assets/icons/fullscreen.svg",
+      "bytes": 305,
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a"
+    },
+    {
+      "path": "reference/desktop/assets/icons/lucide/bookmark-check.svg",
+      "bytes": 398,
+      "sha256": "112bb653bfb1f064d3eec929466aeb9e579aaca2167677ce09c1618c3953a69c"
+    },
+    {
+      "path": "reference/desktop/assets/icons/lucide/bookmark-plus.svg",
+      "bytes": 456,
+      "sha256": "c1e7430f0fc81bbbc361c1e12111021d0a401a1c84a565b0d8c02f6f42856c6c"
+    },
+    {
+      "path": "reference/desktop/assets/icons/minimize.svg",
+      "bytes": 183,
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee"
+    },
+    {
+      "path": "reference/desktop/assets/icons/power.svg",
+      "bytes": 215,
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5"
+    },
+    {
+      "path": "reference/desktop/assets/icons/settings.svg",
+      "bytes": 296,
+      "sha256": "be11c362a2ca3acca8634af162570ded82ad14a790aa616b68a00374565e77b4"
+    },
+    {
+      "path": "reference/desktop/assets/universes/dcau/portals/gotham.jpg",
+      "bytes": 3637,
+      "sha256": "070d01527b1903a4f5c861066517e2649363b4f27a44cc41cd70232d97795701"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/banners/romance.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/canon/arlong-park.png",
+      "bytes": 3298285,
+      "sha256": "9e0d403fb8324d3094031b995c61be161721476b1271fffa5f213c7c2743c7e9"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/canon/baratie.png",
+      "bytes": 3362230,
+      "sha256": "d14ffb38157a46646442e330e6fd53d63a700898f939e282c5d1c75d6cbeabf5"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/canon/loguetown.png",
+      "bytes": 3525891,
+      "sha256": "28fc9ccefdab2444b54fc6d55c854cf7c1671280878129527c0698be71837dde"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/canon/orange-town.png",
+      "bytes": 1469896,
+      "sha256": "d87f36ce8e6c303a8970e44f48b248d8e5323727285bd11822bdadcb5f2a8cae"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/canon/romance-dawn.png",
+      "bytes": 826209,
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/canon/syrup-village.png",
+      "bytes": 4604348,
+      "sha256": "547e46629d6a38f4f4532b31b493c3a9715b933072eaef7f3860da978a558169"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/noncanon/01-ganzack.png",
+      "bytes": 3726579,
+      "sha256": "024920fec9db49e162c66ccab008e4f125a73a6f67882c27f5e01f2b8cec3f1d"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/noncanon/02-one-piece-movie.png",
+      "bytes": 982829,
+      "sha256": "0ed1620094d23dfb4b4f5326ccff5bc464227d66d2fdc6690ba4011d393c377b"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/noncanon/03-oceans-navel.png",
+      "bytes": 186051,
+      "sha256": "0138c405ff0964bd652928a3a929161f28636ed4a042353aa6cfb2e77bd4a7bd"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/noncanon/04-jangos-dance-carnival.png",
+      "bytes": 1307186,
+      "sha256": "37d2f6996d7eabdc26c7f844ac126aceaa9dc4e80c64c3e01a16b2b624a324a4"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/east-blue/noncanon/05-clockwork-island.png",
+      "bytes": 1992330,
+      "sha256": "ccb9eb602ed4f251a4e114c219931425b956df94d88fb79e8aba9f15eb927575"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/final-sea/banners/egghead.png",
+      "bytes": 8789112,
+      "sha256": "5daad5e1c48e41aa0cd7ae1e895c94d8a4dffd2bc712664a2a8bec06955b1bc6"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/new-world/banners/dressrosa.png",
+      "bytes": 1012220,
+      "sha256": "f4afe358f2d9032238caebeabc3362ef9c653d863181283c19ad780c46bf9381"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/new-world/banners/wano-country.png",
+      "bytes": 2999160,
+      "sha256": "83d403c5334b5f4aa32b00aedc0489f7973443f739f38f9fb5985d777a7d66fb"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/new-world/banners/whole-cake-island.png",
+      "bytes": 1548145,
+      "sha256": "acc08800918791fb48c448782761c5537abd05ac77eb6e388591c410eaec5c85"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/badges/arabasta.png",
+      "bytes": 239559,
+      "sha256": "41b8678349257541ffb5daa1efcb5e8aa5c9c82b9e9bcaf34c3599db90c4558f"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/badges/enies-lobby.png",
+      "bytes": 285077,
+      "sha256": "7ce9f7e3918da9e391489b113003286dd27f70fc622fe93de135815406e9ec31"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/badges/skypiea.png",
+      "bytes": 194887,
+      "sha256": "2fc240cf927f796e1c84e9e8e46bda069911d347d728dffcdea5760744ba019a"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/badges/water-7.png",
+      "bytes": 235088,
+      "sha256": "582326b2020cc663d6a0982b9a2ee869b0f7363712bddaa6ce295c800108d8fd"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/banners/arabasta.png",
+      "bytes": 2587818,
+      "sha256": "1a413dcf6c80aa66b2d2ae8ba8956c675643989954ec70094c1b002eee92076f"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/banners/enies-lobby.png",
+      "bytes": 4564234,
+      "sha256": "a5ca1040406d5d722408c2538365cafd9c52eb1ce2f48b7892924c5e5b171daa"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/banners/marineford.png",
+      "bytes": 2728014,
+      "sha256": "78a5a96a30ac12bb783a04ae6fb9e5a8c02e64fad9bc528e68f28d44e49c7009"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/banners/skypiea.png",
+      "bytes": 1380785,
+      "sha256": "8f31f51f098917e677ec02950d706f9abe0ee5ec7933e96367cf4f70b19687b6"
+    },
+    {
+      "path": "reference/desktop/assets/universes/one-piece/paradise/banners/water-7.png",
+      "bytes": 3414747,
+      "sha256": "f8983a04c32525dee988daf98211df3014600857ae77c3ba428c5c33f7cd5774"
+    },
+    {
+      "path": "reference/desktop/assets/universes/star-wars/nevarro.jpg",
+      "bytes": 324669,
+      "sha256": "1a2fdd66d12c86fa5d5f847f1d0865a8324687074e6cbf99b34e952d7c396518"
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/captured-motion.jpg",
+      "bytes": 1019877,
+      "sha256": "9f56f69ee6d80fcd612e8ff43f23ed9744114868575a873f840191ddbdd48289"
+    },
+    {
+      "path": "reference/desktop/assets/wallpaper/cold-ripple.jpg",
+      "bytes": 460861,
+      "sha256": "e53040f1ed25876fc96a0dd5ec6554b81b778adf69e803443d6c6d3d59b15e8c"
+    },
+    {
+      "path": "reference/desktop/qml/BackAction.qml",
+      "bytes": 7742,
+      "sha256": "e33aa23a915b09a152bf271cb36cae191bad2294f0ce8314eb731f4132dd1b69"
+    },
+    {
+      "path": "reference/desktop/qml/collections/CollectionIcon.qml",
+      "bytes": 3290,
+      "sha256": "1275f606542436bdbe9b7a304c34fe3f6474791a2212550180d1a34a21507234"
+    },
+    {
+      "path": "reference/desktop/qml/ComicTorrentArchivePicker.qml",
+      "bytes": 6264,
+      "sha256": "4bda78fe877a2394a18b8ccb5cfb86f565c5a15387d3584c18ec9dd830720877"
+    },
+    {
+      "path": "reference/desktop/qml/ComicTorrentSourcesPage.qml",
+      "bytes": 37702,
+      "sha256": "1010f1a29a59c221cc61883e3a8a587e64d56a306bc3da7ff1744f8fa75c9e70"
+    },
+    {
+      "path": "reference/desktop/qml/Main.qml",
+      "bytes": 341875,
+      "sha256": "9baeea5bb4cd053d2a8eb310ccd847a9ddbf0b234b6b5c819277f41510d8fa54"
+    },
+    {
+      "path": "reference/desktop/qml/MangaChapterSeriesView.qml",
+      "bytes": 31897,
+      "sha256": "952ef63b3dc13c84187d07760799d765e8ec757d411d3aa1dd88f187608a5230"
+    },
+    {
+      "path": "reference/desktop/qml/MangaReadingRoom.qml",
+      "bytes": 7955,
+      "sha256": "795e3e753e4fa80c5ebbb9563a7ce04286c5ff710c98bc03c75d5f86f38f9057"
+    },
+    {
+      "path": "reference/desktop/qml/MangaReadingRoomThumbnailMock.qml",
+      "bytes": 15781,
+      "sha256": "c756770bbac216dfd9f50df28594b4177600d6a210d41dd0db8214d54e147594"
+    },
+    {
+      "path": "reference/desktop/qml/MangaSeries.qml",
+      "bytes": 68089,
+      "sha256": "3172904cd5e2320bd65a293879aa48c444eb5f36cfd6aeea8f2ef54df533c1da"
+    },
+    {
+      "path": "reference/desktop/qml/MangaSeriesSharedHeader.qml",
+      "bytes": 21380,
+      "sha256": "a557460923212a04655d65e125479d5fa200a12b5db40442de9e3f1fcb89c5b4"
+    },
+    {
+      "path": "reference/desktop/qml/MangaTankobanLibrary.qml",
+      "bytes": 49917,
+      "sha256": "13e65215237a40087ebc475b0190a8cb7e1a9aea785d14fa919698d20d664f8e"
+    },
+    {
+      "path": "reference/desktop/qml/MangaTankobanLibraryThumbnailMock.qml",
+      "bytes": 63579,
+      "sha256": "499226cfdc3f49769e018b99463fbbfcc7a798ace5d6cafe42baeda1c428e790"
+    },
+    {
+      "path": "reference/desktop/qml/MangaTankobanSourcesPage.qml",
+      "bytes": 46628,
+      "sha256": "7c11a629a311ed387d97c1f9ec9d48bcb5c03768a53623708b1e0b323574dbec"
+    },
+    {
+      "path": "reference/desktop/qml/SourcesSheet.qml",
+      "bytes": 60021,
+      "sha256": "54c08547e4315d3e246d47f1df5543e299d8a9babeb71da69f53169587d829b7"
+    },
+    {
+      "path": "reference/desktop/qml/TankobanChapterList.qml",
+      "bytes": 32496,
+      "sha256": "76ecb3101fb147898945f414e5bc8b9b1ff6d62cd31ec2e1776891eac2d48a6b"
+    },
+    {
+      "path": "reference/desktop/qml/TankobanSeriesView.qml",
+      "bytes": 84807,
+      "sha256": "de2fc3681422d571c808e1b57741a6f5fd4ed3768c65bdb8b7f3b43f759a1290"
+    },
+    {
+      "path": "reference/desktop/qml/Theme.qml",
+      "bytes": 1920,
+      "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495"
+    },
+    {
+      "path": "reference/local-fonts/segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference/local-fonts/segoeuib.ttf",
+      "bytes": 947364,
+      "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2"
+    },
+    {
+      "path": "reference/local-fonts/seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    }
+  ]
+}

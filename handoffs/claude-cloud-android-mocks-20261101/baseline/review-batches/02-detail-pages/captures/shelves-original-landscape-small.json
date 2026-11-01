@@ -1,0 +1,16 @@
+{
+  "name": "shelves-original-landscape-small",
+  "file": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\02-detail-pages\\captures\\shelves-original-landscape-small.png",
+  "input": "outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+  "url": "http://127.0.0.1:8667/outputs/19-generic-universes/shelves-universe.html?capture=1&v=narrow-land",
+  "browserVersion": "Chrome/156.0.8078.74",
+  "viewport": {
+    "width": 792,
+    "height": 354,
+    "deviceScaleFactor": 1
+  },
+  "utc": "2026-10-31T23:06:59.199Z",
+  "sha256": "fb99b336c652033b22ddd563810a48388977d549f2a20a514ae774262df4d8ee",
+  "errors": [],
+  "blocked": []
+}

@@ -1,0 +1,38 @@
+{
+  "formatVersion": 1,
+  "purpose": "One Piece New World atlas runtime round badges",
+  "lookup": "<arcId>.png",
+  "canvasPx": 512,
+  "badges": [
+    {
+      "arcId": "fish-man-island",
+      "file": "fish-man-island.png"
+    },
+    {
+      "arcId": "punk-hazard",
+      "file": "punk-hazard.png"
+    },
+    {
+      "arcId": "dressrosa",
+      "file": "dressrosa.png"
+    },
+    {
+      "arcId": "zou",
+      "file": "zou.png"
+    },
+    {
+      "arcId": "whole-cake-island",
+      "file": "whole-cake-island.png"
+    },
+    {
+      "arcId": "reverie",
+      "file": "reverie.png",
+      "mapMarker": false
+    },
+    {
+      "arcId": "wano-country",
+      "file": "wano-country.png"
+    }
+  ],
+  "sourcePack": "Arc 58 / prototypes/new-world-native-atlas/assets/round-badges"
+}

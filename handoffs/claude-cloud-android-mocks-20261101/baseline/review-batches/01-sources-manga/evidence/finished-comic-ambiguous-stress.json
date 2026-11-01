@@ -1,0 +1,203 @@
+{
+  "captured_at": "2026-10-31T22:52:22.370Z",
+  "job": "../review-batches/01-sources-manga/finished-mocks/02-comic-sources",
+  "file": "comic-sources.html",
+  "viewport": {
+    "width": 792,
+    "height": 354
+  },
+  "params": {
+    "capture": 1,
+    "vw": 792,
+    "vh": 354,
+    "state": "ambiguous",
+    "top": 24,
+    "bottom": 24,
+    "scale": 1.3
+  },
+  "png": "captures/finished-comic-ambiguous-stress.png",
+  "metrics": {
+    "app": {
+      "x": 0,
+      "y": 0,
+      "width": 792,
+      "height": 354,
+      "right": 792,
+      "bottom": 354
+    },
+    "bodyOverflowX": 0,
+    "images": [],
+    "controls": [
+      {
+        "tag": "BUTTON",
+        "id": "",
+        "class": "back-action",
+        "text": "Back",
+        "label": "Back",
+        "disabled": false,
+        "rect": {
+          "x": 20,
+          "y": 32,
+          "width": 71.8125,
+          "height": 44,
+          "right": 91.8125,
+          "bottom": 76
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "19.5px",
+        "hit": "<span>Back</span>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "archive-row",
+        "text": "CBZ\nBatman_404-407_Year_One.cbz\n318.4 MB\n↓",
+        "label": "Choose Batman_Year_One_Collected/Batman_404-407_Year_One.cbz",
+        "rect": {
+          "x": 21,
+          "y": 163.421875,
+          "width": 750,
+          "height": 80,
+          "right": 771,
+          "bottom": 243.421875
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<div class=\"archive-copy\"><div class=\"archive-name\">Batman_404-407_Year_One.cbz</div><div class=\"archive-size\">318.4 MB</div></div>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "archive-row",
+        "text": "CBR\nBatman_Year_One_extra_pages.cbr\n426.7 MB\n↓",
+        "label": "Choose Batman_Year_One_Collected/Batman_Year_One_extra_pages.cbr",
+        "rect": {
+          "x": 21,
+          "y": 243.421875,
+          "width": 750,
+          "height": 80,
+          "right": 771,
+          "bottom": 323.421875
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px",
+        "hit": "<div class=\"archive-copy\"><div class=\"archive-name\">Batman_Year_One_extra_pages.cbr</div><div class=\"archive-size\">426.7 MB</div></div>"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "archive-row",
+        "text": "CB7\nBatman_Year_One_Archive_Scans.cb7\n292.1 MB\n↓",
+        "label": "Choose Batman_Year_One_Collected/Batman_Year_One_Archive_Scans.cb7",
+        "rect": {
+          "x": 21,
+          "y": 323.421875,
+          "width": 750,
+          "height": 80,
+          "right": 771,
+          "bottom": 403.421875
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      },
+      {
+        "tag": "ARTICLE",
+        "id": "",
+        "class": "archive-row",
+        "text": "CBT\nBatman_Year_One_Appendix.cbt\n105.8 MB\n↓",
+        "label": "Choose Batman_Year_One_Collected/Batman_Year_One_Appendix.cbt",
+        "rect": {
+          "x": 21,
+          "y": 403.421875,
+          "width": 750,
+          "height": 80,
+          "right": 771,
+          "bottom": 483.421875
+        },
+        "radius": "0px",
+        "font": "\"Colosseum Segoe\", \"Segoe UI\", sans-serif",
+        "fontSize": "16px"
+      }
+    ],
+    "scrollers": [
+      {
+        "id": "",
+        "class": "archives-scroll",
+        "rect": {
+          "x": 21,
+          "y": 159.421875,
+          "width": 750,
+          "height": 161.578125,
+          "right": 771,
+          "bottom": 321
+        },
+        "scrollTop": 0,
+        "maxScroll": 170,
+        "overflowX": 0
+      }
+    ],
+    "text": "Back\nALTERNATE SOURCES · COLLECTED EDITION\nBatman: Year One — Deluxe Edition\nBatman: Year One — Deluxe Edition   ·    ISBN 9781401207526   ·    Batman #404–407\n4 comic archives\nCHOOSE ONE\nCBZ\nBatman_404-407_Year_One.cbz\n318.4 MB\n↓\nCBR\nBatman_Year_One_extra_pages.cbr\n426.7 MB\n↓\nCB7\nBatman_Year_One_Archive_Scans.cb7\n292.1 MB\n↓\nCBT\nBatman_Year_One_Appendix.cbt\n105.8 MB\n↓",
+    "fonts": [
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "loaded"
+      },
+      {
+        "family": "Colosseum Segoe",
+        "status": "unloaded"
+      },
+      {
+        "family": "Colosseum Fraunces",
+        "status": "loaded"
+      }
+    ]
+  },
+  "errors": [],
+  "blockedRequests": [],
+  "resources": [
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\comic-sources.html",
+      "bytes": 355,
+      "sha256": "f748355006000c64471f99e495dfbfabf5c1e3352bd33d3d19ca10d9ae3103dd"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\style.css",
+      "bytes": 16984,
+      "sha256": "d88357e1af6b1fee8c5b41de50465e28379be4b7b760b67de300a6d8fe5f3c83"
+    },
+    {
+      "path": "review-batches\\01-sources-manga\\finished-mocks\\02-comic-sources\\app.js",
+      "bytes": 17670,
+      "sha256": "bfec63a176004a06def8806759f9d8867c66c81ad5f340896c2d4e74a1edf97b"
+    },
+    {
+      "path": "reference\\desktop\\assets\\universes\\dcau\\portals\\gotham.jpg",
+      "bytes": 3637,
+      "sha256": "070d01527b1903a4f5c861066517e2649363b4f27a44cc41cd70232d97795701"
+    },
+    {
+      "path": "reference\\local-fonts\\segoeui.ttf",
+      "bytes": 960076,
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e"
+    },
+    {
+      "path": "reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "bytes": 72036,
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc"
+    },
+    {
+      "path": "reference\\local-fonts\\seguisb.ttf",
+      "bytes": 974760,
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501"
+    }
+  ],
+  "extra": {}
+}

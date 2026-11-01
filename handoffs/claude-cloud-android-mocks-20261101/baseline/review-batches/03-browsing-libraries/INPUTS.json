@@ -1,0 +1,153 @@
+{
+  "batch": "03-browsing-libraries",
+  "title": "Browsing and libraries",
+  "pageCount": 16,
+  "purpose": "Independent mock review input manifest; not a worker registry or acceptance record.",
+  "reviewStatus": "not-started",
+  "references": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  },
+  "batchRoot": "D:\\Colosseum-Android-Phone-Mocks-20261101",
+  "ownedReviewOutput": "D:\\Colosseum-Android-Phone-Mocks-20261101\\review-batches\\03-browsing-libraries",
+  "jobs": [
+    {
+      "task": "07-biblio-home",
+      "title": "Biblio Discover/home shelves and book rails",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-07-BIBLIO-HOME.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\07-biblio-home",
+      "pages": [
+        "biblio-home.html"
+      ],
+      "sources": [
+        "BiblioWorld.qml",
+        "BiblioDiscoverPage.qml",
+        "BiblioBookRail.qml",
+        "ReadingDesk.qml",
+        "WidgetHeader.qml",
+        "WorldPage.qml"
+      ]
+    },
+    {
+      "task": "08-theatre-discover",
+      "title": "Theatre Discover category, filter and source sidebar",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-08-THEATRE-DISCOVER.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\08-theatre-discover",
+      "pages": [
+        "theatre-discover.html"
+      ],
+      "sources": [
+        "DiscoverBrowser.qml",
+        "DiscoverPicker.qml",
+        "DiscoverSidebar.qml",
+        "TheatreCatalogPage.qml",
+        "PhoneFilterSheet.qml",
+        "PhoneChoiceHost.qml"
+      ]
+    },
+    {
+      "task": "09-catalogue-index",
+      "title": "Catalogue pages, row index rail and tablet/landscape layout",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-09-CATALOGUE-INDEX.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\09-catalogue-index",
+      "pages": [
+        "theatre-catalogue.html",
+        "manga-catalogue.html",
+        "comics-catalogue.html"
+      ],
+      "sources": [
+        "RowIndexSidebar.qml",
+        "TheatreCatalogPage.qml",
+        "TankobanMangaTab.qml",
+        "TankobanComicsTab.qml",
+        "BrowseLayout.qml",
+        "BrowseScaffold.qml"
+      ]
+    },
+    {
+      "task": "15-world-home",
+      "title": "Theatre/Tankoban/Universes home shells and featured controls",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-15-WORLD-HOME.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\15-world-home",
+      "pages": [
+        "theatre-home.html",
+        "tankoban-home.html",
+        "universes-home.html"
+      ],
+      "sources": [
+        "TheatreWorld.qml",
+        "TankobanWorld.qml",
+        "UniversesWorld.qml",
+        "WorldPage.qml",
+        "WorldTabBar.qml",
+        "PhoneWorldTabBar.qml",
+        "PhoneWorldActions.qml",
+        "FeaturedCarousel.qml",
+        "CarouselSlide.qml",
+        "PosterRail.qml",
+        "ContinueTile.qml",
+        "TrendingTop10.qml"
+      ]
+    },
+    {
+      "task": "16-libraries",
+      "title": "Theatre/Tankoban/Biblio libraries and selection",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-16-LIBRARIES.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\16-libraries",
+      "pages": [
+        "theatre-library.html",
+        "tankoban-library.html",
+        "biblio-library.html"
+      ],
+      "sources": [
+        "LibraryPage.qml",
+        "TankobanLibraryTab.qml",
+        "BiblioLibraryPage.qml",
+        "LibrarySelectionHost.qml",
+        "LibrarySelectionState.qml",
+        "LibrarySelectionMark.qml",
+        "CollectionCardMenu.qml",
+        "CollectionMenu.qml"
+      ]
+    },
+    {
+      "task": "20-search-browse",
+      "title": "Search, Explore, genre and see-all pages",
+      "prompt": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-20-SEARCH-BROWSE.md",
+      "output": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\20-search-browse",
+      "pages": [
+        "search.html",
+        "biblio-explore.html",
+        "genre-index.html",
+        "genre-results.html",
+        "continue-see-all.html"
+      ],
+      "sources": [
+        "SearchSurface.qml",
+        "BiblioSearch.qml",
+        "BiblioExplorePage.qml",
+        "GenrePage.qml",
+        "GenreIndex.qml",
+        "TheatreGenrePage.qml",
+        "TheatreGenreIndex.qml",
+        "BiblioGenrePage.qml",
+        "BiblioGenreIndex.qml",
+        "ContinueSeeAllPage.qml",
+        "ExtensionsSeeAllPage.qml"
+      ]
+    }
+  ]
+}

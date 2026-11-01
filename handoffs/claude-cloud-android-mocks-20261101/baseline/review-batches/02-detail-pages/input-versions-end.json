@@ -1,0 +1,670 @@
+{
+  "utc": "2026-11-01T00:08:40.765179+00:00",
+  "declaredSourcePins": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  },
+  "files": [
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-06-BIBLIO-BOOK.md",
+      "role": "worker-brief",
+      "exists": true,
+      "bytes": 7260,
+      "sha256": "943bab6512f1f8dc43cc5b341d42e42196b2f9dff81949299c1f3574f0dead77",
+      "mtimeNs": 1793478861440432700,
+      "lines": 35
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\app.js",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 13199,
+      "sha256": "1f8f9cd138724c62cbe38180af19da4c27c413ca62335e3215c76a2b6d336ac1",
+      "mtimeNs": 1793481695330803800,
+      "lines": 197
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\biblio-book.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 9848,
+      "sha256": "0c3860f09f5438bc5a1070edb0a24d486e8a5c3e8ec58a9801e881f6b4fdee00",
+      "mtimeNs": 1793481672900721600,
+      "lines": 108
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\capture.cjs",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 10122,
+      "sha256": "c5e90bad69f0fd5c6978221888503a0d706173b2bcbddb1967bc4c554c697d46",
+      "mtimeNs": 1793481772503373000,
+      "lines": 132
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\FIDELITY.md",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 10551,
+      "sha256": "10032217e66776f4320fa0c9fe1782113ccbd89db150d6bcf07cfa25d74cc90a",
+      "mtimeNs": 1793482128232844200,
+      "lines": 71
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\index.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 1445,
+      "sha256": "2b082ce5444e96cdd876c1057727683746c84f2658ce08b2bf927b400c340b5f",
+      "mtimeNs": 1793481317302224800,
+      "lines": 22
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\REPORT.json",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 9479,
+      "sha256": "ce5f63a82ddad9f6a7f3df9f3998ab0b2bdd03b67e52c6f82e4995f4b1e95d65",
+      "mtimeNs": 1793482248843656400,
+      "lines": 221
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\06-biblio-book\\style.css",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 17702,
+      "sha256": "249061fba7851ee205e6f5ddd638bdcc523d1caf781c1e15bb1ed9c2cd042abd",
+      "mtimeNs": 1793481833294201300,
+      "lines": 171
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\BiblioBook.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 78941,
+      "sha256": "fb6e08ceeb18eff11e5aa6732e6f3d899af84756dc2d6cab4555702a650ed477",
+      "mtimeNs": 1793473525000000000,
+      "lines": 1349
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\MediaDetailScaffold.qml",
+      "role": "approved-qml",
+      "exists": false
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-17-THEATRE-DETAILS.md",
+      "role": "worker-brief",
+      "exists": true,
+      "bytes": 7340,
+      "sha256": "36dea7577ddf9344239245ed6c406ed046c14ba6baf76af1997f4f86b9e2cd76",
+      "mtimeNs": 1793478861587069200,
+      "lines": 35
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\app.js",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 30239,
+      "sha256": "7f25ef4a5fafec88d1d3cc617908816aeb7a02b3e005d2572a741a7bf59f69ec",
+      "mtimeNs": 1793483370951611100,
+      "lines": 467
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture-film-rebuilt-synopsis.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2819,
+      "sha256": "ea26eb56cadf27c5f140ffd4de2126b6d72cfadaa2838df0321dc9da0ad6ba41",
+      "mtimeNs": 1793482665005526700,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture-film.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2760,
+      "sha256": "a23e868728922b0a2fd6f25be8c044900630a5ae0c4d3fe0c434382248474d66",
+      "mtimeNs": 1793482652378974900,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture-series-episodes.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2794,
+      "sha256": "e993337177d0956398fba27b9bfe56b9289c47d7834a16c53a6922409df3f3db",
+      "mtimeNs": 1793482683170753400,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture-series-jump-open.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2795,
+      "sha256": "9c955e39b5c3187b6a54f6703265735ad2e52fd09aec36e25376f7e9a7c2cc5b",
+      "mtimeNs": 1793482700583079100,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture-series-rebuilt.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2818,
+      "sha256": "babf48c0eaca247907d5df818d3655ae42b24cfdf0894a2f6ac743647792ed85",
+      "mtimeNs": 1793482710177433400,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture-series-season-open.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2797,
+      "sha256": "9d570b517f0933a2ea52a895c89f60da0df01f37b6c5ae3d5d7bf11f4685b2ab",
+      "mtimeNs": 1793482691318887700,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture-series.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2764,
+      "sha256": "533aa2f30a5d6b9ba38beaee1b8e3ff739f5d61422eb286a5955f36c18e1f54a",
+      "mtimeNs": 1793482675076577900,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\capture.js",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 8119,
+      "sha256": "083896d3da3143b0f0f8edf1fc6523eaa49a648f69aa25fce42a6a3045efee93",
+      "mtimeNs": 1793483774753533600,
+      "lines": 128
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\FIDELITY.md",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 10433,
+      "sha256": "87007e5528ce66821a31776ee29ff84010983097b72a5d2020efdf9297e4a796",
+      "mtimeNs": 1793483579484611900,
+      "lines": 72
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\film-detail.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2731,
+      "sha256": "eb4903c56a3ce0f8e772f9ccbd9f02823cbd66a873e34d034c427f28280bfeb6",
+      "mtimeNs": 1793481676647680900,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\index.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 1508,
+      "sha256": "1c5fc3baa1875d3929c9ab23de7bdc23b20d647211d0a5b307e05e8cc0aebb73",
+      "mtimeNs": 1793481694719834900,
+      "lines": 11
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\REPORT.json",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 8910,
+      "sha256": "e3e70009afc2c43fa94932b268e5945bc70b6d46f789fe3c8fe17361772dbdf0",
+      "mtimeNs": 1793483890379553000,
+      "lines": 197
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\series-detail.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2735,
+      "sha256": "9017072f53ac2526e130da5087426e455b90b844a5643bf9fb694b30ed718127",
+      "mtimeNs": 1793481688871748500,
+      "lines": 37
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\17-theatre-details\\style.css",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 30851,
+      "sha256": "d57fc5ef200815f3ea6bac3239f0748328c1d127f47d65f509e1b250fb4a5f55",
+      "mtimeNs": 1793483384516335300,
+      "lines": 300
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TheatreSeries.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 129670,
+      "sha256": "65204316f3fc5b372510a118b79153910511646bc0130c31c02f8510f1a620eb",
+      "mtimeNs": 1793473525000000000,
+      "lines": 2472
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TheatreSeriesView.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 120331,
+      "sha256": "e144107503e61056152ba6093f529ab7606e02589653e9f1adf2edfcc040fc36",
+      "mtimeNs": 1793473525000000000,
+      "lines": 2276
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\MediaDetailScaffold.qml",
+      "role": "approved-qml",
+      "exists": false
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-18-COMIC-DETAILS.md",
+      "role": "worker-brief",
+      "exists": true,
+      "bytes": 7358,
+      "sha256": "f0cdf524683be920397f23430271b4ad41d1259d237d0c644669d866599178f5",
+      "mtimeNs": 1793478861598922600,
+      "lines": 35
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\app.js",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 32834,
+      "sha256": "732c9534e75a33ca3da78b6b5cabc2c84a08e88917b8d066b4290921f38f9548",
+      "mtimeNs": 1793482794939769800,
+      "lines": 393
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\comic-archive.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 423,
+      "sha256": "00bbed7ae664cb9aa93dc8c139c1a9399da1f8e5043a03f2c79140f51bcf69f1",
+      "mtimeNs": 1793481652874277400,
+      "lines": 15
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\comic-edition.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 424,
+      "sha256": "246f2a289630e9c2467e4f51237fe50829c56f38e170d38e8b9ccfb783441cfe",
+      "mtimeNs": 1793481647086951800,
+      "lines": 15
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\comic-series.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 423,
+      "sha256": "9870b519ddca48652aa3730d201d79a2ae474d57395a1acc72752c0fe3a82cb5",
+      "mtimeNs": 1793481642204951600,
+      "lines": 15
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\FIDELITY.md",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 11772,
+      "sha256": "ecbb0a14429759f9204eac67f781e34b6f76d561ade1fffb3e0f4b9429b013bb",
+      "mtimeNs": 1793483900577794500,
+      "lines": 88
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\index.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 1479,
+      "sha256": "6cee2754f97641a01a495610abc7773703e1125c9d143843eb5da690b298eab3",
+      "mtimeNs": 1793481658169803600,
+      "lines": 23
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\REPORT.json",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 10978,
+      "sha256": "aed1bf9520a1202f1557164aee26940ad0a09a655b1fb72a0746848c80340c86",
+      "mtimeNs": 1793484130880556700,
+      "lines": 268
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\18-comic-details\\style.css",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 26913,
+      "sha256": "63baeba44b187c648c2196934f2323fb2ad1634afca7b065d53ed0b1a50feff2",
+      "mtimeNs": 1793483353761465500,
+      "lines": 190
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicSeries.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 61525,
+      "sha256": "54e120f8014c0f3e11d30014209e56c84ec529aa203f008e3b029a22bfcbd247",
+      "mtimeNs": 1793473525000000000,
+      "lines": 1111
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicSeriesPage.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 45305,
+      "sha256": "024d7f59141637f00084416c6b458b48b6ea74172d21bf0f1213ffae7ac8fc90",
+      "mtimeNs": 1793473525000000000,
+      "lines": 780
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicArchiveBoard.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 6299,
+      "sha256": "f6e1e377249bee358dccec60314b915c707f0e5823852393e8f46bd522453d3f",
+      "mtimeNs": 1793473525000000000,
+      "lines": 172
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicArchiveIndex.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 13793,
+      "sha256": "fcd957c4aaa5e7f271787cd286aae20e9a07a89f0efd2063648a73a4dda0801a",
+      "mtimeNs": 1793473525000000000,
+      "lines": 308
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\MediaDetailScaffold.qml",
+      "role": "approved-qml",
+      "exists": false
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\prompts\\PHONE-MOCK-19-GENERIC-UNIVERSES.md",
+      "role": "worker-brief",
+      "exists": true,
+      "bytes": 7467,
+      "sha256": "0e267a15fbf8a882478ad8b7b6e3f9daa3b50cbc773e67f038624ba2237b6a45",
+      "mtimeNs": 1793478861612924900,
+      "lines": 35
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\app.js",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 28959,
+      "sha256": "e7f30060ab4402a83b5bc3b91ba81e808b3bd8663aa76a6456abcb652792a1bc",
+      "mtimeNs": 1793483351574332400,
+      "lines": 158
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\FIDELITY.md",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 10782,
+      "sha256": "3ec1bec69a470ae5e2953ef3953643ef18d182d781d17ea00a667dcd29e290c4",
+      "mtimeNs": 1793483758490324900,
+      "lines": 73
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\index.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 1161,
+      "sha256": "f573e7f17320ee12bce8f98131dab182aa2b3ff5020750e0487097c2f98858f9",
+      "mtimeNs": 1793481560698219000,
+      "lines": 13
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\saga-universe.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2160,
+      "sha256": "bfa6f093ebb97ef816009b356aaab13ce865ce0b7a8a78a9eb4a871693a9a4b8",
+      "mtimeNs": 1793481564970378600,
+      "lines": 21
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\shelves-universe.html",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 2329,
+      "sha256": "c673d0705ef33dc49f31bd9eea1f8ec19c31e38aa6685076fafc527f34a8fc72",
+      "mtimeNs": 1793481569482624000,
+      "lines": 22
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\outputs\\19-generic-universes\\style.css",
+      "role": "worker-input",
+      "exists": true,
+      "bytes": 22666,
+      "sha256": "0293cc54acbb5d6e348dbc5b7e711ee9c5c32537286489cd23f6ae6435b8c00b",
+      "mtimeNs": 1793482768557007700,
+      "lines": 131
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\SagaUniversePage.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 75425,
+      "sha256": "e57418fd42f4b28d2c10477c162d68e50a4a4a1df96c5c23f3127654574027b2",
+      "mtimeNs": 1793473525000000000,
+      "lines": 1422
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ShelvesUniversePage.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 79325,
+      "sha256": "45f108d9550d03f62a43875bcc0c77779ba1cb8438049fd93471c67cdd7240ca",
+      "mtimeNs": 1793473525000000000,
+      "lines": 1457
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseScaffold.qml",
+      "role": "approved-qml",
+      "exists": false
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseFeed.qml",
+      "role": "approved-qml",
+      "exists": false
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniversePosterRail.qml",
+      "role": "approved-qml",
+      "exists": false
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseShelfViewport.qml",
+      "role": "approved-qml",
+      "exists": false
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseTile.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 6780,
+      "sha256": "6601af7be15befd42e5555889b3106bba3618dbe4c385a982a0b72e9dda29a4f",
+      "mtimeNs": 1793473525000000000,
+      "lines": 157
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseChromeAction.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 788,
+      "sha256": "d0a068dda7fbe2529cb433fe0cf2b60c10fcaa50d890b20795d7614953dc4786",
+      "mtimeNs": 1793473525000000000,
+      "lines": 33
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseExtensionPage.qml",
+      "role": "approved-qml",
+      "exists": true,
+      "bytes": 17183,
+      "sha256": "7c0089e417b83b72a2766f571d6d2a350153832b8dff7a014446f534faeff084",
+      "mtimeNs": 1793473525000000000,
+      "lines": 342
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\Theme.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 1920,
+      "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495",
+      "mtimeNs": 1793473525000000000,
+      "lines": 40
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\Main.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 341875,
+      "sha256": "9baeea5bb4cd053d2a8eb310ccd847a9ddbf0b234b6b5c819277f41510d8fa54",
+      "mtimeNs": 1793473525000000000,
+      "lines": 6554
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\Glass.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 5889,
+      "sha256": "28d19c799fabeb7670af05cbcd4cc0873ffee0127253c154635b1c1959704fdd",
+      "mtimeNs": 1793473525000000000,
+      "lines": 136
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\BackAction.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 7742,
+      "sha256": "e33aa23a915b09a152bf271cb36cae191bad2294f0ce8314eb731f4132dd1b69",
+      "mtimeNs": 1793473525000000000,
+      "lines": 159
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\LibraryButton.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 2254,
+      "sha256": "045f7dfe725dab62b46665c0537a4a57de4c4157fa41d0d4b7eece8e83c0a5de",
+      "mtimeNs": 1793473525000000000,
+      "lines": 59
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\AddToCollectionsButton.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 2749,
+      "sha256": "70f980805ee93e616745f382ade52a49827193bdc073d3929ec5cb5816731f04",
+      "mtimeNs": 1793473525000000000,
+      "lines": 67
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\AddToCollectionsPopup.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 12887,
+      "sha256": "555c6a842985c2c9c90ac25159f8e9208f295b318e3afacbae472f43dd124de1",
+      "mtimeNs": 1793473525000000000,
+      "lines": 277
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\CollectionIcon.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 3290,
+      "sha256": "1275f606542436bdbe9b7a304c34fe3f6474791a2212550180d1a34a21507234",
+      "mtimeNs": 1793473525000000000,
+      "lines": 50
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TitlePageBar.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 9360,
+      "sha256": "7ea26c90cf8688d71e6c7f666c65f0d1aa2fee706f138eaf5a07203364b98938",
+      "mtimeNs": 1793473525000000000,
+      "lines": 241
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\PlayerIcon.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 4127,
+      "sha256": "1f45ccecf425f87f702cb8a56c471f6e7455f1dd77b00b914f8e814b65d44571",
+      "mtimeNs": 1793473525000000000,
+      "lines": 86
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TheatreFacts.js",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 1019,
+      "sha256": "ea912632ef4112ebf842e34f79b1e2db86517a8eb81c1750bc2be018a38bde06",
+      "mtimeNs": 1793473525000000000,
+      "lines": 29
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\CastRow.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 4984,
+      "sha256": "9fbc9441d80c9f8b19671d8c0f1d9bf7f88e3184679528f7060875f96fcff1be",
+      "mtimeNs": 1793473525000000000,
+      "lines": 111
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\MoreLikeThisRow.qml",
+      "role": "shared-approved-source",
+      "exists": true,
+      "bytes": 3380,
+      "sha256": "20e9b0c656ad6c0e9894fbad59d299d94ee4a7a641c700e9ec75b26f23cb708b",
+      "mtimeNs": 1793473525000000000,
+      "lines": 85
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\context\\ANDROID-PORT-CLASSIFICATION.md",
+      "role": "context",
+      "exists": true,
+      "bytes": 11389,
+      "sha256": "cc5eb89284d095fd6e5efe91e3416818746756e7f9438fbcf8073d5da6ee829a",
+      "mtimeNs": 1793476883573775300,
+      "lines": 75
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\context\\UI-VERIFICATION-AUDIT.md",
+      "role": "context",
+      "exists": true,
+      "bytes": 9002,
+      "sha256": "f5021041915c29df5f89130c0a0fe36014389171dc797aa0b14361169571985e",
+      "mtimeNs": 1793473966341105300,
+      "lines": 172
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\context\\VIEWPORTS.json",
+      "role": "context",
+      "exists": true,
+      "bytes": 705,
+      "sha256": "098eb7ca11d08966b6974082338a60d9d6534917d876070342c084e1f1d77552",
+      "mtimeNs": 1793478809151588700,
+      "lines": 28
+    }
+  ],
+  "note": "Source pins declared by frozen INPUTS.json; individual inspected bytes independently SHA256-bound."
+}

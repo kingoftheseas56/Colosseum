@@ -1,0 +1,423 @@
+{
+  "utc": "2026-11-01T00:11:29.171264+00:00",
+  "role": "Approved source/dependency and loaded asset/font hashes; native rendering not performed",
+  "files": [
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\extensions\\house\\cosmere.jpg",
+      "sha256": "0f10e99de1542a1477bb75e7454d1c70089ae61097c5c2d08e7f6619e0e9ad06",
+      "bytes": 457940
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\fonts\\Fraunces-Italic.ttf",
+      "sha256": "38ecc4ffec0848602b4bafb6778494ceb173b89262d030d056efc32f29b2720d",
+      "bytes": 87940
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\fonts\\Fraunces-Regular.ttf",
+      "sha256": "4063dec09ee3d7170bd8c6bf1f66a6bec01a3630390a922cdb9bcfbcb7e89bbc",
+      "bytes": 72036
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\fonts\\Switzer-Medium.otf",
+      "sha256": "dc1000a1cfd8e9269bd4c26630966e67f9bbb3abe6689aac3d913e99927c6825",
+      "bytes": 48248
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\fonts\\Switzer-Regular.otf",
+      "sha256": "6208450253b06898c2b58b38d8dab5f6a35059b3fd9b25ab98c5f25cfeeebee7",
+      "bytes": 34560
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\fonts\\Switzer-Semibold.otf",
+      "sha256": "0b1652d8384fcd5038dc19317ab0e0c4f4b7317e6a9729d8ef38fba375b01921",
+      "bytes": 48540
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\book-library.svg",
+      "sha256": "40761fdc558ff4338db9e36fb4231d7f4820150e8d876ab9369f0f2f2ff95a07",
+      "bytes": 574
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\books.svg",
+      "sha256": "eae1e9c978dfaf947d3ab6785b43856a8d27b97e12ae738fe9221f77f90f2163",
+      "bytes": 209
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\download.svg",
+      "sha256": "49bdfb176bf6a8fe8b008e88b4597500c4d4fc90a2014d06445c63791d089b67",
+      "bytes": 238
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\fullscreen.svg",
+      "sha256": "245b1f785244539eaa6f369e0ee078f0330fb359ff75a84596f9ab6f6ff8152a",
+      "bytes": 305
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\lucide\\circle-check.svg",
+      "sha256": "e90fbab00f44915f83302ec58f63528927c488705e2b76c11c2ad3e4b744fef1",
+      "bytes": 370
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\lucide\\download.svg",
+      "sha256": "5b5e2ede7e2b9a0b77e0031a6b39789a5aa8288511530be09e894375baf0ddf5",
+      "bytes": 442
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\lucide\\play.svg",
+      "sha256": "69fa43fe6b2d4ccb2df7e8d661491b8ba73ea179a2cae8711584e2d8a1b3da40",
+      "bytes": 338
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\manga.svg",
+      "sha256": "67e61d2fee343bf8bb060c85cedf8ed1df2d48cc5a6682c8815e291ec95fb7ab",
+      "bytes": 193
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\minimize.svg",
+      "sha256": "d76adf4b110b4114a935280d302b7b624e4048898c446a2b622cfc50ff3489ee",
+      "bytes": 183
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\play.svg",
+      "sha256": "d25ed825560e4d47a70f8415c19fadea1e4cfad43cdf1cc7ef066e91edd0aa47",
+      "bytes": 108
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\power.svg",
+      "sha256": "4c4af2f9493c1bc22b14f4577e0f8363494a720656181a48e78f03cee3d2a7d5",
+      "bytes": 215
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\icons\\search.svg",
+      "sha256": "083ffab2b908e1ff515ef8dc66c3c7c9147bc7287b67e3354ad5330c1e57b779",
+      "bytes": 237
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\dcau\\environments\\gotham-v11-bg.png",
+      "sha256": "a96fa04a5eb732b6010e170c2ede8a01195f7e9becbe86458405069e612ae7db",
+      "bytes": 400335
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\dcau\\environments\\justice-v11-bg.png",
+      "sha256": "c75e805c03e19bfd8df7d4ab96ab829550ce3d64be8f5f5728573b454c82f533",
+      "bytes": 585249
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\dcau\\portals\\future-gotham.jpg",
+      "sha256": "e17ae5c0f76803dec1675d5f0c160626ad7b13af657853ecaffb85cb0f4faf09",
+      "bytes": 5406
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\dcau\\portals\\gotham.jpg",
+      "sha256": "070d01527b1903a4f5c861066517e2649363b4f27a44cc41cd70232d97795701",
+      "bytes": 3637
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\dcau\\portals\\metropolis.jpg",
+      "sha256": "21d5be9c50c2fb4adc805c032fa7ac10c40ec5c60785d227330a0554e891b458",
+      "bytes": 86631
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\dcau\\portals\\watchtower.jpg",
+      "sha256": "b34a58f2f5fa49c5a9e21120e0934075bbb89f32236fc532d97750b9353d800d",
+      "bytes": 9062
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\marks\\avatar.svg",
+      "sha256": "b561624b769282ce43c6f7c05ca41ab24284bfcf87ad2bc1e356f0bf33410a1f",
+      "bytes": 223477
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\marks\\james-bond.png",
+      "sha256": "2c34e089087bab83a77e180fdd875521430f5913cad85fc8e45b3eceb5d68cf9",
+      "bytes": 9399
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\marks\\marvel.png",
+      "sha256": "99f9a60f6332d29fb343a0e75897436421e771cac568c49a077e799153de262c",
+      "bytes": 43753
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\marks\\shonen-jump.png",
+      "sha256": "6cfd6c01d2412dce5d162a3350eea3adc0027c91edc1b0d699d4250fcfc72a85",
+      "bytes": 30748
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\marks\\star-trek.png",
+      "sha256": "dd20113ef2735783a655161b7714aac508dd41b8a0f16e4f381f4da441f16f8f",
+      "bytes": 15010
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\marks\\studio-ghibli.svg",
+      "sha256": "62918e66bfc92cafbebcc7257fa0b27f2bfac022ca0055f7f0b83ba505eed792",
+      "bytes": 142599
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\one-piece\\east-blue\\banners\\orange.png",
+      "sha256": "d87f36ce8e6c303a8970e44f48b248d8e5323727285bd11822bdadcb5f2a8cae",
+      "bytes": 1469896
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\one-piece\\east-blue\\banners\\romance.png",
+      "sha256": "f28d6d3b27a0dbaa9902ad177bc49b4d5f5672367eda674ef36791251386ed86",
+      "bytes": 826209
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\one-piece\\east-blue\\banners\\syrup.png",
+      "sha256": "547e46629d6a38f4f4532b31b493c3a9715b933072eaef7f3860da978a558169",
+      "bytes": 4604348
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\universes\\one-piece\\new-world\\banners\\wano-country.png",
+      "sha256": "83d403c5334b5f4aa32b00aedc0489f7973443f739f38f9fb5985d777a7d66fb",
+      "bytes": 2999160
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\wallpaper\\cold-ripple.jpg",
+      "sha256": "e53040f1ed25876fc96a0dd5ec6554b81b778adf69e803443d6c6d3d59b15e8c",
+      "bytes": 460861
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\wallpaper\\sagas\\dune.jpg",
+      "sha256": "ef9fc905b6dbdce583d36eefdfebc3fa1d3a7df2fc82a5cff81f1f2a55155b6f",
+      "bytes": 118367
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\wallpaper\\sagas\\harry-potter.jpg",
+      "sha256": "431dce5caf16b766a812760728af9b00214faa2ec3cff69b21a505f7b1815271",
+      "bytes": 110715
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\wallpaper\\sagas\\lord-of-the-rings.jpg",
+      "sha256": "bf399c25885b79c278609cba73f8409cbdbf56ec691e354bc226d18b9a4620e3",
+      "bytes": 158295
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\wallpaper\\sagas\\percy-jackson.jpg",
+      "sha256": "575035b804d444be542873599963e9db4c468965d4500aeeec7000850c570c62",
+      "bytes": 288193
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\assets\\wallpaper\\sagas\\the-witcher.jpg",
+      "sha256": "bd81e60fed2df8d25039c769aa70cfddc257cfd87e1e31acb4154d53b4359629",
+      "bytes": 196870
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\BackAction.qml",
+      "sha256": "e33aa23a915b09a152bf271cb36cae191bad2294f0ce8314eb731f4132dd1b69",
+      "bytes": 7742
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\BiblioBook.qml",
+      "sha256": "fb6e08ceeb18eff11e5aa6732e6f3d899af84756dc2d6cab4555702a650ed477",
+      "bytes": 78941
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\CastRow.qml",
+      "sha256": "9fbc9441d80c9f8b19671d8c0f1d9bf7f88e3184679528f7060875f96fcff1be",
+      "bytes": 4984
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ChromeScrim.qml",
+      "sha256": "a88bd0ccb0cd2f53fdf0c9fa5d7af48bee26ccd68d538b8319a4d8e3ed2f1f28",
+      "bytes": 825
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\AddToCollectionsButton.qml",
+      "sha256": "70f980805ee93e616745f382ade52a49827193bdc073d3929ec5cb5816731f04",
+      "bytes": 2749
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\AddToCollectionsPopup.qml",
+      "sha256": "555c6a842985c2c9c90ac25159f8e9208f295b318e3afacbae472f43dd124de1",
+      "bytes": 12887
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\CollectionActionButton.qml",
+      "sha256": "f4f971f031167eb6f895d1d04cb80a42906246f2d5e8f0d5558c2a2ef6270616",
+      "bytes": 2628
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\CollectionCover.qml",
+      "sha256": "20031ed9e3eabbdcfb3c317969e554397ae2caf46a2be5b3e5d3f43f8afeef96",
+      "bytes": 1308
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\CollectionIcon.qml",
+      "sha256": "1275f606542436bdbe9b7a304c34fe3f6474791a2212550180d1a34a21507234",
+      "bytes": 3290
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\CollectionMembershipRow.qml",
+      "sha256": "f95aeb595f4b63d6eccc9dc34eec2e32c82aba1cc92dc20b4acef9c6582ef60c",
+      "bytes": 3023
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\collections\\CollectionSearchField.qml",
+      "sha256": "b8e14aef66ed30acf7f64570b051893fa874a5be7d5e419ea802129058b542e0",
+      "bytes": 1457
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicArchiveBoard.qml",
+      "sha256": "f6e1e377249bee358dccec60314b915c707f0e5823852393e8f46bd522453d3f",
+      "bytes": 6299
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicArchiveIndex.qml",
+      "sha256": "fcd957c4aaa5e7f271787cd286aae20e9a07a89f0efd2063648a73a4dda0801a",
+      "bytes": 13793
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicDbLedger.qml",
+      "sha256": "d5279c29b88c806f3e4d63b47d0de56a048bbc95387f4d56a9e42b654f55cf6e",
+      "bytes": 26978
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicSeries.qml",
+      "sha256": "54e120f8014c0f3e11d30014209e56c84ec529aa203f008e3b029a22bfcbd247",
+      "bytes": 61525
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicSeriesPage.qml",
+      "sha256": "024d7f59141637f00084416c6b458b48b6ea74172d21bf0f1213ffae7ac8fc90",
+      "bytes": 45305
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicTorrentArchivePicker.qml",
+      "sha256": "4bda78fe877a2394a18b8ccb5cfb86f565c5a15387d3584c18ec9dd830720877",
+      "bytes": 6264
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ComicTorrentSourcesPage.qml",
+      "sha256": "1010f1a29a59c221cc61883e3a8a587e64d56a306bc3da7ff1744f8fa75c9e70",
+      "bytes": 37702
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ContinueTile.qml",
+      "sha256": "a85e73d59c6ff7195a1c8a75fa67e874c86de154dcb9cc64ded9bc17b395903d",
+      "bytes": 23637
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\GenreMosaic.qml",
+      "sha256": "679ec3a1012baf6dcb82736c5c3881ab87087a349176606bd46b96b5c9f6ec48",
+      "bytes": 4631
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\Glass.qml",
+      "sha256": "28d19c799fabeb7670af05cbcd4cc0873ffee0127253c154635b1c1959704fdd",
+      "bytes": 5889
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\LibraryButton.qml",
+      "sha256": "045f7dfe725dab62b46665c0537a4a57de4c4157fa41d0d4b7eece8e83c0a5de",
+      "bytes": 2254
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\Main.qml",
+      "sha256": "9baeea5bb4cd053d2a8eb310ccd847a9ddbf0b234b6b5c819277f41510d8fa54",
+      "bytes": 341875
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\MoreLikeThisRow.qml",
+      "sha256": "20e9b0c656ad6c0e9894fbad59d299d94ee4a7a641c700e9ec75b26f23cb708b",
+      "bytes": 3380
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\PlayerIcon.qml",
+      "sha256": "1f45ccecf425f87f702cb8a56c471f6e7455f1dd77b00b914f8e814b65d44571",
+      "bytes": 4127
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\SagaUniversePage.qml",
+      "sha256": "e57418fd42f4b28d2c10477c162d68e50a4a4a1df96c5c23f3127654574027b2",
+      "bytes": 75425
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\ShelvesUniversePage.qml",
+      "sha256": "45f108d9550d03f62a43875bcc0c77779ba1cb8438049fd93471c67cdd7240ca",
+      "bytes": 79325
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TheatreFacts.js",
+      "sha256": "ea912632ef4112ebf842e34f79b1e2db86517a8eb81c1750bc2be018a38bde06",
+      "bytes": 1019
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TheatreRemovalDialog.qml",
+      "sha256": "63215fa96359c8fb45338666321df631bf3240c941ef2d5bc40405627e45da98",
+      "bytes": 3394
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TheatreSeries.qml",
+      "sha256": "65204316f3fc5b372510a118b79153910511646bc0130c31c02f8510f1a620eb",
+      "bytes": 129670
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TheatreSeriesView.qml",
+      "sha256": "e144107503e61056152ba6093f529ab7606e02589653e9f1adf2edfcc040fc36",
+      "bytes": 120331
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\Theme.qml",
+      "sha256": "faefb32228040520725d5167b1656af532e5c70d58904ce93c362e45d52fb495",
+      "bytes": 1920
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\TitlePageBar.qml",
+      "sha256": "7ea26c90cf8688d71e6c7f666c65f0d1aa2fee706f138eaf5a07203364b98938",
+      "bytes": 9360
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseChromeAction.qml",
+      "sha256": "d0a068dda7fbe2529cb433fe0cf2b60c10fcaa50d890b20795d7614953dc4786",
+      "bytes": 788
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseExtensionPage.qml",
+      "sha256": "7c0089e417b83b72a2766f571d6d2a350153832b8dff7a014446f534faeff084",
+      "bytes": 17183
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\Universes.js",
+      "sha256": "41e9f6e00d345dfdc4b29972311cc2200191e7aa942c322dd20367b90086dffa",
+      "bytes": 150154
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\desktop\\qml\\UniverseTile.qml",
+      "sha256": "6601af7be15befd42e5555889b3106bba3618dbe4c385a982a0b72e9dda29a4f",
+      "bytes": 6780
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\local-fonts\\segoeui.ttf",
+      "sha256": "704eada12961a27fd271f7d3b09e2066520e758390c1776744eff430fee30f6e",
+      "bytes": 960076
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\local-fonts\\segoeuib.ttf",
+      "sha256": "b169e636719880976a97e94e3b1cb3dbe5f4a38eabc037bf9f2a9165154c3ad2",
+      "bytes": 947364
+    },
+    {
+      "path": "D:\\Colosseum-Android-Phone-Mocks-20261101\\reference\\local-fonts\\seguisb.ttf",
+      "sha256": "6c3fd894b19950b10c34bf64069ef821eaf2f58f959146306fee5b367472e501",
+      "bytes": 974760
+    }
+  ],
+  "declared_pins": {
+    "desktop": {
+      "commit": "a40f66be06f22cdbe75e97e7dc4f1108ab2f5d41",
+      "files": 1162,
+      "archiveSha256": "3e6becc75ac3c9a8045ae52763d66ece8dbd9181617fa9c6351ee6e5cecd2ff0"
+    },
+    "alpha": {
+      "commit": "77844eef0bd3b7fee2c1f884be4a76db6d63321d",
+      "files": 670,
+      "archiveSha256": "0c78202cdfdae35179a4ec5238b7d6fcf2b7fd2cd03125d8f95748adea76c2a1"
+    },
+    "android-drift": {
+      "commit": "9e896bfd5dac40ef3ceb0e26e166e85ed8beecd9",
+      "files": 697,
+      "archiveSha256": "2d3b33eb76ec934fcd84927ab4f5bc75aaac57a641b6215050902da5823f56d3"
+    }
+  }
+}
