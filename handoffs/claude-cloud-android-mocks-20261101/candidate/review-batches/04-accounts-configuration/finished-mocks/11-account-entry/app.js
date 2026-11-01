@@ -78,7 +78,7 @@ return '<div class="wallpaper"></div><div class="desktop-underlay"><div class="c
 '<span class="desktop-clock"><span class="desktop-hour">'+hh+':'+mm+'</span><span class="desktop-ampm">'+ampm+'</span><span class="desktop-date">'+date+'</span></span>'+
 '<span class="worlds">'+pills+'</span><span class="desktop-icons">'+
 sys('update.svg','Updates')+sys('trackers.svg','Trackers')+medallion+sys('access-point.svg','Share on your Wi-Fi')+sys('settings.svg','Wallpaper')+
-sys('minimize.svg','Minimize','window-minimize')+sys('fullscreen.svg','Enter fullscreen','window-fullscreen')+sys('power.svg','Quit Colosseum','window-quit')+
+(desktopHost()?sys('minimize.svg','Minimize','window-minimize')+sys('fullscreen.svg','Enter fullscreen','window-fullscreen')+sys('power.svg','Quit Colosseum','window-quit'):'')+
 '</span></div></div>';
 }
 function flyout(){
@@ -201,13 +201,15 @@ function centre(){
 const accountName=signed()?username():'Not signed in';
 const nav=tabs.map(row=>'<button type="button" role="tab" class="rail-tab '+(state.section===row[0]?'active':'')+'" data-action="tab" data-section="'+row[0]+'" aria-selected="'+(state.section===row[0])+'"><span class="rail-glyph">'+row[2]+'</span><span>'+row[1]+'</span></button>').join('');
 const content={profile:profile,security:security,devices:devices,recovery:recovery,privacy:privacy}[state.section]();
-const windowIcons='<div class="centre-window-controls">'+[['minimize.svg','Minimize','window-minimize'],['fullscreen.svg','Enter fullscreen','window-fullscreen'],['power.svg','Quit Colosseum','window-quit']].map(x=>'<button type="button" class="desktop-sys" aria-label="'+x[1]+'" data-action="'+x[2]+'">'+icon(x[0],x[1])+'</button>').join('')+'</div>';
+const windowIcons=!desktopHost()?'':'<div class="centre-window-controls">'+[['minimize.svg','Minimize','window-minimize'],['fullscreen.svg','Enter fullscreen','window-fullscreen'],['power.svg','Quit Colosseum','window-quit']].map(x=>'<button type="button" class="desktop-sys" aria-label="'+x[1]+'" data-action="'+x[2]+'">'+icon(x[0],x[1])+'</button>').join('')+'</div>';
 return '<div class="centre-shell"><nav class="centre-rail" aria-label="Account Centre sections"><div class="rail-person"><span class="mini-medallion">'+esc(initial())+'</span>'+
 '<span style="min-width:0"><div class="rail-name">'+esc(accountName)+'</div><div class="rail-sub">Colosseum account</div></span></div>'+
 '<div class="rail-list" role="tablist">'+nav+'</div><button type="button" class="rail-sign" data-action="session">'+(signed()?'Sign out of Colosseum':'Sign in to Colosseum')+'</button></nav>'+
 '<main class="centre-main"><button type="button" class="centre-back" data-action="back-centre">‹ Back</button><div class="centre-content" role="tabpanel" aria-label="'+state.section+'">'+content+'</div></main>'+windowIcons+'</div>';
 }
 function resetExpanded(){state.passwordExpanded=false;state.logoutConfirm=false;state.recoveryExpanded=false;state.revoke='';state.searchConfirm=false;state.activityConfirm=false;state.deleteConfirm=false;}
+// Android phones and tablets never render desktop window actions (no pointer/keyboard/a11y path).
+function desktopHost(){return w===1280&&h===700;}
 function paint(){
 const el=$('mock');const oldScroll=el.querySelector('.profile-scroll')?.scrollTop||0;const focused=Batch4.token(document.activeElement);const wasOpen=!!el.querySelector('.flyout-card');
 el.className='mock '+(Math.min(w,h)<600?'phone '+(w>h?'landscape':'portrait')+(w<380?' narrow':''):w===1280&&h===700?'desktop':'tablet');

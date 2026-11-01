@@ -215,9 +215,9 @@ function buildApp(){
  const prefix="../../../../../baseline/reference/desktop/assets/icons/";
  return "<div class='shell' data-focus-scope='account-centre'>"+buildSidebar()+"<main class='main'>"+buildCompact()+
  "<div class='top-actions'><button class='back-action' data-act='back' type='button'>‹ Back</button>"+
- "<div class='window-icons'><button aria-label='Minimize' type='button' data-act='window'><img src='"+prefix+"minimize.svg' alt=''></button>"+
+ (viewport.kind!=="desktop"?"":"<div class='window-icons'><button aria-label='Minimize' type='button' data-act='window'><img src='"+prefix+"minimize.svg' alt=''></button>"+
  "<button aria-label='Exit fullscreen' type='button' data-act='window'><img src='"+prefix+"fullscreen-exit.svg' alt=''></button>"+
- "<button aria-label='Quit Colosseum' type='button' data-act='window'><img src='"+prefix+"power.svg' alt=''></button></div>"+
+ "<button aria-label='Quit Colosseum' type='button' data-act='window'><img src='"+prefix+"power.svg' alt=''></button></div>")+
  "<button class='compact-session' type='button' data-act='signout'>"+(accountMode==="local"?"Sign in to Colosseum":"Sign out of Colosseum")+"</button></div>"+
  "<div class='page-scroll' tabindex='0' role='region' aria-label='"+esc(PAGE_TITLES[page])+" scroll region'><div class='page-inner'>"+buildPage()+"</div></div></main></div>";
 }
