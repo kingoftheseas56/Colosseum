@@ -102,9 +102,61 @@ public final class ColosseumActivity extends QtActivity {
     }
 
     @Override public void onCreate(Bundle state) {
+        configureDesktopScale();
         super.onCreate(state);
+        protectDesktopCutout();
         surfaceRedrawGate = new QtSurfaceRedrawGate(this);
         DownloadService.handleIntent(getIntent());
+    }
+
+    @SuppressWarnings("deprecation")
+    private void configureDesktopScale() {
+        android.util.DisplayMetrics metrics = new android.util.DisplayMetrics();
+        getWindowManager().getDefaultDisplay().getMetrics(metrics);
+        int[] drawable = Build.VERSION.SDK_INT >= 30
+            ? DesktopBoundsApi30.read(this)
+            : new int[] {metrics.widthPixels, metrics.heightPixels, metrics.widthPixels, metrics.heightPixels};
+        int width = Math.max(drawable[0], drawable[1]);
+        int height = Math.min(drawable[0], drawable[1]);
+        float scale = DesktopPresentationScale.forBounds(width, height, metrics.density);
+        try {
+            android.system.Os.setenv("QT_SCALE_FACTOR", Float.toString(scale), true);
+        } catch (android.system.ErrnoException error) {
+            throw new IllegalStateException("Could not establish the desktop presentation scale", error);
+        }
+        android.util.Log.i("ColosseumPresentation", "startup window=" + drawable[2] + "x" + drawable[3]
+            + " drawable=" + drawable[0] + "x" + drawable[1] + " landscape-reference=" + width + "x" + height
+            + " density=" + metrics.density + " scale=" + scale
+            + (Build.VERSION.SDK_INT >= 30 ? " cutout-aware" : " legacy-app-metrics; verify cutout geometry"));
+    }
+
+    private static final class DesktopBoundsApi30 {
+        static int[] read(ColosseumActivity activity) {
+            android.view.WindowMetrics metrics = activity.getWindowManager().getCurrentWindowMetrics();
+            android.graphics.Rect bounds = metrics.getBounds();
+            android.graphics.Insets cutout = metrics.getWindowInsets()
+                .getInsetsIgnoringVisibility(android.view.WindowInsets.Type.displayCutout());
+            return new int[] {Math.max(0, bounds.width() - cutout.left - cutout.right),
+                Math.max(0, bounds.height() - cutout.top - cutout.bottom), bounds.width(), bounds.height()};
+        }
+    }
+
+    private void protectDesktopCutout() {
+        // The standard content FrameLayout contains QtRootLayout and its foreign
+        // WebView windows. Qt keeps its own insets/IME listeners on QtWindow children.
+        android.view.View content = findViewById(android.R.id.content);
+        if (content == null) return;
+        final int left = content.getPaddingLeft(), top = content.getPaddingTop();
+        final int right = content.getPaddingRight(), bottom = content.getPaddingBottom();
+        content.setOnApplyWindowInsetsListener((view, insets) -> {
+            android.view.DisplayCutout cutout = insets.getDisplayCutout();
+            view.setPadding(left + (cutout == null ? 0 : cutout.getSafeInsetLeft()),
+                top + (cutout == null ? 0 : cutout.getSafeInsetTop()),
+                right + (cutout == null ? 0 : cutout.getSafeInsetRight()),
+                bottom + (cutout == null ? 0 : cutout.getSafeInsetBottom()));
+            return insets;
+        });
+        content.requestApplyInsets();
     }
 
     @Override public void onNewIntent(Intent intent) {

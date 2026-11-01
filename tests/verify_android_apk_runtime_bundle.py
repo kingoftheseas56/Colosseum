@@ -36,7 +36,9 @@ def qml_policy_failures(files: dict[str, bytes]) -> list[str]:
             continue
         relative = name[len(QML_PREFIX):]
         if (re.search(r"(^|/)(feria|vinyl|player2|player2host)/", relative, re.I)
-                or re.search(r"(^|/)Vault[^/]*\.(qml|js)$", relative)
+                or (re.search(r"(^|/)Vault[^/]*\.(qml|js)$", relative)
+                    and relative not in {"VaultDoor.qml", "VaultHomeWidget.qml"})
+                or relative in {"+android/TopBar.qml", "+android/Taskbar.qml", "+android/ExtensionsHouseHero.qml"}
                 or relative in {"reader2/Paper.qml", "TrackerApprovalWebView.qml", "ExtensionsSetupSheet.qml"}):
             failures.append(f"FORBIDDEN_QML_FILE {relative}")
         if relative.endswith((".qml", ".js")) or relative.endswith("qmldir"):
