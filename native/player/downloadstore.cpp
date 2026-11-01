@@ -16,8 +16,62 @@
 #include <QStandardPaths>
 #include <QUrl>
 
-DownloadStore::DownloadStore(QObject *parent)
+namespace {
+
+bool isTransientTransportError(QNetworkReply::NetworkError error) {
+    switch (error) {
+    case QNetworkReply::ConnectionRefusedError:
+    case QNetworkReply::RemoteHostClosedError:
+    case QNetworkReply::HostNotFoundError:
+    case QNetworkReply::TimeoutError:
+    case QNetworkReply::TemporaryNetworkFailureError:
+    case QNetworkReply::NetworkSessionFailedError:
+    case QNetworkReply::ProxyConnectionRefusedError:
+    case QNetworkReply::ProxyConnectionClosedError:
+    case QNetworkReply::ProxyNotFoundError:
+    case QNetworkReply::ProxyTimeoutError:
+        return true;
+    default:
+        return false;
+    }
+}
+
+bool hasExactTorrentIdentity(const QString &infoHash, int fileIdx) {
+    static const QRegularExpression validHash(QStringLiteral("^(?:[0-9a-f]{40}|[0-9a-f]{64})$"));
+    return fileIdx >= 0 && validHash.match(infoHash.trimmed().toLower()).hasMatch();
+}
+
+bool contentRangeStartsAt(const QByteArray &header, qint64 expectedStart) {
+    static const QRegularExpression contentRange(
+        QStringLiteral("^bytes\\s+(\\d+)-(\\d+)/(\\d+|\\*)$"),
+        QRegularExpression::CaseInsensitiveOption);
+    const auto match = contentRange.match(QString::fromLatin1(header).trimmed());
+    if (!match.hasMatch())
+        return false;
+    bool startOk = false;
+    bool endOk = false;
+    const qint64 start = match.captured(1).toLongLong(&startOk);
+    const qint64 end = match.captured(2).toLongLong(&endOk);
+    if (!startOk || !endOk || start != expectedStart || end < start)
+        return false;
+    if (match.captured(3) == QStringLiteral("*"))
+        return true;
+    bool totalOk = false;
+    const qint64 total = match.captured(3).toLongLong(&totalOk);
+    return totalOk && total > end;
+}
+
+} // namespace
+
+DownloadStore::DownloadStore(QObject *parent, RecoveryPolicy recoveryPolicy)
     : QObject(parent)
+    , m_recoveryPolicy(recoveryPolicy == RecoveryPolicy::PlatformDefault
+#ifdef Q_OS_ANDROID
+          ? RecoveryPolicy::AndroidPinnedTorrent
+#else
+          ? RecoveryPolicy::Legacy
+#endif
+          : recoveryPolicy)
     , m_defaultDownloadDir(buildDefaultDownloadDir()) {
     loadIndex();
     loadQueue();
@@ -150,6 +204,10 @@ void DownloadStore::retryJob(const QString &id) {
     Job &j = m_jobs[i];
     j.state = QStringLiteral("queued");
     j.url.clear();            // identity payload survives; the URL never does
+    // Retry may follow a process restart, so reconstruct append eligibility
+    // only from the durable exact torrent hash/file pin.
+    if (pinnedRecovery())
+        j.resumeFromPart = hasExactTorrentIdentity(j.partialInfoHash, j.partialFileIdx);
     j.error.clear();
     j.ratio = 0; j.received = 0; j.total = 0;
     j.speed = 0.0; j.etaSec = -1; j.lastSampleMs = 0; j.lastSampleBytes = 0; j.baseOffset = 0;
@@ -167,6 +225,7 @@ void DownloadStore::pauseJob(const QString &id) {
         && j.state != QStringLiteral("downloading"))
         return;
     cleanupJob(j);   // aborts the reply, closes the file; the .part STAYS on disk
+    j.lifecyclePaused = false;
     j.state = QStringLiteral("paused");
     j.speed = 0.0; j.etaSec = -1; j.lastSampleMs = 0; j.lastSampleBytes = 0;
     saveQueue();
@@ -179,10 +238,10 @@ void DownloadStore::resumeJob(const QString &id) {
     if (i < 0 || m_jobs.at(i).state != QStringLiteral("paused"))
         return;
     Job &j = m_jobs[i];
-    // Same-session url still in hand → append from the .part via Range.
-    // Post-restart (url gone) → re-resolve; the source may differ, so the
-    // .part is truncated at startHttp — never append a different file.
-    j.resumeFromPart = !j.url.isEmpty();
+    // A fresh torrent route may serve the same immutable hash/file identity.
+    // feedTorrentUrl checks that identity again before allowing an append.
+    j.resumeFromPart = !j.url.isEmpty() || (pinnedRecovery() && !j.partialInfoHash.isEmpty());
+    j.lifecyclePaused = false;
     j.state = QStringLiteral("queued");
     saveQueue();
     touch();
@@ -190,6 +249,8 @@ void DownloadStore::resumeJob(const QString &id) {
 }
 
 void DownloadStore::pump() {
+    if (!executionAllowed())
+        return;
     if (activeIndex() >= 0)
         return;   // MAX_ACTIVE_VIDEO = 1: one live job at a time
     for (int i = 0; i < m_jobs.size(); ++i) {
@@ -215,14 +276,29 @@ void DownloadStore::feedUrl(const QString &id, const QString &url) {
 }
 
 void DownloadStore::feedSource(const QString &id, const QString &url, const QVariantMap &headers) {
+    if (!pinnedRecovery()) {
+        const int i = jobIndex(id);
+        if (i < 0 || url.isEmpty()) return;
+        Job &j = m_jobs[i];
+        j.url = url;
+        j.request.insert(QStringLiteral("headers"), headers);
+        if (j.state == QStringLiteral("resolving")) startHttp(j);
+        return;
+    }
     const int i = jobIndex(id);
-    if (i < 0 || url.isEmpty())
+    if (i < 0 || url.isEmpty() || !executionAllowed()
+        || m_jobs.at(i).state != QStringLiteral("resolving"))
         return;
     Job &j = m_jobs[i];
     j.url = url;
     j.request.insert(QStringLiteral("headers"), headers);
-    if (j.state == QStringLiteral("resolving"))
-        startHttp(j);
+    // A direct source replacing a torrent cannot inherit the old file prefix.
+    if (!j.partialInfoHash.isEmpty()) {
+        j.resumeFromPart = false;
+        j.partialInfoHash.clear();
+        j.partialFileIdx = -1;
+    }
+    startHttp(j);
 }
 
 void DownloadStore::failJob(const QString &id, const QString &reason) {
@@ -294,6 +370,8 @@ void DownloadStore::startHttp(Job &job) {
     QDir().mkpath(QFileInfo(job.outputPath).absolutePath());
 
     job.baseOffset = 0;
+    job.resumeRangeValidated = false;
+    job.resumeRangeRejected = false;
     const qint64 partSize = QFile::exists(job.partPath) ? QFileInfo(job.partPath).size() : 0;
     const bool tryResume = job.resumeFromPart && partSize > 0;
     job.resumeFromPart = false;
@@ -319,6 +397,8 @@ void DownloadStore::startHttp(Job &job) {
         job.baseOffset = partSize;
         req.setRawHeader(QByteArrayLiteral("Range"),
                          QByteArrayLiteral("bytes=") + QByteArray::number(partSize) + "-");
+        qInfo() << "[videoq] Range resume" << job.id << "offset" << partSize
+                << "torrent" << job.partialInfoHash << "file" << job.partialFileIdx;
     }
     job.reply = m_network.get(req);
     const QString id = job.id;
@@ -337,13 +417,37 @@ void DownloadStore::startHttp(Job &job) {
                     failJob(id, QStringLiteral("reopen: %1").arg(j.file->errorString()));
                     return;
                 }
+            } else if (pinnedRecovery() && code == 206 && j.baseOffset > 0) {
+                const QByteArray contentRange = j.reply->rawHeader(
+                    QByteArrayLiteral("Content-Range"));
+                j.resumeRangeValidated = contentRangeStartsAt(contentRange, j.baseOffset);
+                if (!j.resumeRangeValidated) {
+                    j.resumeRangeRejected = true;
+                    qWarning() << "[videoq] rejecting mismatched Range response" << id
+                               << "expected offset" << j.baseOffset
+                               << "Content-Range" << contentRange;
+                    j.reply->abort();
+                }
             }
         });
     }
     connect(job.reply, &QNetworkReply::readyRead, this, [this, id]() {
         const int i = jobIndex(id);
-        if (i >= 0 && m_jobs.at(i).file && m_jobs.at(i).reply)
-            m_jobs[i].file->write(m_jobs[i].reply->readAll());
+        if (i < 0 || !m_jobs.at(i).file || !m_jobs.at(i).reply)
+            return;
+        Job &j = m_jobs[i];
+        if (j.resumeRangeRejected)
+            return;
+        const int code = j.reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+        if (pinnedRecovery() && j.baseOffset > 0 && code == 206 && !j.resumeRangeValidated) {
+            // Fail closed if a backend delivers body bytes before its metadata
+            // signal. A 206 response is appendable only after its exact offset
+            // has been checked.
+            j.resumeRangeRejected = true;
+            j.reply->abort();
+            return;
+        }
+        j.file->write(j.reply->readAll());
     });
     connect(job.reply, &QNetworkReply::downloadProgress, this,
             [this, id](qint64 received, qint64 total) {
@@ -366,9 +470,15 @@ void DownloadStore::finishHttp(Job &job) {
         return;
     const QNetworkReply::NetworkError err = job.reply->error();
     const QString errText = job.reply->errorString();
-    if (job.file) {
+    const int httpStatus = job.reply->attribute(QNetworkRequest::HttpStatusCodeAttribute).toInt();
+    const QByteArray contentRange = job.reply->rawHeader(QByteArrayLiteral("Content-Range"));
+    const qint64 expectedRangeOffset = job.baseOffset;
+    const bool resumeRangeRejected = job.resumeRangeRejected;
+    if (job.file && !resumeRangeRejected) {
         job.file->write(job.reply->readAll());
         job.file->flush();
+        job.file->close();
+    } else if (job.file) {
         job.file->close();
     }
     job.reply->deleteLater();
@@ -376,8 +486,39 @@ void DownloadStore::finishHttp(Job &job) {
     delete job.file;
     job.file = nullptr;
 
+    if (resumeRangeRejected) {
+        failJob(job.id, QStringLiteral("Server returned an invalid Content-Range for resume"));
+        return;
+    }
+
     if (err != QNetworkReply::NoError) {
-        failJob(job.id, errText);
+        const bool exactPinnedFile = hasExactTorrentIdentity(job.partialInfoHash,
+                                                              job.partialFileIdx);
+        const bool responsePreservesPrefix =
+            (httpStatus == 0 && expectedRangeOffset > 0)
+            || (httpStatus == 200 && expectedRangeOffset == 0)
+            || (httpStatus == 206 && contentRangeStartsAt(contentRange, expectedRangeOffset));
+        const bool keepPartial = pinnedRecovery() && isTransientTransportError(err) && exactPinnedFile
+            && QFileInfo(job.partPath).size() > 0 && responsePreservesPrefix;
+        if (!keepPartial) {
+            failJob(job.id, errText);
+            return;
+        }
+
+        // The current torrent identity is exact, and this response either
+        // started at byte zero or matched the requested Range offset. Keep the
+        // verified prefix for a manual retry, which will resolve a fresh URL.
+        job.state = QStringLiteral("failed");
+        job.error = errText.isEmpty() ? QStringLiteral("Download interrupted") : errText;
+        job.url.clear(); // the interrupted route is session-ephemeral; Retry must resolve again
+        job.resumeFromPart = true;
+        job.speed = 0.0;
+        job.etaSec = -1;
+        job.lastSampleMs = 0;
+        job.lastSampleBytes = 0;
+        saveQueue();
+        touch();
+        pump();
         return;
     }
     QFile::remove(job.outputPath);
@@ -601,6 +742,23 @@ void DownloadStore::loadQueue() {
         if (!j.outputPath.isEmpty())
             j.partPath = j.outputPath + QStringLiteral(".part");
         j.error = o.value(QStringLiteral("error")).toString();
+        if (pinnedRecovery()) {
+            j.partialInfoHash = o.value(QStringLiteral("partialInfoHash")).toString();
+            j.partialFileIdx = o.value(QStringLiteral("partialFileIdx")).toInt(-1);
+            // Older queues already pinned an exact torrent before starting HTTP.
+            // Preserve those partials on upgrade; hash-only/unpinned jobs cannot
+            // establish the identity of existing bytes and must start cleanly.
+            if (!o.contains(QStringLiteral("partialInfoHash")) && QFileInfo(j.partPath).isFile()) {
+                const QString hash = j.request.value(QStringLiteral("infoHash")).toString().trimmed().toLower();
+                bool indexOk = false;
+                const int fileIdx = j.request.value(QStringLiteral("fileIdx")).toInt(&indexOk);
+                static const QRegularExpression validHash(QStringLiteral("^(?:[0-9a-f]{40}|[0-9a-f]{64})$"));
+                if (indexOk && fileIdx >= 0 && validHash.match(hash).hasMatch()) {
+                    j.partialInfoHash = hash;
+                    j.partialFileIdx = fileIdx;
+                }
+            }
+        }
         m_jobs.append(j);
     }
     if (!m_jobs.isEmpty())
@@ -612,12 +770,17 @@ void DownloadStore::saveQueue() const {
     for (const Job &j : m_jobs) {
         if (j.state == QStringLiteral("done"))
             continue;   // display-only lingering; a restart starts the zone fresh
-        arr.append(QJsonObject{
+        QJsonObject entry{
             {QStringLiteral("request"), QJsonObject::fromVariantMap(j.request)},
             {QStringLiteral("state"), j.state},
             {QStringLiteral("error"), j.error},
             {QStringLiteral("outputPath"), j.outputPath}
-        });
+        };
+        if (pinnedRecovery()) {
+            entry.insert(QStringLiteral("partialInfoHash"), j.partialInfoHash);
+            entry.insert(QStringLiteral("partialFileIdx"), j.partialFileIdx);
+        }
+        arr.append(entry);
     }
     QSaveFile f(baseDir() + QStringLiteral("/queue.json"));
     if (!f.open(QIODevice::WriteOnly))
@@ -819,4 +982,132 @@ void DownloadStore::selfTest(const QString &mode) {
         cancelJob(QStringLiteral("selftest:3:1"));
         cancelJob(QStringLiteral("selftest:3:2"));
     }
+}
+
+
+bool DownloadStore::executionAllowed() const {
+    return !pinnedRecovery() || m_foreground || m_backgroundExecutionAllowed;
+}
+
+
+void DownloadStore::feedTorrentUrl(const QString &id, const QString &url,
+                                   const QString &infoHash, int fileIdx) {
+    if (!pinnedRecovery()) { feedSource(id, url, {}); return; }
+    const int i = jobIndex(id);
+    if (i < 0 || url.isEmpty() || !executionAllowed()
+        || m_jobs.at(i).state != QStringLiteral("resolving"))
+        return;
+    const QString hash = infoHash.trimmed().toLower();
+    static const QRegularExpression validHash(QStringLiteral("^(?:[0-9a-f]{40}|[0-9a-f]{64})$"));
+    if (!validHash.match(hash).hasMatch() || fileIdx < 0) {
+        failJob(id, QStringLiteral("Invalid resolved torrent identity"));
+        return;
+    }
+    Job &j = m_jobs[i];
+    if (j.partialInfoHash != hash || j.partialFileIdx != fileIdx)
+        j.resumeFromPart = false;
+    j.partialInfoHash = hash;
+    j.partialFileIdx = fileIdx;
+    // Pin rank-best/hash-only selections too: reconnect must resolve this file.
+    j.request.insert(QStringLiteral("infoHash"), hash);
+    j.request.insert(QStringLiteral("fileIdx"), fileIdx);
+    j.request.insert(QStringLiteral("headers"), QVariantMap{});
+    j.url = url;
+    startHttp(j);
+    saveQueue();
+}
+
+
+void DownloadStore::setForeground(bool foreground) {
+    if (!pinnedRecovery() || m_foreground == foreground)
+        return;
+    const bool wasAvailable = executionAllowed();
+    m_foreground = foreground;
+    const bool available = executionAllowed();
+    if (wasAvailable != available)
+        transitionExecutionAvailability(available);
+}
+
+
+void DownloadStore::setBackgroundExecutionAllowed(bool allowed) {
+    if (!pinnedRecovery() || m_backgroundExecutionAllowed == allowed)
+        return;
+    const bool wasAvailable = executionAllowed();
+    m_backgroundExecutionAllowed = allowed;
+    const bool available = executionAllowed();
+    if (wasAvailable != available)
+        transitionExecutionAvailability(available);
+}
+
+
+void DownloadStore::transitionExecutionAvailability(bool available) {
+    if (!available) {
+        // Fence source-search callbacks before disconnecting HTTP replies. A
+        // service lease keeps the existing resolver/network work alive because
+        // this transition runs only after foreground AND lease are both lost.
+        emit resolutionReset();
+        const auto retiringRoute = [](const Job &j) {
+            const QString host = QUrl(j.url).host();
+            return !j.partialInfoHash.isEmpty() || host == QStringLiteral("127.0.0.1")
+                || host == QStringLiteral("::1") || host == QStringLiteral("localhost");
+        };
+        QStringList ids;
+        for (const Job &j : m_jobs)
+            if ((j.state == QStringLiteral("queued") || j.state == QStringLiteral("resolving")
+                 || j.state == QStringLiteral("downloading")))
+                ids.append(j.id);
+        for (const QString &id : ids) {
+            pauseJob(id);
+            const int i = jobIndex(id);
+            if (i < 0) continue;
+            Job &j = m_jobs[i];
+            j.lifecyclePaused = true;
+            qInfo() << "[videoq] lifecycle paused" << id << "retained bytes"
+                    << QFileInfo(j.partPath).size();
+        }
+        // Local/torrent URLs retire with the streaming engine. Direct HTTP URLs
+        // remain available so their exact URL can Range-resume after a lease
+        // returns. Manually paused jobs never enter lifecyclePaused.
+        for (Job &j : m_jobs) {
+            if (retiringRoute(j))
+                j.url.clear();
+        }
+        saveQueue();
+    } else {
+        QStringList ids;
+        for (const Job &j : m_jobs)
+            if (j.lifecyclePaused) ids.append(j.id);
+        for (const QString &id : ids)
+            resumeJob(id);
+        pump();
+    }
+}
+
+
+bool DownloadStore::localFileAvailable(const QString &path) const {
+    if (path.isEmpty())
+        return false;
+
+    QString localPath;
+    // QUrl parses a Windows drive letter as a URI scheme. Keep absolute paths
+    // in their filesystem representation before considering URL syntax.
+    if (QDir::isAbsolutePath(path)) {
+        localPath = path;
+    } else {
+        const QUrl url(path);
+        if (url.scheme().isEmpty()) {
+            localPath = path;
+        } else if (url.scheme().compare(QStringLiteral("file"), Qt::CaseInsensitive) == 0
+                   && url.isValid()) {
+            localPath = url.toLocalFile();
+        } else {
+            return false;
+        }
+    }
+
+    if (localPath.isEmpty())
+        return false;
+
+    const QFileInfo info(localPath);
+    return info.isFile() && info.isReadable();
 }

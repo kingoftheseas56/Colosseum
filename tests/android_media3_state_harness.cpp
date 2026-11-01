@@ -2,8 +2,10 @@
 
 #include <QCoreApplication>
 #include <QDebug>
+#include <QUrl>
 
 #include <cmath>
+#include <cstdio>
 
 using Colosseum::Player::AndroidMedia3State;
 using Colosseum::Player::HostPlaybackAction;
@@ -12,10 +14,16 @@ using Colosseum::Player::Media3CueRow;
 using Colosseum::Player::Media3TrackRow;
 
 namespace {
+int assertionCount = 0;
+
 void require(bool condition, const char *message)
 {
-    if (!condition)
+    ++assertionCount;
+    if (!condition) {
+        std::fprintf(stderr, "FAIL: android_media3_state_harness: %s\n", message);
+        std::fflush(stderr);
         qFatal("android_media3_state_harness: %s", message);
+    }
 }
 
 bool near(double a, double b, double epsilon = 0.0001)
@@ -28,6 +36,45 @@ int main(int argc, char **argv)
 {
     QCoreApplication app(argc, argv);
     AndroidMedia3State state;
+
+    const QString rawAndroidPath = QString::fromUtf8(
+        "/storage/emulated/0/Movies/Night of the Living Dead - \xE2\x98\x83 #100%?.mp4");
+    const QString expectedAndroidFileUrl = QStringLiteral(
+        "file:///storage/emulated/0/Movies/Night%20of%20the%20Living%20Dead%20-%20%E2%98%83%20%23100%25%3F.mp4");
+    state.beginLoad(rawAndroidPath, {});
+    require(state.snapshot().currentUrl == expectedAndroidFileUrl,
+            "raw Android absolute paths must become fully encoded file URIs");
+    require(QUrl(state.snapshot().currentUrl).toLocalFile() == rawAndroidPath,
+            "canonical file URI must round-trip spaces, Unicode, #, %, and ? in the local path");
+    std::printf("PASS: raw absolute Android path is fully encoded and round-trips to its local path\n");
+    std::fflush(stdout);
+
+    const QString explicitHttp = QStringLiteral(
+        "http://127.0.0.1:8787/media%20path/movie.mp4?token=a%2Fb#chapter");
+    state.beginLoad(explicitHttp, {});
+    require(state.snapshot().currentUrl == explicitHttp,
+            "explicit loopback HTTP URLs must remain byte-for-byte unchanged");
+    std::printf("PASS: explicit loopback HTTP URL is preserved\n");
+    std::fflush(stdout);
+
+    const QString explicitContent = QStringLiteral(
+        "content://media/external/video/media/42?title=Night%20of%20the%20Living%20Dead");
+    state.beginLoad(explicitContent, {});
+    require(state.snapshot().currentUrl == explicitContent,
+            "explicit content URIs must remain byte-for-byte unchanged");
+    std::printf("PASS: explicit content URI is preserved\n");
+    std::fflush(stdout);
+
+    const QString explicitFile = QStringLiteral(
+        "file:///storage/emulated/0/Movies/explicit%20name%20%CE%BB%23%25%3F.mp4");
+    state.beginLoad(explicitFile, {});
+    require(state.snapshot().currentUrl == explicitFile,
+            "explicit file URIs must remain byte-for-byte unchanged");
+    require(QUrl(state.snapshot().currentUrl).toLocalFile()
+                == QString::fromUtf8("/storage/emulated/0/Movies/explicit name \xCE\xBB#%?.mp4"),
+            "explicit file URI must still decode to its original local path");
+    std::printf("PASS: explicit file URI is preserved and decodes correctly\n");
+    std::fflush(stdout);
 
     QVariantMap firstHeaders;
     firstHeaders.insert(QStringLiteral("Referer"), QStringLiteral("https://a.invalid/"));
@@ -167,6 +214,7 @@ int main(int argc, char **argv)
                 && !caps.value(QStringLiteral("videoTransform")).toBool(),
             "unsupported mpv-only capabilities must stay false");
 
+    const double returnPosition = state.snapshot().positionSec;
     require(state.noteUserPlay(g1), "explicit user play intent must be generation guarded");
     require(state.snapshot().userWantsPlay, "user play intent must be observable");
     require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::Stop,
@@ -174,8 +222,20 @@ int main(int argc, char **argv)
     const quint64 lifecycle1 = state.snapshot().lifecycleEpoch;
     require(lifecycle1 > 0 && state.snapshot().hostStopped,
             "host stop must own a non-zero lifecycle epoch");
-    require(state.snapshot().userWantsPlay,
-            "host stop must preserve playing user intent independently");
+    require(!state.snapshot().userWantsPlay && state.snapshot().paused,
+            "automatic Android return must clear play intent and remain paused");
+    require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::None
+                && state.snapshot().lifecycleEpoch == lifecycle1,
+            "repeated hidden/suspended notifications must not create another restore epoch");
+    require(near(state.snapshot().positionSec, returnPosition),
+            "host stop must preserve the saved playback position");
+    require(state.subtitleTracks().size() == 1
+                && state.subtitleTracks().constFirst().toMap().value(QStringLiteral("id")).toString()
+                    == QStringLiteral("s:1:0")
+                && state.subtitleCues().size() == 1
+                && state.subtitleCues().constFirst().toMap().value(QStringLiteral("text")).toString()
+                    == QStringLiteral("Hello"),
+            "host stop must preserve selected subtitle track and cue state");
     require(state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("network"))
                 && state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("http"))
                 && state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("source")),
@@ -186,8 +246,13 @@ int main(int argc, char **argv)
             "foreground prepare submission must retire teardown error suppression");
     require(!state.shouldSuppressLifecycleError(g1, lifecycle1, QStringLiteral("network")),
             "suppression must end once restore prepare is submitted");
-    require(state.noteLifecycleReady(g1, lifecycle1) == HostPlaybackAction::Resume,
-            "READY after restore may resume only preserved playing intent");
+    require(state.noteLifecycleReady(g1, lifecycle1) == HostPlaybackAction::None,
+            "READY after automatic foreground restore must not resume old play intent");
+    require(state.snapshot().paused && !state.snapshot().userWantsPlay,
+            "automatic foreground restore must settle in a paused state");
+    require(near(state.snapshot().positionSec, returnPosition)
+                && state.subtitleTracks().size() == 1 && state.subtitleCues().size() == 1,
+            "foreground restore must retain position and subtitle data");
 
     require(state.noteUserPause(g1), "user pause must remain authoritative");
     require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::Stop,
@@ -197,6 +262,8 @@ int main(int argc, char **argv)
     require(!state.snapshot().userWantsPlay, "host stop must not rewrite a user pause into play intent");
     require(!state.noteLifecyclePrepareSubmitted(g1, lifecycle1),
             "old lifecycle epochs must be rejected after a newer host stop");
+    require(state.noteLifecycleReady(g1, lifecycle1) == HostPlaybackAction::None,
+            "stale READY callbacks from an earlier restore epoch must be ignored");
     require(state.noteLifecyclePrepareSubmitted(g1, lifecycle2), "current restore prepare must be accepted");
     require(state.noteLifecycleReady(g1, lifecycle2) == HostPlaybackAction::None,
             "user-paused content must remain paused after lifecycle restore");
@@ -209,6 +276,27 @@ int main(int argc, char **argv)
     require(state.noteLifecyclePrepareSubmitted(g1, lifecycle3), "restore prepare may still clear suppression");
     require(state.noteLifecycleReady(g1, lifecycle3) == HostPlaybackAction::None,
             "terminal focus loss must prevent lifecycle auto-resume");
+
+    require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::Stop,
+            "paused content may enter a new lifecycle epoch before explicit resume");
+    const quint64 lifecycle4 = state.snapshot().lifecycleEpoch;
+    require(state.noteLifecyclePrepareSubmitted(g1, lifecycle4),
+            "explicit-play restore prepare must be accepted");
+    require(state.noteUserPlay(g1) && state.snapshot().userWantsPlay && state.snapshot().paused,
+            "explicit Play during restore must record intent while transport is still stopped");
+    require(state.noteLifecycleReady(g1, lifecycle4) == HostPlaybackAction::Resume
+                && !state.snapshot().paused,
+            "explicit Play during restore must resume once the host is ready");
+
+    require(state.beginLifecycleHostStop(g1) == HostPlaybackAction::Stop,
+            "playing content may enter a later lifecycle epoch");
+    const quint64 lifecycle5 = state.snapshot().lifecycleEpoch;
+    require(state.noteLifecyclePrepareSubmitted(g1, lifecycle5),
+            "manual-pause restore prepare must be accepted");
+    require(state.noteUserPause(g1), "manual pause during restore must be generation guarded");
+    require(state.noteLifecycleReady(g1, lifecycle5) == HostPlaybackAction::None
+                && state.snapshot().paused && !state.snapshot().userWantsPlay,
+            "manual pause during restore must override a pending resume");
 
     QVariantMap staleHeaders;
     staleHeaders.insert(QStringLiteral("Authorization"), QStringLiteral("stale"));
@@ -226,8 +314,8 @@ int main(int argc, char **argv)
     require(!state.snapshot().userWantsPlay && !state.snapshot().hostStopped
                 && !state.snapshot().lifecycleErrorSuppressionArmed,
             "source replacement must invalidate prior lifecycle restoration and play intent");
-    require(!state.noteLifecyclePrepareSubmitted(g1, lifecycle3)
-                && state.noteLifecycleReady(g1, lifecycle3) == HostPlaybackAction::None,
+    require(!state.noteLifecyclePrepareSubmitted(g1, lifecycle5)
+                && state.noteLifecycleReady(g1, lifecycle5) == HostPlaybackAction::None,
             "old generation/lifecycle callbacks must be ignored after source replacement");
 
     require(!state.updateTimeline(g1, 99'000, 100'000, 100'000, 100.0, false, 1, true, 3.0),
@@ -251,18 +339,74 @@ int main(int argc, char **argv)
     require(state.noteUserPlay(g3), "terminal-stop fixture must begin with playing intent");
     require(state.beginLifecycleHostStop(g3) == HostPlaybackAction::Stop,
             "terminal-stop fixture must enter lifecycle host-stop state");
-    const quint64 lifecycle4 = state.snapshot().lifecycleEpoch;
+    const quint64 lifecycle6 = state.snapshot().lifecycleEpoch;
     require(state.noteStopped(g3), "explicit stop/back must cancel lifecycle restoration");
     require(!state.snapshot().hostStopped && !state.snapshot().userWantsPlay,
             "terminal stop must clear lifecycle state and play intent");
-    require(!state.noteLifecyclePrepareSubmitted(g3, lifecycle4)
-                && state.noteLifecycleReady(g3, lifecycle4) == HostPlaybackAction::None,
+    require(!state.noteLifecyclePrepareSubmitted(g3, lifecycle6)
+                && state.noteLifecycleReady(g3, lifecycle6) == HostPlaybackAction::None,
             "foreground return must not resurrect an explicitly stopped source");
     require(state.markEnded(g3), "first EOF must transition once");
     require(!state.markEnded(g3), "duplicate EOF must be one-shot");
     require(!state.markError(g3, QStringLiteral("unknown"), QStringLiteral("late")),
             "late error must not replace EOF truth");
+    // Task014 (Nokia T20): a naturally ended source is re-armed by a user seek or
+    // play instead of leaving the player inert until it is closed.
+    require(!state.beginSeek(g3, 9000, 1000), "an ended source ignores seeks until re-armed");
+    require(state.rearmAfterEnd(g3), "a natural EOF must be re-armable");
+    require(!state.snapshot().ended && state.snapshot().paused && !state.snapshot().seeking,
+            "re-arm leaves a paused, non-seeking, non-terminal source");
+    require(!state.rearmAfterEnd(g3), "re-arm is one-shot per EOF");
+    require(state.beginSeek(g3, 9000, 1000) && state.snapshot().seeking,
+            "a re-armed source accepts the user's seek");
+    require(state.noteUserPlay(g3) && state.snapshot().userWantsPlay,
+            "a re-armed source accepts play");
+    require(state.markEnded(g3), "the re-armed source can reach EOF again");
+    const quint64 g4 = state.beginLoad(QStringLiteral("https://example.invalid/d.mp4"), QVariantMap());
+    require(state.markError(g4, QStringLiteral("source"), QStringLiteral("unreachable")),
+            "a fresh source can fail");
+    require(!state.rearmAfterEnd(g4) && state.snapshot().errored,
+            "an errored source stays terminal");
+
+    // Recovery must distinguish the pause introduced by markError from a
+    // deliberate user pause; the paused error state alone cannot express both.
+    AndroidMedia3State retryState;
+    const QString recoveryPause = QStringLiteral("recovery-paused");
+    const quint64 playingError = retryState.beginLoad(QStringLiteral("http://127.0.0.1/night"), {});
+    require(!retryState.playbackStat(recoveryPause).isValid(),
+            "pre-error recovery intent must be unavailable during ordinary playback");
+    require(retryState.updateTimeline(playingError, 4015357, 5796503, 4020000, 70,
+                                     false, 100, false, 1),
+            "recovery fixture must observe a playing position");
+    require(retryState.markError(playingError, QStringLiteral("network_error"), QStringLiteral("fixture")),
+            "playing source must accept its typed error");
+    require(retryState.snapshot().paused,
+            "an error still reports actual stopped playback as paused");
+    require(retryState.playbackStat(recoveryPause).isValid()
+                && !retryState.playbackStat(recoveryPause).toBool(),
+            "recovery must retain the playing intent from before the error-induced pause");
+    require(!retryState.playbackStat(QStringLiteral("unknown-stat")).isValid(),
+            "unknown playback stats must remain unavailable");
+    require(!retryState.markError(playingError, QStringLiteral("late"), QStringLiteral("fixture"))
+                && !retryState.playbackStat(recoveryPause).toBool(),
+            "duplicate error must not replace the original recovery intent");
+    const quint64 pausedError = retryState.beginLoad(QStringLiteral("http://127.0.0.1/paused"), {});
+    require(!retryState.playbackStat(recoveryPause).isValid(),
+            "a replacement source must not inherit the previous error intent");
+    require(retryState.updateTimeline(pausedError, 15000, 100000, 20000, 20,
+                                     true, 100, false, 1)
+                && retryState.markError(pausedError, QStringLiteral("network_error"), QStringLiteral("fixture")),
+            "manually paused source must accept its own error");
+    require(retryState.playbackStat(recoveryPause).isValid()
+                && retryState.playbackStat(recoveryPause).toBool(),
+            "recovery must preserve a genuine manual pause");
+    retryState.beginLoad(QStringLiteral("http://127.0.0.1/new"), {});
+    require(!retryState.markError(pausedError, QStringLiteral("stale"), QStringLiteral("fixture"))
+                && !retryState.playbackStat(recoveryPause).isValid(),
+            "a stale error must not repopulate recovery intent in a fresh generation");
 
     qInfo().noquote() << QStringLiteral("ANDROID_MEDIA3_STATE_OK");
+    std::printf("ANDROID_MEDIA3_STATE_OK assertions=%d\n", assertionCount);
+    std::fflush(stdout);
     return 0;
 }
