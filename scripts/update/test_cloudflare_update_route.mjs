@@ -142,9 +142,10 @@ test("1.1.10 notes serve the authored features without claiming publication", as
   assert.ok(response.headers.get("ETag"));
 });
 
-test("1.1.10 notes preserve exact GET, HEAD, conditional and method behavior", async () => {
-  const path = "/releases/v1.1.10";
+for (const version of ["1.1.10", "1.2.0"]) test(`${version} notes preserve exact GET, HEAD, conditional and method behavior`, async () => {
+  const path = `/releases/v${version}`;
   const get = await route.default.fetch(request("GET", path));
+  assert.equal(get.status, 200);
   const head = await route.default.fetch(request("HEAD", path + "?from=app"));
   assert.equal(head.status, 200);
   assert.equal(await head.text(), "");

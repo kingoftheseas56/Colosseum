@@ -3,6 +3,7 @@
 // This module does not publish a release.
 import { notesHtml as notes119Html, notesETag as notes119ETag } from "./release_notes_119.mjs";
 import { notesHtml as notes1110Html, notesETag as notes1110ETag } from "./release_notes_1110.mjs";
+import { notesHtml as notes120Html, notesETag as notes120ETag } from "./release_notes_120.mjs";
 
 export const stableUpdatePath = "/updates/stable.json";
 export const stableUpdateOrigin =
@@ -13,6 +14,7 @@ const CAP_BYTES = 2 * 1024 * 1024;
 const releaseNotes = new Map([
   ["/releases/v1.1.9", {html:notes119Html, etag:notes119ETag}],
   ["/releases/v1.1.10", {html:notes1110Html, etag:notes1110ETag}],
+  ["/releases/v1.2.0", {html:notes120Html, etag:notes120ETag}],
 ]);
 
 function unavailable() {
