@@ -20,6 +20,8 @@ target_sources(colosseum PRIVATE
     player/androidmedia3item.h
     player/androidmedia3videonode.cpp
     player/androidmedia3videonode.h
+    player/subtitlesidecar.cpp
+    player/subtitlesidecar.h
     player/androidseekthumbnailer.h
     player/MediaAdmissionProbe_android.cpp
     player/MediaAdmissionProbe.h
@@ -30,6 +32,29 @@ target_sources(colosseum PRIVATE
     player/powerstore.cpp
     player/powerstore.h
 )
+
+# Opt-in Nuvio torrent playback backend (see cmake/NuvioBackend.cmake): the
+# adapter sources join the app target only when the hardened, stamp-verified
+# private engine artifact is configured. OFF keeps the unavailable stub.
+if(COLOSSEUM_ANDROID_NUVIO_BACKEND)
+    target_sources(colosseum PRIVATE
+        player/nuvioengineapi.cpp
+        player/nuvioengineapi.h
+        player/nuviostreambackend.cpp
+        player/nuviostreambackend.h
+    )
+    target_include_directories(colosseum PRIVATE
+        "${CMAKE_CURRENT_SOURCE_DIR}/third_party/nuvio-engine/include"
+    )
+    target_compile_definitions(colosseum PRIVATE COLOSSEUM_ANDROID_NUVIO_BACKEND=1)
+    # Package the private engine library so the runtime QLibrary load from the
+    # app's nativeLibraryDir resolves; it is never linked into libcolosseum.
+    set_property(
+        TARGET colosseum
+        APPEND
+        PROPERTY QT_ANDROID_EXTRA_LIBS "${COLOSSEUM_NUVIO_ENGINE_LIBRARY}"
+    )
+endif()
 
 # Android needs the same source-shaped runtime tree as desktop, but APKs cannot
 # read a checkout beside the native library. Build a generated package overlay

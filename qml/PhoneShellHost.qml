@@ -155,10 +155,12 @@ Item {
             item.contentBottomInset = Qt.binding(function() { return host.contentBottomInset })
     }
 
-    // Android's Back key and gesture arrive as Qt.Key_Back. They are Back here too.
+    // The native Runtime owns Android Back. Keep this fallback only for a shell
+    // fixture without that native bridge, preventing a parallel Shortcut delivery.
     Shortcut {
         sequence: "Back"
-        enabled: host.androidHost
+        enabled: host.androidHost && !(typeof PlatformRuntime !== "undefined"
+                                      && PlatformRuntime && PlatformRuntime.systemBackAvailable === true)
         onActivated: host.escapeCommand.invoke("androidBack")
     }
 

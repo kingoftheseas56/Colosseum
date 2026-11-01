@@ -12,6 +12,28 @@ option(COLOSSEUM_UPDATE_TESTING
     "Use the test-only update public key for isolated fixture builds"
     OFF)
 
+# Minimal focused-test project for the opt-in Android Nuvio playback backend:
+# returns before every unrelated desktop dependency while still compiling the
+# PRODUCTION adapter sources (shared list in cmake/NuvioBackendTests.cmake).
+option(COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY
+    "Configure only the focused Nuvio stream backend tests and stop"
+    OFF)
+if(COLOSSEUM_NUVIO_BACKEND_TESTS_ONLY)
+    set(CMAKE_CXX_STANDARD 17)
+    set(CMAKE_CXX_STANDARD_REQUIRED ON)
+    find_package(Qt6 REQUIRED COMPONENTS Core Test)
+    set(CMAKE_AUTOMOC ON)
+    include(CTest)
+    set(COLOSSEUM_NATIVE_DIR "${CMAKE_CURRENT_SOURCE_DIR}")
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/NuvioBackendTests.cmake")
+    colosseum_add_nuvio_backend_tests()
+    include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/AndroidIntegrationTests.cmake")
+    colosseum_add_android_integration_tests()
+    return()
+endif()
+
+include("${CMAKE_CURRENT_SOURCE_DIR}/cmake/NuvioBackend.cmake")
+
 # Legacy local-only qualification switch. Shipping uses one standard,
 # accounts-capable edition with optional local use; this must remain OFF.
 # ON: account sign-in,

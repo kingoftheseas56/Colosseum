@@ -1198,6 +1198,9 @@ int main(int argc, char *argv[]) {
     // Torrent stream engine (Stremio sidecar) exposed to QML as `Stream`. Lazy: the
     // runtime only spawns on the first Stream.play() call.
     auto *stream = new StreamServer(&backendServices);
+#ifdef Q_OS_ANDROID
+    stream->setForegroundProbe([platformRuntime]() { return platformRuntime->foreground(); });
+#endif
     engine.rootContext()->setContextProperty(QStringLiteral("Stream"), stream);
     // Warm the torrent engine shortly AFTER the window is up -- not during launch, and no longer
     // lazily on the first play. Lazy-on-play made every session pay the engine's cold start (DHT
@@ -1619,6 +1622,42 @@ int main(int argc, char *argv[]) {
         localDownloads, &app);
     engine.rootContext()->setContextProperty(
         QStringLiteral("PlatformDownloads"), platformDownloads);
+
+#ifdef Q_OS_ANDROID
+    const auto syncVideoForeground = [platformRuntime, platformDownloads, stream, download]() {
+        const bool foreground = platformRuntime->foreground();
+        platformDownloads->setForeground(foreground);
+        const bool backgroundAllowed = platformDownloads->backgroundHostReady();
+        const bool videoDownloadAllowed = backgroundAllowed && platformDownloads->videoRunningCount() > 0;
+        if (foreground) {
+            stream->setForeground(true);
+            stream->setBackgroundDownloadsActive(videoDownloadAllowed);
+            download->setForeground(true);
+            download->setBackgroundExecutionAllowed(backgroundAllowed);
+        } else {
+            // Grant the backend before resumed resolution can ask for a route.
+            if (videoDownloadAllowed) stream->setBackgroundDownloadsActive(true);
+            download->setBackgroundExecutionAllowed(backgroundAllowed);
+            download->setForeground(false);
+            // Withdraw OS permission only after HTTP partials have been parked.
+            if (!videoDownloadAllowed) stream->setBackgroundDownloadsActive(false);
+            stream->setForeground(false);
+        }
+        // Completion/cancel can precede the service's asynchronous startup.
+        // Release the download route even when no OS lease was ever granted.
+        if (platformDownloads->videoRunningCount() == 0) stream->stopFetchDemand();
+    };
+    QObject::connect(platformRuntime,
+                     &Colosseum::Platform::Runtime::applicationStateChanged,
+                     stream, syncVideoForeground);
+    QObject::connect(platformDownloads,
+                     &Colosseum::Platform::BackgroundDownloadBridge::hostStateChanged,
+                     stream, syncVideoForeground, Qt::QueuedConnection);
+    QObject::connect(platformDownloads,
+                     &Colosseum::Platform::BackgroundDownloadBridge::changed,
+                     stream, syncVideoForeground, Qt::QueuedConnection);
+    syncVideoForeground();
+#endif
 
 #if !defined(Q_OS_ANDROID)
     // Slice 18 — the synthetic downloads root: derives VaultIndex::FileRows from
