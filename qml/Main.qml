@@ -335,13 +335,14 @@ Window {
     }
     KeyboardCommand {
         id: openMediaCommand
+        enabled: win.localMediaAvailable
         semanticId: "global.openMedia"
         label: "Open media"
         category: "Shortcuts"
         scope: "application"
         sequences: ["Ctrl+O"]
         icon: "file.svg"
-        onTriggered: openMediaDialog.open()
+        onTriggered: if (win.localMediaAvailable) openMediaDialog.open()
     }
     KeyboardCommand {
         id: openVaultCommand
@@ -3682,9 +3683,10 @@ Window {
         else if (r.family === "book")  win.openBookSession(r.path, { "id": r.vaultId, "title": r.title })
         else if (r.family === "video") win.openLocalVideoSession(win.videoTargetFor(r.path, r.vaultId, r.title))
     }
+    readonly property bool localMediaAvailable: typeof LocalLaunch !== "undefined" && LocalLaunch !== null
     function openLocalMedia(paths) {
         if (!paths || !paths.length) return
-        if (typeof LocalLaunch === "undefined") return
+        if (!win.localMediaAvailable) return
         LocalLaunch.openAsync(paths)
     }
     function openNextToOpen(index) {
@@ -6190,6 +6192,7 @@ Window {
     // ---- the OS-shell taskbar: auto-hidden switcher over everything (under the boot splash) ----
     Taskbar {
         id: taskbar
+        localMediaAvailable: win.localMediaAvailable
         z: 900
         onFeedbackClicked: win.openFeedback()
         visible: !win.immersiveSurfaceOpen
@@ -6204,9 +6207,11 @@ Window {
         onCloseRequested: (id) => win.closeSession(id)
         onStartClicked: { /* Start menu is a later spec - placeholder */ }
         onOpenMediaClicked: {
+            if (!win.localMediaAvailable) return
             if (!win.guardNamedCollectionsNavigation(function() { openMediaDialog.open() })) openMediaDialog.open()
         }
         onOpenRecentRequested: {
+            if (!win.localMediaAvailable) return
             if (!win.guardNamedCollectionsNavigation(function() { openRecentPanel.toggle() })) openRecentPanel.toggle()
         }
         onWatchPartyJoinClicked: {
@@ -6276,6 +6281,7 @@ Window {
         fileMode: FileDialog.OpenFiles
         nameFilters: phoneShell.openMediaNameFilters
         onAccepted: {
+            if (!win.localMediaAvailable) return
             var arr = []
             for (var i = 0; i < selectedFiles.length; i++) arr.push("" + selectedFiles[i])
             win.openLocalMedia(arr)   // multi-select opens the FIRST; the Next-to-Open tray is Slice 20
@@ -6369,6 +6375,7 @@ Window {
         z: 5
         keys: ["text/uri-list"]
         onDropped: (drop) => {
+            if (!win.localMediaAvailable) { drop.accepted = false; return }
             if (!drop.hasUrls) { drop.accepted = false; return }
             var files = []
             var anyFolder = false
@@ -6385,6 +6392,7 @@ Window {
 
     Shortcut {
         sequences: openMediaCommand.sequences
+        enabled: win.localMediaAvailable
         context: Qt.ApplicationShortcut
         onActivated: openMediaCommand.invoke("shortcut")
     }
@@ -6524,7 +6532,7 @@ Window {
                 MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: { localLaunchToast.opacity = 0; openMediaDialog.open() }
+                    onClicked: { localLaunchToast.opacity = 0; if (win.localMediaAvailable) openMediaDialog.open() }
                 }
             }
         }
