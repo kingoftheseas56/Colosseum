@@ -98,3 +98,4 @@ jobs:
             ${{ env.PREVIEW_OUTPUT }}/*.sha256
             ${{ env.PREVIEW_OUTPUT }}/*.json
             ${{ env.PREVIEW_OUTPUT }}/*.log
+            ${{ env.PREVIEW_OUTPUT }}/*.png

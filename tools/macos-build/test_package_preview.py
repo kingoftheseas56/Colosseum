@@ -47,11 +47,15 @@ class PackagingBoundary(unittest.TestCase):
                 link.create_system = 3
                 link.external_attr = (stat.S_IFLNK | 0o777) << 16
                 z.writestr(link, 'A')
+                alias = zipfile.ZipInfo('Colosseum.app/Contents/Frameworks/QtCore.framework/QtCore')
+                alias.create_system = 3
+                alias.external_attr = (stat.S_IFLNK | 0o777) << 16
+                z.writestr(alias, 'Versions/Current/QtCore')
                 z.writestr('__MACOSX/Colosseum.app/Contents/._Info.plist', b'resource-fork')
             result = package.verify_archive(archive)
             self.assertEqual(result['status'], 'PASS')
-            self.assertEqual(result['members'], 4)
-            self.assertEqual(result['symlinks'], 1)
+            self.assertEqual(result['members'], 5)
+            self.assertEqual(result['symlinks'], 2)
 
     def test_archive_rejects_unsafe_members_and_symlink_escapes(self):
         cases = [('/tmp/escape', b'x', False), ('../escape', b'x', False),
@@ -87,6 +91,24 @@ class PackagingBoundary(unittest.TestCase):
                 with self.assertRaises(RuntimeError):
                     package.verify_archive(archive)
 
+    def test_archive_resolves_symlink_chains_before_parent_traversal(self):
+        cases = [
+            {'Colosseum.app/B': '.', 'Colosseum.app/Contents/Frameworks/A': '../../B/../outside'},
+            {'Colosseum.app/A': 'B', 'Colosseum.app/B': 'A'},
+        ]
+        for links in cases:
+            with self.subTest(links=links), tempfile.TemporaryDirectory() as directory:
+                archive = Path(directory) / 'preview.zip'
+                with zipfile.ZipFile(archive, 'w') as z:
+                    z.writestr('Colosseum.app/Contents/MacOS/colosseum', b'executable')
+                    for name, target in links.items():
+                        entry = zipfile.ZipInfo(name)
+                        entry.create_system = 3
+                        entry.external_attr = (stat.S_IFLNK | 0o777) << 16
+                        z.writestr(entry, target)
+                with self.assertRaises(RuntimeError):
+                    package.verify_archive(archive)
+
     def test_archive_checks_crc(self):
         with tempfile.TemporaryDirectory() as directory:
             archive = Path(directory) / 'preview.zip'
@@ -95,6 +117,33 @@ class PackagingBoundary(unittest.TestCase):
             archive.write_bytes(archive.read_bytes().replace(b'UNIQUE-PAYLOAD', b'CORRUPT-BYTES!'))
             with self.assertRaises(RuntimeError):
                 package.verify_archive(archive)
+
+    def test_window_capture_requires_png_inside_isolated_run_directory(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / 'profile'
+            run = data / 'lanista/runs/test'
+            run.mkdir(parents=True)
+            image = run / 'frame.png'
+            image.write_bytes(b'\x89PNG\r\n\x1a\n' + (13).to_bytes(4, 'big') + b'IHDR'
+                              + (1280).to_bytes(4, 'big') + (720).to_bytes(4, 'big'))
+            state = dict(appDataRoot=str(data), runDir=str(run), grabPath=str(image))
+            output = root / 'output'
+            output.mkdir()
+            record = package.copy_window_capture(state, output)
+            self.assertEqual(record['status'], 'PASS')
+            self.assertEqual((output / 'runtime-window.png').read_bytes(), image.read_bytes())
+            outside = root / 'outside.png'
+            outside.write_bytes(image.read_bytes())
+            with self.assertRaises(RuntimeError):
+                package.copy_window_capture(dict(state, grabPath=str(outside)), output)
+            alias = run / 'alias.png'
+            alias.symlink_to(outside)
+            with self.assertRaises(RuntimeError):
+                package.copy_window_capture(dict(state, grabPath=str(alias)), output)
+            image.write_bytes(b'not PNG')
+            with self.assertRaises(RuntimeError):
+                package.copy_window_capture(state, output)
 
     def test_smoke_requires_actual_tagged_roots(self):
         tag = 'mac-preview-123'

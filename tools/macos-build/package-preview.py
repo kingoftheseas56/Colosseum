@@ -421,7 +421,7 @@ def verify_archive(archive):
     try:
         with zipfile.ZipFile(archive) as zipped:
             members = zipped.infolist()
-            seen, links, paths = set(), set(), []
+            seen, links, paths = set(), {}, []
             for item in members:
                 name = item.filename.rstrip('/')
                 parts = name.split('/')
@@ -444,13 +444,34 @@ def verify_archive(archive):
                             or parts[0] != 'Colosseum.app'
                             or not (resolved == 'Colosseum.app' or resolved.startswith('Colosseum.app/'))):
                         raise RuntimeError(f'Unsafe archive symlink: {name}: {target!r}')
-                    links.add(key)
+                    links[key] = target
             if not any(path.startswith('Colosseum.app/') for path in paths):
                 raise RuntimeError('Archive has no application contents')
             for name in paths:
                 components = name.casefold().split('/')
                 if any('/'.join(components[:i]) in links for i in range(1, len(components))):
                     raise RuntimeError(f'Archive member descends through symlink: {name}')
+            # Resolve before collapsing '..': a lexically contained target can
+            # otherwise escape through an intermediate symlink to a parent.
+            for name in links:
+                pending, resolved, hops = name.split('/'), [], 0
+                while pending:
+                    part = pending.pop(0)
+                    if part in ('', '.'):
+                        continue
+                    if part == '..':
+                        if len(resolved) <= 1:
+                            raise RuntimeError(f'Archive symlink chain escapes application: {name}')
+                        resolved.pop()
+                        continue
+                    resolved.append(part)
+                    key = '/'.join(resolved).casefold()
+                    if key in links:
+                        hops += 1
+                        if hops > 40:
+                            raise RuntimeError(f'Archive symlink chain cycles or is too deep: {name}')
+                        resolved.pop()
+                        pending = links[key].split('/') + pending
             bad = zipped.testzip()
             if bad:
                 raise RuntimeError(f'Archive CRC failure: {bad}')
@@ -465,10 +486,37 @@ def isolated_roots(state, tag):
                and Path(state[key]).name == expected for key in ('appDataRoot', 'cacheRoot'))
 
 
+def copy_window_capture(state, output):
+    for key in ('appDataRoot', 'runDir', 'grabPath'):
+        if not isinstance(state.get(key), str) or not Path(state[key]).is_absolute():
+            raise RuntimeError(f'Missing absolute rendered-window evidence path: {key}')
+    data = Path(state['appDataRoot']).resolve(strict=True)
+    directory = Path(state['runDir']).resolve(strict=True)
+    captured = Path(state['grabPath']).resolve(strict=True)
+    if (data not in directory.parents or directory not in captured.parents
+            or captured.suffix.lower() != '.png' or not captured.is_file()):
+        raise RuntimeError('Rendered-window evidence is outside the isolated run directory')
+    if captured.stat().st_size > 50 * 1024 * 1024:
+        raise RuntimeError('Rendered-window PNG exceeds evidence size limit')
+    with captured.open('rb') as stream:
+        header = stream.read(24)
+    if (len(header) != 24 or header[:8] != b'\x89PNG\r\n\x1a\n'
+            or header[12:16] != b'IHDR'
+            or not int.from_bytes(header[16:20], 'big')
+            or not int.from_bytes(header[20:24], 'big')):
+        raise RuntimeError('Rendered-window evidence has no valid PNG dimensions')
+    destination = output / 'runtime-window.png'
+    shutil.copy2(captured, destination)
+    return dict(status='PASS', file=destination.name, sha256=sha256_file(destination),
+                width=int.from_bytes(header[16:20], 'big'), height=int.from_bytes(header[20:24], 'big'),
+                scope='Qt application window scene grab; not desktop pixels or physical M1 proof')
+
+
 def smoke(output):
     environment = {key: value for key, value in os.environ.items()
                    if not key.startswith(('QT', 'QML', 'COLOSSEUM_', 'DYLD_', 'MACOSX_'))}
     report = dict(archive='NOT RUN', version='NOT RUN', gui='NOT RUN', normal_quit='NOT RUN',
+                  rendered_window='NOT RUN',
                   profile_isolation='NOT RUN', physical_m1_playback_gpu_audio='NOT RUN')
     try:
         with tempfile.TemporaryDirectory(prefix='colosseum-smoke-') as directory:
@@ -492,7 +540,7 @@ def smoke(output):
             # session is an explicit infrastructure block rather than app failure.
             console = subprocess.check_output(['stat', '-f', '%Su', '/dev/console'], text=True).strip()
             if console in ('root', 'loginwindow', ''):
-                report['gui'] = report['normal_quit'] = 'BLOCKED: no logged-in GUI console session'
+                report['gui'] = report['normal_quit'] = report['rendered_window'] = 'BLOCKED: no logged-in GUI console session'
             else:
                 report['gui'] = 'FAIL'
                 address = cwd / 'lanista.sock'
@@ -524,6 +572,11 @@ def smoke(output):
                             raise RuntimeError('Resolved application/cache roots do not match isolated profile tag')
                         report['profile_isolation'] = 'PASS'
                         report['gui'] = 'PASS: visible window and completed boot splash reported by Lanista only'
+                        report['rendered_window'] = 'FAIL'
+                        captured = lanista(address, 'get-state', {'grab': {'target': 'window'}})
+                        if not isolated_roots(captured, tag):
+                            raise RuntimeError('Rendered-window reply changed isolated storage roots')
+                        report['rendered_window'] = copy_window_capture(captured, output)
                         report['normal_quit'] = 'FAIL'
                         lanista(address, 'ui-keypress', {'key': 'Ctrl+Q'})
                         if process.wait(timeout=45) != 0:

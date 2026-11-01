@@ -12,6 +12,25 @@
 static int fails = 0;
 #define CHECK(c,l) do { if (!(c)) { ++fails; std::printf("FAIL: %s\n", l); } } while (0)
 
+// QDir::currentPath() resolves Darwin's /var -> /private/var alias, while
+// QTemporaryDir can retain the spelling from TMPDIR. Compare existing filesystem
+// identity for cwd-derived paths; never let two missing paths compare equal.
+static bool sameExistingPath(const QString& actual, const QString& expected)
+{
+#ifdef Q_OS_MACOS
+    const QString actualCanonical = QFileInfo(actual).canonicalFilePath();
+    const QString expectedCanonical = QFileInfo(expected).canonicalFilePath();
+    if (actual != expected) {
+        std::printf("Mac path identity: actual=%s expected=%s actualCanonical=%s expectedCanonical=%s\n",
+                    qUtf8Printable(actual), qUtf8Printable(expected),
+                    qUtf8Printable(actualCanonical), qUtf8Printable(expectedCanonical));
+    }
+    return !actualCanonical.isEmpty() && actualCanonical == expectedCanonical;
+#else
+    return actual == expected;
+#endif
+}
+
 static void writeFile(const QString& path, const QByteArray& bytes)
 {
     QDir().mkpath(QFileInfo(path).absolutePath());
@@ -88,9 +107,9 @@ int main(int argc, char** argv)
     const auto outOfTree = resolveStartupLayout(
         {QStringLiteral("colosseum")}, outOfTreeAppDir, &error);
     CHECK(outOfTree.has_value(), "out-of-tree Linux launch resolves from source working directory");
-    CHECK(outOfTree && outOfTree->qmlPath == QFileInfo(mainQml).absoluteFilePath(),
+    CHECK(outOfTree && sameExistingPath(outOfTree->qmlPath, QFileInfo(mainQml).absoluteFilePath()),
           "out-of-tree Linux launch uses source-shaped QML tree");
-    CHECK(outOfTree && outOfTree->resourceRoot == QFileInfo(repoRoot).absoluteFilePath(),
+    CHECK(outOfTree && sameExistingPath(outOfTree->resourceRoot, QFileInfo(repoRoot).absoluteFilePath()),
           "out-of-tree Linux launch retains source-shaped resource root");
     CHECK(QDir::setCurrent(originalCwd), "working directory restored after out-of-tree proof");
 
@@ -125,7 +144,7 @@ int main(int argc, char** argv)
         {QStringLiteral("libcolosseum.so")}, packagedAppDir, &error,
         materialized ? QDir(*materialized).filePath(QStringLiteral("qml-build.manifest")) : QString());
     CHECK(packaged.has_value(), "packaged runtime resolves with extracted build manifest");
-    CHECK(packaged && packaged->resourceRoot == QFileInfo(*materialized).absoluteFilePath(),
+    CHECK(packaged && sameExistingPath(packaged->resourceRoot, QFileInfo(*materialized).absoluteFilePath()),
           "packaged runtime becomes the source-shaped resource root");
     CHECK(QDir::setCurrent(originalCwd), "working directory restored after packaged-runtime proof");
 
