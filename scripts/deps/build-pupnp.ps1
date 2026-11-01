@@ -109,11 +109,13 @@ function Run([string]$What, [string]$Exe, [string[]]$ArgList) {
     # Resident patches (MSVC 64-bit file offsets &c). Applied to a pristine tree so the same
     # patch set is idempotent across rebuilds.
     $patchDir = Join-Path $PSScriptRoot 'patches\pupnp'
+    $appliedPupnpPatches = @()
     if (Test-Path $patchDir) {
         Run 'reset pupnp worktree' git @('-C', $pupnpSrc, 'checkout', '--', '.')
         Get-ChildItem $patchDir -Filter '*.patch' | Sort-Object Name | ForEach-Object {
             Run "apply patch $($_.Name)" git @('-C', $pupnpSrc, 'apply', "--check", $_.FullName)
             Run "apply patch $($_.Name)" git @('-C', $pupnpSrc, 'apply', $_.FullName)
+            $appliedPupnpPatches += $_.Name
         }
     }
 
@@ -156,6 +158,27 @@ function Run([string]$What, [string]$Exe, [string[]]$ArgList) {
               (Test-Path (Join-Path $Prefix 'lib\ixmls.lib')))) {
         throw "expected $Prefix\lib\libixmls.lib (or ixmls.lib) is missing"
     }
+    # Preserve upstream distribution materials from the exact verified source clones.
+    $licenseRoot = Join-Path $Prefix 'share\licenses'
+    foreach ($entry in @(
+        @{ Source = $pupnpSrc; Name = 'pupnp'; Files = @('COPYING') },
+        @{ Source = $pthreadsSrc; Name = 'pthreads4w'; Files = @('LICENSE', 'NOTICE', 'CONTRIBUTORS') }
+    )) {
+        $destination = Join-Path $licenseRoot $entry.Name
+        New-Item -ItemType Directory -Force -Path $destination | Out-Null
+        foreach ($file in $entry.Files) {
+            $sourceFile = Join-Path $entry.Source $file
+            if (-not (Test-Path -LiteralPath $sourceFile -PathType Leaf)) {
+                throw "upstream distribution material missing: $sourceFile"
+            }
+            Copy-Item -LiteralPath $sourceFile -Destination (Join-Path $destination $file) -Force
+        }
+    }
+    @(
+        "pupnp: $PupnpRepo @ $PupnpCommit",
+        "pthreads4w: $PthreadsRepo @ $PthreadsCommit",
+        "Applied pupnp patches: $($appliedPupnpPatches -join ', ')"
+    ) | Set-Content -LiteralPath (Join-Path $licenseRoot 'DLNA-PROVENANCE.txt') -Encoding utf8
     Write-Host "== OK: pupnp prefix complete at $Prefix"
     exit 0
 }

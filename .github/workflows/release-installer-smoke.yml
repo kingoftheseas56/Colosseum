@@ -195,7 +195,11 @@ jobs:
           Copy-Item $mpvqt.FullName $build -Force
           Copy-Item "$env:LIBMPV_ROOT\libmpv-2.dll" $build -Force
           Get-ChildItem "$env:VCPKG_ROOT\installed\x64-windows\bin" -Filter "*.dll" | Copy-Item -Destination $build -Force
-          Get-ChildItem "$env:UPNP_ROOT\bin" -Filter "*.dll" | Copy-Item -Destination $build -Force
+          $licenses = Join-Path $build "licenses"
+          New-Item -ItemType Directory -Force -Path $licenses | Out-Null
+          foreach ($name in @('pupnp', 'pthreads4w', 'DLNA-PROVENANCE.txt')) {
+            Copy-Item -LiteralPath (Join-Path $env:UPNP_ROOT "share/licenses/$name") -Destination $licenses -Recurse -Force
+          }
       - name: Recover authenticated Stremio runtime from 1.1.3
         shell: pwsh
         env:
