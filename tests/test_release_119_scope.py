@@ -62,7 +62,7 @@ class Release119Scope(unittest.TestCase):
                         self.assertIn("ACCEPTED", result.stdout)
 
     def test_version_and_first_party_discovery(self):
-        self.assertIn("VERSION 1.1.9", (ROOT / "native/CMakeLists.txt").read_text(encoding="utf-8"))
+        self.assertIn("VERSION 1.1.10", (ROOT / "native/CMakeLists.txt").read_text(encoding="utf-8"))
         main = (ROOT / "native/main.cpp").read_text(encoding="utf-8")
         self.assertIn("https://getcolosseum.world/updates/stable.json", main)
         self.assertNotIn("https://api.github.com/repos/kingoftheseas56/Colosseum/releases/latest", main)
@@ -86,7 +86,7 @@ class Release119Scope(unittest.TestCase):
                                      f"COLOSSEUM_CONTENT_API_URL:STRING={origin}\n"
                                      f"COLOSSEUM_NO_ACCOUNT_EDITION:BOOL={'ON' if no_account else 'OFF'}\n")
                     result = subprocess.run([bash, "--noprofile", "--norc", "-c", guard + "echo ACCEPTED"],
-                                            cwd=directory, env=dict(os.environ, BUILD_DIR=".", VERSION="1.1.9"),
+                                            cwd=directory, env=dict(os.environ, BUILD_DIR=".", VERSION="1.1.10"),
                                             capture_output=True, text=True, timeout=10)
                     self.assertEqual(result.returncode, 0 if accepted else 1, result.stdout + result.stderr)
                     self.assertEqual("ACCEPTED" in result.stdout, accepted)

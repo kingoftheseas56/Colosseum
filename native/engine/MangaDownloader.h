@@ -96,6 +96,7 @@ public:
 
     // Delete a downloaded chapter (loose files + index entry). Emits removed().
     Q_INVOKABLE QVariantMap deleteChapter(const QString& chapterId);
+    Q_INVOKABLE QVariantMap removeIncompleteDownloads();
     // Cancel a queued or in-flight download (aborts replies, drops partials). Emits removed().
     Q_INVOKABLE void cancelDownload(const QString& chapterId);
 

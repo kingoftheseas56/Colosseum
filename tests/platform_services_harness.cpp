@@ -1,4 +1,5 @@
 #include "account/AccountCredentialStoreFactory.h"
+#include "account/PlatformAccountCredentialStore.h"
 #include "account/AccountDeviceIdentity.h"
 #include "account/AndroidAccountCredentialStore.h"
 #include "account/AndroidSecureStorageBackend.h"
@@ -189,8 +190,13 @@ int main(int argc, char **argv) {
     ok &= expect(unavailableAndroid && !unavailableAndroid->isAvailable(),
                  "Android secure-store fallback must fail closed");
     auto unavailableLinux = createAccountCredentialStore(Kind::LinuxDesktop, nullptr);
+#if defined(Q_OS_LINUX) && !defined(Q_OS_ANDROID)
+    ok &= expect(dynamic_cast<PlatformAccountCredentialStore *>(unavailableLinux.get()) != nullptr,
+                 "Linux factory did not select the secure platform store");
+#else
     ok &= expect(unavailableLinux && !unavailableLinux->isAvailable(),
                  "unsupported secure store must fail closed");
+#endif
 
 #if defined(Q_OS_WIN)
     AccountDeviceIdentity desktopIdentity;

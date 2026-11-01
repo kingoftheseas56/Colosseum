@@ -17,6 +17,7 @@
 #include "HistoryStore.h"
 #include "ProgressStore.h"
 #include "SearchHistoryStore.h"
+#include "NamedCollectionsStore.h"
 
 #include <QDir>
 #include <QDateTime>
@@ -299,6 +300,16 @@ std::optional<PersonalStateSnapshot> mergeSnapshots(
     const PersonalStateSnapshot &local,
     QString *error) {
     PersonalStateSnapshot merged = account;
+    if (local.hasNamedCollections) {
+        merged.hasNamedCollections = true;
+        if (!account.hasNamedCollections) {
+            merged.namedCollectionsBytes = local.namedCollectionsBytes;
+        } else if (account.namedCollectionsBytes != local.namedCollectionsBytes
+            && !NamedCollectionsStore::mergeForAdoption(account.namedCollectionsBytes,
+                local.namedCollectionsBytes, &merged.namedCollectionsBytes, error)) {
+            return std::nullopt;
+        }
+    }
     merged.progressEntries = mergeTimestampedObjects(
         account.progressEntries,
         local.progressEntries,
@@ -427,6 +438,8 @@ bool matchesWithActivityProjection(
         || current.audioPairings != expected.audioPairings
         || current.ratingsReviewsRecords != expected.ratingsReviewsRecords
         || current.ratingsReviewsTombstones != expected.ratingsReviewsTombstones
+        || current.hasNamedCollections != expected.hasNamedCollections
+        || current.namedCollectionsBytes != expected.namedCollectionsBytes
         || current.showExplicit != expected.showExplicit) {
         return false;
     }
@@ -1229,7 +1242,8 @@ runLocalOnlyAdoption(
             paths,
             source->semanticDigest(),
             ProfilePaths::Kind::LocalOnly,
-            error);
+            error,
+            source->namedCollectionsDigest());
     if (!adoption.has_value())
         return false;
 
@@ -1526,7 +1540,8 @@ runFreshAdoption(
             paths,
             source->semanticDigest(),
             ProfilePaths::Kind::LegacyLocal,
-            error);
+            error,
+            source->namedCollectionsDigest());
     if (!adoption.has_value())
         return false;
 

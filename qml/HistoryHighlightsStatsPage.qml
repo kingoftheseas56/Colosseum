@@ -53,6 +53,9 @@ Item {
     readonly property int taskbarClearance: 92
 
     signal backRequested()
+    signal minimizeRequested()
+    signal fullscreenRequested()
+    signal closeRequested()
     signal syncCenterRequested()
 
     Theme { id: theme }
@@ -269,6 +272,16 @@ Item {
                 font.pixelSize: 11
             }
         }
+    }
+
+    HouseWindowControls {
+        objectPrefix: "historyStatsWindow"
+        anchors.right: parent.right; anchors.rightMargin: root.pageInset
+        y: 40
+        z: 10
+        onMinimizeRequested: root.minimizeRequested()
+        onFullscreenRequested: root.fullscreenRequested()
+        onQuitRequested: root.closeRequested()
     }
 
     FrostPanel {

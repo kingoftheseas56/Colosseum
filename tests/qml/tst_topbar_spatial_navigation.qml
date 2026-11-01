@@ -13,6 +13,7 @@ TestCase {
         width: 1100
         height: 180
         visible: true
+        property bool feriaComingSoon: true
 
         Item { id: backdrop; anchors.fill: parent }
 
@@ -118,7 +119,19 @@ TestCase {
         mediumSpy.clear()
         bar.activeMedium = ""
         bar.lifecycleActive = true
+        testWindow.feriaComingSoon = true
         wait(20)
+    }
+
+    function test_feria_follows_host_availability() {
+        var feria = findChild(bar, "modePillFocus_Feria")
+        compare(feria.enabled, false)
+        testWindow.feriaComingSoon = false
+        wait(0)
+        compare(feria.enabled, true)
+        mouseClick(feria)
+        compare(mediumSpy.count, 1)
+        compare(mediumSpy.signalArguments[0][0], "Feria")
     }
 
     function test_stremio_is_theatre_only_and_between_search_and_account() {

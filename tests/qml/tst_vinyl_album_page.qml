@@ -63,16 +63,28 @@ TestCase {
         compare(host.page, "album");
         compare(host.pageData.playingIndex, index + 1);
     }
+    function test_coverKeepsScaleInShortViewport() {
+        var page=item("vinylAlbumPage");
+        page.height=390;
+        wait(0);
+        verify(page.coverSize>=320, "Album artwork must retain its large desktop scale.");
+        verify(page.contentHeight>=page.coverSize+page.albumMetadataHeight+48,
+            "Scrolling must keep artwork and metadata reachable in a short viewport.");
+    }
     function test_barStates() {
         var bar = item("vinylPlayerBar");
-        compare(bar.toolCount, 1);
+        verify(item("vinylBarQueue").visible);
+        verify(!item("vinylBarLyrics").visible);
+        verify(!item("vinylBarNotes").visible);
         host.page = "song";
-        compare(bar.toolCount, 6);
+        verify(item("vinylBarQueue").visible);
+        verify(item("vinylBarLyrics").visible);
+        verify(item("vinylBarNotes").visible);
+        verify(item("vinylBarVideo").visible);
         host.pageData.setFixture("mounamela");
         verify(!item("vinylBarVideo").enabled);
-        verify(item("vinylBarVideo").opacity < 1);
         host.pageData.setSourceState("finding");
-        compare(item("vinylBarChip").text, "Finding a source");
+        compare(item("vinylBarSourceIndicator").description, "Finding a source");
         verify(bar.busy);
         host.pageData.setSourceState("playing");
         host.pageData.position = host.pageData.duration / 2;
@@ -103,6 +115,35 @@ TestCase {
         verify(waitForRendering(item("vinylDisc_1")));
         mouseClick(item("vinylDisc_1"));
         compare(page.trackCount, 10);
+    }
+    function test_coverFitsViewport_data() {
+        return [
+            { tag: "short-desktop", width: 1280, height: 672 },
+            { tag: "desktop", width: 1280, height: 720 },
+            { tag: "large-desktop", width: 1600, height: 900 }
+        ];
+    }
+    function test_coverFitsViewport(data) {
+        host.width = data.width;
+        host.height = data.height;
+        var page = item("vinylAlbumPage");
+        var cover = item("vinylAlbumCover");
+        page.contentY = 0;
+        verify(waitForRendering(cover));
+        compare(cover.width, cover.height, "Album artwork must stay square");
+        var at = cover.mapToItem(page, 0, 0);
+        verify(at.y >= 0 && at.y + cover.height <= page.height,
+               "The entire square cover must fit before scrolling");
+        var action = item("vinylAlbumPlay");
+        var actionAt = action.mapToItem(page, 0, 0);
+        verify(actionAt.y >= 0 && actionAt.y + action.height <= page.height,
+               "Artwork sizing must leave room for the album details and actions");
+        page.contentY = Math.min(page.contentHeight - page.height,
+                                actionAt.y);
+        verify(waitForRendering(cover));
+        actionAt = action.mapToItem(page, 0, 0);
+        verify(actionAt.y >= 0 && actionAt.y + action.height <= page.height,
+               "Album actions must remain reachable by scrolling");
     }
     function test_sectionsAndEdition() {
         var page = item("vinylAlbumPage");
@@ -226,7 +267,8 @@ TestCase {
         compare(host.page, "song");
         verify(host.pageData.videoShown);
         verify(item("vinylBarVideo").enabled);
-        item("vinylBarVideo").activate();
+        waitForRendering(host.contentItem);
+        mouseClick(item("vinylBarVideo"));
         verify(!host.pageData.videoShown);
     }
 }

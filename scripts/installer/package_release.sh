@@ -58,7 +58,7 @@ if [ -f "$BUILD_DIR/CMakeCache.txt" ] \
   exit 1
 fi
 
-# Qualification builds must never turn a Coming Soon world into a release feature.
+# Qualification builds must never ship development-only gates or synthetic fixtures.
 for option in COLOSSEUM_ENABLE_VINYL_QUALIFICATION COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES; do
   if grep -Eq "^${option}:BOOL=ON$" "$BUILD_DIR/CMakeCache.txt"; then
     echo "refusing to package ${option}=ON build"
@@ -66,13 +66,24 @@ for option in COLOSSEUM_ENABLE_VINYL_QUALIFICATION COLOSSEUM_ENABLE_VINYL_TEST_F
   fi
 done
 
-# 1.1.9 ships the qualified online catalogues in the one standard edition.
+# Standard releases ship the qualified online catalogues in the accounts-capable edition.
 # Reject an unconfigured/staging build before assembling any release payload.
-if [ "$VERSION" = "1.1.9" ]; then
+if [ "$VERSION" = "1.1.9" ] || [ "$VERSION" = "1.1.10" ] || [ "$VERSION" = "1.2.0" ]; then
   grep -Fxq 'COLOSSEUM_CONTENT_API_URL:STRING=https://colosseum-content-api.colosseum-watchparty-relay.workers.dev' "$BUILD_DIR/CMakeCache.txt" \
-    || { echo "refusing 1.1.9 without its qualified production content API"; exit 1; }
+    || { echo "refusing $VERSION without its qualified production content API"; exit 1; }
   grep -Fxq 'COLOSSEUM_NO_ACCOUNT_EDITION:BOOL=OFF' "$BUILD_DIR/CMakeCache.txt" \
-    || { echo "refusing 1.1.9 without the standard accounts-capable edition"; exit 1; }
+    || { echo "refusing $VERSION without the standard accounts-capable edition"; exit 1; }
+fi
+if [ "$VERSION" = "1.1.10" ]; then
+  grep -Fxq 'COLOSSEUM_VINYL_IN_APP:BOOL=OFF' "$BUILD_DIR/CMakeCache.txt" \
+    || { echo "refusing 1.1.10 with Vinyl enabled or unspecified"; exit 1; }
+fi
+
+if [ "$VERSION" = "1.2.0" ]; then
+  for option in COLOSSEUM_VINYL_IN_APP COLOSSEUM_FERIA_IN_APP; do
+    grep -Fxq "${option}:BOOL=OFF" "$BUILD_DIR/CMakeCache.txt" \
+      || { echo "refusing 1.2.0 with ${option} enabled or unspecified"; exit 1; }
+  done
 fi
 
 # API builds use semantic queries and never download whole catalogues. The

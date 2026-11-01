@@ -13,6 +13,7 @@ Item {
     property Item backdrop
     property string seriesId: ""              // canonical Colosseum identity (mal:N)
     property string sourceSeriesId: ""        // Tankoyomi provider identity
+    property string publicationLabel: "Manga"
     property string seriesTitle: ""
     property string banner: ""
     property string cover: ""
@@ -28,9 +29,25 @@ Item {
     property var collectionEntry: null
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
+    property bool hasSeriesLanguageOverride: false
+    property string continueChapterId: ""
+    property string continueChapterLabel: ""
+    readonly property string continueChapterMetadata: {
+        var label = String(root.continueChapterLabel || "").trim()
+        var pageMatch = label.match(/(?:^|[·])\s*p(?:age)?\.?\s*(\d+)\s*$/i)
+        var chapter = label.replace(/^continue\s+/i, "")
+                .replace(/\s*[·]\s*p(?:age)?\.?\s*\d+\s*$/i, "").trim()
+        if (chapter.toLowerCase() === "saved chapter" || chapter.toLowerCase() === "chapter") chapter = ""
+        var details = []
+        if (chapter.length) details.push(chapter)
+        if (pageMatch && pageMatch.length > 1) details.push(qsTr("Page %1").arg(pageMatch[1]))
+        return details.join(" · ") || qsTr("Saved position")
+    }
+    property bool continueChapterReady: false
     property bool loading: false
     property string errorText: ""
     property bool sourceEnabled: true
+    property bool allowTankobanMode: true
     readonly property bool extensionGateVisible: !root.sourceEnabled
 
     property int currentPageIndex: 0
@@ -68,7 +85,10 @@ Item {
     signal closeRequested()
     signal tankobanRequested()
     signal chapterLanguageRequested(string code)
+    signal chapterDefaultLanguageRequested()
+    signal languageSettingsRequested()
     signal readChapterRequested(string chapterId, string chapterLabel)
+    signal continueChapterRequested()
     signal openExtensionsRequested()
 
     function requestExtensions() { root.openExtensionsRequested() }
@@ -118,6 +138,8 @@ Item {
         parent: root.phoneNarrow ? phoneStack : root
         anchors.top: parent.top; anchors.left: parent.left; anchors.right: parent.right
         tankobanMode: false
+        allowTankobanMode: root.allowTankobanMode
+        publicationLabel: root.publicationLabel
         seriesTitle: root.seriesTitle
         banner: root.banner
         cover: root.cover
@@ -129,6 +151,9 @@ Item {
         collectionEntry: root.collectionEntry
         chapterLanguages: root.chapterLanguages
         selectedChapterLanguage: root.selectedChapterLanguage
+        hasSeriesLanguageOverride: root.hasSeriesLanguageOverride
+        onChapterDefaultLanguageRequested: root.chapterDefaultLanguageRequested()
+        onLanguageSettingsRequested: root.languageSettingsRequested()
         onBackRequested: root.backRequested()
         onMinimizeRequested: root.minimizeRequested()
         onFullscreenRequested: root.fullscreenRequested()
@@ -158,7 +183,8 @@ Item {
 
             Item {
                 width: parent.width
-                height: root.phoneNarrow ? 100 : 58
+                height: root.phoneNarrow && root.continueChapterId.length ? 168
+                    : (root.phoneNarrow ? 100 : 68)
                 Text {
                     anchors.left: parent.left; anchors.leftMargin: theme.margin
                     anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
@@ -185,6 +211,38 @@ Item {
                     Keys.onReturnPressed: root.togglePageMenu()
                     Keys.onEnterPressed: root.togglePageMenu()
                     Keys.onEscapePressed: pagePopup.close()
+                }
+                // Resume the exact saved/downloaded chapter. Missing downloads remain
+                // visible as a recovery explanation without replacing Progress.
+                MangaContinueButton {
+                    objectName: "mangaChapterContinueAction"
+                    visible: root.continueChapterReady
+                    width: Math.min(root.phoneNarrow ? parent.width - 32 : 300, 264)
+                    height: root.phoneNarrow ? 54 : 58
+                    anchors.right: root.phoneNarrow ? undefined : pageSelector.left
+                    anchors.rightMargin: root.phoneNarrow ? 0 : 12
+                    anchors.horizontalCenter: root.phoneNarrow ? parent.horizontalCenter : undefined
+                    anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                    anchors.top: root.phoneNarrow ? parent.top : undefined
+                    anchors.topMargin: root.phoneNarrow ? 105 : 0
+                    metadata: root.continueChapterMetadata
+                    keyboardObjectName: "mangaChapterContinueKeyboardAction"
+                    onTriggered: root.continueChapterRequested()
+                }
+                Text {
+                    objectName: "mangaChapterSavedUnavailable"
+                    visible: root.continueChapterId.length > 0 && !root.continueChapterReady
+                    width: Math.min(root.phoneNarrow ? parent.width - 32 : 360, 320)
+                    anchors.right: root.phoneNarrow ? undefined : pageSelector.left
+                    anchors.rightMargin: 12
+                    anchors.horizontalCenter: root.phoneNarrow ? parent.horizontalCenter : undefined
+                    anchors.verticalCenter: root.phoneNarrow ? undefined : parent.verticalCenter
+                    anchors.top: root.phoneNarrow ? parent.top : undefined
+                    anchors.topMargin: root.phoneNarrow ? 105 : 0
+                    text: "Saved chapter unavailable on this device · choose a source below"
+                    color: theme.inkDim
+                    font.family: theme.ui; font.pixelSize: 11
+                    elide: Text.ElideRight
                 }
             }
             Item {

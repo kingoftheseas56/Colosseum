@@ -3,6 +3,9 @@
 #include <QCoreApplication>
 #include <QDebug>
 #include <QSettings>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QJsonObject>
 #include <QTemporaryDir>
 
 static int failures = 0;
@@ -131,6 +134,31 @@ int main(int argc, char **argv)
               && ids(malformed.providersForLanguage(QStringLiteral("en")))
                   == QStringList{QStringLiteral("first"), QStringLiteral("second")},
           "malformed persisted configuration falls back to manifest defaults");
+
+    TankoyomiConfigurationStore updated(registry, temp.filePath("updated.ini"));
+    updated.setDefaultLanguage("pt");
+    updated.setProviderEnabled("en", "first", false);
+    updated.moveProvider("en", "second", 0);
+    auto nextManifest = QJsonDocument::fromJson(validManifest()).object();
+    auto nextLanguages = nextManifest["languages"].toArray();
+    auto english = nextLanguages[0].toObject();
+    auto nextProviders = english["providers"].toArray();
+    nextProviders.append(QJsonObject{{"id", "new-source"}, {"name", "New source"},
+        {"entry", "languages/en/new.js"}, {"priority", 4}, {"enabled", true},
+        {"pageAccessPolicy", "public-https"}, {"allowedHosts", QJsonArray{"new.example"}}});
+    english["providers"] = nextProviders;
+    nextLanguages[0] = english;
+    nextManifest["languages"] = nextLanguages;
+    const TankoyomiProviderRegistry nextRegistry(QJsonDocument(nextManifest).toJson());
+    const int previousRevision = updated.revision();
+    check(updated.replaceRegistry(nextRegistry), "downloaded registry update is accepted");
+    check(updated.defaultLanguage() == "pt", "registry update preserves selected language");
+    check(ids(updated.providersForLanguage("en")) == QStringList{"second", "new-source"},
+          "registry update preserves order and disabled flags while discovering a new provider");
+    check(updated.revision() > previousRevision, "registry update notifies configuration consumers");
+    check(!updated.replaceRegistry(TankoyomiProviderRegistry("not-json"))
+              && updated.providers("en").size() == 4,
+          "invalid remote registry cannot replace a working configuration");
 
     if (failures) return 1;
     qInfo() << "PASS — Tankoyomi configuration store contract";

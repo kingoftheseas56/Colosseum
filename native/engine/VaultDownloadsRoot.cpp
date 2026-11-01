@@ -1,8 +1,11 @@
 #include "VaultDownloadsRoot.h"
+#include "VaultKit.h"
 
 #include <QDir>
 #include <QFileInfo>
 #include <QMetaObject>
+#include <QMetaMethod>
+#include <QTimer>
 #include <QVariantList>
 #include <QVariantMap>
 
@@ -55,8 +58,8 @@ VaultIndex::FileRow baseRow(const QString& rootPath, const QString& seriesTitle,
     r.path = filePath;
     r.displayTitle = displayTitle;
     r.realName = fi.fileName();
-    r.size = (size > 0) ? size : fi.size();
-    r.mtimeMs = (mtimeMs > 0) ? mtimeMs : fi.lastModified().toMSecsSinceEpoch();
+    r.size = fi.isFile() ? fi.size() : size;
+    r.mtimeMs = fi.isFile() ? fi.lastModified().toMSecsSinceEpoch() : mtimeMs;
     r.format = fi.suffix().toLower();
     return r;
 }
@@ -112,13 +115,22 @@ VaultDownloadsRoot::rowsFromVideos(QObject* videos, const QString& rootPath)
         const QString path = m.value(QStringLiteral("path")).toString();
         if (path.isEmpty())
             continue;
-        out.append(baseRow(rootPath,
+        auto row = baseRow(rootPath,
                            m.value(QStringLiteral("seriesTitle")).toString(),
                            QStringLiteral("video"),
                            path,
                            m.value(QStringLiteral("bytes")).toLongLong(),
                            normalizeAddedAtMs(m.value(QStringLiteral("addedAt")).toLongLong()),
-                           titleOr(m, QFileInfo(path).completeBaseName())));
+                           titleOr(m, QFileInfo(path).completeBaseName()));
+        const QString mediaKind = m.value(QStringLiteral("kind")).toString();
+        const bool episode = mediaKind == QLatin1String("episode")
+            || (mediaKind.isEmpty() && (m.value(QStringLiteral("season")).toInt() > 0
+                || m.value(QStringLiteral("episode")).toInt() > 0 || VaultKit::isEpisodeVideo(row.realName)));
+        if (episode && !m.value(QStringLiteral("seriesTitle")).toString().isEmpty()) {
+            row.groupKey = VaultKit::episodeShowKey(QFileInfo(path).absolutePath(), row.groupTitle);
+            row.subtreePath = row.groupKey;
+        }
+        out.append(row);
     }
     return out;
 }
@@ -231,6 +243,22 @@ VaultDownloadsRoot::VaultDownloadsRoot(QObject* videos, QObject* books, QObject*
                                        QObject* volumes, QObject* parent)
     : QObject(parent), m_videos(videos), m_books(books), m_comics(comics), m_volumes(volumes)
 {
+    auto *debounce = new QTimer(this);
+    debounce->setSingleShot(true);
+    debounce->setInterval(250);
+    connect(debounce, &QTimer::timeout, this, &VaultDownloadsRoot::changed);
+    const char* settledSignals[] = {"libraryChanged()", "finished(QString,QString)",
+                             "finished(QString)", "removed(QString)", "recoveryReadyChanged()"};
+    for (QObject* owner : {videos, books, comics, volumes}) {
+        if (!owner) continue;
+        for (const char* signature : settledSignals) {
+            const int index = owner->metaObject()->indexOfSignal(signature);
+            if (index < 0) continue;
+            const int slot = debounce->metaObject()->indexOfSlot("start()");
+            QObject::connect(owner, owner->metaObject()->method(index),
+                             debounce, debounce->metaObject()->method(slot));
+        }
+    }
 }
 
 QList<VaultIndex::FileRow> VaultDownloadsRoot::rowsForDownloads(const QString& rootPath) const

@@ -1,0 +1,326 @@
+{
+  "baseline": {
+    "origin": "https://github.com/kingoftheseas56/Colosseum.git",
+    "branch": "feature/colosseum-server-1.0",
+    "head": "f32f84c963cec05e0b0c253ac5829f410dfe7854",
+    "tree": "785b8310fdf5b2257c5cf9c896b3e3fd24429b1d",
+    "initial_worktree": "clean, observed before implementation; source-before.sha256 records bounded initial source hashes"
+  },
+  "oracle": {
+    "url": "https://dl.strem.io/server/v4.21.1/desktop/server.js",
+    "cdn_selector": "v4.21.1",
+    "embedded_version": "4.21.0",
+    "bytes": 6676503,
+    "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+  },
+  "scope": "Local M07 legacy HLS only. Authored working state, not external/durable publication. No commit, push, export, H00/local-addon/libtorrent-source/TLS changes.",
+  "status": "Bounded M07 local slice implemented and verified; stopped for parent review. Overall 1:1 server parity remains unproven. Publication hold unchanged.",
+  "baseline_test_runs": [
+    {
+      "log": "logs/baseline-ctest.log",
+      "passed": 149,
+      "total": 150,
+      "failure": "Locally regenerated oracle index schema omitted oracle_sha256 metadata."
+    },
+    {
+      "log": "logs/baseline-ctest-corrected-reference.log",
+      "passed": 149,
+      "total": 150,
+      "failure": "Existing K10-02-native-transport-failure-drain timing check, gap_ms=-48."
+    },
+    {
+      "log": "logs/baseline-ctest-failure-drain-rerun.log",
+      "passed": 1,
+      "total": 1,
+      "note": "Immediate isolated rerun of unchanged K10 passes; no K10 fix."
+    }
+  ],
+  "toolchain": {
+    "os": "Debian 13 trixie",
+    "compiler": "GCC 14.2",
+    "build": "Release",
+    "cmake": "4.4.3",
+    "ninja": "1.13.2",
+    "qt": "6.11.1 official qtbase + ICU",
+    "libtorrent": "2.0.11 static, no source patches",
+    "boost": "1.83.0 headers",
+    "ffmpeg": "7.1.5 system /usr/bin/ffmpeg",
+    "node_registered_suite": "24.19.0",
+    "node_additional_focused_checks": "22.16.0 official archive",
+    "powershell": "7.6.7 official portable archive",
+    "python_cmake": "3.12.14"
+  },
+  "setup_error_receipt": {
+    "operation": "aqt multiprocessing.Manager() -> Listener -> socket.socket(...)",
+    "error": "PermissionError: [Errno 1] Operation not permitted, followed by EOFError",
+    "type": "OS/runtime IPC mechanism failure, not explicit reviewer installation denial",
+    "action": "Stopped the failed socket operation without retry. Used verified official Qt archives and direct extraction; no security settings altered.",
+    "full_trace": "logs/qt-install.log"
+  },
+  "verification_environment": {
+    "HOME": "task/home",
+    "XDG_CACHE_HOME": "task/home/.cache",
+    "XDG_CONFIG_HOME": "task/home/.config",
+    "SERVER1_TEST_FIXED_INTERFACE": "1",
+    "discovery": "Synthetic loopback or explicit offline inputs only; production defaults not changed."
+  },
+  "reproduction": "reproduce-local.sh; depends on existing task deps and /workspace/shared/dot-colosseum-build-env/venv",
+  "changed_files": [
+    {
+      "path": "native/colosseum_server_v1/CMakeLists.txt",
+      "status": "modified",
+      "bytes": 23807,
+      "sha256": "c217595b20a56d194b55575843df0516e026efa57f7e1b1019ddf7d57c52b24e"
+    },
+    {
+      "path": "native/colosseum_server_v1/include/server1/http/LegacyMediaRoutes.h",
+      "status": "modified",
+      "bytes": 438,
+      "sha256": "72164a6b24fdb972641b34efd5793e95c03a164cc4b617a0e95e79cfd9531c71"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/ServerComposition.cpp",
+      "status": "modified",
+      "bytes": 4155,
+      "sha256": "519eedec4f978eaecba30934cefaaa019ebf1b805557a9d5f07dc05064b4d20e"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/http/LegacyMediaRoutes.cpp",
+      "status": "modified",
+      "bytes": 4855,
+      "sha256": "117c3cc5167d7cee65c16320cfa1095434ac8208c57e37143c7efedefc14be86"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/LegacyHlsService.cpp",
+      "status": "modified",
+      "bytes": 23289,
+      "sha256": "4e200e59b8810cc50f0aa5886fb64aa7377d4626a25480002de76ce352589ead"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/LegacyMkvIndex.cpp",
+      "status": "modified",
+      "bytes": 16648,
+      "sha256": "b4c544a459fa1a4c43bf490cfbcdc598219292b1ee7004625a756dea59d6dbc0"
+    },
+    {
+      "path": "native/colosseum_server_v1/src/media/LegacyMp4Index.cpp",
+      "status": "modified",
+      "bytes": 13540,
+      "sha256": "e0b176841c5a3949c76e1553bafa14317ea99c3403480d58a7cc8c9d995f2829"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/cmake/M07.cmake",
+      "status": "new",
+      "bytes": 3425,
+      "sha256": "91e8cbafc1b410a94c78164a732d074e7f03fbd701d1e96ea23864974861d248"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/fixtures/legacy-render-parity.json",
+      "status": "new",
+      "bytes": 551395,
+      "sha256": "4c9456fa979a4d470aea7d6ed06dfac461dc802683ce123a63ca890a3019fd2f"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/legacy-media-index-oracle.cjs",
+      "status": "new",
+      "bytes": 10708,
+      "sha256": "0d2ab0912facb2649d5c8092542abd898d5bdc451c5cc8e1882997b74d094e08"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/legacy-runtime-fixture.py",
+      "status": "new",
+      "bytes": 2521,
+      "sha256": "160491d3a16560fe99e1c49d5ee1ac18b9d3794121949f8b852ae303493b9ea3"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_legacy_composition.py",
+      "status": "new",
+      "bytes": 6816,
+      "sha256": "ae368813d1627c7451c5a1dd8c01f3a7c769ee817b120ecb9a1820a82b302a5e"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_legacy_media.py",
+      "status": "new",
+      "bytes": 999,
+      "sha256": "e59aef9188fd71c4cec178b107e5110bc7f7f7e693fdea7cc8dbd135ef9a4bd9"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_legacy_render_oracle.cjs",
+      "status": "new",
+      "bytes": 6198,
+      "sha256": "1d2ce3712ed0a4ae44e52d8764036bdc625fd3f9248ab3cc34d1f1d31c0bfcee"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/run_legacy_runtime_oracle.cjs",
+      "status": "new",
+      "bytes": 2665,
+      "sha256": "9ec9ba4543afe4a36f50a22963f89fd5ec2962cf02cd403f126dc1115a4a0279"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_legacy_media_index.cpp",
+      "status": "new",
+      "bytes": 14449,
+      "sha256": "ea2c2ec84e4b66d46538382920f4b6efe3c7e24a95d3f72458959198708ec4fe"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_legacy_render.cpp",
+      "status": "new",
+      "bytes": 1788,
+      "sha256": "0f79bf600066b403ca04b1722bd7805d2a9ff54a3f2af0c93cdfcd86e6d9ad5d"
+    },
+    {
+      "path": "native/colosseum_server_v1/tests/test_legacy_runtime.cpp",
+      "status": "new",
+      "bytes": 12687,
+      "sha256": "5f293ed46778a7677fefe2dbe9dbbdbc079b226f390d245df9cad17c73f22d87"
+    }
+  ],
+  "working_patch": {
+    "path": "working.patch",
+    "bytes": 672672,
+    "sha256": "7d44314edacfea86dec345883898644508a09d9ace2ef96bcd23c7a0a55b45b0",
+    "scope": "Task-local review/working-state preservation only; not exported or published."
+  },
+  "source_state": {
+    "HEAD": "f32f84c963cec05e0b0c253ac5829f410dfe7854",
+    "staged_files": [],
+    "changed_count": 18
+  },
+  "verified_at_utc": "2026-10-20T21:26:19Z",
+  "final_integration": {
+    "build": "PASS",
+    "ctest_passed": 158,
+    "ctest_total": 158,
+    "new_m07_ctest_gates": 8,
+    "pre_existing_ctest_gates": 150,
+    "seconds": 112.71,
+    "log": "logs/m07-ctest-all-reviewed.log",
+    "build_log": "logs/m07-build-reviewed.log"
+  },
+  "focused_evidence": {
+    "render": {
+      "initial_red": "52 mismatches / 280 cases",
+      "additional_red": "2 underflow mismatches / 286 cases",
+      "green": 286,
+      "original_regression_green": 32,
+      "logs": [
+        "logs/m07-render-red.log",
+        "logs/m07-render-underflow-red.log",
+        "logs/m07-render-green.log",
+        "logs/m07-render-dynamic-green.log"
+      ]
+    },
+    "index": {
+      "initial_native_red": "1/15 passed",
+      "resource_red": "19/21 passed",
+      "post_mdat_native_red": "21/22 passed",
+      "post_mdat_oracle_red": "43/45 passed",
+      "final_native_green": 22,
+      "final_oracle_green": 45,
+      "lanes": {
+        "sync_local": 15,
+        "production_async_local": 15,
+        "fragmented_http": 15
+      },
+      "exact_post_mdat_offsets": [
+        0,
+        140
+      ],
+      "logs": [
+        "logs/index/red.log",
+        "logs/index/resource-red.log",
+        "logs/index/post-mdat-red.log",
+        "logs/index/post-mdat-green.log",
+        "logs/index/oracle-post-mdat-red.log",
+        "logs/index/oracle-post-mdat-green.log"
+      ],
+      "comparison": "logs/index/oracle-post-mdat-green/comparison.json"
+    },
+    "runtime": {
+      "native_red_failures": 2,
+      "native_green_failures": 0,
+      "pinned_probe_handler_cases": 4,
+      "timeout_ms": 20000,
+      "observations": "OS PID termination for cancellation, HTTP abort, teardown, queued cancellation; 5 repeated fast runs passed.",
+      "logs": [
+        "logs/runtime/red.log",
+        "logs/runtime/green.log",
+        "logs/runtime/oracle.log",
+        "logs/runtime/composition.log"
+      ]
+    },
+    "media": {
+      "kind": "Actual locally generated 7-second 320x240 H.264/AAC plus MPEG-4/AAC",
+      "passed": "legacy playlists, TS/JPEG streams, errors, probe and DLNA paths"
+    },
+    "composition": {
+      "kind": "Deterministic process fixture, not media decoder",
+      "passed": "production host mounts legacy routes, dynamic port, HLSv2 alias priority and disabled fallback"
+    }
+  },
+  "remaining_scope": [
+    "Preparation named-queue coalescing is not implemented.",
+    "Pinned waitForSubs module-scope defect needs explicit fidelity/deviation decision.",
+    "Real ffsplit binary and Windows execution are not qualified.",
+    "Whole-server parity, malformed-input completeness, remote conversion and existing other work packets remain outside this slice.",
+    "Publication/source-export restriction remains unresolved; no alternate checkpoint publication attempted."
+  ],
+  "artifacts": [
+    {
+      "path": "logs/m07-build-reviewed.log",
+      "bytes": 2816,
+      "sha256": "d1ff8997fbed28fafe7ea7bb30b2ec7c4cd6afa80ed6b8e29540005e99303bdd"
+    },
+    {
+      "path": "logs/m07-ctest-all-reviewed.log",
+      "bytes": 21677,
+      "sha256": "edc45df1c67700088395b38bf876d083b685f8219d39f0c0971209dc783f4e6c"
+    },
+    {
+      "path": "logs/source-before.sha256",
+      "bytes": 719,
+      "sha256": "cfe058c31f779e99747863473bfb72893dc5ed1ae118d11f2062a3255a7d48c3"
+    },
+    {
+      "path": "logs/source-after.sha256",
+      "bytes": 2229,
+      "sha256": "563ecf9f14c3d28147e2c17adf027c27c48208982645486231406b94ad77fb3a"
+    },
+    {
+      "path": "working.patch",
+      "bytes": 672672,
+      "sha256": "7d44314edacfea86dec345883898644508a09d9ace2ef96bcd23c7a0a55b45b0"
+    },
+    {
+      "path": "REVIEW.md",
+      "bytes": 4510,
+      "sha256": "cb669f4c9ad4db234ee29244247e0fe40b2b901cbe75f527411bc3d98e2fa1f8"
+    },
+    {
+      "path": "reproduce-local.sh",
+      "bytes": 1257,
+      "sha256": "c2253ef12c0d05bbfafdc56ad106040065dec278660db3e36c8b8f971bfea4ed"
+    },
+    {
+      "path": "build-m07/server1_host",
+      "bytes": 11136320,
+      "sha256": "03d67ba1646f87428619c4089bb70f37047e3968dea0f5d06536fbd317114434"
+    },
+    {
+      "path": "reference/server.js",
+      "bytes": 6676503,
+      "sha256": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f"
+    },
+    {
+      "path": "reference/MODULE-INDEX.json",
+      "bytes": 364581,
+      "sha256": "917d19d3b50a0159f7daff5cec5a2187a98c68652e3cb1b0644219581a178231"
+    }
+  ],
+  "checks": [
+    "git diff --check passed",
+    "working.patch reverse --check passed against authored tree",
+    "all 18 changed file SHA256 hashes match final tested working state",
+    "no staged files; HEAD unchanged"
+  ]
+}

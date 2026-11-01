@@ -912,6 +912,16 @@ void tst_account_identity::deviceIdentityIsStableAndNonSecret() {
         temp.path() + QLatin1String("/device.ini");
 
     AccountDeviceIdentity first(path);
+#if defined(Q_OS_ANDROID)
+    QCOMPARE(first.platform(), QStringLiteral("Android"));
+    QCOMPARE(first.label(), QStringLiteral("Android device"));
+#elif defined(Q_OS_LINUX)
+    QCOMPARE(first.platform(), QStringLiteral("Linux"));
+    QCOMPARE(first.label(), QStringLiteral("Linux desktop"));
+#elif defined(Q_OS_WIN)
+    QCOMPARE(first.platform(), QStringLiteral("Windows"));
+    QCOMPARE(first.label(), QStringLiteral("Windows desktop"));
+#endif
     const QString installId = first.installId();
     QVERIFY(!installId.isEmpty());
 

@@ -90,6 +90,7 @@
 #include "bootstrap/AppDataMigration.h"
 #include "bootstrap/InstanceLock.h"
 #include "bootstrap/StartupLayout.h"
+#include "bootstrap/QmlModuleGuards.h"
 #include "engine/ExtensionsStore.h"
 #include "engine/MangaTankobanService.h"
 #if !defined(Q_OS_ANDROID)
@@ -104,6 +105,11 @@
 #include "engine/VaultDownloadsRoot.h"
 #include "engine/VaultEnricher.h"
 #include "engine/VaultForensics.h"
+#include "engine/VaultThumbnailer.h"
+#if defined(COLOSSEUM_HAVE_DLNA)
+#include "dlna/DlnaLibrary.h"
+#include "dlna/DlnaServer.h"
+#endif
 #endif
 #if !defined(Q_OS_ANDROID)
 #include "player/MediaAdmissionProbe.h"
@@ -149,6 +155,7 @@
 #include "watchparty/WatchPartyUiController.h"
 #include "player/streamserver.h"
 #include "torrent/TankorentSearchService.h"
+#include "vinyl/VinylTorrentProvider.h"
 #include "torrent/BookTorrentDownloader.h"
 #include "torrent/BookTorrents.h"
 #include "torrent/engine/TorrentEngine.h"
@@ -162,8 +169,18 @@
 #include "feria/FeriaBrowserRuntime.h"
 #include "feria/FeriaAccountStore.h"
 #include "vinyl/VinylProvider.h"
+#include "vinyl/VinylCatalogueSource.h"
 #include "vinyl/VinylLocalSource.h"
+#include "vinyl/VinylBackendSession.h"
+#include "vinyl/VinylLyricsService.h"
+#include "vinyl/VinylGeniusService.h"
+#include "vinyl/VinylRecommendationService.h"
 #include "vinyl/VinylAvailability.h"
+#include "feria/FeriaAvailability.h"
+#if defined(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+#include "devtools/CollectionsTestProfileController.h"
+#include "NamedCollectionsStore.h"
+#endif
 #if defined(COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
 #include "devtools/VinylTestProfileController.h"
 #include "account/ActivityStore.h"
@@ -354,6 +371,13 @@ int main(int argc, char *argv[]) {
     if (qEnvironmentVariable("COLOSSEUM_VINYL_TEST_FIXTURES") == QLatin1String("1")
         && !VinylTestProfileController(instanceAppData, {}, {}).enabled()) {
         qCritical("Vinyl synthetic fixture launch containment check failed.");
+        return 2;
+    }
+#endif
+#if defined(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+    if (qEnvironmentVariable("COLOSSEUM_COLLECTIONS_TEST_FIXTURES") == QLatin1String("1")
+        && !CollectionsTestProfileController(instanceAppData, {}, {}).enabled()) {
+        qCritical("Collections synthetic fixture launch containment check failed.");
         return 2;
     }
 #endif
@@ -964,7 +988,7 @@ int main(int argc, char *argv[]) {
     bool vaultVideoEnrichInFlight = false;
     bool vaultVideoEnrichRerun = false;
     std::shared_ptr<VaultKit::CancellationToken> vaultVideoEnrichCancel;
-    auto runVaultVideoEnrichment = [vaultIndex, vaultEnricher, vaultLibrary,
+    auto runVaultVideoEnrichment = [vaultIndex, vaultConfig, vaultEnricher, vaultLibrary,
                                     &vaultVideoEnrichInFlight, &vaultVideoEnrichRerun,
                                     &vaultVideoEnrichCancel]() {
         if (vaultVideoEnrichInFlight) {
@@ -979,7 +1003,7 @@ int main(int argc, char *argv[]) {
         QList<VaultIndex::FileRow> todo;
 #if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && (r.durationSec <= 0.0 || r.coverRef.isEmpty()))
                 todo.append(r);
@@ -1033,7 +1057,18 @@ int main(int argc, char *argv[]) {
     // this one (runVaultVideoEnrichment above) — never ffprobe on the GUI thread. An
     // index-revision guard drops stale enrichment after ANY superseding index mutation, so
     // scanner and watcher changes cannot be resurrected.
-    auto runVaultCoverEnrichment = [vaultIndex, runVaultVideoEnrichment]() {
+    auto *vaultCoverRetry = new QTimer(vaultLibrary);
+    vaultCoverRetry->setSingleShot(true);
+    vaultCoverRetry->setInterval(250);
+    bool vaultCoverInFlight = false;
+    bool vaultCoverRerun = false;
+    auto runVaultCoverEnrichment = [vaultIndex, vaultConfig, runVaultVideoEnrichment,
+                                    vaultCoverRetry, &vaultCoverInFlight, &vaultCoverRerun]() {
+        if (vaultCoverInFlight) {
+            vaultCoverRerun = true;
+            return;
+        }
+        vaultCoverRerun = false;
         // Capture the exact index snapshot this async work is derived from. Any successful
         // scanner publish, watcher reconciliation, away-state change, or other mutation advances
         // the revision and makes this worker's eventual write-back ineligible.
@@ -1042,20 +1077,20 @@ int main(int argc, char *argv[]) {
         // enriched library does no redundant CBZ reads (this returns nothing after the first pass).
         QList<VaultIndex::FileRow> todo;
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("comic"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && r.errorState.isEmpty() && r.coverRef.isEmpty())
                 todo.append(r);
         }
 #if !defined(Q_OS_ANDROID)
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("video"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && r.errorState != QLatin1String("rejected")
                 && r.admissionVerdict.isEmpty())
                 todo.append(r);
         }
 #endif
         for (const VaultIndex::FileRow& r : vaultIndex->rowsForKind(QStringLiteral("book"))) {
-            if (!r.away && QDir(r.rootPath).exists() && QFileInfo::exists(r.path)
+            if (!r.away && (vaultConfig->isSyntheticRoot(r.rootPath) || QDir(r.rootPath).exists()) && QFileInfo::exists(r.path)
                 && QFileInfo(r.path).suffix().compare(QStringLiteral("epub"), Qt::CaseInsensitive) == 0
                 && r.errorState.isEmpty() && r.metadataSource.isEmpty())
                 todo.append(r);
@@ -1066,18 +1101,23 @@ int main(int argc, char *argv[]) {
             runVaultVideoEnrichment();
             return;
         }
+        vaultCoverInFlight = true;
         auto *watcher = new QFutureWatcher<QList<VaultIndex::FileRow>>(vaultIndex);
         QObject::connect(
             watcher, &QFutureWatcher<QList<VaultIndex::FileRow>>::finished, vaultIndex,
-            [vaultIndex, watcher, baseRevision, runVaultVideoEnrichment]() {
+            [vaultIndex, watcher, baseRevision, runVaultVideoEnrichment, vaultCoverRetry,
+             &vaultCoverInFlight, &vaultCoverRerun]() {
                 const QList<VaultIndex::FileRow> enriched = watcher->result();
                 watcher->deleteLater();
                 // Conditional write-back is the resurrection barrier: stale workers cannot
                 // reinsert rows after a scanner publish OR a live watcher deletion/replacement.
-                vaultIndex->upsertManyIfRevision(enriched, baseRevision);
+                const bool committed = vaultIndex->upsertManyIfRevision(enriched, baseRevision);
+                vaultCoverInFlight = false;
+                if (!committed || vaultCoverRerun)
+                    vaultCoverRetry->start();
                 // S5: video durations + local artwork run only after this census commit
                 // landed, so admission verdicts are durable before the enricher re-reads.
-                runVaultVideoEnrichment();
+                if (committed) runVaultVideoEnrichment();
             });
         watcher->setFuture(QtConcurrent::run([todo]() {
             QList<VaultIndex::FileRow> out;
@@ -1147,6 +1187,9 @@ int main(int argc, char *argv[]) {
     };
     QObject::connect(vaultScanner, &VaultScanner::indexPublished, vaultLibrary,
                      [runVaultCoverEnrichment]() { runVaultCoverEnrichment(); });
+    QObject::connect(vaultCoverRetry, &QTimer::timeout, vaultLibrary, runVaultCoverEnrichment);
+    QObject::connect(vaultLibrary, &VaultLibrary::liveArrival, vaultCoverRetry,
+                     [vaultCoverRetry]() { vaultCoverRetry->start(); });
     // Enrich an already-indexed library once at boot too, so covers appear on a relaunch
     // without re-adding the folder (a fresh index published this run enriches via the signal).
     runVaultCoverEnrichment();
@@ -1172,6 +1215,68 @@ int main(int argc, char *argv[]) {
     // by pairKey so the book page flips to "Listen". Needs the Stream engine above.
     auto *audiobooks = new AudiobookDownloader(dlNam, stream, &backendServices);
     engine.rootContext()->setContextProperty(QStringLiteral("Audiobooks"), audiobooks);
+
+#if defined(COLOSSEUM_HAVE_DLNA)
+    // ── DLNA MediaServer (Arc 71): project the Vault + audiobooks into an immutable
+    // snapshot and serve it over pupnp as the top-bar `dlnaSharing` door. The library
+    // rebuilds off the owners; the server only ever reads published snapshots, so pupnp
+    // worker threads never touch a QObject. A saved enabled=true restarts sharing at
+    // launch; aboutToQuit tears it down (byebye + UpnpFinish) before any owner dies. ──
+    // The server is constructed BEFORE the library on purpose: backendServices deletes its
+    // children in creation order, so the server (whose teardown still reads a snapshot) dies
+    // while the library behind its provider is alive. The provider also holds the library
+    // weakly and serves an empty tree once it is gone.
+    auto *dlnaServer = new DlnaServer(&backendServices);
+    auto *dlnaLibrary =
+        new DlnaLibrary(vaultIndex, vaultConfig, audiobooks, vaultLibrary, &backendServices);
+    {
+        // Continue the persisted SystemUpdateID lineage so TVs see a monotonic id.
+        QSettings settings;
+        dlnaLibrary->setInitialSystemUpdateId(
+            settings.value(QStringLiteral("dlnaSharing/systemUpdateId")).toUInt());
+    }
+    {
+        // Cheap thread-safe cover hook: the enricher's adopted poster (coverRef file:/// URL)
+        // or an already-grabbed VaultThumbnailer still. Read-only over the shared cache dir;
+        // a second thumbnailer instance never spawns ffmpeg through cachedThumbPath.
+        auto *dlnaThumbs = new VaultThumbnailer(vaultDir, &backendServices);
+        dlnaLibrary->setCoverResolver([dlnaThumbs](const VaultIndex::FileRow& row) {
+            if (row.coverRef.startsWith(QLatin1String("file:///")))
+                return QUrl(row.coverRef).toLocalFile();
+            return dlnaThumbs->cachedThumbPath(row.path, row.size, row.mtimeMs);
+        });
+    }
+    // The projection only runs while sharing is wanted, so Vault churn costs nothing when off.
+    auto syncDlnaLibrary = [dlnaLibrary, dlnaServer]() {
+        if (dlnaServer->enabled())
+            dlnaLibrary->start();
+        else
+            dlnaLibrary->stop();
+    };
+    QObject::connect(dlnaServer, &DlnaServer::enabledChanged, dlnaLibrary, syncDlnaLibrary);
+    syncDlnaLibrary();
+    dlnaServer->setSnapshotProvider([weakLibrary = QPointer<DlnaLibrary>(dlnaLibrary)] {
+        if (weakLibrary)
+            return weakLibrary->snapshot();
+        static const std::shared_ptr<const DlnaSnapshot> empty = [] {
+            auto snap = std::make_shared<DlnaSnapshot>();
+            DlnaContainer root;
+            root.id = QStringLiteral("0");
+            root.parentId = QStringLiteral("-1");
+            root.title = QStringLiteral("Colosseum");
+            root.upnpClass = QStringLiteral("object.container.storageFolder");
+            snap->containers.insert(root.id, root);
+            return std::shared_ptr<const DlnaSnapshot>(std::move(snap));
+        }();
+        return empty;
+    });
+    QObject::connect(dlnaLibrary, &DlnaLibrary::snapshotChanged, dlnaServer,
+                     &DlnaServer::handleSnapshotChanged);
+    engine.rootContext()->setContextProperty(QStringLiteral("dlnaSharing"), dlnaServer);
+    dlnaServer->maybeStartFromSettings();
+    QObject::connect(&app, &QCoreApplication::aboutToQuit, dlnaServer,
+                     [dlnaServer]() { dlnaServer->stopForQuit(); });
+#endif
 
     // ── Tankorent engine (Phase 2 — books consume it) ───────────────────────
     // One engine per job (spec 2026-07-13): Stremio keeps watch-now; this
@@ -1726,17 +1831,22 @@ int main(int argc, char *argv[]) {
     vinylResolutionDelayMs = VinylTestProfileController(instanceAppData, {}, {}).resolutionDelayMs();
 #endif
     auto *vinylLocalSource = new VinylLocalSource(vaultIdentity, &backendServices, vinylResolutionDelayMs);
+    qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl", 1, 0, "VinylBackendSession");
+    qmlRegisterType<VinylLyricsService>("Colosseum.Vinyl", 1, 0, "VinylLyricsService");
+    qmlRegisterType<VinylGeniusService>("Colosseum.Vinyl", 1, 0, "VinylGeniusService");
+    qmlRegisterType<VinylRecommendationService>("Colosseum.Vinyl", 1, 0, "VinylRecommendationService");
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylLocalSource, &VinylLocalSource::shuttingDown);
-    // Preserve the deferred external adapters without making local playback use them.
+    // Prefer the assembled app's helper/runtime; source-tree launches retain an
+    // explicit resource-root fallback. Never resolve Python through PATH.
+    const auto vinylBundledHelper = QDir(QCoreApplication::applicationDirPath()).absoluteFilePath("scripts/vinyl/provider.py");
     auto *vinylProvider = new VinylProvider(
-        QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
-            .absoluteFilePath("scripts/vinyl/provider.py"), &backendServices);
+        QFileInfo::exists(vinylBundledHelper) ? vinylBundledHelper :
+            QDir(startupLayout->resourceRoot.isEmpty() ? QDir::currentPath() : startupLayout->resourceRoot)
+                .absoluteFilePath("scripts/vinyl/provider.py"), &backendServices);
     QObject::connect(&app, &QCoreApplication::aboutToQuit,
                      vinylProvider, &VinylProvider::shuttingDown);
-    // VinylTorrentProvider is preserved as a deferred donor adapter only. It
-    // requires request-scoped StreamServer APIs absent from the current owner;
-    // do not replace that shared owner or expose a nonfunctional provider.
+    auto *vinylCatalogueSource = new VinylCatalogueSource(vinylLocalSource, vinylProvider, nullptr, &backendServices);
 #endif
     auto *accountRuntime = new AccountRuntime(&backendServices);
 #ifdef COLOSSEUM_RATINGS_REVIEWS_TESTING
@@ -1823,6 +1933,10 @@ int main(int argc, char *argv[]) {
         ratingsReviewsProviderRead, &backendServices, accountRuntime->ratingsReviewsDelivery());
     engine.rootContext()->setContextProperty(
         QStringLiteral("RatingsReviewsIdentity"), ratingsReviewsIdentity);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("CollectionsIdentity"), ratingsReviewsIdentity);
+    engine.rootContext()->setContextProperty(
+        QStringLiteral("NamedCollectionsProfileScope"), accountRuntime->profileStores());
     engine.rootContext()->setContextProperty(
         QStringLiteral("RatingsReviewsController"), ratingsReviewsController);
     engine.rootContext()->setContextProperty(
@@ -1922,7 +2036,7 @@ int main(int argc, char *argv[]) {
     FeriaBrowserPolicy *feriaBrowserPolicy = nullptr;
     FeriaAccountStore *feriaAccount = nullptr;
     auto ensureFeriaRuntime = [&app, &engine, &feriaDiscovery, &feriaBrowserPolicy, &feriaAccount, accountRuntime, sessions]() {
-        if (feriaDiscovery)
+        if (!Colosseum::feriaLiveEnabled() || feriaDiscovery)
             return;
         feriaDiscovery = std::make_unique<PorticoComposition>();
         feriaDiscovery->exposeTo(engine.rootContext());
@@ -1954,9 +2068,21 @@ int main(int argc, char *argv[]) {
 #endif
 #if !defined(Q_OS_ANDROID)
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLocalSource"), vinylLocalSource);
+    engine.rootContext()->setContextProperty(QStringLiteral("VinylCatalogueSource"), vinylCatalogueSource);
+    vinylCatalogueSource->setArtworkNetworkManager(engine.networkAccessManager());
+    vinylCatalogueSource->setTorrentProvider(new VinylTorrentProvider(engine.networkAccessManager(),stream,&backendServices));
+    const auto bindVinylScope = [&engine, accountRuntime] {
+        engine.rootContext()->setContextProperty(QStringLiteral("VinylProfileScope"),
+            accountRuntime->profileStores()->activeProfile().profileId());
+    };
+    bindVinylScope();
+    QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesChanged,
+                     &engine, bindVinylScope);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylProvider"), vinylProvider);
     engine.rootContext()->setContextProperty(QStringLiteral("VinylLiveEnabled"),
         Colosseum::vinylLiveEnabled());
+    engine.rootContext()->setContextProperty(QStringLiteral("FeriaLiveEnabled"),
+        Colosseum::feriaLiveEnabled());
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::profileDeactivationRequested,
                      vinylLocalSource, &VinylLocalSource::checkpointRequested);
     QObject::connect(accountRuntime->profileStores(), &ProfileStoreRuntime::storesAboutToChange,
@@ -1988,6 +2114,13 @@ int main(int argc, char *argv[]) {
             ensureFeriaRuntime();
     }
 #endif
+
+    // Main has initialized the built-in types. Later player imports must reuse
+    // that registration instead of resolving another QtQuick plugin instance.
+    if (Colosseum::Bootstrap::sealQtQuickModule())
+        qInfo("[boot] QtQuick 6 sealed for lazy player imports");
+    else
+        qWarning("[boot] QtQuick 6 module could not be sealed");
 
     if (!hasQmlOverride) {
         QTimer::singleShot(0, pinStore, [pinStore, pinnedHosts] {
@@ -2250,6 +2383,51 @@ int main(int argc, char *argv[]) {
     });
 #endif
 #endif // !Q_OS_ANDROID: Vault diagnostics and synthetic Vinyl profile seam
+
+#if defined(COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES) && !defined(Q_OS_ANDROID)
+    const QPointer<ProfileStoreRuntime> collectionsFixtureStores(accountRuntime->profileStores());
+    const QString collectionsFixtureA = QStringLiteral("11111111-1111-4111-8111-111111111181");
+    const QString collectionsFixtureB = QStringLiteral("11111111-1111-4111-8111-111111111182");
+    auto collectionsFixture = std::make_shared<CollectionsTestProfileController>(instanceAppData,
+        [collectionsFixtureStores, collectionsFixtureA, collectionsFixtureB, instanceAppData](const QString &alias) {
+            if (!collectionsFixtureStores) return false;
+            QString error;
+            if (alias == QLatin1String("local"))
+                return collectionsFixtureStores->activateLocalOnlyProfile(&error);
+            const QString target = alias == QLatin1String("A") ? collectionsFixtureA : collectionsFixtureB;
+            const auto paths = ProfilePaths::account(target, instanceAppData);
+            if (!paths || !QDir().mkpath(paths->profileRoot())) return false;
+            const auto &current = collectionsFixtureStores->activeProfile();
+            if (current.kind() == ProfilePaths::Kind::Account && current.profileId() != target
+                && !collectionsFixtureStores->activateLocalOnlyProfile(&error)) return false;
+            return collectionsFixtureStores->activateAccountProfile(target, &error);
+        },
+        [collectionsFixtureStores, collectionsFixtureA, collectionsFixtureB] {
+            QJsonObject state;
+            if (!collectionsFixtureStores) return state;
+            const auto &profile = collectionsFixtureStores->activeProfile();
+            QString alias;
+            if (profile.kind() == ProfilePaths::Kind::LocalOnly || profile.kind() == ProfilePaths::Kind::LegacyLocal)
+                alias = QStringLiteral("local");
+            else if (profile.kind() == ProfilePaths::Kind::Account) {
+                if (profile.profileId() == collectionsFixtureA) alias = QStringLiteral("A");
+                if (profile.profileId() == collectionsFixtureB) alias = QStringLiteral("B");
+            }
+            auto *store = collectionsFixtureStores->namedCollectionsStore();
+            state.insert("profileAlias", alias);
+            state.insert("collectionsHealthy", store && store->healthy());
+            state.insert("collectionsCount", store ? int(store->collections().size()) : -1);
+            state.insert("collectionsRevision", store ? store->revision() : -1);
+            state.insert("libraryHealthy", collectionsFixtureStores->collectionStore()
+                && collectionsFixtureStores->collectionStore()->healthy());
+            state.insert("progressHealthy", collectionsFixtureStores->progressStore()
+                && collectionsFixtureStores->progressStore()->healthy());
+            return state;
+        });
+    lanistaServer->setCollectionsTestProfileHandler([collectionsFixture](const QJsonObject &request) {
+        return collectionsFixture->execute(request);
+    });
+#endif
 
     // Live-reload only in dev (dev.bat sets COLOSSEUM_DEV). Production is untouched.
     if (qEnvironmentVariableIsSet("COLOSSEUM_DEV")) {

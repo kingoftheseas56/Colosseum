@@ -1,0 +1,187 @@
+{
+  "schemaVersion": 1,
+  "milestone": "M2 artist artwork and review UI follow-up",
+  "verificationDate": "2026-10-21",
+  "status": "development app receiving accepted; main integration and release pending",
+  "baseCommit": "53cc416680b26145d63a8b021149eaebff166911",
+  "baselineManifest": "docs/reviews/2026-10-21-vinyl-m2-source-manifest.json",
+  "baselineManifestSha256": "efdfec483055860f51606c158d5ff46250fe7e7b5c3955ee8472fbc60d880f5b",
+  "hashSemantics": "Raw working-file bytes before Git line-ending normalization; excludes this manifest. Runtime log hashes are point-in-time receipts.",
+  "sourceDeltaCount": 22,
+  "sourceDelta": [
+    {
+      "rawSha256": "036705d3879110b3fa89f54163d2c10f148c7ccb7531da8a4641fdd31a46469d",
+      "path": "docs/plans/2026-10-20-vinyl-development-roadmap.md"
+    },
+    {
+      "rawSha256": "fb8bec4e36e6c9a1f94cf9533a690d035dc01247095f72ae47ade463e184b91d",
+      "path": "docs/plans/2026-10-21-vinyl-m2-artwork.md"
+    },
+    {
+      "rawSha256": "1104f0764c11f4d93cac99f2389d106c44e1da5ef1708aba3d5f7300361fce09",
+      "path": "docs/reviews/2026-10-21-vinyl-m2-artwork-receiving.md"
+    },
+    {
+      "rawSha256": "607eca218864dac0f107db2dab163c5e9c74871944cbee713313184145800561",
+      "path": "native/main.cpp"
+    },
+    {
+      "rawSha256": "9887e101a5bd6d34d1216b221f56d0c70156f99278716d485d8aa501599af0a6",
+      "path": "native/net/CachingNam.cpp"
+    },
+    {
+      "rawSha256": "ec46ef9c926a97fa4270fa1082ae23aefb3fe0f2f93ddbd4d45925cf37777f2b",
+      "path": "native/vinyl/VinylCatalogueSource.cpp"
+    },
+    {
+      "rawSha256": "0c2aca7ce0b675ecfc324a9789eacdd59f6a4b89fdcde61351cd52673b771a0d",
+      "path": "native/vinyl/VinylCatalogueSource.h"
+    },
+    {
+      "rawSha256": "f5370a28f9d8a9089900bae039833017d1b9371506f5ab7b6ab2a9e84c8129ee",
+      "path": "native/vinyl/VinylProvider.h"
+    },
+    {
+      "rawSha256": "bbab43febcd67bf0595b250c5537410e2e964428c160b3ffc52115a7d1af3d15",
+      "path": "qml/vinyl/VinylArtistCatalogue.js"
+    },
+    {
+      "rawSha256": "8828b07c7a9476650b32322c16b1b3291f506c154139766d2799e80dc5366275",
+      "path": "qml/vinyl/VinylArtistHero.qml"
+    },
+    {
+      "rawSha256": "8ffcf13c2c56bcb92fd76a77156f3c4d7d97dd2134db1e821d3cd93b8c3583b5",
+      "path": "qml/vinyl/VinylArtistPage.qml"
+    },
+    {
+      "rawSha256": "5388553982d2cc92f2c63d470f53dc8a9aab2022fb54a9177fe1566b958c59c9",
+      "path": "qml/vinyl/VinylArtistSearchPopup.qml"
+    },
+    {
+      "rawSha256": "915c01998242abee4914caa0c802c52151d08236afb9c1837eef1a8f4d818269",
+      "path": "qml/vinyl/VinylLiveArtistData.qml"
+    },
+    {
+      "rawSha256": "46d9ce21676b13e42029f452728c62de6b5ada0f3765e77b3b358221ad38d128",
+      "path": "scripts/vinyl/provider.py"
+    },
+    {
+      "rawSha256": "5573ae23dfa9075e2b7e605f361e7c791f69b0839e837208198658b9b9d5d328",
+      "path": "tests/CMakeLists.txt"
+    },
+    {
+      "rawSha256": "5660c22a4f75ed05caf7a31e0ff696faf9ff4e593dbc0ff1e1cd1e5d95dfcbb8",
+      "path": "tests/cover_delivery_harness.cpp"
+    },
+    {
+      "rawSha256": "e13bdcb42c5d5313e8450775a8e777ce1f8736f9946d47028a8eac5185f0f65f",
+      "path": "tests/vinyl-catalogue/fake_transport.py"
+    },
+    {
+      "rawSha256": "43cda9b8103fcf8f0c4d47dcc98e2c2581576497debf06a3e17277fafd9377af",
+      "path": "tests/vinyl-catalogue/tst_catalogue_source.cpp"
+    },
+    {
+      "rawSha256": "144da0a813f02e78646a2c1428c28fc4b12822f641b5577169318841c2e39592",
+      "path": "tests/vinyl-live/ArtistArtworkFlow.qml"
+    },
+    {
+      "rawSha256": "0f57721c2fcbd5c215ae8a3bc3af05c93e7902cd6cbdb9a95fa3d25506e34f8a",
+      "path": "tests/vinyl-live/run-artist-artwork-flow.ps1"
+    },
+    {
+      "rawSha256": "f1964cd069165918a877fe9d73c15628ad8a920771610fd885f31681188939a1",
+      "path": "tests/vinyl-live/test_artist_artwork.py"
+    },
+    {
+      "rawSha256": "911c8fd4ffa948259dc3b278a2b5714a766849dfaa4fde273c60c5884ec5581b",
+      "path": "tests/vinyl-local-session/tst_live_world.qml"
+    }
+  ],
+  "app": {
+    "helperSha256": "46d9ce21676b13e42029f452728c62de6b5ada0f3765e77b3b358221ad38d128",
+    "qualificationEnabled": false,
+    "fixturesEnabled": false,
+    "qmlTreeSha256": "750f0956bf8f2a1c3000f2201ec2bbe37b159c65ea4b0b7a170d73deea0d39d6",
+    "path": "C:\\b\\vinyl-production-build\\colosseum.exe",
+    "sha256": "524f7f68758374c4693ce8c0c772e542e96b38113294cc62a10eaac3e578f0ec"
+  },
+  "evidenceRoot": "D:\\Colosseum-Vinyl-M2-Artwork-20261021",
+  "evidence": [
+    {
+      "sha256": "2c4f530ee6ee5bcc3ebb92ebe4b8597cc5ad5ea19c636baf5956def025236ee3",
+      "path": "qualified-ctest.log"
+    },
+    {
+      "sha256": "f70dfcc966667c5c159367236a3867ed5790fbd0684abe60f7eb0dcb5d48dbec",
+      "path": "qualified-ctest.xml"
+    },
+    {
+      "sha256": "fb6545882c7463a9ea9f419246447ec488e4e21b40b65db8c9a82ec5b0445a0e",
+      "path": "final-ui-ctest.log"
+    },
+    {
+      "sha256": "ff98a087c8246298f63d156c05a60623fa65a882cf4e8ea4ad9cd1de79a2e0a7",
+      "path": "final-ui-ctest.xml"
+    },
+    {
+      "sha256": "32960658335cbf6ce7d2a85e8418d87b9803d8dc69a5a52243beaeb876356d3c",
+      "path": "qml-search.txt"
+    },
+    {
+      "sha256": "b49e94f9a0e4df62aa841bedab2e0641dc65fdc49ac5167ad5be1bc1ab877fe8",
+      "path": "qml-artwork.txt"
+    },
+    {
+      "sha256": "f6e363d577f9f4bc12741a0135387327321534a02005b10b714565b3c498deb9",
+      "path": "native-artwork.txt"
+    },
+    {
+      "sha256": "0beae21ce863868f862133b0f5e6a1f255c65a11bb45860ac8b58268b8d5811c",
+      "path": "helper-red.log"
+    },
+    {
+      "sha256": "4a203f958ef9d765ff1f89816631e1bdf553b4acf1d56449f1d10ad92bb46ff3",
+      "path": "helper-green.log"
+    },
+    {
+      "sha256": "089ee750691c59beb4c9e37e94e9e109488fb8ddfddb29d5cc94979e6691def9",
+      "path": "provider-tests.log"
+    },
+    {
+      "sha256": "18f4ba4a2781b647738b1b4d6cedfefb4a8cdd37c0126f22aa12588aeadd545e",
+      "path": "catalogue-tests.log"
+    },
+    {
+      "sha256": "ab9576253e741be95bcf5b2b794eb7e913ce21b666d1eb2eaadf1b3559c95d6e",
+      "path": "build-final.log"
+    },
+    {
+      "sha256": "b6e7482eb1557a80545384c0de4e9877775b3fa90fac3fbf3278281c0bcb9c99",
+      "path": "final-open-app.json"
+    },
+    {
+      "sha256": "09d197e5b98341abcec47142be4bea16f7f4f62c609783ae282bcf08adf496b2",
+      "path": "vinyl-m1-bf4c11524e5b40969b9fe3e255609cd3/result.json"
+    },
+    {
+      "sha256": "d6ddc1c63bcecf9ee605139f9c41a6631c0a964384953282580dc73c59652bd1",
+      "path": "vinyl-artwork-3e6e557366454c569bed8b947e853230/result.json"
+    },
+    {
+      "sha256": "6f30213f4db1a93158e3d98fcdb842791414ee2634ef1e40d6864f7d3b230415",
+      "path": "final-review-383bfc0aaade46c29e1d94bba2acd156/review-search.png"
+    }
+  ],
+  "finalReview": {
+    "qmlTreeSha256": "750f0956bf8f2a1c3000f2201ec2bbe37b159c65ea4b0b7a170d73deea0d39d6",
+    "title": "Colosseum",
+    "app": "C:\\b\\vinyl-production-build\\colosseum.exe",
+    "sha256": "524F7F68758374C4693CE8C0C772E542E96B38113294CC62A10EAAC3E578F0EC",
+    "directory": "D:\\Colosseum-Vinyl-M2-Artwork-20261021\\final-review-383bfc0aaade46c29e1d94bba2acd156",
+    "pid": 23340,
+    "startTicks": 639281235170786258,
+    "leftOpen": true,
+    "responding": true
+  }
+}

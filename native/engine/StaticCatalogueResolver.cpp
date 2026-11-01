@@ -567,6 +567,7 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
     std::optional<QJsonArray> selected;
     qint64 offset = 0, limit = 24;
     QString listMethod = method, catalog;
+    bool formatSelection = false;
     auto emptyPage = [&](const QJsonArray &items, bool exhausted) {
         QJsonObject out{{"items", items},
                         {"nextOffset", offset + items.size()},
@@ -594,10 +595,12 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
             limit = clamp(at(4));
         }
         const QStringList axes =
-            ds == "mal" ? QStringList{"", "genre", "demographic"}
+            ds == "mal" ? QStringList{"", "genre", "demographic", "format"}
                         : QStringList{"", "genre", "publisher", "format", "availability"};
         const QStringList catalogs =
-            ds == "mal" ? QStringList{"popular", "trending", "top-rated", "new-releases"}
+            ds == "mal" ? QStringList{"popular", "trending", "top-rated", "new-releases",
+                "completed", "publishing", "short-completed", "one-shots",
+                "started-1990s", "started-2000s", "started-2010s"}
                         : QStringList{"popular",       "new-releases",         "most-stocked",
                                       "all",           "recently-available",   "complete-runs",
                                       "near-complete", "community-collections"};
@@ -609,6 +612,11 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
             const auto axis = text(filter.value("axis")), key = text(filter.value("key"));
             if (!axes.contains(axis))
                 return emptyPage({}, true);
+            if (ds == "mal" && axis == "format" && !key.isEmpty()
+                && !QStringList{"manga", "manhwa", "manhua"}.contains(fold(key)))
+                return emptyPage({}, true);
+            if (ds == "mal" && axis == "format" && !key.isEmpty())
+                formatSelection = true;
             if (!axis.isEmpty() && !key.isEmpty())
                 normalized.append(QJsonObject{{"axis", axis}, {"key", fold(key)}});
         }
@@ -702,6 +710,11 @@ std::optional<QJsonValue> evaluate(const QJsonObject &index, const QString &ds,
             return emptyPage(items, shape == "comics" ? offset + items.size() >= length
                                                       : items.size() < limit);
         }
+        if (ds == "mal" && listMethod == "discoverPageFiltered"
+            && (QStringList{"completed", "publishing", "short-completed", "one-shots",
+                            "started-1990s", "started-2000s", "started-2010s"}.contains(catalog)
+                || formatSelection))
+            return std::nullopt; // Older publications lack these lists; allow semantic fallback.
         if ((ds == "mal" || ds == "comics") && listMethod == "discoverPageFiltered")
             return emptyPage({}, true);
         if (ds == "mal" && method == "genreEntries")

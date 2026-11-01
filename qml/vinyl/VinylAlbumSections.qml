@@ -75,6 +75,7 @@ Column {
         font.pixelSize: 32
     }
     component Link: KeyboardAction {
+        focusOnPointer: false
         id: link
         property bool editorial: false
         property string label
@@ -171,6 +172,7 @@ Column {
             Repeater {
                 model: root.pageData.videos.length
                 delegate: KeyboardAction {
+                    focusOnPointer: false
                     readonly property var modelData: root.pageData.videos[index]
                     required property int index
                     objectName: "vinylVideo_" + index
@@ -213,6 +215,7 @@ Column {
         Repeater {
             model: root.editionsExpanded ? editions.sortedEditions.length : Math.min(editions.sortedEditions.length, root.editionThreshold)
             delegate: KeyboardAction {
+                focusOnPointer: false
                 readonly property var modelData: editions.sortedEditions[index]
                 required property int index
                 objectName: "vinylEdition_" + modelData.id

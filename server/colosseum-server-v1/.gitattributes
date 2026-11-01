@@ -1,0 +1,2 @@
+# Preserve the delivered packet's exact source, patch, fixture and receipt bytes.
+* -text

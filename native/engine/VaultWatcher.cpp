@@ -372,7 +372,16 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
     // The ids already shelved under this root — everything else on disk is an arrival.
     // `currentIds` is built from the COMPLETE healthy-root census, including unchanged rows,
     // so reconcileRoot can delete only physical rows that truly disappeared or were replaced.
-    const QSet<QString> existing = m_index->fileIdsInRoot(root);
+    QSet<QString> existing = m_index->fileIdsInRoot(root);
+    // A user folder can overlap Downloads. Keep the download owner's canonical
+    // grouping and admission facts instead of replacing that same file with a raw scan row.
+    if (m_config) {
+        for (const auto& value : m_config->roots()) {
+            const auto configured = value.toMap();
+            if (configured.value(QStringLiteral("synthetic")).toBool())
+                existing.unite(m_index->fileIdsInRoot(configured.value(QStringLiteral("path")).toString()));
+        }
+    }
     QSet<QString> currentIds;
 
     QList<VaultIndex::FileRow> toUpsert;
@@ -428,6 +437,13 @@ VaultWatcher::Landing VaultWatcher::processRoot(const QString& root,
             row.size = fi.size();
             row.mtimeMs = fi.lastModified().toMSecsSinceEpoch();
             row.format = fi.suffix().toLower();
+            if (loose && row.kind == QLatin1String("video") && VaultKit::isEpisodeVideo(row.realName)) {
+                const QString title = VaultKit::episodeSeriesTitle(row.realName);
+                if (!title.isEmpty()) {
+                    row.groupTitle = title;
+                    row.groupKey = row.subtreePath = VaultKit::episodeShowKey(root, title);
+                }
+            }
             toUpsert.append(row);
 
             // New-kind arrival: the law exists (override or index truth) and disagrees.

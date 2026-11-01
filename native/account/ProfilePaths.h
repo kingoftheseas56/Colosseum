@@ -29,6 +29,7 @@ public:
 
     QString progressIniPath() const;
     QString collectionIniPath() const;
+    QString namedCollectionsPath() const;
     QString searchHistoryIniPath() const;
     QString audioPairingIniPath() const;
     QString preferencesIniPath() const;

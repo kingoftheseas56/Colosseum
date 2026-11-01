@@ -1,0 +1,172 @@
+[
+  {
+    "label": "oracle",
+    "name": "mkv-no-info",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-no-info",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-nondefault-scale",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-nondefault-scale",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-cues-first",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-cues-first",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-no-video",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-no-video",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-no-cues",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-no-cues",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-empty-cues",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-empty-cues",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-void-only-cues",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-void-only-cues",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-no-cuepoints",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-no-cuepoints",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-no-matching-cues",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-no-matching-cues",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mkv-last-video-9-vs-10",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mkv-last-video-9-vs-10",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mp4-tail",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mp4-tail",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mp4-fast",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mp4-fast",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mp4-extended-moov",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mp4-extended-moov",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mp4-large-mdat",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mp4-large-mdat",
+    "offset": 100040
+  },
+  {
+    "label": "candidate",
+    "name": "mp4-large-mdat",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mp4-large-mdat",
+    "offset": 100040
+  },
+  {
+    "label": "oracle",
+    "name": "mp4-post-mdat-free",
+    "offset": 0
+  },
+  {
+    "label": "oracle",
+    "name": "mp4-post-mdat-free",
+    "offset": 140
+  },
+  {
+    "label": "candidate",
+    "name": "mp4-post-mdat-free",
+    "offset": 0
+  },
+  {
+    "label": "candidate",
+    "name": "mp4-post-mdat-free",
+    "offset": 140
+  }
+]

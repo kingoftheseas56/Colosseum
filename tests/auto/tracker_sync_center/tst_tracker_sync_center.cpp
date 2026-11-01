@@ -333,6 +333,8 @@ private slots:
     void diagnoseRouteIsCurrentAndSanitized();
     void enablingSendsRefreshesCurrentFactsAfterPersistingPreference();
     void disconnectIsRevisionFencedAndUsesOnlyExplicitLocalChoices();
+    void aniListConnectStatesMirrorMal();
+    void aniListDisconnectUsesTheSharedActionAndReconnectIsAttention();
     void disconnectRefusesInflightDeliveryThenKeepsUnknownWorkVisible();
     void disconnectedUnknownWorkRemainsInSyncAttentionAndDossier();
     void disconnectedKnownUnsentCanBeRetriedWithoutReconnect();
@@ -659,7 +661,8 @@ void TrackerSyncCenterTest::safeDtoKeysMatchAllowlist()
 
     const QVariantMap dossier = fixture.model->providerDossier(QStringLiteral("simkl"));
     QCOMPARE(keys(dossier), keySet({"found", "revision", "providerKey", "providerName",
-        "available", "connectUnavailableReason", "status", "connected", "accountLabel", "capabilities",
+        "available", "connectUnavailableReason", "status", "connected", "reconnectRequired",
+        "accountLabel", "capabilities",
         "lastSuccessfulSyncAtMs", "waitingCount", "pendingCount", "unresolvedCount",
         "knownUnsentCount", "unknownOutcomeCount", "importedHistoryCount",
         "importedProgressCount", "importedDataRemovalPreview", "pullAutomatically",
@@ -1357,6 +1360,106 @@ void TrackerSyncCenterTest::disconnectIsRevisionFencedAndUsesOnlyExplicitLocalCh
     QCOMPARE(calls, 1);
     QCOMPARE(observedProvider, QStringLiteral("simkl"));
     QCOMPARE(observedChoice, QStringLiteral("keep_paused"));
+    QCOMPARE(model->lastActionResult().value(QStringLiteral("code")).toString(),
+             QStringLiteral("disconnected_paused"));
+}
+
+namespace {
+TrackerProviderCapabilities aniListCapabilities()
+{
+    return TrackerProviderCapability::ReadHistory
+        | TrackerProviderCapability::ReadProgress
+        | TrackerProviderCapability::WriteProgress
+        | TrackerProviderCapability::WriteCompletion;
+}
+} // namespace
+
+void TrackerSyncCenterTest::aniListConnectStatesMirrorMal()
+{
+    TrackerSyncCenterFixture fixture;
+    QVERIFY(fixture.valid());
+    QList<TrackerProviderDescriptor> descriptors = testCatalogue();
+    descriptors[3].capabilities = aniListCapabilities();
+    descriptors[3].available = true;
+    fixture.model = fixture.makeModel(descriptors, nullptr, nullptr, nullptr,
+        nullptr, nullptr, {}, [](const QString &, const QString &, QString *) { return true; });
+
+    // Not connected and the native action is not ready: same gate as MAL.
+    QVariantMap dossier = fixture.model->providerDossier(QStringLiteral("anilist"));
+    QVERIFY(dossier.value(QStringLiteral("available")).toBool());
+    QVERIFY(!dossier.value(QStringLiteral("connected")).toBool());
+    QVERIFY(!dossier.value(QStringLiteral("connectEnabled")).toBool());
+    QVERIFY(!dossier.value(QStringLiteral("reconnectRequired")).toBool());
+
+    // Ready for AniList only: AniList is connectable and MAL is not.
+    fixture.model->setConnectionAvailabilitySource([](TrackerProviderId providerId) {
+        return providerId == TrackerProviderId::AniList
+            ? TrackerSyncCenterModel::ConnectAvailability::Ready
+            : TrackerSyncCenterModel::ConnectAvailability::ProviderServiceUnavailable;
+    });
+    dossier = fixture.model->providerDossier(QStringLiteral("anilist"));
+    QVERIFY(dossier.value(QStringLiteral("connectEnabled")).toBool());
+    QCOMPARE(dossier.value(QStringLiteral("status")).toString(),
+             QStringLiteral("Not connected"));
+    QVERIFY(!fixture.model->providerDossier(QStringLiteral("mal"))
+                 .value(QStringLiteral("connectEnabled")).toBool());
+
+    // Connected.
+    QVERIFY(fixture.connections->upsert({TrackerProviderId::AniList,
+        QStringLiteral("anilist-account-private-3"), 1, 1234, aniListCapabilities(),
+        TrackerConnectionState::Connected}));
+    dossier = fixture.model->providerDossier(QStringLiteral("anilist"));
+    QVERIFY(dossier.value(QStringLiteral("connected")).toBool());
+    QCOMPARE(dossier.value(QStringLiteral("status")).toString(), QStringLiteral("Connected"));
+    QVERIFY(!dossier.value(QStringLiteral("reconnectRequired")).toBool());
+    QVERIFY(dossier.value(QStringLiteral("disconnectEnabled")).toBool());
+    QVERIFY(!QJsonDocument::fromVariant(dossier).toJson().contains("anilist-account-private-3"));
+
+    // The stored token stopped working: Attention plus a reconnect flag, the
+    // connection itself and its Disconnect stay as they were.
+    bool reconnect = true;
+    fixture.model->setReconnectRequiredSource([&reconnect](TrackerProviderId providerId) {
+        return reconnect && providerId == TrackerProviderId::AniList;
+    });
+    dossier = fixture.model->providerDossier(QStringLiteral("anilist"));
+    QVERIFY(dossier.value(QStringLiteral("connected")).toBool());
+    QVERIFY(dossier.value(QStringLiteral("reconnectRequired")).toBool());
+    QCOMPARE(dossier.value(QStringLiteral("status")).toString(), QStringLiteral("Attention"));
+    QVERIFY(dossier.value(QStringLiteral("connectEnabled")).toBool());
+    QVERIFY(dossier.value(QStringLiteral("disconnectEnabled")).toBool());
+
+    // Reconnected: back to Connected.
+    reconnect = false;
+    dossier = fixture.model->providerDossier(QStringLiteral("anilist"));
+    QVERIFY(!dossier.value(QStringLiteral("reconnectRequired")).toBool());
+    QCOMPARE(dossier.value(QStringLiteral("status")).toString(), QStringLiteral("Connected"));
+}
+
+void TrackerSyncCenterTest::aniListDisconnectUsesTheSharedActionAndReconnectIsAttention()
+{
+    TrackerSyncCenterFixture fixture;
+    QVERIFY(fixture.valid());
+    QVERIFY(fixture.connections->upsert({TrackerProviderId::AniList,
+        QStringLiteral("anilist-account-private-3"), 1, 1234, aniListCapabilities(),
+        TrackerConnectionState::Connected}));
+    QList<TrackerProviderDescriptor> descriptors = testCatalogue();
+    descriptors[3].capabilities = aniListCapabilities();
+    descriptors[3].available = true;
+
+    QStringList providers;
+    QStringList choices;
+    auto model = fixture.makeModel(descriptors, nullptr, nullptr, nullptr,
+        nullptr, nullptr, {}, [&](const QString &providerKey, const QString &choice, QString *) {
+            providers.append(providerKey);
+            choices.append(choice);
+            return true;
+        });
+    QVERIFY(model->providerDossier(QStringLiteral("anilist"))
+                .value(QStringLiteral("disconnectEnabled")).toBool());
+    QVERIFY(model->disconnectTracker(QStringLiteral("anilist"),
+                                     QStringLiteral("keep_paused"), model->revision()));
+    QCOMPARE(providers, QStringList({QStringLiteral("anilist")}));
+    QCOMPARE(choices, QStringList({QStringLiteral("keep_paused")}));
     QCOMPARE(model->lastActionResult().value(QStringLiteral("code")).toString(),
              QStringLiteral("disconnected_paused"));
 }

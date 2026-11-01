@@ -38,6 +38,7 @@ public:
     Q_INVOKABLE bool remotePending() const { return m_remote->pending(); }
     Q_INVOKABLE QString remoteQueryKey(const QString& method, const QVariantList& args) const { return m_remote->queryKey(method, args); }
     Q_INVOKABLE QVariantMap landing(const QString& tab) const { return m_ok ? QVariantMap{} : m_remote->read(QStringLiteral("landing"), {tab}, QVariantMap{}).toMap(); }
+    Q_INVOKABLE bool retryLanding(const QString& tab) { return !m_ok && m_remote->retry(QStringLiteral("landing"), {tab}, QVariantMap{}); }
     Q_INVOKABLE QVariantMap landingState(const QString& tab) const { auto state=m_remote->queryState(QStringLiteral("landing"), {tab}, QVariantMap{}); state.insert(QStringLiteral("source"),m_ok?QStringLiteral("local"):QStringLiteral("remote")); return state; }
     Q_INVOKABLE bool remoteWaiting() const { return m_remote->waiting(); }
     void configureRemote(QNetworkAccessManager* nam, const QUrl& endpoint, const QString& cachePath = {}) {
@@ -106,7 +107,8 @@ public:
     Q_INVOKABLE QVariantList discoverFilters(const QString& axis, bool includeExplicit) const;
     // UI-safe read of facets warmed on a worker. Empty until filterCacheReady fires.
     Q_INVOKABLE QVariantList cachedDiscoverFilters(const QString& axis, bool includeExplicit) const;
-    // catalogId ∈ {popular, top-rated, new-releases, trending}; filterAxis ∈
+    // catalogId ∈ {popular, top-rated, new-releases, trending, completed, publishing,
+    // short-completed, one-shots, started-1990s, started-2000s, started-2010s}; filterAxis ∈
     // {genre, demographic, ""}. filterKey is BOUND (never concatenated). offset is
     // clamped >= 0, limit to [1,100]. Returns
     //   {items, nextOffset, exhausted, freshness:"bundled", fallbackCatalog}

@@ -127,7 +127,15 @@ void DownloadStore::cancelJob(const QString &id) {
     const QString gk = m_jobs.at(i).request
                            .value(QStringLiteral("groupKey"), m_jobs.at(i).id).toString();
     cleanupJob(m_jobs[i]);
-    QFile::remove(m_jobs.at(i).partPath);
+    const auto result = DownloadFileOps::removeFile(m_jobs.at(i).partPath);
+    if (!result.success) {
+        m_jobs[i].state = QStringLiteral("failed");
+        m_jobs[i].error = result.message;
+        saveQueue();
+        touch();
+        pump();
+        return;
+    }
     m_jobs.removeAt(i);
     pruneGroupIfSettled(gk);
     saveQueue();

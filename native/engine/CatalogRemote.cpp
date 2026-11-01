@@ -46,7 +46,7 @@ bool validLanding(const QJsonValue& value, const QString& dataset, const QVarian
     QSet<QString> seen;
     for (const auto& item : obj.value("queries").toArray()) {
         const auto q = item.toObject(); const auto method = q.value("method").toString();
-        const bool page = dataset == "comics" && method == "discoverPageFiltered";
+        const bool page = (dataset == "comics" || dataset == "mal") && method == "discoverPageFiltered";
         const bool flag = dataset == "comics" && method == "curatedReady";
         const bool array = (dataset == "comics" && QStringList{"shelf", "curatedRanked", "curatedGenreShelves"}.contains(method))
             || (dataset == "imdb" && method == "titleCatalog") || (dataset == "mal" && method == "animeCatalog");

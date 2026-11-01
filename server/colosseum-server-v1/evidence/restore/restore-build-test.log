@@ -1,0 +1,774 @@
+-- The C compiler identification is GNU 14.2.0
+-- The CXX compiler identification is GNU 14.2.0
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Found OpenSSL: /usr/lib/x86_64-linux-gnu/libcrypto.so (found version "3.5.7")
+CMake Warning (policy) at /workspace/shared/dot-colosseum-build-env/venv/lib/python3.12/site-packages/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:93 (find_package):
+  Policy CMP0144 is not set: find_package uses upper-case <PACKAGENAME>_ROOT
+  variables.  Run "cmake --help-policy CMP0144" for policy details.  Use the
+  cmake_policy command to set the policy and suppress this warning.
+
+  CMake variable BOOST_ROOT is set to:
+
+    /workspace/shared/colosseum-m07-20261020/deps/boost_1_83_0
+
+  Environment variable BOOST_ROOT is set to:
+
+    /workspace/shared/colosseum-m07-20261020/deps/boost_1_83_0
+
+  For compatibility, find_package is ignoring the variable, but code in a
+  .cmake module might still use it.
+Call Stack (most recent call first):
+  /workspace/shared/dot-colosseum-build-env/venv/lib/python3.12/site-packages/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)
+  /workspace/shared/colosseum-m07-20261020/deps/libtorrent-prefix/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake:16 (find_dependency)
+  CMakeLists.txt:48 (find_package)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+-- Found Boost: /workspace/shared/colosseum-m07-20261020/deps/boost_1_83_0 (found version "1.83.0")
+-- Performing Test SERVER1_LT_INTERNAL_LINK
+-- Performing Test SERVER1_LT_INTERNAL_LINK - Success
+-- Performing Test HAVE_STDATOMIC
+-- Performing Test HAVE_STDATOMIC - Success
+-- Found WrapAtomic: TRUE
+-- Found Python3: /workspace/shared/dot-colosseum-build-env/venv/bin/python3.12 (found version "3.12.14") found components: Interpreter
+-- Found ZLIB: /usr/lib/x86_64-linux-gnu/libz.so (found version "1.3.1")
+-- Performing Test Iconv_IS_BUILT_IN
+-- Performing Test Iconv_IS_BUILT_IN - Success
+-- Found Iconv: built in to C library
+-- Performing Test UV_LINT_W4
+-- Performing Test UV_LINT_W4 - Failed
+-- Performing Test UV_LINT_NO_UNUSED_PARAMETER_MSVC
+-- Performing Test UV_LINT_NO_UNUSED_PARAMETER_MSVC - Failed
+-- Performing Test UV_LINT_NO_CONDITIONAL_CONSTANT_MSVC
+-- Performing Test UV_LINT_NO_CONDITIONAL_CONSTANT_MSVC - Failed
+-- Performing Test UV_LINT_NO_NONSTANDARD_MSVC
+-- Performing Test UV_LINT_NO_NONSTANDARD_MSVC - Failed
+-- Performing Test UV_LINT_NO_NONSTANDARD_EMPTY_TU_MSVC
+-- Performing Test UV_LINT_NO_NONSTANDARD_EMPTY_TU_MSVC - Failed
+-- Performing Test UV_LINT_NO_NONSTANDARD_FILE_SCOPE_MSVC
+-- Performing Test UV_LINT_NO_NONSTANDARD_FILE_SCOPE_MSVC - Failed
+-- Performing Test UV_LINT_NO_NONSTANDARD_NONSTATIC_DLIMPORT_MSVC
+-- Performing Test UV_LINT_NO_NONSTANDARD_NONSTATIC_DLIMPORT_MSVC - Failed
+-- Performing Test UV_LINT_NO_HIDES_LOCAL
+-- Performing Test UV_LINT_NO_HIDES_LOCAL - Failed
+-- Performing Test UV_LINT_NO_HIDES_PARAM
+-- Performing Test UV_LINT_NO_HIDES_PARAM - Failed
+-- Performing Test UV_LINT_NO_HIDES_GLOBAL
+-- Performing Test UV_LINT_NO_HIDES_GLOBAL - Failed
+-- Performing Test UV_LINT_NO_CONDITIONAL_ASSIGNMENT_MSVC
+-- Performing Test UV_LINT_NO_CONDITIONAL_ASSIGNMENT_MSVC - Failed
+-- Performing Test UV_LINT_NO_UNSAFE_MSVC
+-- Performing Test UV_LINT_NO_UNSAFE_MSVC - Failed
+-- Performing Test UV_LINT_WALL
+-- Performing Test UV_LINT_WALL - Success
+-- Performing Test UV_LINT_NO_UNUSED_PARAMETER
+-- Performing Test UV_LINT_NO_UNUSED_PARAMETER - Success
+-- Performing Test UV_LINT_STRICT_PROTOTYPES
+-- Performing Test UV_LINT_STRICT_PROTOTYPES - Success
+-- Performing Test UV_LINT_EXTRA
+-- Performing Test UV_LINT_EXTRA - Success
+-- Performing Test UV_LINT_UTF8_MSVC
+-- Performing Test UV_LINT_UTF8_MSVC - Failed
+-- Performing Test UV_F_STRICT_ALIASING
+-- Performing Test UV_F_STRICT_ALIASING - Success
+-- summary of build options:
+    Install prefix:  /usr/local
+    Target system:   Linux
+    Compiler:
+      C compiler:    /usr/bin/cc (GNU)
+      CFLAGS:         
+
+-- clang-tidy not found: install clang-tidy or set -DCLANG_TIDY_EXE to run tidy analysis on this platform
+-- Configuring done (10.1s)
+-- Generating done (0.1s)
+-- Build files have been written to: /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/build
+[1/236] Building CXX object CMakeFiles/server1_k02_piece_buffer.dir/src/policy/PieceBuffer.cpp.o
+[2/236] Building CXX object CMakeFiles/server1_k03_scheduler_selections.dir/src/policy/SchedulerSelections.cpp.o
+[3/236] Building CXX object CMakeFiles/server1_k09_peer_search.dir/src/discovery/TrackerSource.cpp.o
+[4/236] Building CXX object CMakeFiles/server1_k00_policy.dir/src/policy/Value.cpp.o
+[5/236] Building CXX object CMakeFiles/server1_k00_policy.dir/src/policy/JsConversions.cpp.o
+[6/236] Linking CXX static library libserver1_k00_policy.a
+[7/236] Building CXX object CMakeFiles/server1_k09_peer_search.dir/src/discovery/PeerSearch.cpp.o
+[8/236] Building CXX object CMakeFiles/server1_k09_peer_search.dir/src/policy/SwarmCaps.cpp.o
+[9/236] Building CXX object CMakeFiles/server1_k09_peer_search.dir/src/discovery/DhtSource.cpp.o
+[10/236] Building CXX object CMakeFiles/server1_k09_peer_search.dir/src/discovery/QtDiscoveryNetwork.cpp.o
+[11/236] Building CXX object CMakeFiles/server1_k01_metadata.dir/src/policy/VirtualPieceMap.cpp.o
+[12/236] Building CXX object CMakeFiles/server1_k01_metadata.dir/src/policy/TorrentMetadata.cpp.o
+[13/236] Building CXX object CMakeFiles/server1_k09_peer_search.dir/src/discovery/TrackerNetwork.cpp.o
+[14/236] Building CXX object CMakeFiles/server1_h00_http.dir/src/http/Connection.cpp.o
+[15/236] Building CXX object CMakeFiles/server1_h00_http.dir/src/http/RequestParsing.cpp.o
+[16/236] Building CXX object CMakeFiles/server1_k09_peer_search.dir/src/discovery/DhtLookup.cpp.o
+[17/236] Linking CXX static library libserver1_k02_piece_buffer.a
+[18/236] Building CXX object CMakeFiles/server1_m00_process.dir/src/media/ExecutableLocator.cpp.o
+[19/236] Building CXX object CMakeFiles/server1_h00_http.dir/src/http/Router.cpp.o
+[20/236] Building CXX object CMakeFiles/server1_k05_swarm_metadata.dir/src/policy/SwarmPolicy.cpp.o
+[21/236] Building CXX object CMakeFiles/server1_k05_swarm_metadata.dir/src/policy/MetadataExchange.cpp.o
+[22/236] Linking CXX static library libserver1_k03_scheduler_selections.a
+[23/236] Building CXX object CMakeFiles/server1_k06_persistent_store.dir/src/storage/VerificationBitmap.cpp.o
+[24/236] Linking CXX static library libserver1_k09_peer_search.a
+[25/236] Building CXX object CMakeFiles/server1_m00_process.dir/src/media/ProcessDriver.cpp.o
+[26/236] Building CXX object CMakeFiles/server1_k04_scheduler_actions.dir/src/policy/SchedulerHotswap.cpp.o
+[27/236] Building CXX object CMakeFiles/server1_k06_persistent_store.dir/src/storage/PersistentPieceStore.cpp.o
+[28/236] Building CXX object CMakeFiles/server1_k07_circular_store.dir/src/storage/CircularPieceStore.cpp.o
+[29/236] Building CXX object CMakeFiles/server1_k04_scheduler_actions.dir/src/policy/SchedulerRequests.cpp.o
+[30/236] Building CXX object CMakeFiles/server1_k10_native_transport.dir/src/transport/ActionLedger.cpp.o
+[31/236] Building CXX object CMakeFiles/server1_k08_file_reader.dir/src/policy/FileReader.cpp.o
+[32/236] Building CXX object CMakeFiles/server1_k12_counters.dir/src/policy/EngineCounters.cpp.o
+[33/236] Building CXX object CMakeFiles/server1_k12_counters.dir/src/policy/EngineSpeedometer.cpp.o
+[34/236] Building CXX object CMakeFiles/server1_k12_counters.dir/src/policy/QtEngineTimer.cpp.o
+[35/236] Building CXX object CMakeFiles/server1_k12_counters.dir/src/policy/EngineSpeedometerClock.cpp.o
+[36/236] Building C object CMakeFiles/server1_ecmascript_regex.dir/third_party/ecmascript_regex/libunicode.c.o
+[37/236] Building C object CMakeFiles/server1_ecmascript_regex.dir/third_party/ecmascript_regex/cutils.c.o
+[38/236] Building C object CMakeFiles/server1_ecmascript_regex.dir/third_party/ecmascript_regex/libregexp.c.o
+[39/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/fs-poll.c.o
+[40/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/idna.c.o
+[41/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/inet.c.o
+[42/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/random.c.o
+[43/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/strtok.c.o
+[44/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/strscpy.c.o
+[45/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/thread-common.c.o
+[46/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/threadpool.c.o
+[47/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/timer.c.o
+[48/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/uv-data-getter-setters.c.o
+[49/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/version.c.o
+[50/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/uv-common.c.o
+[51/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/async.c.o
+[52/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/dl.c.o
+[53/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/core.c.o
+[54/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/fs.c.o
+[55/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/getaddrinfo.c.o
+[56/236] Building CXX object CMakeFiles/server1_k10_native_transport.dir/src/transport/PeerPlugin.cpp.o
+[57/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/getnameinfo.c.o
+[58/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/loop-watcher.c.o
+[59/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/loop.c.o
+[60/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/poll.c.o
+[61/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/pipe.c.o
+[62/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/random-devurandom.c.o
+[63/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/process.c.o
+[64/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/signal.c.o
+[65/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/stream.c.o
+[66/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/tcp.c.o
+[67/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/tty.c.o
+[68/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/thread.c.o
+[69/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/proctitle.c.o
+[70/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/procfs-exepath.c.o
+[71/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/udp.c.o
+[72/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/random-getrandom.c.o
+[73/236] Linking CXX static library libserver1_k01_metadata.a
+[74/236] Linking CXX static library libserver1_h00_http.a
+[75/236] Linking CXX static library libserver1_m00_process.a
+[76/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/random-sysctl-linux.c.o
+[77/236] Building C object _deps/server1_libuv-build/CMakeFiles/uv_a.dir/src/unix/linux.c.o
+[78/236] Linking CXX static library libserver1_k05_swarm_metadata.a
+[79/236] Linking CXX static library libserver1_k06_persistent_store.a
+[80/236] Linking CXX static library libserver1_k07_circular_store.a
+[81/236] Linking CXX static library libserver1_k04_scheduler_actions.a
+[82/236] Linking CXX static library libserver1_k08_file_reader.a
+[83/236] Building CXX object CMakeFiles/server1_m01_probe.dir/src/media/LegacyProbe.cpp.o
+[84/236] Building CXX object CMakeFiles/server1_m01_probe.dir/src/media/Probe.cpp.o
+[85/236] Building CXX object CMakeFiles/server1_k11_engine.dir/src/policy/EngineStatistics.cpp.o
+[86/236] Building CXX object CMakeFiles/server1_k11_engine.dir/src/policy/SwarmConnections.cpp.o
+[87/236] Building CXX object CMakeFiles/server1_k11_engine.dir/src/policy/SourcePeerAddress.cpp.o
+[88/236] Linking CXX static library libserver1_k12_counters.a
+[89/236] Building CXX object CMakeFiles/server1_h01_reader_stream.dir/src/http/FileReaderStream.cpp.o
+[90/236] Building CXX object CMakeFiles/server1_h01_reader_stream.dir/src/http/TorrentRange.cpp.o
+[91/236] Building CXX object CMakeFiles/server1_k10_native_transport.dir/src/transport/LibTorrent2Adapter.cpp.o
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp: In member function ‘void server1::transport::{anonymous}::LibTorrent2Adapter::emitMetadataReady(const libtorrent::torrent_handle&, const std::shared_ptr<const libtorrent::torrent_info>&)’:
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:805:50: warning: ‘std::vector<std::__cxx11::basic_string<char> > libtorrent::torrent_info::url_seeds() const’ is deprecated [-Wdeprecated-declarations]
+  805 |         const auto infoUrlSeeds = info->url_seeds();
+      |                                   ~~~~~~~~~~~~~~~^~
+In file included from /workspace/shared/colosseum-m07-20261020/deps/libtorrent-prefix/include/libtorrent/torrent_handle.hpp:66,
+                 from /workspace/shared/colosseum-m07-20261020/deps/libtorrent-prefix/include/libtorrent/alert_types.hpp:50,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/transport/LibTorrent2Adapter.cpp:4:
+/workspace/shared/colosseum-m07-20261020/deps/libtorrent-prefix/include/libtorrent/torrent_info.hpp:317:42: note: declared here
+  317 |                 std::vector<std::string> url_seeds() const;
+      |                                          ^~~~~~~~~
+[92/236] Linking CXX static library libserver1_k10_native_transport.a
+[93/236] Building CXX object CMakeFiles/server1_k11_engine.dir/src/policy/EngineRegistry.cpp.o
+[94/236] Building CXX object CMakeFiles/server1_n00_proxy.dir/src/network/ProxyRoutes.cpp.o
+[95/236] Building CXX object CMakeFiles/server1_k11_engine.dir/src/policy/TorrentEngine.cpp.o
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/policy/TorrentEngine.cpp: In member function ‘server1::policy::Value server1::policy::TorrentEngine::statistics(server1::policy::Value) const’:
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/policy/TorrentEngine.cpp:1922:72: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+ 1922 |             {"lastStarted",Value::string(QDateTime::fromMSecsSinceEpoch(
+      |                                          ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^
+ 1923 |                 self.epochOffsetMs+static_cast<std::int64_t>(source.lastStartedMs),Qt::UTC)
+      |                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/QDateTime:1,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/policy/TorrentEngine.cpp:3:
+/workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[96/236] Building CXX object CMakeFiles/server1_n00_proxy.dir/src/network/ProxyService.cpp.o
+[97/236] Building CXX object CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleCharset.cpp.o
+[98/236] Building CXX object CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleFetch.cpp.o
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/media/SubtitleFetch.cpp: In lambda function:
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/media/SubtitleFetch.cpp:328:44: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+  328 |       return QDateTime::fromMSecsSinceEpoch(n.toDouble() + offset, Qt::UTC)
+      |              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qcborvalue.h:11,
+                 from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qjsonvalue.h:8,
+                 from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qjsonarray.h:8,
+                 from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/QJsonArray:1,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/include/server1/media/SubtitleFetch.h:2,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/media/SubtitleFetch.cpp:1:
+/workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[99/236] Linking C static library libserver1_ecmascript_regex.a
+[100/236] Building CXX object CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleHash.cpp.o
+[101/236] Building CXX object CMakeFiles/server1_m02_subtitles.dir/src/media/SubtitleRoutes.cpp.o
+[102/236] Building CXX object CMakeFiles/server1_safe_file_regex.dir/src/http/SafeFileRegex.cpp.o
+[103/236] Linking C static library _deps/server1_libuv-build/libuv.a
+[104/236] Building CXX object CMakeFiles/server1_system_statistics.dir/src/http/SystemStatistics.cpp.o
+[105/236] Building CXX object CMakeFiles/server1_m02_subtitles.dir/src/media/TrackExtraction.cpp.o
+[106/236] Building CXX object CMakeFiles/server1_k13_settings_cache.dir/src/platform/DiskSpace.cpp.o
+[107/236] Linking CXX static library libserver1_m01_probe.a
+[108/236] Linking CXX static library libserver1_k11_engine.a
+[109/236] Linking CXX static library libserver1_h01_reader_stream.a
+[110/236] Building CXX object CMakeFiles/server1_k13_settings_cache.dir/src/settings/SettingsStore.cpp.o
+[111/236] Building CXX object CMakeFiles/server1_k13_settings_cache.dir/src/settings/CachePolicy.cpp.o
+[112/236] Building CXX object CMakeFiles/server1_guess_file_index.dir/src/http/GuessFileIndex.cpp.o
+[113/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/ServerComposition.cpp.o
+[114/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/KeyframeIndex.cpp.o
+[115/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/Mp4Samples.cpp.o
+[116/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/MkvSamples.cpp.o
+[117/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/SegmentLayout.cpp.o
+[118/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/Mp4Timeline.cpp.o
+[119/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/HlsPlaylist.cpp.o
+[120/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/VttTimeline.cpp.o
+[121/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/http/TorrentRoutes.cpp.o
+[122/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/http/HlsV2Routes.cpp.o
+[123/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/TrackConverter.cpp.o
+[124/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/FfmpegArguments.cpp.o
+[125/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/http/ExternalCors.cpp.o
+[126/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/HlsV2Service.cpp.o
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/media/HlsV2Service.cpp: In lambda function:
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/media/HlsV2Service.cpp:589:53: warning: ‘static QDateTime QDateTime::fromMSecsSinceEpoch(qint64, Qt::TimeSpec, int)’ is deprecated: Pass QTimeZone instead of time-spec, offset [-Wdeprecated-declarations]
+  589 |           {"touched", QDateTime::fromMSecsSinceEpoch(e.touched, Qt::UTC)
+      |                       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qcborvalue.h:11,
+                 from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qjsonvalue.h:8,
+                 from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qjsonobject.h:8,
+                 from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/QJsonObject:1,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/include/server1/media/TrackConverter.h:3,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/include/server1/media/HlsV2Service.h:2,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/src/media/HlsV2Service.cpp:1:
+/workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qdatetime.h:518:22: note: declared here
+  518 |     static QDateTime fromMSecsSinceEpoch(qint64 msecs, Qt::TimeSpec spec, int offsetFromUtc = 0);
+      |                      ^~~~~~~~~~~~~~~~~~~
+[127/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/LegacyMp4Index.cpp.o
+[128/236] Linking CXX static library libserver1_n00_proxy.a
+[129/236] Linking CXX static library libserver1_m02_subtitles.a
+[130/236] Linking CXX static library libserver1_safe_file_regex.a
+[131/236] Linking CXX static library libserver1_system_statistics.a
+[132/236] Linking CXX static library libserver1_guess_file_index.a
+[133/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/LegacyMkvIndex.cpp.o
+[134/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/http/LegacyMediaRoutes.cpp.o
+[135/236] Building CXX object CMakeFiles/server1_k00_js_semantics.dir/tests/test_js_semantics.cpp.o
+[136/236] Linking CXX static library libserver1_k13_settings_cache.a
+[137/236] Building CXX object CMakeFiles/server1_k01_metadata_geometry.dir/tests/test_metadata_geometry.cpp.o
+[138/236] Building CXX object CMakeFiles/server1_host.dir/host/main.cpp.o
+[139/236] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/LegacyHlsService.cpp.o
+[140/236] Building CXX object CMakeFiles/server1_h01_range_test.dir/tests/test_torrent_range.cpp.o
+[141/236] Linking CXX static library libcolosseum_server_v1.a
+[142/236] Building CXX object CMakeFiles/server1_m01_probe_tests.dir/tests/test_probe.cpp.o
+[143/236] Building CXX object CMakeFiles/server1_h01_reader_stream_test.dir/tests/test_http_file_reader.cpp.o
+[144/236] Building CXX object CMakeFiles/server1_m00_process_tests.dir/tests/test_process_driver.cpp.o
+[145/236] Building CXX object CMakeFiles/server1_engine_statistics_test.dir/tests/test_engine_statistics.cpp.o
+[146/236] Building CXX object CMakeFiles/server1_tracker_network_test.dir/tests/test_tracker_network.cpp.o
+[147/236] Building CXX object CMakeFiles/server1_dht_network_test.dir/tests/test_dht_network.cpp.o
+[148/236] Building CXX object CMakeFiles/server1_discovery_network_test.dir/tests/test_discovery_network.cpp.o
+[149/236] Building CXX object CMakeFiles/server1_k12_swarm_connections_test.dir/tests/test_swarm_connections.cpp.o
+[150/236] Building CXX object CMakeFiles/server1_proxy_test.dir/tests/test_proxy_streaming.cpp.o
+[151/236] Building CXX object CMakeFiles/server1_dht_service_test.dir/tests/test_dht_service.cpp.o
+[152/236] Building CXX object CMakeFiles/server1_m02_subtitles_tracks_tests.dir/tests/test_subtitles_tracks.cpp.o
+[153/236] Building CXX object CMakeFiles/server1_m02_subtitles_lifecycle_tests.dir/tests/test_subtitles_lifecycle.cpp.o
+[154/236] Building CXX object CMakeFiles/server1_test_samples.dir/tests/test_samples.cpp.o
+[155/236] Building CXX object CMakeFiles/server1_m04_timeline_tests.dir/tests/test_segment_timeline.cpp.o
+[156/236] Building CXX object CMakeFiles/server1_safe_file_regex_test.dir/tests/test_safe_file_regex.cpp.o
+[157/236] Building CXX object CMakeFiles/server1_track_converter_tests.dir/tests/test_track_converter.cpp.o
+[158/236] Building CXX object CMakeFiles/server1_track_converter_lifecycle_tests.dir/tests/test_track_converter_lifecycle.cpp.o
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp: In instantiation of ‘main(int, char**)::<lambda(auto:62)> [with auto:62 = server1::media::TrackConversionResult]’:
+/usr/include/c++/14/type_traits:2655:26:   required by substitution of ‘template<class _Fn, class ... _Args> static std::__result_of_success<decltype (declval<_Fn>()((declval<_Args>)()...)), std::__invoke_other> std::__result_of_other_impl::_S_test(int) [with _Fn = main(int, char**)::<lambda(auto:62)>&; _Args = {const server1::media::TrackConversionResult&}]’
+ 2655 |       std::declval<_Fn>()(std::declval<_Args>()...)
+      |       ~~~~~~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~~~~~
+/usr/include/c++/14/type_traits:2666:60:   required from ‘struct std::__result_of_impl<false, false, main(int, char**)::<lambda(auto:62)>&, const server1::media::TrackConversionResult&>’
+ 2666 |       using type = decltype(_S_test<_Functor, _ArgTypes...>(0));
+      |                             ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^~~
+/usr/include/c++/14/bits/std_function.h:348:9:   recursively required by substitution of ‘template<class _Result, class _Ret> struct std::__is_invocable_impl<_Result, _Ret, true, std::__void_t<typename _CTp::type> > [with _Result = std::__invoke_result<main(int, char**)::<lambda(auto:62)>&, const server1::media::TrackConversionResult&>; _Ret = void]’
+  348 |         struct _Callable
+      |                ^~~~~~~~~
+/usr/include/c++/14/bits/std_function.h:348:9:   required from ‘struct std::function<void(const server1::media::TrackConversionResult&)>::_Callable<main(int, char**)::<lambda(auto:62)>, main(int, char**)::<lambda(auto:62)>, std::__invoke_result<main(int, char**)::<lambda(auto:62)>&, const server1::media::TrackConversionResult&> >’
+/usr/include/c++/14/bits/std_function.h:353:41:   required by substitution of ‘template<class _Res, class ... _ArgTypes> template<class _Cond, class _Tp> using std::function<_Res(_ArgTypes ...)>::_Requires = std::__enable_if_t<((bool)_Cond::value), _Tp> [with _Cond = std::function<void(const server1::media::TrackConversionResult&)>::_Callable<main(int, char**)::<lambda(auto:62)>, main(int, char**)::<lambda(auto:62)>, std::__invoke_result<main(int, char**)::<lambda(auto:62)>&, const server1::media::TrackConversionResult&> >; _Tp = void; _Res = void; _ArgTypes = {const server1::media::TrackConversionResult&}]’
+  353 |         using _Requires = __enable_if_t<_Cond::value, _Tp>;
+      |                                                ^~~~~
+/usr/include/c++/14/bits/std_function.h:434:9:   required by substitution of ‘template<class _Functor, class _Constraints> std::function<void(const server1::media::TrackConversionResult&)>::function(_Functor&&) [with _Functor = main(int, char**)::<lambda(auto:62)>; _Constraints = <missing>]’
+  434 |                typename _Constraints = _Requires<_Callable<_Functor>>>
+      |                ^~~~~~~~
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp:233:19:   required from here
+  233 |     c.mediaSegment(1, [&](auto r) {
+      |     ~~~~~~~~~~~~~~^~~~~~~~~~~~~~~~~
+  234 |       if (!r.ok())
+      |       ~~~~~~~~~~~~ 
+  235 |         std::cerr << r.error.toStdString() << '\n';
+      |         ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  236 |       check(r.ok() && !r.data.isEmpty(), "real FFmpeg first segment");
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  237 |       QFile out("/tmp/m05-real-output.m4s");
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  238 |       out.open(QIODevice::WriteOnly);
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  239 |       c.initSegment([&](auto initResult) { out.write(initResult.data); });
+      |       ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+  240 |       out.write(r.data);
+      |       ~~~~~~~~~~~~~~~~~~
+  241 |       done = true;
+      |       ~~~~~~~~~~~~ 
+  242 |       loop.quit();
+      |       ~~~~~~~~~~~~ 
+  243 |     });
+      |     ~~             
+/workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp:238:15: warning: ignoring return value of ‘virtual bool QFile::open(QIODeviceBase::OpenMode)’, declared with attribute ‘nodiscard’ [-Wunused-result]
+  238 |       out.open(QIODevice::WriteOnly);
+      |       ~~~~~~~~^~~~~~~~~~~~~~~~~~~~~~
+In file included from /workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/QFile:1,
+                 from /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/native/colosseum_server_v1/tests/test_track_converter_lifecycle.cpp:4:
+/workspace/shared/colosseum-m07-20261020/deps/qt/include/QtCore/qfile.h:264:32: note: declared here
+  264 |     QFILE_MAYBE_NODISCARD bool open(OpenMode flags) override;
+      |                                ^~~~
+[159/236] Building CXX object CMakeFiles/server1_track_converter_backpressure_tests.dir/tests/test_track_converter_backpressure.cpp.o
+[160/236] Building CXX object CMakeFiles/server1_external_cors_tests.dir/tests/test_external_cors.cpp.o
+[161/236] Building CXX object CMakeFiles/server1_m06_hlsv2_tests.dir/tests/test_hlsv2_service.cpp.o
+[162/236] Building CXX object CMakeFiles/server1_legacy_render_test.dir/tests/test_legacy_render.cpp.o
+[163/236] Building CXX object CMakeFiles/server1_system_statistics_test.dir/tests/test_system_statistics.cpp.o
+[164/236] Building CXX object CMakeFiles/server1_m07_legacy_hls_tests.dir/tests/test_legacy_hls.cpp.o
+[165/236] Building CXX object CMakeFiles/server1_legacy_media_index_test.dir/tests/test_legacy_media_index.cpp.o
+[166/236] Building CXX object CMakeFiles/server1_system_statistics_backend_test.dir/tests/test_system_statistics_backend.cpp.o
+[167/236] Building CXX object CMakeFiles/server1_system_statistics_backend_test.dir/src/http/SystemStatistics.cpp.o
+[168/236] Building CXX object CMakeFiles/server1_legacy_runtime_tests.dir/tests/test_legacy_runtime.cpp.o
+[169/236] Building CXX object CMakeFiles/server1_k12_source_peer_address_test.dir/tests/test_source_peer_address.cpp.o
+[170/236] Building CXX object p03-tests/CMakeFiles/server1_k02_piece_buffer_test.dir/test_piece_buffer.cpp.o
+[171/236] Building CXX object p03-tests/CMakeFiles/server1_k13_settings_cache_test.dir/test_settings_cache.cpp.o
+[172/236] Building CXX object CMakeFiles/server1_guess_file_index_test.dir/tests/test_guess_file_index.cpp.o
+[173/236] Building CXX object p03-tests/CMakeFiles/server1_k05_swarm_metadata_test.dir/test_swarm_metadata.cpp.o
+[174/236] Building CXX object p03-tests/CMakeFiles/server1_k03_scheduler_selections_test.dir/test_scheduler_selections.cpp.o
+[175/236] Building CXX object p03-tests/CMakeFiles/server1_k06_persistent_store_test.dir/test_persistent_store.cpp.o
+[176/236] Building CXX object p03-tests/CMakeFiles/server1_k07_circular_store_test.dir/test_circular_store.cpp.o
+[177/236] Building CXX object p03-tests/CMakeFiles/server1_h00_http_contract.dir/test_http_contract.cpp.o
+[178/236] Building CXX object p03-tests/CMakeFiles/server1_k09_peer_search_test.dir/test_peer_search.cpp.o
+[179/236] Building CXX object p03-tests/CMakeFiles/server1_k04_scheduler_actions_test.dir/test_scheduler_requests.cpp.o
+[180/236] Building CXX object p03-tests/CMakeFiles/server1_p08_torrent_transport_contract_test.dir/test_torrent_transport_contract.cpp.o
+[181/236] Building CXX object p03-tests/CMakeFiles/server1_k08_file_reader_test.dir/test_file_reader.cpp.o
+[182/236] Building CXX object p03-tests/CMakeFiles/server1_spine_contracts_link_test.dir/test_spine_contracts.cpp.o
+[183/236] Building CXX object p03-tests/CMakeFiles/server1_k12_counter_test.dir/test_engine_counters.cpp.o
+[184/236] Building CXX object p03-tests/CMakeFiles/server1_k12_timer_test.dir/test_engine_timer.cpp.o
+[185/236] Linking CXX executable server1_host
+[186/236] Linking CXX executable server1_k00_js_semantics
+[187/236] Linking CXX executable server1_k01_metadata_geometry
+[188/236] Linking CXX executable server1_m00_process_tests
+[189/236] Linking CXX executable server1_m01_probe_tests
+[190/236] Linking CXX executable server1_h01_reader_stream_test
+[191/236] Linking CXX executable server1_h01_range_test
+[192/236] Building CXX object p03-tests/CMakeFiles/server1_k12_speedometer_test.dir/test_engine_speedometer.cpp.o
+[193/236] Linking CXX executable server1_engine_statistics_test
+[194/236] Linking CXX executable server1_tracker_network_test
+[195/236] Linking CXX executable server1_dht_network_test
+[196/236] Linking CXX executable server1_dht_service_test
+[197/236] Linking CXX executable server1_discovery_network_test
+[198/236] Linking CXX executable server1_k12_swarm_connections_test
+[199/236] Linking CXX executable server1_proxy_test
+[200/236] Linking CXX executable server1_m02_subtitles_lifecycle_tests
+[201/236] Linking CXX executable server1_m02_subtitles_tracks_tests
+[202/236] Linking CXX executable server1_test_samples
+[203/236] Linking CXX executable server1_m04_timeline_tests
+[204/236] Linking CXX executable server1_safe_file_regex_test
+[205/236] Linking CXX executable server1_track_converter_tests
+[206/236] Linking CXX executable server1_track_converter_lifecycle_tests
+[207/236] Linking CXX executable server1_track_converter_backpressure_tests
+[208/236] Linking CXX executable server1_m06_hlsv2_tests
+[209/236] Linking CXX executable server1_external_cors_tests
+[210/236] Linking CXX executable server1_legacy_media_index_test
+[211/236] Linking CXX executable server1_m07_legacy_hls_tests
+[212/236] Linking CXX executable server1_legacy_render_test
+[213/236] Linking CXX executable server1_system_statistics_test
+[214/236] Linking CXX executable server1_legacy_runtime_tests
+[215/236] Linking CXX executable server1_system_statistics_backend_test
+[216/236] Linking CXX executable server1_k12_source_peer_address_test
+[217/236] Linking CXX executable server1_guess_file_index_test
+[218/236] Linking CXX executable p03-tests/server1_k13_settings_cache_test
+[219/236] Linking CXX executable p03-tests/server1_k02_piece_buffer_test
+[220/236] Linking CXX executable p03-tests/server1_h00_http_contract
+[221/236] Linking CXX executable p03-tests/server1_k05_swarm_metadata_test
+[222/236] Linking CXX executable p03-tests/server1_k06_persistent_store_test
+[223/236] Linking CXX executable p03-tests/server1_k03_scheduler_selections_test
+[224/236] Linking CXX executable p03-tests/server1_k07_circular_store_test
+[225/236] Linking CXX executable p03-tests/server1_k09_peer_search_test
+[226/236] Linking CXX executable p03-tests/server1_k04_scheduler_actions_test
+[227/236] Linking CXX executable p03-tests/server1_k08_file_reader_test
+[228/236] Linking CXX executable p03-tests/server1_p08_torrent_transport_contract_test
+[229/236] Linking CXX executable p03-tests/server1_spine_contracts_link_test
+[230/236] Linking CXX executable p03-tests/server1_k12_counter_test
+[231/236] Linking CXX executable p03-tests/server1_k12_timer_test
+[232/236] Linking CXX executable p03-tests/server1_k12_speedometer_test
+[233/236] Building CXX object p03-tests/CMakeFiles/server1_k10_native_transport_test.dir/test_native_transport.cpp.o
+[234/236] Linking CXX executable p03-tests/server1_k10_native_transport_test
+[235/236] Building CXX object p03-tests/CMakeFiles/server1_k11_engine_registry_test.dir/test_engine_registry.cpp.o
+[236/236] Linking CXX executable p03-tests/server1_k11_engine_registry_test
+Test project /workspace/shared/colosseum-m07-20261020/delivery-restore-check/colosseum-server-m07/build
+        Start  20: M03-samples-differential
+        Start   1: H01-reader-stream
+  1/158 Test   #1: H01-reader-stream ............................   Passed    0.03 sec
+        Start   2: H01-torrent-range
+  2/158 Test   #2: H01-torrent-range ............................   Passed    0.00 sec
+        Start   3: H01-native-torrent-http
+  3/158 Test  #20: M03-samples-differential .....................   Passed    2.69 sec
+        Start   4: K12-engine-statistics
+  4/158 Test   #4: K12-engine-statistics ........................   Passed    0.32 sec
+        Start   5: K09-tracker_network
+  5/158 Test   #5: K09-tracker_network ..........................   Passed    2.14 sec
+        Start   6: K09-dht_network
+  6/158 Test   #3: H01-native-torrent-http ......................   Passed    5.83 sec
+        Start   7: K09-dht_service
+  7/158 Test   #7: K09-dht_service ..............................   Passed    0.54 sec
+        Start   8: K09-discovery_network
+  8/158 Test   #8: K09-discovery_network ........................   Passed    0.02 sec
+        Start   9: H01-tracker-torrent-http
+  9/158 Test   #6: K09-dht_network ..............................   Passed    3.06 sec
+        Start  10: K09-peer-duplicates-differential
+ 10/158 Test  #10: K09-peer-duplicates-differential .............   Passed    2.04 sec
+        Start  11: K09-dht-differential
+ 11/158 Test  #11: K09-dht-differential .........................   Passed    1.20 sec
+        Start  12: N00-streaming-proxy
+ 12/158 Test  #12: N00-streaming-proxy ..........................   Passed    0.25 sec
+        Start  13: K12-source-swarm-connections
+ 13/158 Test  #13: K12-source-swarm-connections .................   Passed    0.00 sec
+        Start  14: N00-proxy-differential
+ 14/158 Test   #9: H01-tracker-torrent-http .....................   Passed    6.48 sec
+        Start  15: K12-source-swarm-differential
+ 15/158 Test  #15: K12-source-swarm-differential ................   Passed    0.14 sec
+        Start  16: M02-oracle-cases
+ 16/158 Test  #16: M02-oracle-cases .............................   Passed    0.01 sec
+        Start  17: M02-charset-cases
+ 17/158 Test  #17: M02-charset-cases ............................   Passed    0.06 sec
+        Start  18: M02-lifecycle
+ 18/158 Test  #14: N00-proxy-differential .......................   Passed   15.21 sec
+        Start  19: M04-segment-timeline
+ 19/158 Test  #19: M04-segment-timeline .........................   Passed    0.02 sec
+        Start  21: M03-samples-ranges
+ 20/158 Test  #21: M03-samples-ranges ...........................   Passed    3.49 sec
+        Start  22: M03-samples-fallback
+ 21/158 Test  #22: M03-samples-fallback .........................   Passed    4.57 sec
+        Start  23: K12-incoming-lifecycle
+ 22/158 Test  #23: K12-incoming-lifecycle .......................   Passed    0.03 sec
+        Start  24: H01-safe-regex-differential
+ 23/158 Test  #24: H01-safe-regex-differential ..................   Passed    3.00 sec
+        Start  25: M05-arguments
+ 24/158 Test  #25: M05-arguments ................................   Passed    0.01 sec
+        Start  26: M05-lifecycle
+ 25/158 Test  #26: M05-lifecycle ................................   Passed    0.04 sec
+        Start  27: M05-owned-pipe-backpressure
+ 26/158 Test  #27: M05-owned-pipe-backpressure ..................   Passed    1.56 sec
+        Start  28: M06-factory-registry-routes-media
+ 27/158 Test  #28: M06-factory-registry-routes-media ............   Passed    0.69 sec
+        Start  29: M06-external-cors
+ 28/158 Test  #29: M06-external-cors ............................   Passed    0.01 sec
+        Start  30: H01-torrent-hls-http
+ 29/158 Test  #30: H01-torrent-hls-http .........................   Passed    4.14 sec
+        Start  31: M07-render-fixtures
+ 30/158 Test  #31: M07-render-fixtures ..........................   Passed    0.02 sec
+        Start  32: M07-legacy-media-index
+ 31/158 Test  #32: M07-legacy-media-index .......................   Passed    0.51 sec
+        Start  33: M07-render-differential
+ 32/158 Test  #33: M07-render-differential ......................   Passed    2.38 sec
+        Start  34: M07-factory-lifecycle-routes-media
+ 33/158 Test  #34: M07-factory-lifecycle-routes-media ...........   Passed    3.09 sec
+        Start  35: M07-runtime-routes-lifecycle
+ 34/158 Test  #18: M02-lifecycle ................................   Passed   37.46 sec
+        Start  36: M07-production-composition
+ 35/158 Test  #36: M07-production-composition ...................   Passed    0.74 sec
+        Start  37: M07-probe-runtime-oracle
+ 36/158 Test  #35: M07-runtime-routes-lifecycle .................   Passed   21.20 sec
+        Start  38: M07-media-index-differential
+ 37/158 Test  #37: M07-probe-runtime-oracle .....................   Passed   22.35 sec
+        Start  39: H01-system-statistics-live
+ 38/158 Test  #39: H01-system-statistics-live ...................   Passed    0.00 sec
+        Start  40: H01-system-statistics-backend
+ 39/158 Test  #40: H01-system-statistics-backend ................   Passed    0.00 sec
+        Start  41: H01-system-statistics-differential
+ 40/158 Test  #41: H01-system-statistics-differential ...........   Passed    0.14 sec
+        Start  42: H01-guess-file-index
+ 41/158 Test  #42: H01-guess-file-index .........................   Passed    0.01 sec
+        Start  43: K12-source-peer-address
+ 42/158 Test  #43: K12-source-peer-address ......................   Passed    0.00 sec
+        Start  44: K12-dns-close-lifecycle
+ 43/158 Test  #44: K12-dns-close-lifecycle ......................   Passed    0.09 sec
+        Start  45: H01-guess-file-index-differential
+ 44/158 Test  #45: H01-guess-file-index-differential ............   Passed    1.24 sec
+        Start  46: K12-source-peer-address-differential
+ 45/158 Test  #46: K12-source-peer-address-differential .........   Passed    0.12 sec
+        Start  47: P03-02-server1-host
+ 46/158 Test  #47: P03-02-server1-host ..........................   Passed    0.01 sec
+        Start  48: K00-01-js-semantics
+ 47/158 Test  #48: K00-01-js-semantics ..........................   Passed    0.00 sec
+        Start  49: K00-02-js-semantics
+ 48/158 Test  #49: K00-02-js-semantics ..........................   Passed    0.00 sec
+        Start  50: K00-03-js-semantics
+ 49/158 Test  #50: K00-03-js-semantics ..........................   Passed    0.00 sec
+        Start  51: K01-01-metadata-geometry
+ 50/158 Test  #51: K01-01-metadata-geometry .....................   Passed    0.00 sec
+        Start  52: K01-02-metadata-geometry
+ 51/158 Test  #52: K01-02-metadata-geometry .....................   Passed    0.00 sec
+        Start  53: K01-03-metadata-geometry
+ 52/158 Test  #53: K01-03-metadata-geometry .....................   Passed    0.00 sec
+        Start  54: K13-01-settings-cache-defaults
+ 53/158 Test  #54: K13-01-settings-cache-defaults ...............   Passed    0.00 sec
+        Start  55: K13-02-cache-policy
+ 54/158 Test  #55: K13-02-cache-policy ..........................   Passed    0.00 sec
+        Start  56: K13-03-cache-convergence
+ 55/158 Test  #56: K13-03-cache-convergence .....................   Passed    0.05 sec
+        Start  57: H00-01-http-contract
+ 56/158 Test  #57: H00-01-http-contract .........................   Passed    0.01 sec
+        Start  58: H00-02-http-contract
+ 57/158 Test  #58: H00-02-http-contract .........................   Passed    0.01 sec
+        Start  59: H00-03-http-contract
+ 58/158 Test  #38: M07-media-index-differential .................   Passed    4.29 sec
+        Start  60: H00-04-http-contract
+ 59/158 Test  #60: H00-04-http-contract .........................   Passed    0.01 sec
+        Start  61: H00-05-http-contract
+ 60/158 Test  #61: H00-05-http-contract .........................   Passed    0.27 sec
+        Start  62: H00-06-http-contract
+ 61/158 Test  #62: H00-06-http-contract .........................   Passed    0.01 sec
+        Start  63: H00-07-http-contract
+ 62/158 Test  #63: H00-07-http-contract .........................   Passed    0.01 sec
+        Start  64: H00-08-http-contract
+ 63/158 Test  #64: H00-08-http-contract .........................   Passed    0.01 sec
+        Start  65: H00-09-http-contract
+ 64/158 Test  #65: H00-09-http-contract .........................   Passed    0.01 sec
+        Start  66: H00-10-http-contract
+ 65/158 Test  #66: H00-10-http-contract .........................   Passed    0.46 sec
+        Start  67: H00-11-http-contract
+ 66/158 Test  #67: H00-11-http-contract .........................   Passed    0.01 sec
+        Start  68: H00-12-http-contract
+ 67/158 Test  #68: H00-12-http-contract .........................   Passed    0.00 sec
+        Start  69: H00-13-http-contract
+ 68/158 Test  #59: H00-03-http-contract .........................   Passed    1.52 sec
+        Start  70: M00-01-process-discovery
+ 69/158 Test  #70: M00-01-process-discovery .....................   Passed    0.01 sec
+        Start  71: M00-02-process-lifecycle
+ 70/158 Test  #69: H00-13-http-contract .........................   Passed    0.20 sec
+        Start  72: M00-03-remote-driver
+ 71/158 Test  #72: M00-03-remote-driver .........................   Passed    0.03 sec
+        Start  73: M01-01-probe-normalization
+ 72/158 Test  #73: M01-01-probe-normalization ...................   Passed    0.01 sec
+        Start  74: M01-02-probe-process
+ 73/158 Test  #71: M00-02-process-lifecycle .....................   Passed    0.24 sec
+        Start  75: M01-03-legacy-timeout
+ 74/158 Test  #74: M01-02-probe-process .........................   Passed    0.79 sec
+        Start  76: K02-01-piece-buffer
+ 75/158 Test  #76: K02-01-piece-buffer ..........................   Passed    0.00 sec
+        Start  77: K02-02-piece-buffer
+ 76/158 Test  #77: K02-02-piece-buffer ..........................   Passed    0.00 sec
+        Start  78: K02-03-piece-buffer
+ 77/158 Test  #78: K02-03-piece-buffer ..........................   Passed    0.00 sec
+        Start  79: K05-01-swarm-metadata
+ 78/158 Test  #79: K05-01-swarm-metadata ........................   Passed    0.00 sec
+        Start  80: K05-02-swarm-metadata
+ 79/158 Test  #80: K05-02-swarm-metadata ........................   Passed    0.00 sec
+        Start  81: K05-03-swarm-metadata
+ 80/158 Test  #81: K05-03-swarm-metadata ........................   Passed    0.00 sec
+        Start  82: K05-A2-peer-lifecycle-counts
+ 81/158 Test  #82: K05-A2-peer-lifecycle-counts .................   Passed    0.00 sec
+        Start  83: K06-01-persistent-store
+ 82/158 Test  #83: K06-01-persistent-store ......................   Passed    0.01 sec
+        Start  84: K06-02-persistent-store
+ 83/158 Test  #84: K06-02-persistent-store ......................   Passed    0.01 sec
+        Start  85: K06-03-persistent-store
+ 84/158 Test  #85: K06-03-persistent-store ......................   Passed    0.01 sec
+        Start  86: K06-F2-persistent-store
+ 85/158 Test  #86: K06-F2-persistent-store ......................   Passed    0.02 sec
+        Start  87: K06-F3-persistent-store
+ 86/158 Test  #87: K06-F3-persistent-store ......................   Passed    0.01 sec
+        Start  88: K03-01-scheduler-selections
+ 87/158 Test  #88: K03-01-scheduler-selections ..................   Passed    0.00 sec
+        Start  89: K03-02-scheduler-selections
+ 88/158 Test  #89: K03-02-scheduler-selections ..................   Passed    0.00 sec
+        Start  90: K03-03-scheduler-selections
+ 89/158 Test  #90: K03-03-scheduler-selections ..................   Passed    0.00 sec
+        Start  91: K07-01-circular-store
+ 90/158 Test  #91: K07-01-circular-store ........................   Passed    0.00 sec
+        Start  92: K07-02-circular-store
+ 91/158 Test  #92: K07-02-circular-store ........................   Passed    0.00 sec
+        Start  93: K07-03-circular-store
+ 92/158 Test  #93: K07-03-circular-store ........................   Passed    0.00 sec
+        Start  94: K09-01-peer-search
+ 93/158 Test  #94: K09-01-peer-search ...........................   Passed    0.00 sec
+        Start  95: K09-02-peer-search
+ 94/158 Test  #95: K09-02-peer-search ...........................   Passed    0.00 sec
+        Start  96: K09-03-peer-search
+ 95/158 Test  #96: K09-03-peer-search ...........................   Passed    0.00 sec
+        Start  97: K04-01-scheduler-actions
+ 96/158 Test  #97: K04-01-scheduler-actions .....................   Passed    0.00 sec
+        Start  98: K04-02-scheduler-actions
+ 97/158 Test  #98: K04-02-scheduler-actions .....................   Passed    0.00 sec
+        Start  99: K04-03-scheduler-actions
+ 98/158 Test  #99: K04-03-scheduler-actions .....................   Passed    0.00 sec
+        Start 100: K08-01-file-reader
+ 99/158 Test #100: K08-01-file-reader ...........................   Passed    0.00 sec
+        Start 101: K08-02-file-reader
+100/158 Test #101: K08-02-file-reader ...........................   Passed    0.00 sec
+        Start 102: K08-03-file-reader
+101/158 Test #102: K08-03-file-reader ...........................   Passed    0.00 sec
+        Start 103: K08-F2-file-reader
+102/158 Test #103: K08-F2-file-reader ...........................   Passed    0.00 sec
+        Start 104: K08-ready-file-reader
+103/158 Test #104: K08-ready-file-reader ........................   Passed    0.00 sec
+        Start 105: K12-wire-statistics-real-wire
+104/158 Test #105: K12-wire-statistics-real-wire ................   Passed    0.35 sec
+        Start 106: K12-peer-statistics-real-wire
+105/158 Test #106: K12-peer-statistics-real-wire ................   Passed    4.68 sec
+        Start 107: K10-01-native-transport-real-wire
+106/158 Test #107: K10-01-native-transport-real-wire ............   Passed    1.73 sec
+        Start 108: K10-01-native-transport-submit-after-ready
+107/158 Test #108: K10-01-native-transport-submit-after-ready ...   Passed    1.57 sec
+        Start 109: K10-02-native-transport-sequential-wire
+108/158 Test #109: K10-02-native-transport-sequential-wire ......   Passed    2.00 sec
+        Start 110: K10-02-native-transport-have-wire
+109/158 Test #110: K10-02-native-transport-have-wire ............   Passed    2.05 sec
+        Start 111: K10-02-native-transport-live-reuse
+110/158 Test #111: K10-02-native-transport-live-reuse ...........   Passed    2.02 sec
+        Start 112: K10-02-native-transport-failure-drain
+111/158 Test #112: K10-02-native-transport-failure-drain ........   Passed    2.03 sec
+        Start 113: K10-02-native-transport-cancel-drain
+112/158 Test #113: K10-02-native-transport-cancel-drain .........   Passed    1.57 sec
+        Start 114: K10-02-native-transport
+113/158 Test #114: K10-02-native-transport ......................   Passed    1.12 sec
+        Start 115: K10-03-native-transport
+114/158 Test  #75: M01-03-legacy-timeout ........................   Passed   20.56 sec
+        Start 116: K10-02-native-transport-lifecycle
+115/158 Test #115: K10-03-native-transport ......................   Passed    2.05 sec
+        Start 117: K10-02-native-transport-inbound-utp
+116/158 Test #116: K10-02-native-transport-lifecycle ............   Passed    1.78 sec
+        Start 118: K10-E-transport-source-invalid
+117/158 Test #118: K10-E-transport-source-invalid ...............   Passed    0.01 sec
+        Start 119: K10-E-transport-source-generation
+118/158 Test #119: K10-E-transport-source-generation ............   Passed    0.00 sec
+        Start 120: K10-E-transport-source-cached
+119/158 Test #120: K10-E-transport-source-cached ................   Passed    0.27 sec
+        Start 121: K10-E-transport-source-mismatch
+120/158 Test #121: K10-E-transport-source-mismatch ..............   Passed    0.01 sec
+        Start 122: K10-E-transport-source-infohash
+121/158 Test #122: K10-E-transport-source-infohash ..............   Passed    0.29 sec
+        Start 123: K10-E-transport-source-magnet
+122/158 Test #123: K10-E-transport-source-magnet ................   Passed    0.28 sec
+        Start 124: K10-E-transport-source-close
+123/158 Test #124: K10-E-transport-source-close .................   Passed    0.26 sec
+        Start 125: K10-G-transport-pause-generation
+124/158 Test #125: K10-G-transport-pause-generation .............   Passed    2.04 sec
+        Start 126: K10-H-transport-upload-real-wire
+125/158 Test #117: K10-02-native-transport-inbound-utp ..........   Passed    3.61 sec
+        Start 127: K11-01-engine-registry
+126/158 Test #127: K11-01-engine-registry .......................   Passed    0.01 sec
+        Start 128: K11-02-engine-registry
+127/158 Test #128: K11-02-engine-registry .......................   Passed    0.03 sec
+        Start 129: K11-03-engine-registry
+128/158 Test #129: K11-03-engine-registry .......................   Passed    0.08 sec
+        Start 130: R7-engine-registry
+129/158 Test #130: R7-engine-registry ...........................   Passed    0.01 sec
+        Start 131: R8-engine-registry
+130/158 Test #131: R8-engine-registry ...........................   Passed    0.01 sec
+        Start 132: R9-engine-registry
+131/158 Test #132: R9-engine-registry ...........................   Passed    0.01 sec
+        Start 133: R10-engine-registry
+132/158 Test #133: R10-engine-registry ..........................   Passed    0.01 sec
+        Start 134: R11-engine-registry
+133/158 Test #134: R11-engine-registry ..........................   Passed    0.01 sec
+        Start 135: R12-engine-registry
+134/158 Test #135: R12-engine-registry ..........................   Passed    0.01 sec
+        Start 136: R13-engine-registry
+135/158 Test #136: R13-engine-registry ..........................   Passed    0.01 sec
+        Start 137: R14-engine-registry
+136/158 Test #137: R14-engine-registry ..........................   Passed    0.01 sec
+        Start 138: R15-engine-registry
+137/158 Test #138: R15-engine-registry ..........................   Passed    0.01 sec
+        Start 139: R16-engine-registry
+138/158 Test #139: R16-engine-registry ..........................   Passed    0.01 sec
+        Start 140: R17-engine-registry
+139/158 Test #140: R17-engine-registry ..........................   Passed    0.01 sec
+        Start 141: R18-engine-registry
+140/158 Test #141: R18-engine-registry ..........................   Passed    0.01 sec
+        Start 142: R19-engine-registry
+141/158 Test #142: R19-engine-registry ..........................   Passed    0.12 sec
+        Start 143: R20-engine-registry
+142/158 Test #143: R20-engine-registry ..........................   Passed    0.01 sec
+        Start 144: R21-engine-registry
+143/158 Test #144: R21-engine-registry ..........................   Passed    0.01 sec
+        Start 145: R22-engine-registry
+144/158 Test #145: R22-engine-registry ..........................   Passed    0.01 sec
+        Start 146: R23-engine-registry
+145/158 Test #146: R23-engine-registry ..........................   Passed    0.01 sec
+        Start 147: R24-engine-registry
+146/158 Test #147: R24-engine-registry ..........................   Passed    0.01 sec
+        Start 148: R25-engine-registry
+147/158 Test #148: R25-engine-registry ..........................   Passed    0.01 sec
+        Start 149: P08-T-torrent-transport-contract
+148/158 Test #149: P08-T-torrent-transport-contract .............   Passed    0.00 sec
+        Start 150: INT-W3-spine-contracts-link
+149/158 Test #150: INT-W3-spine-contracts-link ..................   Passed    0.00 sec
+        Start 151: K12-counter-ownership
+150/158 Test #151: K12-counter-ownership ........................   Passed    0.00 sec
+        Start 152: K12-real-app-lane-timer
+151/158 Test #152: K12-real-app-lane-timer ......................   Passed    1.25 sec
+        Start 153: K12-speedometer-ownership
+152/158 Test #153: K12-speedometer-ownership ....................   Passed    0.00 sec
+        Start 154: K12-01-counter-differential
+153/158 Test #154: K12-01-counter-differential ..................   Passed    0.19 sec
+        Start 155: K12-speedometer-differential
+154/158 Test #155: K12-speedometer-differential .................   Passed    0.09 sec
+        Start 156: K12-oracle-module-loader
+155/158 Test #156: K12-oracle-module-loader .....................   Passed    2.12 sec
+        Start 157: K12-oracle-registry-order
+156/158 Test #157: K12-oracle-registry-order ....................   Passed    2.08 sec
+        Start 158: K12-oracle-cache-behavior
+157/158 Test #158: K12-oracle-cache-behavior ....................   Passed    2.42 sec
+158/158 Test #126: K10-H-transport-upload-real-wire .............   Passed   10.49 sec
+
+100% tests passed out of 158
+
+Label Time Summary:
+INT-W3       =   0.00 sec*proc (1 test)
+K02          =   0.01 sec*proc (3 tests)
+K03          =   0.01 sec*proc (3 tests)
+K04          =   0.00 sec*proc (3 tests)
+K05          =   0.01 sec*proc (4 tests)
+K06          =   0.05 sec*proc (5 tests)
+K07          =   0.01 sec*proc (3 tests)
+K08          =   0.01 sec*proc (5 tests)
+K09          =   0.01 sec*proc (3 tests)
+K10          =  21.53 sec*proc (11 tests)
+K10-E        =   1.13 sec*proc (7 tests)
+K10-G        =   2.04 sec*proc (1 test)
+K10-H        =  10.49 sec*proc (1 test)
+K11          =   0.37 sec*proc (22 tests)
+K12          =  13.18 sec*proc (10 tests)
+P08-T        =   0.00 sec*proc (1 test)
+discovery    =   6.48 sec*proc (1 test)
+http         =  14.81 sec*proc (15 tests)
+native       =  54.47 sec*proc (52 tests)
+oracle       =   6.70 sec*proc (4 tests)
+server1      =  63.69 sec*proc (99 tests)
+unit         =   2.61 sec*proc (44 tests)
+wire         =  17.37 sec*proc (5 tests)
+
+Total Test time (real) = 113.12 sec

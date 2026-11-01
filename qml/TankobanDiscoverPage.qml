@@ -87,7 +87,16 @@ Item {
 
     function _handleCatalogueReady(type, catalog) {
         if (!CatalogDelivery.available(catalog)) return
-        if (browser.currentType !== type || browser.items.length !== 0) return
+        var affected = type === "manga" ? ["manga", "manhwa"] : [type]
+        var states = Object.assign({}, browser.typeStates)
+        for (var i = 0; i < affected.length; i++) {
+            var saved = states[affected[i]]
+            if (saved && saved.items.length === 0)
+                states[affected[i]] = Object.assign({}, saved, {cursor:null, exhausted:false, pageResumePending:true})
+        }
+        browser.typeStates = states
+        var current = browser.currentType
+        if ((current !== type && !(type === "manga" && current === "manhwa")) || browser.items.length !== 0) return
         if (root.active) {
             root._catalogueReloadPending = false
             browser.reloadCurrent()
@@ -116,7 +125,7 @@ Item {
     // moment readiness flips, which is the only time this expression's answer can change.
     readonly property bool _catalogueDownloading:
         (typeof CatalogVault !== "undefined" && CatalogVault && CatalogVault.fetching) &&
-        ((browser.currentType === "manga" && malCatalog && !malCatalog.ready()) ||
+        (((browser.currentType === "manga" || browser.currentType === "manhwa") && malCatalog && !malCatalog.ready()) ||
          (browser.currentType === "comics" && comicsCatalog && !comicsCatalog.ready()))
 
     // Wake-on-ready: a fresh install can settle an empty/exhausted first page while the vault

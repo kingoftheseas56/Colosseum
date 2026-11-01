@@ -198,6 +198,11 @@ public:
     void searchSeries(const SeriesSnapshot& series) override
     {
         ++calls;
+        if (failNext) {
+            failNext = false;
+            emit searchFailed(series.seriesId, QStringLiteral("provider down (fake)"));
+            return;
+        }
         emit searchSucceeded(series.seriesId, next);
     }
     QList<MangaNyaaCandidate> next;
@@ -808,8 +813,27 @@ int main(int argc, char** argv)
         FakeNyaaSearch dSearch;
         MangaTankobanService dService(&dSearch, &dTransport, &dIndex, &dIngestor, &dEnricher, nullptr);
         QHash<QString, QVariantList> dSources;
+        QStringList dSeriesSignalOrder;
+        QString dSeriesFailure;
+        int dGenericSeriesFailures = 0;
         QObject::connect(&dService, &MangaTankobanService::sourcesReady, &app,
-            [&](const QString& vid, const QVariantList& results) { dSources.insert(vid, results); });
+            [&](const QString& vid, const QVariantList& results) {
+                dSources.insert(vid, results);
+                if (vid == QStringLiteral("series:s5"))
+                    dSeriesSignalOrder.append(QStringLiteral("sourcesReady"));
+            });
+        QObject::connect(&dService, &MangaTankobanService::sourcesFailed, &app,
+            [&](const QString& id, const QString& reason) {
+                if (id == QStringLiteral("series:s5")) {
+                    dSeriesSignalOrder.append(QStringLiteral("sourcesFailed"));
+                    dSeriesFailure = reason;
+                }
+            });
+        QObject::connect(&dService, &MangaTankobanService::failed, &app,
+            [&](const QString& id, const QString&) {
+                if (id == QStringLiteral("series:s5"))
+                    ++dGenericSeriesFailures;
+            });
 
         // Catalogue-shaped rows: number + cover + title only — no chapterStart/chapterEnd,
         // exactly TankobanCatalog::volumes()'s synthesized/overlaid shape (name->title
@@ -860,6 +884,23 @@ int main(int argc, char** argv)
                     "with no prior prepareSeries for it");
             require(!dService.volumesForSeries(seriesKey).size(),
                     "a series-mode search key is never promoted into the canonical volume model");
+
+            dSeriesSignalOrder.clear();
+            dSeriesFailure.clear();
+            dGenericSeriesFailures = 0;
+            dSearch.failNext = true;
+            dService.searchSeriesSources(seriesKey, QStringLiteral("Never-Prepared Series"));
+            require(dSeriesSignalOrder == QStringList{QStringLiteral("sourcesReady"),
+                                                       QStringLiteral("sourcesFailed")},
+                    "series search failure emits its empty fallback cards before sourcesFailed");
+            require(dSeriesFailure == QStringLiteral("provider down (fake)"),
+                    "series search failure preserves the provider reason");
+            require(dGenericSeriesFailures == 0,
+                    "a series search failure never enters the generic acquisition-failure channel");
+            require(dSources.value(seriesKey).size() == 1
+                        && dSources.value(seriesKey).first().toMap().value(QStringLiteral("kind")).toString()
+                               == QStringLiteral("weebcentral"),
+                    "series search failure still delivers the fallback card");
         }
 
         dService.downloadNyaa(d1, dHash);
@@ -904,11 +945,29 @@ int main(int argc, char** argv)
                                        &m5Enricher, nullptr, &m5Resolver, &m5Fetcher,
                                        &m5Tindex);
         QHash<QString, QVariantList> m5Sources;
+        QStringList m5SearchSignalOrder;
+        QString m5ProviderFailure;
+        int m5StaleSourcesFailures = 0;
         QStringList m5Failures, m5FinishedIds;
         QObject::connect(&m5Service, &MangaTankobanService::sourcesReady, &app,
-            [&](const QString& vid, const QVariantList& results) { m5Sources.insert(vid, results); });
+            [&](const QString& vid, const QVariantList& results) {
+                m5Sources.insert(vid, results);
+                if (vid == volumeId(QStringLiteral("s6"), QStringLiteral("3")))
+                    m5SearchSignalOrder.append(QStringLiteral("sourcesReady"));
+            });
+        QObject::connect(&m5Service, &MangaTankobanService::sourcesFailed, &app,
+            [&](const QString& id, const QString& reason) {
+                if (id == volumeId(QStringLiteral("s6"), QStringLiteral("3"))) {
+                    m5SearchSignalOrder.append(QStringLiteral("sourcesFailed"));
+                    m5ProviderFailure = reason;
+                } else if (id == volumeId(QStringLiteral("s6"), QStringLiteral("1"))) {
+                    ++m5StaleSourcesFailures;
+                }
+            });
         QObject::connect(&m5Service, &MangaTankobanService::failed, &app,
-            [&](const QString& id, const QString& reason) { m5Failures << (id + QLatin1Char('|') + reason); });
+            [&](const QString& id, const QString& reason) {
+                m5Failures << (id + QLatin1Char('|') + reason);
+            });
         QObject::connect(&m5Service, &MangaTankobanService::finished, &app,
             [&](const QString& id) { m5FinishedIds << id; });
 
@@ -985,6 +1044,8 @@ int main(int argc, char** argv)
                 "stale identity still answers instantly from the index");
         require(m5Search.calls == 1, "stale identity fired exactly one background refresh");
         require(m5Failures.isEmpty(), "a failed refresh raises NO failed signal");
+        require(m5StaleSourcesFailures == 0,
+                "a failed refresh for a verified identity emits no source/acquisition error");
         require(m5Sources.value(s6v1).first().toMap().value(QStringLiteral("confidence")).toString()
                     == QStringLiteral("STRONG"),
                 "verified cards survive the failed refresh untouched");
@@ -993,11 +1054,28 @@ int main(int argc, char** argv)
         //    successful EMPTY answer is (briefly).
         m5Search.calls = 0;
         m5Search.failNext = true;                       // lookup 1: provider error
+        m5SearchSignalOrder.clear();
+        m5ProviderFailure.clear();
+        const int failuresBeforeProviderError = m5Failures.size();
         m5Service.searchSources(s6v3);
         require(m5Sources.value(s6v3).size() == 1
                     && m5Sources.value(s6v3).first().toMap().value(QStringLiteral("kind")).toString()
                            == QStringLiteral("weebcentral"),
                 "a provider error with nothing indexed yields the fallback card only");
+        require(m5SearchSignalOrder == QStringList{QStringLiteral("sourcesReady"),
+                                                    QStringLiteral("sourcesFailed")}
+                    && m5ProviderFailure == QStringLiteral("provider down (fake)"),
+                "an unverified lookup emits usable cards before surfacing its provider error");
+        require(m5Failures.size() == failuresBeforeProviderError,
+                "a provider search error never enters LocalDownloads' generic failure channel");
+        require(m5Service.statusOf(s6v3).value(QStringLiteral("state")).toString()
+                    == QStringLiteral("none"),
+                "a search-provider error does not mutate acquisition state to failed");
+        const IndexedSearchState providerErrorState = m5Tindex.searchState(s6v3);
+        require(providerErrorState.lastSuccessAt == 0 && providerErrorState.expiresAt == 0
+                    && providerErrorState.errorClass == SearchErrorClass::ProviderError
+                    && !m5Tindex.searchNegativeCached(s6v3, QDateTime::currentMSecsSinceEpoch()),
+                "a provider failure is recorded as retryable and never negative-cached");
         m5Search.failNext = false;
         m5Search.next = {};
         m5Service.searchSources(s6v3);                  // lookup 2: allowed to retry
@@ -1007,6 +1085,11 @@ int main(int argc, char** argv)
         m5Service.searchSources(s6v3);                  // lookup 3: inside the negative TTL
         require(m5Search.calls == 0,
                 "a successful empty answer IS negative-cached — no re-query inside the TTL");
+        const IndexedSearchState emptyAnswerState = m5Tindex.searchState(s6v3);
+        require(emptyAnswerState.lastSuccessAt > 0 && emptyAnswerState.expiresAt > 0
+                    && emptyAnswerState.errorClass == SearchErrorClass::Empty
+                    && m5Tindex.searchNegativeCached(s6v3, QDateTime::currentMSecsSinceEpoch()),
+                "only a successful empty answer receives the short negative TTL");
 
         // 5) A title claim alone is NEVER STRONG: series s7's release title says
         //    v01-03 but the torrent's only archive is v01 — v2 must render the
@@ -1042,8 +1125,10 @@ int main(int argc, char** argv)
 
         // 6) The arbitrary-infoHash guard still holds under the index pipeline.
         const QString rogueHash(40, QLatin1Char('c'));
+        const int m5FailuresBeforeRogue = m5Failures.size();
         m5Service.downloadNyaa(s6v2, rogueHash);
-        require(m5Failures.size() == 1 && m5Failures.first().startsWith(s6v2 + QLatin1Char('|')),
+        require(m5Failures.size() == m5FailuresBeforeRogue + 1
+                    && m5Failures.last().startsWith(s6v2 + QLatin1Char('|')),
                 "an infoHash outside the candidate cache is still refused");
 
         // 7) An INDEX-cached hash validates with zero live search and downloads
@@ -1058,7 +1143,8 @@ int main(int argc, char** argv)
                            == QStringLiteral("STRONG"),
                 "a sibling volume mapped by the pack answers from the index with no search");
         m5Service.downloadNyaa(s6v2, packHash);
-        require(m5Failures.size() == 1, "the indexed candidate passed the cache guard");
+        require(m5Failures.size() == m5FailuresBeforeRogue + 1,
+                "the indexed candidate passed the cache guard");
         m5Engine.emitMetadata(packHash,
             {QJsonObject{{QStringLiteral("index"), 0},
                          {QStringLiteral("name"), QStringLiteral("Indexed Series v01.cbz")},

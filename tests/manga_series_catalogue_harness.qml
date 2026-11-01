@@ -11,6 +11,7 @@ Item {
     width: 1440
     height: 900
     visible: true
+    readonly property bool rebuiltLayout: Qt.application.arguments.indexOf("--rebuilt") >= 0
 
     component FakeMalCatalog: QtObject {
         property bool readyVal: true
@@ -63,6 +64,7 @@ Item {
     // MangaReadingRoom -> MangaTankobanLibrary chain needs the full surface.
     component FakeVolumesService: QtObject {
         property var volMap: ({})     // seriesId -> [{number,state,...}]
+        property int prepareSeriesCalls: 0
         signal volumesChanged(string seriesId)
         signal progress(string volumeId, real done, real total)
         signal finished(string volumeId)
@@ -74,6 +76,7 @@ Item {
         function localPages(vid) { return [] }
         function cancel(vid) {}
         function prepareSeries(info, volumes, chapters) {
+            prepareSeriesCalls++
             volMap[info.seriesId] = volumes
         }
     }
@@ -134,27 +137,101 @@ Item {
     FakeVolumesService { id: volService }
     FakeExtensions { id: fakeExtensions }
     FakeMangaEngine { id: fakeMangaEngine }
+    component FakeMangaPreferences: QtObject {
+        property var overrides: ({})
+        property int mangaLanguageRevision: 0
+        property bool rejectWrites: false
+        signal mangaLanguagesChanged()
+        function mangaLanguageForSeries(id) { return String(overrides[String(id)] || "") }
+        function setMangaLanguageForSeries(id, code) {
+            if (rejectWrites) return false
+            var next = ({})
+            for (var k in overrides) next[k] = overrides[k]
+            next[String(id)] = String(code)
+            overrides = next
+            mangaLanguageRevision++
+            mangaLanguagesChanged()
+            return true
+        }
+        function clearMangaLanguageForSeries(id) {
+            if (rejectWrites) return false
+            var next = ({})
+            for (var k in overrides) if (k !== String(id)) next[k] = overrides[k]
+            overrides = next
+            mangaLanguageRevision++
+            mangaLanguagesChanged()
+            return true
+        }
+    }
+    FakeMangaPreferences { id: fakePrefs }
+    FakeMangaPreferences { id: fakeOtherProfile }
+    component FakeContinueProgress: QtObject {
+        property int revision: 0
+        property var records: ({})
+        signal changed()
+        function get(kind, seriesId) { return records[String(kind) + "|" + String(seriesId)] || ({}) }
+        function setRecords(next) { records = next; revision++; changed() }
+    }
+    component FakeContinueDownloads: QtObject {
+        property var states: ({})
+        signal finished(string chapterId)
+        signal failed(string chapterId, string reason)
+        signal removed(string chapterId)
+        function statusOf(chapterId) { return states[String(chapterId)] || ({ "state": "none" }) }
+        function downloadChapter(chapterId, seriesId, title, label) {}
+    }
+    FakeContinueProgress { id: fakeContinueProgress }
+    FakeContinueDownloads { id: fakeContinueDownloads }
+
+    // Isolated dependencies for the Manhwa policy cases below. They are created before
+    // each page resolves, so these cases cannot perturb the older global call-count checks.
+    Component { id: modeMalCatalogFactory; FakeMalCatalog {} }
+    Component { id: modeTankobanCatalogFactory; FakeTankobanCatalog {} }
+    Component { id: modeVolumesServiceFactory; FakeVolumesService {} }
+    Component { id: modeExtensionsFactory; FakeExtensions {} }
+    Component { id: modeMangaEngineFactory; FakeMangaEngine {} }
 
     function ck(condition, message) {
         if (!condition) throw new Error(message)
     }
+    function findNamed(item, name, enabledOnly) {
+        if (!item) return null
+        if (item.objectName === name && (!enabledOnly || item.enabled)) return item
+        var children = item.children || []
+        for (var i = 0; i < children.length; i++) {
+            var found = findNamed(children[i], name, enabledOnly)
+            if (found) return found
+        }
+        return null
+    }
 
     property var pageComp: null
-    function makePage(malId, seriesTitle, profile) {
+    function makePage(malId, seriesTitle, profile, dependencies) {
         if (!pageComp) {
-            pageComp = Qt.createComponent("../qml/MangaSeries.qml")
+            var pageSource = rebuiltLayout ? "../qml/TankobanSeriesView.qml" : "../qml/MangaSeries.qml"
+            pageComp = Qt.createComponent(pageSource)
             if (pageComp.status === Component.Error)
                 throw new Error("MangaSeries component: " + pageComp.errorString())
         }
-        var p = pageComp.createObject(harness, {
+        var props = {
             "width": 1320, "height": 860,
             "malCatalogRef": malCatalog, "tankobanCatalogRef": tankCatalog,
             "tankobanVolumesRef": volService
-        })
+        }
+        var refs = dependencies || ({})
+        if (refs.malCatalog) props.malCatalogRef = refs.malCatalog
+        if (refs.tankobanCatalog) props.tankobanCatalogRef = refs.tankobanCatalog
+        if (refs.volumes) props.tankobanVolumesRef = refs.volumes
+        if (refs.extensions) props.extensionsRef = refs.extensions
+        if (refs.mangaEngine) props.mangaEngineRef = refs.mangaEngine
+        var p = pageComp.createObject(harness, props)
         if (!p) throw new Error("MangaSeries createObject returned null")
         // Mirror production sequencing: the edition profile and malId must be
         // present BEFORE seriesTitle triggers resolve().
         var pr = profile || ({})
+        p.preferencesRef = pr.preferencesRef || null
+        if (pr.progressRef) p.progressRef = pr.progressRef
+        if (pr.downloadsRef) p.downloadsRef = pr.downloadsRef
         p.seriesIdOverride = pr.seriesIdOverride || ""
         p.sourceSearchTitle = pr.sourceSearchTitle || ""
         p.sourceSearchAliases = pr.sourceSearchAliases || []
@@ -162,6 +239,240 @@ Item {
         p.malId = malId || ""
         p.seriesTitle = seriesTitle || ""
         return p
+    }
+
+    function makeModeFakes() {
+        return {
+            malCatalog: modeMalCatalogFactory.createObject(harness),
+            tankobanCatalog: modeTankobanCatalogFactory.createObject(harness),
+            volumes: modeVolumesServiceFactory.createObject(harness),
+            extensions: modeExtensionsFactory.createObject(harness),
+            mangaEngine: modeMangaEngineFactory.createObject(harness)
+        }
+    }
+
+    function makeTypedRow(id, title, type) {
+        return {
+            "mal_id": id, "title": title, "title_english": title, "type": type,
+            "status": "Publishing", "volumes": 4,
+            "images": { "jpg": { "large_image_url": "" } },
+            "authors": [ { "name": "Test Author" } ], "genres": []
+        }
+    }
+
+    function findNamedObject(root, name) {
+        if (!root) return null
+        if (String(root.objectName || "") === name) return root
+        var kids = root.children || []
+        for (var i = 0; i < kids.length; ++i) {
+            var found = findNamedObject(kids[i], name)
+            if (found) return found
+        }
+        return null
+    }
+
+    function chapterViewFor(page) {
+        return findNamedObject(page, "mangaChapterSeriesView")
+    }
+
+    function chapterHeaderFor(page) {
+        var view = chapterViewFor(page)
+        return findNamedObject(view, "mangaSeriesSharedHeader")
+    }
+
+    property var _lateManhwaPage: null
+    property var _lateManhwaFakes: null
+
+    function finishLateManhwaCheck() {
+        try {
+            var p = _lateManhwaPage
+            var f = _lateManhwaFakes
+            ck(p.isManhwa === true && (!rebuiltLayout || p.chapterOnly === true),
+               "manhwa-late: ready metadata must classify the already-known MAL ID and apply its policy")
+            ck(p.resolvedMalId === 506 && p.seriesId === "mal:506",
+               "manhwa-late: metadata wake must preserve canonical MAL identity")
+            ck(p.chapterMode === true && p.tankobanMode === false,
+               "manhwa-late: late Manhwa metadata must apply chapter-only mode")
+            ck(f.volumes.prepareSeriesCalls === 0,
+               "manhwa-late: ready metadata must not prepare Tankoban volumes")
+            ck(f.mangaEngine.catalogueCalls === 1
+               && f.mangaEngine.lastProfile.title === "Late Manhwa"
+               && f.mangaEngine.lastLanguage === "pt",
+               "manhwa-late: enabled chapter source must load once with its title and configured language")
+            console.log("MANGA_SERIES_CATALOGUE_OK")
+            Qt.exit(0)
+        } catch (e) {
+            console.log("MANGA_SERIES_CATALOGUE_FAIL: " + e.message)
+            Qt.exit(1)
+        }
+    }
+
+    function checkOrdinaryMangaMode(page, f, type, id, title) {
+        f.malCatalog.rows[String(id)] = makeTypedRow(id, title, type)
+        f.tankobanCatalog.infoMap[String(id)] = {
+            "volumeCount": rebuiltLayout ? 4 : 0, "countBasis": "mal"
+        }
+        page.malId = String(id)
+        page.seriesTitle = title
+        ck(page.isManhwa === false && (!rebuiltLayout || page.chapterOnly === false),
+           "mode-control-" + type + ": only Manhwa metadata may activate the chapter-only policy")
+        ck(page.chapterMode === false,
+           "mode-control-" + type + ": ordinary series must keep the normal initial mode")
+        page._enterChapterMode()
+        if (rebuiltLayout) {
+            var modeSwitch = findNamedObject(page, "mangaSeriesModeSwitch")
+            ck(modeSwitch && modeSwitch.visible === true,
+               "mode-control-" + type + ": rebuilt selector must remain visible when a volume shelf exists")
+        } else {
+            var view = chapterViewFor(page)
+            var header = chapterHeaderFor(page)
+            var tankobanControl = findNamedObject(header, "mangaModeTankoban")
+            ck(view && view.allowTankobanMode === true,
+               "mode-control-" + type + ": ChapterSeriesView must allow Tankoban mode by default")
+            ck(header && header.allowTankobanMode === true,
+               "mode-control-" + type + ": chapter header must allow Tankoban mode by default")
+            ck(header && header.publicationLabel === "Manga",
+               "mode-control-" + type + ": ordinary publication header must use the Manga label")
+            ck(tankobanControl && tankobanControl.visible === true,
+               "mode-control-" + type + ": Tankoban option must remain visible")
+        }
+        page._enterTankobanMode()
+        ck(page.chapterMode === false,
+           "mode-control-" + type + ": ordinary series must still accept Tankoban mode")
+    }
+
+    function runManhwaModeChecks() {
+        var directFakes = makeModeFakes()
+        var directRow = makeTypedRow(501, "Direct Manhwa", "mAnHwA")
+        directFakes.malCatalog.rows = ({ "501": directRow })
+        directFakes.tankobanCatalog.infoMap = ({
+            "501": { "volumeCount": 4, "countBasis": "mal" }
+        })
+        directFakes.tankobanCatalog.volumeMap = ({
+            "501": [{ "number": "1", "cover": "http://catalog/501", "name": "One" }]
+        })
+        var readyVolume = { "id": "saved-501-1", "number": "1", "state": "ready", "path": "local/501/1" }
+        directFakes.volumes.volMap = ({ "mal:501": [readyVolume] })
+        directFakes.mangaEngine.chapterDefaultLanguage = "fr"
+        directFakes.extensions.tankoyomiEnabled = false
+        var directRefs = {
+            "malCatalog": directFakes.malCatalog,
+            "tankobanCatalog": directFakes.tankobanCatalog,
+            "volumes": directFakes.volumes,
+            "extensions": directFakes.extensions,
+            "mangaEngine": directFakes.mangaEngine
+        }
+        var direct = makePage("501", "Direct Manhwa", null, directRefs)
+        ck(direct.isManhwa === true,
+           "manhwa-direct: case-insensitive catalogue type must identify Manhwa")
+        if (rebuiltLayout) {
+            ck(direct.chapterOnly === true,
+               "manhwa-direct: rebuilt page must mark known Manhwa chapter-only even with a shelf")
+        }
+        ck(direct.resolvedMalId === 501 && direct.seriesId === "mal:501",
+           "manhwa-direct: MAL identity and canonical seriesId must remain unchanged")
+        ck(direct.chapterMode === true,
+           "manhwa-direct: a known Manhwa must open directly in Chapter Mode")
+        if (rebuiltLayout) {
+            var rebuiltModeSwitch = findNamedObject(direct, "mangaSeriesModeSwitch")
+            var publicationEyebrow = findNamedObject(direct, "mangaPublicationLabel")
+            ck(rebuiltModeSwitch && rebuiltModeSwitch.visible === false,
+               "manhwa-direct: rebuilt selector must be hidden for Manhwa")
+            ck(publicationEyebrow && publicationEyebrow.text === "Manhwa  ·  Tankoban",
+               "manhwa-direct: rebuilt eyebrow must identify the Manhwa publication")
+        }
+        direct.volumes = [{ "number": "1" }]
+        ck(direct.tankobanMode === false,
+           "manhwa-direct: Manhwa must stay out of Tankoban mode even when volume rows exist")
+        ck(directFakes.volumes.prepareSeriesCalls === 0,
+           "manhwa-direct: resolving Manhwa must not prepare or replace Tankoban volumes")
+        ck(directFakes.volumes.volMap["mal:501"].length === 1
+           && directFakes.volumes.volMap["mal:501"][0].id === "saved-501-1"
+           && directFakes.volumes.volMap["mal:501"][0].state === "ready",
+           "manhwa-direct: an existing downloaded volume row and ready state must be preserved")
+        ck(direct.tankoyomiEnabled === false && direct.chaptersLoading === false
+           && direct.chaptersError.indexOf("Tankoyomi") >= 0,
+           "manhwa-direct: disabled Tankoyomi must show its honest disabled state")
+        ck(directFakes.mangaEngine.catalogueCalls === 0,
+           "manhwa-direct: disabled Tankoyomi must make no chapter provider calls")
+        ck(direct.selectedChapterLanguage === "fr",
+           "manhwa-direct: Chapter Mode must retain the configured default language")
+
+        if (!rebuiltLayout) {
+            var view = chapterViewFor(direct)
+            var header = chapterHeaderFor(direct)
+            var tankobanControl = findNamedObject(header, "mangaModeTankoban")
+            ck(view && view.visible === true && view.allowTankobanMode === false,
+               "manhwa-direct: active ChapterSeriesView must disallow Tankoban mode")
+            ck(header && header.allowTankobanMode === false,
+               "manhwa-direct: its shared chapter header must disallow Tankoban mode")
+            ck(header && header.publicationLabel === "Manhwa",
+               "manhwa-direct: the shared chapter header must label the publication as Manhwa")
+            ck(tankobanControl && tankobanControl.visible === false,
+               "manhwa-direct: the chapter header must hide the Tankoban mode control")
+        }
+        direct.resumeTankobanVolume("saved-501-1")
+        ck(direct.openChapterId === "saved-501-1" && direct.openEntryKind === "tankoban",
+           "manhwa-direct: an existing saved volume must still resume through the Tankoban reader")
+        direct.openChapterId = ""
+        direct.openChapterLabel = ""
+        direct.openEntryKind = "manga"
+        direct._enterTankobanMode()
+        ck(direct.chapterMode === true,
+           "manhwa-direct: a Tankoban mode request must leave Manhwa in Chapter Mode")
+
+        directFakes.malCatalog.rows["502"] = makeTypedRow(502, "Exact Manhwa", "MANHWA")
+        directFakes.malCatalog.titleMap = ({ "Exact Manhwa": [502] })
+        directFakes.tankobanCatalog.infoMap["502"] = { "volumeCount": 3, "countBasis": "mal" }
+        direct.malId = ""
+        direct.seriesTitle = "Exact Manhwa"
+        var exact = direct
+        ck(exact.isManhwa === true && (!rebuiltLayout || exact.chapterOnly === true)
+           && exact.chapterMode === true,
+           "manhwa-title: exact-title resolution must apply the Manhwa-only policy")
+        ck(exact.resolvedMalId === 502 && exact.seriesId === "mal:502"
+           && exact.collectionEntry().id === "mal:502",
+           "manhwa-title: exact-title resolution must preserve MAL and collection identity")
+        ck(directFakes.volumes.prepareSeriesCalls === 0,
+           "manhwa-title: exact-title resolution must not prepare Tankoban volumes")
+
+        // Reusing this Manhwa page for Manga and Manhua must restore the normal options.
+        checkOrdinaryMangaMode(direct, directFakes, "Manga", 503, "Reused Manga")
+        checkOrdinaryMangaMode(direct, directFakes, "Manhua", 504, "Manhua Control")
+
+        // Start from an explicit remote MAL ID whose full row is not ready yet. Only after
+        // readyChanged supplies authoritative Manhwa metadata do we expect chapter-only mode.
+        var lateFakes = makeModeFakes()
+        lateFakes.malCatalog.readyVal = false
+        lateFakes.extensions.tankoyomiEnabled = true
+        lateFakes.mangaEngine.chapterDefaultLanguage = "pt"
+        lateFakes.tankobanCatalog.remoteEnabled = true
+        lateFakes.tankobanCatalog.readyVal = false
+        lateFakes.malCatalog.rows = ({})
+        var lateRefs = {
+            "malCatalog": lateFakes.malCatalog,
+            "tankobanCatalog": lateFakes.tankobanCatalog,
+            "volumes": lateFakes.volumes,
+            "extensions": lateFakes.extensions,
+            "mangaEngine": lateFakes.mangaEngine
+        }
+        _lateManhwaPage = makePage("506", "Late Manhwa", null, lateRefs)
+        _lateManhwaFakes = lateFakes
+        ck(_lateManhwaPage.resolvedMalId === 506
+           && _lateManhwaPage.seriesId === "mal:506",
+           "manhwa-late: an explicit remote MAL ID keeps its canonical identity before metadata")
+        lateFakes.malCatalog.rows = ({
+            "506": makeTypedRow(506, "Late Manhwa", "mAnHwA")
+        })
+        lateFakes.malCatalog.setReady(true)
+        lateManhwaMetadataWait.start()
+    }
+
+    Timer {
+        id: lateManhwaMetadataWait
+        interval: 180
+        repeat: false
+        onTriggered: harness.finishLateManhwaCheck()
     }
 
     // Case 4's sub-cases live behind one flag so the negative control (flip the "get"
@@ -176,6 +487,10 @@ Item {
 
     function runChecks() {
         try {
+            if (harness.rebuiltLayout) {
+                harness.runManhwaModeChecks()
+                return
+            }
             var monsterRow = {
                 "mal_id": 1, "title": "Monster", "title_english": "Monster",
                 "score": 9.1, "members": 500000, "status": "Finished", "volumes": 18,
@@ -487,15 +802,205 @@ Item {
             var unresolved = makePage("", "Unmatched remote title")
             ck(unresolved.resolvedMalId === 0 && unresolved.seriesId === "",
                "remote: title-only missing metadata remains unresolved")
-            console.log("MANGA_SERIES_CATALOGUE_OK")
-            Qt.exit(0)
+            // Arc 74-B: test production QML with injected profile-local persistent owner.
+            var pageCompBeforeArc74 = pageComp
+            malCatalog.setReady(true)
+            malCatalog.rows = ({ "1": monsterRow, "13": colorRow })
+            tankCatalog.readyVal = true
+            tankCatalog.remoteEnabled = false
+            tankCatalog.infoMap = ({ "1": { "volumeCount": 18 }, "13": { "volumeCount": 113 } })
+            fakeMangaEngine.chapterDefaultLanguage = "en"
+            fakeExtensions.setTankoyomiEnabled(true)
+            var first = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            first.mangaEngineRef = fakeMangaEngine
+            first.extensionsRef = fakeExtensions
+            first._enterChapterMode()
+            ck(first.selectedChapterLanguage === "en", "arc74 initial global default")
+            first._selectChapterLanguage("pt")
+            ck(fakePrefs.mangaLanguageForSeries("mal:1") === "pt", "arc74 must save manga override")
+            var reopened = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            reopened.mangaEngineRef = fakeMangaEngine
+            reopened.extensionsRef = fakeExtensions
+            reopened._enterChapterMode()
+            ck(reopened.selectedChapterLanguage === "pt", "arc74 same manga must retain Portuguese")
+            fakeMangaEngine.setChapterDefaultLanguage("es")
+            ck(reopened.selectedChapterLanguage === "pt", "arc74 series override must beat changed global default")
+            var separate = makePage("13", "One Piece", {preferencesRef: fakePrefs})
+            separate.mangaEngineRef = fakeMangaEngine
+            separate.extensionsRef = fakeExtensions
+            separate._enterChapterMode()
+            ck(separate.selectedChapterLanguage === "es", "arc74 another manga must use global default")
+            first.malId = "13"
+            first.seriesTitle = "One Piece"
+            first._enterChapterMode()
+            ck(first.selectedChapterLanguage === "es", "arc74 reused page must not leak Portuguese")
+            reopened.preferencesRef = fakeOtherProfile
+            ck(reopened.selectedChapterLanguage === "es", "arc74 profile switch must use new profile")
+            reopened.preferencesRef = fakePrefs
+            ck(reopened.selectedChapterLanguage === "pt", "arc74 switching back restores own profile")
+            var languageCombo = findNamed(reopened, "mangaLanguageCombo", true)
+            ck(languageCombo !== null && languageCombo.count === 5,
+               "arc74 selector offers preferred/default plus four real languages")
+            ck(languageCombo.currentIndex === 3, "arc74 selector reflects the saved Portuguese override")
+            var languageSettingsCount = 0
+            reopened.languageSettingsRequested.connect(function() { languageSettingsCount++ })
+            var languageSettingsShortcut = findNamed(reopened, "mangaLanguageSettingsShortcut", true)
+            ck(languageSettingsShortcut !== null && languageSettingsShortcut.visible,
+               "arc74 existing language settings shortcut is discoverable")
+            languageSettingsShortcut.clicked()
+            ck(languageSettingsCount === 1, "arc74 shared-header shortcut reaches series navigation")
+            languageCombo.activated(0) // simulate the public ComboBox default-choice signal
+            ck(fakePrefs.mangaLanguageForSeries("mal:1") === "", "arc74 reset removes only series override")
+            ck(reopened.selectedChapterLanguage === "es", "arc74 reset adopts global default")
+            fakePrefs.rejectWrites = true
+            reopened._selectChapterLanguage("fr")
+            ck(reopened.selectedChapterLanguage === "es", "arc74 rejected disk write must not change selection")
+            fakePrefs.rejectWrites = false
+            fakePrefs.overrides = ({"mal:1": "zz"})
+            fakePrefs.mangaLanguagesChanged()
+            ck(reopened.selectedChapterLanguage === "zz", "arc74 unavailable override remains explicit")
+            ck(reopened.chaptersError.indexOf("unavailable") >= 0,
+               "arc74 unavailable language must not silently fall back")
+            // Both title-page implementations must preserve this contract.
+            fakePrefs.overrides = ({})
+            fakePrefs.mangaLanguagesChanged()
+            pageComp = Qt.createComponent("../qml/TankobanSeriesView.qml")
+            ck(pageComp.status !== Component.Error, "arc74 rebuilt series component must load")
+            fakeMangaEngine.chapterDefaultLanguage = "es"
+            var rebuilt = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            rebuilt.mangaEngineRef = fakeMangaEngine
+            rebuilt.extensionsRef = fakeExtensions
+            rebuilt._enterChapterMode()
+            ck(rebuilt.selectedChapterLanguage === "es", "arc74 rebuilt title starts global Spanish")
+            rebuilt._selectChapterLanguage("pt")
+            ck(fakePrefs.mangaLanguageForSeries("mal:1") === "pt", "arc74 rebuilt title writes override")
+            var rebuiltAgain = makePage("1", "Monster", {preferencesRef: fakePrefs})
+            rebuiltAgain.mangaEngineRef = fakeMangaEngine
+            rebuiltAgain.extensionsRef = fakeExtensions
+            rebuiltAgain._enterChapterMode()
+            ck(rebuiltAgain.selectedChapterLanguage === "pt", "arc74 rebuilt title reopens Portuguese")
+            var rebuiltCombo = findNamed(rebuiltAgain, "mangaLanguageCombo", true)
+            ck(rebuiltCombo !== null && rebuiltCombo.count === 5 && rebuiltCombo.currentIndex === 3,
+               "arc74 rebuilt selector reflects saved Portuguese override")
+            rebuiltAgain.languageSettingsRequested.connect(function() { languageSettingsCount++ })
+            var rebuiltSettingsShortcut = findNamed(rebuiltAgain, "mangaLanguageSettingsShortcut", true)
+            ck(rebuiltSettingsShortcut !== null && rebuiltSettingsShortcut.visible,
+               "arc74 rebuilt language settings shortcut is discoverable")
+            rebuiltSettingsShortcut.clicked()
+            ck(languageSettingsCount === 2, "arc74 rebuilt shortcut reaches series navigation")
+            rebuilt.malId = "13"
+            rebuilt.seriesTitle = "One Piece"
+            rebuilt._enterChapterMode()
+            ck(rebuilt.selectedChapterLanguage === "es", "arc74 rebuilt title rejects cross-series bleed")
+            console.log("ARC74_B_QML_LANGUAGE_OK")
+            // Arc 74-C: a saved chapter/volume is a direct CTA only when the
+            // actual local download is ready; never create an invented position.
+            var savedEntry = ({ id: "mal:1", kind: "manga", title: "Monster",
+                sub: "Chapter 47", updatedAt: 200, resume: { chapterId: "qualified:chapter-47",
+                                            page: 12, pageFraction: 0.4 } })
+            fakeContinueProgress.setRecords(({
+                "manga|mal:1": savedEntry,
+                "tankoban|mal:1": { id: "mal:1", kind: "tankoban", updatedAt: 100,
+                                    resume: {chapterId: "volume-one", page: 4} }
+            }))
+            fakeContinueDownloads.states = ({ "qualified:chapter-47": { "state": "done" } })
+            volService.volMap = ({ "mal:1": [
+                { id: "volume-one", number: "1", state: "ready" }
+            ] })
+            tankCatalog.infoMap = ({ "1": { volumeCount: 1, countBasis: "catalogue" } })
+            for (var variant = 0; variant < 2; variant++) {
+                pageComp = Qt.createComponent(variant === 0
+                    ? "../qml/MangaSeries.qml" : "../qml/TankobanSeriesView.qml")
+                ck(pageComp.status !== Component.Error, "arc74-c variant component loads")
+                var view = makePage("1", "Monster", {progressRef: fakeContinueProgress,
+                    downloadsRef: fakeContinueDownloads, preferencesRef: fakePrefs})
+                view.mangaEngineRef = fakeMangaEngine
+                view.extensionsRef = fakeExtensions
+                ck(view.chapterMode, "arc74 reopening last-read chapters restores Chapter Mode")
+                ck(view.openChapterId === "", "arc74 mode restore must not reopen the reader")
+                view._enterTankobanMode()
+                fakeContinueProgress.changed()
+                ck(!view.chapterMode, "arc74 live progress must preserve this visit's mode choice")
+                view._openChapter("qualified:chapter-47", "Chapter 47")
+                ck(view.chapterMode, "arc74 reading a chapter selects Chapter Mode behind the reader")
+                view.openChapterId = ""
+                if (variant === 1) {
+                    view._chapterForced = true
+                    view._restoreReadingMode()
+                    view._applyChapterOnly()
+                    ck(view.chapterMode && !view._chapterForced,
+                       "arc74 late shelf policy must not undo a saved Chapter Mode")
+                }
+                var settingsButton = findNamed(view, "mangaLanguageSettingsShortcut", true)
+                ck(settingsButton && String(settingsButton.icon.source).indexOf("settings.svg") >= 0
+                   && settingsButton.background && !settingsButton.flat,
+                   "arc74 Language settings must be a visible styled button with settings icon")
+                view._enterChapterMode()
+                ck(view.savedChapterReady, "arc74-c saved chapter must be ready")
+                ck(view.savedChapterCtaLabel === "Continue Chapter 47 · p. 12",
+                   "arc74-c truthful chapter/page label")
+                var buttonName = variant === 0
+                    ? "mangaChapterContinueAction" : "tankobanChapterContinueAction"
+                var chapterButton = findNamed(view, buttonName)
+                ck(chapterButton && chapterButton.visible,
+                   "arc74-c saved downloaded chapter CTA visible " + buttonName)
+                var resumed = null
+                view.resumeSavedRequested.connect(function(record) { resumed = record })
+                ck(view.resumeSavedChapter(), "arc74-c resume dispatch succeeds")
+                ck(resumed && resumed.resume.chapterId === "qualified:chapter-47"
+                   && resumed.resume.page === 12 && resumed.resume.pageFraction === 0.4,
+                   "arc74-c original qualified chapter and page passed unchanged")
+                ck(fakeContinueProgress.get("manga", "mal:1").resume.page === 12,
+                   "arc74-c CTA must not write or advance saved progress")
+                fakeContinueDownloads.states = ({})
+                fakeContinueDownloads.removed("qualified:chapter-47")
+                ck(!view.savedChapterReady, "arc74-c missing download disables direct Continue")
+                ck(!chapterButton.visible,
+                   "arc74-c missing download must hide direct action")
+                var unavailableName = variant === 0
+                    ? "mangaChapterSavedUnavailable" : "tankobanSavedChapterUnavailable"
+                var unavailable = findNamed(view, unavailableName)
+                ck(unavailable && unavailable.visible,
+                   "arc74-c missing download shows truthful recovery copy")
+                ck(!view.resumeSavedChapter(),
+                   "arc74-c missing target cannot emit resume")
+                fakeContinueDownloads.states = ({ "qualified:chapter-47": { "state": "done" } })
+                fakeContinueDownloads.finished("qualified:chapter-47")
+                ck(view.savedChapterReady, "arc74-c completed download re-enables Continue")
+                // The fake volume service does not synthesize canonical download IDs
+                // as the real native owner does; publish the ready row explicitly.
+                volService.volMap = ({ "mal:1": [
+                    {id: "volume-one", number: "1", state: "ready"}
+                ] })
+                volService.volumesChanged("mal:1")
+                ck(view.readCtaLabel === "Continue Vol. 1",
+                   "arc74-c existing volume Resume CTA reads nested saved Progress")
+                view.destroy()
+                var records = ({"manga|mal:1": savedEntry,
+                    "tankoban|mal:1": {updatedAt: 300, resume: {chapterId: "volume-one", page: 4}}})
+                fakeContinueProgress.setRecords(records)
+                var volumesLast = makePage("1", "Monster", {progressRef: fakeContinueProgress})
+                ck(!volumesLast.chapterMode, "arc74 newer volume reading restores Volume Mode")
+                records["tankoban|mal:1"].updatedAt = 100
+                fakeContinueProgress.setRecords(records)
+                volumesLast.malId = "13"
+                volumesLast.seriesTitle = "One Piece"
+                volumesLast.malId = "1"
+                volumesLast.seriesTitle = "Monster"
+                ck(volumesLast.chapterMode, "arc74 reused page restores mode for resolved series identity")
+                volumesLast.destroy()
+            }
+            console.log("ARC74_C_QML_CONTINUE_OK")
+            pageComp = pageCompBeforeArc74
+            harness.runManhwaModeChecks()
         } catch (e) {
+            watchdog.stop()
             console.log("MANGA_SERIES_CATALOGUE_FAIL: " + e.message)
             Qt.exit(1)
         }
     }
 
     Timer { interval: 100; running: true; repeat: false; onTriggered: harness.runChecks() }
-    Timer { interval: 8000; running: true
+    Timer { id: watchdog; interval: 30000; running: true
         onTriggered: { console.log("MANGA_SERIES_CATALOGUE_FAIL timeout"); Qt.exit(1) } }
 }

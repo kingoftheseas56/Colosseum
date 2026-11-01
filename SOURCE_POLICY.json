@@ -14,22 +14,13 @@
     "release/presentation/artwork/**",
     ".github/workflows/**",
     ".mcp.json",
-    "MEMORY.md",
-    "tests/fixtures/*.png",
-    "tests/fixtures/*.jpg",
-    "tests/fixtures/*.jpeg",
-    "tests/fixtures/*.webp",
-    "tests/fixtures/*.gif",
-    "tests/lanista_fixtures/*.png",
-    "tests/lanista_fixtures/*.jpg",
-    "tests/lanista_fixtures/*.jpeg",
-    "tests/lanista_fixtures/*.webp",
-    "tests/lanista_fixtures/*.gif",
-    "tests/lanista_capture/*.png",
-    "tests/lanista_capture/*.jpg",
-    "tests/lanista_capture/*.jpeg",
-    "tests/lanista_capture/*.webp",
-    "tests/lanista_capture/*.gif"
+    "tests/fixtures/**",
+    "tests/lanista_fixtures/**",
+    "tests/lanista_capture/**",
+    "tests/lanista_scenarios/**",
+    "tests/lanista-seeds/**",
+    "tests/lanista-slice16-seed/**",
+    "tests/lanista-slice17-seed/**"
   ],
   "always_omit_basenames": [
     "AGENTS.md",
@@ -45,9 +36,10 @@
     ".claude/",
     ".agents/"
   ],
-  "retain": "All other tracked regular blobs, including all native/QML/JavaScript/backend/build/test source, all fixtures, fonts, icons, SVGs, reader resources and release presentation JSON. Existing Actions workflows remain in canonical master, not the generated branch.",
+  "retain": "Current canonical master sources, Qt resources and non-fixture tests. Media/replay/agent content omitted. Reading snapshot only; never merge into master.",
   "sensitive_fixture_allowlist": [
     "server/watchparty-relay/test/dev-ca.pem"
   ],
-  "generated_branch": "argon-source-master"
+  "generated_branch": "argon-source-master",
+  "updated_from_source": "536f1be5fceb23484092b58a424b4f79e4533e05"
 }

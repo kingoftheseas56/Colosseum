@@ -220,6 +220,7 @@ Item {
     signal settingsClicked()
     signal accountClicked(real anchorRight, real anchorBottom) // topbar account control -> anchored flyout
     signal wallpaperClicked()
+    signal dlnaClicked(real anchorRight, real anchorBottom) // topbar "Share on your Wi-Fi" -> host flyout
     signal fullscreenClicked()               // topbar fullscreen toggle → host flips the shell (same door as F11)
     signal minimizeClicked()
     signal powerClicked()
@@ -255,6 +256,7 @@ Item {
         onAccountClicked: (anchorRight, anchorBottom) =>
             world.accountClicked(anchorRight, anchorBottom)
         onWallpaperClicked: world.wallpaperClicked()
+        onDlnaClicked: (anchorRight, anchorBottom) => world.dlnaClicked(anchorRight, anchorBottom)
         onFullscreenClicked: world.fullscreenClicked()
         onMinimizeClicked: world.minimizeClicked()
         onPowerClicked: world.powerClicked()

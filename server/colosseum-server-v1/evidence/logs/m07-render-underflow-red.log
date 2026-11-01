@@ -1,0 +1,10 @@
+{"oracle":"405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f","cases":286,"output":"native/colosseum_server_v1/tests/fixtures/legacy-render-parity.json"}
+FAIL quality-number "1e-999"
+expected {"body":"no such quality","headers":{"cache-control":"no-cache"},"status":404}
+actual   {"args":["fixture.mp4","0","2000","-1"],"body":"","headers":{"content-type":"video/mp2t","x-hls-flow":"splitter"},"program":"ffsplit","status":200}
+FAIL thumb-number "1e-999"
+expected {"args":["-ss","1e-999","-i","fixture.mp4","-r","1","-vframes","1","-f","image2","-vcodec","mjpeg","pipe:1"],"body":"","headers":{"content-type":"image/jpg"},"program":"ffmpeg","status":200}
+actual   {"args":["-ss","6","-i","fixture.mp4","-r","1","-vframes","1","-f","image2","-vcodec","mjpeg","pipe:1"],"body":"","headers":{"content-type":"image/jpg"},"program":"ffmpeg","status":200}
+FAIL 286 pinned legacy render cases; 2 mismatches
+(node:5) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)

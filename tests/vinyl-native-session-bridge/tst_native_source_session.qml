@@ -26,6 +26,38 @@ TestCase {
             }
         }
     }
+    function test_realLocalSessionProjectsLyricsAndRetainsReadingAcrossRetry() {
+        var album=session.plainData(rawAlbum);
+        album.tracks[0].lyrics=[{text:"Original local opening",time:0},{text:"Original local passage",time:0.5}];
+        album.tracks[0].notes={0:[{text:"A genuine supplied local note for the test passage."}]};
+        (album.editions || []).forEach(function(edition){edition.tracks[0].lyrics=album.tracks[0].lyrics;edition.tracks[0].notes=album.tracks[0].notes;});
+        NativeSource.setAlbums([album]);session.shownEdition=session.normalize(album);session.playTrack(0);
+        tryVerify(()=>session.loaded);
+        tryCompare(session,"timedLyrics",true);
+        compare(session.lyrics.length,2);compare(session.lyricsSource,"local");
+        var document=session.lyricsDocumentId,occurrence=session.queue[session.queueIndex].queueId;
+        verify(document.length>0);
+        session.toggleLyrics();session.autoNotes=true;session.pauseLyrics(80);session.showNotes(0);
+        session.seekToLine(1);compare(session.manualNoteLine,0);
+        session.toggleLyrics();session.toggleLyrics();
+        compare(session.lyricsScrollY,80);compare(session.manualNoteLine,0);
+        session.retry();tryVerify(()=>session.loaded);
+        compare(session.lyricsDocumentId,document);compare(session.queue[session.queueIndex].queueId,occurrence);
+        compare(session.manualNoteLine,0);verify(!session.lyricsFollowing);
+        session.resumeLyrics();verify(session.lyricsFollowing);compare(session.manualNoteLine,0);
+        session.toggleNotes();verify(session.autoNotes);compare(session.manualNoteLine,-1);
+        session.clearProfile();compare(session.lyrics.length,0);compare(session.manualNoteLine,-1);
+    }
+    function test_lyricsUseSelectedEditionContent() {
+        var album=session.plainData(rawAlbum),track=session.plainData(album.tracks[0]);
+        album.tracks[0].lyrics="Unselected album text";
+        track.lyrics="Selected edition text";
+        var selected={id:"selected-content-edition",title:"Selected edition",tracks:[track]};
+        album.editions=[selected];
+        NativeSource.setAlbums([album]);session.shownEdition=session.normalize(album,selected);session.playTrack(0);
+        tryVerify(()=>session.hasLyrics);
+        compare(session.lyrics[0].text,"Selected edition text");
+    }
     function test_changedAudioSameMediaCancelAndProfileFence() {
         var store=collectionFactory.createObject(test);session.collectionStore=store;
         var path=BridgeFixtures.createIdentityAudio();compare(session.importFiles([path]).imported,1);
@@ -37,7 +69,7 @@ TestCase {
         var relationship=session.pendingImportCeremony.relationship;
         session.cancelImportIdentity();compare(session.pendingImportCeremony,null);compare(store.rows.length,1);
         session.importFiles([path]);compare(session.pendingImportCeremony.relationship,relationship);
-        verify(session.decideImportIdentity(relationship,"same-media"));tryCompare(session,"browseError","");
+        verify(session.decideImportIdentity(relationship,"same-media"));tryVerify(()=>!session.importing && session.browseError==="");
         compare(store.rows[0].payload.album.tracks[0].id,oldId);compare(session.queue[0].queueId,queueId);
         session.retry();tryVerify(()=>session.player!==null);compare(session.error,"");compare(session.playingTrack.id,oldId);
         var second=BridgeFixtures.createIdentityAudio();session.importFiles([second]);BridgeFixtures.changeIdentityAudio(second,480);
@@ -100,6 +132,7 @@ TestCase {
         verify(session.decideImportIdentity(first,"new-media"));
         tryVerify(()=>session.pendingImportCeremony!==null && session.pendingImportCeremony.relationship!==first);
         verify(session.decideImportIdentity(session.pendingImportCeremony.relationship,"new-media"));
+        tryVerify(()=>!session.importing && store.rows.length===4);
         tryCompare(session,"browseError","");compare(session.queue[0].queueId,oldQueue);compare(session.playingTrack.id,oldId);
         session.retry();tryCompare(session,"sourceState","error");verify(session.error.indexOf("changed")>=0);
         compare(store.rows.length,4);store.destroy();
@@ -108,7 +141,7 @@ TestCase {
         console.log("Bridge array diagnostics",Array.isArray(rawAlbum.tracks),Array.isArray(rawAlbum.artists),Array.isArray(rawAlbum.editions));
         session.openAlbum(rawAlbum.id);tryCompare(session,"browsing",false);
         compare(session.browseError,"");compare(session.shownAlbumId,rawAlbum.id);compare(session.tracks.length,1);
-        session.playTrack(0);tryVerify(()=>session.player!==null);compare(session.player.loadedUrl.indexOf("file:"),0);
+        session.playTrack(0);tryVerify(()=>session.player!==null);compare(String(session.player.currentUrl).indexOf("file:"),0);
     }
     function test_nativeSearchAndQueuedAlbum() {
         session.search("");tryCompare(session,"browsing",false);compare(session.results.length,1);

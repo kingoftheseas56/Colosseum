@@ -31,8 +31,12 @@ const pt = languages.find(x => x.code === 'pt') || {};
 const fr = languages.find(x => x.code === 'fr') || {};
 check((en.providers || []).map(x => x.id).join(',') === 'weebcentral',
   'English routes only to WeebCentral');
-check((es.providers || []).map(x => x.id).join(',') === 'zonatmo,niadd',
-  'Spanish routes ZonaTMO first, NiAdd second');
+check((es.providers || []).map(x => x.id).join(',') === 'zonatmo,niadd,mangasin',
+  'Spanish inventory keeps ZonaTMO and NiAdd before the MangaSin addon');
+check((es.providers || []).filter(x => x.enabled === false).map(x => x.id).join(',') === 'mangasin',
+  'MangaSin remains disabled by default until user opt-in');
+check(!(es.providers || []).some(x => x.id === 'lectorxd'),
+  'LectorXD stays parked outside the Spanish production inventory');
 check((pt.providers || []).map(x => x.id).join(',') === 'taiyo,manga-online,manga-night',
   'Portuguese routes Taiyo, Manga Online, then Manga Night');
 check((pt.providers || [])[0]?.name === 'Taiy\u014d', 'Taiyo display name preserves its intended UTF-8 text');
@@ -75,7 +79,9 @@ if (fs.existsSync(`${root}/tankoyomi.js`)) {
   check(router.resolveLanguage(manifest, 'xx-XX') === null, 'unknown regional language resolves to nothing');
   check(router.providersForLanguage(manifest, 'de').length === 0, 'unsupported language never crosses to English providers');
   check(router.providersForLanguage(manifest, 'es').map(x => x.id).join(',') === 'zonatmo,niadd',
-    'router preserves Spanish provider priority');
+    'normal Spanish ladder preserves enabled-provider priority');
+  check(router.providerEntry(manifest, 'es', 'mangasin') === null,
+    'disabled MangaSin does not enter the normal provider ladder before user opt-in');
   check(router.providersForLanguage(manifest, 'pt-BR').map(x => x.id).join(',') === 'taiyo,manga-online,manga-night',
     'router preserves Portuguese provider priority');
 }

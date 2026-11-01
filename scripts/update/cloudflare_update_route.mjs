@@ -1,7 +1,8 @@
-// Deployable release Worker. Two narrowly scoped zone routes preserve the
-// existing Pages website. Pages adapters may still import serveStableFeed.
+// Deployable release Worker. Exact update and versioned-notes routes preserve
+// the existing Pages website. Pages adapters may still import serveStableFeed.
 // This module does not publish a release.
-import { notesHtml, notesETag } from "./release_notes_119.mjs";
+import { notesHtml as notes119Html, notesETag as notes119ETag } from "./release_notes_119.mjs";
+import { notesHtml as notes1110Html, notesETag as notes1110ETag } from "./release_notes_1110.mjs";
 
 export const stableUpdatePath = "/updates/stable.json";
 export const stableUpdateOrigin =
@@ -9,6 +10,10 @@ export const stableUpdateOrigin =
   "release-assets/stable/updates/stable.json?ref_type=heads";
 
 const CAP_BYTES = 2 * 1024 * 1024;
+const releaseNotes = new Map([
+  ["/releases/v1.1.9", {html:notes119Html, etag:notes119ETag}],
+  ["/releases/v1.1.10", {html:notes1110Html, etag:notes1110ETag}],
+]);
 
 function unavailable() {
   return new Response("Stable update feed temporarily unavailable\n", {
@@ -80,20 +85,21 @@ export async function serveStableFeed(request, fetcher = fetch) {
 }
 
 export function serveReleaseNotes(request) {
-  if (new URL(request.url).pathname !== "/releases/v1.1.9") return null;
+  const notes = releaseNotes.get(new URL(request.url).pathname);
+  if (!notes) return null;
   if (request.method !== "GET" && request.method !== "HEAD")
     return new Response(null, {status:405, headers:{Allow:"GET, HEAD"}});
   const headers = {
     "Content-Type":"text/html; charset=utf-8",
     "Cache-Control":"public, max-age=300, must-revalidate",
-    "ETag":notesETag,
+    "ETag":notes.etag,
     "X-Content-Type-Options":"nosniff",
     "Content-Security-Policy":"default-src 'none'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'; form-action 'none'",
   };
   const validators = (request.headers.get("If-None-Match") || "").split(",").map(value => value.trim().replace(/^W\//, ""));
-  if (validators.includes(notesETag) || validators.includes("*"))
+  if (validators.includes(notes.etag) || validators.includes("*"))
     return new Response(null, {status:304, headers});
-  return new Response(request.method === "HEAD" ? null : notesHtml, {status:200, headers});
+  return new Response(request.method === "HEAD" ? null : notes.html, {status:200, headers});
 }
 
 export default {

@@ -1,0 +1,10 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "colosseum-tankorent",
+  "main": "src/index.js",
+  "compatibility_date": "2026-10-23",
+  "compatibility_flags": ["nodejs_compat"],
+  "account_id": "69049ce787cd73028c878bf0953946f6",
+  "workers_dev": true,
+  "preview_urls": false
+}

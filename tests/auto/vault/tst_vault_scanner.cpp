@@ -76,6 +76,7 @@ private:
     }
 
 private slots:
+    void watcher_preserves_overlapping_download_identity();
     void build_scan_produces_expected_census();
     // ── Vault ux uplift S16: the census year the cleaner stripped is captured ──
     void build_scan_derives_parsed_year_from_raw_folder_name();
@@ -997,6 +998,50 @@ void tst_vault_scanner::watcher_degraded_flag_on_failed_watch_and_recovers()
     cfg.confirmRoot(mixedRoot());
     w.refresh();
     QVERIFY(!w.isRootDegraded(mixedRoot()));
+}
+
+void tst_vault_scanner::watcher_preserves_overlapping_download_identity()
+{
+    QTemporaryDir temp;
+    const QString physical = normForTest(temp.path() + "/media");
+    const QString logical = normForTest(temp.path() + "/logical-downloads");
+    QVERIFY(QDir().mkpath(physical));
+    const QString file = writeMediaFile(physical, "Slow Horses.S06E01.mkv");
+    const auto scanned = VaultScanner::buildScan(physical, {}, 1, {});
+    QCOMPARE(scanned.rows.size(), 1);
+    QCOMPARE(scanned.rows.first().groupTitle, QStringLiteral("Slow Horses"));
+    QCOMPARE(scanned.rows.first().groupKey, VaultKit::episodeShowKey(physical, "Slow Horses"));
+    VaultConfig config(temp.path() + "/vault");
+    config.addRoot(physical);
+    config.confirmRoot(physical);
+    config.addSyntheticRoot(logical);
+    VaultIndex index(temp.path() + "/index.sqlite");
+    VaultIdentity identity(temp.path() + "/identity");
+    VaultIndex::FileRow row;
+    const QFileInfo info(file);
+    row.id = identity.idForFile(file, info.size(), info.lastModified().toMSecsSinceEpoch());
+    row.path = file;
+    row.size = info.size();
+    row.mtimeMs = info.lastModified().toMSecsSinceEpoch();
+    row.kind = "video";
+    row.rootPath = logical;
+    row.groupKey = row.subtreePath = VaultKit::episodeShowKey(physical, "Slow Horses");
+    row.groupTitle = "Slow Horses";
+    row.admissionVerdict = "Admitted";
+    QVERIFY(index.publish({row}));
+    VaultWatcher watcher(&index, &identity, &config);
+    watcher.processRoot(physical, {}, {});
+    const auto rows = index.rowsForPath(file);
+    QCOMPARE(rows.size(), 1);
+    QCOMPARE(rows.first().rootPath, logical);
+    QCOMPARE(rows.first().groupKey, row.groupKey);
+    QCOMPARE(rows.first().admissionVerdict, QStringLiteral("Admitted"));
+    QVERIFY(index.publish({}));
+    watcher.processRoot(physical, {}, {});
+    const auto arrivals = index.rowsForRoot(physical);
+    QCOMPARE(arrivals.size(), 1);
+    QCOMPARE(arrivals.first().groupTitle, QStringLiteral("Slow Horses"));
+    QCOMPARE(arrivals.first().groupKey, row.groupKey);
 }
 
 QTEST_GUILESS_MAIN(tst_vault_scanner)

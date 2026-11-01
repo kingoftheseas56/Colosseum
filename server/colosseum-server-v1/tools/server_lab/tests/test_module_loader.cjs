@@ -1,0 +1,10 @@
+'use strict';
+const assert=require('node:assert/strict');
+const {loadBundle}=require('../oracle/module_loader.cjs');
+const loaded=loadBundle(process.argv[2]);
+assert.equal(loaded.sha256,'405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f');
+const url=loaded.require(6);
+assert.equal(url.parse('http://localhost:1234/a?b=2',true).query.b,'2');
+assert.equal(url.parse('/a').pathname,'/a');
+assert.equal(typeof loaded.require(34), 'function');
+console.log('exact-bundle Node external require: PASS');

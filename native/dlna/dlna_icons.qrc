@@ -1,0 +1,7 @@
+<!DOCTYPE RCC>
+<RCC version="1.0">
+    <qresource prefix="/dlna">
+        <file>icons/colosseum-48.png</file>
+        <file>icons/colosseum-120.png</file>
+    </qresource>
+</RCC>

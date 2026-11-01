@@ -187,6 +187,13 @@ VaultScanner::RawResult VaultScanner::buildScan(
             row.size = ff.size;
             row.mtimeMs = ff.mtimeMs;
             row.format = fi.suffix().toLower();
+            if (loose && row.kind == QLatin1String("video") && VaultKit::isEpisodeVideo(row.realName)) {
+                const QString title = VaultKit::episodeSeriesTitle(row.realName);
+                if (!title.isEmpty()) {
+                    row.groupTitle = title;
+                    row.groupKey = row.subtreePath = VaultKit::episodeShowKey(root, title);
+                }
+            }
             r.rows.append(row);
         }
 

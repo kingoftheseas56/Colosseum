@@ -11,6 +11,8 @@ import QtQuick.Controls
 import QtQuick.Effects
 import "BiblioApi.js" as BiblioApi
 import "AbbApi.js" as Abb
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: detail
@@ -825,6 +827,11 @@ Item {
                         radius: 13
                         world: "biblio"
                         entry: detail.collectionEntry()
+                    }
+                    CollectionsUi.AddToCollectionsButton {
+                        objectName: "bookAddToCollections"
+                        width: parent.width
+                        reference: CollectionsReferences.book(detail.book)
                     }
                     // (The standalone Listen button is retired — Hemanth 2026-07-18: the reader IS
                     // the audiobook player. A downloaded audiobook auto-attaches; Read opens the

@@ -197,11 +197,25 @@ bool providerSupportsDelivery(TrackerProviderId providerId, TrackerMediaDomain d
             || domain == TrackerMediaDomain::Movie
             || domain == TrackerMediaDomain::Television;
     }
-    if (providerId == TrackerProviderId::Mal) {
+    if (providerId == TrackerProviderId::Mal
+        || providerId == TrackerProviderId::AniList) {
         return domain == TrackerMediaDomain::Anime
             || domain == TrackerMediaDomain::Manga;
     }
     return false;
+}
+
+// AniList takes manga by chapter only. Tankoban (volume) reading folds into
+// the Manga domain, so the domain alone cannot keep it out of the queue; the
+// fact's history kind can. Other providers are unaffected.
+bool providerAcceptsFact(TrackerProviderId providerId, const TrackerDeliveryFact &fact)
+{
+    if (providerId != TrackerProviderId::AniList
+        || fact.mediaDomain != TrackerMediaDomain::Manga) {
+        return true;
+    }
+    return fact.historyKind == QLatin1String("manga")
+        || fact.historyKind == QLatin1String("manga_chapter");
 }
 
 bool providerSupportsMappedDelivery(TrackerProviderId providerId,
@@ -222,6 +236,25 @@ bool providerSupportsMappedDelivery(TrackerProviderId providerId,
         return domain == TrackerMediaDomain::Movie
             ? parts.first() == QLatin1String("movie")
             : parts.first() == QLatin1String("episode");
+    }
+    if (providerId == TrackerProviderId::AniList) {
+        // AniList ids are `anilist:<anime|manga>:<id>:<episode|chapter>:<n>`;
+        // aggregate list ids are not deliverable. Which Colosseum history
+        // kinds may reach AniList (never Tankoban) is decided where facts are
+        // enqueued, by providerAcceptsFact, which sees the history kind.
+        if (parts.size() != 5 || parts.at(0) != QLatin1String("anilist"))
+            return false;
+        parts.at(2).toULongLong(&numeric);
+        bool unitOk = false;
+        const int unit = parts.at(4).toInt(&unitOk);
+        if (!numeric || !unitOk || unit <= 0)
+            return false;
+        return (domain == TrackerMediaDomain::Anime
+                && parts.at(1) == QLatin1String("anime")
+                && parts.at(3) == QLatin1String("episode"))
+            || (domain == TrackerMediaDomain::Manga
+                && parts.at(1) == QLatin1String("manga")
+                && parts.at(3) == QLatin1String("chapter"));
     }
     if (providerId == TrackerProviderId::Mal) {
         // Only exact unit identities are deliverable; aggregate list IDs are not.
@@ -917,7 +950,8 @@ std::optional<TrackerExportPreview> TrackerDeliveryStore::createExportPreview(
                 item.remoteStateFingerprint = remoteState->stateFingerprint;
                 item.remoteStateSummary = remoteState->safeSummary;
 
-                if (!providerSupportsMappedDelivery(providerId, fact.mediaDomain,
+                if (!providerAcceptsFact(providerId, fact)
+                    || !providerSupportsMappedDelivery(providerId, fact.mediaDomain,
                                                      item.mapping->remote.remoteMediaId)
                     || !m_connections->connection(providerId)->capabilities.testFlag(
                         requiredCapability(fact.kind))) {
@@ -1035,6 +1069,7 @@ bool TrackerDeliveryStore::confirmExport(const QString &previewId,
         const auto currentMapping = uniqueMapping(m_mappings, preview.providerId,
                                                  preview.remoteAccountId, item.fact, &ambiguous);
         if (ambiguous || !currentMapping || !sameMapping(*currentMapping, *item.mapping)
+            || !providerAcceptsFact(preview.providerId, item.fact)
             || !providerSupportsMappedDelivery(preview.providerId,
                                                 item.fact.mediaDomain,
                                                 currentMapping->remote.remoteMediaId)
@@ -1186,6 +1221,7 @@ bool TrackerDeliveryStore::observeCommittedFact(const TrackerDeliveryFact &fact,
         if (!connection || connection->remoteAccountId != preference.remoteAccountId
             || connection->state != TrackerConnectionState::Connected
             || !providerSupportsDelivery(preference.providerId, fact.mediaDomain)
+            || !providerAcceptsFact(preference.providerId, fact)
             || !connection->capabilities.testFlag(requiredCapability(fact.kind))) {
             continue;
         }
@@ -1611,6 +1647,7 @@ bool TrackerDeliveryStore::enqueueFact(const TrackerDeliveryFact &fact,
                                        QString *out)
 {
     if (fact.origin != TrackerDeliveryOrigin::NativeLocal || !validFact(fact)
+        || !providerAcceptsFact(providerId, fact)
         || !providerSupportsMappedDelivery(providerId, fact.mediaDomain,
                                             mapping.remote.remoteMediaId)
         || !validMapping(mapping) || mapping.remote.providerId != providerId

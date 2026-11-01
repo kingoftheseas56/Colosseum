@@ -2,6 +2,7 @@ import QtQuick
 import ".."
 
 KeyboardAction {
+    focusOnPointer: false
     id: card
     required property var record
     required property var artistData
@@ -9,6 +10,8 @@ KeyboardAction {
     property string badge: ""
     property string artObjectName: ""
     property bool darkCaptionSurface: true
+    pointerEnabled: shape !== "square"
+    showFocusFrame: shape !== "square"
 
     readonly property real artHeight: width * (shape === "wide" ? 9 / 16 : 1)
     readonly property real artRadius: shape === "round" ? width / 2 : (shape === "wide" ? 9 : 13)
@@ -22,15 +25,36 @@ KeyboardAction {
 
     Theme { id: theme }
 
+    // Album sleeves share the catalogue card used by the main worlds.
+    Loader {
+        anchors.fill: parent
+        active: card.shape === "square"
+        sourceComponent: Component {
+            CataloguePosterCard {
+                visualProfile: "gallery"
+                artworkRatio: 1
+                artworkObjectName: card.artObjectName
+                item: ({title:String(card.record.title || ""),
+                    cover:card.artistData.artwork(card.record.cover),
+                    author:String(card.record.subtitle || "")})
+                showAuthorAtRest: true
+                keyboardFocused: card.activeFocus
+                onActivated: card.cardRequested(card.record)
+                Accessible.ignored: true
+            }
+        }
+    }
+
     // Artwork container with composed HTML-parity fallback (.cover-fallback / .film-fallback)
     Rectangle {
         id: coverFrame
+        visible: card.shape !== "square"
         width: parent.width
         height: card.artHeight
         radius: card.artRadius
         color: card.record && card.record.fallbackTint ? card.record.fallbackTint : "#262c3a"
         border.width: 1
-        border.color: card.interactionActive ? Qt.rgba(0.94, 0.77, 0.29, 0.55) : Qt.rgba(1, 1, 1, 0.12)
+        border.color: card.interactionActive ? theme.edge : Qt.rgba(1, 1, 1, 0.12)
         clip: true
 
         Rectangle {
@@ -80,10 +104,10 @@ KeyboardAction {
         RoundedPosterImage {
             id: poster
             visible: sources.length > 0
-            objectName: card.artObjectName
+            objectName: card.shape !== "square" ? card.artObjectName : ""
             anchors.fill: parent
             radius: card.artRadius
-            sources: card.artistData && card.record && card.artistData.artwork(card.record.cover)
+            sources: card.shape !== "square" && card.artistData && card.record && card.artistData.artwork(card.record.cover)
                 ? [card.artistData.artwork(card.record.cover)] : []
             hovered: card.interactionActive
         }
@@ -130,6 +154,7 @@ KeyboardAction {
     // Protects 15px/12px caption legibility over bright blurred artist photographs.
     Rectangle {
         id: captionPlate
+        visible: card.shape !== "square"
         y: card.artHeight
         width: parent.width
         height: Math.max(card.shape === "round" ? 68 : 78, captionColumn.implicitHeight + 16)
@@ -140,7 +165,7 @@ KeyboardAction {
             ? Qt.rgba(0.024, 0.027, 0.043, 0.84)
             : "transparent"
         border.width: (card.darkCaptionSurface && card.shape !== "round") ? 1 : 0
-        border.color: card.interactionActive ? Qt.rgba(0.94, 0.77, 0.29, 0.32) : Qt.rgba(1, 1, 1, 0.06)
+        border.color: card.interactionActive ? theme.edge : Qt.rgba(1, 1, 1, 0.06)
 
         Column {
             id: captionColumn
@@ -153,7 +178,7 @@ KeyboardAction {
                 width: parent.width
                 text: String(card.record.title || "")
                 textFormat: Text.PlainText
-                color: card.interactionActive ? theme.gold : theme.ink
+                color: theme.ink
                 font.family: theme.ui
                 font.pixelSize: 15
                 font.weight: Font.DemiBold

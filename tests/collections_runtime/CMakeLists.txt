@@ -1,0 +1,17 @@
+cmake_minimum_required(VERSION 3.21)
+project(ColosseumCollectionsRuntimeChecks LANGUAGES CXX)
+set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+find_package(Qt6 6.5 REQUIRED COMPONENTS Core)
+add_executable(collections_fixture_contract_test collections_fixture_contract_test.cpp)
+target_link_libraries(collections_fixture_contract_test PRIVATE Qt6::Core)
+enable_testing()
+add_test(NAME colosseum.collections_fixture_contract_test COMMAND collections_fixture_contract_test)
+set_tests_properties(colosseum.collections_fixture_contract_test PROPERTIES TIMEOUT 30)
+
+add_executable(collections_configure_fixture configure_fixture.cpp)
+target_link_libraries(collections_configure_fixture PRIVATE Qt6::Core)
+include(collections_seed.cmake)
+include(vinyl_seed.cmake)
+
+include(vault_seed.cmake)

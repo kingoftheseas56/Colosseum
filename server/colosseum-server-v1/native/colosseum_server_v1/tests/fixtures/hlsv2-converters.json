@@ -1,0 +1,371 @@
+[
+  {
+    "input": {
+      "format": {
+        "format_name": "fixture",
+        "duration": "3"
+      },
+      "streams": [
+        {
+          "index": 0,
+          "codec_type": "video",
+          "codec_name": "h264",
+          "width": 100,
+          "height": 50,
+          "r_frame_rate": "25/1",
+          "time_base": "1/1000"
+        },
+        {
+          "index": 1,
+          "codec_type": "video",
+          "codec_name": "h264"
+        },
+        {
+          "index": 2,
+          "codec_type": "audio",
+          "codec_name": "aac",
+          "channels": 2,
+          "sample_rate": "48000"
+        },
+        {
+          "index": 3,
+          "codec_type": "subtitle",
+          "codec_name": "subrip"
+        },
+        {
+          "index": 4,
+          "codec_type": "subtitle",
+          "codec_name": "hdmv_pgs_subtitle"
+        }
+      ]
+    },
+    "mediaURL": "fixture:test0",
+    "results": [
+      {
+        "action": "master",
+        "value": "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"video\",NAME=\"Video\",AUTOSELECT=YES,DEFAULT=YES\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",NAME=\"0\",AUTOSELECT=YES,DEFAULT=YES,URI=\"audio0.m3u8?mediaURL=fixture%3Atest0&maxAudioChannels=2\"\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subtitles\",NAME=\"0\",AUTOSELECT=NO,DEFAULT=NO,FORCED=NO,URI=\"subtitle0.m3u8?mediaURL=fixture%3Atest0&maxAudioChannels=2\"\n#EXT-X-STREAM-INF:BANDWIDTH=164000,VIDEO=\"video\",AUDIO=\"audio\",SUBTITLES=\"subtitles\",NAME=\"Main\"\nvideo0.m3u8?mediaURL=fixture%3Atest0&maxAudioChannels=2"
+      },
+      {
+        "action": "master",
+        "value": "#EXTM3U\n#EXT-X-VERSION:7\n#EXT-X-MEDIA:TYPE=VIDEO,GROUP-ID=\"video\",NAME=\"Video\",AUTOSELECT=YES,DEFAULT=YES\n#EXT-X-MEDIA:TYPE=AUDIO,GROUP-ID=\"audio\",NAME=\"0\",AUTOSELECT=YES,DEFAULT=YES,URI=\"audio0.m3u8?mediaURL=fixture%3Atest0&maxAudioChannels=2\"\n#EXT-X-MEDIA:TYPE=SUBTITLES,GROUP-ID=\"subtitles\",NAME=\"0\",AUTOSELECT=NO,DEFAULT=NO,FORCED=NO,URI=\"subtitle0.m3u8?mediaURL=fixture%3Atest0&maxAudioChannels=2\"\n#EXT-X-STREAM-INF:BANDWIDTH=164000,VIDEO=\"video\",AUDIO=\"audio\",SUBTITLES=\"subtitles\",NAME=\"Main\"\nvideo0.m3u8?mediaURL=fixture%3Atest0&maxAudioChannels=2"
+      },
+      {
+        "action": "status",
+        "value": {
+          "query": "mediaURL=fixture%3Atest0&maxAudioChannels=2",
+          "probe": {
+            "value": {
+              "streams": [
+                {
+                  "id": 0,
+                  "index": 0,
+                  "track": "video",
+                  "codec": "h264",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1000,
+                  "width": 100,
+                  "height": 50,
+                  "frameRate": 25,
+                  "numberOfFrames": null,
+                  "isHdr": false,
+                  "isDoVi": false,
+                  "hasBFrames": false,
+                  "formatBitRate": 0,
+                  "formatMaxBitRate": 0,
+                  "bps": 0,
+                  "numberOfBytes": 0,
+                  "formatDuration": 3
+                },
+                {
+                  "id": 0,
+                  "index": 2,
+                  "track": "audio",
+                  "codec": "aac",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1,
+                  "sampleRate": 48000,
+                  "channels": 2,
+                  "channelLayout": "unknown",
+                  "title": null,
+                  "language": null
+                },
+                {
+                  "id": 0,
+                  "index": 3,
+                  "track": "subtitle",
+                  "codec": "subrip",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1,
+                  "title": null,
+                  "language": null
+                },
+                {
+                  "id": 1,
+                  "index": 4,
+                  "track": "subtitle",
+                  "codec": "hdmv_pgs_subtitle",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1,
+                  "title": null,
+                  "language": null
+                }
+              ],
+              "format": {
+                "name": "fixture",
+                "duration": 3
+              },
+              "samples": {}
+            },
+            "error": null
+          },
+          "converters": {}
+        }
+      },
+      {
+        "action": "missing",
+        "error": "Track not found"
+      },
+      {
+        "action": "status",
+        "value": {
+          "query": "mediaURL=fixture%3Atest0&maxAudioChannels=2",
+          "probe": {
+            "value": {
+              "streams": [
+                {
+                  "id": 0,
+                  "index": 0,
+                  "track": "video",
+                  "codec": "h264",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1000,
+                  "width": 100,
+                  "height": 50,
+                  "frameRate": 25,
+                  "numberOfFrames": null,
+                  "isHdr": false,
+                  "isDoVi": false,
+                  "hasBFrames": false,
+                  "formatBitRate": 0,
+                  "formatMaxBitRate": 0,
+                  "bps": 0,
+                  "numberOfBytes": 0,
+                  "formatDuration": 3
+                },
+                {
+                  "id": 0,
+                  "index": 2,
+                  "track": "audio",
+                  "codec": "aac",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1,
+                  "sampleRate": 48000,
+                  "channels": 2,
+                  "channelLayout": "unknown",
+                  "title": null,
+                  "language": null
+                },
+                {
+                  "id": 0,
+                  "index": 3,
+                  "track": "subtitle",
+                  "codec": "subrip",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1,
+                  "title": null,
+                  "language": null
+                },
+                {
+                  "id": 1,
+                  "index": 4,
+                  "track": "subtitle",
+                  "codec": "hdmv_pgs_subtitle",
+                  "streamBitRate": 0,
+                  "streamMaxBitRate": 0,
+                  "startTime": null,
+                  "startTimeTs": null,
+                  "timescale": 1,
+                  "title": null,
+                  "language": null
+                }
+              ],
+              "format": {
+                "name": "fixture",
+                "duration": 3
+              },
+              "samples": {}
+            },
+            "error": null
+          },
+          "converters": {
+            "audio999": "Error: Track not found"
+          }
+        }
+      },
+      {
+        "action": "destroy"
+      },
+      {
+        "action": "master",
+        "error": "MasterConverter is destroyed"
+      },
+      {
+        "action": "status",
+        "error": "MasterConverter is destroyed"
+      }
+    ],
+    "probeCalls": 1
+  },
+  {
+    "input": {
+      "format": {
+        "format_name": "fixture"
+      },
+      "streams": [
+        {
+          "index": 0,
+          "codec_type": "audio",
+          "codec_name": "aac"
+        }
+      ]
+    },
+    "mediaURL": "fixture:test1",
+    "results": [
+      {
+        "action": "master",
+        "error": "Live media is not supported"
+      },
+      {
+        "action": "master",
+        "error": "Live media is not supported"
+      },
+      {
+        "action": "status",
+        "value": {
+          "query": "mediaURL=fixture%3Atest1&maxAudioChannels=2",
+          "probe": {
+            "value": null,
+            "error": "Error: Live media is not supported"
+          },
+          "converters": {}
+        }
+      },
+      {
+        "action": "missing",
+        "error": "Live media is not supported"
+      },
+      {
+        "action": "status",
+        "value": {
+          "query": "mediaURL=fixture%3Atest1&maxAudioChannels=2",
+          "probe": {
+            "value": null,
+            "error": "Error: Live media is not supported"
+          },
+          "converters": {
+            "audio999": "Error: Live media is not supported"
+          }
+        }
+      },
+      {
+        "action": "destroy"
+      },
+      {
+        "action": "master",
+        "error": "MasterConverter is destroyed"
+      },
+      {
+        "action": "status",
+        "error": "MasterConverter is destroyed"
+      }
+    ],
+    "probeCalls": 1
+  },
+  {
+    "input": {
+      "format": {
+        "format_name": "fixture",
+        "duration": "3"
+      },
+      "streams": [
+        {
+          "index": 0,
+          "codec_type": "subtitle",
+          "codec_name": "subrip"
+        }
+      ]
+    },
+    "mediaURL": "fixture:test2",
+    "results": [
+      {
+        "action": "master",
+        "error": "No video or audio streams found"
+      },
+      {
+        "action": "master",
+        "error": "No video or audio streams found"
+      },
+      {
+        "action": "status",
+        "value": {
+          "query": "mediaURL=fixture%3Atest2&maxAudioChannels=2",
+          "probe": {
+            "value": null,
+            "error": "Error: No video or audio streams found"
+          },
+          "converters": {}
+        }
+      },
+      {
+        "action": "missing",
+        "error": "No video or audio streams found"
+      },
+      {
+        "action": "status",
+        "value": {
+          "query": "mediaURL=fixture%3Atest2&maxAudioChannels=2",
+          "probe": {
+            "value": null,
+            "error": "Error: No video or audio streams found"
+          },
+          "converters": {
+            "audio999": "Error: No video or audio streams found"
+          }
+        }
+      },
+      {
+        "action": "destroy"
+      },
+      {
+        "action": "master",
+        "error": "MasterConverter is destroyed"
+      },
+      {
+        "action": "status",
+        "error": "MasterConverter is destroyed"
+      }
+    ],
+    "probeCalls": 1
+  }
+]

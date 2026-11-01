@@ -1,0 +1,1154 @@
+{
+  "schemaVersion": 1,
+  "milestone": "M0R",
+  "verificationDate": "2026-10-20",
+  "status": "accepted backend baseline; live native facade and app qualification pending",
+  "implementationBase": "008aeb812",
+  "sourceEncoding": "UTF-8 LF; raw repaired-file SHA256",
+  "origin": "Arc 62 backend paths pinned in the preceding source review; originals unchanged",
+  "originalSourceFiles": 142,
+  "qualifiedSourceAndControlFiles": 151,
+  "platform": "Windows x64",
+  "qt": "6.11.1",
+  "msvcCompiler": "19.44.35227",
+  "msvcTools": "14.44.35207",
+  "windowsSdk": "10.0.26100.0",
+  "cleanCombinedReceiving": {
+    "tests": 47,
+    "failed": 0,
+    "disabled": 0,
+    "skipped": 0,
+    "seconds": 24.0,
+    "junitSha256": "56cfaecf84b3b266be3abcc0d458532da83b8adc5c990b61ae3a24dfb88b064f"
+  },
+  "repeatedRealEngineReceiving": {
+    "tests": 4,
+    "failed": 0,
+    "disabled": 0,
+    "skipped": 0,
+    "seconds": 79.0,
+    "junitSha256": "f0e81ad5c7e2edf5561bb8183931e19e144ba586f1a5988d173278e1eddd8623",
+    "iterationsPerTest": 10,
+    "passedExecutions": 40,
+    "counts": {
+      "vinyl_w4_h_real_cue_journey": 10,
+      "vinyl_ba2db2_playlist_identity_probe": 10,
+      "vinyl_ba2db3_seek_completion_probe": 10,
+      "vinyl_w4a_bounded_mpv_probe": 10
+    }
+  },
+  "availabilityCloseout": {
+    "tests": 2,
+    "failed": 0,
+    "disabled": 0,
+    "skipped": 0,
+    "seconds": 0.0,
+    "junitSha256": "0180c6843d783ae5bcf2eba95934654753678c933a340f9e8cb7dfbf214af5e0"
+  },
+  "inventoryGuardUnitCases": {
+    "passed": 6,
+    "failed": 0
+  },
+  "missingRealFixtureGuard": "negative configure rejected with the required-fixture diagnostic",
+  "independentReview": {
+    "critical": 0,
+    "important": 0,
+    "minorDeferred": 1,
+    "repairPackageSha256": "00af5def6472f6e3af53ae57431d3f5e099f0b0938142e7b2fba8a48ee2e67b2",
+    "reportSha256": "5fa3797a6e96c22d03e29729dc61d2def7e4dfc710c20b863c323f8d9f56213e"
+  },
+  "evidenceSha256": {
+    "combined-receiving.log": "d30bbd3f2fa52e5f99906d76021ca879222822d83afd63a9787b3c42e984b559",
+    "test-inventory.json": "c141044f85092abdbfc9dbb02b6b8f71347a775411ba7372d03b3fb41d4deb5e",
+    "repeated-real.log": "a69e50dfebeb71bdf3446313b2e2ea61ecf80562fb5e64fb567b976796804d65",
+    "availability-final.log": "13561177fdb1775076e7bee89e9fc8d868b04210b40e0fc28b40d477ac796719",
+    "missing-fixture.log": "4e7325f54fa14a3b9c26ea90b4374a3e336287951fc0a42254a2cf6d1c61afc6",
+    "inventory-guard-green.log": "59753171660350c6735ee4b12925f50e7f8606c102caf33752e5551608bad819"
+  },
+  "limitations": [
+    "Real engines use null audio/video outputs.",
+    "No actual-app native facade, live provider, audible output, main merge or release acceptance.",
+    "Historical CUE timing failure did not reproduce; its exact cause remains unproven.",
+    "Standalone artwork nil-UUID validation is a deferred minor; composed BA0 entry rejects nil IDs."
+  ],
+  "sourceFiles": [
+    {
+      "path": "native/vinyl/backend/.gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9",
+      "bytes": 14
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.cpp",
+      "sha256": "664c3f80ed8b9011b0502c5c485d1509904e214b00107a8382da6bd990ade71d",
+      "bytes": 21866,
+      "originPath": "artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.cpp",
+      "originRawSha256": "664c3f80ed8b9011b0502c5c485d1509904e214b00107a8382da6bd990ade71d"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.h",
+      "sha256": "380b269ef39c447cb19efc0d1f046073fd866c43bbeaebb4f9aea47074682d85",
+      "bytes": 3812,
+      "originPath": "artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.h",
+      "originRawSha256": "380b269ef39c447cb19efc0d1f046073fd866c43bbeaebb4f9aea47074682d85"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/artwork/test_artist_artwork.cpp",
+      "sha256": "464a639bf8ac2bb7f8df47e34c71450d357fa60d257f45037ee0c39263ba5c20",
+      "bytes": 14063,
+      "originPath": "artist-live-prototypes-20261015/artwork/test_artist_artwork.cpp",
+      "originRawSha256": "464a639bf8ac2bb7f8df47e34c71450d357fa60d257f45037ee0c39263ba5c20"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/bridge/ArtistServiceBridge.cpp",
+      "sha256": "7d4a885104904afb9b47b41fea7e5c571e10bc01eba348544386796f8d2791fd",
+      "bytes": 19241,
+      "originPath": "artist-live-prototypes-20261015/bridge/ArtistServiceBridge.cpp",
+      "originRawSha256": "b4502b8cfb2f9373fa96e00a85bd5359d5bf67df301b1139323e2d4dc8fe210f"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/bridge/ArtistServiceBridge.h",
+      "sha256": "4589a11f6382dfb0dcde1ec25839c24cdeab729b5905689d0564c36f76e79727",
+      "bytes": 8635,
+      "originPath": "artist-live-prototypes-20261015/bridge/ArtistServiceBridge.h",
+      "originRawSha256": "4589a11f6382dfb0dcde1ec25839c24cdeab729b5905689d0564c36f76e79727"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/bridge/test_artist_service_bridge.cpp",
+      "sha256": "66196c3fa8f1198a65c3aab1803a9843e4f3755899ad6d1f16394322af7ece9d",
+      "bytes": 21354,
+      "originPath": "artist-live-prototypes-20261015/bridge/test_artist_service_bridge.cpp",
+      "originRawSha256": "354ddcf242a25ddcd7a7e22e89f5a2d40fbf8dfe46577302450304458c7313eb"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.cpp",
+      "sha256": "700d4332ee84627512aacad09eba5292a8e474722f977485aa499308020eb6f2",
+      "bytes": 30369,
+      "originPath": "artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.cpp",
+      "originRawSha256": "63b22d58cfdba5ec839f5fe6c36fa298a48c7ba63b12c52a2fe3f65039829eea"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.h",
+      "sha256": "95e6436ce8386249dfa9f0be214ffb0fb500dd7d6476b6d735ee9b3e49b131cb",
+      "bytes": 4357,
+      "originPath": "artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.h",
+      "originRawSha256": "66ebfd131b62612f2b8b9f4a6c41a0a05ee64f39a2b162a3ff7dffe215824cef"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/catalogue/test_artist_catalogue.cpp",
+      "sha256": "df7264cd770198a19e3e73c8512cec0f3a19261221d7e1b034ed2766fad4b4d3",
+      "bytes": 22634,
+      "originPath": "artist-live-prototypes-20261015/catalogue/test_artist_catalogue.cpp",
+      "originRawSha256": "66e0c848da590509495ee4e0221ac8cd075b14214ba92a9055c6164edf51df51"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/media/ArtistMediaQuery.cpp",
+      "sha256": "a9a1387c7969ca5e8892601cc59fa9b393bb7288750dd8fa4e179eee4bc3e1d4",
+      "bytes": 14636,
+      "originPath": "artist-live-prototypes-20261015/media/ArtistMediaQuery.cpp",
+      "originRawSha256": "9516aa8bda8d4ce00e245c0ec064a2ed8d44eb92e50cab1fa50ea4515599f5c4"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/media/ArtistMediaQuery.h",
+      "sha256": "76331dd0df8b5ff983e13df8c4fc8f455a3f09c100d6ffd0d70c92ca93c6e58b",
+      "bytes": 4667,
+      "originPath": "artist-live-prototypes-20261015/media/ArtistMediaQuery.h",
+      "originRawSha256": "76331dd0df8b5ff983e13df8c4fc8f455a3f09c100d6ffd0d70c92ca93c6e58b"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/media/test_artist_media_query.cpp",
+      "sha256": "5844911bd40a1c5cd8564f9b79f8fbe54c447bd251f119a2798ff2ead8bf0373",
+      "bytes": 21380,
+      "originPath": "artist-live-prototypes-20261015/media/test_artist_media_query.cpp",
+      "originRawSha256": "c67d19e2a44fb523cbc2256d5c8968d37d33a624ad4bde3e7882297f2f006aa0"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/personal/ArtistPersonalState.cpp",
+      "sha256": "e37c1e612ac180a749b1661cad4c818a88c41b53bacd9275641eb11a0868ae48",
+      "bytes": 15720,
+      "originPath": "artist-live-prototypes-20261015/personal/ArtistPersonalState.cpp",
+      "originRawSha256": "e37c1e612ac180a749b1661cad4c818a88c41b53bacd9275641eb11a0868ae48"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/personal/ArtistPersonalState.h",
+      "sha256": "07907084ddcdc84899809f5b2e64e0d13a4360d9e2ea14b4fd6356ce60beb1d2",
+      "bytes": 4367,
+      "originPath": "artist-live-prototypes-20261015/personal/ArtistPersonalState.h",
+      "originRawSha256": "07907084ddcdc84899809f5b2e64e0d13a4360d9e2ea14b4fd6356ce60beb1d2"
+    },
+    {
+      "path": "native/vinyl/backend/artist-live-prototypes-20261015/personal/test_artist_personal.cpp",
+      "sha256": "397e40fd81d6ff9f8646cb3ff912db7e278952d31a058851315204999e6c4934",
+      "bytes": 15390,
+      "originPath": "artist-live-prototypes-20261015/personal/test_artist_personal.cpp",
+      "originRawSha256": "397e40fd81d6ff9f8646cb3ff912db7e278952d31a058851315204999e6c4934"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/ArtistReadAdapter.cpp",
+      "sha256": "e58064acbd51412bc4a6c4938c71916ff27c2356b908ef6367c6544c5205ea07",
+      "bytes": 37394,
+      "originPath": "artist-service-composed-20261015/ArtistReadAdapter.cpp",
+      "originRawSha256": "86d3053c31372ccb5f5416364e1e482c465997931045c988a4773de86d629e12"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/ArtistReadAdapter.h",
+      "sha256": "0603a513bee681e1f375c6c44edc370ae872e9dffd16a8894ad67819bd89f324",
+      "bytes": 3255,
+      "originPath": "artist-service-composed-20261015/ArtistReadAdapter.h",
+      "originRawSha256": "8229585655ebf310c1283716716c3fe3fafdf42fe777df245d1f6fc2eeb7f049"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/ArtistServiceFactory.cpp",
+      "sha256": "88dbf4768771429e0493f2e72efd2b5d7be3a440ba2342958ed9b0ad97be1df6",
+      "bytes": 1911,
+      "originPath": "artist-service-composed-20261015/ArtistServiceFactory.cpp",
+      "originRawSha256": "88dbf4768771429e0493f2e72efd2b5d7be3a440ba2342958ed9b0ad97be1df6"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/ArtistServiceFactory.h",
+      "sha256": "ef2c6bae21934d8900931b96b05cb65fa5893eb04ae640e9b0bc31f409224096",
+      "bytes": 2978,
+      "originPath": "artist-service-composed-20261015/ArtistServiceFactory.h",
+      "originRawSha256": "ef2c6bae21934d8900931b96b05cb65fa5893eb04ae640e9b0bc31f409224096"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/FakeArtistSource.cpp",
+      "sha256": "e2407711e513093141b0e92666f61a705a194e9752a886e1b7623648c1e5bef1",
+      "bytes": 10772,
+      "originPath": "artist-service-composed-20261015/FakeArtistSource.cpp",
+      "originRawSha256": "b24dc0a07527ab204825a0cb230dae7b07b4c4e3e7011013186fdf55c03280d6"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/FakeArtistSource.h",
+      "sha256": "cc19fa2ecf3b6471ec67daa6285b25e727cbcffa6a2d961602012d0e87a729a6",
+      "bytes": 4814,
+      "originPath": "artist-service-composed-20261015/FakeArtistSource.h",
+      "originRawSha256": "cc19fa2ecf3b6471ec67daa6285b25e727cbcffa6a2d961602012d0e87a729a6"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/IArtistSource.h",
+      "sha256": "b4f71dfc24f80604955866eff9c2fe19e4ecdc05d59f36f1091e0334c909f379",
+      "bytes": 3452,
+      "originPath": "artist-service-composed-20261015/IArtistSource.h",
+      "originRawSha256": "7eaeaed4aaef6e6132ff591aa3b84159b9bdaaf475421700eabe84738ef1b899"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/RecordingPlaybackPort.cpp",
+      "sha256": "dafaf90ce235d0af3f95cb13ba89d7b7052a1c41a9bbfa3e65b92e2f486a7274",
+      "bytes": 4047,
+      "originPath": "artist-service-composed-20261015/RecordingPlaybackPort.cpp",
+      "originRawSha256": "dafaf90ce235d0af3f95cb13ba89d7b7052a1c41a9bbfa3e65b92e2f486a7274"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/RecordingPlaybackPort.h",
+      "sha256": "743a347658cca69ac6b159a8788f83b7a11f8ac25be2294538c28a7789f5a02c",
+      "bytes": 2433,
+      "originPath": "artist-service-composed-20261015/RecordingPlaybackPort.h",
+      "originRawSha256": "743a347658cca69ac6b159a8788f83b7a11f8ac25be2294538c28a7789f5a02c"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/SavedArtistAdapter.cpp",
+      "sha256": "10ac60552f9d8b5673bdb1cf91665e97f715b5c58afaf26d8611fa0404ae402c",
+      "bytes": 5005,
+      "originPath": "artist-service-composed-20261015/SavedArtistAdapter.cpp",
+      "originRawSha256": "10ac60552f9d8b5673bdb1cf91665e97f715b5c58afaf26d8611fa0404ae402c"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/SavedArtistAdapter.h",
+      "sha256": "bcf1ca7339bb785c0d919a5453e67b64d6ac734871464c4fd458b0d3ca854ed1",
+      "bytes": 2372,
+      "originPath": "artist-service-composed-20261015/SavedArtistAdapter.h",
+      "originRawSha256": "bcf1ca7339bb785c0d919a5453e67b64d6ac734871464c4fd458b0d3ca854ed1"
+    },
+    {
+      "path": "native/vinyl/backend/artist-service-composed-20261015/test_artist_service_composed.cpp",
+      "sha256": "b66aacbd7e5683d6a57c4ab74fb280430f38ae43d98867cd245a2534315ea312",
+      "bytes": 36320,
+      "originPath": "artist-service-composed-20261015/test_artist_service_composed.cpp",
+      "originRawSha256": "c7ffdf58095c3c9f5894124772739b74a366f8def28d71ba8f325ca0e3a99902"
+    },
+    {
+      "path": "native/vinyl/backend/ba0-domain-prototype/test_vinyl_domain.cpp",
+      "sha256": "f58420df9c8c2b4684fd5b69635c2df6e8ae1bd83642ce235297b8c2328a400c",
+      "bytes": 9156,
+      "originPath": "ba0-domain-prototype/test_vinyl_domain.cpp",
+      "originRawSha256": "70e0b9cc8bb0d477e2b32195a65d1ca870b2a8610a460d75475c0537b3fb975c"
+    },
+    {
+      "path": "native/vinyl/backend/ba0-domain-prototype/VinylBoundaryValidation.h",
+      "sha256": "13241a500cd3ee02184c3410c04c9a2335b8589a86542c962164d4869eee570e",
+      "bytes": 1359
+    },
+    {
+      "path": "native/vinyl/backend/ba0-domain-prototype/VinylDomainTypes.cpp",
+      "sha256": "cfe00e0333590cddb0a9ff4bd0480c84837d06afe0c44c2267cc010e371188e0",
+      "bytes": 7844,
+      "originPath": "ba0-domain-prototype/VinylDomainTypes.cpp",
+      "originRawSha256": "d91e8fa50d42dfe9f425d0dddd9e69784e167dc341b73324ef1173fbeaf510ab"
+    },
+    {
+      "path": "native/vinyl/backend/ba0-domain-prototype/VinylDomainTypes.h",
+      "sha256": "49fecac67e3cb5f14dec828c7f0e6e29a3bb90881e3779ea87fad53b11365e08",
+      "bytes": 9146,
+      "originPath": "ba0-domain-prototype/VinylDomainTypes.h",
+      "originRawSha256": "a39e0339ae154e0cf6c0de5b8c3c2611ac5350e93c530242751fd3476d8e7491"
+    },
+    {
+      "path": "native/vinyl/backend/ba1-queue-core-prototype/test_vinyl_queue.cpp",
+      "sha256": "8f04ce1c1bd409c013374ca25aeb7dd604945f4174470623ccb7c56930de500d",
+      "bytes": 20832,
+      "originPath": "ba1-queue-core-prototype/test_vinyl_queue.cpp",
+      "originRawSha256": "ae487ebeace24b09775c0c3140556f54940ef763fb6763eae03e9ee942d6c465"
+    },
+    {
+      "path": "native/vinyl/backend/ba1-queue-core-prototype/VinylQueue.cpp",
+      "sha256": "02e7aad5cd3d34b15de81334fa04fd11e065429f6c9fdaf224ca021abe55f19e",
+      "bytes": 18335,
+      "originPath": "ba1-queue-core-prototype/VinylQueue.cpp",
+      "originRawSha256": "cc31df47908cdb15035082c6639b54abce5acfe3ff4118c9d9d48565d2499066"
+    },
+    {
+      "path": "native/vinyl/backend/ba1-queue-core-prototype/VinylQueue.h",
+      "sha256": "de115bd172e2aa29f176800aa0008d2d65baeb906d9e85f84e260db1589eed1c",
+      "bytes": 8596,
+      "originPath": "ba1-queue-core-prototype/VinylQueue.h",
+      "originRawSha256": "bca748416418bba179745c0a713b4374fe7cbd9f81ea0f964858036ccbde774f"
+    },
+    {
+      "path": "native/vinyl/backend/ba2-engine-adapter-prototype/PlaybackEngineAdapter.cpp",
+      "sha256": "7c6a8d89bcd0bdeafe121fc088b915ebd1467ab76620b46445854594c8d1a285",
+      "bytes": 17058,
+      "originPath": "ba2-engine-adapter-prototype/PlaybackEngineAdapter.cpp",
+      "originRawSha256": "c4a3d7d5db2270040aa2879d340b8e3da38fe0aef1d7b2cf8331c162b73eb1c0"
+    },
+    {
+      "path": "native/vinyl/backend/ba2-engine-adapter-prototype/PlaybackEngineAdapter.h",
+      "sha256": "9f83ec3ac64b3a4f6270a8987afbf0e7271179028ba88952aca8bdafefa8b442",
+      "bytes": 9384,
+      "originPath": "ba2-engine-adapter-prototype/PlaybackEngineAdapter.h",
+      "originRawSha256": "ccf706ec6b4d904d2e4682201056b46486fb820b1f8d90dd42654e7681e60b80"
+    },
+    {
+      "path": "native/vinyl/backend/ba2-engine-adapter-prototype/test_playback_engine_adapter.cpp",
+      "sha256": "df51ae302769caf3d0dd81a70b2097af4ebb55eea2f6913a1266323c0136a923",
+      "bytes": 23591,
+      "originPath": "ba2-engine-adapter-prototype/test_playback_engine_adapter.cpp",
+      "originRawSha256": "fd2a62b6b214c0d9b89be01d2ebd56155896ed2851d3fbddea55d19a67098018"
+    },
+    {
+      "path": "native/vinyl/backend/ba2-playback-session-prototype/test_vinyl_playback_session.cpp",
+      "sha256": "95b3e7f184658dbc1d350e2f7f6cbd00956a731b058a032df6d145cc6bc24264",
+      "bytes": 20123,
+      "originPath": "ba2-playback-session-prototype/test_vinyl_playback_session.cpp",
+      "originRawSha256": "ccad1c7e7dc62cdabe50601fb4a8e3d2f937a4852b036d8c74028a36eef64eac"
+    },
+    {
+      "path": "native/vinyl/backend/ba2-playback-session-prototype/VinylPlaybackSession.cpp",
+      "sha256": "e5f4eadd64887710fbdf2c14947ae1e631d8df0864098fd60deefeccceca63ce",
+      "bytes": 14780,
+      "originPath": "ba2-playback-session-prototype/VinylPlaybackSession.cpp",
+      "originRawSha256": "7de53747a33e90cc87f4c04b5d431a170065170f5f27f011d3b02354337eb598"
+    },
+    {
+      "path": "native/vinyl/backend/ba2-playback-session-prototype/VinylPlaybackSession.h",
+      "sha256": "dce149d6a8e610151cc52978b51b890626cdda0e0ccdf0fcee39b17b4924ed22",
+      "bytes": 6595,
+      "originPath": "ba2-playback-session-prototype/VinylPlaybackSession.h",
+      "originRawSha256": "a6214e8c9bb304c823fd3cd49a88ce45025292e8d2b7ec4769621cb28240cdab"
+    },
+    {
+      "path": "native/vinyl/backend/ba2c-queue-session-coordination-prototype/QueueSessionCoordinator.cpp",
+      "sha256": "40c06729817aaf3ef8a65872eb0fe56573f9cf018037b316392999f16badb387",
+      "bytes": 29679,
+      "originPath": "ba2c-queue-session-coordination-prototype/QueueSessionCoordinator.cpp",
+      "originRawSha256": "40c06729817aaf3ef8a65872eb0fe56573f9cf018037b316392999f16badb387"
+    },
+    {
+      "path": "native/vinyl/backend/ba2c-queue-session-coordination-prototype/QueueSessionCoordinator.h",
+      "sha256": "f158485a42d46356733be612453bac84e9da050d830fb1a86c4ae47b1c439d73",
+      "bytes": 7682,
+      "originPath": "ba2c-queue-session-coordination-prototype/QueueSessionCoordinator.h",
+      "originRawSha256": "f158485a42d46356733be612453bac84e9da050d830fb1a86c4ae47b1c439d73"
+    },
+    {
+      "path": "native/vinyl/backend/ba2c-queue-session-coordination-prototype/test_queue_session_coordinator.cpp",
+      "sha256": "d50d0beaa2b77319247921f163b6f5d4765d143f4a7a7e5d1935947387ce945e",
+      "bytes": 23379,
+      "originPath": "ba2c-queue-session-coordination-prototype/test_queue_session_coordinator.cpp",
+      "originRawSha256": "07ce5f761976f1f6931512128fd04ee3b655c1886cc18e0631835c1833f36780"
+    },
+    {
+      "path": "native/vinyl/backend/ba2c-queue-session-coordination-prototype/test_w4b_coordinator_adversarial.cpp",
+      "sha256": "db47a0357f519522cd0b5f483cb66fb48367c3abebdcda383ecd4d88253864c1",
+      "bytes": 19927,
+      "originPath": "ba2c-queue-session-coordination-prototype/test_w4b_coordinator_adversarial.cpp",
+      "originRawSha256": "db47a0357f519522cd0b5f483cb66fb48367c3abebdcda383ecd4d88253864c1"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/ColosseumMpvBridge.cpp",
+      "sha256": "e54f75afe5b27c5d5d331c7b7a86a85d05b08ad39ff7d9b8a4081862b95ada87",
+      "bytes": 9496,
+      "originPath": "ba2d-mpv-adoption-prototype/ColosseumMpvBridge.cpp",
+      "originRawSha256": "7ca4eee923dd3ea8755699ba83bd22574ed7ba0bf497bbba98116ffbee96345e"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/ColosseumMpvBridge.h",
+      "sha256": "ba5f29e90fcbaa116d90c3808aeb00491091443908d9f58ee455c0ef96691483",
+      "bytes": 4423,
+      "originPath": "ba2d-mpv-adoption-prototype/ColosseumMpvBridge.h",
+      "originRawSha256": "bec0cb308703ac8c3b6ea6ef99a727f079c0b0aec9fb7a404b112fb8cd58e70d"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/mpv_api_probe.cpp",
+      "sha256": "e872ce4c581879c4bf6bb5e51eed5797685b0a36d639b63926934b7891d367c4",
+      "bytes": 2631,
+      "originPath": "ba2d-mpv-adoption-prototype/mpv_api_probe.cpp",
+      "originRawSha256": "e872ce4c581879c4bf6bb5e51eed5797685b0a36d639b63926934b7891d367c4"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/mpv_bounded_window_probe.cpp",
+      "sha256": "43f477712c8d36709a41471d794a3349ded0e91b61e38876bff526175dfcc6c2",
+      "bytes": 10670,
+      "originPath": "ba2d-mpv-adoption-prototype/mpv_bounded_window_probe.cpp",
+      "originRawSha256": "43f477712c8d36709a41471d794a3349ded0e91b61e38876bff526175dfcc6c2"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/mpv_playlist_identity_probe.cpp",
+      "sha256": "9561aeac10e7efeb1dee7e57a37551bef25defc72989af2bb9fe3e1c56e7ea9d",
+      "bytes": 8772,
+      "originPath": "ba2d-mpv-adoption-prototype/mpv_playlist_identity_probe.cpp",
+      "originRawSha256": "9561aeac10e7efeb1dee7e57a37551bef25defc72989af2bb9fe3e1c56e7ea9d"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/mpv_seek_completion_probe.cpp",
+      "sha256": "16d18beed33ad8c26f1f040e160c1e570476a7d653276cfc84ead65118b95b93",
+      "bytes": 19159,
+      "originPath": "ba2d-mpv-adoption-prototype/mpv_seek_completion_probe.cpp",
+      "originRawSha256": "40b2e232575fc1810cafe2c7abb4fb71c39f08f61b10be2019dbadb353988303"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/MpvSidecarReference.cpp",
+      "sha256": "08b161ac08af79d56e793a023962a215381326d52b3d1a40ecfc9a81c8d5063d",
+      "bytes": 6500,
+      "originPath": "ba2d-mpv-adoption-prototype/MpvSidecarReference.cpp",
+      "originRawSha256": "f1e2053e41bdcd8f1c66a92b131f71f36d418b7a9cfffc34cc10fa4e91b4c9fd"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/MpvSidecarReference.h",
+      "sha256": "ab23fd76bac5df333753430be4415552ad588907948dd26d1ade165269e0ed1d",
+      "bytes": 2920,
+      "originPath": "ba2d-mpv-adoption-prototype/MpvSidecarReference.h",
+      "originRawSha256": "fc70305efb0a14d54d87e6fbf699506925b46878ecd5b19903ce56c858cf4898"
+    },
+    {
+      "path": "native/vinyl/backend/ba2d-mpv-adoption-prototype/test_colosseum_mpv_bridge.cpp",
+      "sha256": "a1646cd05f2da1d21ed8b541cd1a3e52ffec8806c465ad0563687c11a752150b",
+      "bytes": 20931,
+      "originPath": "ba2d-mpv-adoption-prototype/test_colosseum_mpv_bridge.cpp",
+      "originRawSha256": "ebd47e2c646b6db6e277c177711103d44c32a102c1a43611cc78a4765b3bc892"
+    },
+    {
+      "path": "native/vinyl/backend/ba3-session-persistence-prototype/fixtures/ba3-session-v1.json",
+      "sha256": "95633d559b12f368e8ffe881d26c7842ef873a2bf3c752cd3124164e882a90b4",
+      "bytes": 587,
+      "originPath": "ba3-session-persistence-prototype/fixtures/ba3-session-v1.json",
+      "originRawSha256": "95633d559b12f368e8ffe881d26c7842ef873a2bf3c752cd3124164e882a90b4"
+    },
+    {
+      "path": "native/vinyl/backend/ba3-session-persistence-prototype/test_vinyl_session_persistence.cpp",
+      "sha256": "0ff33d9e0ba71b4b9f5fdf019ec78489d700994e75b296ea07b74895e7bbc534",
+      "bytes": 33180,
+      "originPath": "ba3-session-persistence-prototype/test_vinyl_session_persistence.cpp",
+      "originRawSha256": "0187c7501116b6b839499c3380f38b0018cf55bc6614be2011ff881bdcd0d784"
+    },
+    {
+      "path": "native/vinyl/backend/ba3-session-persistence-prototype/VinylSessionPersistence.cpp",
+      "sha256": "ffce124df5aa2af42389356e3907c93d70c53243443e728bfc6b6ea8fc65c44e",
+      "bytes": 53476,
+      "originPath": "ba3-session-persistence-prototype/VinylSessionPersistence.cpp",
+      "originRawSha256": "32d15e184dcdc7709cb1825e86cd9c40f6ad2a4e0289dfd60c3623c431351e76"
+    },
+    {
+      "path": "native/vinyl/backend/ba3-session-persistence-prototype/VinylSessionPersistence.h",
+      "sha256": "159beee664089d0ada19b7c5e4d0b95d93ef77139466454371a254240d6056c9",
+      "bytes": 3547,
+      "originPath": "ba3-session-persistence-prototype/VinylSessionPersistence.h",
+      "originRawSha256": "159beee664089d0ada19b7c5e4d0b95d93ef77139466454371a254240d6056c9"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/test_vinyl_listen_event_ledger.cpp",
+      "sha256": "b2b08d10d1d85e4d6fa100ee37ef4d83a302b99e8464bc9123a16b3ab27b09ec",
+      "bytes": 24879,
+      "originPath": "ba4-listen-event-ledger-prototype/test_vinyl_listen_event_ledger.cpp",
+      "originRawSha256": "d736b84606fafba5dc7e86a845d81e0a5c67773d2b6e9fba89fd05904258216f"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/test_vinyl_listen_event_persistence.cpp",
+      "sha256": "fc0fc8a669178d18e4e5f0ce72f6fa226115f94d93cb651c7867d9d918c02799",
+      "bytes": 13381,
+      "originPath": "ba4-listen-event-ledger-prototype/test_vinyl_listen_event_persistence.cpp",
+      "originRawSha256": "057d4b0b5a833f24c20709fba67247c9314f7ae58ab8daa2cbd3e4e93fae4e5c"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/VinylListenEventLedger.cpp",
+      "sha256": "1371c648f1046263000e88d17fa141f55af5ce2b530da97cdcc4c11c6484ddd4",
+      "bytes": 25379,
+      "originPath": "ba4-listen-event-ledger-prototype/VinylListenEventLedger.cpp",
+      "originRawSha256": "9b6d963222586e4e38bfcd5422dd57bdec39c7d76689b91bd4d53dcd7a237eff"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/VinylListenEventLedger.h",
+      "sha256": "53322c5915a9dd06d72cafc00ed5d7667e20a801bbc6949952ac84d9b0d39fe4",
+      "bytes": 13296,
+      "originPath": "ba4-listen-event-ledger-prototype/VinylListenEventLedger.h",
+      "originRawSha256": "597845c059e2ebbf095293ee27eebd0b814cf5eb952f927a7721b77c868ad1e6"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/VinylListenEventPersistence.cpp",
+      "sha256": "0d9931336861321b692b5bb54efb34432fa790d0e596a1e80cdcb14628289f72",
+      "bytes": 40934,
+      "originPath": "ba4-listen-event-ledger-prototype/VinylListenEventPersistence.cpp",
+      "originRawSha256": "be959a957dff068c5de2c7548c68139eb1ee9fe7865ff599625efc9955580221"
+    },
+    {
+      "path": "native/vinyl/backend/ba4-listen-event-ledger-prototype/VinylListenEventPersistence.h",
+      "sha256": "83826d3b489891b8569318a70d21f5f43c29d091f163c1a229ca9e0caf807a2b",
+      "bytes": 2459,
+      "originPath": "ba4-listen-event-ledger-prototype/VinylListenEventPersistence.h",
+      "originRawSha256": "83826d3b489891b8569318a70d21f5f43c29d091f163c1a229ca9e0caf807a2b"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/test_vinyl_library.cpp",
+      "sha256": "e28c9f07fd35a9877049a47c3423656b5dc32949be432c08877d845749f456dd",
+      "bytes": 8181,
+      "originPath": "ba5-library-playlists-prototype/test_vinyl_library.cpp",
+      "originRawSha256": "e28c9f07fd35a9877049a47c3423656b5dc32949be432c08877d845749f456dd"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/test_vinyl_personal_state_persistence.cpp",
+      "sha256": "dbaf6dc2c2326d3e26850bf46e9c1e39ff48aa5eb0c10f7dbe116e5182f0c8dc",
+      "bytes": 15965,
+      "originPath": "ba5-library-playlists-prototype/test_vinyl_personal_state_persistence.cpp",
+      "originRawSha256": "bd42d939c973cb77da4c05a285c3fbc5c490495f0eb3edb26459cba48aeff5a7"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/test_vinyl_playlist.cpp",
+      "sha256": "4bba323edad9ed6bb048badcd8aeb2a6cfe7b7f4c4c7319f01cc24ae1a8491bd",
+      "bytes": 13013,
+      "originPath": "ba5-library-playlists-prototype/test_vinyl_playlist.cpp",
+      "originRawSha256": "4bba323edad9ed6bb048badcd8aeb2a6cfe7b7f4c4c7319f01cc24ae1a8491bd"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/VinylLibrary.cpp",
+      "sha256": "c14badf2b616bd32d6da0d1b1d2adea67d2932076e116c6e0eba206037e2c63b",
+      "bytes": 3338,
+      "originPath": "ba5-library-playlists-prototype/VinylLibrary.cpp",
+      "originRawSha256": "e1b49fdcf43cd87ca1614b00166b8865d6fbe41f882d3e5c4699c71303568fb6"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/VinylLibrary.h",
+      "sha256": "2077dddd9768f79c7fdce86ab3386a4a53650f5ea12a6d1e4644af818dfbad6b",
+      "bytes": 3764,
+      "originPath": "ba5-library-playlists-prototype/VinylLibrary.h",
+      "originRawSha256": "d17f4f749f12089f8e7b1fbe58f9ed86a204bb2357b76ba044b9a79d83bc39e4"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/VinylPersonalStatePersistence.cpp",
+      "sha256": "c358048a339c1d66690efd499b2e719acf8bf980ee0731d8099d92faa0d0e2d5",
+      "bytes": 28701,
+      "originPath": "ba5-library-playlists-prototype/VinylPersonalStatePersistence.cpp",
+      "originRawSha256": "036769e99bdc06952bb9f995311ceabe794cc1e9c28d0d22cfc6809073f39ad6"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/VinylPersonalStatePersistence.h",
+      "sha256": "3c715f308802ac8c5aa7472dba0df745b423184ebfc19c0ac2e9f621ea247de8",
+      "bytes": 2228,
+      "originPath": "ba5-library-playlists-prototype/VinylPersonalStatePersistence.h",
+      "originRawSha256": "3c715f308802ac8c5aa7472dba0df745b423184ebfc19c0ac2e9f621ea247de8"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/VinylPlaylist.cpp",
+      "sha256": "03623edf00b1272e1cec2c8c5b70d96baf52e398d1e5688a93c240ed9d80d028",
+      "bytes": 9405,
+      "originPath": "ba5-library-playlists-prototype/VinylPlaylist.cpp",
+      "originRawSha256": "f17e57e3b8418004562bda77ae93fd60ea836e80240a718305306356664fe5ab"
+    },
+    {
+      "path": "native/vinyl/backend/ba5-library-playlists-prototype/VinylPlaylist.h",
+      "sha256": "99abfa8cd2e45fee65bc021d0fdb0a5b9ee58d54ff650b3670acb91dfb6de1f7",
+      "bytes": 6573,
+      "originPath": "ba5-library-playlists-prototype/VinylPlaylist.h",
+      "originRawSha256": "b3e745d32a896d7433458c81e35560c380919cab21cc844bdc4eaab77a42fbd8"
+    },
+    {
+      "path": "native/vinyl/backend/bb1-source-candidate-prototype/SourceCandidateContract.cpp",
+      "sha256": "53c4deb70ce72f94ffc5640ba3bd1bbc0929838312a44297a8970200e7f093dd",
+      "bytes": 11476,
+      "originPath": "bb1-source-candidate-prototype/SourceCandidateContract.cpp",
+      "originRawSha256": "53c4deb70ce72f94ffc5640ba3bd1bbc0929838312a44297a8970200e7f093dd"
+    },
+    {
+      "path": "native/vinyl/backend/bb1-source-candidate-prototype/SourceCandidateContract.h",
+      "sha256": "314a955cacea853a00b01db73fc7e03c301f1d112dd92e176ae940c4fdefd21a",
+      "bytes": 9736,
+      "originPath": "bb1-source-candidate-prototype/SourceCandidateContract.h",
+      "originRawSha256": "314a955cacea853a00b01db73fc7e03c301f1d112dd92e176ae940c4fdefd21a"
+    },
+    {
+      "path": "native/vinyl/backend/bb1-source-candidate-prototype/test_source_candidate_contract.cpp",
+      "sha256": "3043305d9c0cddde80e0e9f5baa1a991779b9ad359023b4feef52345bd2b4cf8",
+      "bytes": 15749,
+      "originPath": "bb1-source-candidate-prototype/test_source_candidate_contract.cpp",
+      "originRawSha256": "3043305d9c0cddde80e0e9f5baa1a991779b9ad359023b4feef52345bd2b4cf8"
+    },
+    {
+      "path": "native/vinyl/backend/bb2-exact-track-resolver-prototype/ExactTrackResolver.cpp",
+      "sha256": "c22a79db35aa492e0862b6af2e28176ebfcd0f7d27876d5dfdfe0aea1d1908f7",
+      "bytes": 26726,
+      "originPath": "bb2-exact-track-resolver-prototype/ExactTrackResolver.cpp",
+      "originRawSha256": "29c5ba039c4f28133689413ab822f67f823f010430e8e9546b4121ced437b3b5"
+    },
+    {
+      "path": "native/vinyl/backend/bb2-exact-track-resolver-prototype/ExactTrackResolver.h",
+      "sha256": "df1b06305991fb5e40f1a59c4d266e14e644515dce03fa7ece423919325ac951",
+      "bytes": 9393,
+      "originPath": "bb2-exact-track-resolver-prototype/ExactTrackResolver.h",
+      "originRawSha256": "17d04a2d9d3cc9ce81c61c03e56849bff3e0cf0557ef5cd414201b3039001bc8"
+    },
+    {
+      "path": "native/vinyl/backend/bb2-exact-track-resolver-prototype/test_exact_track_resolver.cpp",
+      "sha256": "f9277153f979b19388dd288354298c63bf0748df39f094473804cd8ecbaab06a",
+      "bytes": 23184,
+      "originPath": "bb2-exact-track-resolver-prototype/test_exact_track_resolver.cpp",
+      "originRawSha256": "05529d045c49d596f3ea0db34fb7327109730eebbec21bdb35741caf33d0c53b"
+    },
+    {
+      "path": "native/vinyl/backend/bb3-cue-whole-album-prototype/CueWholeAlbum.cpp",
+      "sha256": "0e33cb98702a22835ae40da6e9cbd5d3a89aa06cadfeca1c2a3c6531599d2f60",
+      "bytes": 22253,
+      "originPath": "bb3-cue-whole-album-prototype/CueWholeAlbum.cpp",
+      "originRawSha256": "531b975ccbdf2f3eb6519c5cddb332f4cdd7b19cc4cee0d073bf970bffd76b90"
+    },
+    {
+      "path": "native/vinyl/backend/bb3-cue-whole-album-prototype/CueWholeAlbum.h",
+      "sha256": "0899b158870f1f1988794ae3d9540d843e2f3517ff07ca777c73b25f4048f7b9",
+      "bytes": 4688,
+      "originPath": "bb3-cue-whole-album-prototype/CueWholeAlbum.h",
+      "originRawSha256": "b9b5202a5c4edb63fc22aa4e5885f8dd333060ea9717d5266d17ad6bb5fb1297"
+    },
+    {
+      "path": "native/vinyl/backend/bb3-cue-whole-album-prototype/test_cue_whole_album.cpp",
+      "sha256": "77013faca36764d5f4a421d4aea68a9a8546103da2ed61f771a4e04f80f5ce24",
+      "bytes": 12878,
+      "originPath": "bb3-cue-whole-album-prototype/test_cue_whole_album.cpp",
+      "originRawSha256": "087863cc5d040972a47f7ad765494e28c9ab247bfea4218cbecfbde2a90dd1d0"
+    },
+    {
+      "path": "native/vinyl/backend/bb4-mpv-playback-adapter-prototype/mpv_resource_probe.cpp",
+      "sha256": "c4d920bf506c8ea5a520a8f29419c13cc66de5d47ec69b1f46bec3798d938b61",
+      "bytes": 4086,
+      "originPath": "bb4-mpv-playback-adapter-prototype/mpv_resource_probe.cpp",
+      "originRawSha256": "c4d920bf506c8ea5a520a8f29419c13cc66de5d47ec69b1f46bec3798d938b61"
+    },
+    {
+      "path": "native/vinyl/backend/bb4-mpv-playback-adapter-prototype/ResolvedPlaybackSource.cpp",
+      "sha256": "e4a9f61e769f53d375ac51f9d4d4e4fec39d9d8b7aef71cf2681897cf2caa071",
+      "bytes": 9985,
+      "originPath": "bb4-mpv-playback-adapter-prototype/ResolvedPlaybackSource.cpp",
+      "originRawSha256": "e4a9f61e769f53d375ac51f9d4d4e4fec39d9d8b7aef71cf2681897cf2caa071"
+    },
+    {
+      "path": "native/vinyl/backend/bb4-mpv-playback-adapter-prototype/ResolvedPlaybackSource.h",
+      "sha256": "2152b52db78aa8b9729a73b2a22589fc43420a6a9e41029957544ce6a6c1e0b1",
+      "bytes": 5789,
+      "originPath": "bb4-mpv-playback-adapter-prototype/ResolvedPlaybackSource.h",
+      "originRawSha256": "2152b52db78aa8b9729a73b2a22589fc43420a6a9e41029957544ce6a6c1e0b1"
+    },
+    {
+      "path": "native/vinyl/backend/bb4-mpv-playback-adapter-prototype/test_cue_window_handoff.cpp",
+      "sha256": "b8645c95e29d0a11618941bf34c3a0ddd96e995cc6bc2d1707d592cd69741cbe",
+      "bytes": 6980,
+      "originPath": "bb4-mpv-playback-adapter-prototype/test_cue_window_handoff.cpp",
+      "originRawSha256": "b8645c95e29d0a11618941bf34c3a0ddd96e995cc6bc2d1707d592cd69741cbe"
+    },
+    {
+      "path": "native/vinyl/backend/bb4-mpv-playback-adapter-prototype/test_mpv_playback_adapter.cpp",
+      "sha256": "d707d13da85daed5d1d247a817fc5feec43d267794c3d26294dff54e7bc2d354",
+      "bytes": 16831,
+      "originPath": "bb4-mpv-playback-adapter-prototype/test_mpv_playback_adapter.cpp",
+      "originRawSha256": "d707d13da85daed5d1d247a817fc5feec43d267794c3d26294dff54e7bc2d354"
+    },
+    {
+      "path": "native/vinyl/backend/bb5-source-resolution-session-prototype/SourceResolutionSession.cpp",
+      "sha256": "207e3a306879a4b705ae5cda018a26236f0c28c2302bf2aa69d9542c06b47bc0",
+      "bytes": 46411,
+      "originPath": "bb5-source-resolution-session-prototype/SourceResolutionSession.cpp",
+      "originRawSha256": "e7148ce1ab54fb203ca565649714da187e50d29598f4d7b576125fa8166304a0"
+    },
+    {
+      "path": "native/vinyl/backend/bb5-source-resolution-session-prototype/SourceResolutionSession.h",
+      "sha256": "2d887a356bd8928fe3036b7b26f207a7874785df8ccf8683d99f022c1556aaa0",
+      "bytes": 19526,
+      "originPath": "bb5-source-resolution-session-prototype/SourceResolutionSession.h",
+      "originRawSha256": "276736eba369f176ab843eaab56435a3dde3ad8bb4042d64b72c1237629a0a3c"
+    },
+    {
+      "path": "native/vinyl/backend/bb5-source-resolution-session-prototype/test_source_resolution_session.cpp",
+      "sha256": "414608b804aa00ca071efa3bcb670e8e3b3b21bf05f9dd3ac1f984ca5cfbeb39",
+      "bytes": 51306,
+      "originPath": "bb5-source-resolution-session-prototype/test_source_resolution_session.cpp",
+      "originRawSha256": "284ffbdb44779bfbfe90ca57108fdfb3749f7fea62a80fb657d4ffc9d7235bad"
+    },
+    {
+      "path": "native/vinyl/backend/bc1-timed-text-prototype/test_timed_text.cpp",
+      "sha256": "1fcdf0fecbc326d17b0aa498986badba5ab114e0cc5af692d087c07ff969e350",
+      "bytes": 16952,
+      "originPath": "bc1-timed-text-prototype/test_timed_text.cpp",
+      "originRawSha256": "320bd5f35cba5205af20e8ecde03fcc64b209d0a2e58a217298d084d10b197a4"
+    },
+    {
+      "path": "native/vinyl/backend/bc1-timed-text-prototype/TimedTextCore.cpp",
+      "sha256": "b6abd88416c46d81d668234a1cba25844a2ac2ee07ae70979d70f99519688efd",
+      "bytes": 17695,
+      "originPath": "bc1-timed-text-prototype/TimedTextCore.cpp",
+      "originRawSha256": "c556bf13e8ed3061565a394747de61fe7682864f53af7f44414f9325dba34b13"
+    },
+    {
+      "path": "native/vinyl/backend/bc1-timed-text-prototype/TimedTextCore.h",
+      "sha256": "024686009b43c2a6562e8407f2e86cc7880dd20f06434d6e7a00d2a1f7a42c39",
+      "bytes": 9054,
+      "originPath": "bc1-timed-text-prototype/TimedTextCore.h",
+      "originRawSha256": "72f5d188827a9bedb31bfbab4441f030cae7994bf2ae638547b3db7ae2dd3eae"
+    },
+    {
+      "path": "native/vinyl/backend/bc2-translation-prototype/test_translation.cpp",
+      "sha256": "53a5af9ea709110276ed772e9decd3eeb58accaaaa05c07db52bcb258861da67",
+      "bytes": 20681,
+      "originPath": "bc2-translation-prototype/test_translation.cpp",
+      "originRawSha256": "53a5af9ea709110276ed772e9decd3eeb58accaaaa05c07db52bcb258861da67"
+    },
+    {
+      "path": "native/vinyl/backend/bc2-translation-prototype/TimedTextTranslation.cpp",
+      "sha256": "08326718c82fb7a848e09b031015dba463da0af8dc2955956c9d59150a6c96e4",
+      "bytes": 10658,
+      "originPath": "bc2-translation-prototype/TimedTextTranslation.cpp",
+      "originRawSha256": "e9059123f9c58d32ad6eb23568cb316e9c10b4a59b4ac6af77b3e1d3bc129115"
+    },
+    {
+      "path": "native/vinyl/backend/bc2-translation-prototype/TimedTextTranslation.h",
+      "sha256": "d8863ecfc2fe4ef8dc6a2d4c36c54eda1db5c03f978d8b5ac0f629c68e9ae9cd",
+      "bytes": 9078,
+      "originPath": "bc2-translation-prototype/TimedTextTranslation.h",
+      "originRawSha256": "57ed09857fab605a922840ccd1c7b028ac60f8b8f0d5c7964a3c6284459ed67a"
+    },
+    {
+      "path": "native/vinyl/backend/bc3-annotation-prototype/AnnotationMeaningPlane.cpp",
+      "sha256": "2cdf65cd56081b369127ca8e8802b9ca1db150f54e9f710bcd8523245e4f6693",
+      "bytes": 17750,
+      "originPath": "bc3-annotation-prototype/AnnotationMeaningPlane.cpp",
+      "originRawSha256": "1ae6de8e9ae7a5b2a49967d3811ec50d9bf1b94a151bedd04d8a777a16a2460d"
+    },
+    {
+      "path": "native/vinyl/backend/bc3-annotation-prototype/AnnotationMeaningPlane.h",
+      "sha256": "7f04b32401a37d622ffbaac0f0ed94064f51b9235c2e879d240b794a90c0a671",
+      "bytes": 10092,
+      "originPath": "bc3-annotation-prototype/AnnotationMeaningPlane.h",
+      "originRawSha256": "7f04b32401a37d622ffbaac0f0ed94064f51b9235c2e879d240b794a90c0a671"
+    },
+    {
+      "path": "native/vinyl/backend/bc3-annotation-prototype/test_annotation_meaning.cpp",
+      "sha256": "2c3414cd5565a245e634bb971f837befb21c6f5d89d00a876647dd6f975f1e8c",
+      "bytes": 18247,
+      "originPath": "bc3-annotation-prototype/test_annotation_meaning.cpp",
+      "originRawSha256": "e06529482588864665a74de53e1a19c67e4a9808120bcb55d329e932489dea74"
+    },
+    {
+      "path": "native/vinyl/backend/bd1-signal-path-prototype/test_signal_path.cpp",
+      "sha256": "ac85191fb455cf76a4578fa1866c42491ebe43595cf790eb4348143c8428047e",
+      "bytes": 10444,
+      "originPath": "bd1-signal-path-prototype/test_signal_path.cpp",
+      "originRawSha256": "ac85191fb455cf76a4578fa1866c42491ebe43595cf790eb4348143c8428047e"
+    },
+    {
+      "path": "native/vinyl/backend/bd1-signal-path-prototype/VinylSignalPathTypes.cpp",
+      "sha256": "b0240c8617fdd5f629e074dc15addf3247356ecf8f1aae30c9299ae516168d55",
+      "bytes": 4904,
+      "originPath": "bd1-signal-path-prototype/VinylSignalPathTypes.cpp",
+      "originRawSha256": "b0240c8617fdd5f629e074dc15addf3247356ecf8f1aae30c9299ae516168d55"
+    },
+    {
+      "path": "native/vinyl/backend/bd1-signal-path-prototype/VinylSignalPathTypes.h",
+      "sha256": "ab52e47ca442d802bbf48572e65f40f236bc57e29b9ec68d2ec93e5c59e00405",
+      "bytes": 5265,
+      "originPath": "bd1-signal-path-prototype/VinylSignalPathTypes.h",
+      "originRawSha256": "ab52e47ca442d802bbf48572e65f40f236bc57e29b9ec68d2ec93e5c59e00405"
+    },
+    {
+      "path": "native/vinyl/backend/bd2-mpv-observability-prototype/test_mpv_observability.cpp",
+      "sha256": "53d081290ea650dfbe359e0a7f56c5cccfe51965c25625e8b8899f4fe4908e51",
+      "bytes": 14799,
+      "originPath": "bd2-mpv-observability-prototype/test_mpv_observability.cpp",
+      "originRawSha256": "53d081290ea650dfbe359e0a7f56c5cccfe51965c25625e8b8899f4fe4908e51"
+    },
+    {
+      "path": "native/vinyl/backend/bd2-mpv-observability-prototype/VinylMpvObservability.cpp",
+      "sha256": "24e8c3414ecc215466f5f02df717b0ad395a5e60d5904bcb18a1cf97f4b3d711",
+      "bytes": 14592,
+      "originPath": "bd2-mpv-observability-prototype/VinylMpvObservability.cpp",
+      "originRawSha256": "24e8c3414ecc215466f5f02df717b0ad395a5e60d5904bcb18a1cf97f4b3d711"
+    },
+    {
+      "path": "native/vinyl/backend/bd2-mpv-observability-prototype/VinylMpvObservability.h",
+      "sha256": "c89d82b415392247263f8b897b931ce8f520c2144b43b6ed97d1f857c7ec5b1e",
+      "bytes": 2335,
+      "originPath": "bd2-mpv-observability-prototype/VinylMpvObservability.h",
+      "originRawSha256": "c89d82b415392247263f8b897b931ce8f520c2144b43b6ed97d1f857c7ec5b1e"
+    },
+    {
+      "path": "native/vinyl/backend/be-derivation-prototype/RecommendationDerivation.cpp",
+      "sha256": "24c70cea05bb5e21ce23a1c3aa51cf9f770860629b4dc48009e9743c6d4442a7",
+      "bytes": 15804,
+      "originPath": "be-derivation-prototype/RecommendationDerivation.cpp",
+      "originRawSha256": "0a4dd273663584712f5d8416947ab311799f02307b76c4bb3db5f600ecba841a"
+    },
+    {
+      "path": "native/vinyl/backend/be-derivation-prototype/RecommendationDerivation.h",
+      "sha256": "9cfac994f2bad53cd3ca73cbc08643107a7364783104dfd48b867862e5a7ad0c",
+      "bytes": 10002,
+      "originPath": "be-derivation-prototype/RecommendationDerivation.h",
+      "originRawSha256": "02749f8ebdd0b93824b9584dc9c1050fb27fb08179f9487cc57ba9581ac72aa3"
+    },
+    {
+      "path": "native/vinyl/backend/be-derivation-prototype/test_recommendation_derivation.cpp",
+      "sha256": "906ee376fbc4a1d51735b54202df87d4da88e5b14e5d93e7e9c45f6b681c4753",
+      "bytes": 15404,
+      "originPath": "be-derivation-prototype/test_recommendation_derivation.cpp",
+      "originRawSha256": "906ee376fbc4a1d51735b54202df87d4da88e5b14e5d93e7e9c45f6b681c4753"
+    },
+    {
+      "path": "native/vinyl/backend/be1-recommendation-candidate-prototype/RecommendationCandidateContract.cpp",
+      "sha256": "22a6ed2b59fc91d2f3522e7ddf9d967233c1de44412921895b1d4e72d81c2408",
+      "bytes": 10151,
+      "originPath": "be1-recommendation-candidate-prototype/RecommendationCandidateContract.cpp",
+      "originRawSha256": "5feda16c527ae5596d3a68c35c0d9ca3fe30782aaaef8c8167d35bd28405db70"
+    },
+    {
+      "path": "native/vinyl/backend/be1-recommendation-candidate-prototype/RecommendationCandidateContract.h",
+      "sha256": "ea66a88638e13e70bce7f53d60876fcadf6f8282369b19f35788db93b9a835e7",
+      "bytes": 9232,
+      "originPath": "be1-recommendation-candidate-prototype/RecommendationCandidateContract.h",
+      "originRawSha256": "3c80d2331fa8ba6b5611c45aee2dd3abcfe6c2946691bc7aa2f395a84f75a4c1"
+    },
+    {
+      "path": "native/vinyl/backend/be1-recommendation-candidate-prototype/test_recommendation_candidate_contract.cpp",
+      "sha256": "d692235f9030410307541ad3c1d4b03d1f1fe5b657ee163b2a14add2e028122b",
+      "bytes": 20920,
+      "originPath": "be1-recommendation-candidate-prototype/test_recommendation_candidate_contract.cpp",
+      "originRawSha256": "0c140a5174087bca7bc819bf6cc220947624ddd8f9c11b3e1053c8de80931e3a"
+    },
+    {
+      "path": "native/vinyl/backend/be2-feedback-taste-state-prototype/FeedbackTastePersistence.cpp",
+      "sha256": "2f3912fa95df0a468b3a0f5a29744050344c2b5d48b6f83cd7dc2b846f683ab1",
+      "bytes": 29118,
+      "originPath": "be2-feedback-taste-state-prototype/FeedbackTastePersistence.cpp",
+      "originRawSha256": "d9c7717d71fe0aba86c8f8487be8c1d132363f29e261e671f8d5bfbe8e6362f8"
+    },
+    {
+      "path": "native/vinyl/backend/be2-feedback-taste-state-prototype/FeedbackTastePersistence.h",
+      "sha256": "cd2b4f5809adb5783004190fada2044b756cf5a6db312cd21d21963a3e362392",
+      "bytes": 1634,
+      "originPath": "be2-feedback-taste-state-prototype/FeedbackTastePersistence.h",
+      "originRawSha256": "cd2b4f5809adb5783004190fada2044b756cf5a6db312cd21d21963a3e362392"
+    },
+    {
+      "path": "native/vinyl/backend/be2-feedback-taste-state-prototype/FeedbackTasteState.cpp",
+      "sha256": "9b9660f52b025ab5a98eafd70c57d899f3d95f0bd664a0ad2b6e79a0fab5a04c",
+      "bytes": 13084,
+      "originPath": "be2-feedback-taste-state-prototype/FeedbackTasteState.cpp",
+      "originRawSha256": "6bb7233cdac3fba8b40486fea327ccf602460b09a46637a37cefb461572d7bd3"
+    },
+    {
+      "path": "native/vinyl/backend/be2-feedback-taste-state-prototype/FeedbackTasteState.h",
+      "sha256": "862a5626f93af0e833b471835e276d3bd4f391b21652c9c73f21b132b3c74671",
+      "bytes": 8485,
+      "originPath": "be2-feedback-taste-state-prototype/FeedbackTasteState.h",
+      "originRawSha256": "405f8168dab485a925d12975c09751758bdf6722443bd5578af351d71f5663db"
+    },
+    {
+      "path": "native/vinyl/backend/be2-feedback-taste-state-prototype/test_feedback_taste_persistence.cpp",
+      "sha256": "e9b3c5bc1fdf86e0696cbafaa350323788772fe488294d551487f92f963cc5f3",
+      "bytes": 11816,
+      "originPath": "be2-feedback-taste-state-prototype/test_feedback_taste_persistence.cpp",
+      "originRawSha256": "be48cf40abd1f62a64e932d8a9590fde34d059024aab3070991906f903fbac00"
+    },
+    {
+      "path": "native/vinyl/backend/be2-feedback-taste-state-prototype/test_feedback_taste_state.cpp",
+      "sha256": "a76e7c54621550ca69300cc44f1ce5804dd1ab86ee62995018856174216b0eef",
+      "bytes": 19490,
+      "originPath": "be2-feedback-taste-state-prototype/test_feedback_taste_state.cpp",
+      "originRawSha256": "498a3497e2a3b668a1f690c18ececbd20c2a305e3b58e21cc6a74ac9f1140d3a"
+    },
+    {
+      "path": "native/vinyl/backend/be3-deterministic-ranker-prototype/DeterministicRanker.cpp",
+      "sha256": "f62530a788080c874af3c97facb2a6831fb135fc2e94aedee984d4b1553e04df",
+      "bytes": 25352,
+      "originPath": "be3-deterministic-ranker-prototype/DeterministicRanker.cpp",
+      "originRawSha256": "369c39e6a3febc37929026a96b58bd9b7fcd2df0456f689707b6d17cd8a6da53"
+    },
+    {
+      "path": "native/vinyl/backend/be3-deterministic-ranker-prototype/DeterministicRanker.h",
+      "sha256": "e97ad16591e9a9c79bd4dc25eb19bd8616cdc79d69f9b289d23d9817b7370486",
+      "bytes": 5528,
+      "originPath": "be3-deterministic-ranker-prototype/DeterministicRanker.h",
+      "originRawSha256": "e97ad16591e9a9c79bd4dc25eb19bd8616cdc79d69f9b289d23d9817b7370486"
+    },
+    {
+      "path": "native/vinyl/backend/be3-deterministic-ranker-prototype/test_deterministic_ranker.cpp",
+      "sha256": "13acbfc62cd491e2e7a779f290a39e8ba4ccdc26c42ace4717419e9cb2a5416d",
+      "bytes": 33645,
+      "originPath": "be3-deterministic-ranker-prototype/test_deterministic_ranker.cpp",
+      "originRawSha256": "5adf7a514ea93b5e975a8a4f752dfe06287535caf7488f952ec60e0be7030f7e"
+    },
+    {
+      "path": "native/vinyl/backend/bf1-context-graph-prototype/test_context_graph.cpp",
+      "sha256": "bf3193d9ef3eae27805ad4a633b1d4bc90e136b1d77373102d91b0207fb700c0",
+      "bytes": 12626,
+      "originPath": "bf1-context-graph-prototype/test_context_graph.cpp",
+      "originRawSha256": "92b651d38018ec8a5b7b91a300f359b6e1e9e3ad752fcbc6b18156854bf9ee1f"
+    },
+    {
+      "path": "native/vinyl/backend/bf1-context-graph-prototype/VinylContextGraph.cpp",
+      "sha256": "e1c909bef1c84f4083660e5a0e56ac5cfd06430d16fcb3abe0db893d58b7b454",
+      "bytes": 6116,
+      "originPath": "bf1-context-graph-prototype/VinylContextGraph.cpp",
+      "originRawSha256": "ebf94109d77355b4f2d8d71372498e5dbc5ada996f78c192773d6d9c31718e8a"
+    },
+    {
+      "path": "native/vinyl/backend/bf1-context-graph-prototype/VinylContextGraph.h",
+      "sha256": "1674a95c610ceee4b6fb94cf7e4d9bbd6ddf82e6bbf147107ca55cba09bd5734",
+      "bytes": 2032,
+      "originPath": "bf1-context-graph-prototype/VinylContextGraph.h",
+      "originRawSha256": "1674a95c610ceee4b6fb94cf7e4d9bbd6ddf82e6bbf147107ca55cba09bd5734"
+    },
+    {
+      "path": "native/vinyl/backend/bf2-related-video-prototype/RelatedVideoContract.cpp",
+      "sha256": "eaaf7a4d596a7ae346c671d4a970ace6ab79b1b4adb367313953e037c5a81198",
+      "bytes": 13576,
+      "originPath": "bf2-related-video-prototype/RelatedVideoContract.cpp",
+      "originRawSha256": "eaaf7a4d596a7ae346c671d4a970ace6ab79b1b4adb367313953e037c5a81198"
+    },
+    {
+      "path": "native/vinyl/backend/bf2-related-video-prototype/RelatedVideoContract.h",
+      "sha256": "a8e64e0c94ecbc3edadcb3da10d696e4426f0b1a9dc33c0b7be8333d65f07490",
+      "bytes": 7640,
+      "originPath": "bf2-related-video-prototype/RelatedVideoContract.h",
+      "originRawSha256": "a8e64e0c94ecbc3edadcb3da10d696e4426f0b1a9dc33c0b7be8333d65f07490"
+    },
+    {
+      "path": "native/vinyl/backend/bf2-related-video-prototype/test_related_video_contract.cpp",
+      "sha256": "5721d73d66de27cf062534284dfbeed58b8c0eb0ad7fc0a4a1dbf15b5f7ca079",
+      "bytes": 17104,
+      "originPath": "bf2-related-video-prototype/test_related_video_contract.cpp",
+      "originRawSha256": "5721d73d66de27cf062534284dfbeed58b8c0eb0ad7fc0a4a1dbf15b5f7ca079"
+    },
+    {
+      "path": "native/vinyl/backend/bf3-video-playback-adapter-prototype/test_video_playback_adapter.cpp",
+      "sha256": "e57ed740b4526e95167a7a3ce57808f896980630d217042c5156f5ae5816bb83",
+      "bytes": 18787,
+      "originPath": "bf3-video-playback-adapter-prototype/test_video_playback_adapter.cpp",
+      "originRawSha256": "37dca9f3fcb410bdbdb421f6053cdf1b1ddab771f8371a719a76363ef846f9cc"
+    },
+    {
+      "path": "native/vinyl/backend/bf3-video-playback-adapter-prototype/VideoPlaybackAdapter.cpp",
+      "sha256": "6563fbcf76b8c01bf39737f323ee9a67d53e78b8cd01b7f11c55fd6aa2df8675",
+      "bytes": 4153,
+      "originPath": "bf3-video-playback-adapter-prototype/VideoPlaybackAdapter.cpp",
+      "originRawSha256": "6563fbcf76b8c01bf39737f323ee9a67d53e78b8cd01b7f11c55fd6aa2df8675"
+    },
+    {
+      "path": "native/vinyl/backend/bf3-video-playback-adapter-prototype/VideoPlaybackAdapter.h",
+      "sha256": "a8979962492388acdb60d2048f0c8379092e25539c77adc83a6bb6abc18dfe61",
+      "bytes": 4113,
+      "originPath": "bf3-video-playback-adapter-prototype/VideoPlaybackAdapter.h",
+      "originRawSha256": "a8979962492388acdb60d2048f0c8379092e25539c77adc83a6bb6abc18dfe61"
+    },
+    {
+      "path": "native/vinyl/backend/bg1-catalogue-client-prototype/FakeVinylCatalogueClient.cpp",
+      "sha256": "7fc37a690c06045e674835a7235f02266489af89123b92fbe95ec2bb08867997",
+      "bytes": 31417,
+      "originPath": "bg1-catalogue-client-prototype/FakeVinylCatalogueClient.cpp",
+      "originRawSha256": "7fc37a690c06045e674835a7235f02266489af89123b92fbe95ec2bb08867997"
+    },
+    {
+      "path": "native/vinyl/backend/bg1-catalogue-client-prototype/FakeVinylCatalogueClient.h",
+      "sha256": "9cf96534fa9099d98e4a1c0bb48c36979db354fd55ec6897dd3f1089b87550d2",
+      "bytes": 2635,
+      "originPath": "bg1-catalogue-client-prototype/FakeVinylCatalogueClient.h",
+      "originRawSha256": "9cf96534fa9099d98e4a1c0bb48c36979db354fd55ec6897dd3f1089b87550d2"
+    },
+    {
+      "path": "native/vinyl/backend/bg1-catalogue-client-prototype/test_catalogue_client.cpp",
+      "sha256": "aca3579ed060441a52fccc8e54a7e2169e85da0156861d79e35921b1d8082ced",
+      "bytes": 19373,
+      "originPath": "bg1-catalogue-client-prototype/test_catalogue_client.cpp",
+      "originRawSha256": "aca3579ed060441a52fccc8e54a7e2169e85da0156861d79e35921b1d8082ced"
+    },
+    {
+      "path": "native/vinyl/backend/bg1-catalogue-client-prototype/VinylCatalogueClient.h",
+      "sha256": "e9647eb56bbc37982c456fda9d8715714476d607dfb865b9f9780e554c0f2d96",
+      "bytes": 1838,
+      "originPath": "bg1-catalogue-client-prototype/VinylCatalogueClient.h",
+      "originRawSha256": "e9647eb56bbc37982c456fda9d8715714476d607dfb865b9f9780e554c0f2d96"
+    },
+    {
+      "path": "native/vinyl/backend/bg1-catalogue-client-prototype/VinylCatalogueTypes.cpp",
+      "sha256": "6a80f7b74b85822959068a668f36d6c2a5f5faf69a733d13bb357b263a18c280",
+      "bytes": 1963,
+      "originPath": "bg1-catalogue-client-prototype/VinylCatalogueTypes.cpp",
+      "originRawSha256": "6a80f7b74b85822959068a668f36d6c2a5f5faf69a733d13bb357b263a18c280"
+    },
+    {
+      "path": "native/vinyl/backend/bg1-catalogue-client-prototype/VinylCatalogueTypes.h",
+      "sha256": "9ea9668d2177f71d4c2e2f1925d41a7989bcd0a06b04f58b61d4f4ffa3822874",
+      "bytes": 6049,
+      "originPath": "bg1-catalogue-client-prototype/VinylCatalogueTypes.h",
+      "originRawSha256": "9ea9668d2177f71d4c2e2f1925d41a7989bcd0a06b04f58b61d4f4ffa3822874"
+    },
+    {
+      "path": "native/vinyl/backend/bg2-discovery-enrichment-prototype/DiscoveryEnrichment.cpp",
+      "sha256": "ebcbfaf9096335dbafca5239d35353c289377a3b2baa3f3c09677203667abc5f",
+      "bytes": 11857,
+      "originPath": "bg2-discovery-enrichment-prototype/DiscoveryEnrichment.cpp",
+      "originRawSha256": "ebcbfaf9096335dbafca5239d35353c289377a3b2baa3f3c09677203667abc5f"
+    },
+    {
+      "path": "native/vinyl/backend/bg2-discovery-enrichment-prototype/DiscoveryEnrichment.h",
+      "sha256": "ba088e988ac7620ea51701d1d6ec13aabad2a7ef93365c91b5f847d31e7b7449",
+      "bytes": 3973,
+      "originPath": "bg2-discovery-enrichment-prototype/DiscoveryEnrichment.h",
+      "originRawSha256": "ba088e988ac7620ea51701d1d6ec13aabad2a7ef93365c91b5f847d31e7b7449"
+    },
+    {
+      "path": "native/vinyl/backend/bg2-discovery-enrichment-prototype/test_discovery_enrichment.cpp",
+      "sha256": "f94b031cf45082b8e7563f38a31c3d2faf7fd39a919f82b952280978be1c6646",
+      "bytes": 21488,
+      "originPath": "bg2-discovery-enrichment-prototype/test_discovery_enrichment.cpp",
+      "originRawSha256": "f94b031cf45082b8e7563f38a31c3d2faf7fd39a919f82b952280978be1c6646"
+    },
+    {
+      "path": "native/vinyl/backend/CMakeLists.txt",
+      "sha256": "a5e0f4ddf3d819d6ebcb3bb1258108fa5dd546d0b3891fa8195ee2b05e28b67a",
+      "bytes": 5325
+    },
+    {
+      "path": "native/vinyl/backend/w4-end-to-end-prototype/fake_play_journey.cpp",
+      "sha256": "76d37e87f54e2991902cad1815e668a086981c4eef6fe0a37b72a47287c69257",
+      "bytes": 44376,
+      "originPath": "w4-end-to-end-prototype/fake_play_journey.cpp",
+      "originRawSha256": "bb5b07ddc66bb6dff82bcfb5532856bce2523f3f73fc81f67922db1a5d014da0"
+    },
+    {
+      "path": "native/vinyl/backend/w4-end-to-end-prototype/real_cue_journey.cpp",
+      "sha256": "f4474d99da920122b63defa58e696126bb689b7a5d228f5fba95de0fef685104",
+      "bytes": 43217,
+      "originPath": "w4-end-to-end-prototype/real_cue_journey.cpp",
+      "originRawSha256": "e6abcbf3f5f4ac0d1d6631ccca552c921d4a6f39cb515e362fb46d0f8a7ffb0d"
+    },
+    {
+      "path": "native/vinyl/backend/w4-end-to-end-prototype/W4ComposedIntegration.cpp",
+      "sha256": "c89807d2ef74a062f62a89dcc6055a93a123ccb84a60ed7cde3cb10a03830d1d",
+      "bytes": 43645,
+      "originPath": "w4-end-to-end-prototype/W4ComposedIntegration.cpp",
+      "originRawSha256": "c89807d2ef74a062f62a89dcc6055a93a123ccb84a60ed7cde3cb10a03830d1d"
+    },
+    {
+      "path": "native/vinyl/backend/w4-end-to-end-prototype/W4ComposedIntegration.h",
+      "sha256": "c89f612d81ec63f584e83b1fd50fece7afc3963535ecbc13f43c683bf9e0a0b6",
+      "bytes": 357,
+      "originPath": "w4-end-to-end-prototype/W4ComposedIntegration.h",
+      "originRawSha256": "447bb00967170f917e4e2efbfedb66d2a4e6d037b3142d0a7713a5de8b6b123b"
+    },
+    {
+      "path": "native/vinyl/backend/w4-end-to-end-prototype/W4TestFixtures.h",
+      "sha256": "1570f79ff7cb2fcb38485ef82b57f9fdb3f7a7ceda1589e6ba22ae1ca2893998",
+      "bytes": 12311,
+      "originPath": "w4-end-to-end-prototype/W4TestFixtures.h",
+      "originRawSha256": "0e6e2214c56533319e8d797a81d554da9294b40b9333c95aba41d24c34e67615"
+    },
+    {
+      "path": "native/vinyl/backend/w4-superbuild/superbuild_link_smoke.cpp",
+      "sha256": "74d995caa4a68b0ce69e90a3554a1656ff8828ea641aeff887202b13c5f43227",
+      "bytes": 991,
+      "originPath": "w4-superbuild/superbuild_link_smoke.cpp",
+      "originRawSha256": "74d995caa4a68b0ce69e90a3554a1656ff8828ea641aeff887202b13c5f43227"
+    },
+    {
+      "path": "tests/vinyl-backend/.gitattributes",
+      "sha256": "a79691a93b46e49ce460c26ef22afcc03d6eca1e63bf2edbc20e96159510f6c9",
+      "bytes": 14
+    },
+    {
+      "path": "tests/vinyl-backend/.gitignore",
+      "sha256": "32dae3052f331ee34d628ef535709b301259a45df7c7522c4d35dcf49873f00b",
+      "bytes": 13
+    },
+    {
+      "path": "tests/vinyl-backend/CMakeLists.txt",
+      "sha256": "97d0fa2fbce8ff0871a898bca33afd90bcd31cb802cb46079fd079cb884fa630",
+      "bytes": 8293
+    },
+    {
+      "path": "tests/vinyl-backend/README.md",
+      "sha256": "ebb3557cc629a3385a62fecec2dab00e4fa3be77ef9d4990fd23e0ec3675f0d0",
+      "bytes": 2401
+    },
+    {
+      "path": "tests/vinyl-backend/test_receiving_inventory.py",
+      "sha256": "08179701d2cead30a79c1387b25c067a976053876d77d1aa4f52aabe3a1315ee",
+      "bytes": 1408
+    },
+    {
+      "path": "tests/vinyl-backend/verify_inventory.py",
+      "sha256": "6592406f48e065b67f17c802a7cc8700768de7e4a508799bad1a0c338c6ea5d5",
+      "bytes": 2946
+    }
+  ],
+  "runtimeFixtures": [
+    {
+      "path": "tests/lanista_capture/assets/Colosseum.mp4",
+      "sha256": "72c09643e46b832a76b7584e1b7f6d5eb206c05620eec27123ec38bc65b89895",
+      "bytes": 173646
+    },
+    {
+      "path": "tests/fixtures/vault/media/tiny.mp4",
+      "sha256": "92d18113b1a74254407da1de8a356847b023b120a7ef6b810787ec53514be131",
+      "bytes": 2771
+    },
+    {
+      "path": "tests/fixtures/vault/media/tiny-audio.m4a",
+      "sha256": "56b730a4cb5bd2bbf4c04396c107e3e942e578098088b7630bb66b2afc91328d",
+      "bytes": 9978
+    }
+  ],
+  "dependencyInputs": [
+    {
+      "file": "Qt6Core.dll",
+      "sha256": "fae4778a42e93adc82b831c879c886a05147e9cc26760808d21116be5547259b",
+      "bytes": 10480440
+    },
+    {
+      "file": "libmpv-2.dll",
+      "sha256": "f709c7ca8b183bec76b8158bf0c45c53018c63366750729352612f228ff7bdea",
+      "bytes": 119757824
+    },
+    {
+      "file": "mpv/client.h",
+      "sha256": "1acf99ee77c8c2a6f1d1993bd81bbc8a91d27fb5924e80171670e6139a4bd353",
+      "bytes": 86136
+    },
+    {
+      "file": "MpvQt/mpvcontroller.h",
+      "sha256": "dbd78627870c59c892956752b671cdf5a93ccfbf187ba946d099c7186aa282d5",
+      "bytes": 5977
+    }
+  ]
+}

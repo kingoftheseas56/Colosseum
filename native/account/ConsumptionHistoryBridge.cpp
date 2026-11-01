@@ -54,6 +54,8 @@ ConsumptionHistoryBridge::ConsumptionHistoryBridge(ActivityStore *activity,
 }
 
 bool ConsumptionHistoryBridge::projectActivityFact(const QVariantMap &event) {
+    if (event.value(QStringLiteral("type")).toString() == QLatin1String("music_action"))
+        return true;
     // Vinyl currently has device-local occurrence identities. Project those into
     // the profile's local History while preserving their non-portable contract.
     // Other local media retain the existing exclusion policy.

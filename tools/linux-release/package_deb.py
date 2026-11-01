@@ -11,6 +11,13 @@ import sys
 import tempfile
 
 
+def deb_build_command(root, output):
+    # Restore XZ for both archive members and select level 6 explicitly;
+    # dpkg defaults (or a host's compression environment) must not grow assets.
+    return ['dpkg-deb', '--root-owner-group', '-Zxz', '-z6',
+            '--uniform-compression', '--build', str(root), str(output)]
+
+
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--stage', required=True, type=Path)
@@ -67,20 +74,22 @@ def main():
         # store, which only ca-certificates provides. A hard dependency, never a
         # recommendation and never a bundled copy: distro trust-root updates must
         # keep reaching installed systems.
+        # GTK's native file chooser also needs the distro's GSettings schema data,
+        # supplied by libgtk-3-common.
         control.write_text(f'Package: colosseum\nVersion: {version}\nArchitecture: amd64\n'
                            'Maintainer: Colosseum Project\nSection: video\nPriority: optional\n'
                            f'Installed-Size: {(size + 1023) // 1024}\n'
                            'Depends: libc6 (>= 2.39), libgl1, libegl1, libglx0, libglvnd0, libopengl0, '
                            'libdrm2, libgbm1, libvulkan1, libva2, libva-drm2, libva-x11-2, '
-                           'libasound2-data, fontconfig, fonts-dejavu-core, xdg-utils, ca-certificates\n'
+                           'libasound2-data, fontconfig, fonts-dejavu-core, xdg-utils, ca-certificates, '
+                           'libgtk-3-common\n'
                            'Homepage: https://getcolosseum.world\n'
                            'Description: Colosseum native media application\n'
                            ' Manga, comics, books and Theatre with optional accounts.\n'
                            ' Vinyl and Feria remain Coming Soon. Linux updates are manual.\n')
         output.parent.mkdir(parents=True, exist_ok=True)
         intermediate = temporary / 'candidate.deb'
-        subprocess.run(['dpkg-deb', '--root-owner-group', '-Zgzip', '-z6', '--build',
-                        str(root), str(intermediate)], check=True)
+        subprocess.run(deb_build_command(root, intermediate), check=True)
         shutil.copyfile(intermediate, output)
     with output.open('rb') as stream:
         digest = hashlib.file_digest(stream, 'sha256').hexdigest()

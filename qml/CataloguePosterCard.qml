@@ -23,6 +23,9 @@ Item {
     property bool testHovered: false
     // "classic" | "gallery" — default classic so a shared-file change never silently restyles a world.
     property string visualProfile: "classic"
+    // Music sleeves use the same gallery interaction with square artwork.
+    property real artworkRatio: card._m.posterRatio
+    property string artworkObjectName: ""
     // optional source attribution, revealed bottom-right on gallery hover only (Theatre supplies "IMDb").
     property string hoverSourceText: ""
     // Biblio hook (Discover shared-shell, Task 5, arc 2026-08-01): when true, the reveal
@@ -94,7 +97,7 @@ Item {
     Item {
         id: frame
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: Math.floor(width * card._m.posterRatio)
+        height: Math.floor(width * card.artworkRatio)
 
         transform: Translate {
             y: (card.effectiveHovered || card.keyboardFocused) ? -card._m.hoverLift : 0
@@ -121,7 +124,7 @@ Item {
             id: art
             // Automation identity (Lanista): ride the card's name so the bridge can read this
             // renderer's candidate/decode state for a specific item. Empty when the card is unnamed.
-            objectName: card.objectName.length > 0 ? card.objectName + "_art" : ""
+            objectName: card.artworkObjectName || (card.objectName.length > 0 ? card.objectName + "_art" : "")
             visible: !card.skeleton
             anchors.fill: parent
             radius: card._m.posterRadius

@@ -14,12 +14,17 @@
 import QtQuick
 import QtQuick.Controls
 import "MangaVolumes.js" as Vol
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
     objectName: "mangaSeriesPage"
     property Item backdrop
     property string seriesTitle: ""
+    // An existing source-owned title reopened from a named collection. The
+    // provider ID is authoritative; its display title never re-enters search.
+    property var exactCollectionReference: null
     signal backRequested()
     signal minimizeRequested()
     signal fullscreenRequested()
@@ -391,6 +396,20 @@ Item {
         volumes = []
         chaptersReady = false; artReady = false; volumesReady = false
         _tankobanPrepared = false
+        if (exactCollectionReference && exactCollectionReference.sourceId) {
+            var ref = exactCollectionReference
+            seriesId = String(ref.sourceId)
+            seriesUrl = String((ref.payload || {}).seriesUrl || "")
+            cover = String(ref.cover || "")
+            author = String(ref.creator || "")
+            year = parseInt(String(ref.year || ""), 10) || 0
+            artReady = true
+            revealGuard.restart()
+            Manga.volumes(seriesId, seriesTitle)
+            Manga.chapters(seriesId)
+            Manga.detail(seriesId, seriesUrl, seriesTitle, cover)
+            return
+        }
         if (seriesTitle.length) {
             revealGuard.restart()        // never hang on a dead source — reveal what we have after N s
             Manga.search(seriesTitle)    // → chapters + WeebCentral detail (then volumes, keyed by its id)
@@ -413,6 +432,7 @@ Item {
     Connections {
         target: Manga
         function onSearchResults(results) {
+            if (page.exactCollectionReference) return
             if (results.length === 0) {
                 page.errorMsg = "“" + page.seriesTitle + "” wasn’t found on WeebCentral."
                 page.loading = false
@@ -450,6 +470,7 @@ Item {
             if (!page.synopsis.length && d.description && d.description.length) page.synopsis = d.description
         }
         function onArtResult(a) {
+            if (page.exactCollectionReference) return
             if (a.banner && a.banner.length) page.banner = a.banner
             if (a.cover && a.cover.length) page.cover = a.cover
             if (a.description && a.description.length) page.synopsis = a.description
@@ -645,7 +666,8 @@ Item {
                     // Primary CTA — Read. Theatre names the exact episode its button will
                     // play ("Watch S1 · E3"); the same promise here names the volume, so the
                     // button never lies about where it lands.
-                    Row {
+                    Flow {
+                        width: parent.width
                         spacing: 12
                         topPadding: 8
                         Rectangle {
@@ -1064,6 +1086,7 @@ Item {
         score: page.score
         chapters: page.chaptersModel
         collectionEntry: page.collectionEntry()
+        namedCollectionReference: CollectionsReferences.weebcentral(page)
         onBackRequested: page.backRequested()
         onMinimizeRequested: page.minimizeRequested()
         onFullscreenRequested: page.fullscreenRequested()

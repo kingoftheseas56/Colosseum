@@ -14,6 +14,8 @@
 pragma ComponentBehavior: Bound
 import QtQuick
 import QtQuick.Controls
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: page
@@ -50,7 +52,80 @@ Item {
     property var tankobanVolumesRef: (typeof TankobanVolumes !== "undefined") ? TankobanVolumes : null
     property var mangaEngineRef: (typeof Manga !== "undefined") ? Manga : null
     property var downloadsRef: (typeof Downloads !== "undefined") ? Downloads : null
+    property var progressRef: (typeof Progress !== "undefined") ? Progress : null
+    property int _downloadAvailabilityRevision: 0
+    signal resumeSavedRequested(var entry)
+    signal languageSettingsRequested()
+
+    // Chapter-mode CTA uses the existing ProgressStore record, never a discovery guess.
+    // A completed download is required before presenting a one-click Continue action.
+    readonly property var savedChapterEntry: {
+        var progress = page.progressRef
+        var revision = progress && progress.revision !== undefined ? progress.revision : 0
+        if (!progress || !page.seriesId.length || typeof progress.get !== "function") return ({})
+        var saved = progress.get("manga", page.seriesId) || ({})
+        if (saved.id && String(saved.id) !== page.seriesId) return ({})
+        var resume = saved.resume || ({})
+        return String(resume.chapterId || "").trim().length ? saved : ({})
+    }
+    readonly property string savedChapterId: String((savedChapterEntry.resume || ({})).chapterId || "")
+    readonly property bool savedChapterReady: {
+        var revision = page._downloadAvailabilityRevision
+        if (!page.savedChapterId.length || !page.downloadsRef
+                || typeof page.downloadsRef.statusOf !== "function") return false
+        var state = page.downloadsRef.statusOf(page.savedChapterId) || ({})
+        return String(state.state || "") === "done"
+    }
+    readonly property string savedChapterCtaLabel: {
+        if (!page.savedChapterId.length) return ""
+        var label = String(page.savedChapterEntry.sub || "saved chapter").trim()
+        var position = Number((page.savedChapterEntry.resume || ({})).page || 0)
+        return "Continue " + label + (isFinite(position) && position > 0
+            ? " · p. " + Math.floor(position) : "")
+    }
+    readonly property string savedChapterCtaMetadata: {
+        var entry = page.savedChapterEntry || ({})
+        var resume = entry.resume || ({})
+        var chapter = String(entry.sub || "").trim()
+        if (!chapter.length || chapter.toLowerCase() === "chapter"
+                || chapter.toLowerCase() === "saved chapter") {
+            var chapterNumber = resume.chapterNumber !== undefined && resume.chapterNumber !== null
+                ? String(resume.chapterNumber).trim() : ""
+            var numericChapterNumber = Number(chapterNumber)
+            if (chapterNumber.length && isFinite(numericChapterNumber))
+                chapterNumber = String(numericChapterNumber)
+            chapter = chapterNumber.length ? qsTr("Chapter %1").arg(chapterNumber) : ""
+        }
+        var position = Number(resume.page || 0)
+        var details = []
+        if (chapter.length) details.push(chapter)
+        if (isFinite(position) && position > 0) details.push(qsTr("Page %1").arg(Math.floor(position)))
+        return details.join(" · ") || qsTr("Saved position")
+    }
+    function resumeSavedChapter() {
+        if (!page.savedChapterReady || !page.progressRef) return false
+        var fresh = page.progressRef.get("manga", page.seriesId) || ({})
+        if (String((fresh.resume || ({})).chapterId || "") !== page.savedChapterId) return false
+        var state = page.downloadsRef.statusOf(page.savedChapterId) || ({})
+        if (String(state.state || "") !== "done") return false
+        page.resumeSavedRequested(fresh)
+        return true
+    }
     property var extensionsRef: (typeof Extensions !== "undefined") ? Extensions : null
+    // Active-profile preference owner; injected in isolated QML harnesses.
+    property var preferencesRef: (typeof ProfilePreferences !== "undefined") ? ProfilePreferences : null
+    property bool _writingLanguagePreference: false
+    readonly property bool hasSeriesLanguageOverride: {
+        var revision = page.preferencesRef && page.preferencesRef.mangaLanguageRevision !== undefined
+            ? page.preferencesRef.mangaLanguageRevision : 0
+        return (page._seriesPreferredChapterLanguage().length > 0)
+            || (!page.preferencesRef && page._chapterLanguageExplicit)
+    }
+    onPreferencesRefChanged: {
+        page._chapterLanguageExplicit = false
+        page._refreshChapterLanguages()
+        if (page.chapterMode) page._loadChapterCatalogue(true)
+    }
     property bool _lastTankoyomiEnabled: false
     readonly property bool tankoyomiEnabled: {
         var ext = page.extensionsRef
@@ -63,8 +138,8 @@ Item {
         return false
     }
 
-    // Arc 39: Chapter mode is a sibling surface. The existing Tankoban page remains
-    // the default; switching to Chapters enters the enabled Tankoyomi provider chain.
+    // Chapter mode is the Manhwa default and a sibling choice for other publications.
+    // It uses the enabled Tankoyomi provider chain.
     property bool chapterMode: false
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
@@ -103,6 +178,7 @@ Item {
     // shelf-less page, never a guess (identity-key vocabulary, plan Standing constraints).
     property int resolvedMalId: 0
     property var catalogRow: ({})   // the mangaById() row backing the masthead facts
+    readonly property bool isManhwa: String(page.catalogRow.type || "").toLowerCase() === "manhwa"
     Timer { id: malSemanticRetry; interval: 75; onTriggered: page.resolve() }
     Connections {
         target: page.malCatalogRef
@@ -134,10 +210,8 @@ Item {
            : errorMsg)
 
     // --- Tankoban mode ---
-    // Tankoban mode is PERMANENT for qualified series (2026-07-29 ruling): the gate in
-    // ComickCatalogClient emits a complete volume list or nothing at all, so
-    // volumes.length IS the verdict. No toggle, no per-series persistence.
-    property bool tankobanMode: volumes.length > 0
+    // Manhwa uses chapters; other publications retain the existing volume gate.
+    property bool tankobanMode: !page.isManhwa && volumes.length > 0
     property bool _tankobanPrepared: false
     // A per-series remote cache never makes the entire local catalogue ready.
     property int _catalogRevision: 0
@@ -186,6 +260,8 @@ Item {
         page._clearPendingChapterRead()
         page.chapterMode = false
         page.chapterSourceSeriesId = ""
+        page._chapterLanguageExplicit = false
+        page._refreshChapterLanguages()
         page.chaptersModel = []
         page.chaptersError = ""
         page._tankobanPrepared = false
@@ -194,11 +270,10 @@ Item {
         Qt.callLater(page._applyChapterOnly)
     }
 
-    // A series with no volume data in the catalogue has nothing for Tankoban Mode to show
-    // (it used to fall back to a "Search nyaa" masthead), so it opens straight in Chapter
-    // Mode and the mode switch is hidden (Hemanth, 2026-09-29). If the shelf turns up late
-    // (catalogue still warming), a forced Chapter Mode hands back to Tankoban Mode.
-    readonly property bool chapterOnly: !page.loading && !page.hasShelf
+    // Manhwa always uses chapters. Other series without volume data also open in
+    // Chapter Mode with the switch hidden. If their shelf turns up late, a forced
+    // Chapter Mode hands back to Tankoban Mode.
+    readonly property bool chapterOnly: !page.loading && (page.isManhwa || !page.hasShelf)
     property bool _chapterForced: false
     onChapterOnlyChanged: Qt.callLater(page._applyChapterOnly)
     function _applyChapterOnly() {
@@ -207,6 +282,21 @@ Item {
             page._enterChapterMode()
         } else if (!page.chapterOnly && page._chapterForced && page.chapterMode) {
             page._chapterForced = false
+            page._enterTankobanMode()
+        }
+    }
+
+    // Reading history owns the reopen mode; live progress never changes this visit's selection.
+    function _restoreReadingMode() {
+        if (!page.seriesId.length || !page.progressRef || typeof page.progressRef.get !== "function") return
+        var chapter = page.progressRef.get("manga", page.seriesId) || ({})
+        var volume = page.progressRef.get("tankoban", page.seriesId) || ({})
+        var chapterTime = Number(chapter.updatedAt || 0)
+        var volumeTime = Number(volume.updatedAt || 0)
+        if (chapterTime > 0 && chapterTime >= volumeTime) {
+            page._chapterForced = false
+            if (!page.chapterMode) page._enterChapterMode()
+        } else if (volumeTime > 0 && !page.isManhwa && page.chapterMode) {
             page._enterTankobanMode()
         }
     }
@@ -250,28 +340,37 @@ Item {
         return String(member || "").trim().toLowerCase()
     }
 
+    function _seriesPreferredChapterLanguage() {
+        var prefs = page.preferencesRef
+        if (!prefs || !page.seriesId.length || typeof prefs.mangaLanguageForSeries !== "function")
+            return ""
+        return String(prefs.mangaLanguageForSeries(page.seriesId) || "").trim().toLowerCase()
+    }
+
     function _refreshChapterLanguages() {
         var rows = (page.mangaEngineRef && page.mangaEngineRef.chapterLanguages)
             ? (page.mangaEngineRef.chapterLanguages() || []) : []
         page.chapterLanguages = rows.length ? rows : [{ "code": "en", "label": "English", "providerCount": 1 }]
         if (page._chapterLanguageExplicit && page._chapterLanguageAvailable(page.selectedChapterLanguage))
             return
-        if (page._chapterLanguageExplicit)
-            page._chapterLanguageExplicit = false
+        page._chapterLanguageExplicit = false
 
+        // Never silently replace an unavailable saved language with English.
+        // The catalogue view will display its existing unavailable-language state.
+        var perSeries = page._seriesPreferredChapterLanguage()
+        if (perSeries.length) {
+            page.selectedChapterLanguage = perSeries
+            return
+        }
         var defaultMember = page.mangaEngineRef
             ? page.mangaEngineRef.chapterDefaultLanguage : undefined
-        var hasDefaultGetter = defaultMember !== undefined && defaultMember !== null
-        if (hasDefaultGetter) {
+        if (defaultMember !== undefined && defaultMember !== null) {
             var configured = page._configuredChapterLanguage()
-            // A stale/unsupported persisted value is an honest empty state. It
-            // must never silently route a request through another language.
             page.selectedChapterLanguage = page._chapterLanguageAvailable(configured)
                 ? configured : ""
             return
         }
-
-        // Keep legacy bare-page construction usable when no Manga bridge exists.
+        // Bare QML harnesses without a Manga bridge retain their English default.
         if (!page._chapterLanguageAvailable(page.selectedChapterLanguage))
             page.selectedChapterLanguage = page._chapterLanguageAvailable("en") ? "en" : ""
     }
@@ -279,9 +378,42 @@ Item {
     function _selectChapterLanguage(code) {
         var next = String(code || "").trim().toLowerCase()
         if (!page._chapterLanguageAvailable(next)) return
+        var prefs = page.preferencesRef
+        if (prefs && typeof prefs.setMangaLanguageForSeries === "function") {
+            if (!page.seriesId.length) {
+                page.chaptersError = "Manga identity unavailable. Language was not saved."
+                return
+            }
+            page._writingLanguagePreference = true
+            var saved = false
+            try { saved = prefs.setMangaLanguageForSeries(page.seriesId, next) }
+            finally { page._writingLanguagePreference = false }
+            if (!saved) {
+                page.chaptersError = "Unable to save manga language. Try again."
+                return
+            }
+        }
         page._chapterLanguageExplicit = true
         if (next === page.selectedChapterLanguage) return
         page.selectedChapterLanguage = next
+        page._clearPendingChapterRead()
+        if (page.chapterMode) page._loadChapterCatalogue(true)
+    }
+
+    function _useDefaultChapterLanguage() {
+        var prefs = page.preferencesRef
+        if (prefs && page.seriesId.length && typeof prefs.clearMangaLanguageForSeries === "function") {
+            page._writingLanguagePreference = true
+            var cleared = false
+            try { cleared = prefs.clearMangaLanguageForSeries(page.seriesId) }
+            finally { page._writingLanguagePreference = false }
+            if (!cleared) {
+                page.chaptersError = "Unable to reset manga language. Try again."
+                return
+            }
+        }
+        page._chapterLanguageExplicit = false
+        page._refreshChapterLanguages()
         page._clearPendingChapterRead()
         if (page.chapterMode) page._loadChapterCatalogue(true)
     }
@@ -357,6 +489,7 @@ Item {
     }
 
     function _enterTankobanMode() {
+        if (page.isManhwa) return
         page._clearPendingChapterRead()
         page._invalidateChapterRequest()
         page.openChapterId = ""
@@ -368,6 +501,8 @@ Item {
     function _openChapter(chapterId, label) {
         var id = String(chapterId || "")
         if (!id.length) return
+        page.chapterMode = true
+        page._chapterForced = false
         page.openChapterId = ""
         page.openChapterLabel = ""
         page.openEntryKind = "manga"
@@ -450,6 +585,7 @@ Item {
     // no C++ change was needed for this slice. One-shot per seriesId — onSeriesIdChanged
     // resets the latch for a reused page instance.
     function _prepareTankoban() {
+        if (page.isManhwa) return
         if (!page.hasShelf) return                 // no known catalogue count: never seed
         if (!page.tankobanVolumesRef || !page.seriesId.length) return
         if (page._tankobanPrepared) return
@@ -740,6 +876,19 @@ Item {
     }
 
     Connections {
+        target: page.preferencesRef
+        ignoreUnknownSignals: true
+        function onMangaLanguagesChanged() {
+            if (page._writingLanguagePreference) return
+            var before = page.selectedChapterLanguage
+            page._chapterLanguageExplicit = false
+            page._refreshChapterLanguages()
+            if (page.chapterMode && before !== page.selectedChapterLanguage)
+                page._loadChapterCatalogue(true)
+        }
+    }
+
+    Connections {
         target: page.extensionsRef
         ignoreUnknownSignals: true
         function onChanged() { page._handleTankoyomiEnabledChanged() }
@@ -749,6 +898,7 @@ Item {
         target: page.downloadsRef
         ignoreUnknownSignals: true
         function onFinished(chapterId) {
+            page._downloadAvailabilityRevision++
             if (!page.chapterMode || String(chapterId) !== page.pendingReadChapterId) return
             var id = page.pendingReadChapterId
             var label = page.pendingReadChapterLabel
@@ -756,9 +906,11 @@ Item {
             page._openChapter(id, label)
         }
         function onFailed(chapterId, reason) {
+            page._downloadAvailabilityRevision++
             if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
         }
         function onRemoved(chapterId) {
+            page._downloadAvailabilityRevision++
             if (String(chapterId) === page.pendingReadChapterId) page._clearPendingChapterRead()
         }
     }
@@ -795,6 +947,7 @@ Item {
         return "Read"
     }
     function readPrimary() {
+        if (page.isManhwa) { page._enterChapterMode(); return }
         // resume beats everything — it is the only target the user already chose
         if (readingRoom.library.continueVolumeId.length) { page._readVolume(readingRoom.library.continueVolumeId); return }
         var rows = readingRoom.library.volumeRows || []
@@ -814,7 +967,9 @@ Item {
         // read. seriesId is empty until the search resolves; LibraryButton already no-ops
         // on an empty entry.id, so that naturally gates saving until identity is ready.
         return { "id": page.seriesId, "type": "manga",
-                 "title": page.seriesTitle, "cover": page.cover, "payload": ({}) }
+                 "title": page.seriesTitle, "cover": page.cover,
+                 "payload": ({sourceSearchTitle:page.sourceSearchTitle, sourceSearchAliases:page.sourceSearchAliases,
+                              sourceRequiredMarkers:page.sourceRequiredMarkers}) }
     }
 
     Theme { id: theme }
@@ -833,12 +988,13 @@ Item {
     // ready, re-run resolve() so the page catches up without the user backing out and
     // reopening it. Targets the REF (not the bare MalCatalog context property) so a harness
     // driving a fake catalog through malCatalogRef exercises the same path production does.
-    // Guarded on resolvedMalId === 0 so an already-resolved page NEVER re-resolves — a second
-    // readyChanged pulse (or a page opened after the catalog was already ready) is a no-op.
+    // A remote ID can resolve before its MAL row exists. Retry that case too, so the
+    // publication type can select the series surface; a complete row needs no retry.
     Connections {
         target: page.malCatalogRef
         function onReadyChanged() {
-            if (page.resolvedMalId === 0 && page.seriesTitle.length) page.resolve()
+            if ((page.resolvedMalId === 0 || Object.keys(page.catalogRow).length === 0)
+                    && page.seriesTitle.length) page.resolve()
         }
     }
 
@@ -928,6 +1084,13 @@ Item {
         // synchronous batch as everything else, so by the time `ready` flips true below,
         // every masthead scalar an external reader can observe is already final.
         tankobanSeriesMasthead.displayTitle = seriesTitle
+        if (page.isManhwa) {
+            // Select the series surface without closing an existing Library reader.
+            page._refreshChapterLanguages()
+            page.chapterMode = true
+            page._loadChapterCatalogue(false)
+        }
+        page._restoreReadingMode()
         loading = false
     }
 
@@ -1090,7 +1253,8 @@ Item {
             spacing: 9
 
             Text {
-                text: "Manga  ·  Tankoban"
+                objectName: "mangaPublicationLabel"
+                text: (page.isManhwa ? "Manhwa" : "Manga") + "  ·  Tankoban"
                 color: theme.gold
                 font.family: theme.ui; font.pixelSize: 11
                 font.letterSpacing: 3; font.capitalization: Font.AllUppercase
@@ -1138,6 +1302,10 @@ Item {
                         onTriggered: page.toggleLibrary()
                     }
                 }
+            }
+            CollectionsUi.AddToCollectionsButton {
+                objectName: "mangaAddToCollections"
+                reference: CollectionsReferences.manga(page.collectionEntry(), page.author, page.year)
             }
             Flow {
                 width: parent.width
@@ -1217,6 +1385,25 @@ Item {
             Flow {
                 width: parent.width
                 spacing: 10
+                // Chapter Mode gets a direct saved-chapter action when its exact
+                // downloaded ID is still present. No new chapter/source is guessed.
+                MangaContinueButton {
+                    objectName: "tankobanChapterContinueAction"
+                    visible: page.chapterMode && page.savedChapterReady
+                    height: 60
+                    width: Math.min(parent.width, 258)
+                    metadata: page.savedChapterCtaMetadata
+                    keyboardObjectName: "tankobanChapterContinueKeyboardAction"
+                    onTriggered: page.resumeSavedChapter()
+                }
+                Text {
+                    objectName: "tankobanSavedChapterUnavailable"
+                    visible: page.chapterMode && page.savedChapterId.length > 0
+                             && !page.savedChapterReady
+                    text: "Saved chapter unavailable on this device · choose a source below"
+                    color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+                    wrapMode: Text.WordWrap; width: Math.min(parent.width, 420)
+                }
                 // A shelf-less series has no volume flow, so its one honest action lives here.
                 Rectangle {
                     objectName: "tankobanSeriesPrimaryAction"
@@ -1328,14 +1515,20 @@ Item {
                     anchors.right: parent.right; anchors.rightMargin: 6
                     anchors.verticalCenter: parent.verticalCenter
                     width: 170; height: 30
-                    model: page.chapterLanguages
+                    model: [{ "code": "", "label": "Use preferred language" }].concat(page.chapterLanguages)
                     textRole: "label"
-                    currentIndex: page.languageIndex(page.selectedChapterLanguage)
-                    displayText: currentIndex >= 0 && page.chapterLanguages[currentIndex]
-                        ? String(page.chapterLanguages[currentIndex].label || "English") : "Choose"
+                    currentIndex: page.hasSeriesLanguageOverride
+                        ? page.languageIndex(page.selectedChapterLanguage) + 1 : 0
+                    displayText: {
+                        var languageIndex = page.languageIndex(page.selectedChapterLanguage)
+                        var name = languageIndex >= 0 && page.chapterLanguages[languageIndex]
+                            ? String(page.chapterLanguages[languageIndex].label || "English") : "Unavailable"
+                        return page.hasSeriesLanguageOverride ? name : "Default · " + name
+                    }
                     onActivated: function(index) {
-                        if (index >= 0 && page.chapterLanguages[index])
-                            page._selectChapterLanguage(String(page.chapterLanguages[index].code || "en"))
+                        if (index === 0) page._useDefaultChapterLanguage()
+                        else if (index > 0 && page.chapterLanguages[index - 1])
+                            page._selectChapterLanguage(String(page.chapterLanguages[index - 1].code || ""))
                     }
                     contentItem: Text {
                         leftPadding: 10; rightPadding: 22; verticalAlignment: Text.AlignVCenter
@@ -1350,6 +1543,27 @@ Item {
                     }
                     background: Rectangle { radius: 15; color: Qt.rgba(1, 1, 1, 0.05) }
                 }
+            }
+            Button {
+                id: languageSettingsShortcut
+                objectName: "mangaLanguageSettingsShortcut"
+                visible: page.chapterMode
+                enabled: visible
+                width: parent.width; height: 32
+                hoverEnabled: true
+                text: qsTr("Language settings")
+                font.family: theme.ui; font.pixelSize: 12
+                palette.buttonText: theme.gold
+                icon.source: "../assets/icons/settings.svg"
+                icon.width: 14; icon.height: 14; icon.color: theme.gold
+                background: Rectangle {
+                    radius: 7
+                    color: languageSettingsShortcut.down ? Qt.rgba(1,1,1,.12)
+                         : languageSettingsShortcut.hovered ? Qt.rgba(1,1,1,.08) : Qt.rgba(1,1,1,.045)
+                    border.width: 1
+                    border.color: languageSettingsShortcut.visualFocus ? theme.gold : Qt.rgba(1,1,1,.2)
+                }
+                onClicked: page.languageSettingsRequested()
             }
         }
     }
@@ -1371,6 +1585,7 @@ Item {
             seriesId: page.seriesId
             seriesTitle: page.seriesTitle
             service: page.tankobanVolumesRef
+            progress: page.progressRef
             pendingReadVolumeId: page.pendingReadVolumeId
             onReadVolumeRequested: (volumeId) => page._readVolume(volumeId)
             onSourcesRequested: (ctx) => page._openSources(ctx)

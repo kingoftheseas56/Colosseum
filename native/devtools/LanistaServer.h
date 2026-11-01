@@ -59,6 +59,9 @@ class LanistaServer : public QObject
 #ifdef COLOSSEUM_ENABLE_VINYL_TEST_FIXTURES
     std::function<QJsonObject(const QJsonObject&)> m_vinylTestProfileHandler;
 #endif
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    std::function<QJsonObject(const QJsonObject&)> m_collectionsTestProfileHandler;
+#endif
 public:
     explicit LanistaServer(QQmlApplicationEngine* engine, QObject* parent = nullptr);
     // Out-of-line (defined in the .cpp) ONLY so the unique_ptr<LanistaEventLog>
@@ -98,6 +101,12 @@ public:
     }
 #endif
 
+
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    void setCollectionsTestProfileHandler(std::function<QJsonObject(const QJsonObject&)> handler) {
+        m_collectionsTestProfileHandler = std::move(handler);
+    }
+#endif
 
     static constexpr const char* kSchema = "colosseum.dev.v1.0";
 

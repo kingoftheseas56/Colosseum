@@ -2,7 +2,7 @@
 """Verify relocated ELF closure and source/QML identity before archive creation."""
 import argparse, hashlib, json, os, re, subprocess
 from pathlib import Path
-from assemble import elf, sha, SYSTEM
+from assemble import elf, sha, SYSTEM, validate_gdk_pixbuf_cache
 
 def main():
     ap=argparse.ArgumentParser();ap.add_argument('stage',type=Path);ap.add_argument('--report',type=Path,required=True);a=ap.parse_args();root=a.stage.resolve()
@@ -24,8 +24,13 @@ def main():
         deps=subprocess.run(['ldd',str(p)],env=env,text=True,capture_output=True)
         rec['ldd']=deps.stdout.strip()
         if 'not found' in deps.stdout:failures.append('Missing shared library '+rel)
+        if p.parent==root/'usr/lib/gdk-pixbuf-loaders':
+            relocated=subprocess.run(['ldd','-r',str(p)],env=env,text=True,capture_output=True)
+            rec['ldd_relocations']=(relocated.stdout+relocated.stderr).strip()
+            if relocated.returncode or re.search(r'undefined symbol|not found',rec['ldd_relocations'],re.I):
+                failures.append('Unresolved GdkPixbuf module symbols '+rel)
         for line in deps.stdout.splitlines():
-            m=re.match(r'\s*(\S+) => (/\S+) ',line)
+            m=re.match(r'\s*(\S+) => (/.+?) \(',line)
             if not m:continue
             name,location=m.groups()
             if not Path(location).resolve().is_relative_to(root):
@@ -41,9 +46,28 @@ def main():
     fingerprint=hashlib.sha256(material).hexdigest();manifest=(root/'usr/bin/qml-build.manifest').read_text()
     if f'qmlTreeSha256={fingerprint}' not in manifest:failures.append('QML build manifest differs from packaged QML')
     meta=json.loads((root/'BUILD-IDENTITY.json').read_text())
+    pixbuf=meta.get('gdk_pixbuf')
+    if any((root/'usr/lib').glob('libgdk_pixbuf-2.0.so*')) or pixbuf or (root/'usr/lib/gdk-pixbuf-loaders').exists() or (root/'usr/bin/gdk-pixbuf-query-loaders').exists():
+        if not pixbuf:failures.append('Bundled GdkPixbuf lacks matching module provenance')
+        else:
+            recorded=set()
+            for record in pixbuf.get('files',[]):
+                path=(root/record['path']).resolve();recorded.add(path)
+                if not path.is_relative_to(root) or not path.is_file() or not elf(path):
+                    failures.append('Invalid GdkPixbuf provenance path '+record['path'])
+                elif sha(path)!=record.get('sha256') or not record.get('origin') or not record.get('sha256_before_relocation'):
+                    failures.append('GdkPixbuf provenance/hash mismatch '+record['path'])
+            expected=set((root/'usr/lib/gdk-pixbuf-loaders').glob('*.so'))|{root/'usr/bin/gdk-pixbuf-query-loaders'}
+            if recorded!=expected:failures.append('GdkPixbuf provenance does not cover packaged modules/query tool')
+        try:
+            pixbuf_cache=validate_gdk_pixbuf_cache(root,env)
+        except (ValueError,OSError) as error:
+            failures.append(str(error));pixbuf_cache=None
+    else:pixbuf_cache=None
     if sha(root/'usr/bin/colosseum')!=meta['binary_sha256']:failures.append('Binary identity mismatch')
     maximum={k:max(v,key=lambda x:tuple(map(int,x.split('.')))) if v else None for k,v in required.items()}
     report={'status':'FAIL' if failures else 'PASS','failures':failures,'source_commit':meta['source_commit'],'executable_sha256':meta['binary_sha256'],'qml_fingerprint':fingerprint,'elf_count':len(files),'required_symbol_versions_max':maximum,'external_system_libraries':external,'files':files}
+    report['gdk_pixbuf_cache']=pixbuf_cache
     a.report.write_text(json.dumps(report,indent=2)+'\n')
     compact={k:v for k,v in report.items() if k!='files'}
     (root/'package-check.json').write_text(json.dumps(compact,indent=2)+'\n')

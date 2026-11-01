@@ -97,3 +97,25 @@ test('malformed tankoban range declarations fail closed before any payload read'
   assert.deepEqual(f.fetched,[prefix+'manifest.json'],'no payload read for '+name);
  }
 });
+
+test('new manga shelf selections page prepared data and fall through on old publications',async()=>{
+ for(const catalog of ['completed','publishing','short-completed','one-shots','started-1990s','started-2000s','started-2010s']){
+  const f=fixture();
+  assert.equal(await prebuiltCatalogue(f.assets,revision,'mal','discoverPageFiltered',[catalog,[],false,0,24]),null);
+  const g=fixture();
+  g.manifest.lists[selectionKey('mal','discoverPageFiltered',[catalog,[],false])]=g.manifest.lists[selectionKey('mal','discoverPageFiltered',['popular',[],false])];
+  assert.deepEqual((await prebuiltCatalogue(g.assets,revision,'mal','discoverPageFiltered',[catalog,[],false,1020,24])).result.items,g.rows.slice(1020,1044));
+  assert.equal(await prebuiltCatalogue(g.assets,revision,'mal','discoverPageFiltered',[catalog,[],true,0,24]),null,'adult variants must not share results');
+ }
+});
+
+test('format selection misses on old publications fall through, while known empty lists remain authoritative',async()=>{
+ const format=[{axis:'format',key:'manhwa'}],f=fixture();
+ assert.equal(await prebuiltCatalogue(f.assets,revision,'mal','discoverPageFiltered',['popular',format,false,0,24]),null);
+ assert.equal(await prebuiltCatalogue(f.assets,revision,'mal','discoverPage',['popular','format','Manhwa',false,0,24]),null);
+ assert.equal(await prebuiltCatalogue(f.assets,revision,'mal','discoverPageFiltered',['popular',[{axis:'format',key:'novel'}],false,0,24]).then(p=>p.result.items.length),0);
+ const key=selectionKey('mal','discoverPageFiltered',['popular',format,false]);
+ const g=fixture();g.manifest.lists[key]={parts:[],length:0,chunkSize:256,shape:'mal',period:'stable'};
+ assert.deepEqual((await prebuiltCatalogue(g.assets,revision,'mal','discoverPageFiltered',['popular',format,false,0,24])).result.items,[]);
+ assert.equal(await prebuiltCatalogue(f.assets,revision,'mal','discoverPageFiltered',['popular',format,true,0,24]),null);
+});

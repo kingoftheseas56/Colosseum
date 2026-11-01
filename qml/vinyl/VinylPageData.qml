@@ -5,6 +5,7 @@ import "VinylFixtures.js" as Fixtures
 Item {
     id: root
     objectName: "vinylPageData"
+    signal playbackDiscontinuity(real seconds)
     property url artworkRoot: ""
     property string fixtureId: "thriller"
     property string shownEditionId: "original"
@@ -137,14 +138,23 @@ Item {
                 found = i;
         return found;
     }
-    property bool lyricsShown: false
-    property bool autoNotes: false
+    readonly property string readingContextKey: JSON.stringify([fixtureId,playingEditionId,playingDisc,playingIndex])
+    readonly property string lyricsDocumentId: "fixture:"+fixtureId
+    VinylReadingState {
+        id: reading
+        songKey: root.readingContextKey
+        documentId: root.lyricsDocumentId
+    }
+    property alias lyricsShown: reading.lyricsShown
+    property alias autoNotes: reading.autoNotes
+    property alias lyricsFollowing: reading.lyricsFollowing
+    property alias lyricsScrollY: reading.lyricsScrollY
+    property alias notesScrollY: reading.notesScrollY
     property bool videoShown: false
-    property int manualNoteLine: -1
-    property int manualAtLine: -1
+    property alias manualNoteLine: reading.manualNoteLine
     readonly property int activeNoteLine: {
         if (manualNoteLine >= 0)
-            return manualNoteLine;
+            return notes[manualNoteLine] && notes[manualNoteLine].length ? manualNoteLine : -1;
         if (!autoNotes)
             return -1;
         for (var i = currentLineIndex; i >= 0; --i)
@@ -152,6 +162,7 @@ Item {
                 return i;
         return -1;
     }
+    onActiveNoteLineChanged: notesScrollY=0
     signal editionSelected
     signal artistRequested(string name)
     signal queueRequested
@@ -216,6 +227,7 @@ Item {
     }
     function seek(seconds) {
         position = Math.max(0, Math.min(duration, seconds));
+        playbackDiscontinuity(position);
     }
     function seekToLine(index) {
         if (timedLyrics && lyrics[index])
@@ -245,31 +257,25 @@ Item {
         }
     }
     function resetSongTools() {
-        manualNoteLine = -1;
+        reading.resetReading();
         videoShown = false;
     }
     function toggleLyrics() {
-        lyricsShown = !lyricsShown;
-        if (!lyricsShown) {
-            manualNoteLine = -1;
-            autoNotes = false;
-        }
+        reading.toggleLyrics(hasLyrics);
     }
     function toggleNotes() {
-        if (!hasNotes)
-            return;
-        autoNotes = !autoNotes;
-        if (autoNotes)
-            lyricsShown = true;
-        manualNoteLine = -1;
+        reading.toggleNotes(hasNotes);
     }
     function showNotes(index) {
         if (!notes[index] || !notes[index].length)
             return;
-        lyricsShown = true;
-        manualNoteLine = index;
-        manualAtLine = currentLineIndex;
+        reading.showNotes(index);
     }
+    function selectNoteLine(index) {
+        if(Number.isInteger(index) && index>=0 && index<lyrics.length) reading.showNotes(index);
+    }
+    function pauseLyrics(y) { reading.pauseLyrics(y); }
+    function resumeLyrics() { reading.resumeLyrics(); }
     function toggleVideo() {
         if (hasVideo)
             videoShown = !videoShown;
@@ -281,10 +287,6 @@ Item {
             if (notes[i] && notes[i].length)
                 return (lyrics[i].time - lyrics[index].time) * 1000;
         return (duration - (lyrics[index] ? lyrics[index].time : 0)) * 1000;
-    }
-    onCurrentLineIndexChanged: {
-        if (autoNotes && currentLineIndex !== manualAtLine && notes[currentLineIndex])
-            manualNoteLine = -1;
     }
     property Timer clock: Timer {
         interval: 100

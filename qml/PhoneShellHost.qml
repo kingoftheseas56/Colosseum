@@ -65,6 +65,7 @@ Item {
     readonly property var profileRows: [
         // The same doors the desktop has, under the names the app already uses for them
         // (Hemanth, 2026-10-10): the account page, Your Colosseum, trackers, and Stremio.
+        { key: "collections", label: "Your Collections", note: "Titles you keep together" },
         { key: "downloads",  label: "Downloads",      note: "Everything saved on this device" },
         { key: "extensions", label: "Extensions",     note: "Add-ons and sources for every world" },
         { key: "colosseum",  label: "Your Colosseum", note: "History, highlights and stats" },
@@ -108,6 +109,7 @@ Item {
     }
     function openProfileRow(key) {
         switch (key) {
+        case "collections": host.window.openNamedCollectionsPage(); return
         case "downloads":  host.window.openDownloadsPage(); return
         case "extensions": host.window.openExtensionsPage(); return
         case "colosseum":  host.window.openHistoryStatsPage(); return

@@ -1,0 +1,49 @@
+(node:26) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:26) [DEP0044] DeprecationWarning: The `util.isArray` API is deprecated. Please use `Array.isArray()` instead.
+PASS mkv-no-info local-sync
+PASS mkv-no-info local-async
+PASS mkv-no-info fragmented-http
+PASS mkv-nondefault-scale local-sync
+PASS mkv-nondefault-scale local-async
+PASS mkv-nondefault-scale fragmented-http
+PASS mkv-cues-first local-sync
+PASS mkv-cues-first local-async
+PASS mkv-cues-first fragmented-http
+PASS mkv-no-video local-sync
+PASS mkv-no-video local-async
+PASS mkv-no-video fragmented-http
+PASS mkv-no-cues local-sync
+PASS mkv-no-cues local-async
+PASS mkv-no-cues fragmented-http
+PASS mkv-empty-cues local-sync
+PASS mkv-empty-cues local-async
+PASS mkv-empty-cues fragmented-http
+PASS mkv-void-only-cues local-sync
+PASS mkv-void-only-cues local-async
+PASS mkv-void-only-cues fragmented-http
+PASS mkv-no-cuepoints local-sync
+PASS mkv-no-cuepoints local-async
+PASS mkv-no-cuepoints fragmented-http
+PASS mkv-no-matching-cues local-sync
+PASS mkv-no-matching-cues local-async
+PASS mkv-no-matching-cues fragmented-http
+PASS mkv-last-video-9-vs-10 local-sync
+PASS mkv-last-video-9-vs-10 local-async
+PASS mkv-last-video-9-vs-10 fragmented-http
+PASS mp4-tail local-sync
+PASS mp4-tail local-async
+PASS mp4-tail fragmented-http
+PASS mp4-fast local-sync
+PASS mp4-fast local-async
+PASS mp4-fast fragmented-http
+PASS mp4-extended-moov local-sync
+PASS mp4-extended-moov local-async
+PASS mp4-extended-moov fragmented-http
+PASS mp4-large-mdat local-sync
+PASS mp4-large-mdat local-async
+PASS mp4-large-mdat fragmented-http
+PASS mp4-post-mdat-free local-sync
+PASS mp4-post-mdat-free local-async
+PASS mp4-post-mdat-free fragmented-http
+45/45 pinned legacy factory comparisons passed

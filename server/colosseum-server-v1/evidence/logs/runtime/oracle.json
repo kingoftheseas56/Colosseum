@@ -1,0 +1,41 @@
+{
+  "oracle": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "modules": [
+    305,
+    564
+  ],
+  "cases": [
+    {
+      "name": "early missing executable",
+      "status": 500,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": ""
+    },
+    {
+      "name": "spawn failure",
+      "status": 500,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "null"
+    },
+    {
+      "name": "zero-exit invalid probe",
+      "status": 200,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "{\"streams\":[]}"
+    },
+    {
+      "name": "20-second timeout",
+      "status": 500,
+      "headers": {
+        "content-type": "application/json"
+      },
+      "body": "null"
+    }
+  ]
+}

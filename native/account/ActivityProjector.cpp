@@ -6,6 +6,7 @@
 #include <QMetaType>
 #include <QRegularExpression>
 #include <QSet>
+#include <QUuid>
 #include <QVariant>
 #include <QVector>
 
@@ -39,7 +40,8 @@ namespace {
 bool isValidType(const QString &value) {
     return value == QLatin1String("playback_delta")
         || value == QLatin1String("reading_delta")
-        || value == QLatin1String("media_completed");
+        || value == QLatin1String("media_completed")
+        || value == QLatin1String("music_action");
 }
 
 bool isValidWorld(const QString &value) {
@@ -141,6 +143,71 @@ qint64 requireInteger(const QJsonObject &obj, const QString &key) {
         fail(QStringLiteral("invalid %1").arg(key));
     }
     return parsed;
+}
+
+qint64 requireNonnegativeSafeInteger(const QJsonObject &obj, const QString &key) {
+    constexpr qint64 kMaxSafeInteger = 9007199254740991LL;
+    const qint64 parsed = requireInteger(obj, key);
+    if (parsed < 0 || parsed > kMaxSafeInteger)
+        fail(QStringLiteral("invalid %1").arg(key));
+    return parsed;
+}
+
+bool isValidRecommendationEntityKind(const QString &kind) {
+    static const QSet<QString> kinds{
+        QStringLiteral("artist"), QStringLiteral("release_group"), QStringLiteral("release"),
+        QStringLiteral("release_track"), QStringLiteral("recording"), QStringLiteral("work")};
+    return kinds.contains(kind);
+}
+
+void validateRecommendationEntityRef(const QJsonValue &rawValue,
+                                     const QString &expectedKind = QString()) {
+    if (!rawValue.isObject())
+        fail(QStringLiteral("invalid entityRef"));
+    const QJsonObject ref = rawValue.toObject();
+    const QString identity = requireString(ref, QStringLiteral("identity"));
+    const QString kind = requireString(ref, QStringLiteral("kind"));
+    if (!isValidRecommendationEntityKind(kind)
+        || (!expectedKind.isEmpty() && kind != expectedKind))
+        fail(QStringLiteral("invalid entityRef"));
+
+    const QStringList keys = ref.keys();
+    if (identity == QLatin1String("canonical")) {
+        if (keys.size() != 3 || !keys.contains(QStringLiteral("mbid")))
+            fail(QStringLiteral("invalid entityRef"));
+        const QString mbid = requireString(ref, QStringLiteral("mbid"));
+        const QUuid uuid = QUuid::fromString(mbid);
+        if (uuid.isNull()
+            || uuid.toString(QUuid::WithoutBraces).toLower() != mbid)
+            fail(QStringLiteral("invalid entityRef"));
+        return;
+    }
+
+    if (identity != QLatin1String("provider")
+        || keys.size() != 4
+        || !keys.contains(QStringLiteral("providerId"))
+        || !keys.contains(QStringLiteral("itemId")))
+        fail(QStringLiteral("invalid entityRef"));
+
+    const QString providerId = requireString(ref, QStringLiteral("providerId"));
+    const QString itemId = requireString(ref, QStringLiteral("itemId"));
+    if (providerId.size() > 128 || providerId != providerId.toLower()
+        || itemId.size() > 1024 || itemId.trimmed() != itemId)
+        fail(QStringLiteral("invalid entityRef"));
+    for (qsizetype i = 0; i < providerId.size(); ++i) {
+        const QChar ch = providerId.at(i);
+        const bool alpha = ch >= QLatin1Char('a') && ch <= QLatin1Char('z');
+        const bool digit = ch >= QLatin1Char('0') && ch <= QLatin1Char('9');
+        const bool punctuation = ch == QLatin1Char('.') || ch == QLatin1Char('_')
+            || ch == QLatin1Char(':') || ch == QLatin1Char('-');
+        if ((!alpha && !digit && !punctuation)
+            || (i == 0 && !alpha && !digit))
+            fail(QStringLiteral("invalid entityRef"));
+    }
+    for (const QChar ch : itemId) {
+        if (ch.isNull() || ch.category() == QChar::Other_Control)
+            fail(QStringLiteral("invalid entityRef"));
+    }
 }
 
 // ---------------------------------------------------------------------------
@@ -331,6 +398,41 @@ Event parseAndValidateEvent(const QJsonValue &rawValue) {
             fail(QStringLiteral("reflowable pageKeys must be empty"));
         if (ev.pageKeys.isEmpty() && ev.progressMicros == 0)
             fail(QStringLiteral("empty reading_delta"));
+    } else if (ev.type == QLatin1String("music_action")) {
+        if (ev.world != QLatin1String("vinyl") || ev.kind != QLatin1String("music"))
+            fail(QStringLiteral("invalid music_action world/kind"));
+        if (ev.syncable)
+            fail(QStringLiteral("music_action must be local-only"));
+        ev.atMs = requireInteger(obj, QStringLiteral("atMs"));
+        if (!ownerTimestamp(ev.atMs))
+            fail(QStringLiteral("invalid music_action timestamp"));
+
+        const QString action = requireString(obj, QStringLiteral("action"));
+        static const QSet<QString> actions{
+            QStringLiteral("start"), QStringLiteral("skip"), QStringLiteral("natural-eof"),
+            QStringLiteral("stop"), QStringLiteral("failure")};
+        if (!actions.contains(action))
+            fail(QStringLiteral("invalid music_action action"));
+        const QString origin = requireString(obj, QStringLiteral("origin"));
+        static const QSet<QString> origins{
+            QStringLiteral("manual"), QStringLiteral("album-continuation"),
+            QStringLiteral("autoplay")};
+        if (!origins.contains(origin))
+            fail(QStringLiteral("invalid music_action origin"));
+
+        requireNonnegativeSafeInteger(obj, QStringLiteral("positionMs"));
+        requireNonnegativeSafeInteger(obj, QStringLiteral("durationMs"));
+        validateRecommendationEntityRef(obj.value(QStringLiteral("entityRef")));
+
+        if (obj.contains(QStringLiteral("artistRefs"))) {
+            const QJsonValue artistRefsValue = obj.value(QStringLiteral("artistRefs"));
+            if (!artistRefsValue.isArray() || artistRefsValue.toArray().size() > 64)
+                fail(QStringLiteral("invalid artistRefs"));
+            for (const QJsonValue &artistRef : artistRefsValue.toArray())
+                validateRecommendationEntityRef(artistRef, QStringLiteral("artist"));
+        }
+        if (obj.contains(QStringLiteral("releaseRef")))
+            validateRecommendationEntityRef(obj.value(QStringLiteral("releaseRef")));
     } else { // media_completed
         ev.atMs = requireInteger(obj, QStringLiteral("atMs"));
         if (!ownerTimestamp(ev.atMs))
@@ -979,6 +1081,11 @@ QJsonObject projectMonth(const QJsonArray &events, const QString &monthKey) {
             }
             continue;
         }
+
+        // Local Vinyl intent/action evidence is retained for recommendation
+        // readers, but it does not contribute listening time or month activity.
+        if (event.type == QLatin1String("music_action"))
+            continue;
 
         const LocalParts parts = localParts(event.atMs, event.utcOffsetMinutes);
         if (parts.monthKey != monthKey)

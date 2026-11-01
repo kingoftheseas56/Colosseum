@@ -1,0 +1,1892 @@
+[
+  {
+    "input": {
+      "origin": null,
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": null,
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.stremio.com",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://appXstremioYcom",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://stremio.github.io",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test/pathgstaticXcomsuffix",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://evil.test",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11470",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "http://localhost:11471",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "http://127X0Y0Z1:11470",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://app.strem.io:443",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {}
+    }
+  },
+  {
+    "input": {
+      "origin": "https://APP.STREM.IO",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "GET",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "GET",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "GET",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "POST",
+      "env": null,
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "POST",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "POST",
+      "env": "0",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 201,
+      "body": "handled",
+      "headers": {
+        "access-control-allow-origin": "*"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "OPTIONS",
+      "env": null,
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "OPTIONS",
+      "env": "",
+      "requestedHeaders": null
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range",
+        "access-control-max-age": "1728000"
+      }
+    }
+  },
+  {
+    "input": {
+      "origin": "https://prefixpearioXxyzsuffix",
+      "method": "OPTIONS",
+      "env": "0",
+      "requestedHeaders": "Range, X-Test"
+    },
+    "output": {
+      "status": 200,
+      "body": "",
+      "headers": {
+        "access-control-allow-origin": "*",
+        "access-control-allow-methods": "POST, GET, OPTIONS",
+        "access-control-allow-headers": "Range, X-Test",
+        "access-control-max-age": "1728000"
+      }
+    }
+  }
+]

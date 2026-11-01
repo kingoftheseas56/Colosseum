@@ -371,6 +371,7 @@ class CoverDeliveryHarness : public QObject
 private slots:
     void initTestCase();
     void classification();
+    void explicitCacheOnlyAndManualRedirectArePreserved();
     void sameHostCapAcrossNams();
     void twoRealThreadCapAndOtherHostProgress();
     void twoRealThreadWakeCancelDestroyRace();
@@ -394,6 +395,31 @@ private slots:
 void CoverDeliveryHarness::initTestCase()
 {
     QStandardPaths::setTestModeEnabled(true);
+}
+
+void CoverDeliveryHarness::explicitCacheOnlyAndManualRedirectArePreserved()
+{
+    FixtureServer server([](int,const QString &target){
+        FixtureServer::Response response;
+        if(target=="/redirect"){response.status=302;response.location=QUrl("https://unlisted-artwork-source.invalid/photo.jpg");}
+        else response.body="NETWORK";
+        return response;
+    });
+    QVERIFY(server.listen("127.0.0.1"));QTemporaryDir cache;
+    CachingNam nam({},nullptr,nullptr,true,nullptr,nullptr,nullptr,nullptr,cache.path());
+    QNetworkRequest cached(QUrl(QStringLiteral("http://127.0.0.1:%1/missing").arg(server.port())));
+    cached.setAttribute(QNetworkRequest::CacheLoadControlAttribute,QNetworkRequest::AlwaysCache);
+    auto *miss=nam.get(cached);QSignalSpy missDone(miss,&QNetworkReply::finished);
+    QTRY_VERIFY_WITH_TIMEOUT(!missDone.isEmpty(),3000);
+    QCOMPARE(server.requestCount(),0);QVERIFY(miss->error()!=QNetworkReply::NoError);miss->deleteLater();
+    QNetworkRequest manual(QUrl(QStringLiteral("http://127.0.0.1:%1/redirect").arg(server.port())));
+    manual.setTransferTimeout(1000);
+    manual.setAttribute(QNetworkRequest::RedirectPolicyAttribute,QNetworkRequest::ManualRedirectPolicy);
+    auto *redirect=nam.get(manual);QSignalSpy redirectDone(redirect,&QNetworkReply::finished);
+    QTRY_VERIFY_WITH_TIMEOUT(!redirectDone.isEmpty(),3000);
+    QCOMPARE(redirect->url(),manual.url());
+    QCOMPARE(redirect->attribute(QNetworkRequest::RedirectionTargetAttribute).toUrl(),QUrl("https://unlisted-artwork-source.invalid/photo.jpg"));
+    redirect->deleteLater();
 }
 
 void CoverDeliveryHarness::classification()

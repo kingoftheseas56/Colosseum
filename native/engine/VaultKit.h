@@ -150,8 +150,8 @@ struct SeasonEpisode {
 // those). Ported from TB2 BulkPackVerifier::matchEpisodeFileForSeason's regex.
 SeasonEpisode parseSeasonEpisode(const QString& fileName);
 
-// Absolute-numbered episode grammar: a spaced "- NNN" token (2-3 digits, so a 4-digit year
-// never false-positives), the fansub convention for shows released without SxxExx — e.g.
+// Absolute-numbered episode grammar: a spaced "- NNN" token (2-4 digits, excluding release
+// years), the fansub convention for shows released without SxxExx — e.g.
 // "[Judas] Gintama - 003 [BD 1080p]....mkv" -> episode 3, season unknown (0). Tried on its
 // own; the caller decides ordering against parseSeasonEpisode.
 SeasonEpisode parseAbsoluteEpisode(const QString& fileName);
@@ -159,6 +159,9 @@ SeasonEpisode parseAbsoluteEpisode(const QString& fileName);
 // The combined grammar Slice 1 adds: try SxxExx first (an explicit season/episode marking
 // always wins), then absolute numbering. `matched` is false only if neither fires.
 SeasonEpisode parseEpisodeNumber(const QString& fileName);
+QString episodeSeriesTitle(const QString& fileName);
+bool isEpisodeVideo(const QString& fileName, int absoluteRun = 1);
+QString episodeShowKey(const QString& directory, const QString& title);
 
 // A resolution + source-tag quality line parsed straight from a filename — the release
 // vocabulary the title cleaner recognizes as noise and discards; here it is the opposite: the

@@ -17,6 +17,19 @@ bool exactKeys(const QJsonObject &object, const QSet<QString> &wanted) {
         actual.insert(it.key());
     return actual == wanted;
 }
+bool collectionTextValid(const QString &value, bool multiline = false) {
+    for (qsizetype i = 0; i < value.size(); ++i) {
+        const QChar ch = value.at(i);
+        if (ch.isNull() || (ch.category() == QChar::Other_Control
+                && !(multiline && (ch == QLatin1Char('\n') || ch == QLatin1Char('\r') || ch == QLatin1Char('\t')))))
+            return false;
+        if (ch.isHighSurrogate()) {
+            if (i + 1 >= value.size() || !value.at(i + 1).isLowSurrogate()) return false;
+            ++i;
+        } else if (ch.isLowSurrogate()) return false;
+    }
+    return true;
+}
 }
 
 ColosseumTitleIdentityRegistry::ColosseumTitleIdentityRegistry(
@@ -57,6 +70,280 @@ bool ColosseumTitleIdentityRegistry::isJoinedFixtureIdentity(
     Q_UNUSED(mediaId)
     return false;
 #endif
+}
+
+QVariantMap ColosseumTitleIdentityRegistry::collectionReference(const QVariantMap &candidate) const {
+    const auto fail = [](const QString &message) -> QVariantMap {
+        return {{QStringLiteral("ok"), false}, {QStringLiteral("error"), message}};
+    };
+    if (!m_ready)
+        return fail(QStringLiteral("Title identity is unavailable. Try again after the catalogue is ready."));
+    const QMap<QString, int> scalarLimits{{"key",2048},{"mediaId",80},{"world",32},{"kind",32},
+        {"source",64},{"sourceId",512},{"editionId",512},{"route",64},{"title",1024},
+        {"cover",4096},{"creator",1024},{"year",32}};
+    for (auto it = scalarLimits.cbegin(); it != scalarLimits.cend(); ++it) {
+        const QString value = candidate.value(it.key()).toString();
+        if (value.size() > it.value() || !collectionTextValid(value))
+            return fail(QStringLiteral("This title contains invalid or oversized reference text."));
+    }
+    const auto text = [&candidate](const char *name, int limit) -> QString {
+        const QString value = candidate.value(QLatin1String(name)).toString().trimmed();
+        if (value.size() > limit || value.contains(QChar::Null)) return QString();
+        return value;
+    };
+    const QString world = text("world", 32);
+    const QString kind = text("kind", 32);
+    const QString source = text("source", 64);
+    const QString sourceId = text("sourceId", 512);
+    QString editionId = text("editionId", 512);
+    const QString route = text("route", 64);
+    const QVariantMap supplied = candidate.value(QStringLiteral("payload")).toMap();
+    QVariantMap payload;
+    QVariantList aliases;
+    QString mediaId;
+    const auto token = [](const QString &value) {
+        return !value.isEmpty() && value.size() <= 512
+            && QRegularExpression(QStringLiteral("^[A-Za-z0-9][A-Za-z0-9_.:@/+~-]*$")).match(value).hasMatch();
+    };
+    const auto localMusicToken = [](const QString &value) {
+        // VinylLocalSource's manifest keys use QChar::isLetterOrNumber plus
+        // '-'/'_', and are appended to its ASCII owner-generated ID prefixes.
+        if (value.isEmpty() || value.size() > 512 || !value.startsWith(QLatin1String("vinyl:local-"))) return false;
+        for (const QChar ch : value)
+            if (!ch.isLetterOrNumber() && ch != QLatin1Char('-') && ch != QLatin1Char('_') && ch != QLatin1Char(':')) return false;
+        return true;
+    };
+    const auto positive = [](const QString &value) {
+        return QRegularExpression(QStringLiteral("^[1-9][0-9]{0,15}$")).match(value).hasMatch();
+    };
+    const auto copyText = [&supplied, &payload](const char *name, int limit = 512) {
+        const QString value = supplied.value(QLatin1String(name)).toString();
+        if (!value.isEmpty() && value.size() <= limit && !value.contains(QChar::Null))
+            payload.insert(QLatin1String(name), value);
+    };
+    const auto addAlias = [&aliases](const QString &nameSpace, const QString &value) {
+        aliases.append(QVariantMap{{QStringLiteral("namespace"), nameSpace}, {QStringLiteral("value"), value}});
+    };
+    const auto copyPosts = [&supplied, &payload, &positive]() -> bool {
+        const QVariantList posts = supplied.value(QStringLiteral("posts")).toList();
+        if (posts.isEmpty() || posts.size() > 500) return false;
+        QVariantList accepted;
+        QSet<QString> seen;
+        for (const QVariant &post : posts) {
+            const QString id = post.toString();
+            if (!positive(id) || seen.contains(id)) return false;
+            seen.insert(id);
+            accepted.append(id);
+        }
+        payload.insert(QStringLiteral("posts"), accepted);
+        return true;
+    };
+
+    if (world == QLatin1String("theatre")
+            && (kind == QLatin1String("movie") || kind == QLatin1String("series"))) {
+        if (source != QLatin1String("theatre") || route != QLatin1String("theatre-detail")
+                || !token(sourceId) || !editionId.isEmpty())
+            return fail(QStringLiteral("This Theatre title is waiting for an exact, resolved catalogue identity."));
+        addAlias(QStringLiteral("theatre-source-id"), sourceId);
+        const QString resolvedId = supplied.value(QStringLiteral("canonicalSourceId")).toString();
+        // A provider door can pivot to IMDb during loadMeta. Do not create a
+        // durable provider-only key during that intermediate/failed load state.
+        // Direct IMDb doors already carry an authoritative stable anchor.
+        if (!QRegularExpression(QStringLiteral("^tt[0-9]+$")).match(sourceId).hasMatch() && resolvedId.isEmpty())
+            return fail(QStringLiteral("This Theatre title is waiting for its resolved catalogue identity. Try again when details are available."));
+        if (!resolvedId.isEmpty()) {
+            if (!token(resolvedId)) return fail(QStringLiteral("The resolved Theatre identity is invalid."));
+            addAlias(QStringLiteral("theatre-source-id"), resolvedId);
+            payload.insert(QStringLiteral("canonicalSourceId"), resolvedId);
+        }
+        copyText("art", 4096);
+    } else if (world == QLatin1String("tankoban") && kind == QLatin1String("manga")) {
+        if (source == QLatin1String("mal") && route == QLatin1String("manga-detail")) {
+            const auto match = QRegularExpression(QStringLiteral("^mal:([1-9][0-9]*)(:color)?$")).match(sourceId);
+            if (!match.hasMatch() || match.captured(1).toULongLong() > 2147483647ULL)
+                return fail(QStringLiteral("This manga is waiting for its exact catalogue identity."));
+            const QString expectedEdition = match.captured(2).isEmpty() ? QString() : QStringLiteral("color");
+            if (editionId != expectedEdition)
+                return fail(QStringLiteral("The manga edition does not match its source identity."));
+            payload.insert(QStringLiteral("malId"), match.captured(1));
+            copyText("sourceSearchTitle", 1024);
+            for (const QString &name : {QStringLiteral("sourceSearchAliases"), QStringLiteral("sourceRequiredMarkers")}) {
+                QStringList values;
+                for (const QVariant &value : supplied.value(name).toList()) {
+                    const QString item = value.toString();
+                    if (!item.isEmpty() && item.size() <= 256 && values.size() < 20) values.append(item);
+                }
+                if (!values.isEmpty()) payload.insert(name, values);
+            }
+        } else if (source == QLatin1String("weebcentral") && route == QLatin1String("manga-weebcentral-detail")) {
+            if (!token(sourceId) || !editionId.isEmpty())
+                return fail(QStringLiteral("This manga is waiting for its exact source identity."));
+            copyText("seriesUrl", 2048);
+        } else {
+            return fail(QStringLiteral("This manga source does not expose an exact reopen route."));
+        }
+        addAlias(QStringLiteral("tankoban-source-id"), sourceId);
+    } else if (world == QLatin1String("biblio") && kind == QLatin1String("book")) {
+        if (source != QLatin1String("apple-books") || route != QLatin1String("book-detail") || !positive(sourceId))
+            return fail(QStringLiteral("This book is waiting for its Apple catalogue identity."));
+        const QVariantMap book = supplied.value(QStringLiteral("book")).toMap();
+        if (book.value(QStringLiteral("id")).toString() != sourceId)
+            return fail(QStringLiteral("The saved book snapshot does not match its catalogue identity."));
+        const bool audio = book.value(QStringLiteral("isAudiobook")).toBool();
+        const QString expectedEdition = audio ? QStringLiteral("audiobook") : QStringLiteral("ebook");
+        if (editionId != expectedEdition)
+            return fail(QStringLiteral("The book edition does not match its catalogue reference."));
+        QVariantMap cleanBook{{QStringLiteral("id"), sourceId}, {QStringLiteral("isAudiobook"), audio}};
+        for (const QString &name : {QStringLiteral("title"), QStringLiteral("author"), QStringLiteral("year"),
+                QStringLiteral("cover"), QStringLiteral("genreLine"), QStringLiteral("tagline"), QStringLiteral("synopsis")}) {
+            const QString value = book.value(name).toString();
+            if (value.size() <= 4096 && !value.contains(QChar::Null)) cleanBook.insert(name, value);
+        }
+        QStringList genres;
+        for (const QVariant &genre : book.value(QStringLiteral("genres")).toList()) {
+            const QString value = genre.toString();
+            if (value.size() <= 128 && genres.size() < 20) genres.append(value);
+        }
+        cleanBook.insert(QStringLiteral("genres"), genres);
+        payload.insert(QStringLiteral("book"), cleanBook);
+        // Apple track/collection ID, not the display title/author pairing key.
+        addAlias(QStringLiteral("biblio-source-id"), sourceId);
+    } else if (world == QLatin1String("vault") && kind == QLatin1String("film")) {
+        if (source != QLatin1String("imdb") || route != QLatin1String("vault-film-detail")
+                || !QRegularExpression(QStringLiteral("^imdb:tt[0-9]+$")).match(sourceId).hasMatch()
+                || !editionId.isEmpty())
+            return fail(QStringLiteral("Identify this film before adding it to a collection."));
+        copyText("vaultKey", 4096);
+        if (!payload.contains(QStringLiteral("vaultKey")))
+            return fail(QStringLiteral("This Vault film does not have a saved detail route."));
+        addAlias(QStringLiteral("vault-source-id"), sourceId);
+    } else if (world == QLatin1String("tankoban") && kind == QLatin1String("comic")) {
+        if (!editionId.isEmpty()) return fail(QStringLiteral("This comic edition is not supported."));
+        bool valid = false;
+        if (source == QLatin1String("locg") && route == QLatin1String("comic-locg-detail")) {
+            valid = QRegularExpression(QStringLiteral("^locg:[1-9][0-9]*$")).match(sourceId).hasMatch();
+            const QVariantMap meta = supplied.value(QStringLiteral("locgMeta")).toMap();
+            QVariantMap clean;
+            for (const QString &name : {QStringLiteral("name"), QStringLiteral("publisher"), QStringLiteral("status"), QStringLiteral("released")}) {
+                const QString value = meta.value(name).toString();
+                if (value.size() <= 512) clean.insert(name, value);
+            }
+            clean.insert(QStringLiteral("startYear"), meta.value(QStringLiteral("startYear")).toInt());
+            payload.insert(QStringLiteral("locgMeta"), clean);
+        } else if (source == QLatin1String("gcd") && route == QLatin1String("comic-gcd-detail")) {
+            valid = QRegularExpression(QStringLiteral("^gcd:[1-9][0-9]*$")).match(sourceId).hasMatch();
+            if (supplied.contains(QStringLiteral("posts")) && !copyPosts()) valid = false;
+        } else if (source == QLatin1String("getcomics") && route == QLatin1String("comic-posts-detail")) {
+            valid = QRegularExpression(QStringLiteral("^gc:posts:[1-9][0-9]*$")).match(sourceId).hasMatch() && copyPosts();
+            if (valid) valid = payload.value(QStringLiteral("posts")).toList().first().toString() == sourceId.mid(9);
+        } else if (source == QLatin1String("getcomics") && route == QLatin1String("comic-tag-detail")) {
+            const QString tag = supplied.value(QStringLiteral("tag")).toString();
+            valid = sourceId == QStringLiteral("gc:") + tag && !tag.startsWith(QLatin1String("posts:"))
+                && QRegularExpression(QStringLiteral("^[a-zA-Z0-9][a-zA-Z0-9_-]*$")).match(tag).hasMatch();
+            if (valid) payload.insert(QStringLiteral("tag"), tag);
+            const QString tagId = supplied.value(QStringLiteral("tagId")).toString();
+            if (positive(tagId)) payload.insert(QStringLiteral("tagId"), tagId);
+        } else if (source == QLatin1String("comic-packs") && route == QLatin1String("comic-pack-detail")) {
+            valid = token(sourceId) && !sourceId.startsWith(QLatin1String("gc:posts:"));
+        }
+        if (!valid) return fail(QStringLiteral("This comic is waiting for an exact series or release reference."));
+        // Collection-only tags deliberately do not widen ratings/reviews admission.
+        mediaId = deriveNamedMediaId(world, kind, source, sourceId, 0x4d);
+    } else if (world == QLatin1String("vinyl")
+            && (kind == QLatin1String("album") || kind == QLatin1String("song") || kind == QLatin1String("artist"))) {
+        const bool localSource = source == QLatin1String("vinyl-local");
+        const bool sourceTokenValid = localSource && kind != QLatin1String("song") ? localMusicToken(sourceId) : token(sourceId);
+        if ((source != QLatin1String("vinyl-local") && source != QLatin1String("youtube-music")) || !sourceTokenValid)
+            return fail(QStringLiteral("This music item is waiting for its exact source identity."));
+        if (kind == QLatin1String("artist")) {
+            if (route != QLatin1String("vinyl-artist-detail") || !editionId.isEmpty())
+                return fail(QStringLiteral("This artist does not have an exact reopen route."));
+            if (source == QLatin1String("youtube-music")
+                    && !QRegularExpression(QStringLiteral("^ytm:artist:UC[A-Za-z0-9_-]{22}$")).match(sourceId).hasMatch())
+                return fail(QStringLiteral("This artist is waiting for its exact channel identity."));
+            if (source == QLatin1String("vinyl-local")
+                    && (!sourceId.startsWith(QLatin1String("vinyl:local-artist:"))
+                        || sourceId == QLatin1String("vinyl:local-artist:unknown")))
+                return fail(QStringLiteral("This local artist does not have an exact source identity."));
+        } else {
+            if (route != (kind == QLatin1String("album") ? QLatin1String("vinyl-album-detail") : QLatin1String("vinyl-song-detail"))
+                    || !(localSource ? localMusicToken(editionId) : token(editionId))) return fail(QStringLiteral("This music edition is not ready to save."));
+            const QString albumId = supplied.value(QStringLiteral("albumId")).toString();
+            const QString browseId = supplied.value(QStringLiteral("browseId")).toString();
+            if (!(localSource ? localMusicToken(albumId) : token(albumId))
+                    || !(localSource ? localMusicToken(browseId) : token(browseId))
+                    || (kind == QLatin1String("album") && albumId != sourceId))
+                return fail(QStringLiteral("This music item does not have an exact album route."));
+            const bool local = source == QLatin1String("vinyl-local");
+            const bool localAlbum = albumId.startsWith(QLatin1String("vinyl:local-album:")) || albumId.startsWith(QLatin1String("vinyl:local-release:"));
+            const bool localBrowse = browseId.startsWith(QLatin1String("vinyl:local-album:")) || browseId.startsWith(QLatin1String("vinyl:local-release:"));
+            if (local != albumId.startsWith(QLatin1String("vinyl:local-"))
+                    || local != browseId.startsWith(QLatin1String("vinyl:local-"))
+                    || (local && (!localAlbum || !localBrowse))
+                    || (local && !editionId.startsWith(albumId + QLatin1Char(':')) && editionId != albumId)
+                    || (kind == QLatin1String("song") && local != sourceId.startsWith(QLatin1String("vault:"))))
+                return fail(QStringLiteral("The music source does not match its album, edition, or track identity."));
+            if (!local) {
+                QString providerAlbum = browseId;
+                if (providerAlbum.startsWith(QLatin1String("ytm:album:"))) providerAlbum = providerAlbum.mid(10);
+                // Existing provider.py's album operation accepts only a real
+                // release browse key. ytm:track:, canonical recording IDs, and
+                // ytm:playlist: need other owner routes that are not implemented
+                // here. An in-memory source cache does not prove cold reopen.
+                if (!QRegularExpression(QStringLiteral("^[A-Za-z0-9_-]{1,160}$")).match(providerAlbum).hasMatch())
+                    return fail(kind == QLatin1String("song")
+                        ? QStringLiteral("This standalone or playlist song has no exact collection reopen route yet. Open it from an album release to add it.")
+                        : QStringLiteral("This source does not expose an exact album release route for Collections."));
+            }
+            payload.insert(QStringLiteral("albumId"), albumId);
+            payload.insert(QStringLiteral("browseId"), browseId);
+            if (kind == QLatin1String("song")) payload.insert(QStringLiteral("trackId"), sourceId);
+        }
+        mediaId = deriveNamedMediaId(world, kind, source, sourceId,
+            kind == QLatin1String("album") ? 0x4e : kind == QLatin1String("song") ? 0x4f : 0x50);
+    } else {
+        return fail(QStringLiteral("This item does not have a supported title route yet."));
+    }
+
+    if (mediaId.isEmpty()) {
+        const QVariantMap identity = resolve(world, kind, QString(), aliases);
+        if (!identity.value(QStringLiteral("available")).toBool())
+            return fail(QStringLiteral("This title's exact identity is unavailable. The saved item can be retried later."));
+        mediaId = identity.value(QStringLiteral("mediaId")).toString();
+    }
+    if (candidate.value(QStringLiteral("mediaId")).toString().size() > 80
+            || candidate.value(QStringLiteral("key")).toString().size() > 2048)
+        return fail(QStringLiteral("This saved reference has an invalid identity key."));
+    const QString previousId = text("mediaId", 80);
+    if (!previousId.isEmpty() && previousId != mediaId)
+        return fail(QStringLiteral("The source now resolves to a different identity. The saved item has been kept unchanged."));
+    const QString key = QString::fromUtf8(QJsonDocument(QJsonArray{mediaId, editionId}).toJson(QJsonDocument::Compact));
+    const QString previousKey = text("key", 2048);
+    if (!previousKey.isEmpty() && previousKey != key)
+        return fail(QStringLiteral("This saved reference has an inconsistent identity key."));
+    if (QJsonDocument::fromVariant(payload).toJson(QJsonDocument::Compact).size() > 32768)
+        return fail(QStringLiteral("The source reference is too large to save."));
+    QList<QVariant> remaining{payload};
+    while (!remaining.isEmpty()) {
+        const QVariant value = remaining.takeLast();
+        if (value.metaType().id() == QMetaType::QString) {
+            if (!collectionTextValid(value.toString(), true))
+                return fail(QStringLiteral("The source reference contains invalid text."));
+        } else if (value.metaType().id() == QMetaType::QVariantMap) {
+            const QVariantMap map = value.toMap();
+            for (auto it = map.cbegin(); it != map.cend(); ++it) remaining.append(it.value());
+        } else if (value.metaType().id() == QMetaType::QVariantList || value.metaType().id() == QMetaType::QStringList) {
+            remaining.append(value.toList());
+        }
+    }
+    QVariantMap reference{{QStringLiteral("key"), key}, {QStringLiteral("world"), world},
+        {QStringLiteral("kind"), kind}, {QStringLiteral("mediaId"), mediaId},
+        {QStringLiteral("source"), source}, {QStringLiteral("sourceId"), sourceId},
+        {QStringLiteral("editionId"), editionId}, {QStringLiteral("title"), text("title", 1024)},
+        {QStringLiteral("cover"), text("cover", 4096)}, {QStringLiteral("creator"), text("creator", 1024)},
+        {QStringLiteral("year"), text("year", 32)}, {QStringLiteral("route"), route},
+        {QStringLiteral("payload"), payload}};
+    return {{QStringLiteral("ok"), true}, {QStringLiteral("error"), QString()}, {QStringLiteral("reference"), reference}};
 }
 
 bool ColosseumTitleIdentityRegistry::admittedPair(const QString &world, const QString &kind) {

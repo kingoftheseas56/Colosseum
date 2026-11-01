@@ -604,7 +604,7 @@ function searchArtistCatalogue(discography, singlesRows, videos, liveItems, quer
     var pool = [];
     (discography || []).forEach(function(r) {
         pool.push({
-            type: "Album",
+            type: r.album && r.album.kind === "single" ? "Single" : "Album",
             label: r.title,
             extra: String(r.year || "") + (r.category ? " · " + r.category : ""),
             tab: "albums",

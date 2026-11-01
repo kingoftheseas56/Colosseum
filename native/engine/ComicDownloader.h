@@ -181,6 +181,7 @@ public:
 
     Q_INVOKABLE void cancelDownload(const QString& issueId);
     Q_INVOKABLE QVariantMap deleteIssue(const QString& issueId);
+    Q_INVOKABLE QVariantMap removeIncompleteDownloads();
 
     // Headless smoke (COLOSSEUM_COMIC_DLTEST=<postUrl>): resolve → download →
     // extract a real post, log OK/FAILED + the page count. Drive-harness food.

@@ -10,6 +10,8 @@ add_library(vinyl_torrent_support STATIC
     ../../native/torrent/MusicTorrentMatcher.cpp
     ../../native/torrent/MusicTorrentQueryPlanner.cpp
     ../../native/torrent/TankorentSearchService.cpp
+    ../../native/torrent/TankorentWorkerIndexer.cpp
+    ../../native/torrent/TankorentWorkerIndexer.h
     ../../native/torrent/TorrentIndexer.cpp
     ../../native/torrent/PirateBayIndexer.cpp
     ../../native/torrent/ExtTorrentsIndexer.cpp

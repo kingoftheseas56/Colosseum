@@ -134,7 +134,16 @@ Item {
 
     function refreshResume() {
         var p = root.progressObject
-        root._resume = p && root.seriesId.length ? p.get("tankoban", root.seriesId) : null
+        var saved = p && root.seriesId.length ? (p.get("tankoban", root.seriesId) || ({})) : ({})
+        // ProgressStore records the entry with a nested resume payload. Keep
+        // legacy flattened records readable, but never invent a volume from a
+        // mismatched or absent saved identity.
+        if (saved.id && String(saved.id) !== root.seriesId) {
+            root._resume = null
+            return
+        }
+        var state = saved.resume || saved
+        root._resume = String((state || ({})).chapterId || "").length ? state : null
     }
 
     readonly property string continueVolumeId:
@@ -486,6 +495,13 @@ Item {
         // capturing an index that could belong to an older model or series.
         Qt.callLater(root.centreFlow)
     }
+
+    Connections {
+        target: root.progressObject
+        ignoreUnknownSignals: true
+        function onChanged() { root.refreshResume() }
+    }
+    onProgressObjectChanged: root.refreshResume()
 
     Connections {
         target: root.serviceObject

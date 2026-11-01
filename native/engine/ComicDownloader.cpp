@@ -1175,6 +1175,18 @@ void ComicDownloader::cancelDownload(const QString& issueIdIn)
     if (m_torrents) m_torrents->cancel(id);
 }
 
+QVariantMap ComicDownloader::removeIncompleteDownloads()
+{
+    if (m_active || !m_queue.isEmpty() || !m_resolving.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Comic downloads are still stopping.")});
+    if (!m_index.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Some downloaded comics could not be deleted.")});
+    const auto result = DownloadFileOps::removeTree(baseDir());
+    if (result.success)
+        m_packs.clear();
+    return DownloadFileOps::toMap(result);
+}
+
 QVariantMap ComicDownloader::deleteIssue(const QString& issueIdIn)
 {
     const QString id = issueIdIn.trimmed();

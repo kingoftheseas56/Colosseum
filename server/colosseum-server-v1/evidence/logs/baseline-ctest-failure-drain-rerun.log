@@ -1,0 +1,12 @@
+Test project /workspace/shared/colosseum-m07-20261020/build-baseline
+    Start 104: K10-02-native-transport-failure-drain
+1/1 Test #104: K10-02-native-transport-failure-drain ...   Passed    1.62 sec
+
+100% tests passed out of 1
+
+Label Time Summary:
+K10        =   1.62 sec*proc (1 test)
+native     =   1.62 sec*proc (1 test)
+server1    =   1.62 sec*proc (1 test)
+
+Total Test time (real) =   1.63 sec

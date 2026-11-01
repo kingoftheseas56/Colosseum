@@ -108,6 +108,10 @@ public:
     Q_INVOKABLE QVariantList historyDeliveryRows();
     Q_INVOKABLE void refresh();
     void setConnectionAvailabilitySource(ConnectionAvailabilitySource source);
+    // True when a connected provider's stored sign-in no longer works and the
+    // user must connect again (AniList tokens have no refresh).
+    using ReconnectRequiredSource = std::function<bool(TrackerProviderId)>;
+    void setReconnectRequiredSource(ReconnectRequiredSource source);
     void setImportOwner(TrackerImportOwner *owner) { m_importOwner = owner; }
     void setTitleMatching(TrackerMappingStore *store,
                           const TrackerCanonicalTitleIndex *index);
@@ -261,6 +265,7 @@ private:
     TrackerSyncSettingsStore *m_settings = nullptr;
     QList<TrackerProviderDescriptor> m_catalogue;
     ConnectionAvailabilitySource m_connectionAvailabilitySource;
+    ReconnectRequiredSource m_reconnectRequiredSource;
     LivePlaybackPreferenceAction m_livePlaybackAction;
     ResumeAfterSyncAction m_resumeAfterSync;
     DisconnectAction m_disconnectAction;

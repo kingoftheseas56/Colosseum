@@ -1,6 +1,8 @@
 import QtQuick
 import QtQuick.Controls
 import QtQuick.Effects
+import "collections" as CollectionsUi
+import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: root
@@ -9,6 +11,8 @@ Item {
     height: root.phoneNarrow ? chrome.height + hero.height : 263
 
     property bool tankobanMode: true
+    property bool allowTankobanMode: true
+    property string publicationLabel: "Manga"
     property string seriesTitle: ""
     property string banner: ""
     property string cover: ""
@@ -20,6 +24,7 @@ Item {
     property var collectionEntry: null
     property var chapterLanguages: []
     property string selectedChapterLanguage: "en"
+    property bool hasSeriesLanguageOverride: false
     readonly property real modeSwitchX: modeSwitch.x
     readonly property real modeSwitchY: modeSwitch.y
     readonly property real modeSwitchWidth: modeSwitch.width
@@ -35,6 +40,8 @@ Item {
     signal tankobanRequested()
     signal chapterRequested()
     signal chapterLanguageRequested(string code)
+    signal chapterDefaultLanguageRequested()
+    signal languageSettingsRequested()
 
     function languageIndex(code) {
         var wanted = String(code || "en")
@@ -169,7 +176,7 @@ Item {
             anchors.top: root.phoneNarrow ? phoneCover.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 14 : 22
             spacing: 5
-            Text { text: "MANGA"; color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
+            Text { text: root.publicationLabel.toUpperCase(); color: theme.gold; font.family: theme.ui; font.pixelSize: 10; font.letterSpacing: 2.4 }
             Row {
                 id: titleRow
                 spacing: 10
@@ -226,6 +233,10 @@ Item {
                 Text { visible: root.year > 0; text: "· " + root.year; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
                 Text { visible: root.score > 0; text: "★ " + root.score.toFixed(2); color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
             }
+            CollectionsUi.AddToCollectionsButton {
+                objectName: "mangaAddToCollections"
+                reference: CollectionsReferences.manga(root.collectionEntry, root.author, root.year)
+            }
         }
 
         Flow {
@@ -233,7 +244,7 @@ Item {
             visible: root.phoneNarrow
             anchors.left: parent.left; anchors.leftMargin: theme.margin
             anchors.right: parent.right; anchors.rightMargin: theme.margin
-            anchors.top: languageSelector.bottom; anchors.topMargin: 14
+            anchors.top: languageSettingsShortcut.visible ? languageSettingsShortcut.bottom : languageSelector.bottom; anchors.topMargin: 14
             spacing: 9
             Text { visible: root.author.length > 0; text: root.author; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
             Text { visible: root.status.length > 0; text: root.status; color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13 }
@@ -246,8 +257,8 @@ Item {
             anchors.left: parent.left; anchors.leftMargin: theme.margin
             anchors.right: parent.right
             anchors.rightMargin: root.phoneNarrow ? theme.margin : 300
-            anchors.top: root.phoneNarrow ? phoneFacts.bottom : parent.top
-            anchors.topMargin: root.phoneNarrow ? 14 : 111
+            anchors.top: root.phoneNarrow ? phoneFacts.bottom : titleBlock.bottom
+            anchors.topMargin: root.phoneNarrow ? 14 : 10
             text: root.synopsis
             color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; lineHeight: 1.45
             wrapMode: Text.WordWrap
@@ -284,16 +295,23 @@ Item {
                 anchors.right: parent.right; anchors.rightMargin: 4
                 anchors.verticalCenter: parent.verticalCenter
                 width: 166; height: 28
-                model: root.chapterLanguages
+                model: [{ "code": "", "label": "Use preferred language" }].concat(root.chapterLanguages)
                 textRole: "label"
                 enabled: !root.tankobanMode
-                currentIndex: root.languageIndex(root.tankobanMode ? "en" : root.selectedChapterLanguage)
-                displayText: root.tankobanMode ? "English"
-                    : (currentIndex >= 0 && root.chapterLanguages[currentIndex]
-                       ? String(root.chapterLanguages[currentIndex].label || "English") : "English")
+                currentIndex: root.hasSeriesLanguageOverride
+                    ? root.languageIndex(root.selectedChapterLanguage) + 1 : 0
+                displayText: {
+                    if (root.tankobanMode) return "English"
+                    var languageIndex = root.languageIndex(root.selectedChapterLanguage)
+                    var name = languageIndex >= 0 && root.chapterLanguages[languageIndex]
+                        ? String(root.chapterLanguages[languageIndex].label || "English") : "Unavailable"
+                    return root.hasSeriesLanguageOverride ? name : "Default · " + name
+                }
                 onActivated: function(index) {
-                    if (!root.tankobanMode && index >= 0 && root.chapterLanguages[index])
-                        root.chapterLanguageRequested(String(root.chapterLanguages[index].code || "en"))
+                    if (root.tankobanMode) return
+                    if (index === 0) root.chapterDefaultLanguageRequested()
+                    else if (index > 0 && root.chapterLanguages[index - 1])
+                        root.chapterLanguageRequested(String(root.chapterLanguages[index - 1].code || ""))
                 }
                 contentItem: Text {
                     leftPadding: 10; rightPadding: 24; verticalAlignment: Text.AlignVCenter
@@ -321,6 +339,30 @@ Item {
             ToolTip.delay: 350
         }
 
+        Button {
+            id: languageSettingsShortcut
+            objectName: "mangaLanguageSettingsShortcut"
+            visible: !root.tankobanMode
+            enabled: visible
+            anchors.top: languageSelector.bottom
+            anchors.right: languageSelector.right
+            width: languageSelector.width; height: 32
+            hoverEnabled: true
+            text: qsTr("Language settings")
+            font.family: theme.ui; font.pixelSize: 11
+            palette.buttonText: theme.gold
+            icon.source: "../assets/icons/settings.svg"
+            icon.width: 14; icon.height: 14; icon.color: theme.gold
+            background: Rectangle {
+                radius: 7
+                color: languageSettingsShortcut.down ? Qt.rgba(1,1,1,.12)
+                     : languageSettingsShortcut.hovered ? Qt.rgba(1,1,1,.08) : Qt.rgba(1,1,1,.045)
+                border.width: 1
+                border.color: languageSettingsShortcut.visualFocus ? theme.gold : Qt.rgba(1,1,1,.2)
+            }
+            onClicked: root.languageSettingsRequested()
+        }
+
         Rectangle {
             id: modeSwitch
             objectName: "mangaSeriesModeSwitch"
@@ -330,7 +372,7 @@ Item {
             anchors.rightMargin: theme.margin
             anchors.top: root.phoneNarrow ? titleBlock.bottom : parent.top
             anchors.topMargin: root.phoneNarrow ? 12 : 31
-            width: root.phoneNarrow ? hero.width - 2 * theme.margin : 258
+            width: root.phoneNarrow ? hero.width - 2 * theme.margin : (root.allowTankobanMode ? 258 : 133)
             height: root.phoneNarrow ? 44 : 36
             radius: 10; z: 10
             color: Qt.rgba(.06,.065,.075,.92)
@@ -339,6 +381,8 @@ Item {
                 anchors.centerIn: parent
                 Rectangle {
                     objectName: "mangaModeTankoban"
+                    visible: root.allowTankobanMode
+                    enabled: root.allowTankobanMode
                     width: 125; height: 28; radius: 7
                     color: root.tankobanMode ? theme.gold : "transparent"
                     Text { anchors.centerIn: parent; text: "Tankoban Mode"; color: root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: root.tankobanMode ? Font.DemiBold : Font.Normal }
@@ -349,7 +393,7 @@ Item {
                     width: 125; height: 28; radius: 7
                     color: !root.tankobanMode ? theme.gold : "transparent"
                     Text { anchors.centerIn: parent; text: "Chapter Mode"; color: !root.tankobanMode ? "#191407" : theme.inkDim; font.family: theme.ui; font.pixelSize: 12; font.weight: !root.tankobanMode ? Font.DemiBold : Font.Normal }
-                    MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor; onClicked: root.chapterRequested() }
+                    MouseArea { anchors.fill: parent; enabled: root.allowTankobanMode; cursorShape: Qt.PointingHandCursor; onClicked: root.chapterRequested() }
                 }
             }
         }

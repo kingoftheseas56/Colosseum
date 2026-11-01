@@ -16,6 +16,9 @@ public:
     QString errorCode() const;
     QString sourcePath() const;
     Q_INVOKABLE QVariantMap resolve(const QString &world, const QString &kind, const QString &directMediaId, QVariantList aliases) const;
+    // Named collections use this authority at explicit add/open boundaries. Disk
+    // reload deliberately does not call it: unavailable sources remain saved.
+    Q_INVOKABLE QVariantMap collectionReference(const QVariantMap &candidate) const;
     static QString defaultResourcePath();
     static bool isCanonicalMediaId(const QString &mediaId);
     static bool isJoinedFixtureIdentity(const QString &world, const QString &kind, const QString &mediaId);

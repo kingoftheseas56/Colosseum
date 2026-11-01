@@ -15,8 +15,19 @@ Item {
     property string searchMode: ""                   // "Tankoban" | "Theatre"
     property string placeholder: "Search…"
     property string primaryLabel: "Open"
-    property var results: []
-    property bool searching: false
+    // Optional paged catalogue adapter. The shared layout stays the owner of
+    // search interaction; each world keeps its existing transport and identity.
+    property var searchProvider: null
+    property real coverAspect: 2 / 3
+    property url primaryIcon: ""
+    property bool keepOpenOnActivation: false
+    property bool commitOnDestruction: true
+    property real bottomInset: 0
+    property alias query: queryInput.text
+    property alias contentY: scroll.contentY
+    property var results: searchProvider ? searchProvider.results : []
+    property bool _searching: false
+    readonly property bool searching: searchProvider ? searchProvider.loading : _searching
     property bool searched: false
     property var expandedGroups: []   // group names the user opened via "See more" (per query)
     property var recent: []
@@ -27,7 +38,7 @@ Item {
         malCatalog: (typeof MalCatalog !== "undefined") ? MalCatalog : null,
         imdbCatalog: (typeof ImdbCatalog !== "undefined") ? ImdbCatalog : null
     })
-    property string searchError: ""
+    property string searchError: searchProvider ? searchProvider.error : ""
     property string browseError: ""
     readonly property int resultCount: results.length
     readonly property int recentCount: recent.length
@@ -48,10 +59,11 @@ Item {
     signal closeRequested()
 
     readonly property bool isEmpty: queryInput.text.trim().length === 0
-    readonly property bool phoneNarrow: win.androidHost && win.width < 840
+        && !(searchProvider && searchProvider.showSuggestions)
+    readonly property bool phoneNarrow: Qt.platform.os === "android" && width < 840
 
     // Harbor's empty-state "Try a genre": chips open an inline, popularity-ranked browse grid in place.
-    readonly property var genres: WorldSearch.genresFor(searchMode)
+    readonly property var genres: searchProvider ? [] : WorldSearch.genresFor(searchMode)
     property string browseGenre: ""            // "" = the default empty view; set = inline genre grid
     property var browseItems: []
     property bool browseLoading: false
@@ -73,7 +85,7 @@ Item {
         Row {
             anchors.fill: parent; anchors.margins: 12; spacing: 14
             Rectangle {
-                width: 66; height: 92; radius: 7; clip: true; color: "#14131a"
+                width: 66; height: width / surf.coverAspect; radius: 7; clip: true; color: "#14131a"
                 Image { anchors.fill: parent; source: phoneRow.entry.cover || ""
                     fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
             }
@@ -106,7 +118,7 @@ Item {
     }
     Component.onDestruction: {
         surf.cancelAllRequests()
-        surf.commitCurrentQuery()
+        if (surf.commitOnDestruction) surf.commitCurrentQuery()
     }
     onSearchModeChanged: {
         surf.cancelAllRequests()
@@ -137,9 +149,10 @@ Item {
     }
     function cancelSearch() {
         surf._searchGeneration++
+        if (surf.searchProvider) { surf.searchProvider.cancel(); return }
         surf.cancelHandle(surf._searchCancel)
         surf._searchCancel = null
-        surf.searching = false
+        surf._searching = false
     }
     function cancelBrowse() {
         surf._browseGeneration++
@@ -161,6 +174,13 @@ Item {
     function runSearch() {
         var q = queryInput.text.trim()
         surf.cancelSearch()
+        if (surf.searchProvider) {
+            surf.lastDispatchedQuery = q.length >= 2 ? q : ""
+            surf.searched = q.length >= 2
+            surf.expandedGroups = []
+            surf.searchProvider.search(q)
+            return
+        }
         if (q.length < 2) {
             surf.lastDispatchedQuery = ""
             surf.searchError = ""
@@ -169,7 +189,7 @@ Item {
         surf.lastDispatchedQuery = q
         surf.searchError = ""   // fresh dispatch → stale provider error must not linger
         surf.expandedGroups = []   // a NEW query starts collapsed again (See-more state is per-query)
-        surf.searching = true
+        surf._searching = true
         if (typeof GuiStallProbe !== "undefined" && GuiStallProbe)
             GuiStallProbe.setContext("search", surf.searchMode)
         var generation = surf._searchGeneration
@@ -177,7 +197,7 @@ Item {
             if (generation !== surf._searchGeneration || q !== queryInput.text.trim()) return
             surf.results = items || []
             surf.searchError = error || ""
-            surf.searching = false
+            surf._searching = false
             surf.searched = true
         }, (typeof ComicsCatalog !== "undefined") ? ComicsCatalog : null, surf.nativeCatalogues)
     }
@@ -188,8 +208,12 @@ Item {
         if (surf.historyStore && q.length >= 2 && q === surf.lastDispatchedQuery)
             surf.recent = surf.historyStore.record(surf.historyScope(), q)
     }
-    function fillAndSearch(q) { queryInput.text = q; runSearch(); commitCurrentQuery() }
-    function openItem(data) { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.itemRequested(data) }
+    function fillAndSearch(q) { queryInput.text = q; debounce.stop(); runSearch(); commitCurrentQuery() }
+    function restoreQuery(q) { queryInput.text = q; debounce.stop(); lastDispatchedQuery = q.length >= 2 ? q : "" }
+    function openItem(data) {
+        if (!surf.keepOpenOnActivation) surf.cancelAllRequests()
+        surf.commitCurrentQuery(); surf.itemRequested(data)
+    }
     function openTop() { if (surf.results.length > 0) surf.openItem(surf.results[0].data) }
     function removeRecent(q) { if (surf.historyStore) surf.recent = surf.historyStore.remove(surf.historyScope(), q) }
     function keepSearchDelegateVisible(item) {
@@ -233,6 +257,14 @@ Item {
     // results (minus the Top Match) split into ordered sections by their group — Movies / Series for
     // Theatre, a single Manga group for Tankoban (Harbor-style grouped discovery).
     function groupedResults() {
+        if (surf.searchProvider) {
+            var first = surf.results.length ? surf.results[0] : null
+            return surf.searchProvider.groups.map(function(group) {
+                return Object.assign({}, group, {items: group.items.filter(function(item) {
+                    return !first || item.data.id !== first.data.id || item.data.kind !== first.data.kind
+                })})
+            }).filter(function(group) { return group.items.length || group.loading || group.error || group.hasMore })
+        }
         var rest = surf.results.length > 1 ? surf.results.slice(1) : []
         var order = [], map = ({})
         for (var i = 0; i < rest.length; i++) {
@@ -245,13 +277,13 @@ Item {
 
     Timer { id: debounce; interval: 220; onTriggered: surf.runSearch() }
 
-    Shortcut { sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); surf.runSearch(); surf.commitCurrentQuery(); surf.openTop() } }
+    Shortcut { enabled: surf.visible && surf.enabled; sequences: ["Return", "Enter"]; onActivated: { debounce.stop(); surf.runSearch(); surf.commitCurrentQuery(); if (!surf.searchProvider) surf.openTop() } }
 
     // ── visible exit (audit fix: Esc was the only door out) + the search field ──
     BackAction {
         id: searchBack
         x: surf.phoneNarrow ? 16 : theme.margin
-        y: surf.phoneNarrow ? 14 : undefined
+        y: surf.phoneNarrow ? 14 : 0
         anchors.verticalCenter: surf.phoneNarrow ? undefined : field.verticalCenter
         onTriggered: { surf.cancelAllRequests(); surf.commitCurrentQuery(); surf.backRequested() }
     }
@@ -338,7 +370,7 @@ Item {
         anchors.top: field.bottom; anchors.topMargin: surf.phoneNarrow ? 20 : 30
         anchors.left: parent.left; anchors.leftMargin: surf.phoneNarrow ? 16 : theme.margin
         anchors.right: parent.right; anchors.rightMargin: surf.phoneNarrow ? 16 : theme.margin
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 8
+        anchors.bottom: parent.bottom; anchors.bottomMargin: 8 + surf.bottomInset
         clip: true
         contentWidth: width
         contentHeight: content.implicitHeight + 30
@@ -504,12 +536,14 @@ Item {
 
                     // TRY A GENRE — a chip opens the inline browse grid above
                     Text {
+                        visible: !surf.searchProvider
                         text: "TRY A GENRE"; color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 12
                         font.weight: Font.DemiBold; font.letterSpacing: 1.8
                     }
-                    Item { width: 1; height: 16 }
+                    Item { visible: !surf.searchProvider; width: 1; height: 16 }
                     Flow {
                         id: genreFlow
+                        visible: !surf.searchProvider
                         width: parent.width; spacing: 10
                         property int currentIndex: surf.genres.length > 0 ? 0 : -1
                         focusPolicy: surf.genres.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -536,10 +570,11 @@ Item {
                             }
                         }
                     }
-                    Item { width: 1; height: 42 }
+                    Item { visible: !surf.searchProvider; width: 1; height: 42 }
 
                     // SURPRISE ME — random genre → random top title → opens it
                     Item {
+                        visible: !surf.searchProvider
                         width: parent.width; height: surf.phoneNarrow ? 44 : 24
                         Row {
                             anchors.horizontalCenter: parent.horizontalCenter; spacing: 8
@@ -589,7 +624,7 @@ Item {
                         id: tmCover
                         anchors.left: parent.left; anchors.leftMargin: 28
                         anchors.verticalCenter: parent.verticalCenter
-                        width: 110; height: 165
+                        width: surf.coverAspect === 1 ? 154 : 110; height: width / surf.coverAspect
                         Image {
                             id: tmImg; anchors.fill: parent
                             source: topCard.m && topCard.m.cover ? topCard.m.cover : ""
@@ -598,7 +633,7 @@ Item {
                             layer.effect: MultiEffect { shadowEnabled: true; shadowColor: Qt.rgba(0,0,0,0.7)
                                 shadowBlur: 1.0; shadowVerticalOffset: 16; autoPaddingEnabled: true }
                         }
-                        Rectangle { anchors.left: parent.left; width: 8; height: parent.height; radius: 2
+                        Rectangle { visible: surf.coverAspect !== 1; anchors.left: parent.left; width: 8; height: parent.height; radius: 2
                             gradient: Gradient { orientation: Gradient.Horizontal
                                 GradientStop { position: 0; color: Qt.rgba(0,0,0,0.5) }
                                 GradientStop { position: 0.6; color: Qt.rgba(0,0,0,0.05) }
@@ -627,8 +662,10 @@ Item {
                         anchors.verticalCenter: parent.verticalCenter
                         width: 116; height: 48; radius: 12; color: theme.gold
                         Row { anchors.centerIn: parent; spacing: 7
-                            Text { text: surf.primaryLabel; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
-                            Text { text: "›"; color: "#241a05"; font.pixelSize: 16 } }
+                            Text { visible: !surf.primaryIcon.toString(); text: surf.primaryLabel; color: "#241a05"; font.family: theme.ui; font.pixelSize: 15; font.weight: Font.DemiBold }
+                            Text { visible: !surf.primaryIcon.toString(); text: "›"; color: "#241a05"; font.pixelSize: 16 }
+                            Image { visible: !!surf.primaryIcon.toString(); width: 22; height: 22; source: topCard.m.selected ? "../assets/icons/lucide/circle-check.svg" : surf.primaryIcon }
+                        }
                         MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                             onClicked: if (topCard.m) surf.openItem(topCard.m.data) }
                     }
@@ -652,7 +689,7 @@ Item {
                             Row {
                                 anchors.fill: parent; spacing: 14
                                 Rectangle {
-                                    width: 84; height: 126; radius: 8; clip: true; color: "#14131a"
+                                    width: 84; height: width / surf.coverAspect; radius: 8; clip: true; color: "#14131a"
                                     Image { anchors.fill: parent; source: topCard.m.cover || ""
                                         fillMode: Image.PreserveAspectCrop; asynchronous: true }
                                 }
@@ -676,10 +713,11 @@ Item {
                         }
                         Rectangle {
                             width: parent.width; height: 48; radius: 12; color: theme.gold
-                            Text { anchors.centerIn: parent; text: surf.primaryLabel + "  ›"
+                            Text { visible: !surf.primaryIcon.toString(); anchors.centerIn: parent; text: surf.primaryLabel + "  ›"
                                 color: "#241a05"; font.family: theme.ui; font.pixelSize: 15
                                 font.weight: Font.DemiBold }
                             MouseArea { anchors.fill: parent; onClicked: surf.openTop() }
+                            Image { visible: !!surf.primaryIcon.toString(); anchors.centerIn: parent; width: 22; height: 22; source: surf.primaryIcon }
                         }
                     }
                 }
@@ -740,10 +778,11 @@ Item {
                                     }
                                     Rectangle {
                                         visible: !surf.phoneNarrow
-                                        width: parent.width; height: width * 1.5; radius: 8; clip: true; color: "#14131a"
+                                        width: parent.width; height: width / surf.coverAspect; radius: 8; clip: true; color: "#14131a"
                                         border.width: resultCard.keyboardSelected ? 2 : 0; border.color: theme.gold
                                         Image { anchors.fill: parent; source: modelData.cover ? modelData.cover : ""
                                             fillMode: Image.PreserveAspectCrop; asynchronous: true; cache: true }
+                                        Image { visible: !!modelData.selected; anchors.right: parent.right; anchors.bottom: parent.bottom; anchors.margins: 10; width: 24; height: 24; source: "../assets/icons/lucide/circle-check.svg" }
                                         scale: cardMa.containsMouse ? 1.03 : 1.0
                                         Behavior on scale { NumberAnimation { duration: 140; easing.type: Easing.OutCubic } }
                                         MouseArea { id: cardMa; anchors.fill: parent; hoverEnabled: true; cursorShape: Qt.PointingHandCursor
@@ -793,6 +832,24 @@ Item {
                             }
                         }
                         Item { width: 1; height: 34 }
+                        Text {
+                            visible: !!section.modelData.loading || !!section.modelData.error
+                            width: parent.width; wrapMode: Text.Wrap
+                            text: section.modelData.error || "Searching…"
+                            color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 14
+                        }
+                        KeyboardAction {
+                            id: pageMore
+                            objectName: "searchMore_" + (section.modelData.key || "")
+                            visible: !!surf.searchProvider && (!!section.modelData.hasMore || !!section.modelData.error)
+                            enabled: !section.modelData.loading
+                            width: 44; height: visible ? 44 : 0; focusRadius: 22
+                            focusOnPointer: false
+                            accessibleName: section.modelData.error ? "Retry " + section.modelData.group : "More " + section.modelData.group
+                            onTriggered: surf.searchProvider.loadMore(section.modelData.key)
+                            Rectangle { anchors.fill: parent; radius: 22; color: pageMore.interactionActive ? theme.glassHi : theme.glassTint; border.width: 1; border.color: theme.edge }
+                            Text { anchors.centerIn: parent; text: section.modelData.error ? "↻" : "+"; color: theme.ink; font.pixelSize: 24 }
+                        }
                     }
                 }
 

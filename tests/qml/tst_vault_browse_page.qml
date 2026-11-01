@@ -338,6 +338,17 @@ TestCase {
         compare(carousel.slides[0].title, "Loki")
         verify(findText(carousel, "Loki") !== null)
         verify(findText(carousel, "Season 2 · 1080p") !== null)
+        var primaryLabel=findChild(carousel,"featuredPrimaryLabel_0")
+        var primaryIcon=findChild(carousel,"featuredPrimaryIcon_0")
+        var primaryAction=findChild(carousel,"featuredPrimaryAction_0")
+        var posterArt=findChild(carousel,"featuredInsetArt_0")
+        verify(primaryLabel!==null && primaryLabel.visible,
+            "other worlds retain their text CTA by default")
+        verify(primaryIcon!==null && !primaryIcon.visible)
+        compare(primaryAction.accessibleName,"Read")
+        verify(posterArt!==null && posterArt.visible)
+        verify(Math.abs(posterArt.width/posterArt.height-0.66)<0.01,
+            "other worlds retain poster artwork framing by default")
     }
 
     function test_carousel_return_tracks_stable_id_through_duplicate_title_reorder() {

@@ -31,6 +31,7 @@ Column {
 
     // Rows without a see-all destination (Your Collection) hide the header chevron.
     property bool showSeeAll: true
+    property bool primaryMangaResumeEnabled: true // Collection bookmark rails set false
     // Optional stable identity for assembled-app automation. The default keeps the
     // historical continueRail name for existing callers; world owners with multiple
     // rows provide an explicit id so runtime evidence cannot resolve the wrong rail.
@@ -74,8 +75,11 @@ Column {
         return true
     }
     function activateCurrent() {
-        if (currentIndex >= 0 && currentIndex < ordered.length)
-            cont.resumeRequested(ordered[currentIndex])
+        if (currentIndex < 0 || currentIndex >= ordered.length) return
+        const tileItem = tileRepeater.itemAt(currentIndex)
+        // TV Select uses the center resume action for every medium.
+        if (tileItem) tileItem.activateResumeControl()
+        else cont.resumeRequested(ordered[currentIndex])
     }
 
     width: parent ? parent.width : 800
@@ -167,6 +171,8 @@ Column {
                 delegate: ContinueTile {
                     required property var modelData
                     required property int index
+                    objectName: "continueRowTile_" + String(modelData.id || index)
+                    primaryMangaResumeEnabled: cont.primaryMangaResumeEnabled
                     variant: "world"
                     collectionManaged: true
                     collectionSelected: continueFlick.activeFocus && continueFlick.currentIndex === index
@@ -209,7 +215,7 @@ Column {
             }
             onActivated: (index) => {
                 const tileItem = tileRepeater.itemAt(index)
-                if (tileItem) tileItem.detailRequested()
+                if (tileItem) tileItem.activatePrimary()
             }
             onContextRequested: (index) => {
                 const tileItem = tileRepeater.itemAt(index)

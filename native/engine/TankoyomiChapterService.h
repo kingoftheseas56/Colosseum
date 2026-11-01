@@ -9,6 +9,8 @@
 #include <QObject>
 #include <QString>
 #include <QVariantList>
+#include <QUrl>
+#include <QPointer>
 
 class QNetworkAccessManager;
 class TankoyomiScriptProvider;
@@ -32,6 +34,11 @@ public:
                             QObject *parent = nullptr);
 
     void fetchCatalogue(const QString &requestId, const QString &title, const QString &language);
+    // Explicit backend/inventory injection for embedders and deterministic transport checks.
+    TankoyomiChapterService(QNetworkAccessManager *nam, TankoyomiConfigurationStore *configuration,
+                            int providerAttemptTimeoutMs, MangaImageHostResolver::Lookup resolverLookup,
+                            const TankoyomiProviderRegistry &registry, const QUrl &remoteBase,
+                            QObject *parent = nullptr);
     void fetchCatalogue(const QString &requestId, const TankoyomiSeriesQuery &query, const QString &language);
     void fetchPages(const QString &requestId, const QString &qualifiedChapterId);
     QString pageAccessPolicyForChapter(const QString &qualifiedChapterId) const;
@@ -46,6 +53,8 @@ signals:
     void pagesReady(const QString &requestId, const QVariantList &pages);
     void pagesFailed(const QString &requestId, const QString &message);
 private:
+    void addProviders(MangaImageHostResolver::Lookup resolverLookup = {});
+    void refreshRemoteRegistry();
     QString providerKey(const QString &language, const QString &providerId) const;
     TankoyomiScriptProvider *providerFor(const QString &language,
                                          const QString &providerId) const;
@@ -58,5 +67,7 @@ private:
     TankoyomiProviderRegistry m_registry;
     TankoyomiConfigurationStore *m_configuration = nullptr;
     QHash<QString, TankoyomiScriptProvider *> m_providers;
+    QPointer<QNetworkAccessManager> m_nam;
+    QUrl m_workerBase;
     int m_providerAttemptTimeoutMs = 50000;
 };

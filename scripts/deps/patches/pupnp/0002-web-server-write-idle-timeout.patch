@@ -1,0 +1,153 @@
+diff --git a/upnp/inc/upnp.h b/upnp/inc/upnp.h
+index 3e63599b..1ad29f6e 100644
+--- a/upnp/inc/upnp.h
++++ b/upnp/inc/upnp.h
+@@ -1102,6 +1102,23 @@ UPNP_EXPORT_SPEC int UpnpSetMaxContentLength(
+ 	 * actions, in bytes. */
+ 	size_t contentLength);
+ 
++/*!
++ * \brief Sets the idle timeout for the web server's writes of file and
++ * virtual-directory bodies.
++ *
++ * Every slice of a body is written with a fresh budget of this many seconds,
++ * so a client that stops reading cannot pin a web server worker forever while
++ * a slow client that keeps reading is never cut off. The default is 90
++ * seconds; 0 turns the timeout off.
++ *
++ * \return An integer representing one of the following:
++ *     \li \c UPNP_E_SUCCESS: The operation completed successfully.
++ *     \li \c UPNP_E_INVALID_PARAM: \b seconds is negative.
++ */
++UPNP_EXPORT_SPEC int UpnpSetWebServerWriteIdleTimeout(
++	/*! [in] The idle timeout in seconds. */
++	int seconds);
++
+ /*!
+  * \brief Sets the maximum size of the HTTP header block that the SDK will
+  * accept on an incoming request or response.
+diff --git a/upnp/src/genlib/net/http/httpreadwrite.c b/upnp/src/genlib/net/http/httpreadwrite.c
+index 6422c25d..e37099ba 100644
+--- a/upnp/src/genlib/net/http/httpreadwrite.c
++++ b/upnp/src/genlib/net/http/httpreadwrite.c
+@@ -103,6 +103,83 @@ const int CHUNK_TAIL_SIZE = 10;
+ #define CHUNK_HEADER_SIZE (size_t)10
+ #define CHUNK_TAIL_SIZE (size_t)10
+ 
++/*!
++ * Idle timeout, in seconds, for every write of a web-server file/virtual-dir
++ * body. Without it the web server writes with an infinite timeout, so one
++ * client that opens a GET and stops reading pins a worker thread for good.
++ * The budget is renewed for every slice that goes out, so a slow but moving
++ * client is never cut off: this bounds one stalled write, not a transfer.
++ * 0 or negative disables the timeout (the previous behaviour).
++ */
++static volatile int g_webWriteIdleTimeoutSecs = 90;
++
++/*! Size of one body write slice: small enough that the idle timeout bounds a
++ * stall, large enough to keep throughput. */
++#define WEB_WRITE_SLICE_SIZE (size_t)(64 * 1024)
++
++int UpnpSetWebServerWriteIdleTimeout(int seconds)
++{
++	if (seconds < 0) {
++		return UPNP_E_INVALID_PARAM;
++	}
++	g_webWriteIdleTimeoutSecs = seconds;
++
++	return UPNP_E_SUCCESS;
++}
++
++/*! Make a blocking send() itself give up after the idle timeout: select()
++ * alone only proves that some room exists, the send that follows can still
++ * block until the whole slice is queued. */
++static void web_set_send_timeout(SOCKET sock, int seconds)
++{
++	if (seconds <= 0) {
++		return;
++	}
++#ifdef _WIN32
++	{
++		DWORD ms = (DWORD)seconds * 1000;
++		setsockopt(sock,
++			SOL_SOCKET,
++			SO_SNDTIMEO,
++			(const char *)&ms,
++			(int)sizeof(ms));
++	}
++#else
++	{
++		struct timeval tv;
++		tv.tv_sec = seconds;
++		tv.tv_usec = 0;
++		setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &tv, sizeof(tv));
++	}
++#endif
++}
++
++/*! Write a body buffer in slices, each with a fresh idle budget. Returns the
++ * number of bytes written, or the failing sock_write() result (<= 0). */
++static int web_write_body(SOCKINFO *info, const char *buf, size_t len)
++{
++	size_t done = 0;
++
++	while (done < len) {
++		size_t n = len - done;
++		int budget = g_webWriteIdleTimeoutSecs > 0
++				     ? g_webWriteIdleTimeoutSecs
++				     : -1;
++		int nw;
++
++		if (n > WEB_WRITE_SLICE_SIZE) {
++			n = WEB_WRITE_SLICE_SIZE;
++		}
++		nw = sock_write(info, buf + done, n, &budget);
++		if (nw <= 0) {
++			return nw;
++		}
++		done += (size_t)nw;
++	}
++
++	return (int)done;
++}
++
+ #ifndef UPNP_ENABLE_BLOCKING_TCP_CONNECTIONS
+ 
+ 	/* in seconds */
+@@ -603,6 +680,8 @@ int http_SendMessage(SOCKINFO *info, int *TimeOut, const char *fmt, ...)
+ 				RetVal = UPNP_E_FILE_READ_ERROR;
+ 				goto ExitFunction;
+ 			}
++			web_set_send_timeout(
++				info->socket, g_webWriteIdleTimeoutSecs);
+ 			if (Instr && Instr->IsRangeActive &&
+ 				Instr->IsVirtualFile) {
+ 				if (virtualDirCallback.seek(Fp,
+@@ -701,12 +780,11 @@ int http_SendMessage(SOCKINFO *info, int *TimeOut, const char *fmt, ...)
+ 					 * = NULL; */
+ 					/*upnpprintf("Sending
+ 					 * %s\n",file_buf-strlen(Chunk_Header));*/
+-					nw = sock_write(info,
++					nw = web_write_body(info,
+ 						file_buf - strlen(Chunk_Header),
+ 						num_read +
+ 							strlen(Chunk_Header) +
+-							(size_t)2,
+-						TimeOut);
++							(size_t)2);
+ 					num_written = (size_t)nw;
+ 					if (nw <= 0 ||
+ 						num_written !=
+@@ -718,10 +796,8 @@ int http_SendMessage(SOCKINFO *info, int *TimeOut, const char *fmt, ...)
+ 						goto Cleanup_File;
+ 				} else {
+ 					/* write data */
+-					nw = sock_write(info,
+-						file_buf,
+-						num_read,
+-						TimeOut);
++					nw = web_write_body(
++						info, file_buf, num_read);
+ 					UpnpPrintf(UPNP_INFO,
+ 						HTTP,
+ 						__FILE__,

@@ -12,6 +12,8 @@ Window {
     height: 720
     visible: true
     property string page: "album"
+    property bool videoFullscreen: false
+    onPageChanged: if (page !== "song") videoFullscreen = false
     property bool ready: false
     property var contentStore: typeof Content !== "undefined" ? Content : null
     readonly property string fallbackSource: {
@@ -129,6 +131,7 @@ Window {
     }
     VinylPageData {
         id: pageData
+        onVideoShownChanged: if (!videoShown) root.videoFullscreen = false
         artworkRoot: Qt.resolvedUrl("../../tests/fixtures/vinyl-pages")
         onArtistRequested: name => root.openArtist(name)
     }
@@ -314,13 +317,15 @@ Window {
         }
     }
     VinylSongPage {
+        videoFullscreen: root.videoFullscreen
+        onVideoFullscreenRequested: root.videoFullscreen = !root.videoFullscreen
         anchors {
             left: parent.left
             right: parent.right
             top: parent.top
-            topMargin: 108
-            bottom: bar.top
-            bottomMargin: 42
+            topMargin: root.videoFullscreen ? 0 : 108
+            bottom: root.videoFullscreen ? parent.bottom : bar.top
+            bottomMargin: root.videoFullscreen ? 0 : 42
         }
         visible: root.page === "song"
         pageData: pageData
@@ -390,6 +395,8 @@ Window {
     }
     VinylPlayerBar {
         id: bar
+        videoFullscreen: root.videoFullscreen
+        onVideoFullscreenRequested: root.videoFullscreen = !root.videoFullscreen
         visible: root.page !== "artist"
         x: theme.margin
         y: root.height - height - 18
@@ -398,7 +405,7 @@ Window {
         backdrop: backdrop
         page: root.page
         onSongRequested: root.openSong()
-        onCreditsRequested: creditsPopup.opened ? creditsPopup.close() : creditsPopup.open()
+        onCreditsRequested: {creditsPopup.pageData=bar.songData;creditsPopup.opened ? creditsPopup.close() : creditsPopup.open();}
     }
     Flow {
         id: dev

@@ -80,6 +80,8 @@ bool isMachineLocalCoverValue(const QString &value) {
 
 QJsonObject portableEventProjection(const QJsonObject &event) {
     ActivityProjector::validateEvent(event);
+    if (event.value(QStringLiteral("type")).toString() == QLatin1String("music_action"))
+        throw ActivityProjector::ValidationError(QStringLiteral("music_action is local-only"));
 
     QJsonObject portable;
     const auto copy = [&](const QString &key) {
@@ -202,7 +204,8 @@ bool ActivityStore::ensureSchema() {
         m_openError = versionQuery.lastError().text();
         return false;
     }
-    if (versionQuery.value(0).toInt() > kActivitySchemaVersion) {
+    const int existingSchemaVersion = versionQuery.value(0).toInt();
+    if (existingSchemaVersion > kActivitySchemaVersion) {
         versionQuery.finish();
         m_openError = QStringLiteral("activity database schema is newer than this build supports");
         return false; // never downgrade a DB stamped by a newer schema owner
@@ -314,10 +317,14 @@ bool ActivityStore::ensureSchema() {
         return false;
     }
 
-    QSqlQuery stamp(m_db);
-    if (!stamp.exec(QStringLiteral("PRAGMA user_version = %1").arg(kActivitySchemaVersion))) {
-        m_openError = stamp.lastError().text();
-        return false;
+    // Rewriting even the same user_version changes SQLite's file digest.
+    // An unchanged source must keep its identity when an attachment resumes.
+    if (existingSchemaVersion != kActivitySchemaVersion) {
+        QSqlQuery stamp(m_db);
+        if (!stamp.exec(QStringLiteral("PRAGMA user_version = %1").arg(kActivitySchemaVersion))) {
+            m_openError = stamp.lastError().text();
+            return false;
+        }
     }
     if (!loadSyncMetadata())
         return false;
@@ -689,11 +696,14 @@ bool ActivityStore::insertEventRow(const QJsonObject &event, const QString &cano
     query.bindValue(QStringLiteral(":title_key"), event.value(QStringLiteral("titleKey")).toString());
     query.bindValue(QStringLiteral(":item_key"), event.value(QStringLiteral("itemKey")).toString());
     query.bindValue(QStringLiteral(":title"), event.value(QStringLiteral("title")).toString());
-    query.bindValue(QStringLiteral(":item_label"), event.value(QStringLiteral("itemLabel")).toString());
-    query.bindValue(QStringLiteral(":cover"), event.value(QStringLiteral("cover")).toString());
+    query.bindValue(QStringLiteral(":item_label"),
+                    event.value(QStringLiteral("itemLabel")).toString(QStringLiteral("")));
+    query.bindValue(QStringLiteral(":cover"),
+                    event.value(QStringLiteral("cover")).toString(QStringLiteral("")));
     query.bindValue(QStringLiteral(":utc_offset_minutes"), jsonInt(event, QStringLiteral("utcOffsetMinutes")));
     query.bindValue(QStringLiteral(":syncable"), event.value(QStringLiteral("syncable")).toBool());
-    query.bindValue(QStringLiteral(":source"), event.value(QStringLiteral("source")).toString());
+    query.bindValue(QStringLiteral(":source"),
+                    event.value(QStringLiteral("source")).toString(QStringLiteral("")));
 
     // Type-specific columns: NULL (QVariant()) wherever not applicable to
     // this event's type — SQLite is dynamically typed per-column, so an
@@ -722,11 +732,16 @@ bool ActivityStore::insertEventRow(const QJsonObject &event, const QString &cano
                             QString::fromUtf8(QJsonDocument(pageKeys).toJson(QJsonDocument::Compact)));
             query.bindValue(QStringLiteral(":progress_micros"), jsonInt(event, QStringLiteral("progressMicros")));
             query.bindValue(QStringLiteral(":completion_reason"), QVariant());
-        } else { // media_completed
+        } else if (type == QLatin1String("media_completed")) {
             query.bindValue(QStringLiteral(":reading_form"), QVariant());
             query.bindValue(QStringLiteral(":page_keys_json"), QVariant());
             query.bindValue(QStringLiteral(":progress_micros"), QVariant());
             query.bindValue(QStringLiteral(":completion_reason"), event.value(QStringLiteral("reason")).toString());
+        } else { // music_action
+            query.bindValue(QStringLiteral(":reading_form"), QVariant());
+            query.bindValue(QStringLiteral(":page_keys_json"), QVariant());
+            query.bindValue(QStringLiteral(":progress_micros"), QVariant());
+            query.bindValue(QStringLiteral(":completion_reason"), QVariant());
         }
     }
 
@@ -806,6 +821,10 @@ bool ActivityStore::recordCompletion(const QVariantMap &fact) {
     return insertFact(QStringLiteral("media_completed"), fact);
 }
 
+bool ActivityStore::recordMusicAction(const QVariantMap &fact) {
+    return insertFact(QStringLiteral("music_action"), fact);
+}
+
 QVariantMap ActivityStore::projectMonth(const QString &monthKey) const {
     if (!healthy()) {
         const_cast<ActivityStore *>(this)->integrityError(
@@ -848,6 +867,8 @@ QString ActivityStore::earliestActivityMonth() const {
     QString earliest;
     while (query.next()) {
         const QString type = query.value(0).toString();
+        if (type == QLatin1String("music_action"))
+            continue;
         const qint64 ms = type == QLatin1String("playback_delta")
             ? query.value(1).toLongLong()
             : query.value(2).toLongLong();

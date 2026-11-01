@@ -2,6 +2,7 @@ import QtQuick
 import ".."
 
 KeyboardAction {
+    focusOnPointer: false
     id: root
     required property var pageData
     required property int trackIndex
@@ -17,6 +18,8 @@ KeyboardAction {
     enabled: track.available !== false
     opacity: enabled ? 1 : 0.4
     height: artistLine ? 62 : 57
+    // Match the chapter/episode lists: the row wash carries keyboard focus.
+    showFocusFrame: false
     onTriggered: pageData.playTrack(trackIndex)
     Theme {
         id: theme
@@ -28,7 +31,7 @@ KeyboardAction {
         radius: 6
     }
     Text {
-        x: 0
+        x: 8
         anchors.verticalCenter: parent.verticalCenter
         text: ("0" + (root.trackIndex + 1)).slice(-2)
         color: root.playing ? theme.gold : theme.inkDimmer
@@ -60,6 +63,7 @@ KeyboardAction {
     }
     Text {
         anchors.right: parent.right
+        anchors.rightMargin: 14
         anchors.verticalCenter: parent.verticalCenter
         objectName: "vinylTrackDuration_" + root.trackIndex
         text: root.trackDuration > 0 ? root.pageData.formatTime(root.trackDuration) : "—"

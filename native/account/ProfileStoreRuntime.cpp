@@ -14,6 +14,9 @@
 #include "trackers/SimklApiClient.h"
 #include "trackers/SimklSyncRuntime.h"
 #include "trackers/MalApiClient.h"
+#include "trackers/AniListApiClient.h"
+#include "trackers/AniListConnectionController.h"
+#include "trackers/AniListSyncRuntime.h"
 #include "trackers/MalConnectionController.h"
 #include "trackers/MalListStateStore.h"
 #include "trackers/MalSyncRuntime.h"
@@ -28,6 +31,7 @@
 
 #include "AudioPairingStore.h"
 #include "CollectionStore.h"
+#include "NamedCollectionsStore.h"
 #include "ProgressStore.h"
 #include "SearchHistoryStore.h"
 
@@ -42,6 +46,7 @@
 struct ProfileStoreRuntime::StoreSet {
     std::unique_ptr<ProgressStore> progress;
     std::unique_ptr<CollectionStore> collection;
+    std::unique_ptr<NamedCollectionsStore> namedCollections;
     std::unique_ptr<SearchHistoryStore> searchHistory;
     std::unique_ptr<AudioPairingStore> audioPairing;
     std::unique_ptr<ProfilePreferencesStore> preferences;
@@ -65,6 +70,7 @@ struct ProfileStoreRuntime::StoreSet {
     std::unique_ptr<SimklApiClient> simklApi;
     std::unique_ptr<MalApiClient> malApi;
     std::unique_ptr<MalListStateStore> malListState;
+    std::unique_ptr<AniListApiClient> aniListApi;
     std::unique_ptr<TraktApiClient> traktApi;
     std::unique_ptr<TrackerScrobbleRuntime> trackerScrobble;
     std::unique_ptr<TrackerSyncCenterModel> trackerSyncCenter;
@@ -72,6 +78,8 @@ struct ProfileStoreRuntime::StoreSet {
     std::unique_ptr<SimklConnectionController> simklConnection;
     std::unique_ptr<MalSyncRuntime> malSync;
     std::unique_ptr<MalConnectionController> malConnection;
+    std::unique_ptr<AniListConnectionController> aniListConnection;
+    std::unique_ptr<AniListSyncRuntime> aniListSync;
     std::unique_ptr<TraktSyncRuntime> traktSync;
     std::unique_ptr<TraktConnectionController> traktConnection;
     std::unique_ptr<TrackerConnectionRouter> trackerConnectionRouter;
@@ -127,6 +135,11 @@ ProfileStoreRuntime::collectionStore() const {
     return m_stores
         ? m_stores->collection.get()
         : nullptr;
+}
+
+NamedCollectionsStore *
+ProfileStoreRuntime::namedCollectionsStore() const {
+    return m_stores ? m_stores->namedCollections.get() : nullptr;
 }
 
 SearchHistoryStore *
@@ -506,6 +519,8 @@ ProfileStoreRuntime::createSealedStores(
         std::make_unique<CollectionStore>(
             QDir(root).filePath(
                 QStringLiteral("collection.ini")));
+    stores->namedCollections = std::make_unique<NamedCollectionsStore>(
+        QDir(root).filePath(QStringLiteral("named-collections-v2.json")));
     stores->searchHistory =
         std::make_unique<SearchHistoryStore>(
             QDir(root).filePath(
@@ -556,6 +571,8 @@ ProfileStoreRuntime::createLegacyStores(QString *error) const {
         ? std::make_unique<CollectionStore>(
               m_legacyStorage.collectionIniPath())
         : std::make_unique<CollectionStore>();
+    stores->namedCollections = std::make_unique<NamedCollectionsStore>(
+        m_legacyStorage.namedCollectionsPath());
 
     stores->searchHistory =
         m_legacyStorage.searchHistoryUsesExplicitIni()
@@ -636,6 +653,8 @@ ProfileStoreRuntime::createProfileStores(
     stores->collection =
         std::make_unique<CollectionStore>(
             paths.collectionIniPath());
+    stores->namedCollections = std::make_unique<NamedCollectionsStore>(
+        paths.namedCollectionsPath());
     stores->searchHistory =
         std::make_unique<SearchHistoryStore>(
             paths.searchHistoryIniPath());
@@ -692,6 +711,11 @@ ProfileStoreRuntime::createProfileStores(
             paths, *malConfiguration);
         stores->malListState = std::make_unique<MalListStateStore>(paths);
     }
+    const auto aniListConfiguration = aniListProductionConfiguration();
+    if (aniListConfiguration) {
+        stores->aniListApi = std::make_unique<AniListApiClient>(
+            paths, *aniListConfiguration);
+    }
     stores->trackerScrobble = std::make_unique<TrackerScrobbleRuntime>(
         paths, stores->trackerDelivery->connectionStore(),
         stores->trackerDelivery->mappingStore(), stores->simklApi.get());
@@ -717,6 +741,7 @@ ProfileStoreRuntime::createProfileStores(
         [scrobbleRuntime] { scrobbleRuntime->resumeAfterGlobalSyncEnabled(); },
         [paths, deliveryRuntime = stores->trackerDelivery.get(), scrobbleRuntime,
          simklApi = stores->simklApi.get(), malApi = stores->malApi.get(),
+         aniListApi = stores->aniListApi.get(),
          traktApi = stores->traktApi.get(),
          malListState = stores->malListState.get()](
             const QString &providerKey, const QString &choice, QString *error) {
@@ -753,6 +778,8 @@ ProfileStoreRuntime::createProfileStores(
                 return simklApi->disconnectThenRevoke(disconnect);
             if (*providerId == TrackerProviderId::Mal && malApi)
                 return malApi->disconnectThenForget(disconnect);
+            if (*providerId == TrackerProviderId::AniList && aniListApi)
+                return aniListApi->disconnectThenForget(disconnect);
             if (*providerId == TrackerProviderId::Trakt && traktApi)
                 return traktApi->disconnectThenRevoke(disconnect);
             return disconnect();
@@ -804,13 +831,35 @@ ProfileStoreRuntime::createProfileStores(
                          &TrackerSyncCenterModel::syncAllRequested,
                          stores->traktSync.get(), &TraktSyncRuntime::syncAll);
     }
-    if (stores->simklSync || stores->malSync || stores->traktSync) {
+    // AniList's connection controller reports reconnect-required to its sync
+    // runtime's owner; the Sync Center connect UI goes through the router.
+    stores->aniListConnection = std::make_unique<AniListConnectionController>(
+        paths, stores->trackerDelivery->connectionStore());
+    QObject::connect(stores->aniListConnection.get(),
+                     &AniListConnectionController::stateChanged,
+                     stores->trackerSyncCenter.get(), &TrackerSyncCenterModel::refresh);
+    if (stores->aniListApi) {
+        stores->aniListSync = std::make_unique<AniListSyncRuntime>(
+            stores->trackerDelivery->connectionStore(),
+            stores->trackerDelivery->mappingStore(), stores->trackerImports.get(),
+            stores->trackerImportOwner.get(),
+            stores->trackerDelivery->deliveryStore(),
+            stores->trackerDelivery->canonicalSource(), stores->trackerSettings.get(),
+            stores->trackerSyncCenter.get(), stores->aniListApi.get(),
+            stores->aniListConnection.get());
+        QObject::connect(stores->trackerSyncCenter.get(),
+                         &TrackerSyncCenterModel::syncAllRequested,
+                         stores->aniListSync.get(), &AniListSyncRuntime::syncAll);
+    }
+    if (stores->simklSync || stores->malSync || stores->traktSync
+        || stores->aniListSync) {
         SimklSyncRuntime *simklSync = stores->simklSync.get();
         MalSyncRuntime *malSync = stores->malSync.get();
         TraktSyncRuntime *traktSync = stores->traktSync.get();
+        AniListSyncRuntime *aniListSync = stores->aniListSync.get();
         stores->trackerSyncCenter->setExportReview(
             stores->trackerDelivery->canonicalSource(),
-            [simklSync, malSync, traktSync](
+            [simklSync, malSync, traktSync, aniListSync](
                 const TrackerConnection &connection,
                 const QList<TrackerDeliveryFact> &facts,
                 TrackerSyncCenterModel::ExportSnapshotCompletion completion) {
@@ -827,6 +876,11 @@ ProfileStoreRuntime::createProfileStores(
                 if (connection.providerId == TrackerProviderId::Trakt && traktSync) {
                     traktSync->readExportSnapshotAsync(connection, facts,
                                                        std::move(completion));
+                    return;
+                }
+                if (connection.providerId == TrackerProviderId::AniList && aniListSync) {
+                    aniListSync->readExportSnapshotAsync(connection, facts,
+                                                         std::move(completion));
                     return;
                 }
                 completion(std::nullopt);
@@ -846,13 +900,20 @@ ProfileStoreRuntime::createProfileStores(
         stores->trackerSyncCenter.get());
     stores->trackerConnectionRouter = std::make_unique<TrackerConnectionRouter>(
         stores->simklConnection.get(), stores->malConnection.get(),
-        stores->traktConnection.get(), nullptr);
+        stores->traktConnection.get(), stores->aniListConnection.get(), nullptr);
+    stores->trackerSyncCenter->setReconnectRequiredSource(
+        [aniList = stores->aniListConnection.get()](TrackerProviderId providerId) {
+            return providerId == TrackerProviderId::AniList && aniList
+                && aniList->reconnectRequired();
+        });
     // Connection readiness belongs to the concrete native provider action,
     // not the compile-time provider catalogue or a cross-provider OR gate.
     stores->trackerSyncCenter->setConnectionAvailabilitySource(
         [simkl = stores->simklConnection.get(),
          mal = stores->malConnection.get(),
-         trakt = stores->traktConnection.get()](TrackerProviderId providerId) {
+         trakt = stores->traktConnection.get(),
+         aniList = stores->aniListConnection.get(),
+         aniListSync = stores->aniListSync.get()](TrackerProviderId providerId) {
             using Availability = TrackerSyncCenterModel::ConnectAvailability;
             WindowsTrackerCredentialVault vault;
             if (!vault.isAvailable())
@@ -862,7 +923,10 @@ ProfileStoreRuntime::createProfileStores(
             case TrackerProviderId::Simkl: ready = simkl && simkl->available(); break;
             case TrackerProviderId::Mal: ready = mal && mal->available(); break;
             case TrackerProviderId::Trakt: ready = trakt && trakt->available(); break;
-            case TrackerProviderId::AniList: break;
+            case TrackerProviderId::AniList:
+                ready = aniList && aniList->available()
+                    && aniListSync && aniListSync->available();
+                break;
             }
             return ready ? Availability::Ready : Availability::ProviderServiceUnavailable;
         });
@@ -882,6 +946,13 @@ ProfileStoreRuntime::createProfileStores(
                          stores->malSync.get(),
                          &MalSyncRuntime::connectionEstablished);
         stores->malSync->start();
+    }
+    if (stores->aniListSync) {
+        QObject::connect(stores->aniListConnection.get(),
+                         &AniListConnectionController::connectionEstablished,
+                         stores->aniListSync.get(),
+                         &AniListSyncRuntime::connectionEstablished);
+        stores->aniListSync->start();
     }
     if (stores->traktSync) {
         QObject::connect(stores->trackerConnectionRouter.get(),
@@ -913,6 +984,9 @@ void ProfileStoreRuntime::bindContextProperties() {
     m_qmlContext->setContextProperty(
         QStringLiteral("Collection"),
         m_stores->collection.get());
+    m_qmlContext->setContextProperty(
+        QStringLiteral("NamedCollections"),
+        m_stores->namedCollections.get());
     m_qmlContext->setContextProperty(
         QStringLiteral("SearchHistory"),
         m_stores->searchHistory.get());
@@ -951,6 +1025,9 @@ void ProfileStoreRuntime::clearContextProperties() {
         static_cast<QObject *>(nullptr));
     m_qmlContext->setContextProperty(
         QStringLiteral("Collection"),
+        static_cast<QObject *>(nullptr));
+    m_qmlContext->setContextProperty(
+        QStringLiteral("NamedCollections"),
         static_cast<QObject *>(nullptr));
     m_qmlContext->setContextProperty(
         QStringLiteral("SearchHistory"),

@@ -1,0 +1,2323 @@
+{
+  "reviewDate": "2026-10-20",
+  "reviewType": "source, contracts, test assertions and retained evidence; no fresh execution",
+  "sourceRoot": "Arc 62 backend artifact directory supplied by user",
+  "productionImplementationBase": "c059c6238ed8bd2b226a7606fd4a9f2cb039de73",
+  "sourceUnits": 32,
+  "authoredSourceFiles": 178,
+  "uncoveredAuthoredSourceFiles": [],
+  "reviewedFiles": 246,
+  "physicalLinesInventory": 67354.0,
+  "coverageMeaning": "All enumerated authored files inspected; implementation/test/fixture review modes are in worker inventories. Line totals describe inventory, not line-by-line correctness proof.",
+  "stability": "Worker-supplied SHA256 values checked against current files before consolidation.",
+  "qualification": "Review snapshot, not a sealed or passing implementation baseline",
+  "buildsExecuted": 0,
+  "testsExecuted": 0,
+  "excluded": "Preflight agent instructions/definitions, prepared prompts/dispatch, agent rooms, memory/capabilities, operating material; generated sources/objects/binaries not source-reviewed.",
+  "generatedRootBuildDirectories": [
+    {
+      "path": "W4-C-build-bb5",
+      "files": 103,
+      "bytes": 5511235.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "W4-C-build-bf3",
+      "files": 103,
+      "bytes": 5315806.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "W4-C-final-build-bb5",
+      "files": 102,
+      "bytes": 5519562.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "W4-C-final-build-bf3",
+      "files": 103,
+      "bytes": 5318748.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "W4-C-verified-bb5",
+      "files": 102,
+      "bytes": 5522133.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "W4-C-verified-bf3",
+      "files": 103,
+      "bytes": 5319748.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4a-build",
+      "files": 395,
+      "bytes": 11284354.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4a-build-ba2b",
+      "files": 97,
+      "bytes": 1910798.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4a-build-ba2c-compat",
+      "files": 98,
+      "bytes": 2252766.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4a-build-ba2d",
+      "files": 165,
+      "bytes": 5884250.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4a-build-bb4",
+      "files": 134,
+      "bytes": 3700001.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4b-build-ba2c",
+      "files": 114,
+      "bytes": 2886140.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4b-final-build-ba2c",
+      "files": 114,
+      "bytes": 3023509.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    },
+    {
+      "path": "w4d-build",
+      "files": 345,
+      "bytes": 6094177.0,
+      "review": "generated build metadata inventoried; objects and binaries excluded"
+    }
+  ],
+  "generatedComponentFileCounts": {
+    "artist": 474,
+    "core": 149
+  },
+  "files": [
+    {
+      "path": "artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.cpp",
+      "sha256": "664c3f80ed8b9011b0502c5c485d1509904e214b00107a8382da6bd990ade71d",
+      "bytes": 21866,
+      "physicalLines": 517,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/artwork/ArtistArtworkResolver.h",
+      "sha256": "380b269ef39c447cb19efc0d1f046073fd866c43bbeaebb4f9aea47074682d85",
+      "bytes": 3812,
+      "physicalLines": 114,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/artwork/CMakeLists.txt",
+      "sha256": "4e62bed63de8c8a18d0495cbae2c1458dfcf15c3136e240260741a443ef47c9f",
+      "bytes": 579,
+      "physicalLines": 12,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/artwork/compile-and-test.cmd",
+      "sha256": "7ef56c2e6d519b651ca6b5aa27ba6f7b7174233fcc339f947a695d2a90233957",
+      "bytes": 840,
+      "physicalLines": 23,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_runner_read; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/artwork/README.md",
+      "sha256": "c898d3e0a43d29ca46370bef5ee722e6c13aac66942939fba1ff2734eb04d580",
+      "bytes": 4016,
+      "physicalLines": 26,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/artwork/REPLY-ARC62-SPAWN-ARTIST-ARTWORK-002.md",
+      "sha256": "764e8da2ba5af3740d3bf84db71f514de2e9d0975564e95e4b7a9f6c14dd50b7",
+      "bytes": 7969,
+      "physicalLines": 51,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/artwork/test_artist_artwork.cpp",
+      "sha256": "464a639bf8ac2bb7f8df47e34c71450d357fa60d257f45037ee0c39263ba5c20",
+      "bytes": 14063,
+      "physicalLines": 305,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/ArtistServiceBridge.cpp",
+      "sha256": "b4502b8cfb2f9373fa96e00a85bd5359d5bf67df301b1139323e2d4dc8fe210f",
+      "bytes": 18664,
+      "physicalLines": 416,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/ArtistServiceBridge.h",
+      "sha256": "4589a11f6382dfb0dcde1ec25839c24cdeab729b5905689d0564c36f76e79727",
+      "bytes": 8635,
+      "physicalLines": 209,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/build.txt",
+      "sha256": "118579dbd214f5b885736c0508340a036768f4209bf023ff766fbd4c11a27634",
+      "bytes": 1236,
+      "physicalLines": 8,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/CMakeLists.txt",
+      "sha256": "3379f7d3cf6eda7b05600ac754ce53a907b7d3fe52c04f7eb177e0ea9c6ec047",
+      "bytes": 743,
+      "physicalLines": 15,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/configure.txt",
+      "sha256": "a40f985965d48e4525029e08270c802aea0dc8f154819a5a163bb1a9291dc66e",
+      "bytes": 2158,
+      "physicalLines": 20,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/ctest.txt",
+      "sha256": "633372b9c972e030aa664114ff849d18a5f13663ab7a4569eb26f4886e1456c0",
+      "bytes": 2776,
+      "physicalLines": 21,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/qt-tests.txt",
+      "sha256": "cb45ec3b5cb8c1d8cf22d6f788dba912b29d34321a2b17baf65709d3a8850d45",
+      "bytes": 2217,
+      "physicalLines": 32,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/README.md",
+      "sha256": "d2dc7376ee7aa7662f362322cb2e02b143f21322a283681aa157d8d864583108",
+      "bytes": 4547,
+      "physicalLines": 33,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/REPLY-ARC62-SPAWN-ARTIST-LIVE-BRIDGE-005.md",
+      "sha256": "dfee674683336fa7e58ebfd95f357760a272481f3ef23e05ce62bfa24660950a",
+      "bytes": 7331,
+      "physicalLines": 56,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/bridge/test_artist_service_bridge.cpp",
+      "sha256": "354ddcf242a25ddcd7a7e22e89f5a2d40fbf8dfe46577302450304458c7313eb",
+      "bytes": 19911,
+      "physicalLines": 421,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.cpp",
+      "sha256": "63b22d58cfdba5ec839f5fe6c36fa298a48c7ba63b12c52a2fe3f65039829eea",
+      "bytes": 26562,
+      "physicalLines": 616,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/ArtistCatalogueQuery.h",
+      "sha256": "66ebfd131b62612f2b8b9f4a6c41a0a05ee64f39a2b162a3ff7dffe215824cef",
+      "bytes": 4140,
+      "physicalLines": 131,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/build.log",
+      "sha256": "6db0d2c0e5b2aa565692c35361e9afd896904721f217049834f919286063e9ad",
+      "bytes": 682,
+      "physicalLines": 6,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/CMakeLists.txt",
+      "sha256": "44563ce317d6d71e888e7f9d944a15e00fe012ca42796c29d804560a12dca8a8",
+      "bytes": 1007,
+      "physicalLines": 24,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/configure.log",
+      "sha256": "723de151d7c55b48b2bdcd47f3191d08af31866304753a0107dfc2f08a37de56",
+      "bytes": 2164,
+      "physicalLines": 20,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/ctest.log",
+      "sha256": "0b5e86958a3bfe895461b75c62b8c35dbb2769a7715a154fc974e3376abae2ad",
+      "bytes": 976,
+      "physicalLines": 8,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/README.md",
+      "sha256": "0b53fb0e955961d5074d30566b19e859fd1f002951dd0239e782d6c313569c5b",
+      "bytes": 5496,
+      "physicalLines": 89,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/REPLY-ARC62-SPAWN-ARTIST-CATALOGUE-001.md",
+      "sha256": "7bb827691796ab8d33fe0344cba755f1b3aff7cf035645303f14f8d45e1326c8",
+      "bytes": 6560,
+      "physicalLines": 50,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/test_artist_catalogue.cpp",
+      "sha256": "66e0c848da590509495ee4e0221ac8cd075b14214ba92a9055c6164edf51df51",
+      "bytes": 19283,
+      "physicalLines": 393,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/catalogue/test.log",
+      "sha256": "4d0091968bc43c0fedcc4ec1f7b2b76ef1e7e90b34398c2b721a60ada667c243",
+      "bytes": 8470,
+      "physicalLines": 79,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/media/ArtistMediaQuery.cpp",
+      "sha256": "9516aa8bda8d4ce00e245c0ec064a2ed8d44eb92e50cab1fa50ea4515599f5c4",
+      "bytes": 14660,
+      "physicalLines": 327,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/media/ArtistMediaQuery.h",
+      "sha256": "76331dd0df8b5ff983e13df8c4fc8f455a3f09c100d6ffd0d70c92ca93c6e58b",
+      "bytes": 4667,
+      "physicalLines": 140,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/media/CMakeLists.txt",
+      "sha256": "88f0583707813a22ae6a23562d01f07a877200bee0c35e41e287ee50e58f9a72",
+      "bytes": 843,
+      "physicalLines": 22,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/media/README.md",
+      "sha256": "175fd2ab7a865ebf7cb4421192fa62ea4caa50feed2f719b5ec3aeeb4d1754f5",
+      "bytes": 4736,
+      "physicalLines": 83,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/media/REPLY-ARC62-SPAWN-ARTIST-MEDIA-004.md",
+      "sha256": "a58b4c231f2dfee29fe0776fa497428d308db8389173967900db1cd9cae73e35",
+      "bytes": 6194,
+      "physicalLines": 98,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/media/test_artist_media_query.cpp",
+      "sha256": "c67d19e2a44fb523cbc2256d5c8968d37d33a624ad4bde3e7882297f2f006aa0",
+      "bytes": 20824,
+      "physicalLines": 401,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/media/TEST-OUTPUT.txt",
+      "sha256": "c30ea53861d13a47b8529ab6533a765fe9d16976d39fd0852121e12d07cf1191",
+      "bytes": 1668,
+      "physicalLines": 36,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/personal/ArtistPersonalState.cpp",
+      "sha256": "e37c1e612ac180a749b1661cad4c818a88c41b53bacd9275641eb11a0868ae48",
+      "bytes": 15720,
+      "physicalLines": 355,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/personal/ArtistPersonalState.h",
+      "sha256": "07907084ddcdc84899809f5b2e64e0d13a4360d9e2ea14b4fd6356ce60beb1d2",
+      "bytes": 4367,
+      "physicalLines": 108,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/personal/CMakeLists.txt",
+      "sha256": "a3e6c51bfa0812be5baadce74ad2e80fc0556d7bd56f8586126d88407a7146a5",
+      "bytes": 1135,
+      "physicalLines": 23,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/personal/README.md",
+      "sha256": "55ccc0cec60dc80f02a437e8d9f7be481f8545921e0be9b9d18c1403c592294a",
+      "bytes": 4295,
+      "physicalLines": 80,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/personal/REPLY-ARC62-SPAWN-ARTIST-PERSONAL-003.md",
+      "sha256": "f687080fc8d1e5f8bbbcfbf13cd884fc8347d0a18809fdc5545cd14d91beefae",
+      "bytes": 5682,
+      "physicalLines": 100,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/personal/test_artist_personal.cpp",
+      "sha256": "397e40fd81d6ff9f8646cb3ff912db7e278952d31a058851315204999e6c4934",
+      "bytes": 15390,
+      "physicalLines": 302,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/personal/TEST-EVIDENCE.txt",
+      "sha256": "f7cb022b4cd7210ba952470f65cb3131c761d2a6198bbb7a6ca1b2a0308b5526",
+      "bytes": 1520,
+      "physicalLines": 33,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/README.md",
+      "sha256": "827d174d597a3e7b18517b57b6d630c5cae3f5d4a25e2d7c050cfe2c559c447b",
+      "bytes": 2317,
+      "physicalLines": 17,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-live-prototypes-20261015/REVIEW-ARC62-ARTIST-BACKENDS-20261015.md",
+      "sha256": "8cd4ce8c5125b4b5ef4075db80e986caca77ce9eb070376a830a2478e82dfe8c",
+      "bytes": 4975,
+      "physicalLines": 44,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/ArtistReadAdapter.cpp",
+      "sha256": "86d3053c31372ccb5f5416364e1e482c465997931045c988a4773de86d629e12",
+      "bytes": 34626,
+      "physicalLines": 822,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/ArtistReadAdapter.h",
+      "sha256": "8229585655ebf310c1283716716c3fe3fafdf42fe777df245d1f6fc2eeb7f049",
+      "bytes": 3129,
+      "physicalLines": 83,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/ArtistServiceFactory.cpp",
+      "sha256": "88dbf4768771429e0493f2e72efd2b5d7be3a440ba2342958ed9b0ad97be1df6",
+      "bytes": 1911,
+      "physicalLines": 53,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/ArtistServiceFactory.h",
+      "sha256": "ef2c6bae21934d8900931b96b05cb65fa5893eb04ae640e9b0bc31f409224096",
+      "bytes": 2978,
+      "physicalLines": 77,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/CMakeLists.txt",
+      "sha256": "1c2b620b6495cff8d292978dff2ba30fba2ff556f19775322184fc27d42fab70",
+      "bytes": 4808,
+      "physicalLines": 121,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/FakeArtistSource.cpp",
+      "sha256": "b24dc0a07527ab204825a0cb230dae7b07b4c4e3e7011013186fdf55c03280d6",
+      "bytes": 9579,
+      "physicalLines": 272,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/FakeArtistSource.h",
+      "sha256": "cc19fa2ecf3b6471ec67daa6285b25e727cbcffa6a2d961602012d0e87a729a6",
+      "bytes": 4814,
+      "physicalLines": 121,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/IArtistSource.h",
+      "sha256": "7eaeaed4aaef6e6132ff591aa3b84159b9bdaaf475421700eabe84738ef1b899",
+      "bytes": 3282,
+      "physicalLines": 82,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/PROTOTYPE-DEFECT-REPORT.md",
+      "sha256": "5423e15f0893ad5bb14282d5ae35dbf1b720a699d4a9f3074c52f41b6a2e756d",
+      "bytes": 28738,
+      "physicalLines": 149,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/README.md",
+      "sha256": "f85680a1889e5abaaf46b94f51d99f7b9bf08882a1705ebc96e9e12f26cd33b9",
+      "bytes": 4485,
+      "physicalLines": 39,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/RecordingPlaybackPort.cpp",
+      "sha256": "dafaf90ce235d0af3f95cb13ba89d7b7052a1c41a9bbfa3e65b92e2f486a7274",
+      "bytes": 4047,
+      "physicalLines": 89,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/RecordingPlaybackPort.h",
+      "sha256": "743a347658cca69ac6b159a8788f83b7a11f8ac25be2294538c28a7789f5a02c",
+      "bytes": 2433,
+      "physicalLines": 67,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/SavedArtistAdapter.cpp",
+      "sha256": "10ac60552f9d8b5673bdb1cf91665e97f715b5c58afaf26d8611fa0404ae402c",
+      "bytes": 5005,
+      "physicalLines": 139,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/SavedArtistAdapter.h",
+      "sha256": "bcf1ca7339bb785c0d919a5453e67b64d6ac734871464c4fd458b0d3ca854ed1",
+      "bytes": 2372,
+      "physicalLines": 64,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "artist-service-composed-20261015/test_artist_service_composed.cpp",
+      "sha256": "c7ffdf58095c3c9f5894124772739b74a366f8def28d71ba8f325ca0e3a99902",
+      "bytes": 26483,
+      "physicalLines": 613,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "BA0-DOMAIN-CONTRACT.md",
+      "sha256": "f1a45ca8e7c24a7e381e4e50611231c2e9c3b53b341e8676ab32309363623266",
+      "bytes": 12303,
+      "physicalLines": 317,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba0-domain-prototype/CMakeLists.txt",
+      "sha256": "1b7559a4047e2c15d7fec8503f1f51a032c947465b1f465dd365d4e9855c10e6",
+      "bytes": 684,
+      "physicalLines": 26,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba0-domain-prototype/test_vinyl_domain.cpp",
+      "sha256": "70e0b9cc8bb0d477e2b32195a65d1ca870b2a8610a460d75475c0537b3fb975c",
+      "bytes": 9360,
+      "physicalLines": 204,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba0-domain-prototype/VinylDomainTypes.cpp",
+      "sha256": "d91e8fa50d42dfe9f425d0dddd9e69784e167dc341b73324ef1173fbeaf510ab",
+      "bytes": 8075,
+      "physicalLines": 231,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba0-domain-prototype/VinylDomainTypes.h",
+      "sha256": "a39e0339ae154e0cf6c0de5b8c3c2611ac5350e93c530242751fd3476d8e7491",
+      "bytes": 9498,
+      "physicalLines": 352,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA1-QUEUE-CORE-CONTRACT.md",
+      "sha256": "4ea97f14ede7eb04ac79b6e4dcb0186737aca8bb5b5e9adf37dbe471a1b3d02c",
+      "bytes": 11244,
+      "physicalLines": 320,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba1-queue-core-prototype/CMakeLists.txt",
+      "sha256": "fc458c8641ecec19be1fc6a2c38d82ec5512a7a975b7f8056aff263a3acf08da",
+      "bytes": 1105,
+      "physicalLines": 36,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba1-queue-core-prototype/test_vinyl_queue.cpp",
+      "sha256": "ae487ebeace24b09775c0c3140556f54940ef763fb6763eae03e9ee942d6c465",
+      "bytes": 21288,
+      "physicalLines": 456,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba1-queue-core-prototype/VinylQueue.cpp",
+      "sha256": "cc31df47908cdb15035082c6639b54abce5acfe3ff4118c9d9d48565d2499066",
+      "bytes": 18878,
+      "physicalLines": 543,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba1-queue-core-prototype/VinylQueue.h",
+      "sha256": "bca748416418bba179745c0a713b4374fe7cbd9f81ea0f964858036ccbde774f",
+      "bytes": 8900,
+      "physicalLines": 304,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-engine-adapter-prototype/CMakeLists.txt",
+      "sha256": "ad8c65860ac2b6a3d89aeefe3aa5562252fe0bde2ae25fb6b9825aadd8cb3460",
+      "bytes": 1351,
+      "physicalLines": 47,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-engine-adapter-prototype/PlaybackEngineAdapter.cpp",
+      "sha256": "c4a3d7d5db2270040aa2879d340b8e3da38fe0aef1d7b2cf8331c162b73eb1c0",
+      "bytes": 16048,
+      "physicalLines": 502,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-engine-adapter-prototype/PlaybackEngineAdapter.h",
+      "sha256": "ccf706ec6b4d904d2e4682201056b46486fb820b1f8d90dd42654e7681e60b80",
+      "bytes": 8974,
+      "physicalLines": 287,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-engine-adapter-prototype/test_playback_engine_adapter.cpp",
+      "sha256": "fd2a62b6b214c0d9b89be01d2ebd56155896ed2851d3fbddea55d19a67098018",
+      "bytes": 24160,
+      "physicalLines": 569,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA2-PLAYBACK-SESSION-CONTRACT.md",
+      "sha256": "9c63a751ab89d0e98f0fc8e2220757a75e2bb2f22ad521938a67ad876b660274",
+      "bytes": 12600,
+      "physicalLines": 467,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-playback-session-prototype/CMakeLists.txt",
+      "sha256": "991c64792d10a73c3ddf3bee49c15ff96e7cbb97affb3ddde8a9d0e929dc7281",
+      "bytes": 1004,
+      "physicalLines": 41,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-playback-session-prototype/test_vinyl_playback_session.cpp",
+      "sha256": "ccad1c7e7dc62cdabe50601fb4a8e3d2f937a4852b036d8c74028a36eef64eac",
+      "bytes": 20600,
+      "physicalLines": 477,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-playback-session-prototype/VinylPlaybackSession.cpp",
+      "sha256": "7de53747a33e90cc87f4c04b5d431a170065170f5f27f011d3b02354337eb598",
+      "bytes": 14660,
+      "physicalLines": 439,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2-playback-session-prototype/VinylPlaybackSession.h",
+      "sha256": "a6214e8c9bb304c823fd3cd49a88ce45025292e8d2b7ec4769621cb28240cdab",
+      "bytes": 6744,
+      "physicalLines": 241,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA2B-ENGINE-ADAPTER-CONTRACT.md",
+      "sha256": "249edd8fd6f00169cd1c0137ec5cdb5c116d488603a1444c2001ea6c1e3003d1",
+      "bytes": 12605,
+      "physicalLines": 325,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA2C-QUEUE-SESSION-COORDINATION-CONTRACT.md",
+      "sha256": "e69e0b76c053408da8bd585b5bdfb8cd4fb716bd6fc27a636f57e9882078c6bb",
+      "bytes": 11814,
+      "physicalLines": 378,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2c-queue-session-coordination-prototype/CMakeLists.txt",
+      "sha256": "c0faabb46f0317cbf4054da72d563affcd75feac62f306e874ca5d80ab24a2ed",
+      "bytes": 1680,
+      "physicalLines": 60,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2c-queue-session-coordination-prototype/QueueSessionCoordinator.cpp",
+      "sha256": "40c06729817aaf3ef8a65872eb0fe56573f9cf018037b316392999f16badb387",
+      "bytes": 29679,
+      "physicalLines": 898,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2c-queue-session-coordination-prototype/QueueSessionCoordinator.h",
+      "sha256": "f158485a42d46356733be612453bac84e9da050d830fb1a86c4ae47b1c439d73",
+      "bytes": 7682,
+      "physicalLines": 246,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2c-queue-session-coordination-prototype/test_queue_session_coordinator.cpp",
+      "sha256": "07ce5f761976f1f6931512128fd04ee3b655c1886cc18e0631835c1833f36780",
+      "bytes": 23980,
+      "physicalLines": 601,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2c-queue-session-coordination-prototype/test_w4b_coordinator_adversarial.cpp",
+      "sha256": "db47a0357f519522cd0b5f483cb66fb48367c3abebdcda383ecd4d88253864c1",
+      "bytes": 19927,
+      "physicalLines": 606,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA2D-MPV-ADOPTION-CONTRACT.md",
+      "sha256": "ef71f0e8e543b00cb3396a92484ed53e721a591263514bbf306a9a7aaae72386",
+      "bytes": 17940,
+      "physicalLines": 517,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/CMakeLists.txt",
+      "sha256": "79f251855cf07f8a2c26b45888985c1b9df4c9189d52ad968492ba1b66dccf8c",
+      "bytes": 5583,
+      "physicalLines": 177,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/ColosseumMpvBridge.cpp",
+      "sha256": "7ca4eee923dd3ea8755699ba83bd22574ed7ba0bf497bbba98116ffbee96345e",
+      "bytes": 8242,
+      "physicalLines": 293,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/ColosseumMpvBridge.h",
+      "sha256": "bec0cb308703ac8c3b6ea6ef99a727f079c0b0aec9fb7a404b112fb8cd58e70d",
+      "bytes": 4148,
+      "physicalLines": 120,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/mpv_api_probe.cpp",
+      "sha256": "e872ce4c581879c4bf6bb5e51eed5797685b0a36d639b63926934b7891d367c4",
+      "bytes": 2631,
+      "physicalLines": 84,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/mpv_bounded_window_probe.cpp",
+      "sha256": "43f477712c8d36709a41471d794a3349ded0e91b61e38876bff526175dfcc6c2",
+      "bytes": 10670,
+      "physicalLines": 328,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/mpv_playlist_identity_probe.cpp",
+      "sha256": "9561aeac10e7efeb1dee7e57a37551bef25defc72989af2bb9fe3e1c56e7ea9d",
+      "bytes": 8772,
+      "physicalLines": 276,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/mpv_seek_completion_probe.cpp",
+      "sha256": "40b2e232575fc1810cafe2c7abb4fb71c39f08f61b10be2019dbadb353988303",
+      "bytes": 17174,
+      "physicalLines": 554,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/MpvSidecarReference.cpp",
+      "sha256": "f1e2053e41bdcd8f1c66a92b131f71f36d418b7a9cfffc34cc10fa4e91b4c9fd",
+      "bytes": 4558,
+      "physicalLines": 172,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/MpvSidecarReference.h",
+      "sha256": "fc70305efb0a14d54d87e6fbf699506925b46878ecd5b19903ce56c858cf4898",
+      "bytes": 2351,
+      "physicalLines": 87,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba2d-mpv-adoption-prototype/test_colosseum_mpv_bridge.cpp",
+      "sha256": "ebd47e2c646b6db6e277c177711103d44c32a102c1a43611cc78a4765b3bc892",
+      "bytes": 13873,
+      "physicalLines": 388,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA2D1-MPV-EVENT-IDENTITY-EVIDENCE.md",
+      "sha256": "fb3118eb0a1753cad2f9660a5a33ca23aad11b04c066966136e8b68046d8fdc3",
+      "bytes": 16302,
+      "physicalLines": 426,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA3-SESSION-PERSISTENCE-CONTRACT.md",
+      "sha256": "5a09a0309acf3134ff8d28e4ff5b7d3a598fad6a0eb7c383aeeb9c2a2d43eb79",
+      "bytes": 11335,
+      "physicalLines": 273,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba3-session-persistence-prototype/CMakeLists.txt",
+      "sha256": "e572c14d65d3348a2aafb253887ed69a6342d56b59eaf6100715a81b9f431181",
+      "bytes": 2029,
+      "physicalLines": 61,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba3-session-persistence-prototype/fixtures/ba3-session-v1.json",
+      "sha256": "95633d559b12f368e8ffe881d26c7842ef873a2bf3c752cd3124164e882a90b4",
+      "bytes": 587,
+      "physicalLines": 25,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba3-session-persistence-prototype/test_vinyl_session_persistence.cpp",
+      "sha256": "0187c7501116b6b839499c3380f38b0018cf55bc6614be2011ff881bdcd0d784",
+      "bytes": 31000,
+      "physicalLines": 671,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba3-session-persistence-prototype/VinylSessionPersistence.cpp",
+      "sha256": "32d15e184dcdc7709cb1825e86cd9c40f6ad2a4e0289dfd60c3623c431351e76",
+      "bytes": 53615,
+      "physicalLines": 1308,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba3-session-persistence-prototype/VinylSessionPersistence.h",
+      "sha256": "159beee664089d0ada19b7c5e4d0b95d93ef77139466454371a254240d6056c9",
+      "bytes": 3547,
+      "physicalLines": 140,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA4-LISTEN-EVENT-LEDGER-CONTRACT.md",
+      "sha256": "89096d8c02699d15dface7455e0a1c1a0fa818954ab2b4c725f3e2eb49feab3d",
+      "bytes": 17942,
+      "physicalLines": 455,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba4-listen-event-ledger-prototype/CMakeLists.txt",
+      "sha256": "7cd4348127e569bbc4b96f7d7e8fef2754b6584946fafa4e06cd78c9b39a751c",
+      "bytes": 2188,
+      "physicalLines": 77,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba4-listen-event-ledger-prototype/test_vinyl_listen_event_ledger.cpp",
+      "sha256": "d736b84606fafba5dc7e86a845d81e0a5c67773d2b6e9fba89fd05904258216f",
+      "bytes": 25494,
+      "physicalLines": 615,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba4-listen-event-ledger-prototype/test_vinyl_listen_event_persistence.cpp",
+      "sha256": "057d4b0b5a833f24c20709fba67247c9314f7ae58ab8daa2cbd3e4e93fae4e5c",
+      "bytes": 11695,
+      "physicalLines": 309,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba4-listen-event-ledger-prototype/VinylListenEventLedger.cpp",
+      "sha256": "9b6d963222586e4e38bfcd5422dd57bdec39c7d76689b91bd4d53dcd7a237eff",
+      "bytes": 25868,
+      "physicalLines": 780,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba4-listen-event-ledger-prototype/VinylListenEventLedger.h",
+      "sha256": "597845c059e2ebbf095293ee27eebd0b814cf5eb952f927a7721b77c868ad1e6",
+      "bytes": 13751,
+      "physicalLines": 455,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba4-listen-event-ledger-prototype/VinylListenEventPersistence.cpp",
+      "sha256": "be959a957dff068c5de2c7548c68139eb1ee9fe7865ff599625efc9955580221",
+      "bytes": 40162,
+      "physicalLines": 1053,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba4-listen-event-ledger-prototype/VinylListenEventPersistence.h",
+      "sha256": "83826d3b489891b8569318a70d21f5f43c29d091f163c1a229ca9e0caf807a2b",
+      "bytes": 2459,
+      "physicalLines": 95,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BA5-LIBRARY-PLAYLISTS-CONTRACT.md",
+      "sha256": "a3db784fcf9f831988204324fac35276cc4890875135d1e1dd58b0eb95151c06",
+      "bytes": 17791,
+      "physicalLines": 417,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/CMakeLists.txt",
+      "sha256": "52b1cdcee8409af893016ca2637d28a52f62104e518429f47280e9ec42a8f0f3",
+      "bytes": 2354,
+      "physicalLines": 71,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/test_vinyl_library.cpp",
+      "sha256": "e28c9f07fd35a9877049a47c3423656b5dc32949be432c08877d845749f456dd",
+      "bytes": 8181,
+      "physicalLines": 184,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/test_vinyl_personal_state_persistence.cpp",
+      "sha256": "bd42d939c973cb77da4c05a285c3fbc5c490495f0eb3edb26459cba48aeff5a7",
+      "bytes": 11845,
+      "physicalLines": 291,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/test_vinyl_playlist.cpp",
+      "sha256": "4bba323edad9ed6bb048badcd8aeb2a6cfe7b7f4c4c7319f01cc24ae1a8491bd",
+      "bytes": 13013,
+      "physicalLines": 314,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/VinylLibrary.cpp",
+      "sha256": "e1b49fdcf43cd87ca1614b00166b8865d6fbe41f882d3e5c4699c71303568fb6",
+      "bytes": 2947,
+      "physicalLines": 102,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/VinylLibrary.h",
+      "sha256": "d17f4f749f12089f8e7b1fbe58f9ed86a204bb2357b76ba044b9a79d83bc39e4",
+      "bytes": 3736,
+      "physicalLines": 142,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/VinylPersonalStatePersistence.cpp",
+      "sha256": "036769e99bdc06952bb9f995311ceabe794cc1e9c28d0d22cfc6809073f39ad6",
+      "bytes": 27529,
+      "physicalLines": 632,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/VinylPersonalStatePersistence.h",
+      "sha256": "3c715f308802ac8c5aa7472dba0df745b423184ebfc19c0ac2e9f621ea247de8",
+      "bytes": 2228,
+      "physicalLines": 86,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/VinylPlaylist.cpp",
+      "sha256": "f17e57e3b8418004562bda77ae93fd60ea836e80240a718305306356664fe5ab",
+      "bytes": 9011,
+      "physicalLines": 275,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "ba5-library-playlists-prototype/VinylPlaylist.h",
+      "sha256": "b3e745d32a896d7433458c81e35560c380919cab21cc844bdc4eaab77a42fbd8",
+      "bytes": 6545,
+      "physicalLines": 237,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation/header/assertions/build graph/fixture inspected in full; nonsemantic comments and blank lines omitted from some numbered views",
+      "reviewer": "core"
+    },
+    {
+      "path": "BB1-SOURCE-CANDIDATE-CONTRACT.md",
+      "sha256": "dcf847c55858d208f9ff51f68bb034ea723401d0465fab0764721070eecbef9e",
+      "bytes": 14929,
+      "physicalLines": 505,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb1-source-candidate-prototype/CMakeLists.txt",
+      "sha256": "41c1399d085bdd68581c8d34f43802f1f14fc9a3ada0386bfc57ad00bc6c0f1e",
+      "bytes": 1145,
+      "physicalLines": 38,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb1-source-candidate-prototype/SourceCandidateContract.cpp",
+      "sha256": "53c4deb70ce72f94ffc5640ba3bd1bbc0929838312a44297a8970200e7f093dd",
+      "bytes": 11476,
+      "physicalLines": 317,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb1-source-candidate-prototype/SourceCandidateContract.h",
+      "sha256": "314a955cacea853a00b01db73fc7e03c301f1d112dd92e176ae940c4fdefd21a",
+      "bytes": 9736,
+      "physicalLines": 349,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb1-source-candidate-prototype/test_source_candidate_contract.cpp",
+      "sha256": "3043305d9c0cddde80e0e9f5baa1a991779b9ad359023b4feef52345bd2b4cf8",
+      "bytes": 15749,
+      "physicalLines": 393,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "BB2-EXACT-TRACK-RESOLVER-CONTRACT.md",
+      "sha256": "a19853ccd1b03a3950e4da13f46497bd57835fa7e2a82d92dcb032eabb37dcd3",
+      "bytes": 13405,
+      "physicalLines": 357,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb2-exact-track-resolver-prototype/CMakeLists.txt",
+      "sha256": "2ffad6d1f9dd8c320f70860ed14fd88fc9c92aedb2dd5899a37ac9aa54bb7b7a",
+      "bytes": 1619,
+      "physicalLines": 44,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb2-exact-track-resolver-prototype/ExactTrackResolver.cpp",
+      "sha256": "29c5ba039c4f28133689413ab822f67f823f010430e8e9546b4121ced437b3b5",
+      "bytes": 27444,
+      "physicalLines": 718,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb2-exact-track-resolver-prototype/ExactTrackResolver.h",
+      "sha256": "17d04a2d9d3cc9ce81c61c03e56849bff3e0cf0557ef5cd414201b3039001bc8",
+      "bytes": 9707,
+      "physicalLines": 314,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb2-exact-track-resolver-prototype/test_exact_track_resolver.cpp",
+      "sha256": "05529d045c49d596f3ea0db34fb7327109730eebbec21bdb35741caf33d0c53b",
+      "bytes": 23747,
+      "physicalLines": 563,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb3-cue-whole-album-prototype/CMakeLists.txt",
+      "sha256": "314073e20cfa20d6bd9e0035d14fd8ffffea8390702cb31665a196b30e6cecdc",
+      "bytes": 1981,
+      "physicalLines": 53,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb3-cue-whole-album-prototype/CueWholeAlbum.cpp",
+      "sha256": "531b975ccbdf2f3eb6519c5cddb332f4cdd7b19cc4cee0d073bf970bffd76b90",
+      "bytes": 22815,
+      "physicalLines": 562,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb3-cue-whole-album-prototype/CueWholeAlbum.h",
+      "sha256": "b9b5202a5c4edb63fc22aa4e5885f8dd333060ea9717d5266d17ad6bb5fb1297",
+      "bytes": 4879,
+      "physicalLines": 191,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb3-cue-whole-album-prototype/test_cue_whole_album.cpp",
+      "sha256": "087863cc5d040972a47f7ad765494e28c9ab247bfea4218cbecfbde2a90dd1d0",
+      "bytes": 13194,
+      "physicalLines": 316,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "BB3-CUE-WHOLE-ALBUM-SOURCES-CONTRACT.md",
+      "sha256": "6ce353b016d569b3fc249803efaa2420022e0a646f23ff5d3b4d5fffb135d625",
+      "bytes": 12548,
+      "physicalLines": 347,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "BB4-MPV-PLAYBACK-ADAPTER-CONTRACT.md",
+      "sha256": "5cec128dc0522ab5f0e5ca4a150cdf656d1c3b208fdb47124a1de28a0eeb940a",
+      "bytes": 11034,
+      "physicalLines": 290,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb4-mpv-playback-adapter-prototype/CMakeLists.txt",
+      "sha256": "8964330adfc462ba6dca17488b482e823a22e84f9032321be3f587cae40cb109",
+      "bytes": 3641,
+      "physicalLines": 110,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb4-mpv-playback-adapter-prototype/mpv_resource_probe.cpp",
+      "sha256": "c4d920bf506c8ea5a520a8f29419c13cc66de5d47ec69b1f46bec3798d938b61",
+      "bytes": 4086,
+      "physicalLines": 133,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb4-mpv-playback-adapter-prototype/ResolvedPlaybackSource.cpp",
+      "sha256": "e4a9f61e769f53d375ac51f9d4d4e4fec39d9d8b7aef71cf2681897cf2caa071",
+      "bytes": 9985,
+      "physicalLines": 278,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb4-mpv-playback-adapter-prototype/ResolvedPlaybackSource.h",
+      "sha256": "2152b52db78aa8b9729a73b2a22589fc43420a6a9e41029957544ce6a6c1e0b1",
+      "bytes": 5789,
+      "physicalLines": 194,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb4-mpv-playback-adapter-prototype/test_cue_window_handoff.cpp",
+      "sha256": "b8645c95e29d0a11618941bf34c3a0ddd96e995cc6bc2d1707d592cd69741cbe",
+      "bytes": 6980,
+      "physicalLines": 213,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb4-mpv-playback-adapter-prototype/test_mpv_playback_adapter.cpp",
+      "sha256": "d707d13da85daed5d1d247a817fc5feec43d267794c3d26294dff54e7bc2d354",
+      "bytes": 16831,
+      "physicalLines": 430,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "BB5-SOURCE-RESOLUTION-SESSION-CONTRACT.md",
+      "sha256": "eaf13e94f679b1eceb13131e38e7e17c632b603bd6288a598bd4d07f27b0355f",
+      "bytes": 14167,
+      "physicalLines": 381,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb5-source-resolution-session-prototype/CMakeLists.txt",
+      "sha256": "2b00172579ef5bb373e6c229926c9e603fbee2ad34c3cb8d16027e70342a93a0",
+      "bytes": 2312,
+      "physicalLines": 67,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb5-source-resolution-session-prototype/SourceResolutionSession.cpp",
+      "sha256": "e7148ce1ab54fb203ca565649714da187e50d29598f4d7b576125fa8166304a0",
+      "bytes": 44021,
+      "physicalLines": 1265,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb5-source-resolution-session-prototype/SourceResolutionSession.h",
+      "sha256": "276736eba369f176ab843eaab56435a3dde3ad8bb4042d64b72c1237629a0a3c",
+      "bytes": 19252,
+      "physicalLines": 599,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bb5-source-resolution-session-prototype/test_source_resolution_session.cpp",
+      "sha256": "284ffbdb44779bfbfe90ca57108fdfb3749f7fea62a80fb657d4ffc9d7235bad",
+      "bytes": 46374,
+      "physicalLines": 1199,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "BC1-TIMED-TEXT-CONTRACT.md",
+      "sha256": "b2c2a5e4ec5337690cc8bc963880dd1cdacff13892363fd9a69c3fe4418d90de",
+      "bytes": 11956,
+      "physicalLines": 262,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc1-timed-text-prototype/CMakeLists.txt",
+      "sha256": "3dc3cb86c71c4d3f08d8a3f2e1f140fb70050020e4c9ad088783376f4073c699",
+      "bytes": 1083,
+      "physicalLines": 35,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc1-timed-text-prototype/test_timed_text.cpp",
+      "sha256": "320bd5f35cba5205af20e8ecde03fcc64b209d0a2e58a217298d084d10b197a4",
+      "bytes": 16733,
+      "physicalLines": 363,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc1-timed-text-prototype/TimedTextCore.cpp",
+      "sha256": "c556bf13e8ed3061565a394747de61fe7682864f53af7f44414f9325dba34b13",
+      "bytes": 17713,
+      "physicalLines": 472,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc1-timed-text-prototype/TimedTextCore.h",
+      "sha256": "72f5d188827a9bedb31bfbab4441f030cae7994bf2ae638547b3db7ae2dd3eae",
+      "bytes": 9379,
+      "physicalLines": 325,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BC2-TRANSLATION-CONTRACT.md",
+      "sha256": "4533ebfb511175a137c9a2ad289ed0168c64716b8bc1c73991323e42b4f534a2",
+      "bytes": 10873,
+      "physicalLines": 266,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc2-translation-prototype/CMakeLists.txt",
+      "sha256": "0a8894fdc819f954481036914e58ed8eb551fc944d8c0f71dddc5036e167b7be",
+      "bytes": 1233,
+      "physicalLines": 40,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc2-translation-prototype/test_translation.cpp",
+      "sha256": "53a5af9ea709110276ed772e9decd3eeb58accaaaa05c07db52bcb258861da67",
+      "bytes": 20681,
+      "physicalLines": 490,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc2-translation-prototype/TimedTextTranslation.cpp",
+      "sha256": "e9059123f9c58d32ad6eb23568cb316e9c10b4a59b4ac6af77b3e1d3bc129115",
+      "bytes": 10940,
+      "physicalLines": 282,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc2-translation-prototype/TimedTextTranslation.h",
+      "sha256": "57ed09857fab605a922840ccd1c7b028ac60f8b8f0d5c7964a3c6284459ed67a",
+      "bytes": 9375,
+      "physicalLines": 297,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BC3-ANNOTATION-MEANING-CONTRACT.md",
+      "sha256": "83f1c986bf1bd67ce99907d3bba5403cafd18a2fa22c514cd10a3fd0625ee62f",
+      "bytes": 9052,
+      "physicalLines": 248,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc3-annotation-prototype/AnnotationMeaningPlane.cpp",
+      "sha256": "1ae6de8e9ae7a5b2a49967d3811ec50d9bf1b94a151bedd04d8a777a16a2460d",
+      "bytes": 16835,
+      "physicalLines": 501,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc3-annotation-prototype/AnnotationMeaningPlane.h",
+      "sha256": "7f04b32401a37d622ffbaac0f0ed94064f51b9235c2e879d240b794a90c0a671",
+      "bytes": 10092,
+      "physicalLines": 347,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc3-annotation-prototype/CMakeLists.txt",
+      "sha256": "a40c07cfebfc470ff5a8408faddd3b2fdaf42c497d603afd7207fd3b57b38516",
+      "bytes": 1314,
+      "physicalLines": 41,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bc3-annotation-prototype/test_annotation_meaning.cpp",
+      "sha256": "e06529482588864665a74de53e1a19c67e4a9808120bcb55d329e932489dea74",
+      "bytes": 16485,
+      "physicalLines": 500,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BD1-SIGNAL-PATH-CONTRACT.md",
+      "sha256": "665d929bca012b3f6fbd2c84df6334951d6e310705b9af296e8d5da956f739a2",
+      "bytes": 9849,
+      "physicalLines": 269,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd1-signal-path-prototype/CMakeLists.txt",
+      "sha256": "1beab31323f715d6ab6857e170c102dad896edc2e503d2ef35f7ead704e19843",
+      "bytes": 1021,
+      "physicalLines": 41,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd1-signal-path-prototype/test_signal_path.cpp",
+      "sha256": "ac85191fb455cf76a4578fa1866c42491ebe43595cf790eb4348143c8428047e",
+      "bytes": 10444,
+      "physicalLines": 227,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd1-signal-path-prototype/VinylSignalPathTypes.cpp",
+      "sha256": "b0240c8617fdd5f629e074dc15addf3247356ecf8f1aae30c9299ae516168d55",
+      "bytes": 4904,
+      "physicalLines": 149,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd1-signal-path-prototype/VinylSignalPathTypes.h",
+      "sha256": "ab52e47ca442d802bbf48572e65f40f236bc57e29b9ec68d2ec93e5c59e00405",
+      "bytes": 5265,
+      "physicalLines": 205,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BD2-MPV-DEVICE-OBSERVABILITY-CONTRACT.md",
+      "sha256": "ed66ff984b8499ebd5070e876713f6dc83b9c278e18b25f14c79cf905c31c2bc",
+      "bytes": 15882,
+      "physicalLines": 505,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd2-mpv-observability-prototype/CMakeLists.txt",
+      "sha256": "f3246bd8f08d0faafa0afc27d99ca7bada6277897457865572182439f498be4a",
+      "bytes": 1418,
+      "physicalLines": 54,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd2-mpv-observability-prototype/test_mpv_observability.cpp",
+      "sha256": "53d081290ea650dfbe359e0a7f56c5cccfe51965c25625e8b8899f4fe4908e51",
+      "bytes": 14799,
+      "physicalLines": 296,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd2-mpv-observability-prototype/VinylMpvObservability.cpp",
+      "sha256": "24e8c3414ecc215466f5f02df717b0ad395a5e60d5904bcb18a1cf97f4b3d711",
+      "bytes": 14592,
+      "physicalLines": 342,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bd2-mpv-observability-prototype/VinylMpvObservability.h",
+      "sha256": "c89d82b415392247263f8b897b931ce8f520c2144b43b6ed97d1f857c7ec5b1e",
+      "bytes": 2335,
+      "physicalLines": 70,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BE-DERIVATION-HISTORY-EXPOSURE-CONTRACT.md",
+      "sha256": "7dcacce351652a57aa25d0203fac9d923a6014466c351b9474495efe2cf49ed5",
+      "bytes": 5393,
+      "physicalLines": 136,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be-derivation-prototype/CMakeLists.txt",
+      "sha256": "057258f787ce3c49514ce6bcb5e18da85b499f73a8b269c93fd08b4119faa002",
+      "bytes": 1631,
+      "physicalLines": 52,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be-derivation-prototype/RecommendationDerivation.cpp",
+      "sha256": "0a4dd273663584712f5d8416947ab311799f02307b76c4bb3db5f600ecba841a",
+      "bytes": 15768,
+      "physicalLines": 436,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be-derivation-prototype/RecommendationDerivation.h",
+      "sha256": "02749f8ebdd0b93824b9584dc9c1050fb27fb08179f9487cc57ba9581ac72aa3",
+      "bytes": 9609,
+      "physicalLines": 338,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be-derivation-prototype/test_recommendation_derivation.cpp",
+      "sha256": "906ee376fbc4a1d51735b54202df87d4da88e5b14e5d93e7e9c45f6b681c4753",
+      "bytes": 15404,
+      "physicalLines": 493,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BE1-RECOMMENDATION-CANDIDATE-CONTRACT.md",
+      "sha256": "5d698a186419038a6de8728f30862498977a15aac4a6776c0adca19186dc0c3b",
+      "bytes": 11657,
+      "physicalLines": 314,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be1-recommendation-candidate-prototype/CMakeLists.txt",
+      "sha256": "9f8d11b9dbbc76fbac1071acc8635a6e55e32c4a796e0bcf82bc79a1c9bd9b18",
+      "bytes": 1299,
+      "physicalLines": 43,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be1-recommendation-candidate-prototype/RecommendationCandidateContract.cpp",
+      "sha256": "5feda16c527ae5596d3a68c35c0d9ca3fe30782aaaef8c8167d35bd28405db70",
+      "bytes": 10415,
+      "physicalLines": 264,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be1-recommendation-candidate-prototype/RecommendationCandidateContract.h",
+      "sha256": "3c80d2331fa8ba6b5611c45aee2dd3abcfe6c2946691bc7aa2f395a84f75a4c1",
+      "bytes": 9579,
+      "physicalLines": 347,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be1-recommendation-candidate-prototype/test_recommendation_candidate_contract.cpp",
+      "sha256": "0c140a5174087bca7bc819bf6cc220947624ddd8f9c11b3e1053c8de80931e3a",
+      "bytes": 21500,
+      "physicalLines": 580,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BE2-FEEDBACK-TASTE-STATE-CONTRACT.md",
+      "sha256": "0adb68cf46fdf2799058e1bcc0bc1ef0fa99edcb11f0338d9747615597ab1261",
+      "bytes": 17852,
+      "physicalLines": 493,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be2-feedback-taste-state-prototype/CMakeLists.txt",
+      "sha256": "ea75ff149846a04e8d4aa20c2c201a83e7487f605773fe5fb0d61ddc2930c97f",
+      "bytes": 2084,
+      "physicalLines": 59,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be2-feedback-taste-state-prototype/FeedbackTastePersistence.cpp",
+      "sha256": "d9c7717d71fe0aba86c8f8487be8c1d132363f29e261e671f8d5bfbe8e6362f8",
+      "bytes": 29362,
+      "physicalLines": 718,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be2-feedback-taste-state-prototype/FeedbackTastePersistence.h",
+      "sha256": "cd2b4f5809adb5783004190fada2044b756cf5a6db312cd21d21963a3e362392",
+      "bytes": 1634,
+      "physicalLines": 71,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be2-feedback-taste-state-prototype/FeedbackTasteState.cpp",
+      "sha256": "6bb7233cdac3fba8b40486fea327ccf602460b09a46637a37cefb461572d7bd3",
+      "bytes": 13195,
+      "physicalLines": 347,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be2-feedback-taste-state-prototype/FeedbackTasteState.h",
+      "sha256": "405f8168dab485a925d12975c09751758bdf6722443bd5578af351d71f5663db",
+      "bytes": 8772,
+      "physicalLines": 287,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be2-feedback-taste-state-prototype/test_feedback_taste_persistence.cpp",
+      "sha256": "be48cf40abd1f62a64e932d8a9590fde34d059024aab3070991906f903fbac00",
+      "bytes": 8968,
+      "physicalLines": 232,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be2-feedback-taste-state-prototype/test_feedback_taste_state.cpp",
+      "sha256": "498a3497e2a3b668a1f690c18ececbd20c2a305e3b58e21cc6a74ac9f1140d3a",
+      "bytes": 19521,
+      "physicalLines": 484,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BE3-DETERMINISTIC-RANKER-CONTRACT.md",
+      "sha256": "2eb85bfd9b29c7069f6ba836d3a8aa89922f39ebd37de8a8e609fe03235a94bc",
+      "bytes": 6500,
+      "physicalLines": 200,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be3-deterministic-ranker-prototype/CMakeLists.txt",
+      "sha256": "e747824ee4c0253995c26b9fc2dcfc2fbad4a471a32396495d3b6edf0c35d009",
+      "bytes": 2154,
+      "physicalLines": 64,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be3-deterministic-ranker-prototype/DeterministicRanker.cpp",
+      "sha256": "369c39e6a3febc37929026a96b58bd9b7fcd2df0456f689707b6d17cd8a6da53",
+      "bytes": 21567,
+      "physicalLines": 629,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be3-deterministic-ranker-prototype/DeterministicRanker.h",
+      "sha256": "e97ad16591e9a9c79bd4dc25eb19bd8616cdc79d69f9b289d23d9817b7370486",
+      "bytes": 5528,
+      "physicalLines": 201,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "be3-deterministic-ranker-prototype/test_deterministic_ranker.cpp",
+      "sha256": "5adf7a514ea93b5e975a8a4f752dfe06287535caf7488f952ec60e0be7030f7e",
+      "bytes": 24032,
+      "physicalLines": 730,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BF1-CONTEXT-GRAPH-CONTRACT.md",
+      "sha256": "910fe142b0d89d4708633219e238e59d701cf685a016d66bae8484262aff86c1",
+      "bytes": 7309,
+      "physicalLines": 180,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf1-context-graph-prototype/CMakeLists.txt",
+      "sha256": "34d8c3e790dd0a24cff3cb6740910241c5448a6c751fb4d66f12a36dd5d9614e",
+      "bytes": 988,
+      "physicalLines": 38,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf1-context-graph-prototype/test_context_graph.cpp",
+      "sha256": "92b651d38018ec8a5b7b91a300f359b6e1e9e3ad752fcbc6b18156854bf9ee1f",
+      "bytes": 10589,
+      "physicalLines": 236,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf1-context-graph-prototype/VERIFICATION-STATUS.md",
+      "sha256": "04659e9c55d061d3f2acf92cffeec9be19cd42a881f6d67fe381b854f80761c0",
+      "bytes": 2598,
+      "physicalLines": 59,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf1-context-graph-prototype/VinylContextGraph.cpp",
+      "sha256": "ebf94109d77355b4f2d8d71372498e5dbc5ada996f78c192773d6d9c31718e8a",
+      "bytes": 5352,
+      "physicalLines": 153,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf1-context-graph-prototype/VinylContextGraph.h",
+      "sha256": "1674a95c610ceee4b6fb94cf7e4d9bbd6ddf82e6bbf147107ca55cba09bd5734",
+      "bytes": 2032,
+      "physicalLines": 83,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BF2-RELATED-VIDEO-CONTRACT.md",
+      "sha256": "b031f00769c938325b95ee013de27c499cbe9ced9f6ba132afe1d0aa32861647",
+      "bytes": 9831,
+      "physicalLines": 287,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf2-related-video-prototype/CMakeLists.txt",
+      "sha256": "1bc82a697c695a53c410224969e1731e5bfdda341349be1c6616be6ed1dc4a1a",
+      "bytes": 1109,
+      "physicalLines": 38,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf2-related-video-prototype/RelatedVideoContract.cpp",
+      "sha256": "eaaf7a4d596a7ae346c671d4a970ace6ab79b1b4adb367313953e037c5a81198",
+      "bytes": 13576,
+      "physicalLines": 392,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf2-related-video-prototype/RelatedVideoContract.h",
+      "sha256": "a8e64e0c94ecbc3edadcb3da10d696e4426f0b1a9dc33c0b7be8333d65f07490",
+      "bytes": 7640,
+      "physicalLines": 259,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf2-related-video-prototype/test_related_video_contract.cpp",
+      "sha256": "5721d73d66de27cf062534284dfbeed58b8c0eb0ad7fc0a4a1dbf15b5f7ca079",
+      "bytes": 17104,
+      "physicalLines": 419,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf2-related-video-prototype/VERIFICATION.md",
+      "sha256": "037d258986228f1b961318a7676c3aad7900e060d504ce85bd5c2190a12c0070",
+      "bytes": 2759,
+      "physicalLines": 81,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BF3-VIDEO-PLAYBACK-ADAPTER-CONTRACT.md",
+      "sha256": "4a0936905e5cb0bef93771122203f6a6310f5ddb98a6d21a19bc1f27f3d68751",
+      "bytes": 8093,
+      "physicalLines": 293,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf3-video-playback-adapter-prototype/CMakeLists.txt",
+      "sha256": "3ca3529ce7d89ecf2dfe8afa8d8c77364296da2cb76501fdcc61feb4d7f75e52",
+      "bytes": 2418,
+      "physicalLines": 70,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf3-video-playback-adapter-prototype/test_video_playback_adapter.cpp",
+      "sha256": "37dca9f3fcb410bdbdb421f6053cdf1b1ddab771f8371a719a76363ef846f9cc",
+      "bytes": 18753,
+      "physicalLines": 489,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf3-video-playback-adapter-prototype/VERIFICATION.md",
+      "sha256": "66bddb7c865a494629c9e3191bbc9e2d10f9e5d0cc1a7b2e117519eca22ea49f",
+      "bytes": 5215,
+      "physicalLines": 170,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf3-video-playback-adapter-prototype/VideoPlaybackAdapter.cpp",
+      "sha256": "6563fbcf76b8c01bf39737f323ee9a67d53e78b8cd01b7f11c55fd6aa2df8675",
+      "bytes": 4153,
+      "physicalLines": 114,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "bf3-video-playback-adapter-prototype/VideoPlaybackAdapter.h",
+      "sha256": "a8979962492388acdb60d2048f0c8379092e25539c77adc83a6bb6abc18dfe61",
+      "bytes": 4113,
+      "physicalLines": 162,
+      "reviewMode": "complete",
+      "inspectionDetail": "complete",
+      "reviewer": "enrichment"
+    },
+    {
+      "path": "BG1-CATALOGUE-CLIENT-CONTRACT.md",
+      "sha256": "f13b837cf5949ec3f4154fad9c6311701d473089915f21143074853ee335d044",
+      "bytes": 17776,
+      "physicalLines": 429,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/CMakeLists.txt",
+      "sha256": "b4b1b00423538816ac9e0070898475d22cfd59241c6b528ea98a77b3d45d7cb1",
+      "bytes": 1170,
+      "physicalLines": 44,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/FakeVinylCatalogueClient.cpp",
+      "sha256": "7fc37a690c06045e674835a7235f02266489af89123b92fbe95ec2bb08867997",
+      "bytes": 31417,
+      "physicalLines": 837,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/FakeVinylCatalogueClient.h",
+      "sha256": "9cf96534fa9099d98e4a1c0bb48c36979db354fd55ec6897dd3f1089b87550d2",
+      "bytes": 2635,
+      "physicalLines": 72,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/test_catalogue_client.cpp",
+      "sha256": "aca3579ed060441a52fccc8e54a7e2169e85da0156861d79e35921b1d8082ced",
+      "bytes": 19373,
+      "physicalLines": 400,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/VERIFICATION-STATUS.md",
+      "sha256": "fcef49276d2db434fd2d37ee68b29c8e501c9bc4f0a5566e0c62c836f0a93c07",
+      "bytes": 2480,
+      "physicalLines": 63,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/VinylCatalogueClient.h",
+      "sha256": "e9647eb56bbc37982c456fda9d8715714476d607dfb865b9f9780e554c0f2d96",
+      "bytes": 1838,
+      "physicalLines": 48,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/VinylCatalogueTypes.cpp",
+      "sha256": "6a80f7b74b85822959068a668f36d6c2a5f5faf69a733d13bb357b263a18c280",
+      "bytes": 1963,
+      "physicalLines": 65,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg1-catalogue-client-prototype/VinylCatalogueTypes.h",
+      "sha256": "9ea9668d2177f71d4c2e2f1925d41a7989bcd0a06b04f58b61d4f4ffa3822874",
+      "bytes": 6049,
+      "physicalLines": 271,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "BG2-DISCOVERY-ENRICHMENT-CONTRACT.md",
+      "sha256": "980bb671de2f6d0e61eeafbba7c124c59ddf0472281b07d7fe823dd61a9e62ec",
+      "bytes": 15192,
+      "physicalLines": 391,
+      "reviewMode": "technical-contract-evidence-reviewed-or-queried",
+      "inspectionDetail": "technical-contract-evidence-reviewed-or-queried",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg2-discovery-enrichment-prototype/CMakeLists.txt",
+      "sha256": "9c1bd3c1bc9516657bd963fafd04871faac6e59746ccd63d32fb0f6b0b313f85",
+      "bytes": 1224,
+      "physicalLines": 52,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "build_definition_read",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg2-discovery-enrichment-prototype/DiscoveryEnrichment.cpp",
+      "sha256": "ebcbfaf9096335dbafca5239d35353c289377a3b2baa3f3c09677203667abc5f",
+      "bytes": 11857,
+      "physicalLines": 379,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg2-discovery-enrichment-prototype/DiscoveryEnrichment.h",
+      "sha256": "ba088e988ac7620ea51701d1d6ec13aabad2a7ef93365c91b5f847d31e7b7449",
+      "bytes": 3973,
+      "physicalLines": 173,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "implementation_and_interface_reviewed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "bg2-discovery-enrichment-prototype/test_discovery_enrichment.cpp",
+      "sha256": "f94b031cf45082b8e7563f38a31c3d2faf7fd39a919f82b952280978be1c6646",
+      "bytes": 21488,
+      "physicalLines": 707,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "test_cases_assertions_and_fixtures_reviewed; not executed",
+      "reviewer": "sources-catalogue"
+    },
+    {
+      "path": "README.md",
+      "sha256": "181845771b35ddc865f8db2dfa6c5da8c83e8cb35735bd56b7ee2e32e18cc422",
+      "bytes": 8971,
+      "physicalLines": 196,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-baseline-seal-evidence/build-diagnostic-scan.txt",
+      "sha256": "7fbd16d4222d37161d49c80d186e20e2208924e29a16455b83efff01e50c958d",
+      "bytes": 326,
+      "physicalLines": 10,
+      "reviewMode": "retained-evidence-relevant-excerpts-reviewed",
+      "inspectionDetail": "retained-evidence-relevant-excerpts-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-baseline-seal-evidence/ctest.log",
+      "sha256": "b49bc9dc5542d946f5f15b78d8855b1303ef3128a33f5687523a64a4e9e59a24",
+      "bytes": 9716,
+      "physicalLines": 85,
+      "reviewMode": "retained-evidence-relevant-excerpts-reviewed",
+      "inspectionDetail": "retained-evidence-relevant-excerpts-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-baseline-seal-evidence/FINAL-VERIFICATION.md",
+      "sha256": "5348cb2c1e1ca8327941e5764cc3e202e85efd9b7e58e03df3dd5d6796c172b6",
+      "bytes": 3406,
+      "physicalLines": 70,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-baseline-seal-evidence/real-cue-registration.txt",
+      "sha256": "8a6949f4f0596a89eeb6e5c7949060a5a39fbb50483d3356c3694bb1e4c07488",
+      "bytes": 2985,
+      "physicalLines": 9,
+      "reviewMode": "retained-evidence-relevant-excerpts-reviewed",
+      "inspectionDetail": "retained-evidence-relevant-excerpts-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-baseline-seal-evidence/run-final-verification.ps1",
+      "sha256": "bd491f5c20594777257063cff46c19398a1f35a63a435949bd93b8fbbf45b3a6",
+      "bytes": 1760,
+      "physicalLines": 21,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "W4-BASELINE-SEAL-REVIEW.md",
+      "sha256": "d2513078bc41e067392db21667dda283bf0c40906e822c0efbb3e5426a30f187",
+      "bytes": 20202,
+      "physicalLines": 283,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-end-to-end-prototype/fake_play_journey.cpp",
+      "sha256": "bb5b07ddc66bb6dff82bcfb5532856bce2523f3f73fc81f67922db1a5d014da0",
+      "bytes": 45452,
+      "physicalLines": 1090,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "authored-source-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-end-to-end-prototype/real_cue_journey.cpp",
+      "sha256": "e6abcbf3f5f4ac0d1d6631ccca552c921d4a6f39cb515e362fb46d0f8a7ffb0d",
+      "bytes": 41517,
+      "physicalLines": 1171,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "authored-source-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-end-to-end-prototype/W4ComposedIntegration.cpp",
+      "sha256": "c89807d2ef74a062f62a89dcc6055a93a123ccb84a60ed7cde3cb10a03830d1d",
+      "bytes": 43645,
+      "physicalLines": 1159,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "authored-source-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-end-to-end-prototype/W4ComposedIntegration.h",
+      "sha256": "447bb00967170f917e4e2efbfedb66d2a4e6d037b3142d0a7713a5de8b6b123b",
+      "bytes": 372,
+      "physicalLines": 15,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "authored-source-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-end-to-end-prototype/W4TestFixtures.h",
+      "sha256": "0e6e2214c56533319e8d797a81d554da9294b40b9333c95aba41d24c34e67615",
+      "bytes": 12286,
+      "physicalLines": 431,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "authored-source-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "W4-H-BLOCKER-BA4-FAILURE-CAUSE.md",
+      "sha256": "6bbc00b09c3eb12be21ac8d1fa625d956481677aecaa1f3bcfe9f1823ce22e9f",
+      "bytes": 2611,
+      "physicalLines": 59,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "core"
+    },
+    {
+      "path": "W4-H-CLAUDE-SEAL-CHECK.md",
+      "sha256": "a04b23d3ca47c3f48e2196f48c25cdcc8f38c8238933461e809fa631ae817076",
+      "bytes": 8775,
+      "physicalLines": 79,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "W4-H-EVIDENCE.md",
+      "sha256": "5b4566c49d5f6d4d7a8986fdad46c40c1eef98962d41a5a43ad2faf35b1afbab",
+      "bytes": 12601,
+      "physicalLines": 272,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-superbuild/CMakeLists.txt",
+      "sha256": "ef48db1b6dbe4a058b78fdcff97442f9254029184813c03730494890368ae128",
+      "bytes": 9582,
+      "physicalLines": 245,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "authored-source-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "w4-superbuild/superbuild_link_smoke.cpp",
+      "sha256": "74d995caa4a68b0ce69e90a3554a1656ff8828ea641aeff887202b13c5f43227",
+      "bytes": 991,
+      "physicalLines": 30,
+      "reviewMode": "authored-source-reviewed",
+      "inspectionDetail": "authored-source-reviewed",
+      "reviewer": "parent-composition"
+    },
+    {
+      "path": "WAVE4-CLAUDE-RECONCILIATION.md",
+      "sha256": "e8394bc19a7ffae918041c1f8fe7724c8c1b2b234e9ca842f1ebc0d47d22d0b2",
+      "bytes": 8245,
+      "physicalLines": 186,
+      "reviewMode": "technical-contract-evidence-reviewed",
+      "inspectionDetail": "technical-contract-evidence-reviewed",
+      "reviewer": "parent-composition"
+    }
+  ]
+}

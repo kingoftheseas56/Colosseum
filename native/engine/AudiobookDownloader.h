@@ -93,6 +93,7 @@ public:
     int activeCount() const { return (m_active ? 1 : 0) + m_queue.size(); }
     Q_INVOKABLE void cancelDownload(const QString& pairKey);
     Q_INVOKABLE QVariantMap deleteAudiobook(const QString& pairKey);
+    Q_INVOKABLE QVariantMap removeIncompleteDownloads();
     Q_INVOKABLE void dismissFailure(const QString& pairKey);
 
     // Dev smoke (env COLOSSEUM_ABB_DLTEST="<pairKey>|<infoHash>"): resolve +

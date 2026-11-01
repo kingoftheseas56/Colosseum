@@ -29,6 +29,8 @@ Item {
     property bool raisedLabel: false
     readonly property bool iconOnly: variant !== "plain"
     readonly property bool hovered: input.hovered
+    property alias focusOnPointer: input.focusOnPointer
+    function focusControl(reason) { input.forceActiveFocus(reason === undefined ? Qt.TabFocusReason : reason); }
     signal triggered()
 
     Theme { id: theme }

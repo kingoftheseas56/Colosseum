@@ -4,7 +4,11 @@ import json, os, shutil, subprocess, tempfile, unittest
 from pathlib import Path
 HERE=Path(__file__).resolve().parent
 PATCH=os.environ.get('PATCHELF') or shutil.which('patchelf')
-if not PATCH:raise SystemExit('patchelf is required for packaging tests')
+if os.name!='nt' and not PATCH:raise SystemExit('patchelf is required for Linux packaging tests')
+BASH=shutil.which('bash')
+if os.name=='nt' and Path('C:/Program Files/Git/bin/bash.exe').is_file():BASH='C:/Program Files/Git/bin/bash.exe'
+
+@unittest.skipUnless(PATCH and os.name!='nt','Linux ELF tools and patchelf required')
 class PackageTests(unittest.TestCase):
     def setUp(self):
         self.tmp=tempfile.TemporaryDirectory();self.p=Path(self.tmp.name)
@@ -98,6 +102,48 @@ class PackageTests(unittest.TestCase):
     def test_unneeded_qt_library_is_not_packaged(self):
         shutil.copy2('/bin/true',self.p/'qt/lib/libQt6Unused.so.6')
         r=self.reassemble([]);self.assertEqual(r.returncode,0,r.stderr);self.assertFalse((self.p/'second/usr/lib/libQt6Unused.so.6').exists())
+    def pixbuf_fixture(self):
+        loaders=self.p/'pixbuf loaders';loaders.mkdir()
+        shutil.copy2(self.p/'deps/libfixture.so.1',loaders/'libpixbufloader-svg.so')
+        source=self.p/'query.c';source.write_text('#include <stdio.h>\nint main(int argc,char **argv){for(int i=1;i<argc;i++)printf("\\\"%s\\\"\\n",argv[i]);puts("\\\"svg\\\" 5");return 0;}\n')
+        tool=self.p/'query';subprocess.run(['cc',str(source),'-o',str(tool)],check=True)
+        return loaders,tool
+    def test_pixbuf_pair_and_svg_required(self):
+        loaders,tool=self.pixbuf_fixture()
+        for args in (['--gdk-pixbuf-loaders-dir',str(loaders)],['--gdk-pixbuf-query-loaders',str(tool)]):
+            r=self.reassemble(args);self.assertNotEqual(r.returncode,0);self.assertIn('supplied together',r.stderr)
+        (loaders/'libpixbufloader-svg.so').unlink()
+        r=self.reassemble(['--gdk-pixbuf-loaders-dir',str(loaders),'--gdk-pixbuf-query-loaders',str(tool)])
+        self.assertNotEqual(r.returncode,0);self.assertIn('SVG loader missing',r.stderr)
+    def test_bundled_pixbuf_requires_explicit_matching_modules(self):
+        library=self.p/'deps/libgdk_pixbuf-2.0.so.0'
+        subprocess.run(['cc','-shared','-fPIC',str(self.p/'dep.c'),'-Wl,-soname,libgdk_pixbuf-2.0.so.0','-o',str(library)],check=True)
+        r=self.reassemble(['--runtime-lib',str(library)])
+        self.assertNotEqual(r.returncode,0);self.assertIn('requires matching explicit loaders',r.stderr)
+    def test_pixbuf_staged_relocated_and_checked(self):
+        loaders,tool=self.pixbuf_fixture()
+        r=self.reassemble(['--gdk-pixbuf-loaders-dir',str(loaders),'--gdk-pixbuf-query-loaders',str(tool)])
+        self.assertEqual(r.returncode,0,r.stderr)
+        stage=self.p/'second';m=json.loads((stage/'BUILD-IDENTITY.json').read_text())['gdk_pixbuf']
+        self.assertEqual(m['files'][0]['origin'],str(tool))
+        self.assertIn('usr/lib/gdk-pixbuf-loaders/libpixbufloader-svg.so',m['cache_validation']['modules'])
+        # Use the original fixture's sentinels/QML identity with the newly bundled closure.
+        shutil.copytree(stage/'usr/lib/gdk-pixbuf-loaders',self.stage/'usr/lib/gdk-pixbuf-loaders')
+        shutil.copy2(stage/'usr/bin/gdk-pixbuf-query-loaders',self.stage/'usr/bin/gdk-pixbuf-query-loaders')
+        identity=json.loads((self.stage/'BUILD-IDENTITY.json').read_text());identity['gdk_pixbuf']=m
+        (self.stage/'BUILD-IDENTITY.json').write_text(json.dumps(identity))
+        self.assertEqual(self.check()[0],0)
+        (self.stage/'usr/lib/gdk-pixbuf-loaders/libpixbufloader-svg.so').unlink()
+        self.assertNotEqual(self.check()[0],0)
+    def test_pixbuf_unresolved_module_symbols_rejected(self):
+        loaders,tool=self.pixbuf_fixture()
+        source=self.p/'unresolved.c';source.write_text('extern int missing_svg_api(void); int fixture(void){return missing_svg_api();}')
+        subprocess.run(['cc','-shared','-fPIC',str(source),'-o',str(loaders/'libpixbufloader-svg.so')],check=True)
+        r=self.reassemble(['--gdk-pixbuf-loaders-dir',str(loaders),'--gdk-pixbuf-query-loaders',str(tool)])
+        self.assertEqual(r.returncode,0,r.stderr)
+        shutil.copytree(self.p/'second/usr/lib/gdk-pixbuf-loaders',self.stage/'usr/lib/gdk-pixbuf-loaders')
+        code,report=self.check();self.assertNotEqual(code,0)
+        self.assertIn('Unresolved GdkPixbuf module symbols usr/lib/gdk-pixbuf-loaders/libpixbufloader-svg.so',report['failures'])
     def test_archive_missing_stage_rejected(self):
         out=self.p/'bad.tar.gz'
         r=subprocess.run([str(HERE/'archive.sh'),str(self.p/'absent'),str(out)],capture_output=True)
@@ -118,9 +164,14 @@ class PackageTests(unittest.TestCase):
         self.assertEqual(proc.returncode,0,proc.stdout+proc.stderr)
         info=subprocess.check_output(['dpkg-deb','--field',str(out),'Package','Version','Architecture'],text=True)
         self.assertIn('Package: colosseum',info);self.assertIn('Version: 1.1.9',info);self.assertIn('Architecture: amd64',info)
+        # Both control and payload must use XZ; a command-line assertion alone
+        # would miss dpkg environment/default changes or a later repack.
+        members=subprocess.check_output(['ar','t',str(out)],text=True).splitlines()
+        self.assertEqual(members,['debian-binary','control.tar.xz','data.tar.xz'])
         depends=subprocess.check_output(['dpkg-deb','--field',str(out),'Depends'],text=True)
         self.assertIn('libopengl0',[entry.strip() for entry in depends.split(',')])
         self.assertIn('ca-certificates',[entry.strip() for entry in depends.split(',')])
+        self.assertIn('libgtk-3-common',[entry.strip() for entry in depends.split(',')])
         extracted=self.p/'deb-extracted';subprocess.run(['dpkg-deb','--extract',str(out),str(extracted)],check=True)
         self.assertEqual((extracted/'opt/colosseum/usr/bin/colosseum').read_bytes(),(self.stage/'usr/bin/colosseum').read_bytes())
         self.assertTrue((extracted/'usr/share/applications/colosseum.desktop').is_file())
@@ -131,4 +182,56 @@ class PackageTests(unittest.TestCase):
         out=self.p/'bad.deb'
         proc=subprocess.run(['python3',str(HERE/'package_deb.py'),'--stage',str(self.stage),'--output',str(out)],text=True,capture_output=True)
         self.assertNotEqual(proc.returncode,0);self.assertFalse(out.exists())
+@unittest.skipUnless(BASH,'Bash required for launcher fixtures')
+class LauncherTests(unittest.TestCase):
+    def shell_path(self,path):
+        if os.name=='nt':return subprocess.check_output([BASH,'-c','cygpath -u "$1"','--',str(path)],text=True).strip()
+        return str(path)
+    def setUp(self):
+        self.tmp=tempfile.TemporaryDirectory(prefix='colosseum-launcher-');self.p=Path(self.tmp.name)
+        self.stage=self.p/'candidate with spaces'
+        for relative in ('usr/bin','usr/lib/gdk-pixbuf-loaders'):(self.stage/relative).mkdir(parents=True)
+        shutil.copy2(HERE/'AppRun',self.stage/'AppRun')
+        (self.stage/'usr/lib/libgdk_pixbuf-2.0.so.0').write_text('launcher fixture')
+        (self.stage/'usr/lib/gdk-pixbuf-loaders/libpixbufloader-svg.so').write_text('loader fixture')
+        self.query=self.stage/'usr/bin/gdk-pixbuf-query-loaders'
+        self.query.write_text('#!/bin/sh\n[ -z "${GDK_PIXBUF_MODULE_FILE+x}" ] && [ -z "${GDK_PIXBUF_MODULEDIR+x}" ] || exit 31\n[ "$LD_LIBRARY_PATH" = "$(dirname "$0")/../lib" ] || [ -d "$LD_LIBRARY_PATH/gdk-pixbuf-loaders" ] || exit 32\nfor module do printf \'"%s"\\n\' "$module"; done\nprintf \'"svg" 5\\n\'\n')
+        self.query.chmod(0o755)
+        app=self.stage/'usr/bin/colosseum'
+        app.write_text('#!/bin/sh\nprintf \'%s\\n\' "$GDK_PIXBUF_MODULE_FILE" "$GDK_PIXBUF_MODULEDIR" "$@" > "$REPORT"\ncat "$GDK_PIXBUF_MODULE_FILE" >> "$REPORT"\n')
+        app.chmod(0o755)
+        self.env=dict(os.environ,XDG_CACHE_HOME=self.shell_path(self.p/'cache with spaces'),REPORT=self.shell_path(self.p/'report'),GDK_PIXBUF_MODULE_FILE='/malicious/host.cache',GDK_PIXBUF_MODULEDIR='/malicious/host/loaders')
+    def tearDown(self):self.tmp.cleanup()
+    def launch(self):return subprocess.run([BASH,str(self.stage/'AppRun'),'argument with spaces'],env=self.env,text=True,capture_output=True)
+    def test_matching_modules_ignore_inherited_cache_and_relocate(self):
+        result=self.launch();self.assertEqual(result.returncode,0,result.stderr)
+        report=(self.p/'report').read_text();self.assertNotIn('/malicious',report)
+        self.assertIn('argument with spaces',report);self.assertIn('candidate with spaces/usr/lib/gdk-pixbuf-loaders/libpixbufloader-svg.so',report)
+        self.assertEqual(len(list((self.p/'cache with spaces').rglob('loaders.cache'))),1)
+        self.assertFalse(list((self.p/'cache with spaces').rglob('loaders.cache.*')))
+        previous=self.stage;self.stage=self.p/'relocated package with spaces';previous.rename(self.stage)
+        result=self.launch();self.assertEqual(result.returncode,0,result.stderr)
+        report=(self.p/'report').read_text();self.assertIn('relocated package with spaces/usr/lib/gdk-pixbuf-loaders',report)
+        self.assertNotIn('candidate with spaces',report)
+    def test_missing_svg_fails_before_app(self):
+        (self.stage/'usr/lib/gdk-pixbuf-loaders/libpixbufloader-svg.so').unlink()
+        result=self.launch();self.assertNotEqual(result.returncode,0);self.assertFalse((self.p/'report').exists())
+    def test_missing_query_fails_before_app(self):
+        self.query.unlink();result=self.launch();self.assertNotEqual(result.returncode,0);self.assertFalse((self.p/'report').exists())
+    def test_query_failure_preserves_cache_without_temporary_leaks(self):
+        self.assertEqual(self.launch().returncode,0)
+        cache=next((self.p/'cache with spaces').rglob('loaders.cache'));original=cache.read_bytes()
+        self.query.write_text('#!/bin/sh\necho partial\nexit 42\n')
+        result=self.launch();self.assertNotEqual(result.returncode,0)
+        self.assertEqual(cache.read_bytes(),original);self.assertFalse(list(cache.parent.glob('loaders.cache.*')))
+        self.assertFalse(list(cache.parent.glob('query-errors.*')))
+    def test_zero_exit_incomplete_or_diagnostic_query_rejected(self):
+        for query in ('#!/bin/sh\necho "# header only"\n',
+                      '#!/bin/sh\nfor module do printf \'"%s"\\n\' "$module"; done\n',
+                      '#!/bin/sh\nfor module do printf \'"%s"\\n\' "$module"; done\nprintf \'"svg" 5\\n\'\necho loader-error >&2\n'):
+            self.query.write_text(query)
+            result=self.launch();self.assertNotEqual(result.returncode,0);self.assertFalse((self.p/'report').exists())
+            self.assertFalse(list((self.p/'cache with spaces').rglob('loaders.cache.*')))
+            self.assertFalse(list((self.p/'cache with spaces').rglob('query-errors.*')))
+
 if __name__=='__main__':unittest.main(verbosity=2)

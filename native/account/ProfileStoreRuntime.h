@@ -12,6 +12,7 @@ class QQmlApplicationEngine;
 class QQmlContext;
 class QTemporaryDir;
 class CollectionStore;
+class NamedCollectionsStore;
 class ProgressStore;
 class HistoryStore;
 class ProfilePreferencesStore;
@@ -40,6 +41,7 @@ public:
     const LegacyPersonalStateStorage &legacyStorage() const;
 
     CollectionStore *collectionStore() const;
+    NamedCollectionsStore *namedCollectionsStore() const;
     ProgressStore *progressStore() const;
     SearchHistoryStore *searchHistoryStore() const;
     AudioPairingStore *audioPairingStore() const;

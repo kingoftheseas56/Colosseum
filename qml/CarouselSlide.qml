@@ -7,15 +7,18 @@ import QtQuick.Window
 
 Item {
     id: slideRoot
-    property var slide: ({})                 // { title, blurb, ghost, c1, c2, art?, artKind? }
+    property var slide: ({})                 // { title, blurb, ghost, c1, c2, art?, artKind?, primaryIcon? }
     property int slideIndex: -1
     property string kicker: "Featured"
     property string primaryLabel: "Read"
+    property string primaryIcon: ""
     property string secondaryLabel: "Details"
     signal primaryClicked()
     signal secondaryClicked()
 
     readonly property bool isPoster: slide.artKind !== undefined && slide.artKind === "poster"
+    readonly property bool isSquare: slide.artKind !== undefined && slide.artKind === "square"
+    readonly property bool hasInsetArt: slideRoot.isPoster || slideRoot.isSquare
     readonly property bool narrowLayout: slideRoot.width < 600
     readonly property bool televisionMode: {
         const w = slideRoot.Window.window
@@ -36,12 +39,14 @@ Item {
 
         Image {
             id: artRaw
+            objectName: slideRoot.slideIndex >= 0 ? "featuredBleedArt_" + slideRoot.slideIndex : ""
             anchors.fill: parent
             property string readySource: ""
             onStatusChanged: if (status === Image.Ready) readySource = String(source)
-            source: !slideRoot.isPoster && (slideRoot.visible || readySource === String(slideRoot.slide.art)) && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
+            source: (!slideRoot.hasInsetArt || (slideRoot.isSquare && slideRoot.narrowLayout))
+                && (slideRoot.visible || readySource === String(slideRoot.slide.art)) && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true
-            fillMode: Image.PreserveAspectCrop
+            fillMode: slideRoot.isSquare ? Image.PreserveAspectFit : Image.PreserveAspectCrop
             verticalAlignment: Image.AlignTop
             visible: false
         }
@@ -55,8 +60,8 @@ Item {
             anchors.fill: parent
             source: artRaw
             maskEnabled: true; maskSource: artMask
-            visible: !slideRoot.isPoster || slideRoot.narrowLayout
-            opacity: ((!slideRoot.isPoster || slideRoot.narrowLayout) && artRaw.status === Image.Ready) ? 1 : 0
+            visible: !slideRoot.hasInsetArt || slideRoot.narrowLayout
+            opacity: ((!slideRoot.hasInsetArt || slideRoot.narrowLayout) && artRaw.status === Image.Ready) ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
         // comic poster: native rounded gradient vignette (NO blur → clean corners)…
@@ -72,17 +77,18 @@ Item {
         }
         // …with the crisp poster stood on the right
         Image {
-            visible: slideRoot.isPoster && !slideRoot.narrowLayout
+            objectName: slideRoot.slideIndex >= 0 ? "featuredInsetArt_" + slideRoot.slideIndex : ""
+            visible: slideRoot.hasInsetArt && !slideRoot.narrowLayout
             property string readySource: ""
             onStatusChanged: if (status === Image.Ready) readySource = String(source)
-            source: slideRoot.isPoster && (slideRoot.visible || readySource === String(slideRoot.slide.art)) && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
+            source: slideRoot.hasInsetArt && (slideRoot.visible || readySource === String(slideRoot.slide.art)) && slideRoot.slide.art !== undefined ? slideRoot.slide.art : ""
             asynchronous: true; cache: true
             anchors.right: parent.right; anchors.rightMargin: 56
             anchors.verticalCenter: parent.verticalCenter
             height: parent.height - 44
-            width: height * 0.66
+            width: height * (slideRoot.isSquare ? 1 : 0.66)
             fillMode: Image.PreserveAspectFit
-            sourceSize.width: 320; sourceSize.height: 480
+            sourceSize.width: slideRoot.isSquare ? 480 : 320; sourceSize.height: 480
             opacity: status === Image.Ready ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 300 } }
         }
@@ -134,9 +140,23 @@ Item {
                 Rectangle {
                     radius: slideRoot.televisionMode ? 13 : 11
                     height: slideRoot.televisionMode ? 50 : 42
-                    width: pl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36)); color: theme.gold
-                    Text { id: pl; anchors.centerIn: parent; text: slideRoot.primaryLabel; color: "#1a1408"
+                    width: slideRoot.primaryIcon.length > 0
+                        ? (slideRoot.televisionMode ? 50 : 42)
+                        : pl.implicitWidth + (slideRoot.televisionMode ? 44 : (slideRoot.narrowLayout ? 26 : 36)); color: theme.gold
+                    Text { id: pl
+                        objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryLabel_" + slideRoot.slideIndex : ""
+                        anchors.centerIn: parent; text: slideRoot.primaryLabel; color: "#1a1408"
+                        visible: slideRoot.primaryIcon.length === 0
                         font.family: theme.ui; font.pixelSize: slideRoot.televisionMode ? 16 : 14; font.weight: Font.DemiBold }
+                    PlayerIcon {
+                        objectName: slideRoot.slideIndex >= 0 ? "featuredPrimaryIcon_" + slideRoot.slideIndex : ""
+                        anchors.centerIn: parent
+                        width: 32; height: 32; iconSize: 20
+                        visible: slideRoot.primaryIcon.length > 0
+                        kind: slideRoot.primaryIcon
+                        ink: "#1a1408"
+                        Accessible.ignored: true
+                    }
                     MouseArea { anchors.fill: parent; cursorShape: Qt.PointingHandCursor
                         onClicked: slideRoot.primaryClicked() }
                     KeyboardAction {

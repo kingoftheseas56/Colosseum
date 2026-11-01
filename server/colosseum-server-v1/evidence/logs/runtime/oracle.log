@@ -1,0 +1,8 @@
+(node:6) [DEP0005] DeprecationWarning: Buffer() is deprecated due to security and usability issues. Please use the Buffer.alloc(), Buffer.allocUnsafe(), or Buffer.from() methods instead.
+(Use `node --trace-deprecation ...` to show where the warning was created)
+(node:6) [DEP0169] DeprecationWarning: `url.parse()` behavior is not standardized and prone to errors that have security implications. Use the WHATWG URL API instead. CVEs are not issued for `url.parse()` vulnerabilities.
+PASS pinned /probe early missing executable: {"status":500,"headers":{"content-type":"application/json"},"body":""}
+PASS pinned /probe spawn failure: {"status":500,"headers":{"content-type":"application/json"},"body":"null"}
+PASS pinned /probe zero-exit invalid probe: {"status":200,"headers":{"content-type":"application/json"},"body":"{\"streams\":[]}"}
+PASS pinned /probe 20-second timeout: {"status":500,"headers":{"content-type":"application/json"},"body":"null"}
+{"oracle":"405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f","cases":4}

@@ -1,0 +1,2300 @@
+{
+  "oracle": "405eb494d6708406a30e716c3cfb5abae7a5e9c7a8b79446d64c3f821385930f",
+  "rows": [
+    {
+      "name": "mkv-no-info",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 0,
+          "error": "",
+          "sourceOffsets": [],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mkv-no-info",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 151,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-info",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 151,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-nondefault-scale",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 0,
+          "error": "",
+          "sourceOffsets": [],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mkv-nondefault-scale",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 185,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-nondefault-scale",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 185,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-cues-first",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 0,
+          "error": "",
+          "sourceOffsets": [],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mkv-cues-first",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 151,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-cues-first",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 2000,
+            "dts": 2000
+          },
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 2000,
+              "dts": 2000
+            },
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 151,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 2000,
+                  "key": true,
+                  "pts": 2000
+                },
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-video",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no video tracks found"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no video tracks found"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 0,
+          "error": "no video tracks found",
+          "sourceOffsets": [],
+          "tracks": {}
+        }
+      }
+    },
+    {
+      "name": "mkv-no-video",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no video tracks found"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no video tracks found"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 123,
+          "error": "no video tracks found",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-video",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no video tracks found"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no video tracks found"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 123,
+          "error": "no video tracks found",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-cues",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no cues found in doc -> Segment -> Cues"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no cues found in doc -> Segment -> Cues"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 0,
+          "error": "no cues found in doc -> Segment -> Cues",
+          "sourceOffsets": [],
+          "tracks": {}
+        }
+      }
+    },
+    {
+      "name": "mkv-no-cues",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no cues found in doc -> Segment -> Cues"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no cues found in doc -> Segment -> Cues"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 84,
+          "error": "no cues found in doc -> Segment -> Cues",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-cues",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no cues found in doc -> Segment -> Cues"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no cues found in doc -> Segment -> Cues"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 84,
+          "error": "no cues found in doc -> Segment -> Cues",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-empty-cues",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no cues found in doc -> Segment -> Cues"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no cues found in doc -> Segment -> Cues"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 0,
+          "error": "no cues found in doc -> Segment -> Cues",
+          "sourceOffsets": [],
+          "tracks": {}
+        }
+      }
+    },
+    {
+      "name": "mkv-empty-cues",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no cues found in doc -> Segment -> Cues"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no cues found in doc -> Segment -> Cues"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 110,
+          "error": "no cues found in doc -> Segment -> Cues",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-empty-cues",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no cues found in doc -> Segment -> Cues"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no cues found in doc -> Segment -> Cues"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 110,
+          "error": "no cues found in doc -> Segment -> Cues",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-void-only-cues",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no CuePoints"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no CuePoints"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 0,
+          "error": "no CuePoints",
+          "sourceOffsets": [],
+          "tracks": {}
+        }
+      }
+    },
+    {
+      "name": "mkv-void-only-cues",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no CuePoints"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no CuePoints"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 113,
+          "error": "no CuePoints",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-void-only-cues",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no CuePoints"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no CuePoints"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 113,
+          "error": "no CuePoints",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-cuepoints",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no CuePoints"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no CuePoints"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 0,
+          "error": "no CuePoints",
+          "sourceOffsets": [],
+          "tracks": {}
+        }
+      }
+    },
+    {
+      "name": "mkv-no-cuepoints",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no CuePoints"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no CuePoints"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 116,
+          "error": "no CuePoints",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-cuepoints",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": false,
+        "error": "no CuePoints"
+      },
+      "candidate": {
+        "result": {
+          "available": false,
+          "error": "no CuePoints"
+        },
+        "stats": {
+          "available": false,
+          "bytesFetched": 116,
+          "error": "no CuePoints",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {}
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-matching-cues",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": []
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": []
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 0,
+          "error": "",
+          "sourceOffsets": [],
+          "tracks": {
+            "0": {
+              "samples": [],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mkv-no-matching-cues",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": []
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": []
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 123,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-no-matching-cues",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": []
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": []
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 123,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-last-video-9-vs-10",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 100,
+            "dts": 100
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 100,
+              "dts": 100
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 0,
+          "error": "",
+          "sourceOffsets": [],
+          "tracks": {
+            "10": {
+              "samples": [
+                {
+                  "dts": 100,
+                  "key": true,
+                  "pts": 100
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mkv-last-video-9-vs-10",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 100,
+            "dts": 100
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 100,
+              "dts": 100
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 217,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "10": {
+              "samples": [
+                {
+                  "dts": 100,
+                  "key": true,
+                  "pts": 100
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mkv-last-video-9-vs-10",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 100,
+            "dts": 100
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 100,
+              "dts": 100
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 217,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "10": {
+              "samples": [
+                {
+                  "dts": 100,
+                  "key": true,
+                  "pts": 100
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mp4-tail",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 3075,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mp4-tail",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 3075,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mp4-tail",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 3075,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mp4-fast",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 3075,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mp4-fast",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 3075,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mp4-fast",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 3075,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mp4-extended-moov",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 891,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mp4-extended-moov",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 891,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mp4-extended-moov",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 891,
+          "error": "",
+          "sourceOffsets": [
+            0
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0
+      ],
+      "candidateRanges": [
+        0
+      ]
+    },
+    {
+      "name": "mp4-large-mdat",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 66387,
+          "error": "",
+          "sourceOffsets": [
+            0,
+            100040
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mp4-large-mdat",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 66387,
+          "error": "",
+          "sourceOffsets": [
+            0,
+            100040
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0,
+        100040
+      ],
+      "candidateRanges": [
+        0,
+        100040
+      ]
+    },
+    {
+      "name": "mp4-large-mdat",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 66407,
+          "error": "",
+          "sourceOffsets": [
+            0,
+            100040
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0,
+        100040
+      ],
+      "candidateRanges": [
+        0,
+        100040
+      ]
+    },
+    {
+      "name": "mp4-post-mdat-free",
+      "transport": "local-sync",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 66387,
+          "error": "",
+          "sourceOffsets": [
+            0,
+            70148
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "mp4-post-mdat-free",
+      "transport": "local-async",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 136395,
+          "error": "",
+          "sourceOffsets": [
+            0,
+            140
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0,
+        140
+      ],
+      "candidateRanges": [
+        0,
+        140
+      ]
+    },
+    {
+      "name": "mp4-post-mdat-free",
+      "transport": "fragmented-http",
+      "passed": true,
+      "oracle": {
+        "available": true,
+        "frames": [
+          {
+            "pts": 0,
+            "dts": 0
+          },
+          {
+            "pts": 1000,
+            "dts": 1000
+          }
+        ]
+      },
+      "candidate": {
+        "result": {
+          "available": true,
+          "frames": [
+            {
+              "pts": 0,
+              "dts": 0
+            },
+            {
+              "pts": 1000,
+              "dts": 1000
+            }
+          ]
+        },
+        "stats": {
+          "available": true,
+          "bytesFetched": 136415,
+          "error": "",
+          "sourceOffsets": [
+            0,
+            140
+          ],
+          "tracks": {
+            "0": {
+              "samples": [
+                {
+                  "dts": 0,
+                  "key": true,
+                  "pts": 0
+                },
+                {
+                  "dts": 1000,
+                  "key": true,
+                  "pts": 1000
+                }
+              ],
+              "timescale": 1000,
+              "type": "video"
+            }
+          }
+        }
+      },
+      "sourceRanges": [
+        0,
+        140
+      ],
+      "candidateRanges": [
+        0,
+        140
+      ]
+    }
+  ]
+}

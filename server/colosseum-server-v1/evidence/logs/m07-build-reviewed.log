@@ -1,0 +1,49 @@
+[0/1] Re-running CMake...
+CMake Warning (policy) at /workspace/shared/dot-colosseum-build-env/venv/lib/python3.12/site-packages/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:93 (find_package):
+  Policy CMP0144 is not set: find_package uses upper-case <PACKAGENAME>_ROOT
+  variables.  Run "cmake --help-policy CMP0144" for policy details.  Use the
+  cmake_policy command to set the policy and suppress this warning.
+
+  CMake variable BOOST_ROOT is set to:
+
+    /workspace/shared/colosseum-m07-20261020/deps/boost_1_83_0
+
+  For compatibility, find_package is ignoring the variable, but code in a
+  .cmake module might still use it.
+Call Stack (most recent call first):
+  /workspace/shared/dot-colosseum-build-env/venv/lib/python3.12/site-packages/cmake/data/share/cmake-4.4/Modules/CMakeFindDependencyMacro.cmake:125 (__find_dependency_common)
+  /workspace/shared/colosseum-m07-20261020/deps/libtorrent-prefix/lib/cmake/LibtorrentRasterbar/LibtorrentRasterbarConfig.cmake:16 (find_dependency)
+  CMakeLists.txt:48 (find_package)
+This warning is for project developers.  Use -Wno-author or -Wno-policy to
+suppress it.
+
+-- Performing Test SERVER1_LT_INTERNAL_LINK
+-- Performing Test SERVER1_LT_INTERNAL_LINK - Success
+-- summary of build options:
+    Install prefix:  /usr/local
+    Target system:   Linux
+    Compiler:
+      C compiler:    /usr/bin/cc (GNU)
+      CFLAGS:         
+
+-- clang-tidy not found: install clang-tidy or set -DCLANG_TIDY_EXE to run tidy analysis on this platform
+-- Configuring done (3.8s)
+-- Generating done (0.1s)
+-- Build files have been written to: /workspace/shared/colosseum-m07-20261020/build-m07
+[1/18] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/LegacyMp4Index.cpp.o
+[2/18] Building CXX object CMakeFiles/server1_legacy_media_index_test.dir/tests/test_legacy_media_index.cpp.o
+[3/18] Building CXX object CMakeFiles/server1_legacy_runtime_tests.dir/tests/test_legacy_runtime.cpp.o
+[4/18] Building CXX object CMakeFiles/colosseum_server_v1.dir/src/media/LegacyHlsService.cpp.o
+[5/18] Linking CXX static library libcolosseum_server_v1.a
+[6/18] Linking CXX executable server1_track_converter_tests
+[7/18] Linking CXX executable server1_m04_timeline_tests
+[8/18] Linking CXX executable server1_test_samples
+[9/18] Linking CXX executable server1_track_converter_backpressure_tests
+[10/18] Linking CXX executable server1_m06_hlsv2_tests
+[11/18] Linking CXX executable server1_track_converter_lifecycle_tests
+[12/18] Linking CXX executable server1_external_cors_tests
+[13/18] Linking CXX executable server1_m07_legacy_hls_tests
+[14/18] Linking CXX executable server1_host
+[15/18] Linking CXX executable server1_legacy_media_index_test
+[16/18] Linking CXX executable server1_legacy_render_test
+[17/18] Linking CXX executable server1_legacy_runtime_tests

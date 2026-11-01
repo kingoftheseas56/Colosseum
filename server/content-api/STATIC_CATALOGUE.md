@@ -482,3 +482,25 @@ Validated `current.json` checks retain the existing 60-second freshness window
 across restarts. Later warm starts revalidate; warm does not mean never checking
 for new publications. Cache serialization and atomic writes run in a coalesced
 background task; shutdown/source reconfiguration flush the last dirty snapshot.
+
+### Tankoban manga browsing shelves
+
+The existing `mal/discoverPageFiltered` contract also supports `completed`,
+`publishing`, `short-completed`, `one-shots`, and `started-1990s`,
+`started-2000s`, `started-2010s`. These use existing MAL metadata, never live
+upstream requests per shelf. New shelves exclude prose formats; legacy Popular
+and genre selections retain their existing scope. Short completed means MAL
+status `Finished` and a known integer volume count from 1 to 5, not translated
+chapter availability. Decades refer to the recorded start year, not a new release.
+
+`static_catalogue.mjs` materializes paged lists for these IDs with both explicit
+policies and supported single facets. It also publishes `mal/landing/["manga"]`
+from `qml/MangaBrowseRules.js`, containing exact preview queries for both policies.
+Combined facets continue to use the semantic query owner. Missing new selections
+in an older publication fall through rather than claiming the shelf is empty.
+
+To make these rows available remotely, build and verify a new static publication
+from the unchanged verified source, and separately authorize publishing it and
+updating the semantic worker where that fallback is used. An older worker does
+not understand the new IDs; clients must retain the existing Top/genre fallback.
+This change does not itself publish assets or deploy a worker.

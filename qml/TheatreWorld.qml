@@ -319,5 +319,14 @@ WorldPage {
             onItemRequested: (item) => theatre.theatreItemRequested(
                 theatre.itemWithIdentity(item, item.type === "movie" ? "movie" : "series"))
         }
+        HouseWindowControls {
+            objectPrefix: "theatreSeeAllWindow"
+            anchors.right: parent.right; anchors.rightMargin: theme.margin
+            y: 34
+            z: 10
+            onMinimizeRequested: theatre.minimizeClicked()
+            onFullscreenRequested: theatre.fullscreenClicked()
+            onQuitRequested: theatre.powerClicked()
+        }
     }
 }

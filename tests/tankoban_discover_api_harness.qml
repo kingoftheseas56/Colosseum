@@ -150,7 +150,7 @@ Item {
         // jikanUrl derives sfw from showExplicit and keeps the endpoint pinned.
         var u = Api.jikanUrl("popular", 0, showExplicit)
         truthy(u.indexOf("sfw=true") >= 0, "jikanUrl: showExplicit=false -> sfw=true")
-        truthy(u.indexOf("/top/manga") >= 0, "jikanUrl: popular maps to /top/manga")
+        truthy(u.indexOf("/v4/manga?") >= 0, "jikanUrl: uses search endpoint supporting ordering and sfw")
         var uExplicit = Api.jikanUrl("popular", 0, true)
         truthy(uExplicit.indexOf("sfw=false") >= 0, "jikanUrl: showExplicit=true -> sfw=false")
 
@@ -192,16 +192,18 @@ Item {
         // ── adapter factory ──
         var adapter = Api.create(fakeMal, fakeComics, [], showExplicit, makeFakeXhr)
 
-        // types: exactly Manga + Comics, in that order.
+        // Publication lenses share the existing canonical Manga route.
         var types = adapter.types()
-        eq(types.length, 2, "adapter types: exactly two")
+        eq(types.length, 3, "adapter types: three lenses")
         eq(types[0].key, "manga", "adapter types: manga key")
         eq(types[0].label, "Manga", "adapter types: Manga label")
-        eq(types[1].key, "comics", "adapter types: comics key")
+        eq(types[1].key, "manhwa", "adapter types: Manhwa lens")
+        eq(types[2].key, "comics", "adapter types: comics key")
 
         // catalogs: Manga launch set is Trending, Popular, Top Rated, New Releases.
         var mc = adapter.catalogs("manga")
-        eq(mc.length, 4, "manga catalogs: 4 built-ins")
+        eq(mc.length, 11, "manga catalogs: existing launch set and metadata shelves")
+        eq(adapter.catalogs("manhwa").length, 4, "Manhwa exposes the four relevant catalogues")
         eq(mc[0].key, "trending", "manga catalogs: trending first")
         eq(mc[0].title, "Trending", "manga catalogs: trending title")
         eq(mc[1].key, "popular", "manga catalogs: popular second")
@@ -232,13 +234,14 @@ Item {
 
         // filters: Manga groups Genres + Demographics; Comics groups Genres + Publishers.
         var mf = adapter.filters("manga", "popular")
-        eq(mf.length, 2, "manga filters: 2 groups")
-        eq(mf[0].group, "Genres", "manga filter group: Genres")
-        eq(mf[1].group, "Demographics", "manga filter group: Demographics")
-        truthy(mf[0].options.length >= 3, "manga Genres options present")
+        eq(mf.length, 3, "manga filters: publication, genres and demographics")
+        eq(mf[0].group, "Publication Type", "manga filter group: publication")
+        eq(mf[1].group, "Genres", "manga filter group: Genres")
+        eq(mf[2].group, "Demographics", "manga filter group: Demographics")
+        truthy(mf[1].options.length >= 3, "manga Genres options present")
         // stable keys, distinct from labels (lowercased key)
-        eq(mf[0].options[0].key, "action", "manga genre facet key is stable lower-case")
-        eq(mf[0].options[0].label, "Action", "manga genre facet label preserved")
+        eq(mf[1].options[0].key, "action", "manga genre facet key is stable lower-case")
+        eq(mf[1].options[0].label, "Action", "manga genre facet label preserved")
         var cf = adapter.filters("comics", "popular")
         eq(cf.length, 4, "comics filters: 4 groups")
         eq(cf[0].group, "Genres", "comics filter group: Genres")

@@ -447,6 +447,9 @@ QVariantMap TrackerSyncCenterModel::providerDossier(const QString &providerKey)
                     : (provider->available ? QStringLiteral("Not connected")
                                            : QStringLiteral("Unavailable in this build"))},
             {QStringLiteral("connected"), isConnected},
+            {QStringLiteral("reconnectRequired"), isConnected
+                    && m_reconnectRequiredSource
+                    && m_reconnectRequiredSource(*providerId)},
             {QStringLiteral("accountLabel"), isConnected
                     ? QStringLiteral("Connected account") : QString()},
             {QStringLiteral("capabilities"), capabilityKeys(capabilities)},
@@ -1195,6 +1198,12 @@ QString TrackerSyncCenterModel::connectUnavailableReason(
     return QStringLiteral("connection_service_unavailable");
 }
 
+void TrackerSyncCenterModel::setReconnectRequiredSource(ReconnectRequiredSource source)
+{
+    m_reconnectRequiredSource = std::move(source);
+    refreshRevision();
+}
+
 void TrackerSyncCenterModel::setConnectionAvailabilitySource(ConnectionAvailabilitySource source)
 {
     m_connectionAvailabilitySource = std::move(source);
@@ -1874,6 +1883,10 @@ QString TrackerSyncCenterModel::providerState(const TrackerConnection &connectio
         return QStringLiteral("Disconnected");
     if (connection.state == TrackerConnectionState::TransferPending
         || !provider || !provider->available || counts.attention > 0) {
+        return QStringLiteral("Attention");
+    }
+    if (m_reconnectRequiredSource
+        && m_reconnectRequiredSource(connection.providerId)) {
         return QStringLiteral("Attention");
     }
     if (counts.syncing > 0)

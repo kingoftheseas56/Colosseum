@@ -374,6 +374,32 @@ Item {
         }
         Item {
             width: 22; height: 22
+            visible: Qt.platform.os !== "android"
+            Image {
+                anchors.fill: parent
+                source: (typeof WindowMode !== "undefined" && WindowMode.shellWindowed)
+                        ? "../assets/icons/fullscreen.svg" : "../assets/icons/fullscreen-exit.svg"
+                sourceSize.width: 22; sourceSize.height: 22
+                fillMode: Image.PreserveAspectFit
+                opacity: fullMa.containsMouse || fullKey.activeFocus ? 1.0 : 0.72
+            }
+            MouseArea {
+                id: fullMa
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: Qt.PointingHandCursor
+                onClicked: root.fullscreenRequested()
+            }
+            KeyboardAction {
+                id: fullKey
+                anchors.fill: parent
+                pointerEnabled: false
+                accessibleName: "Toggle fullscreen"
+                onTriggered: root.fullscreenRequested()
+            }
+        }
+        Item {
+            width: 22; height: 22
             Image { anchors.fill: parent; source: "../assets/icons/power.svg"
                 sourceSize.width: 22; sourceSize.height: 22; fillMode: Image.PreserveAspectFit
                 opacity: powerMa.containsMouse ? 1.0 : 0.72 }

@@ -347,6 +347,16 @@ LanistaServer::LanistaServer(QQmlApplicationEngine* engine, QObject* parent)
                  reply.reply(m_vinylTestProfileHandler(p));
              });
 #endif
+#ifdef COLOSSEUM_ENABLE_COLLECTIONS_TEST_FIXTURES
+    addDrive(QStringLiteral("collections-test-profile"),
+             [this](const QJsonObject& p, Replier reply) {
+                 if (!m_collectionsTestProfileHandler) {
+                     reply.fail("FIXTURE_UNAVAILABLE", QStringLiteral("Synthetic Collections profile fixture is unavailable"));
+                     return;
+                 }
+                 reply.reply(m_collectionsTestProfileHandler(p));
+             });
+#endif
     addDrive(QStringLiteral("ui-click"),
              [this](const QJsonObject& p, Replier reply) { cmdUiClick(p, std::move(reply)); });
     addDrive(QStringLiteral("ui-keypress"),
@@ -1429,6 +1439,9 @@ void LanistaServer::cmdUiClick(const QJsonObject& p, Replier reply) const
         reply.fail("NO_WINDOW", ref);
         return;
     }
+    // A click may close a popup or rebuild a delegate, destroying its target.
+    // Keep the reply data before dispatching either event.
+    const QString clickedName = item->objectName();
     const QPointF scenePos =
         item->mapToScene(QPointF(item->width() / 2.0, item->height() / 2.0));
     const QPointF globalPos = w->mapToGlobal(scenePos.toPoint());
@@ -1440,7 +1453,7 @@ void LanistaServer::cmdUiClick(const QJsonObject& p, Replier reply) const
                         Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
     release.setTimestamp(m_inputClock.elapsed());
     QCoreApplication::sendEvent(w, &release);
-    reply.reply({{QStringLiteral("clicked"), item->objectName()},
+    reply.reply({{QStringLiteral("clicked"), clickedName},
                  {QStringLiteral("atX"), scenePos.x()},
                  {QStringLiteral("atY"), scenePos.y()}});
 }

@@ -18,7 +18,8 @@ from verify_update_release import verify
 
 _MANIFEST = "colosseum-update-v1.json"
 _SIGNATURE = "colosseum-update-v1.json.sig"
-_GITLAB_PREFIX = "/kingoftheseas56/colosseum-site/-/raw/release-assets/"
+_GITLAB_RAW_ROOT = "/kingoftheseas56/colosseum-site/-/raw/"
+_GITLAB_PREFIX = _GITLAB_RAW_ROOT + "release-assets/"
 _TAG = re.compile(r"^v(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)\.(?:0|[1-9][0-9]*)$")
 
 
@@ -47,7 +48,9 @@ def validated_base(base_url: str, tag: str) -> str:
         or parts.path.rstrip("/") != expected_path
         or parts.query not in {"", "ref_type=heads"}):
         raise ValueError("asset base must be the exact versioned Colosseum GitLab raw releases path")
-    return expected_path
+    # GitLab must receive the slash inside the ref as part of one segment.
+    # Unencoded refs can resolve metadata/ranges while full LFS GETs fail404.
+    return _GITLAB_RAW_ROOT + quote("release-assets/" + tag, safe="") + "/releases"
 
 
 def asset_url(base_path: str, name: str) -> str:

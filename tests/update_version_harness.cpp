@@ -31,5 +31,8 @@ int main()
     require(Version::parseCanonical(QStringView(u"1.0.9"))->compare(*release) < 0,
             "older minor compares lower");
     require(release->compare(*release) == 0, "equal versions compare equal");
+    require(Version::parseCanonical(QStringView(u"1.1.10"))->compare(
+                *Version::parseCanonical(QStringView(u"1.1.9"))) > 0,
+            "1.1.10 upgrades 1.1.9 by numeric patch ordering");
     std::cout << "UPDATE_VERSION_OK\n";
 }

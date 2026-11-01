@@ -436,6 +436,7 @@ Item {
         target: sheet.serviceObject
         ignoreUnknownSignals: true
         function onSourcesReady(vid, results) { sheet.applySources(vid, results) }
+        function onSourcesFailed(vid, reason) { sheet.applyFailure(vid, reason) }
         function onFailed(vid, reason) {
             sheet.applyFailure(vid, reason)
             if (sheet.liveIds.indexOf(String(vid)) < 0) return

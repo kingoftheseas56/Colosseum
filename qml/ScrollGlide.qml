@@ -17,6 +17,7 @@ Item {
     id: glide
 
     property Flickable flick: null
+    signal wheelInput()
 
     // Existing public tuning contract: used only for angleDelta fallback.
     // 120 angle units * 1.4 = ~168 px per ordinary wheel notch.
@@ -276,6 +277,8 @@ Item {
 
         if (dy === 0)
             return
+
+        glide.wheelInput()
 
         // Already at the end in this direction with nothing queued: hand the wheel to the outer
         // scroller (a nested wall at its bottom passes it to the page), as browsers do.

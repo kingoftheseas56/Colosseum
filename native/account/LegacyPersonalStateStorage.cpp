@@ -8,6 +8,7 @@
 #include <QCryptographicHash>
 #include <QDir>
 #include <QFileInfo>
+#include <QFile>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QJsonParseError>
@@ -20,8 +21,9 @@
 #include <memory>
 
 namespace {
-constexpr int kSnapshotVersion = 6;
+constexpr int kSnapshotVersion = 7;
 constexpr qsizetype kMaximumPrivateStateBytes = 1024 * 1024;
+constexpr qsizetype kMaximumNamedCollectionsBytes = 8 * 1024 * 1024;
 constexpr qsizetype kMaximumTheatreExtensions = 512;
 
 QString stremioStatePath(const QString &profileRoot) {
@@ -34,6 +36,40 @@ QString theatreExtensionsPath(const QString &profileRoot) {
     return profileRoot.isEmpty()
         ? QString()
         : QDir(profileRoot).filePath(QStringLiteral("extensions/installed.json"));
+}
+
+bool readNamedCollections(const QString &path, bool *present, QByteArray *bytes, QString *error) {
+    const QFileInfo info(path);
+    *present = !path.isEmpty() && (info.exists() || info.isSymLink());
+    bytes->clear();
+    if (!*present) return true;
+    QFile file(path);
+    if (info.isSymLink() || !info.isFile() || !file.open(QIODevice::ReadOnly)
+        || file.size() > kMaximumNamedCollectionsBytes) {
+        if (error) *error = QStringLiteral("Could not safely capture local Collections at %1.").arg(path);
+        return false;
+    }
+    *bytes = file.read(kMaximumNamedCollectionsBytes + 1);
+    if (bytes->size() > kMaximumNamedCollectionsBytes || file.error() != QFileDevice::NoError) {
+        if (error) *error = QStringLiteral("Could not read complete local Collections at %1.").arg(path);
+        return false;
+    }
+    return true;
+}
+
+bool writeNamedCollections(const QString &path, const QByteArray &bytes, QString *error) {
+    if (path.isEmpty() || bytes.size() > kMaximumNamedCollectionsBytes
+        || QFileInfo(path).isSymLink() || !QDir().mkpath(QFileInfo(path).absolutePath())) {
+        if (error) *error = QStringLiteral("Could not prepare local Collections at %1.").arg(path);
+        return false;
+    }
+    QSaveFile file(path);
+    file.setDirectWriteFallback(false);
+    if (!file.open(QIODevice::WriteOnly) || file.write(bytes) != bytes.size() || !file.commit()) {
+        if (error) *error = QStringLiteral("Could not restore local Collections at %1.").arg(path);
+        return false;
+    }
+    return true;
 }
 
 bool readJsonFile(const QString &path, QJsonObject *object, QString *error) {
@@ -267,14 +303,15 @@ bool PersonalStateSnapshot::isEmpty() const {
         && !showExplicit
         && mainSyncProvider.isEmpty()
         && stremioState.isEmpty()
-        && theatreExtensions.isEmpty();
+        && theatreExtensions.isEmpty()
+        && !hasNamedCollections;
 }
 
 QJsonObject PersonalStateSnapshot::toJson() const {
     QJsonObject object;
     object.insert(
         QStringLiteral("version"),
-        vinylTaste.isEmpty() ? 5 : kSnapshotVersion);
+        hasNamedCollections ? kSnapshotVersion : (vinylTaste.isEmpty() ? 5 : 6));
     object.insert(
         QStringLiteral("progress_entries"),
         progressEntries);
@@ -308,7 +345,11 @@ QJsonObject PersonalStateSnapshot::toJson() const {
     object.insert(
         QStringLiteral("show_explicit"),
         showExplicit);
-    if (!vinylTaste.isEmpty()) object.insert(QStringLiteral("vinyl_taste"), vinylTaste);
+    if (!vinylTaste.isEmpty() || hasNamedCollections) object.insert(QStringLiteral("vinyl_taste"), vinylTaste);
+    if (hasNamedCollections) {
+        object.insert(QStringLiteral("named_collections_local"),
+            QString::fromLatin1(namedCollectionsBytes.toBase64()));
+    }
     object.insert(QStringLiteral("main_sync_provider"), mainSyncProvider);
     object.insert(QStringLiteral("stremio_state"), stremioState);
     object.insert(QStringLiteral("theatre_extensions"), theatreExtensions);
@@ -324,6 +365,12 @@ QString PersonalStateSnapshot::semanticDigest() const {
             payload,
             QCryptographicHash::Sha256)
             .toHex());
+}
+
+QString PersonalStateSnapshot::namedCollectionsDigest() const {
+    return hasNamedCollections
+        ? QString::fromLatin1(QCryptographicHash::hash(namedCollectionsBytes, QCryptographicHash::Sha256).toHex())
+        : QString();
 }
 
 QString PersonalStateSnapshot::legacySemanticDigestV4() const {
@@ -434,7 +481,7 @@ matchesSemanticDigest(
 
     // Legacy receipts cannot authenticate newly added taste facts. Empty-taste
     // snapshots keep their exact v5 encoding, including its existing digests.
-    if (!vinylTaste.isEmpty()) return false;
+    if (!vinylTaste.isEmpty() || hasNamedCollections) return false;
 
     const bool ratingsReviewsEmpty =
         ratingsReviewsRecords.isEmpty()
@@ -597,6 +644,22 @@ PersonalStateSnapshot::fromJson(
         snapshot.mainSyncProvider = provider.toString();
         snapshot.stremioState = stremio.toObject();
         snapshot.theatreExtensions = extensions.toArray();
+    }
+    if (version >= 7) {
+        const QJsonValue encoded = object.value(QStringLiteral("named_collections_local"));
+        if (!encoded.isString() || encoded.toString().size() > ((kMaximumNamedCollectionsBytes + 2) / 3) * 4) {
+            if (error) *error = QStringLiteral("The local Collections adoption snapshot is invalid.");
+            return std::nullopt;
+        }
+        const QByteArray base64 = encoded.toString().toLatin1();
+        const auto decoded = QByteArray::fromBase64Encoding(base64, QByteArray::AbortOnBase64DecodingErrors);
+        if (!decoded || decoded.decoded.size() > kMaximumNamedCollectionsBytes
+            || decoded.decoded.toBase64() != base64) {
+            if (error) *error = QStringLiteral("The local Collections adoption bytes are invalid.");
+            return std::nullopt;
+        }
+        snapshot.hasNamedCollections = true;
+        snapshot.namedCollectionsBytes = decoded.decoded;
     }
     return snapshot;
 }
@@ -857,6 +920,8 @@ LegacyPersonalStateStorage::capture(
     }
 
     PersonalStateSnapshot snapshot;
+    if (!readNamedCollections(namedCollectionsPath(), &snapshot.hasNamedCollections,
+                             &snapshot.namedCollectionsBytes, error)) return std::nullopt;
     if (!jsonObjectValue(
             progress.get(),
             QStringLiteral("continue/entries"),
@@ -1070,7 +1135,8 @@ bool LegacyPersonalStateStorage::clearPersonalState(
         return false;
     if (!ratingsReviews.clearForProfileRetirement(error))
         return false;
-    return removePrivateFile(stremioStatePath(m_profileRoot), error)
+    return removePrivateFile(namedCollectionsPath(), error)
+        && removePrivateFile(stremioStatePath(m_profileRoot), error)
         && removePrivateFile(theatreExtensionsPath(m_profileRoot), error);
 }
 
@@ -1214,6 +1280,9 @@ bool LegacyPersonalStateStorage::restorePersonalState(
         return false;
     }
 
+    if (snapshot.hasNamedCollections
+        && !writeNamedCollections(namedCollectionsPath(), snapshot.namedCollectionsBytes, error)) return false;
+
     if (!m_profileRoot.isEmpty()) {
         if (snapshot.stremioState.isEmpty()) {
             if (!removePrivateFile(stremioStatePath(m_profileRoot), error))
@@ -1304,6 +1373,11 @@ QString LegacyPersonalStateStorage::ratingsReviewsPath() const {
     return m_profileRoot.isEmpty()
         ? QString()
         : QDir(m_profileRoot).filePath(QStringLiteral("ratings-reviews.json"));
+}
+
+QString LegacyPersonalStateStorage::namedCollectionsPath() const {
+    return m_profileRoot.isEmpty()
+        ? QString() : QDir(m_profileRoot).filePath(QStringLiteral("named-collections-v2.json"));
 }
 
 QString LegacyPersonalStateStorage::devicePrivateProfileRoot() const {

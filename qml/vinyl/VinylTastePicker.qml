@@ -1,6 +1,7 @@
 import QtQuick
 import QtQuick.Controls
 import ".."
+
 Item {
     id: root
     objectName: "vinylTastePicker"
@@ -9,134 +10,239 @@ Item {
     required property Flickable pageFlick
     readonly property string query: worldData.pickerQuery
     readonly property var selected: worldData.pickerDraft
+    readonly property int minimumArtistCount: Number(worldData.minimumArtistCount) || 5
     readonly property var offered: worldData.artistOptions(query)
-    // The picker owns one page viewport: the header with the question, the
-    // search field and Skip/Done stays pinned while the artists scroll inside.
+    readonly property bool editing: worldData.onboardingState === "editing"
+    readonly property int minimumArtists: worldData.recommendationService
+        ? Number(worldData.recommendationService.minimumArtists) || 5 : 5
+    readonly property int selectedArtistCount: worldData.usesRecommendationService
+        ? Number(worldData.recommendationService.draftArtistCount) || 0 : selected.length
     implicitHeight: pageFlick ? pageFlick.height : header.height + 30 + grid.implicitHeight
     Theme { id: theme }
     property int currentIndex: 0
-    Keys.onPressed: event=>nav.handle(event)
+    Keys.onPressed: event => { if (!artistSearch.activeFocus) nav.handle(event) }
+
     KeyboardCollectionController {
-        id:nav;view:root;count:root.offered.length;orientation:"grid";columns:grid.columns
-        positionIndexFn:function(index){var item=artistCards.itemAt(index);if(!item)return;artistScroll.contentY=Math.max(0,Math.min(Math.max(0,artistScroll.contentHeight-artistScroll.height),item.y));Qt.callLater(function(){var card=artistCards.itemAt(index);if(card)card.forceActiveFocus()})}
-        onActivated:index=>root.toggleArtist(root.offered[index].id)
+        id: nav
+        view: root
+        count: root.offered.length
+        orientation: "grid"
+        columns: grid.columns
+        positionIndexFn: function(index) {
+            var card = artistCards.itemAt(index);
+            if (!card) return;
+            artistScroll.contentY = Math.max(0, Math.min(
+                Math.max(0, artistScroll.contentHeight - artistScroll.height), card.y));
+            Qt.callLater(function() {
+                var next = artistCards.itemAt(index);
+                if (next) next.forceActiveFocus();
+            });
+        }
+        onActivated: index => root.toggleArtist(root.offered[index])
     }
-    function toggleArtist(id) { worldData.togglePickerArtist(id) }
+
+    function toggleArtist(artist) { worldData.togglePickerArtist(artist); }
+    function setArtistSearchQuery(value) {
+        if (typeof worldData.setArtistSearchQuery === "function")
+            return worldData.setArtistSearchQuery(value);
+        if (typeof worldData.setPickerQuery === "function")
+            return worldData.setPickerQuery(value);
+    }
+    function submitArtistSearch() {
+        if (typeof worldData.submitArtistSearch === "function")
+            return worldData.submitArtistSearch();
+    }
+    function focusArtistSearch() {
+        if (!artistSearch.visible || !artistSearch.enabled)
+            return false;
+        artistSearch.forceActiveFocus(Qt.MouseFocusReason);
+        return true;
+    }
+
     Item {
         id: header
         width: parent.width
         height: 140
+
         Text {
             objectName: "vinylPickerQuestion"
-            text: "What do you listen to?"
-            width: parent.width
+            text: "Choose at least " + root.minimumArtistCount + " artists"
+            width: Math.max(0, parent.width - actions.width - 24)
             elide: Text.ElideRight
             fontSizeMode: Text.Fit
-            minimumPixelSize: 24
+            minimumPixelSize: 22
             color: theme.ink
             font.family: theme.display
             font.pixelSize: 40
         }
-        Glass {
-            y: 64
-            width: Math.min(430,parent.width-220)
-            height: 40
-            backdrop: root.backdrop
-            radius: 12
-            TextField {
-                id: search
-                objectName: "vinylPickerSearch"
-                anchors.fill: parent
-                anchors.rightMargin: 36
-                text: root.query
-                onTextEdited: root.worldData.setPickerQuery(text)
-                placeholderText: "Search artists"
-                color: theme.ink
-                placeholderTextColor: theme.inkDimmer
-                font.family: theme.ui
-                font.pixelSize: 14
-                background: Item {}
+
+        TextField {
+            id: artistSearch
+            objectName: "vinylPickerArtistSearch"
+            x: 0
+            y: 54
+            width: Math.max(0, parent.width - actions.width - 12)
+            height: 44
+            text: root.query
+            color: theme.ink
+            placeholderTextColor: theme.inkDimmer
+            font.family: theme.ui
+            font.pixelSize: 14
+            padding: 14
+            leftPadding: 42
+            selectByMouse: true
+            placeholderText: qsTr("Search artists")
+            Accessible.name: qsTr("Search artists")
+            onTextEdited: root.setArtistSearchQuery(text)
+            onAccepted: root.submitArtistSearch()
+            background: Glass {
+                objectName: "vinylPickerArtistSearchGlass"
+                backdrop: root.backdrop
+                radius: 12
+                tint: 0.06
+                scrim: 0.18
             }
-            KeyboardAction {
-                width: 32; height: 40
-                anchors.right: parent.right
-                visible: root.query.length>0
-                accessibleName: "Clear artist search"
-                onTriggered: {root.worldData.setPickerQuery("");search.forceActiveFocus()}
-                Text { anchors.centerIn: parent; text:"×";color:theme.ink;font.family:theme.ui;font.pixelSize:20 }
+            VinylControlIcon {
+                x: 14
+                anchors.verticalCenter: parent.verticalCenter
+                symbol: "search"
+                color: theme.inkDimmer
+                Accessible.ignored: true
+            }
+            FocusRing {
+                anchors.fill: parent
+                shown: artistSearch.activeFocus && [Qt.TabFocusReason, Qt.BacktabFocusReason,
+                    Qt.ShortcutFocusReason].indexOf(artistSearch.focusReason) >= 0
+                radius: 12
             }
         }
+
         Row {
+            id: actions
             anchors.right: parent.right
-            y: 64
-            spacing: 10
+            anchors.verticalCenter: artistSearch.verticalCenter
+            spacing: 8
+
             VinylWorldButton {
-                objectName: "vinylPickerSkip"
-                label: "Skip"
+                objectName: "vinylPickerCancel"
+                visible: root.editing
+                enabled: visible
+                label: "Cancel taste editing"
+                accessibleName: label
+                symbol: "cancel"
                 backdrop: root.backdrop
-                onTriggered: root.worldData.skipPicker()
+                onTriggered: root.worldData.cancelTasteEdit()
             }
             VinylWorldButton {
                 objectName: "vinylPickerDone"
-                label: "Done"
+                enabled: root.selectedArtistCount >= root.minimumArtists
+                label: qsTr("Save artist choices")
+                accessibleName: label
+                symbol: "check"
                 selected: true
                 backdrop: root.backdrop
-                onTriggered: root.worldData.answerPicker(root.selected)
+                onTriggered: root.worldData.answerPicker()
             }
         }
     }
+
     Text {
-        y: 112; width: parent.width
-        text: root.worldData.tasteNotice !== undefined ? root.worldData.tasteNotice : ""
-        color: theme.inkDim; font.family: theme.ui; font.pixelSize: 12
+        objectName: "vinylPickerStatus"
+        y: 112
+        width: Math.max(0, parent.width - 96)
+        text: root.worldData.artistSearchError
+            ? root.worldData.artistSearchError
+            : root.worldData.artistSearchLoading
+                ? "Searching artists…"
+                : root.offered.length === 0
+                    ? (root.query ? qsTr("No artists found.") : qsTr("Search for artists or choose from your library."))
+                    : root.selectedArtistCount >= root.minimumArtists
+                        ? qsTr("%1 artists selected.").arg(root.selectedArtistCount)
+                        : qsTr("%1 of %2 artists selected.").arg(root.selectedArtistCount).arg(root.minimumArtists)
+        color: root.worldData.artistSearchError ? theme.ink : theme.inkDim
+        font.family: theme.ui
+        font.pixelSize: 12
+        elide: Text.ElideRight
     }
-    Text {
-        visible:root.offered.length===0;y:header.height+30;width:parent.width
-        text:root.query ? "No local artists match." : "Open local music to choose artists, or skip for now."
-        color:theme.inkDim;font.family:theme.ui;font.pixelSize:14;wrapMode:Text.WordWrap
+
+    Row {
+        y: 100
+        anchors.right: parent.right
+        spacing: 8
+
+        VinylWorldButton {
+            objectName: "vinylPickerRetry"
+            visible: !!root.worldData.artistSearchError
+            enabled: visible
+            label: "Retry artist search"
+            accessibleName: label
+            symbol: "retry"
+            backdrop: root.backdrop
+            onTriggered: root.worldData.retryArtistSearch()
+        }
+        VinylWorldButton {
+            objectName: "vinylPickerLoadMore"
+            visible: root.worldData.artistSearchHasMore
+            enabled: visible && !root.worldData.artistSearchLoading
+            label: "Load more artists"
+            accessibleName: label
+            symbol: "arrowDown"
+            backdrop: root.backdrop
+            onTriggered: root.worldData.loadMoreArtistSearch()
+        }
     }
+
     Flickable {
         id: artistScroll
         objectName: "vinylPickerScroll"
-        y: header.height+30
+        y: header.height + 30
         width: parent.width
-        height: Math.max(0,parent.height-y)
+        height: Math.max(0, parent.height - y)
         contentWidth: width
         contentHeight: grid.implicitHeight
         clip: true
         boundsBehavior: Flickable.StopAtBounds
+
         Grid {
             id: grid
-            columns: Math.max(2,Math.min(7,Math.floor((root.width+24)/150)))
+            columns: Math.max(2, Math.min(7, Math.floor((root.width + 24) / 150)))
             columnSpacing: 24
             rowSpacing: 28
+
             Repeater {
-                id:artistCards
+                id: artistCards
                 model: root.offered
                 delegate: KeyboardAction {
                     required property var modelData
                     required property int index
-                    objectName: "vinylPickerArtist_"+index
-                    width: (root.width-(grid.columns-1)*24)/grid.columns
-                    height: width+label.implicitHeight+18
+                    objectName: "vinylPickerArtist_" + index
+                    width: (root.width - (grid.columns - 1) * 24) / grid.columns
+                    height: width + label.implicitHeight + 18
                     accessibleName: modelData.title
-                    onTriggered: root.toggleArtist(modelData.id)
-                    onActiveFocusChanged:if(activeFocus)root.currentIndex=index
-                    Keys.onPressed:event=>{if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Up,Qt.Key_Down,Qt.Key_Home,Qt.Key_End].indexOf(event.key)>=0)nav.handle(event)}
+                    onTriggered: root.toggleArtist(modelData)
+                    onActiveFocusChanged: if (activeFocus) root.currentIndex = index
+                    Keys.onPressed: event => {
+                        if ([Qt.Key_Left, Qt.Key_Right, Qt.Key_Up, Qt.Key_Down, Qt.Key_Home, Qt.Key_End].indexOf(event.key) >= 0)
+                            nav.handle(event);
+                    }
+
                     RoundedPosterImage {
-                        width: parent.width; height: width; radius: width/2
+                        width: parent.width
+                        height: width
+                        radius: width / 2
                         sources: [root.worldData.artwork(modelData.cover)]
-                        hovered: root.selected.indexOf(modelData.id)>=0
+                        hovered: root.selected.indexOf(modelData.key) >= 0
                     }
                     Text {
                         id: label
-                        y: parent.width+12
+                        y: parent.width + 12
                         width: parent.width
                         horizontalAlignment: Text.AlignHCenter
                         text: parent.modelData.title
                         wrapMode: Text.WordWrap
-                        color: root.selected.indexOf(parent.modelData.id)>=0 ? theme.gold : theme.ink
-                        font.family: theme.ui; font.pixelSize: 14
+                        color: root.selected.indexOf(parent.modelData.key) >= 0 ? theme.gold : theme.ink
+                        font.family: theme.ui
+                        font.pixelSize: 14
                     }
                 }
             }

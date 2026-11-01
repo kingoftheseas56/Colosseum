@@ -22,7 +22,7 @@ test('Comics landing keeps all eight legacy shelves and seven exact curated page
   ['popular',[{axis:'format',key:'omnibus'}],false,0,24],['popular',[{axis:'format',key:'deluxe'}],false,0,24],
   ['popular',[{axis:'format',key:'graphic novel'}],false,0,24],['community-collections',[],false,0,24]]);
  assert.deepEqual(requests.filter(r=>r.method.startsWith('curated')), [{method:'curatedReady',args:[]},{method:'curatedRanked',args:[]},{method:'curatedGenreShelves',args:[8]}]);
- assert.throws(()=>landingRequests('mal','manga',{...owners,date}),/Unsupported landing/);
+ assert.throws(()=>landingRequests('mal','unknown',{...owners,date}),/Unsupported landing/);
 });
 
 test('Theatre primes exact stable owner recipes, preview cap, and deduplication across UTC days',()=>{
@@ -55,7 +55,7 @@ test('Publisher stores single-dataset exact results with exclusive UTC expiry an
  const calls=[],written=[];
  const queryFn=async(dataset,method,args)=>{const result={dataset,method,args,sentinel:null,flag:false};calls.push({dataset,method,args,result});return result;};
  await publishLandingCatalogues({date,qmlRoot,owners,queryFn,fixed:(dataset,method,args,result)=>written.push({dataset,method,args,result})});
- assert.equal(written.length,4);
+ assert.equal(written.length,5);
  for(const {dataset,method,args,result:bundle} of written){
   assert.equal(method,'landing');assert.deepEqual(args,[bundle.tab]);assert.equal(bundle.dataset,dataset);
   assert.equal(bundle.version,1);assert.equal(bundle.validFrom,date);assert.equal(bundle.validUntil,dataset==='comics'?'2027-01-01':'9999-12-31');
@@ -85,6 +85,8 @@ test('Bundle results equal individual semantic queries against a populated SQLit
  INSERT INTO den_comics_curated_series VALUES('a',1,'Curated','curated',2026,'DC','curated-cover',NULL,'["Action"]','["omnibus","deluxe","graphic novel"]',1,1,2026,'{"official_source_count":1,"latest_source_date":"2026-10-01","availability_state":"complete","community_source_count":1}');
  CREATE TABLE den_imdb_title(tt TEXT,type TEXT,title TEXT,origLang TEXT,year INTEGER,endYear INTEGER,runtimeMin INTEGER,votes INTEGER,episodes INTEGER,rating REAL,genres TEXT,isAnime INTEGER,__membership TEXT);
  INSERT INTO den_imdb_title VALUES('tt1','movie','Film','ja',2026,0,90,300000,0,9.0,'["Animation"]',0,'["Animation"]');
+ CREATE TABLE den_mal_manga(mal_id INTEGER,title TEXT,type TEXT,status TEXT,volumes INTEGER,year INTEGER,members INTEGER,score REAL,explicit INTEGER,__membership TEXT,tags TEXT);
+ INSERT INTO den_mal_manga VALUES(1,'Manga','Manga','Finished',2,1997,100,9,0,'[]','[]');
  CREATE TABLE lib_mal_anime(mal_id INTEGER,title TEXT,score REAL,members INTEGER,scored_by INTEGER,type TEXT,status TEXT,year INTEGER,__tags TEXT);
  CREATE VIEW den_mal_anime AS SELECT * FROM lib_mal_anime;
  INSERT INTO lib_mal_anime VALUES(1,'Anime',9,400000,10000,'TV','Currently Airing',2026,'["Action"]');`);
@@ -108,3 +110,11 @@ test('Invalid dates, missing results and oversized bundles fail publication',asy
  await assert.rejects(publishLandingCatalogues({...options,queryFn:async()=> 'x'.repeat(4*1024*1024),fixed:()=>writes++}),/Landing exceeds 4MiB/);
  assert.equal(writes,0);
 });
+
+ test('Manga landing primes every owner shelf with exact pagination and separate adult policy',()=>{
+ const requests=plain(landingRequests('mal','manga',{...owners,date}));
+ const expected=plain(owners.manga.defaultRows()).flatMap(def=>[false,true].map(explicit=>({method:'discoverPageFiltered',args:[def.catalogId,def.filters||[],explicit,0,owners.manga.PREVIEW_ROW_CAP]})));
+ assert.deepEqual(requests,expected);
+ assert.equal(owners.manga.PREVIEW_ROW_CAP,24);
+ assert.equal(new Set(requests.map(r=>selectionKey('mal',r.method,r.args))).size,requests.length);
+ });

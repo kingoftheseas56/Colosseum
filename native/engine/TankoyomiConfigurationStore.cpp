@@ -47,6 +47,22 @@ void TankoyomiConfigurationStore::initializeDefaults()
     }
 }
 
+bool TankoyomiConfigurationStore::replaceRegistry(const TankoyomiProviderRegistry &registry)
+{
+    if (!registry.isValid()) return false;
+    const QString previousDefault = m_defaultLanguage;
+    m_registry = registry;
+    initializeDefaults();
+    load();
+    ++m_revision;
+    if (m_defaultLanguage != previousDefault) emit defaultLanguageChanged();
+    for (const auto &row : m_registry.languages())
+        emit providersChanged(row.toMap().value(QStringLiteral("code")).toString());
+    emit changed();
+    emit configurationChanged();
+    return true;
+}
+
 QString TankoyomiConfigurationStore::canonicalLanguage(const QString &language) const
 {
     // Registry resolution owns the exact/alias/base decision; the store only

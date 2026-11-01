@@ -732,7 +732,10 @@ QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVa
     // Allowlist the catalogue id and the filter axis — never interpolate caller text.
     static const QSet<QString> catalogs = {
         QStringLiteral("popular"), QStringLiteral("top-rated"),
-        QStringLiteral("new-releases"), QStringLiteral("trending")};
+        QStringLiteral("new-releases"), QStringLiteral("trending"),
+        QStringLiteral("completed"), QStringLiteral("publishing"), QStringLiteral("short-completed"),
+        QStringLiteral("one-shots"), QStringLiteral("started-1990s"),
+        QStringLiteral("started-2000s"), QStringLiteral("started-2010s")};
     if (!catalogs.contains(catalogId))
         return pack({});
     // Allowlisted axes only; an empty key is "no filter" for that entry.
@@ -742,44 +745,62 @@ QVariantMap MalCatalog::discoverPageFiltered(const QString& catalogId, const QVa
         const QString axis = fm.value(QStringLiteral("axis")).toString();
         const QString key = fm.value(QStringLiteral("key")).toString();
         if (!(axis.isEmpty() || axis == QStringLiteral("genre")
-              || axis == QStringLiteral("demographic")))
+              || axis == QStringLiteral("demographic") || axis == QStringLiteral("format")))
+            return pack({});
+        if (axis == QStringLiteral("format") && !key.isEmpty()
+            && !QStringList{"manga", "manhwa", "manhua"}.contains(key.toLower()))
             return pack({});
         if (!axis.isEmpty() && !key.isEmpty())
             facets.append({axis, key});
     }
-    const QString filterAxis = facets.isEmpty() ? QString() : facets.first().first;
-    const QString filterKey = facets.isEmpty() ? QString() : facets.first().second;
-
-    // FROM (+ optional classification join for the first facet filter; value is BOUND).
-    const bool joinClass = !facets.isEmpty();
     QString from = QStringLiteral("manga m");
     QStringList where;
     QVariantList binds;
-    if (joinClass) {
-        from = QStringLiteral("classification c JOIN manga m ON m.mal_id = c.mal_id");
-        // Case-insensitive value match: the bake stores classification values in their
-        // canonical Titlecase ("Romance", "Seinen"), but the Tankoban adapter derives a
-        // STABLE lower-case filter key ("romance"). Compare LOWER-to-LOWER so the stable
-        // key resolves — an exact `c.value = ?` silently returned zero rows for every
-        // filter (2026-08-02: the Discover Romance filter painted an empty wall).
-        where << QStringLiteral("c.medium = 'manga' AND c.axis = ? AND LOWER(c.value) = LOWER(?)");
-        binds << filterAxis << filterKey;
-    }
-    // Every further facet narrows the same set: a non-correlated IN, evaluated once per query.
-    for (int i = 1; i < facets.size(); ++i) {
-        where << QStringLiteral("m.mal_id IN (SELECT c2.mal_id FROM classification c2 "
-                                "WHERE c2.medium = 'manga' AND c2.axis = ? AND LOWER(c2.value) = LOWER(?))");
-        binds << facets.at(i).first << facets.at(i).second;
+    for (const auto &facet : facets) {
+        if (facet.first == QStringLiteral("format")) {
+            where << QStringLiteral("LOWER(m.type) = LOWER(?)");
+            binds << facet.second;
+        } else {
+            // Membership does not multiply rows, including duplicate classifications.
+            where << QStringLiteral("m.mal_id IN (SELECT c.mal_id FROM classification c "
+                                    "WHERE c.medium = 'manga' AND c.axis = ? AND LOWER(c.value) = LOWER(?))");
+            binds << facet.first << facet.second;
+        }
     }
     if (!includeExplicit)
         where << QStringLiteral("m.explicit = 0");
+
+    // These manga shelves intentionally exclude prose novels, while retaining the
+    // manga-family formats already represented in Tankoban. Legacy catalogue scopes
+    // are unchanged. All predicates are fixed SQL, never caller-supplied fragments.
+    const bool mangaShelf = catalogId == QStringLiteral("completed")
+        || catalogId == QStringLiteral("publishing") || catalogId == QStringLiteral("short-completed")
+        || catalogId == QStringLiteral("one-shots") || catalogId.startsWith(QStringLiteral("started-"));
+    if (mangaShelf) {
+        where << QStringLiteral("m.type IN ('Manga','One-shot','Manhwa','Manhua','Doujinshi')");
+        if (catalogId == QStringLiteral("completed") || catalogId == QStringLiteral("short-completed"))
+            where << QStringLiteral("m.status = 'Finished'");
+        if (catalogId == QStringLiteral("publishing"))
+            where << QStringLiteral("m.status = 'Publishing'");
+        if (catalogId == QStringLiteral("short-completed"))
+            where << QStringLiteral("typeof(m.volumes) = 'integer' AND m.volumes BETWEEN 1 AND 5");
+        if (catalogId == QStringLiteral("one-shots"))
+            where << QStringLiteral("m.type = 'One-shot'");
+        if (catalogId.startsWith(QStringLiteral("started-"))) {
+            const int decade = catalogId.mid(8, 4).toInt();
+            // The baked year is the known publication START year, independent of
+            // partial start_date precision. Do not invent a month/day to query it.
+            where << QStringLiteral("typeof(m.year) = 'integer' AND m.year BETWEEN ? AND ?");
+            binds << decade << decade + 9;
+        }
+    }
 
     // Catalogue -> a fixed ORDER BY fragment. Missing values stay neutral: undated /
     // unscored rows are excluded from date / rating catalogues, not floored to zero.
     QString orderSql;
     QVariantList orderBinds;
     const bool trending = catalogId == QStringLiteral("trending");
-    if (catalogId == QStringLiteral("popular") || trending) {
+    if (catalogId == QStringLiteral("popular") || trending || mangaShelf) {
         // Trending has no comparable snapshot yet -> Popular order + fallbackCatalog:popular.
         orderSql = QStringLiteral("m.members DESC, COALESCE(m.score, 0) DESC, m.mal_id ASC");
     } else if (catalogId == QStringLiteral("new-releases")) {

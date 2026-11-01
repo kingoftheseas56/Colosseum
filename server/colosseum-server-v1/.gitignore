@@ -1,0 +1,15 @@
+# These are build/test inputs and historical receipts in the sealed source packet.
+!/tools/
+!/tools/**
+!/artifacts/
+!/artifacts/**
+!/evidence/logs/
+!/evidence/logs/*.log
+!/evidence/restore/
+!/evidence/restore/*.log
+
+# Explicit standalone builds and downloaded upstream references stay local.
+/build/
+/build-*/
+/.cache/
+/reference/source-pack/oracle/

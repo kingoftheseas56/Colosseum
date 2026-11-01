@@ -128,6 +128,15 @@ Invoke-Gate "tankoban_discover_page_harness (Task 7 + 8)" {
 # runner). These need no live DB and no Comic Vine / Metron runtime — they pin
 # the source-level invariants that survive even if a harness regresses.
 # ---------------------------------------------------------------------------
+Invoke-Gate "Manhwa lens, routing, state and narrow layout" {
+    $h = Join-Path $root "tests\tankoban_manhwa_harness.qml"
+    $out = cmd /c "`"$qmlExe`" -platform offscreen -I `"$qmlInc`" `"$h`" 2>&1" | Out-String
+    Write-Host $out
+    if ($LASTEXITCODE -ne 0 -or $out -notlike "*TANKOBAN_MANHWA_OK*") {
+        throw "tankoban_manhwa_harness failed"
+    }
+}
+
 Write-Host ""
 Write-Host "===== static contract: TankobanDiscoverApi.js ====="
 $adapter = Join-Path $root "qml\TankobanDiscoverApi.js"

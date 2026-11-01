@@ -385,6 +385,20 @@ QVariantMap MangaDownloader::deleteChapter(const QString& chapterId)
     return DownloadFileOps::toMap(result);
 }
 
+QVariantMap MangaDownloader::removeIncompleteDownloads()
+{
+    if (!m_active.isEmpty() || !m_queue.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Manga downloads are still stopping.")});
+    // A failed deletion must retain its indexed payload. Only purge the owned
+    // storage after every completed chapter has been successfully removed.
+    if (!m_index.isEmpty())
+        return DownloadFileOps::toMap({false, QStringLiteral("Some downloaded manga could not be deleted.")});
+    const auto result = DownloadFileOps::removeTree(baseDir());
+    if (result.success)
+        m_thumbCache.clear();
+    return DownloadFileOps::toMap(result);
+}
+
 void MangaDownloader::cancelDownload(const QString& chapterId)
 {
     // queued (not yet started) -> drop it from the queue

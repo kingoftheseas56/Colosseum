@@ -6,6 +6,8 @@
 
 #include <QNetworkAccessManager>
 #include <QUuid>
+#include <QDebug>
+#include <QJsonDocument>
 #include <algorithm>
 
 VinylTorrentProvider::VinylTorrentProvider(QNetworkAccessManager *network, StreamServer *stream,
@@ -24,22 +26,23 @@ VinylTorrentProvider::VinylTorrentProvider(TankorentSearchService *search, Strea
 }
 
 VinylTorrentProvider::~VinylTorrentProvider() { cancel(); }
+void VinylTorrentProvider::trace(const QString &stage,const QVariantMap &facts) const {
+    if(!qEnvironmentVariableIsSet("COLOSSEUM_VINYL_TRACE"))return;
+    auto data=facts;data["stage"]=stage;data["request"]=m_active;data["elapsedMs"]=m_elapsed.isValid()?m_elapsed.elapsed():0;
+    qInfo().noquote()<<"[vinyl-torrent]"<<QJsonDocument::fromVariant(data).toJson(QJsonDocument::Compact);
+}
 
 void VinylTorrentProvider::wire()
 {
     m_deadline.setSingleShot(true);
-    m_stage.setSingleShot(true);
     connect(&m_deadline, &QTimer::timeout, this, [this] {
         finish({}, QStringLiteral("Music torrent discovery timed out."));
-    });
-    connect(&m_stage, &QTimer::timeout, this, [this] {
-        if (!m_searchHandle.isEmpty()) finishSearch();
-        else if (!m_streamToken.isEmpty()) tryNextCandidate();
     });
     if (m_search) {
         connect(m_search, &TankorentSearchService::resultsReady, this,
                 [this](const QString &handle, const QList<TorrentResult> &rows) {
             if (m_active < 0 || handle != m_searchHandle) return;
+            trace("search-results",{{"rows",rows.size()}});
             for (auto row : rows) {
                 row.infoHash = canonicalizeInfoHash(row.infoHash);
                 if (row.infoHash.isEmpty() || m_seen.contains(row.infoHash)) continue;
@@ -51,6 +54,7 @@ void VinylTorrentProvider::wire()
                 [](const TorrentResult &a, const TorrentResult &b) { return a.seeders > b.seeders; });
             // Search fanout can return many rows; never retain an unbounded list.
             while (m_candidates.size() > 5) m_candidates.removeLast();
+            tryNextCandidate();
         }, Qt::QueuedConnection);
         connect(m_search, &TankorentSearchService::searchFinished, this,
                 [this](const QString &handle) {
@@ -60,7 +64,10 @@ void VinylTorrentProvider::wire()
     if (m_stream) {
         connect(m_stream, &StreamServer::torrentManifestReady, this,
                 [this](const QString &token, const QString &hash, const QVariantList &rows) {
-            if (m_active < 0 || token != m_streamToken || hash != m_candidate.infoHash) return;
+            auto pending = m_pending.find(token);
+            if (m_active < 0 || pending == m_pending.end() || hash != pending->torrent.infoHash) return;
+            QStringList paths;for(const auto &row:rows)if(paths.size()<24)paths.append(row.toMap().value("path").toString());
+            trace("manifest",{{"hash",hash},{"files",rows.size()},{"paths",paths}});
             QList<MusicTorrentFile> files;
             for (const auto &value : rows) {
                 const auto row = value.toMap();
@@ -71,23 +78,30 @@ void VinylTorrentProvider::wire()
                 // Transport metadata is a file manifest, never authoritative ID3 tags.
                 files.append(file);
             }
-            m_match = MusicTorrentMatcher::pick(m_track, files);
-            if (m_match.index < 0) { tryNextCandidate(); return; }
-            m_stream->requestFile(m_streamToken, m_candidate.infoHash, m_match.index);
+            pending->match = MusicTorrentMatcher::pick(m_track, files);
+            const auto match = pending->match;
+            trace("match",{{"fileIdx",match.index},{"reason",match.error},{"path",match.path}});
+            if (match.index < 0) { retireCandidate(token); tryNextCandidate(); return; }
+            m_stream->requestFile(token, hash, match.index);
         });
         connect(m_stream, &StreamServer::torrentStreamReady, this,
                 [this](const QString &token, const QString &url, const QString &hash, int index) {
-            if (m_active < 0 || token != m_streamToken || hash != m_candidate.infoHash ||
-                index != m_match.index) return;
-            if (url.isEmpty()) { tryNextCandidate(); return; }
+            const auto pending = m_pending.constFind(token);
+            if (m_active < 0 || pending == m_pending.cend() || hash != pending->torrent.infoHash ||
+                index != pending->match.index) return;
+            if (url.isEmpty()) { retireCandidate(token); tryNextCandidate(); return; }
+            const QString path = pending->match.path;
             finish({{QStringLiteral("url"), url}, {QStringLiteral("infoHash"), hash},
-                    {QStringLiteral("fileIdx"), index}, {QStringLiteral("filePath"), m_match.path},
+                    {QStringLiteral("fileIdx"), index}, {QStringLiteral("filePath"), path},
                     {QStringLiteral("provider"), QStringLiteral("torrent")},
                     {QStringLiteral("qualityLabel"), QStringLiteral("Torrent audio")}}, {});
         });
         connect(m_stream, &StreamServer::torrentRequestError, this,
                 [this](const QString &token, const QString &) {
-            if (m_active >= 0 && token == m_streamToken) tryNextCandidate();
+            if (m_active >= 0 && m_pending.contains(token)) {
+                retireCandidate(token);
+                tryNextCandidate();
+            }
         });
     }
 }
@@ -96,6 +110,7 @@ int VinylTorrentProvider::resolve(const QVariantMap &track)
 {
     cancel();
     const int id = m_active = ++m_serial;
+    m_elapsed.start();
     m_track = {};
     m_track.artist = track.value(QStringLiteral("artist")).toString().trimmed();
     m_track.album = track.value(QStringLiteral("album")).toString().trimmed();
@@ -103,7 +118,9 @@ int VinylTorrentProvider::resolve(const QVariantMap &track)
     m_track.trackNumber = track.value(QStringLiteral("trackNumber")).toInt();
     m_track.discNumber = track.value(QStringLiteral("discNumber")).toInt();
     m_track.durationMs = track.value(QStringLiteral("durationMs")).toLongLong();
+    m_track.releaseYear = track.value(QStringLiteral("releaseYear")).toInt();
     m_queries = MusicTorrentQueryPlanner::automaticQueries(m_track);
+    trace("resolve",{{"queries",m_queries},{"title",m_track.title},{"durationMs",m_track.durationMs}});
     m_queryIndex = m_attempted = 0;
     m_seen.clear();
     m_candidates.clear();
@@ -122,9 +139,9 @@ int VinylTorrentProvider::resolve(const QVariantMap &track)
 
 void VinylTorrentProvider::startNextQuery()
 {
-    if (m_active < 0) return;
+    if (m_active < 0 || !m_searchHandle.isEmpty()) return;
     if (!m_search || m_queryIndex >= m_queries.size() || m_attempted >= 3) {
-        finish({}, QStringLiteral("No exact music torrent file was found."));
+        if (m_pending.isEmpty()) finish({}, QStringLiteral("No exact music torrent file was found."));
         return;
     }
     // Search signal delivery is queued so even injected synchronous indexers
@@ -132,12 +149,20 @@ void VinylTorrentProvider::startNextQuery()
     m_searchHandle = m_search->startSearch(QStringLiteral("music"), QStringLiteral("all"),
                                          m_queries.at(m_queryIndex++), 5);
     if (m_searchHandle.isEmpty()) { startNextQuery(); return; }
-    m_stage.start(qMin(3000, m_deadlineMs));
+    const int request = m_active;
+    const QString handle = m_searchHandle;
+    // An empty query can yield its remaining budget to the next query. Once a
+    // candidate exists, keep collecting: slow indexers may return a better swarm.
+    const int collectionMs = qMin(2000, qMax(1, m_deadlineMs / qMax(1, int(m_queries.size()))));
+    QTimer::singleShot(collectionMs, this, [this, request, handle] {
+        if (m_active == request && m_searchHandle == handle &&
+            m_pending.isEmpty() && m_candidates.isEmpty()) finishSearch();
+    });
 }
 
 void VinylTorrentProvider::finishSearch()
 {
-    m_stage.stop();
+    trace("search-settled",{{"candidates",m_candidates.size()}});
     const QString handle = m_searchHandle;
     m_searchHandle.clear();
     if (m_search && !handle.isEmpty()) m_search->cancelSearch(handle);
@@ -147,32 +172,58 @@ void VinylTorrentProvider::finishSearch()
 void VinylTorrentProvider::tryNextCandidate()
 {
     if (m_active < 0) return;
-    m_stage.stop();
-    const QString token = m_streamToken;
-    m_streamToken.clear();
-    if (m_stream && !token.isEmpty()) m_stream->cancelRequest(token);
     if (!m_stream) { finish({}, QStringLiteral("Music torrent stream service is unavailable.")); return; }
-    if (m_candidates.isEmpty() || m_attempted >= 3) { startNextQuery(); return; }
-    m_candidate = m_candidates.takeFirst();
-    m_seen.insert(m_candidate.infoHash);
+    if (m_attempted >= 3) {
+        if (m_pending.isEmpty()) finish({}, QStringLiteral("No exact music torrent file was found."));
+        return;
+    }
+    if (m_candidates.isEmpty()) {
+        if (m_pending.size() < 2 && m_searchHandle.isEmpty()) startNextQuery();
+        return;
+    }
+    if (m_pending.size() >= 2) return;
+    if (m_pending.size() == 1) {
+        const auto &first = m_pending.cbegin().value();
+        // Give the first swarm a short head start. A stronger late result may
+        // race immediately; otherwise hedge after one second, never serially
+        // spending the entire discovery budget on an unresponsive manifest.
+        if (m_candidates.first().seeders <= first.torrent.seeders &&
+            m_elapsed.elapsed() - first.startedMs < 1000) return;
+    }
+    const auto candidate = m_candidates.takeFirst();
+    trace("manifest-request",{{"hash",candidate.infoHash},{"title",candidate.title}});
+    m_seen.insert(candidate.infoHash);
     ++m_attempted;
-    m_match = {};
-    m_streamToken = QStringLiteral("vinyl-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
-    // Give metadata more of the bounded budget than catalogue discovery. Cold
-    // swarms can still miss the total deadline; the caller owns that fallback.
-    m_stage.start(qMin(6000, m_deadlineMs));
-    m_stream->requestManifest(m_streamToken, m_candidate.infoHash);
+    const QString token = QStringLiteral("vinyl-%1").arg(QUuid::createUuid().toString(QUuid::WithoutBraces));
+    m_pending.insert(token, {candidate, {}, m_elapsed.elapsed()});
+    const int request = m_active;
+    QTimer::singleShot(1000, Qt::PreciseTimer, this, [this, request, token] {
+        if (m_active == request && m_pending.contains(token)) tryNextCandidate();
+    });
+    QTimer::singleShot(qMin(3000, m_deadlineMs), this, [this, request, token] {
+        if (m_active != request || !m_pending.contains(token)) return;
+        retireCandidate(token);
+        tryNextCandidate();
+    });
+    if(candidate.magnetUri.isEmpty())m_stream->requestManifest(token,candidate.infoHash);
+    else m_stream->requestMagnetManifest(token,candidate.infoHash,candidate.magnetUri);
+}
+
+void VinylTorrentProvider::retireCandidate(const QString &token)
+{
+    if (!m_pending.remove(token)) return;
+    if (m_stream) m_stream->cancelRequest(token);
 }
 
 void VinylTorrentProvider::clearTransport()
 {
     m_deadline.stop();
-    m_stage.stop();
-    const QString handle = m_searchHandle, token = m_streamToken;
+    const QString handle = m_searchHandle;
+    const auto tokens = m_pending.keys();
     m_searchHandle.clear();
-    m_streamToken.clear();
+    m_pending.clear();
     if (m_search && !handle.isEmpty()) m_search->cancelSearch(handle);
-    if (m_stream && !token.isEmpty()) m_stream->cancelRequest(token);
+    if (m_stream) for (const auto &token : tokens) m_stream->cancelRequest(token);
 }
 
 void VinylTorrentProvider::cancel()
@@ -185,6 +236,7 @@ void VinylTorrentProvider::finish(const QVariantMap &data, const QString &error)
 {
     if (m_active < 0) return;
     const int id = m_active;
+    trace("finish",{{"provider",data.value("provider")},{"error",error}});
     m_active = -1;
     clearTransport();
     emit completed(id, data, error);

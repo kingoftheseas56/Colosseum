@@ -372,18 +372,20 @@ SeasonEpisode parseSeasonEpisode(const QString& fileName)
 SeasonEpisode parseAbsoluteEpisode(const QString& fileName)
 {
     SeasonEpisode r;
-    // A spaced "- NNN" token, 2-3 digits: the fansub absolute-numbering convention (e.g.
-    // "Gintama - 003 [...]"). Digits are bounded to 2-3 so a 4-digit year ("- 2021") never
-    // false-positives, and the hyphen must carry surrounding whitespace so a bare release-tag
+    // A spaced "- NNN" token, up to four digits for long-running shows. Release years are
+    // excluded below. The hyphen must carry surrounding whitespace so a bare release-tag
     // range like "1-5" or "S01-S05" (no spaces around '-') never matches either.
-    static const QRegularExpression re(QStringLiteral("\\s-\\s(\\d{2,3})(?=\\s|$|\\[|\\()"));
+    static const QRegularExpression re(QStringLiteral("\\s-\\s(\\d{2,4})(?=\\s|$|\\[|\\()"));
     const QString base = QFileInfo(fileName).completeBaseName();
     const auto m = re.match(base);
     if (!m.hasMatch())
         return r;
+    const int number = m.captured(1).toInt();
+    if (number >= 1900 && number <= 2099)
+        return r; // a release year is not an absolute episode number
     r.matched = true;
     r.absolute = true;
-    r.episode = m.captured(1).toInt();
+    r.episode = number;
     return r;
 }
 
@@ -393,6 +395,56 @@ SeasonEpisode parseEpisodeNumber(const QString& fileName)
     if (explicitMatch.matched)
         return explicitMatch; // an explicit SxxExx marking always wins
     return parseAbsoluteEpisode(fileName);
+}
+
+QString episodeSeriesTitle(const QString& fileName)
+{
+    const auto episode = parseEpisodeNumber(fileName);
+    if (!episode.matched) return {};
+    const QString base = QFileInfo(fileName).completeBaseName();
+    static const QRegularExpression explicitToken(QStringLiteral("[Ss]\\d{1,2}[._\\s]?[Ee]\\d+"));
+    static const QRegularExpression absoluteToken(QStringLiteral("\\s-\\s\\d{2,4}(?=\\s|$|\\[|\\()"));
+    const auto token = (episode.absolute ? absoluteToken : explicitToken).match(base);
+    QString title = base.left(token.capturedStart());
+    static const QRegularExpression releaseGroup(QStringLiteral("^(?:\\[[^\\]]+\\]\\s*)+"));
+    static const QRegularExpression trailing(QStringLiteral("[._\\s-]+$"));
+    title.remove(releaseGroup);
+    title.remove(trailing);
+    return cleanMediaFolderTitle(title);
+}
+
+bool isEpisodeVideo(const QString& fileName, int absoluteRun)
+{
+    const auto episode = parseEpisodeNumber(fileName);
+    return episode.matched && (!episode.absolute || absoluteRun > 1
+                               || QFileInfo(fileName).fileName().startsWith(QLatin1Char('[')));
+}
+
+QString episodeShowKey(const QString& directory, const QString& title)
+{
+    QString path = QDir::cleanPath(directory);
+#ifdef Q_OS_WIN
+    path = path.toLower();
+#endif
+    return path + QStringLiteral("::show::") + normalizedTitle(title);
+}
+
+static BrowseNode videoLeaf(const QFileInfo& file)
+{
+    BrowseNode node;
+    node.key = node.path = file.absoluteFilePath();
+    node.displayTitle = cleanMediaFolderTitle(file.completeBaseName());
+    const auto episode = parseEpisodeNumber(file.fileName());
+    node.nodeType = episode.matched ? BrowseNodeType::Episode : BrowseNodeType::Clip;
+    node.episodeNumber = episode.episode;
+    node.seasonNumber = episode.season;
+    if (episode.matched) {
+        const QString fact = episode.absolute ? QStringLiteral("Episode %1").arg(episode.episode)
+            : QStringLiteral("S%1:E%2").arg(episode.season).arg(episode.episode);
+        const QString quality = qualityLineFromFileName(file.fileName());
+        node.physicalFact = quality.isEmpty() ? fact : fact + QStringLiteral(" · ") + quality;
+    }
+    return node;
 }
 
 QString qualityLineFromFileName(const QString& fileName)
@@ -617,6 +669,16 @@ static ChildClassification classifyChildDirectory(const QString& childPath,
     }
 
     if (looseMediaPaths.size() == 1) {
+        const QString file = looseMediaPaths.first();
+        if (kindForFile(file) == MediaKind::Video && isEpisodeVideo(file)) {
+            const QString title = episodeSeriesTitle(file);
+            cc.node.nodeType = BrowseNodeType::Show;
+            cc.node.displayTitle = title.isEmpty() ? cleanMediaFolderTitle(rawName) : title;
+            cc.node.key = cc.node.path = episodeShowKey(childPath, cc.node.displayTitle);
+            cc.node.mediaCount = 1;
+            cc.node.physicalFact = QStringLiteral("1 episode");
+            return cc;
+        }
         // A folder that is one film IS that film (locked design #4) — companions and extras
         // already never contributed to this count.
         cc.node.nodeType = BrowseNodeType::Film;
@@ -679,7 +741,38 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     const int sentinelPos = levelPath.indexOf(kShowSentinel);
     if (sentinelPos >= 0) {
         const QString parentPath = levelPath.left(sentinelPos);
-        const QString slug = levelPath.mid(sentinelPos + kShowSentinel.size());
+        const QString suffix = levelPath.mid(sentinelPos + kShowSentinel.size());
+        const QString slug = suffix.section(QStringLiteral("::season::"), 0, 0);
+        const bool seasonLevel = suffix.contains(QStringLiteral("::season::"));
+        const int requestedSeason = suffix.section(QStringLiteral("::season::"), 1).toInt();
+        QMap<int, QList<QFileInfo>> looseSeasons;
+        for (const QString& path : videoFilesDirectlyIn(parentPath, needles)) {
+            QString title = episodeSeriesTitle(path);
+            if (title.isEmpty() && parseEpisodeNumber(path).matched)
+                title = cleanMediaFolderTitle(QFileInfo(parentPath).fileName());
+            if (normalizedTitle(title) != slug) continue;
+            const auto episode = parseEpisodeNumber(path);
+            const int season = episode.absolute ? 1 : episode.season;
+            looseSeasons[season].append(QFileInfo(path));
+        }
+        if (seasonLevel) {
+            for (const QFileInfo& file : looseSeasons.value(requestedSeason))
+                out.append(videoLeaf(file));
+            std::sort(out.begin(), out.end(), [](const BrowseNode& a, const BrowseNode& b) {
+                return a.episodeNumber < b.episodeNumber;
+            });
+            return out;
+        }
+        for (auto it = looseSeasons.constBegin(); it != looseSeasons.constEnd(); ++it) {
+            BrowseNode season;
+            season.nodeType = BrowseNodeType::Season;
+            season.key = season.path = levelPath + QStringLiteral("::season::") + QString::number(it.key());
+            season.seasonNumber = it.key();
+            season.displayTitle = it.key() == 0 ? QStringLiteral("Specials") : QStringLiteral("Season %1").arg(it.key());
+            season.mediaCount = it.value().size();
+            season.physicalFact = QStringLiteral("%1 episodes").arg(season.mediaCount);
+            out.append(season);
+        }
         const QStringList siblingDirs = listImmediateSubdirs(parentPath, needles);
         for (const QString& sib : siblingDirs) {
             if (cancel && cancel->isCancelled())
@@ -780,6 +873,31 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         return out;
     }
 
+    // Flat download directories can hold unrelated shows, even just one episode of each.
+    QList<BrowseNode> looseShows;
+    QSet<QString> groupedFiles;
+    QMap<QString, QStringList> looseGroups;
+    for (const QString& file : videoFilesDirectlyIn(levelPath, needles)) {
+        const QString title = episodeSeriesTitle(file);
+        if (!title.isEmpty()) looseGroups[title].append(file);
+    }
+    for (auto it = looseGroups.constBegin(); it != looseGroups.constEnd(); ++it) {
+        const QString folderTitle = QStringLiteral(" ")
+            + normalizedTitle(cleanMediaFolderTitle(QFileInfo(levelPath).fileName())) + QLatin1Char(' ');
+        const QString seriesTitle = QStringLiteral(" ") + normalizedTitle(it.key()) + QLatin1Char(' ');
+        if (isSeasonLikeDirName(QFileInfo(levelPath).fileName()) || folderTitle.contains(seriesTitle))
+            continue; // already inside the show's own folder: retain its episode wall
+        if (!isEpisodeVideo(it.value().first(), it.value().size())) continue;
+        BrowseNode show;
+        show.nodeType = BrowseNodeType::Show;
+        show.key = show.path = episodeShowKey(levelPath, it.key());
+        show.displayTitle = it.key();
+        show.mediaCount = it.value().size();
+        show.physicalFact = QStringLiteral("%1 episodes").arg(show.mediaCount);
+        looseShows.append(show);
+        for (const QString& file : it.value()) groupedFiles.insert(file);
+    }
+
     // ── Plain-folder / root browse: classify each qualifying subdirectory, then fold sibling
     // season-shaped folders sharing a base title into one show (the Loki shape). ──
     if (!qualifyingChildDirs.isEmpty()) {
@@ -859,6 +977,7 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
         // Locked design §4.2 ordering: subfolders, then series, then films.
         out += folders;
         out += shows;
+        out += looseShows;
         out += films;
         return out;
     }
@@ -868,8 +987,10 @@ QList<BrowseNode> planBrowseLevel(const QString& levelPath, const QStringList& s
     // different way), clips otherwise (Cricket's own folder — "loose clips render wide at
     // folder level", locked design). ──
     QDir mdir(levelPath);
+    out += looseShows;
     const auto looseVideos = mdir.entryInfoList(videoFilters(), QDir::Files);
     for (const auto& f : looseVideos) {
+        if (groupedFiles.contains(f.absoluteFilePath())) continue;
         if (cancel && cancel->isCancelled())
             return out;
         if (pathHitsNeedle(f.absoluteFilePath(), needles))
