@@ -112,9 +112,20 @@
     },
     {
       "id": "WT-02",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_account_keyboard.qml => 0 (7 passed); vs pre-fix AccountPageFrame => 4 failed",
+        "tst_account_* (activity_binding, center_composed, choice_accessibility, devices, flyout, profile, recovery, security, your_colosseum) => 0",
+        "PRE-EXISTING (identical on HEAD baseline tree): tst_k06_account_system_events 4/2 activeFocus; tst_account_data_privacy 10/1 test_delete_requires_inline_handoff_confirmation, ~96 s",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/account/AccountPageFrame.qml",
+        "tests/qml/tst_android_account_keyboard.qml"
+      ],
+      "note": "Shared AccountPageFrame: touch-only keyboardOverlap from logical IME rectangle (no DPR division), scroller bottom inset, focused text control reveal on focus/IME/resize changes, zero-rectangle IME scroll extent lifting field near top. Desktop: no inset/extent. No credential/vault/controller changes; drafts preserved. Main keyboard-first Back not touched (PF-03 scope). Real IME/floating keyboard/rotation are device checks.",
+      "updated_utc": "2026-11-02T22:02:38Z"
     },
     {
       "id": "WT-04",
