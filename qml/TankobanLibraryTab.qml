@@ -16,12 +16,22 @@ import "TankobanLibraryApi.js" as Api
 
 Item {
     id: root
+    property bool touchInput: Qt.platform.os === "android"
 
     // The retained Library tab keeps its filter state, but hidden worlds must not scan all three
     // Progress lanes or probe Downloads while the tab is not visible.
     property bool active: true
     property Flickable pageFlick: null
     readonly property bool pageFlow: pageFlick !== null
+    readonly property rect menuViewport: {
+        if (!root.touchInput || !root.pageFlick)
+            return Qt.rect(0, 0, root.width, root.height)
+        // The page can be taller than its clipped WorldPage scroll viewport.
+        const origin = (root.pageFlick.contentY, root.y, root.pageFlick.mapToItem(root, 0, 0))
+        const top = Math.max(0, origin.y)
+        const bottom = Math.min(root.height, origin.y + root.pageFlick.height)
+        return Qt.rect(0, top, root.width, Math.max(0, bottom - top))
+    }
     readonly property real flowHeight: wallHost.y + wallHost.flowContentHeight + 18
     NumberAnimation {
         id: pageParkAnim
@@ -139,6 +149,22 @@ Item {
         if (restoreFocus !== false && target)
             Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
     }
+    // A flick can carry a pressed card outside either clipping viewport before a hold fires.
+    function holdPointVisible(area, x, y) {
+        if (!area || !area.visible || !area.enabled || !root.visible || !root.enabled)
+            return false
+        const wallPoint = area.mapToItem(wall, x, y)
+        if (wallPoint.x < 0 || wallPoint.y < 0
+                || wallPoint.x > wall.width || wallPoint.y > wall.height)
+            return false
+        if (root.pageFlick) {
+            const flowPoint = area.mapToItem(root.pageFlick, x, y)
+            if (flowPoint.x < 0 || flowPoint.y < 0
+                    || flowPoint.x > root.pageFlick.width || flowPoint.y > root.pageFlick.height)
+                return false
+        }
+        return true
+    }
     function triggerMenuIndex(index) {
         if (index !== 0 || !menuRow) return
         removeRequested(menuRow.entry); closeMenu(true)
@@ -229,6 +255,7 @@ Item {
             ? Math.max(0, Math.min(visibleTop, flowContentHeight - windowHeight)) : 0
     GridView {
         id: wall
+        objectName: "tankobanLibraryWall"
         anchors.left: parent.left; anchors.right: parent.right
         anchors.top: root.pageFlow ? undefined : parent.top
         anchors.bottom: root.pageFlow ? undefined : parent.bottom
@@ -279,6 +306,54 @@ Item {
                 item: ({ "title": host.modelData.entry.title || "", "cover": host.modelData.entry.cover || "" })
                 keyboardFocused: wall.activeFocus && wall.currentIndex === host.index
                 onActivated: root.handleCardTap(host.modelData)
+            }
+            // Reuse the existing tap/menu actions; the owning Flickable may steal any drag.
+            MouseArea {
+                id: cardHold
+                objectName: "tankobanLibraryCardTouch_" + String(host.modelData.entry.id)
+                anchors.fill: parent; cursorShape: Qt.PointingHandCursor
+                enabled: root.touchInput
+                pressAndHoldInterval: 500
+                property bool holdMenuFired: false
+                property bool touchPress: false
+                property bool pressCanceled: false
+                function cancelTouchPress() {
+                    holdMenuFired = false
+                    touchPress = false
+                    pressCanceled = true
+                }
+                onPressed: (mouse) => {
+                    holdMenuFired = false
+                    pressCanceled = false
+                    // Qt reconstructs the hold event; its source is not the original press source.
+                    touchPress = mouse.source !== Qt.MouseEventNotSynthesized
+                }
+                onPressAndHold: (mouse) => {
+                    if (!cardHold.touchPress || cardHold.pressCanceled) {
+                        mouse.accepted = false
+                        return
+                    }
+                    if (!root.holdPointVisible(cardHold, mouse.x, mouse.y)) {
+                        cardHold.cancelTouchPress()
+                        mouse.accepted = false
+                        return
+                    }
+                    cardHold.holdMenuFired = true
+                    wall.currentIndex = host.index
+                    wall.forceActiveFocus(Qt.MouseFocusReason)
+                    // The held card is already visible; keyboard parking would close its menu.
+                    pageParkAnim.stop()
+                    const anchor = cardHold.mapToItem(root, mouse.x, mouse.y)
+                    root.openMenu(host.modelData, anchor.x, anchor.y, wall)
+                }
+                onCanceled: cancelTouchPress()
+                onEnabledChanged: if (!enabled) cancelTouchPress()
+                onVisibleChanged: if (!visible) cancelTouchPress()
+                onClicked: {
+                    if (cardHold.pressCanceled) return
+                    if (cardHold.holdMenuFired) { cardHold.holdMenuFired = false; return }
+                    root.handleCardTap(host.modelData)
+                }
             }
             // ⋮ hover button — top-right of the card. Mirrors LibraryPage.qml's dots
             // button; the menu panel lives at root level (wall.clip would clip it here).
@@ -340,9 +415,13 @@ Item {
         }
         Rectangle {
             id: menuPanel
+            objectName: "tankobanLibraryMenuPanel"
             width: 200
+            implicitHeight: menuColumn.implicitHeight + 12
+            height: implicitHeight
             x: Math.max(8, Math.min(root.menuX - width, root.width - width - 8))
-            y: Math.max(8, Math.min(root.menuY, root.height - height - 8))
+            y: Math.max(root.menuViewport.y + 8,
+                        Math.min(root.menuY, root.menuViewport.y + root.menuViewport.height - height - 8))
             radius: 12
             color: Qt.rgba(0.06, 0.07, 0.10, 0.97)
             border.width: 1; border.color: theme.edge
@@ -356,6 +435,7 @@ Item {
                 if (event.key === Qt.Key_Tab) { event.accepted = true }
             }
             Column {
+                id: menuColumn
                 anchors.fill: parent; anchors.margins: 6; spacing: 2
                 MenuRow {
                     label: "Remove from Library"; warn: true

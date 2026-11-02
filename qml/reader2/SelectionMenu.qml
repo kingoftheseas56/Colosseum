@@ -28,13 +28,25 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
-    nativeWindow: false
+    nativeWindow: true
     id: menu
 
     // ---- inputs ----
     // the paper 'selection' / 'highlightTapped' rect { x, y, w, h }, in overlay coordinates.
     property var sel: ({ x: 0, y: 0, w: 0, h: 0 })
     property bool shown: false
+    property bool touchInput: Qt.platform.os === "android"
+    property var inputMethod: Qt.inputMethod
+    readonly property real keyboardOverlap: {
+        if (!touchInput || !noteEditing || !inputMethod || !inputMethod.visible) return 0
+        const keyboard = inputMethod.keyboardRectangle
+        if (!keyboard || keyboard.height <= 0) return 0
+        // Qt reports logical window coordinates. The editor lives in surface's native
+        // child window on Android, so map from that window rather than the host scene.
+        const top = menu.surface.mapFromItem(null, 0, keyboard.y).y
+        return Math.min(height, Math.max(0, height - top))
+    }
+    readonly property real availableHeight: Math.max(0, height - keyboardOverlap)
     // "select" (fresh selection) | "existing" (a tapped highlight). Drives which actions show.
     property string mode: "select"
 
@@ -53,14 +65,14 @@ ReaderOverlay {
     property bool noteEditing: false
     function focusBelongsHere(item) {
         var p = item
-        while (p) { if (p === menu) return true; p = p.parent }
+        while (p) { if (p === menu.surface || p === menu) return true; p = p.parent }
         return false
     }
     function trapTab(event) {
         var tab = event.key === Qt.Key_Tab || event.key === Qt.Key_Backtab
         if (!shown || !tab) return false
         var backwards = event.key === Qt.Key_Backtab || (event.modifiers & Qt.ShiftModifier)
-        var w = menu.Window.window
+        var w = menu.surface.Window.window
         var current = w ? w.activeFocusItem : null
         var next = current
         for (var i = 0; i < 128; ++i) {
@@ -99,9 +111,10 @@ ReaderOverlay {
         { display: Qt.rgba(151 / 255, 187 / 255, 152 / 255, 0.85), value: "#97BB98" }  // moss
     ]
 
-    readonly property int cardH: noteEditing ? 128 : 44
+    readonly property int cardH: noteEditing
+        ? (touchInput ? Math.min(128, Math.max(0, availableHeight - 20)) : 128) : 44
     readonly property int cardW: noteEditing ? 300 : (cardRow.implicitWidth + 28)  // 14px pad each side
-    readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.height,
+    readonly property var pos: L.selectionMenuPos(menu.sel, menu.width, menu.availableHeight,
                                                   menu.cardW, menu.cardH, 12, 10)
 
     // ---------- backdrop: tap-outside dismiss (below the card) ----------
@@ -117,6 +130,7 @@ ReaderOverlay {
     // ---------- the card ----------
     Rectangle {
         id: card
+        objectName: "reader2SelectionCard"
         x: menu.pos.x
         y: menu.pos.y
         width: menu.cardW
@@ -224,7 +238,7 @@ ReaderOverlay {
                 anchors.left: parent.left
                 anchors.right: parent.right
                 anchors.top: parent.top
-                height: parent.height - 34
+                height: Math.max(0, parent.height - 34)
                 radius: 8
                 color: Qt.rgba(1, 1, 1, 0.05)
                 border.color: Theme.barBorder
@@ -241,6 +255,7 @@ ReaderOverlay {
 
                     TextEdit {
                         id: noteInput
+                        objectName: "reader2SelectionNoteInput"
                         width: noteFlick.width
                         wrapMode: TextEdit.Wrap
                         font.family: Theme.ui
@@ -280,6 +295,7 @@ ReaderOverlay {
                     onTriggered: menu.dismissed()
                 }
                 Item {
+                    objectName: "reader2SelectionSave"
                     width: saveText.implicitWidth + 8
                     height: 24
                     readonly property bool canSave: noteInput.text.trim().length > 0

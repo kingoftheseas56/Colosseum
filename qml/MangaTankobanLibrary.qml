@@ -51,6 +51,7 @@ import "MangaVolumes.js" as Vol
 Item {
     id: root
     objectName: "volumeShelf"
+    property bool touchInput: Qt.platform.os === "android"
 
     property string seriesId: ""
     property string seriesTitle: ""
@@ -333,7 +334,7 @@ Item {
         return -1
     }
 
-    function focusAtNumber(number) {
+    function focusAtNumber(number, keepVisible) {
         var rows = root.volumeRows || []
         if (!rows.length) return
         var idx = root.indexOfNumber(number)
@@ -341,14 +342,14 @@ Item {
         root.focusToken = String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1))
         root.focusNumber = rows[idx].number !== undefined ? rows[idx].number : (idx + 1)
         root._landedIndex = idx
-        Qt.callLater(root.centreFlow)
+        Qt.callLater(root.centreFlow, keepVisible === true)
     }
 
-    function focusAtIndex(index) {
+    function focusAtIndex(index, keepVisible) {
         var rows = root.volumeRows || []
         if (!rows.length) return
         var idx = Math.max(0, Math.min(rows.length - 1, Math.round(Number(index) || 0)))
-        root.focusAtNumber(String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1)))
+        root.focusAtNumber(String(rows[idx].number !== undefined ? rows[idx].number : (idx + 1)), keepVisible)
     }
 
     // Headless activation by index - a real pointer tap always goes straight to
@@ -595,13 +596,16 @@ Item {
         return 0.86
     }
 
-    function centreFlow() {
+    function centreFlow(keepVisible) {
         if (!volumeFlow || root.focusIndex < 0 || volumeFlow.count <= 0) return
         volumeFlow.currentIndex = root.focusIndex
         volumeFlow.forceLayout()
-        volumeFlow.positionViewAtIndex(root.focusIndex, ListView.Center)
+        // Alpha's Contain policy keeps an already-visible card under the finger.
+        // Auto-land and keyboard/programmatic navigation retain beta's centered flow.
+        const position = keepVisible === true ? ListView.Contain : ListView.Center
+        volumeFlow.positionViewAtIndex(root.focusIndex, position)
         volumeFlow.forceLayout()
-        volumeFlow.positionViewAtIndex(root.focusIndex, ListView.Center)
+        volumeFlow.positionViewAtIndex(root.focusIndex, position)
     }
 
     function activateCurrent() {
@@ -896,9 +900,10 @@ Item {
                     anchors.fill: parent
                     hoverEnabled: true
                     cursorShape: Qt.PointingHandCursor
-                    onPressed: {
+                    onPressed: function(mouse) {
                         volumeFlow.currentIndex = card.index
-                        root.focusAtIndex(card.index)
+                        root.focusAtIndex(card.index,
+                            root.touchInput && mouse.source !== Qt.MouseEventNotSynthesized)
                         volumeFlow.forceActiveFocus(Qt.MouseFocusReason)
                     }
                     onClicked: root.pressVolume(card.index)

@@ -27,6 +27,7 @@ ReaderOverlay {
 
     // ---- inputs (bound by ReaderChrome from ReaderShell's view-model) ----
     property bool open: false
+    property bool touchInput: Qt.platform.os === "android"
     property string activeTab: "contents"       // contents | bookmarks | highlights | audio
     property var tocModel: []                    // [{ index, label, href, fraction? }]
     property int currentTocIndex: -1             // from relocated.tocIndex
@@ -350,6 +351,7 @@ ReaderOverlay {
 
                 ListView {
                     id: bmList
+                    objectName: "reader2Bookmarks"
                     anchors.fill: parent
                     anchors.leftMargin: 18
                     anchors.rightMargin: 6
@@ -423,19 +425,21 @@ ReaderOverlay {
                             cursorShape: Qt.PointingHandCursor
                             onClicked: { bmList.currentIndex = bmRow.index; panel.bookmarkActivated(bmRow.r.cfi) }
                         }
-                        // hover delete
+                        // Touch has no hover; retain the existing desktop-sized delete control.
                         Text {
+                            objectName: "reader2BookmarkDelete_" + bmRow.index
                             anchors.right: parent.right
                             anchors.top: parent.top
                             anchors.rightMargin: 10
                             anchors.topMargin: 10
-                            visible: bmMa.containsMouse || bmDelMa.containsMouse
+                            visible: panel.touchInput || bmMa.containsMouse || bmDelMa.containsMouse
                             text: "×"
                             font.family: Theme.ui
                             font.pixelSize: 15
                             color: bmDelMa.containsMouse ? Theme.ink : Theme.inkFaint
                             ReaderKeyboardArea {
                                 id: bmDelMa
+                                objectName: "reader2BookmarkDeleteTouch_" + bmRow.index
                                 anchors.fill: parent
                                 keyboardTabStop: false
                                 anchors.margins: -6

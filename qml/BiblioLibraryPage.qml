@@ -17,12 +17,22 @@ import "BiblioLibraryApi.js" as Api
 
 Item {
     id: root
+    property bool touchInput: Qt.platform.os === "android"
 
     // Keep the retained page's filters and scroll position, but defer its potentially large
     // Collection/Progress derivation until the Library tab is actually shown.
     property bool active: true
     property Flickable pageFlick: null
     readonly property bool pageFlow: pageFlick !== null
+    readonly property rect menuViewport: {
+        if (!root.touchInput || !root.pageFlick)
+            return Qt.rect(0, 0, root.width, root.height)
+        // Page-flow can be taller than its clipped world viewport.
+        const origin = (root.pageFlick.contentY, root.y, root.pageFlick.mapToItem(root, 0, 0))
+        const top = Math.max(0, origin.y)
+        const bottom = Math.min(root.height, origin.y + root.pageFlick.height)
+        return Qt.rect(0, top, root.width, Math.max(0, bottom - top))
+    }
     readonly property real flowHeight: wallHost.y + wallHost.flowContentHeight + 18
     NumberAnimation {
         id: pageParkAnim
@@ -188,6 +198,22 @@ Item {
         menuFocusReturn = null; menuRow = null; menuRowId = ""
         if (restoreFocus !== false && target)
             Qt.callLater(function() { if (target.visible && target.enabled) target.forceActiveFocus(Qt.PopupFocusReason) })
+    }
+    // A flick can move a card out of the clipped viewport while a finger is held.
+    function holdPointVisible(area, x, y) {
+        if (!area || !area.visible || !area.enabled || !root.visible || !root.enabled)
+            return false
+        const wallPoint = area.mapToItem(wall, x, y)
+        if (wallPoint.x < 0 || wallPoint.y < 0
+                || wallPoint.x > wall.width || wallPoint.y > wall.height)
+            return false
+        if (root.pageFlick) {
+            const flowPoint = area.mapToItem(root.pageFlick, x, y)
+            if (flowPoint.x < 0 || flowPoint.y < 0
+                    || flowPoint.x > root.pageFlick.width || flowPoint.y > root.pageFlick.height)
+                return false
+        }
+        return true
     }
 
     // Test seam (mirrors TankobanLibraryTab.handleCardTap): the menu items AND a direct card
@@ -532,10 +558,52 @@ Item {
 
             HoverHandler { id: cardHover }
             MouseArea {
+                id: cardTap
+                objectName: "biblioLibraryCardTouch_" + (card.modelData.entry.id || "")
                 anchors.fill: worldContent; cursorShape: Qt.PointingHandCursor
-                // primary click: Resume when a reliable match exists, else Details (plan §8)
-                onClicked: root.handleCardAction(card.modelData,
-                                                 card.modelData.canResume ? "resume" : "detail")
+                pressAndHoldInterval: root.touchInput ? 500 : 2147483647
+                property bool holdMenuFired: false
+                property bool touchPress: false
+                property bool pressCanceled: false
+                function cancelTouchPress() {
+                    holdMenuFired = false
+                    touchPress = false
+                    pressCanceled = true
+                }
+                onPressed: (mouse) => {
+                    holdMenuFired = false
+                    pressCanceled = false
+                    // Qt reconstructs the hold event; its source is not the original press source.
+                    touchPress = mouse.source !== Qt.MouseEventNotSynthesized
+                }
+                onPressAndHold: (mouse) => {
+                    if (!root.touchInput || !cardTap.touchPress || cardTap.pressCanceled) {
+                        mouse.accepted = false
+                        return
+                    }
+                    if (!root.holdPointVisible(cardTap, mouse.x, mouse.y)) {
+                        cardTap.cancelTouchPress()
+                        mouse.accepted = false
+                        return
+                    }
+                    cardTap.holdMenuFired = true
+                    wall.currentIndex = card.index
+                    wall.forceActiveFocus(Qt.MouseFocusReason)
+                    // Pointer selection must not run keyboard parking and close its own menu.
+                    pageParkAnim.stop()
+                    const anchor = cardTap.mapToItem(root, mouse.x, mouse.y)
+                    root.openMenu(card.modelData, anchor.x, anchor.y, wall)
+                }
+                onCanceled: cancelTouchPress()
+                onEnabledChanged: if (!enabled) cancelTouchPress()
+                onVisibleChanged: if (!visible) cancelTouchPress()
+                onClicked: {
+                    if (cardTap.pressCanceled) return
+                    if (cardTap.holdMenuFired) { cardTap.holdMenuFired = false; return }
+                    // Primary tap retains the existing Resume/Details branch.
+                    root.handleCardAction(card.modelData,
+                                         card.modelData.canResume ? "resume" : "detail")
+                }
             }
         }
     }
@@ -595,7 +663,8 @@ Item {
             if (event.key === Qt.Key_Escape) { root.closeMenu(true); event.accepted = true }
         }
         x: Math.max(8, Math.min(root.menuX - width, root.width - width - 8))
-        y: Math.max(8, Math.min(root.menuY, root.height - height - 8))
+        y: Math.max(root.menuViewport.y + 8,
+                    Math.min(root.menuY, root.menuViewport.y + root.menuViewport.height - height - 8))
         MouseArea { anchors.fill: parent }   // click-swallower body
 
         component BiblioMenuItem: Item {
