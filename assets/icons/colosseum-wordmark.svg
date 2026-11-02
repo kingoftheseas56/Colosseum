@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 665 116" role="img" aria-labelledby="wordmark-title">
   <title id="wordmark-title">Colosseum</title>
-  <style>.word{fill:#20252c}@media(prefers-color-scheme:dark){.word{fill:#f5f0e8}}</style>
+  <style>.word{fill:#f5f0e8}@media(prefers-color-scheme:light){.word{fill:#20252c}}</style>
   <g transform="translate(0 -8) scale(2.7)" fill="none" stroke="#efc15a" stroke-linecap="round">
     <path d="M10 32.5h28" stroke-width="2"/>
     <path d="M14 32.5V20.8c0-5.4 4.5-9.8 10-9.8s10 4.4 10 9.8v11.7" stroke-width="2"/>
