@@ -412,9 +412,23 @@
     },
     {
       "id": "PF-09",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_launcher_icon.py => OK (3 tests)",
+        "test_android_media3_packaging_contract.py, test_android_runtime_bundle.py => OK",
+        "NOT RUN (env): test_android_desktop_scale.py needs ANDROID_SDK_ROOT (KeyError before and after)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/platform/android/AndroidManifest.xml",
+        "native/platform/android/res/drawable/ic_launcher_foreground.xml",
+        "native/platform/android/res/mipmap-anydpi-v26/ic_launcher.xml",
+        "native/platform/android/res/mipmap-anydpi-v26/ic_launcher_round.xml",
+        "native/platform/android/res/values/ic_launcher_background.xml",
+        "tests/test_android_launcher_icon.py"
+      ],
+      "note": "Alpha adaptive launcher resources reused byte-for-byte (sha256 foreground f818f716..., ic_launcher/_round 07d3b8f6..., background d263737d...); manifest icon/roundIcon -> @mipmap/ic_launcher(_round) replacing INSERT_APP_ICON. API 28 floor, no PNG fallbacks needed. Copied by existing android.cmake package loop. No package id/signer change. Design confirmation of Beta branding + rendered launcher appearance: LOCAL_PENDING (aapt/APK not built).",
+      "updated_utc": "2026-11-02T22:45:27Z"
     },
     {
       "id": "WT-12",
