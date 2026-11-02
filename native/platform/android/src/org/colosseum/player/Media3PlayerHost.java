@@ -57,7 +57,7 @@ public final class Media3PlayerHost {
     private final Context appContext;
     private final long nativeHandle;
     private final Handler mainHandler;
-    private final ExoPlayer player;
+    private ExoPlayer player; // Created and accessed only on the main looper.
     private final Player.Listener listener;
 
     // Main-looper state only.
@@ -86,9 +86,13 @@ public final class Media3PlayerHost {
         this.appContext = context.getApplicationContext();
         this.nativeHandle = nativeHandle;
         this.mainHandler = new Handler(Looper.getMainLooper());
-        this.player = createPlayerOnMain();
         this.listener = createListener();
-        runOnMainSync(() -> player.addListener(listener));
+        // Qt must return to its event loop: Android accessibility may already be
+        // waiting for it. Queue initialization before every later player command.
+        runOnMain(() -> {
+            player = createPlayerOnMain();
+            player.addListener(listener);
+        });
     }
 
     private ExoPlayer createPlayerOnMain() {

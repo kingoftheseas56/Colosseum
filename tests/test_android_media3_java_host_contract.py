@@ -18,7 +18,7 @@ def host_text() -> str:
 class AndroidMedia3JavaHostContract(unittest.TestCase):
     def test_host_is_instance_owned_and_main_looper_bound(self):
         text = host_text()
-        self.assertIn("private final ExoPlayer player;", text)
+        self.assertIn("private ExoPlayer player;", text)
         self.assertNotRegex(text, r"\bstatic\s+(?:final\s+)?ExoPlayer\b")
         self.assertIn("Looper.getMainLooper()", text)
         self.assertIn(".setLooper(Looper.getMainLooper())", text)
