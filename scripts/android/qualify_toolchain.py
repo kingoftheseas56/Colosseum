@@ -128,7 +128,11 @@ def check_qt(target_root: Path, host_root: Path | None) -> list[Check]:
     version = qt_version_from_root(target_root)
     checks.append(Check("Qt Android arm64 kit", bool(qt_cmake) and target_root.name == "android_arm64_v8a" and version[:2] == QT_SERIES,
                         f"root={target_root}, version={version or 'unknown'}, qt-cmake={qt_cmake or 'missing'}"))
-    host_scan = None if host_root is None else first_existing(host_root, ("bin/qmlimportscanner", "bin/qmlimportscanner.exe"))
+    # Qt 6 Linux/macOS host kits install qmlimportscanner under libexec/; Windows kits under
+    # bin/. Accept either real location (WT-14); a missing scanner still fails the gate.
+    host_scan = None if host_root is None else first_existing(host_root, (
+        "bin/qmlimportscanner", "bin/qmlimportscanner.exe",
+        "libexec/qmlimportscanner", "libexec/qmlimportscanner.exe"))
     checks.append(Check("Qt host kit", bool(host_scan), f"root={host_root or 'missing'}, qmlimportscanner={host_scan or 'missing'}"))
     return checks
 
