@@ -441,5 +441,22 @@
     "WT-09",
     "WT-14"
   ],
-  "credit_balance": "UNKNOWN"
+  "credit_balance": "UNKNOWN",
+  "extra": [
+    {
+      "id": "WT-14",
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_toolchain_qualification.py => OK (8 tests incl. libexec/bin discovery + missing-scanner failure)",
+        "qualify_toolchain.check_qt against real aqt Qt 6.11.1 gcc_64 host: pre-fix ok=False (qmlimportscanner=missing), post-fix ok=True (libexec/qmlimportscanner)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "scripts/android/qualify_toolchain.py",
+        "tests/test_android_toolchain_qualification.py"
+      ],
+      "note": "Conditional WT-14 confirmed by C0 (aqt Linux host kit ships only libexec/qmlimportscanner). Discovery now accepts bin/ and libexec/ (incl .exe); all other gates unchanged; no symlink.",
+      "updated_utc": "2026-11-02T22:45:59Z"
+    }
+  ]
 }
