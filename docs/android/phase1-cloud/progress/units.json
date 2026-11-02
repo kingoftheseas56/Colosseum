@@ -59,9 +59,23 @@
     },
     {
       "id": "PF-01",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_download_targets.qml => 0 (6 passed); vs pre-fix DownloadsPage/TopBar/AdaptiveLayout => 2 failed (reproduced)",
+        "tst_android_shared_action_touch/shared_poster_touch/account_choice/visual_baseline/phone_content_inset => 0",
+        "tst_topbar_spatial_navigation.qml => 1 (16/1): PRE-EXISTING failure at width 1172 (picker vs system controls), identical on unmodified TopBar",
+        "test_desktop_presentation.py => 0; android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/TouchMetrics.js",
+        "qml/AdaptiveLayout.qml",
+        "qml/TopBar.qml",
+        "qml/DownloadsPage.qml",
+        "tests/qml/tst_android_download_targets.qml"
+      ],
+      "note": "AdaptiveLayout.touchTargetSize/targetSize() keyed to androidHost (not desktopPresentation). DownloadsPage group/episode text actions (Play/Retry/Pause-Resume/Open/Cancel) get >=48 hosts on Android, identical implicit sizes on desktop. TopBar SysIcons: 48-tall hosts; horizontal pointer owner extends into half of each Row gap (22+spacing, i.e. 34-42 wide, not full 48) because the world picker ALREADY overlaps the system cluster at Android logical widths 1153-1205 (probe: picker ends 849, system row starts 801/825) - widening would worsen it. Full-width 48 TopBar targets need the TopBar layout decision (Dots/layout scope). Account/world caller surfaces beyond TopBar not changed.",
+      "updated_utc": "2026-11-02T21:52:23Z"
     },
     {
       "id": "PF-05",
