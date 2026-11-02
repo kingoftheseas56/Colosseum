@@ -1,5 +1,5 @@
 {
-  "state": "IN_PROGRESS",
+  "state": "QUEUE_ACCOUNTED_DEVICE_PENDING",
   "queue": [
     {
       "id": "C0",
