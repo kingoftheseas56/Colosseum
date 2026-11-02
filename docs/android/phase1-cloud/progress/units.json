@@ -466,6 +466,16 @@
       ],
       "note": "Conditional WT-14 confirmed by C0 (aqt Linux host kit ships only libexec/qmlimportscanner). Discovery now accepts bin/ and libexec/ (incl .exe); all other gates unchanged; no symlink.",
       "updated_utc": "2026-11-02T22:45:59Z"
+    },
+    {
+      "id": "WT-09",
+      "status": "HOST_ONLY_FINDING_NO_CHANGE",
+      "tests": [
+        "source investigation: OnePieceEastBlueAtlas badge MouseArea enabled: root.touchInput; touchInput = Qt.platform.os === 'android' (constant); the only production instantiation (OnePieceUniversePage.qml:90) does not rebind touchInput; grep finds no other writer"
+      ],
+      "device": "LOCAL_PENDING",
+      "note": "No supported production direct-disable path exists, so no cancellation latch was added (START: preserve host-only finding; no device bug claimed; touch not rewritten). Ancestor hide/disable yields onCanceled -> moved=true (retained host controls pass per audit receipt).",
+      "updated_utc": "2026-11-02T22:48:53Z"
     }
   ]
 }
