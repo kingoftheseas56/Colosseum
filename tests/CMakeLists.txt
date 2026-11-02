@@ -5517,3 +5517,20 @@ add_subdirectory(named_collections)
 add_subdirectory(collections_identity)
 add_subdirectory(collections_qml)
 add_subdirectory(collections_runtime)
+
+# Deterministic subprocess reuse/preemption; no network or application profile.
+add_executable(vinyl_provider_lifecycle_test vinyl_provider_lifecycle_test.cpp
+    "${COLOSSEUM_NATIVE_DIR}/vinyl/VinylProvider.h")
+set_target_properties(vinyl_provider_lifecycle_test PROPERTIES AUTOMOC ON)
+target_include_directories(vinyl_provider_lifecycle_test PRIVATE "${COLOSSEUM_NATIVE_DIR}")
+target_link_libraries(vinyl_provider_lifecycle_test PRIVATE colosseum_vinyl_backend Qt6::Core Qt6::Test)
+target_compile_definitions(vinyl_provider_lifecycle_test PRIVATE
+    VINYL_LIFECYCLE_HELPER="${CMAKE_CURRENT_SOURCE_DIR}/vinyl-provider-lifecycle/provider.py")
+find_package(Python3 QUIET COMPONENTS Interpreter)
+if(Python3_Interpreter_FOUND)
+    add_test(NAME colosseum.vinyl_provider_lifecycle COMMAND vinyl_provider_lifecycle_test)
+    set_tests_properties(colosseum.vinyl_provider_lifecycle PROPERTIES LABELS "vinyl;provider;unit" TIMEOUT 60
+        ENVIRONMENT "COLOSSEUM_VINYL_PYTHON=${Python3_EXECUTABLE}")
+else()
+    message(STATUS "Skipping Vinyl helper lifecycle CTest registration: Python3 interpreter not found")
+endif()

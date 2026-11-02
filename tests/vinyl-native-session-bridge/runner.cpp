@@ -43,6 +43,21 @@ signals:
 private:
     int serial=0;
 };
+class WarmTestSource : public VideoTestSource {
+    Q_OBJECT
+    Q_PROPERTY(int warmCount READ warmCount NOTIFY warmed)
+    Q_PROPERTY(int invalidationCount READ invalidationCount NOTIFY invalidated)
+public:
+    explicit WarmTestSource(QObject *parent=nullptr):VideoTestSource(parent){}
+    int warmCount() const{return m_warmCount;}
+    int invalidationCount() const{return m_invalidationCount;}
+    Q_INVOKABLE void warmPlayback(){++m_warmCount;emit warmed();}
+    Q_INVOKABLE void invalidatePlaybackTransport(){++m_invalidationCount;emit invalidated();}
+signals:
+    void warmed();void invalidated();
+private:
+    int m_warmCount=0,m_invalidationCount=0;
+};
 class Setup : public QObject {
     Q_OBJECT
     QTemporaryDir directory;
@@ -266,6 +281,7 @@ public slots:
 
     void qmlEngineAvailable(QQmlEngine *engine) {
         qmlRegisterType<VideoTestSource>("Colosseum.Vinyl",1,0,"VideoTestSource");
+        qmlRegisterType<WarmTestSource>("Colosseum.Vinyl",1,0,"WarmTestSource");
         qmlRegisterType<VinylBackendSession>("Colosseum.Vinyl",1,0,"VinylBackendSession");
         qmlRegisterType<VinylLyricsService>("Colosseum.Vinyl",1,0,"VinylLyricsService");
         qmlRegisterType<VinylGeniusService>("Colosseum.Vinyl",1,0,"VinylGeniusService");

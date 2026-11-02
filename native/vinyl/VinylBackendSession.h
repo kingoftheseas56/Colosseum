@@ -158,6 +158,8 @@ signals:
 private slots:
     void sourceCompleted(const QString &lane,int request,const QVariant &data,const QString &error);
 private:
+    void warmPlayback();
+    void invalidatePlaybackTransport();
     std::optional<vinyl::PlaybackLoadInput> inputFor(const vinyl::QueueOccurrence &);
     void loadFile(const vinyl::PlaybackWorkToken &,const QString &,const QString &);
     void loadFileWithHeaders(const vinyl::PlaybackWorkToken &,const QString &,

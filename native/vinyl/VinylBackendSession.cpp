@@ -148,7 +148,7 @@ VinylBackendSession::VinylBackendSession(QObject *parent)
     connect(this,&VinylBackendSession::queueChanged,this,[this]{updatePreparation();});
     m_deadline.start();
 }
-VinylBackendSession::~VinylBackendSession() { m_shutdown=true;cancelResolution();retirePlayer(); }
+VinylBackendSession::~VinylBackendSession() { m_shutdown=true;cancelResolution();invalidatePlaybackTransport();retirePlayer(); }
 void VinylBackendSession::publishState() {
     emit stateChanged();
     // QML aliases observe every native NOTIFY emission, even for equal values.
@@ -162,11 +162,12 @@ bool VinylBackendSession::seekPending() const {return m_backend->session.pending
 void VinylBackendSession::setSource(QObject *source) {
     if(m_source==source)return;
     suspend();
+    invalidatePlaybackTransport();
     if(m_source)disconnect(m_source,nullptr,this,nullptr);
     m_source=source;
     if(m_source)connect(m_source,SIGNAL(completed(QString,int,QVariant,QString)),
                        this,SLOT(sourceCompleted(QString,int,QVariant,QString)),Qt::AutoConnection);
-    emit sourceChanged();
+    warmPlayback();emit sourceChanged();
 }
 void VinylBackendSession::setVideoSurface(QObject *surface) {
     if(m_videoSurface==surface)return;
@@ -188,11 +189,24 @@ void VinylBackendSession::attachVideoSurface() {
     m_player->setSize(m_videoActive&&m_videoSurface&&target?target->size():QSizeF(1,1));
     m_player->setVisible(m_videoActive&&m_videoSurface&&target&&target->isVisible());
 }
+void VinylBackendSession::invalidatePlaybackTransport() {
+    if(m_source&&m_source->metaObject()->indexOfMethod("invalidatePlaybackTransport()")>=0)
+        QMetaObject::invokeMethod(m_source,"invalidatePlaybackTransport",Qt::DirectConnection);
+}
+void VinylBackendSession::warmPlayback() {
+    if(!m_shutdown&&m_profileActive&&m_source&&m_source->metaObject()->indexOfMethod("warmPlayback()")>=0)
+        QMetaObject::invokeMethod(m_source,"warmPlayback",Qt::DirectConnection);
+}
 void VinylBackendSession::setProfileScope(const QString &profile) {
-    if(m_profile==profile){m_profileActive=ProfileScopeId::parse(profile).ok();return;}
+    if(m_profile==profile){
+        const bool wasActive=m_profileActive;
+        m_profileActive=ProfileScopeId::parse(profile).ok();
+        if(!wasActive&&m_profileActive)warmPlayback();
+        return;
+    }
     clearProfile();m_profile=profile;
     m_profileActive=ProfileScopeId::parse(profile).ok();
-    emit profileScopeChanged();publishState();
+    warmPlayback();emit profileScopeChanged();publishState();
 }
 void VinylBackendSession::setRadioContext(const QVariantMap &context) {
     QVariantMap normalized;
@@ -922,18 +936,20 @@ void VinylBackendSession::fail(const QString &message) {
     if(m_player)m_player->setPause(true);publishState();
 }
 void VinylBackendSession::retry() { if(activeIndex()>=0){const auto at=position();cancelResolution();
+    if(m_state=="error"&&m_sourceKind=="youtube")invalidatePlaybackTransport();
     if(!m_backend->coordinator.stop().ok){fail("The previous queue occurrence could not be retired.");return;}beginActive(at);} }
 void VinylBackendSession::suspend() {
     const auto at=position();endPlayback("stop");cancelResolution();m_backend->coordinator.stop();retirePlayer();
     m_resume=at;m_paused=true;m_state=activeIndex()>=0?"paused":"idle";publishState();
 }
 void VinylBackendSession::clearProfile() {
-    suspend();m_backend->coordinator.clear();m_rows.clear();m_profileActive=false;
+    suspend();invalidatePlaybackTransport();
+    m_backend->coordinator.clear();m_rows.clear();m_profileActive=false;
     m_sourceKind.clear();m_fallbackReason.clear();m_forceFallback=false;m_fallbackAttempted=false;
     m_resume=0;m_duration=0;m_repeat="off";m_shuffleEnabled=false;m_state="idle";m_error.clear();
     m_listeningOrigin="manual";m_lastPlaybackAtMs=0;m_radioContext.clear();emit queueChanged();publishState();
 }
-void VinylBackendSession::shutdown() { if(m_shutdown)return;suspend();m_shutdown=true;m_deadline.stop(); }
+void VinylBackendSession::shutdown() { if(m_shutdown)return;suspend();invalidatePlaybackTransport();m_shutdown=true;m_deadline.stop(); }
 
 QVariantMap VinylBackendSession::checkpoint() const {
     auto profile=ProfileScopeId::parse(m_profile);if(!profile.ok())return {};

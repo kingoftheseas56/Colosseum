@@ -199,7 +199,7 @@ void VinylCatalogueSource::cancel(const QString &lane){
     if(lane=="play")m_provider->cancel("playFallback");
     m_local->cancel(lane);m_provider->cancel(lane);
 }
-void VinylCatalogueSource::cancelAll(){for(const auto &lane:m_pending.keys())cancel(lane);m_local->cancelImport();leaveArtist();}
+void VinylCatalogueSource::cancelAll(){for(const auto &lane:m_pending.keys())cancel(lane);m_local->cancelImport();leaveArtist();m_provider->cancelAll();}
 void VinylCatalogueSource::leaveArtist(){
     ++m_artworkGeneration;
     const auto replies=m_artworkReplies;m_artworkReplies.clear();
