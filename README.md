@@ -4,8 +4,6 @@
 
 <p align="center"><strong>One media app for all art.</strong></p>
 
-<p align="center">Movies & TV · Anime · Manga & comics · Books & audiobooks · Local media</p>
-
 <p align="center">
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-setup.exe"><strong>Download for Windows</strong></a> ·
   <a href="https://github.com/kingoftheseas56/Colosseum/releases/download/v1.2.0/Colosseum-1.2.0-linux-amd64.deb"><strong>Download for Linux</strong></a> ·
