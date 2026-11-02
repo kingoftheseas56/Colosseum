@@ -181,6 +181,26 @@ TestCase {
         verify(p.y + empty.height <= sheet.height)
     }
 
+    function test_unsupported_codec_label_is_advisory_and_contained() {
+        // WT-03: explicit unsupported evidence is labelled; the row stays selectable.
+        var rows = makeRows(2, ["2160p"], ["Torrentio"])
+        rows[0].videoCompatibility = { state: "unsupported", reason: "No HEVC Main10 decoder is available" }
+        rows[1].videoCompatibility = { state: "unknown", reason: "Codec profile is not explicit" }
+        openSheet(1185, Math.floor(640 / 1.20), true, rows)
+        var r = listRect()
+        var first = r.list.itemAtIndex(0)
+        verify(first !== null)
+        var label = findChild(first, "sourceCompatibilityWide_0")
+        verify(label !== null && label.visible)
+        verify(label.text.indexOf("Unsupported on this device") === 0)
+        var p = label.mapToItem(first, 0, 0)
+        verify(p.y >= 0 && p.y + label.height <= first.height + 0.5, "label inside the 150 row")
+        var second = r.list.itemAtIndex(1)
+        verify(!findChild(second, "sourceCompatibilityWide_1").visible, "unknown stays silent")
+        sheet.activateSource(0)
+        compare(playedHash, "hash0")
+    }
+
     function test_extension_menu_bounded_and_scrollable() {
         var addons = []
         for (var i = 0; i < 12; ++i) addons.push("Ext" + i)

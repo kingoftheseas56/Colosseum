@@ -243,7 +243,9 @@ Item {
                 timeout.stop();
                 sheet.warmTopRow();
                 seasonSettle();
-            });
+            },
+            // Advisory decoder evidence (WT-03); a library cannot read context properties.
+            typeof PlatformRuntime !== "undefined" ? PlatformRuntime : null);
     }
 
     // Torrent warm-up (2026-07-31). The 2026-07-30 server warm-up starts the ENGINE
@@ -723,6 +725,13 @@ Item {
                 readonly property string automationQuality: row.modelData && row.modelData.quality ? row.modelData.quality : ""
                 property string streamKind: row.modelData.streamKind || "Torrent"
                 property string providerName: row.modelData.addonName || row.modelData.sourceName || ""
+                // WT-03 advisory decoder evidence: only an explicit "unsupported" is shown;
+                // unknown stays silent and the row remains selectable.
+                readonly property bool codecUnsupported: !!(row.modelData.videoCompatibility
+                    && row.modelData.videoCompatibility.state === "unsupported")
+                readonly property string codecCompatibilityLabel: row.codecUnsupported
+                    ? "Unsupported on this device — " + (row.modelData.videoCompatibility.reason || "Video codec profile is unsupported")
+                    : ""
                 // Today every shown row is ready; slice 5 drives HTTP rows "checking" → "confirmed".
                 // Plain string on purpose — ui-wait-for polls strict-equality only.
                 property string checkState: "confirmed"
@@ -777,6 +786,13 @@ Item {
                         width: parent.width
                         text: sheet.metaText(row.modelData)
                         color: theme.inkDim; font.family: theme.ui; font.pixelSize: 13; elide: Text.ElideRight
+                    }
+                    Text {
+                        objectName: "sourceCompatibilityWide_" + row.index
+                        visible: row.codecUnsupported
+                        width: parent.width
+                        text: row.codecCompatibilityLabel
+                        color: "#e6a3a3"; font.family: theme.ui; font.pixelSize: 12; elide: Text.ElideRight
                     }
                     Row {
                         spacing: 8

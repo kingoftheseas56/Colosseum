@@ -295,9 +295,21 @@
     },
     {
       "id": "WT-03",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "node tests/addon_video_compatibility_test.mjs => PASS (adopted from Alpha; pre-fix AddonClient => TypeError)",
+        "all tests/*.mjs loading AddonClient.js => 0",
+        "tst_android_sources_budget (incl. new advisory label case) 11/0, tst_watchparty_source_provenance, sources_sheet_empty_extensions_harness => 0; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/AddonClient.js",
+        "qml/SourcesSheet.qml",
+        "tests/addon_video_compatibility_test.mjs",
+        "tests/qml/tst_android_sources_budget.qml"
+      ],
+      "note": "AddonClient: explicit codec/profile/level parsing, compatibility vs existing PlatformRuntime.videoDecodeCapabilities (available+complete inventory required, ambiguous/incomplete => unknown), AV1 tag, known-unsupported rows sorted last (never removed). Only SourcesSheet passes PlatformRuntime; other loadStreams callers (Main/PlayerPage/TheatreWorld/player2host) get unknown -> unchanged order. Sources wide row shows red advisory line only for unsupported. Desktop: runtime.android false => unknown, no reorder (AV1 tag text is the only desktop-visible difference). No hardware decode acceptance implied.",
+      "updated_utc": "2026-11-02T22:34:31Z"
     },
     {
       "id": "PF-08",
