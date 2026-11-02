@@ -46,9 +46,15 @@ Item {
             if ((root.universeContentGeneration, DCAU.progressBelongsToJustice)(recent[i])) out.push(recent[i])
         return out
     }
+    // Shell Back contract (WT-10): an open hub returns to the landing (consumed); the
+    // landing returns false so the shell closes the Universe exactly once.
+    function requestEscape() {
+        if (!root.currentHubId.length) return false
+        root.currentHubId = ""
+        return true
+    }
     function navigateBack() {
-        if (root.currentHubId.length) root.currentHubId = ""
-        else root.backRequested()
+        if (!root.requestEscape()) root.backRequested()
     }
     function openHub(id) { root.currentHubId = id }
 
