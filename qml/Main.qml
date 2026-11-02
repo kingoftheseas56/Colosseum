@@ -1854,6 +1854,50 @@ Window {
     }
     function closeSeries() { seriesLayer.active = false; win.restoreNamedCollectionsReturn() }
 
+    // Featured Read (WT-06). Comics (ghost "C") need the GetComics source: without it the
+    // Extensions page opens instead of a dead end. Manga opens the existing series owner and
+    // reads its primary target once THAT title has finished loading. The deferred read rides
+    // the catalogue-route generation, so any later route (another title, Back, a different
+    // world/profile) cancels it and it can never land on a new context.
+    function readTankobanFeatured(slide) {
+        if (!slide || !String(slide.title || "").length) return
+        var title = String(slide.title)
+        if (slide.ghost === "C") {
+            var installed = (typeof Extensions !== "undefined" && Extensions
+                            && typeof Extensions.installed === "function") ? (Extensions.installed() || []) : []
+            var getComicsEnabled = false
+            for (var i = 0; i < installed.length; ++i)
+                if (installed[i] && installed[i].id === "colosseum.well.getcomics.issues"
+                        && installed[i].enabled === true) { getComicsEnabled = true; break }
+            if (!getComicsEnabled) { win.openExtensionsPage("tankoban"); return }
+            win.openWestern({ title: title })
+            return
+        }
+        win.openSeries(title)
+        var page = seriesLayer.item
+        if (page && page.readPrimary && page.seriesTitle === title && !page.loading) {
+            page.readPrimary()
+            return
+        }
+        var request = { title: title, generation: win._catalogueRouteGeneration }
+        seriesLayer.featuredRead = request
+        win._catalogueRouteCancel = function() {
+            if (seriesLayer.featuredRead === request) seriesLayer.featuredRead = null
+        }
+    }
+    function consumeFeaturedRead() {
+        var request = seriesLayer.featuredRead
+        var page = seriesLayer.item
+        if (!request || !page || !page.readPrimary || page.loading) return
+        if (request.generation !== win._catalogueRouteGeneration || page.seriesTitle !== request.title) {
+            seriesLayer.featuredRead = null
+            return
+        }
+        seriesLayer.featuredRead = null
+        win._catalogueRouteCancel = null
+        page.readPrimary()
+    }
+
     // ---- western-comics detail: the GetComics shelf (ComicSeries), parallel to the
     //      manga seriesLayer. Series id app-wide = "gc:<tag-slug>" — the prefix is how
     //      every shared kind:"comic" route below tells the two lanes apart. ----
@@ -4833,6 +4877,7 @@ Window {
                     }
                     item.seriesRequested.connect(win.openSeries)
                     if (item.mangaOpenById) item.mangaOpenById.connect(win.openSeries)
+                    if (item.featuredReadRequested) item.featuredReadRequested.connect(win.readTankobanFeatured)
                     item.bookRequested.connect(win.openBook)
                     item.genreRequested.connect(win.openGenre)
                     if (item.genreIndexRequested) item.genreIndexRequested.connect(win.openGenreIndex)
@@ -5084,6 +5129,14 @@ Window {
         z: 53     // above the universe overlay (z:52): a manga opened from a universe stacks on top, back returns to the universe
         active: false
         visible: active
+        // Pending Featured Read for one exact title (WT-06); see readTankobanFeatured.
+        property var featuredRead: null
+        onActiveChanged: if (!active) featuredRead = null
+        Connections {
+            target: seriesLayer.item
+            ignoreUnknownSignals: true
+            function onLoadingChanged() { if (seriesLayer.featuredRead) Qt.callLater(win.consumeFeaturedRead) }
+        }
         property string title: ""
         property string malId: ""             // Slice C: Discover card's MAL id, threaded to the series page
         property string seriesIdOverride: ""

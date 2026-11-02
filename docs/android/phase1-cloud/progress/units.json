@@ -228,9 +228,20 @@
     },
     {
       "id": "WT-06",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_featured_routes_test.mjs => 0 (6 tests; base => 6 failed)",
+        "tankoban_cached_identity_routes, tankoban_discover_remote_delivery node tests; tst_journey_open_manga, tst_tankoban_volume_touch, manga_browse => 0",
+        "android_qml_preflight => 0 (61/0); test_desktop_presentation => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/TankobanWorld.qml",
+        "qml/Main.qml",
+        "tests/android_featured_routes_test.mjs"
+      ],
+      "note": "TankobanWorld carousel forwards exact slide: Read -> featuredReadRequested(slide); Details -> westernRequested (ghost C) / seriesRequested. Main.readTankobanFeatured: comics need enabled GetComics else Extensions page; manga opens existing series owner and reads now if that exact title is loaded, else defers on seriesLayer.featuredRead tied to _catalogueRouteGeneration/_catalogueRouteCancel (any later route cancels), consumed on page loading->false only for the same title; cleared when series layer deactivates. Mode/resume/Collections untouched (readPrimary owns them). Not QML-runtime verified for the live Tankoban world (Catalog-dependent).",
+      "updated_utc": "2026-11-02T22:29:36Z"
     },
     {
       "id": "WT-05",
