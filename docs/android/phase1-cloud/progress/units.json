@@ -43,9 +43,19 @@
     },
     {
       "id": "PF-02",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_android_sources_budget.qml => 0 (10 passed); same fixture vs pre-fix SourcesSheet => 8 failed (reproduced)",
+        "tests/sources_sheet_empty_extensions_harness.qml => 0 (5 passed)",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/SourcesSheet.qml",
+        "tests/qml/tst_android_sources_budget.qml"
+      ],
+      "note": "SourcesSheet: Android-desktop-presentation height budget (banner/chrome yield to keep >=1 full 150 row + 40 peek at 640/zoom logical heights 556/533; Back shares the banner line), extension menu bounded+scrollable with keyboard reveal (applies on all hosts but is pixel-identical when the menu fits). Desktop/Windows Sources geometry unchanged (H-544 asserted). Remaining: ComicTorrentSourcesPage/MangaTankobanSourcesPage have the same fixed 300 banner; analogous budget NOT yet applied (needs own geometry checks) -> follow-up PF-02b. Viewports are calculated (1024x640/zoom), not measured device rectangles.",
+      "updated_utc": "2026-11-02T21:48:30Z"
     },
     {
       "id": "PF-01",

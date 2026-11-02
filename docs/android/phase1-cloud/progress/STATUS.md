@@ -13,10 +13,11 @@ See `units.json` for per-unit status/tests/files. Summary log (UTC):
 - 21:50 C0 — HOST_QML_PASS. Details: `C0-RESULT.md`. ANDROID_APK BLOCKED (no hardened Nuvio prefix in cloud).
 
 - 22:00 B0 — HOST_QML_PASS. Overlay applied (8/8 hashes matched), all changes Android/androidHost-scoped; outer margin made fixture-testable via AdaptiveLayout.androidHost. New tests/qml/tst_android_visual_baseline.qml. Java change not compiled (NATIVE_COMPILE not attempted).
+- 22:20 PF-02 — HOST_QML_PASS for SourcesSheet (new tst_android_sources_budget.qml, reproduced pre-fix). Comic/Manga sources pages: analogous budget pending (PF-02b).
 
 ## Next action
 
-PF-02 Sources geometry/list/action reachability (tasks/PF-02.md).
+PF-01 presentation-independent shared touch sizing (tasks/PF-01.md).
 
 ## Blockers
 
