@@ -12,9 +12,11 @@ See `units.json` for per-unit status/tests/files. Summary log (UTC):
 
 - 21:50 C0 — HOST_QML_PASS. Details: `C0-RESULT.md`. ANDROID_APK BLOCKED (no hardened Nuvio prefix in cloud).
 
+- 22:00 B0 — HOST_QML_PASS. Overlay applied (8/8 hashes matched), all changes Android/androidHost-scoped; outer margin made fixture-testable via AdaptiveLayout.androidHost. New tests/qml/tst_android_visual_baseline.qml. Java change not compiled (NATIVE_COMPILE not attempted).
+
 ## Next action
 
-B0 visual-baseline reconciliation: inspect donor `visual-overlays.patch`, `git apply --check`, integrate, verify with host fixtures + `tests/android_qml_preflight.py`.
+PF-02 Sources geometry/list/action reachability (tasks/PF-02.md).
 
 ## Blockers
 

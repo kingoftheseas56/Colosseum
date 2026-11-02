@@ -26,6 +26,14 @@ Item {
                                      && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation !== true
                                      && sheet.Window.window.width < 840
 
+    readonly property real outerPageMargin: sheet.Window.window
+        && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true
+        ? 0 : theme.margin
+
+    readonly property real headerOuterMargin: sheet.Window.window
+        && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true
+        ? 16 : theme.margin
+
     property Item backdrop
     property string label: ""
     property string title: ""
@@ -385,7 +393,7 @@ Item {
     // ---- back ----
     BackAction {
         id: sourcesBack
-        x: sheet.phoneLayout ? 16 : theme.margin
+        x: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
         y: sheet.phoneLayout ? 20 : 30; z: 20
         onTriggered: sheet.hide()
     }
@@ -393,8 +401,8 @@ Item {
     // ---- title block, pinned to the bottom of the banner ----
     Column {
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
-        anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
+        anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.headerOuterMargin
         anchors.top: parent.top
         anchors.topMargin: bannerStrip.height - height - (sheet.phoneLayout ? 14 : 26)
         spacing: sheet.phoneLayout ? 8 : 12
@@ -428,8 +436,8 @@ Item {
     Rectangle {
         id: topBar
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
-        anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
+        anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
         anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : 20
         height: sheet.phoneLayout ? 52 : 64; radius: 16
         color: tbMa.containsMouse ? Qt.rgba(1, 1, 1, 0.09) : Qt.rgba(1, 1, 1, 0.06)
@@ -483,9 +491,9 @@ Item {
         id: pills
         property int currentIndex: 0
         anchors.left: parent.left
-        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
         anchors.top: topBar.bottom; anchors.topMargin: sheet.phoneLayout ? 10 : 14
-        width: Math.max(0, sheet.width - (sheet.phoneLayout ? 32 : 2 * theme.margin))
+        width: Math.max(0, sheet.width - (sheet.phoneLayout ? 32 : 2 * sheet.outerPageMargin))
         spacing: sheet.phoneLayout ? 8 : 12
         visible: sheet.rows.length > 0
         focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
@@ -538,8 +546,8 @@ Item {
         id: table
         backdrop: sheet.backdrop
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: sheet.phoneLayout ? 16 : theme.margin
-        anchors.rightMargin: sheet.phoneLayout ? 16 : theme.margin
+        anchors.leftMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
+        anchors.rightMargin: sheet.phoneLayout ? 16 : sheet.outerPageMargin
         anchors.top: pills.visible ? pills.bottom : bannerStrip.bottom
         anchors.topMargin: sheet.phoneLayout ? 12 : 16
         anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.phoneLayout ? 16 : 26

@@ -16,7 +16,8 @@ ScrollBar {
 
     orientation: Qt.Vertical
     // present whenever there's actually something to scroll — never a phantom bar
-    policy: (flick && flick.contentHeight > flick.height) ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
+    policy: Qt.platform.os === "android" ? ScrollBar.AlwaysOff
+        : (flick && flick.contentHeight > flick.height) ? ScrollBar.AlwaysOn : ScrollBar.AlwaysOff
     interactive: true                     // grabbable thumb; the track pages on click
     anchors.right: flick ? flick.right : undefined
     anchors.top: flick ? flick.top : undefined

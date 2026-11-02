@@ -93,6 +93,8 @@ Column {
         width: parent.width; title: cont.title
         automationId: cont.automationId.length > 0 ? cont.automationId + "Header" : ""
         moreLabel: "See all"
+        moreRightInset: Qt.platform.os === "android" && cont.Window.window
+            && cont.Window.window.desktopPresentation === true ? 8 : 0
         navigable: cont.showSeeAll
         onMoreClicked: cont.seeAllRequested()
     }

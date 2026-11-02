@@ -227,8 +227,11 @@ Window {
     property string wallpaperSource: win.defaultWallpaperSource
     onDefaultWallpaperSourceChanged: Qt.callLater(win.refreshWallpaper)
     property alias androidHost: phoneShell.androidHost
-    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width }
+    AdaptiveLayout { id: presentationPolicy; viewportWidth: win.width; androidHost: win.androidHost }
     readonly property alias desktopPresentation: presentationPolicy.desktopPresentation
+    readonly property real headerOuterMargin: win.androidHost && win.desktopPresentation ? 16 : theme.margin
+    readonly property real outerPageMargin: win.androidHost && win.desktopPresentation
+        ? presentationPolicy.outerPageMargin : theme.margin
 
     // Non-visual, non-secret bridge projection for the tagged Stremio connection fixture.
     // Lanista deliberately reads QQuickItem properties only; never expose credentials,
@@ -4187,8 +4190,8 @@ Window {
         backdrop: wall
         activeMedium: ""
         androidHost: win.androidHost
-        x: theme.margin; y: 18
-        width: win.width - theme.margin * 2
+        x: win.headerOuterMargin; y: 18
+        width: win.width - win.headerOuterMargin * 2
         onMediumSelected: (medium) => win.openWorld(medium)
         onWallpaperClicked: win.openWallpaperSearch("Home")
         onDlnaClicked: (anchorRight, anchorBottom) => dlnaSharePopup.toggleAt(anchorRight, anchorBottom)
@@ -4392,8 +4395,8 @@ Window {
 
         Column {
             id: contentCol
-            x: theme.margin
-            width: page.width - theme.margin * 2
+            x: win.outerPageMargin
+            width: page.width - win.outerPageMargin * 2
             topPadding: 10
             spacing: 32
 
