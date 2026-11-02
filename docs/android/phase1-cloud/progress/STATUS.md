@@ -14,10 +14,15 @@ See `units.json` for per-unit status/tests/files. Summary log (UTC):
 
 - 22:00 B0 — HOST_QML_PASS. Overlay applied (8/8 hashes matched), all changes Android/androidHost-scoped; outer margin made fixture-testable via AdaptiveLayout.androidHost. New tests/qml/tst_android_visual_baseline.qml. Java change not compiled (NATIVE_COMPILE not attempted).
 - 22:20 PF-02 — HOST_QML_PASS for SourcesSheet (new tst_android_sources_budget.qml, reproduced pre-fix). Comic/Manga sources pages: analogous budget pending (PF-02b).
+- 22:30 PF-01 — HOST_QML_PASS (Downloads text actions 48 hosts; TopBar 48-tall hosts, width limited by pre-existing picker/system overlap at Android widths).
+- 22:40 PF-05 — HOST_QML_PASS (speed popup bounded/scrollable; pre-fix y=-77 at 1.20).
+- 22:50 BR-READER-TARGETS — HOST_QML_PASS (selection 48 hosts, bookmark delete gutter).
+- 23:00 WT-02 — HOST_QML_PASS (account IME avoidance/focus reveal).
+- 23:20 WT-04 — HOST_QML_PASS via native PlatformRuntime harness; full tests/qml suite has no new failures vs base (progress/HOST-QML-SUITE.md).
 
 ## Next action
 
-PF-01 presentation-independent shared touch sizing (tasks/PF-01.md).
+BR-SOURCE-REPLACEMENT (tasks/BR-SOURCE-REPLACEMENT.md).
 
 ## Blockers
 

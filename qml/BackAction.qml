@@ -42,7 +42,7 @@ Item {
     implicitWidth: variant === "capsule" ? 42
                  : variant === "immersive" ? 34
                  : chevron.width + (labelText.visible ? 9 + labelText.implicitWidth : 0) + 8
-    implicitHeight: variant === "capsule" ? 34 : 34
+    implicitHeight: Math.max(34, labelText.visible ? labelText.implicitHeight + 8 : 0)
     width: implicitWidth
     height: implicitHeight
 
@@ -117,7 +117,7 @@ Item {
             text: root.label
             color: root._c
             font.family: theme.ui
-            font.pixelSize: root.labelSize
+            font.pixelSize: theme.fontSize(root.labelSize)
             style: root.raisedLabel ? Text.Raised : Text.Normal
             styleColor: Qt.rgba(0, 0, 0, 0.5)
             anchors.verticalCenter: parent.verticalCenter
@@ -140,12 +140,12 @@ Item {
         visible: root.tip.length > 0 && input.hovered && tipDelay.done
         anchors.top: parent.bottom; anchors.topMargin: 8
         anchors.horizontalCenter: parent.horizontalCenter
-        width: tipText.implicitWidth + 18; height: 24; radius: 6
+        width: tipText.implicitWidth + 18; height: Math.max(24, tipText.implicitHeight + 8); radius: 6
         color: Qt.rgba(0.04, 0.04, 0.05, 0.92)
         border.width: 1; border.color: theme.edge
         z: 1000
         Text { id: tipText; anchors.centerIn: parent; text: root.tip
-            color: theme.ink; font.family: theme.ui; font.pixelSize: 11 }
+            color: theme.ink; font.family: theme.ui; font.pixelSize: theme.fontSize(11) }
     }
     Timer {
         id: tipDelay

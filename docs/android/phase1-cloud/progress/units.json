@@ -129,9 +129,26 @@
     },
     {
       "id": "WT-04",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "python3 tests/android_font_scale_test.py --qt-root $QT_HOST => 0 (8 passed; real PlatformRuntime Android kind acceptFontScale 1->1.3->2, desktop kind ignored)",
+        "full tests/qml suite (157 files) => no new failures vs base 501b23ed (see progress/HOST-QML-SUITE.md)",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/Theme.qml",
+        "qml/BackAction.qml",
+        "qml/WidgetHeader.qml",
+        "qml/account/AccountField.qml",
+        "qml/account/AccountButton.qml",
+        "qml/account/AccountPanelHeader.qml",
+        "tests/android_font_scale/harness.cpp",
+        "tests/android_font_scale/tst_android_text_scaling.qml",
+        "tests/android_font_scale_test.py"
+      ],
+      "note": "Theme.fontScale/fontSize() over retained PlatformRuntime (android only; no new bridge, no density factor). Migrated: BackAction label/tooltip (+content-driven height), WidgetHeader title/sub/more (+height, title elides before more), AccountField label/hint/field/reveal (+field height), AccountButton (+height), AccountPanelHeader. Not migrated (bounded): library captions, world/detail pages, TopBar, Sources, player HUD - broader typography migration remains for later units. Desktop sizes identical at scale 1.",
+      "updated_utc": "2026-11-02T22:19:27Z"
     },
     {
       "id": "BR-SOURCE-REPLACEMENT",
