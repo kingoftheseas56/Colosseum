@@ -210,9 +210,21 @@
     },
     {
       "id": "WT-10",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_universe_nested_back_test.mjs => 0 (3 tests; base => 3 failed)",
+        "tst_UniverseContentRefresh/UniversesWorld/android_beta_universe_touch/one_piece_four_sea/starwars_galaxy_focus => 0; dcau_visual_fidelity, one_piece_universe_router, verify_universe_ids => 0",
+        "PRE-EXISTING on base 501b23ed: dcau_universe_page_test, one_piece_universe_page_test, pinned_universe_comic_routes_test, universe_ext_api_test, universe_payload_test (SyntaxError under node 22)",
+        "android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/GalaxyUniversePage.qml",
+        "qml/DCAUUniversePage.qml",
+        "tests/android_universe_nested_back_test.mjs"
+      ],
+      "note": "Galaxy.requestEscape returns true after closing a destination, false at root (no own backRequested -> no double close). DCAU gains requestEscape (hub -> landing true, landing false); visible Back routes through it. Main.requestUniverseEscape unchanged. Physical: Back from destination/hub lands one level up.",
+      "updated_utc": "2026-11-02T22:27:36Z"
     },
     {
       "id": "WT-06",
