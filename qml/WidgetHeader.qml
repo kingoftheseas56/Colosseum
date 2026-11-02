@@ -9,6 +9,7 @@ Item {
     property string title
     property string sub: ""
     property string moreLabel: ""        // optional verb before the chevron (e.g. "Explore")
+    property real moreRightInset: 0
     property bool navigable: true        // show the right-aligned nav-in chevron
     property string automationId: ""
     signal moreClicked()
@@ -42,6 +43,7 @@ Item {
         id: more
         visible: head.navigable
         anchors.right: parent.right; anchors.verticalCenter: parent.verticalCenter
+        anchors.rightMargin: head.moreRightInset
         implicitWidth: moreRow.implicitWidth; implicitHeight: 30
         Row {
             id: moreRow

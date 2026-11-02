@@ -18,9 +18,28 @@
     },
     {
       "id": "B0",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "git apply --check visual-overlays.patch => 0; applied, 8/8 sha256 MATCH manifest",
+        "qmltestrunner tst_android_visual_baseline.qml => 0 (5 passed)",
+        "tst_phone_content_inset/tst_arc74_continue_surfaces/tst_android_shared_action_touch => 0",
+        "tests/qml/test_desktop_presentation.py => 0 (11 passed)",
+        "android_qml_preflight.py => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "native/platform/android/src/org/colosseum/platform/ColosseumActivity.java",
+        "qml/AdaptiveLayout.qml",
+        "qml/ContinueRow.qml",
+        "qml/HouseScrollBar.qml",
+        "qml/Main.qml",
+        "qml/SourcesSheet.qml",
+        "qml/WidgetHeader.qml",
+        "qml/WorldPage.qml",
+        "tests/qml/tst_android_visual_baseline.qml"
+      ],
+      "note": "Overlay integrated; adaptation: AdaptiveLayout.outerPageMargin keyed to new androidHost property (default Qt.platform.os==android) wired from WorldPage/Main so host fixtures can exercise it; Java comment reworded (behaviour identical, default 1.15, extra 0.9-1.3). Post-adaptation hashes of AdaptiveLayout/WorldPage/Main/ColosseumActivity therefore differ from overlay manifest by design; other 4 files byte-identical. Java not compiled (no Android SDK).",
+      "updated_utc": "2026-11-02T21:45:52Z"
     },
     {
       "id": "PF-02",

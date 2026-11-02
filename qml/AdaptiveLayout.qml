@@ -6,6 +6,8 @@ QtObject {
     id: metrics
 
     property bool desktopPresentation: true
+    // Android host capability; production derives it from the platform, fixtures may set it.
+    property bool androidHost: Qt.platform.os === "android"
     property real viewportWidth: 0
 
     readonly property bool compactPhone: !desktopPresentation && viewportWidth >= 0 && viewportWidth <= 430
@@ -23,6 +25,9 @@ QtObject {
                                            : phone ? 24
                                            : tablet ? 32
                                                     : 54
+    // Installed Android desktop-presentation composition: content runs edge to edge.
+    // Desktop and phone layouts keep the adaptive page margin.
+    readonly property real outerPageMargin: androidHost && desktopPresentation ? 0 : pageMargin
     readonly property real topInset: compactChrome ? 12 : 30
     readonly property real topBarHeight: compactChrome ? 102 : 56
     readonly property real contentTop: topInset + topBarHeight + (compactChrome ? 8 : 10)
