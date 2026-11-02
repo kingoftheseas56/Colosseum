@@ -1,0 +1,248 @@
+{
+  "version": 1,
+  "repository": "kingoftheseas56/Colosseum",
+  "sourceCommit": "5c4d9ffe1a17ff544d19e684bee9c1676ba5ee49",
+  "purpose": "Media omitted only from Git source archives; originals remain in ordinary Git checkouts.",
+  "files": [
+    {
+      "path": "docs/media/hero.gif",
+      "scope": "docs",
+      "bytes": 9748716,
+      "sha256": "8e4f034fa60bb28ddcb8d77456c9952456659bbe5525866960f90f962ecc4e67"
+    },
+    {
+      "path": "docs/media/screens/biblio-book.png",
+      "scope": "docs",
+      "bytes": 641813,
+      "sha256": "4e2aaaf9778fb04988dac6d8c0a018212314186a5c5ccd4f89dea7a330b4d3d6"
+    },
+    {
+      "path": "docs/media/screens/comic-reader.png",
+      "scope": "docs",
+      "bytes": 1344850,
+      "sha256": "25c19e537af1fe05cdda73f930cd4d0f7c740cc6ff9ca88548b8d16295206b7a"
+    },
+    {
+      "path": "docs/media/screens/player-hud.png",
+      "scope": "docs",
+      "bytes": 1199548,
+      "sha256": "83121044f955491c942d890bfa5cd3c8a59a587223112194895dfe2eb8b65633"
+    },
+    {
+      "path": "docs/media/screens/player-loading.png",
+      "scope": "docs",
+      "bytes": 1555640,
+      "sha256": "8e6fc38b8bae93e96f1217b9bd4cbe3b4bd48b0bd39d0f7bb6d2387041bd9205"
+    },
+    {
+      "path": "docs/media/screens/reader2-typography.png",
+      "scope": "docs",
+      "bytes": 197372,
+      "sha256": "d343ba6c9dc77f012546d19794e29f26ed347736add73e7cb8cf76c0123e5eb9"
+    },
+    {
+      "path": "docs/media/screens/tankoban-series.png",
+      "scope": "docs",
+      "bytes": 1941870,
+      "sha256": "ea883cc1314a7044e5f4a51780ddbe24a20489ac5c5fa968900aaac9d1654727"
+    },
+    {
+      "path": "docs/media/screens/theatre-series.png",
+      "scope": "docs",
+      "bytes": 790544,
+      "sha256": "8a651b6f62221cff0ca9e0205db3948732e422c08cd8a93d36a753271cbc293e"
+    },
+    {
+      "path": "release/presentation/artwork/colosseum-biblio.png",
+      "scope": "release",
+      "bytes": 169128,
+      "sha256": "487e2fff1dc6ac57f88aa099a2c0d0fc0e5f45fac82e26fb6f7bbb002eec00ff"
+    },
+    {
+      "path": "release/presentation/artwork/colosseum-house.png",
+      "scope": "release",
+      "bytes": 964369,
+      "sha256": "ea14271317dc50d90b2d752e2956a887552c4966085f9aede1fa9f34dfe60f37"
+    },
+    {
+      "path": "release/presentation/artwork/colosseum-reader.png",
+      "scope": "release",
+      "bytes": 2028882,
+      "sha256": "cdf68b4092bf7ee75c3063de11c89e3ededb87bc12b54853d912e175564063d5"
+    },
+    {
+      "path": "release/presentation/artwork/colosseum-tankoban-discover.png",
+      "scope": "release",
+      "bytes": 2434241,
+      "sha256": "63c2f24a4f6357012f80c991b9ae2bfa1b67810f63fdd133446b1630af79a346"
+    },
+    {
+      "path": "release/presentation/artwork/colosseum-theatre.png",
+      "scope": "release",
+      "bytes": 2073528,
+      "sha256": "350a4988c2547b5d6c9ffff9394ac4fbaccbcee5e305f31b4c877b729c4c28d2"
+    },
+    {
+      "path": "tests/lanista_capture/assets/Colosseum.mp4",
+      "scope": "capture",
+      "bytes": 173646,
+      "sha256": "72c09643e46b832a76b7584e1b7f6d5eb206c05620eec27123ec38bc65b89895"
+    },
+    {
+      "path": "tests/lanista_capture/assets/comic-covers/hellboy.jpg",
+      "scope": "capture",
+      "bytes": 411446,
+      "sha256": "31ababeec64f0ddc0bab98d4d664c73bdc5aa760521fbef792347554ad14f170"
+    },
+    {
+      "path": "tests/lanista_capture/assets/comic-covers/invincible.jpg",
+      "scope": "capture",
+      "bytes": 211956,
+      "sha256": "38f4a8311a26add2b1d1f8a4bc2f76d6889f7260133af75dba2fdc83abc41914"
+    },
+    {
+      "path": "tests/lanista_capture/assets/comic-covers/saga.jpg",
+      "scope": "capture",
+      "bytes": 273451,
+      "sha256": "eaaacd9aafc5e1b9a055920ef20097efa0a2390de542aa3a69b7a1b4c77ade7c"
+    },
+    {
+      "path": "tests/lanista_capture/assets/comic-covers/sandman.jpg",
+      "scope": "capture",
+      "bytes": 503900,
+      "sha256": "bf409bbae38c4155fc2a0b0ae405c4eb48bd8df3d4d3ee9da3aea4ce7a92fc9d"
+    },
+    {
+      "path": "tests/lanista_capture/assets/comic-covers/sincity.jpg",
+      "scope": "capture",
+      "bytes": 279806,
+      "sha256": "13da654093fe350e9d37a29e3f90612da3477c9904ca9634dcfe3547dc6c8454"
+    },
+    {
+      "path": "tests/lanista_capture/assets/comic-covers/watchmen.jpg",
+      "scope": "capture",
+      "bytes": 224945,
+      "sha256": "f378c70b5795a21f37cf4970e23813847cbe98b20ef930efd3ed68497b576dae"
+    },
+    {
+      "path": "tests/lanista_capture/assets/manga-covers/berserk.jpg",
+      "scope": "capture",
+      "bytes": 123361,
+      "sha256": "732c2af2eb11224ce99fde399fea0b0d26ca9d438aff2f29274f25311abc7760"
+    },
+    {
+      "path": "tests/lanista_capture/assets/manga-covers/chainsaw.png",
+      "scope": "capture",
+      "bytes": 609084,
+      "sha256": "9f036e2e0f44d270d0852b3208fad619d5c8d1c26588add329c2973935b4ae0a"
+    },
+    {
+      "path": "tests/lanista_capture/assets/manga-covers/monster.jpg",
+      "scope": "capture",
+      "bytes": 84635,
+      "sha256": "a058b70707347465454c2e0c07195832e842d622e163427e23d989c075a1ef2f"
+    },
+    {
+      "path": "tests/lanista_capture/assets/manga-covers/onepiece.jpg",
+      "scope": "capture",
+      "bytes": 131815,
+      "sha256": "289d1491c87d1eff8c33dfe333070852ce3e72111a76cca7b1f29c2d4324934c"
+    },
+    {
+      "path": "tests/lanista_capture/assets/manga-covers/vagabond.png",
+      "scope": "capture",
+      "bytes": 593709,
+      "sha256": "c985fc4ba4a80506b3866e0d6804bc9b943bec9b87fa2ab8dfe776dcef0b6e55"
+    },
+    {
+      "path": "tests/lanista_capture/assets/manga-covers/vinland.jpg",
+      "scope": "capture",
+      "bytes": 154200,
+      "sha256": "0d1ac5a3b20febdb227a7d023259919c2b4a55a86e9a79bb45c8f8fefdff85d5"
+    },
+    {
+      "path": "tests/lanista_capture/assets/theatre-posters/batman.jpg",
+      "scope": "capture",
+      "bytes": 99386,
+      "sha256": "48540dcfe50866478d07f7b31a959821da35c23d73ffc29cea97a634c69b1f35"
+    },
+    {
+      "path": "tests/lanista_capture/assets/theatre-posters/dune.jpg",
+      "scope": "capture",
+      "bytes": 19228,
+      "sha256": "660160959abdce6315749507de53a3e6069d2d9ad6891f196f456eb00c7387f0"
+    },
+    {
+      "path": "tests/lanista_capture/assets/theatre-posters/godzilla.jpg",
+      "scope": "capture",
+      "bytes": 80850,
+      "sha256": "d9b93aed90f1735425ca77b3e2a00ac10a69ed07e5f5706a14b5bb7f744090ed"
+    },
+    {
+      "path": "tests/lanista_capture/assets/theatre-posters/madmax.jpg",
+      "scope": "capture",
+      "bytes": 116838,
+      "sha256": "d144edfb37814c76cffacb04f458906d0db663daefa096bdeaafdcdcbbc1694d"
+    },
+    {
+      "path": "tests/lanista_capture/assets/theatre-posters/oppenheimer.jpg",
+      "scope": "capture",
+      "bytes": 81436,
+      "sha256": "63f3d390966e7fcc9a0cd86ff1f34dc7d0ce85df189ef42b6833a315ed6e0767"
+    },
+    {
+      "path": "tests/lanista_capture/assets/theatre-posters/spiderverse.jpg",
+      "scope": "capture",
+      "bytes": 154870,
+      "sha256": "9b19d4a9fdbfde31185a5ddc11078a0e87917099d6da66e7eac121dbe9a23cda"
+    },
+    {
+      "path": "tests/lanista_capture/seeds/tankoban-reader/manga/journey-manga-series-v1/ch-1/page_000.png",
+      "scope": "capture",
+      "bytes": 56934,
+      "sha256": "b22bf8fb5f295f352044b075b278f41769d298ff3ad1fcdad474387daac65aba"
+    },
+    {
+      "path": "tests/lanista_capture/seeds/tankoban-reader/manga/journey-manga-series-v1/ch-1/page_001.png",
+      "scope": "capture",
+      "bytes": 53011,
+      "sha256": "c01884625dfc63c22a4bdfb3adb09525ef243a17245cfc2e98560202e4c9c163"
+    },
+    {
+      "path": "tests/lanista_capture/seeds/tankoban-reader/manga/journey-manga-series-v1/ch-1/page_002.png",
+      "scope": "capture",
+      "bytes": 51862,
+      "sha256": "9a9cc2ed3ba378e42d3d90ed72b69f243d2b6f9e9b6c0abfc2c30ec48b91d25e"
+    },
+    {
+      "path": "tests/lanista_fixtures/installed-chronicle/artwork/colosseum-biblio.png",
+      "scope": "lanista",
+      "bytes": 169128,
+      "sha256": "487e2fff1dc6ac57f88aa099a2c0d0fc0e5f45fac82e26fb6f7bbb002eec00ff"
+    },
+    {
+      "path": "tests/lanista_fixtures/installed-chronicle/artwork/colosseum-house.png",
+      "scope": "lanista",
+      "bytes": 964369,
+      "sha256": "ea14271317dc50d90b2d752e2956a887552c4966085f9aede1fa9f34dfe60f37"
+    },
+    {
+      "path": "tests/lanista_fixtures/installed-chronicle/artwork/colosseum-reader.png",
+      "scope": "lanista",
+      "bytes": 2028882,
+      "sha256": "cdf68b4092bf7ee75c3063de11c89e3ededb87bc12b54853d912e175564063d5"
+    },
+    {
+      "path": "tests/lanista_fixtures/installed-chronicle/artwork/colosseum-tankoban-discover.png",
+      "scope": "lanista",
+      "bytes": 2434241,
+      "sha256": "63c2f24a4f6357012f80c991b9ae2bfa1b67810f63fdd133446b1630af79a346"
+    },
+    {
+      "path": "tests/lanista_fixtures/installed-chronicle/artwork/colosseum-theatre.png",
+      "scope": "lanista",
+      "bytes": 2073528,
+      "sha256": "350a4988c2547b5d6c9ffff9394ac4fbaccbcee5e305f31b4c877b729c4c28d2"
+    }
+  ]
+}
