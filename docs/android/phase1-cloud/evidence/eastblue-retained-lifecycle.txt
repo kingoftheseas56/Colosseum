@@ -1,0 +1,23 @@
+********* Start testing of qmltestrunner *********
+Config: Using QtTest library 6.11.1, Qt 6.11.1 (x86_64-little_endian-llp64 shared (dynamic) release build; by MSVC 2022), windows 11
+PASS   : qmltestrunner::EastBlueRetainedLifecycle::initTestCase()
+QWARN  : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(area-disable-reenable) QFontDatabase: Cannot find font directory C:/Qt/6.11.1/msvc2022_64/lib/fonts.
+Note that Qt no longer ships fonts. Deploy some (from https://dejavu-fonts.github.io/ for example) or switch to fontconfig.
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(area-disable-reenable) qml: LIFECYCLE_DISABLED area pressed true moved false
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(area-disable-reenable) qml: LIFECYCLE_LATE_RESULT area previewVisible true previewOpenCount 1 pressed false moved false
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(area-disable-reenable) qml: LIFECYCLE_FRESH_TAP area recovery true previewVisible true previewOpenCount 2
+FAIL!  : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(area-disable-reenable) A released touch from before the lifecycle interruption must not open a preview
+   Actual   (): 1
+   Expected (): 0
+D:\Colosseum-Android-Master-Beta-20261102\codex-direct\touch-integration-20261102\host-validation\tst_eastblue_retained_lifecycle.qml(150) : failure location
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(atlas-hide-show) qml: LIFECYCLE_DISABLED visible pressed false moved true
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(atlas-hide-show) qml: LIFECYCLE_LATE_RESULT visible previewVisible false previewOpenCount 0 pressed false moved true
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(atlas-hide-show) qml: LIFECYCLE_FRESH_TAP visible recovery true previewVisible true previewOpenCount 1
+PASS   : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(atlas-hide-show)
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(retained-loader-hide-disable-show-enable) qml: LIFECYCLE_DISABLED both pressed false moved true
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(retained-loader-hide-disable-show-enable) qml: LIFECYCLE_LATE_RESULT both previewVisible false previewOpenCount 0 pressed false moved true
+QDEBUG : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(retained-loader-hide-disable-show-enable) qml: LIFECYCLE_FRESH_TAP both recovery true previewVisible true previewOpenCount 1
+PASS   : qmltestrunner::EastBlueRetainedLifecycle::test_retained_press_cancel_and_recovery(retained-loader-hide-disable-show-enable)
+PASS   : qmltestrunner::EastBlueRetainedLifecycle::cleanupTestCase()
+Totals: 4 passed, 1 failed, 0 skipped, 0 blacklisted, 1651ms
+********* Finished testing of qmltestrunner *********

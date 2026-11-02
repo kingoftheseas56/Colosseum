@@ -1,0 +1,1 @@
+The retained East Blue fixture is evidence/reference, not an executable cloud fixture as-is: its original import points to a Laptop1 D: candidate checkout. Adapt it to the actual Beta component before running. Logs are supplied host evidence; no physical-device claim.
