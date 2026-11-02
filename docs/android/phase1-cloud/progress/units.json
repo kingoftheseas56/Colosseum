@@ -432,9 +432,18 @@
     },
     {
       "id": "WT-12",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "python3 tests/test_android_apk_qualification.py => OK (10 fixture tests: ZIP/EOCD, ABI/AArch64/16KiB, v1/v2/v4 signing report/reject, Nuvio member hash, aapt identity/lanes, clean/dirty/overlay snapshots, provenance stability, CLI)",
+        "qualify_apk.py snapshot on this checkout => APK_QUALIFICATION_OK (clean)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "scripts/android/qualify_apk.py",
+        "tests/test_android_apk_qualification.py"
+      ],
+      "note": "Beta-scoped qualification (not Alpha release builder): inspect/identity/snapshot/provenance subcommands; default expected package world.getcolosseum.app.beta; signing reported (signedState) and update compatibility explicitly UNVERIFIED; honest dirty/overlay composition in provenance; deviceAcceptance LOCAL_PENDING. No build/sign/install/release; workflow NOT modified (no CI lane added, no dispatch). Not run against a real APK (APK_BLOCKED).",
+      "updated_utc": "2026-11-02T22:47:56Z"
     }
   ],
   "conditional": [
