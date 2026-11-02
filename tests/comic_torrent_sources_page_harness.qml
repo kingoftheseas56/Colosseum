@@ -5,7 +5,8 @@
 // ignored; the typed pack outcomes (ambiguous/incomplete/combined) each
 // render their own state and never auto-download; a safe auto-decision (or a
 // resumed manual choice) closes the page on the next progress/finished tick;
-// Back during any live state cancels the download exactly once.
+// Back during any live state cancels the download exactly once; an in-place Cancel while
+// inspecting returns to the retained results and late pack events are ignored (PF-14).
 import QtQuick
 import QtQuick.Controls
 
@@ -173,6 +174,40 @@ ApplicationWindow {
                 if (page.selectionState !== "inspecting") return fail("confirming combined resumes inspecting", 2)
                 fakeApi.finished("gc:saga:book-one")
                 if (page.open) return fail("a finished signal must also close the page safely", 2)
+
+                // ---- PF-14: in-place Cancel while inspecting keeps the retained results ----
+                page.show({ issueId: "gc:saga:book-two", seriesId: "gc:saga", seriesTitle: "Saga",
+                            editionTitle: "Saga: Book Two", isbn: "", collects: "Saga #19-36", year: "", cover: "" })
+                page.applySources("gc:saga:book-two", [strongRow, weakRow], true)
+                page.selectRow(strongRow)
+                if (page.selectionState !== "inspecting" || !page.acquiring)
+                    return fail("selecting a strong row starts inspecting", 2)
+                cancelsBefore = fakeApi.cancelDownloadCount
+                var searchesBefore = fakeApi.autoSearchCount + fakeApi.manualSearchCount
+                page.cancelInspection()
+                if (fakeApi.cancelDownloadCount !== cancelsBefore + 1)
+                    return fail("Cancel while inspecting cancels the acquisition exactly once", 2)
+                if (page.selectionState !== "results" || page.acquiring || !page.open)
+                    return fail("Cancel returns to the open result list", 2)
+                if (page.visibleRows.length !== 2) return fail("Cancel retains the previous results", 2)
+                if (fakeApi.autoSearchCount + fakeApi.manualSearchCount !== searchesBefore)
+                    return fail("Cancel must not repeat the search", 2)
+                page.cancelInspection()
+                if (fakeApi.cancelDownloadCount !== cancelsBefore + 1)
+                    return fail("a second Cancel is a no-op", 2)
+                // Late typed outcomes from the cancelled pack cannot revive a picker state.
+                fakeApi.torrentArchiveSelectionRequired("gc:saga:book-two", [{ index: 0, path: "x.cbz", bytes: 1 }])
+                fakeApi.torrentIncompleteIssueSetDetected("gc:saga:book-two", ["Saga #20"])
+                fakeApi.torrentCombinedArchiveConfirmationRequired("gc:saga:book-two", [{ index: 0, path: "y.cbz", bytes: 1 }])
+                fakeApi.progress("gc:saga:book-two", 1, 10)
+                if (page.selectionState !== "results" || !page.open)
+                    return fail("late events after Cancel are ignored", 2)
+                // Another result can be tried immediately from the same list.
+                var downloadsBeforeRetry = fakeApi.downloadCount
+                page.selectRow(strongRow)
+                if (fakeApi.downloadCount !== downloadsBeforeRetry + 1 || page.selectionState !== "inspecting")
+                    return fail("another result can be tried after Cancel", 2)
+                page.hide()
 
                 console.log("COMIC_TORRENT_SOURCES_PAGE_OK")
                 Qt.exit(0)

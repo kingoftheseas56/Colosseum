@@ -328,9 +328,18 @@
     },
     {
       "id": "PF-14",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "$QT_HOST/bin/qml tests/comic_torrent_sources_page_harness.qml => COMIC_TORRENT_SOURCES_PAGE_OK (extended with Cancel/late-event cases; pre-fix page => FAIL)",
+        "tests/test_k07_residual_keyboard_contract.py; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/ComicTorrentSourcesPage.qml",
+        "tests/comic_torrent_sources_page_harness.qml"
+      ],
+      "note": "cancelInspection(): only while acquiring+inspecting; one Comics.cancelDownload(issueId); returns to retained results (no re-search). Visible 48-tall Cancel action in inspecting body (KeyboardAction, accessible). applyArchiveChoices/applyIncomplete/applyCombined ignore events when not acquiring (late events after cancel/reject); closeOnSafeProgress/applyAcquisitionFailure guards unchanged. Harness is a qml-runtime script (existing ps1 lane), not qmltestrunner.",
+      "updated_utc": "2026-11-02T22:36:30Z"
     },
     {
       "id": "WT-08",
