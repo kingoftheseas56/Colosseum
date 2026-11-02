@@ -17,6 +17,9 @@ import "CollectionsReferences.js" as CollectionsReferences
 
 Item {
     id: ledger
+    objectName: "comicDbLedger"
+    // Canonical comic downloader facade (injectable for host fixtures).
+    property var comicsApi: typeof Comics !== "undefined" ? Comics : null
 
     property var    theme                       // injected from ComicSeriesPage
     property var    dbSeries: null              // ComicsDb series record { title, publisher, cover, editions[] }
@@ -194,6 +197,7 @@ Item {
                     model: modelData.editions
                     delegate: Item {
                         id: ed
+                        objectName: "comicDbEdition_" + ed.chId
                         required property var modelData
                         width: col.width
                         height: 192 + sourceRail.implicitHeight
@@ -218,35 +222,53 @@ Item {
                         // Every idle, undownloaded edition offers a smaller "Find alternate
                         // sources" action — whether or not a verified GetComics post exists.
                         readonly property bool canAlternate: chId.length > 0 && !inFlight && dlState !== "done"
+                        // WT-08: one cancel request per in-flight download; cleared by the
+                        // downloader's own finished/failed/removed outcome for this edition.
+                        property bool cancelPending: false
 
                         function refreshDl() {
-                            if (typeof Comics === "undefined" || !chId.length) return
-                            var st = Comics.statusOf(chId)
+                            if (!ledger.comicsApi || !chId.length) return
+                            var st = ledger.comicsApi.statusOf(chId)
                             ed.dlState = st.state; ed.dlDone = st.done; ed.dlTotal = st.total
                         }
+                        // In-place cancel through the canonical downloader: no delete, no
+                        // progress/forget side effect; teardown stays the downloader's.
+                        function cancel() {
+                            if (!ledger.comicsApi || !ed.inFlight || ed.cancelPending) return
+                            ed.cancelPending = true
+                            ledger.comicsApi.cancelDownload(ed.chId)
+                        }
                         function primary() {
-                            if (typeof Comics === "undefined" || !chId.length || !canAcquire) return
+                            if (!ledger.comicsApi || !chId.length || !canAcquire) return
                             if (dlState === "dead") return
                             if (dlState === "done") { ledger.readRequested(chId, String(ed.modelData.display_title || ed.modelData.title || "")); return }
                             if (inFlight) return
                             ed.dlState = "queued"
                             var editionTitle = String(ed.modelData.display_title || ed.modelData.title || "")
-                            Comics.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
+                            ledger.comicsApi.downloadIssue(chId, postUrl, ledger.gcTag, ledger.seriesTitle,
                                                  editionTitle, 0)
                             if (ledger.libraryEntry) Collection.add("tankoban", ledger.libraryEntry)
                         }
                         Component.onCompleted: refreshDl()
                         Connections {
-                            target: typeof Comics !== "undefined" ? Comics : null
+                            target: ledger.comicsApi
                             function onProgress(cid, done, total) {
                                 if (cid !== ed.chId) return
                                 ed.dlState = "downloading"; ed.dlDone = done; ed.dlTotal = total
                             }
-                            function onFinished(cid) { if (cid === ed.chId) ed.dlState = "done" }
-                            function onFailed(cid, reason) {
-                                if (cid === ed.chId) ed.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                            function onFinished(cid) {
+                                if (cid !== ed.chId) return
+                                ed.cancelPending = false; ed.dlState = "done"
                             }
-                            function onRemoved(cid) { if (cid === ed.chId) ed.dlState = "none" }
+                            function onFailed(cid, reason) {
+                                if (cid !== ed.chId) return
+                                ed.cancelPending = false
+                                ed.dlState = Resolve.failureIsTerminal(reason) ? "dead" : "error"
+                            }
+                            function onRemoved(cid) {
+                                if (cid !== ed.chId) return
+                                ed.cancelPending = false; ed.dlState = "none"
+                            }
                         }
 
                         Rectangle { anchors.fill: parent; color: ed.canAcquire && edMa.containsMouse ? Qt.rgba(1,1,1,0.045) : "transparent"; radius: 8 }
@@ -355,14 +377,17 @@ Item {
                         // Unavailable editions stay visible as bibliography with no action glyph.
                         Item {
                             id: edState
+                            objectName: "comicDbEditionState_" + ed.chId
                             anchors.right: parent.right; anchors.rightMargin: 8
                             anchors.verticalCenter: edCover.verticalCenter
-                            width: 40; height: 40
+                            // In flight: progress at the left, Cancel (below) at the right.
+                            width: ed.inFlight ? 156 : 40; height: 40
                             Image {                          // read (downloaded)
                                 anchors.centerIn: parent; visible: ed.dlState === "done"
                                 source: "../assets/icons/books.svg"; width: 24; height: 24 }
                             Text {                           // download progress %
-                                anchors.centerIn: parent; visible: ed.inFlight
+                                anchors.left: parent.left; anchors.verticalCenter: parent.verticalCenter
+                                width: 48; horizontalAlignment: Text.AlignHCenter; visible: ed.inFlight
                                 text: ed.dlTotal > 0 ? Math.round(ed.dlDone / ed.dlTotal * 100) + "%" : "…"
                                 color: theme.gold; font.family: theme.ui; font.pixelSize: 13; font.weight: Font.DemiBold }
                             Image {                          // verified GetComics download
@@ -384,6 +409,30 @@ Item {
                             accessibleName: (ed.dlState === "done" ? "Read " : "Download ")
                                 + ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
                             onTriggered: ed.primary()
+                        }
+
+                        // WT-08: in-place Cancel for this edition's in-flight download, declared
+                        // after edMa so it owns its own taps (never starts/reads the edition).
+                        Rectangle {
+                            objectName: "comicDbCancel_" + ed.chId
+                            visible: ed.inFlight
+                            enabled: !ed.cancelPending
+                            x: edState.x + edState.width - width
+                            y: edState.y + (edState.height - height) / 2
+                            width: 100; height: 48; radius: 12
+                            color: cancelAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : Qt.rgba(1, 1, 1, 0.05)
+                            border.width: 1; border.color: theme.edge
+                            Text {
+                                anchors.centerIn: parent
+                                text: ed.cancelPending ? "Cancelling…" : "Cancel"
+                                color: theme.gold; font.family: theme.ui; font.pixelSize: 13
+                            }
+                            KeyboardAction {
+                                id: cancelAction
+                                anchors.fill: parent
+                                accessibleName: "Cancel download of " + ledger.displayTitle(ed.modelData.display_title || ed.modelData.title)
+                                onTriggered: ed.cancel()
+                            }
                         }
 
                         // ── Find alternate sources: a smaller circular action with its OWN

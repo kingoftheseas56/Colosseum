@@ -343,9 +343,18 @@
     },
     {
       "id": "WT-08",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "qmltestrunner tests/qml/tst_comic_download_cancel.qml => 0 (10 passed; adopted from Alpha at Beta desktop-presentation widths 853/1185/1280; pre-fix ledger => 7 failed)",
+        "tst_comic_activity, tst_comicreader_* => 0; comic_torrent_sources_page_harness OK; k07 keyboard contract OK; android_qml_preflight => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/ComicDbLedger.qml",
+        "tests/qml/tst_comic_download_cancel.qml"
+      ],
+      "note": "ComicDbLedger: injectable comicsApi (defaults to Comics), edition objectName, in-flight Cancel (48 tall, KeyboardAction, accessible) -> one Comics.cancelDownload(chId) with cancelPending latch; reset on finished/failed/removed for that id only; progress% moved left of Cancel (edState 156 wide only while in flight). No delete/forget-progress; native ComicDownloader teardown unchanged. In-flight edState widening also applies on desktop (Cancel is available there too).",
+      "updated_utc": "2026-11-02T22:37:45Z"
     },
     {
       "id": "WT-11",
