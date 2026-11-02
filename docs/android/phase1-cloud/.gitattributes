@@ -1,0 +1,3 @@
+* text=auto eol=lf
+*.gz binary
+*.tar.gz binary

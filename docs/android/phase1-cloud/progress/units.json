@@ -1,0 +1,166 @@
+{
+  "state": "PREPARED_NOT_STARTED",
+  "queue": [
+    {
+      "id": "C0",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "B0",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-02",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-01",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-05",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "BR-READER-TARGETS",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-02",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-04",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "BR-SOURCE-REPLACEMENT",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-04",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-03",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-10",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-06",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-05",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-07",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-06",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-03",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-08",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-14",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-08",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-11",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-01",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-10",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-07",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "PF-09",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    },
+    {
+      "id": "WT-12",
+      "status": "NOT_STARTED",
+      "tests": [],
+      "device": "LOCAL_PENDING"
+    }
+  ],
+  "conditional": [
+    "WT-09",
+    "WT-14"
+  ],
+  "credit_balance": "UNKNOWN"
+}
