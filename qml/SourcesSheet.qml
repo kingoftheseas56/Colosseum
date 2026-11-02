@@ -286,6 +286,15 @@ Item {
         }
     }
 
+    // Shell Back delegation (PF-03): innermost transient first, then the sheet itself.
+    function requestEscape() {
+        if (!sheet.open) return false
+        if (sheet.sourceContextOpen) { sheet.closeSourceContext(true); return true }
+        if (sheet.extMenuOpen) { sheet.closeExtMenu(true); return true }
+        sheet.hide()
+        return true
+    }
+
     function hide() {
         sheet.gen += 1;
         sheet.sourceContextOpen = false;
