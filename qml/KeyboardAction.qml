@@ -32,7 +32,7 @@ Item {
 
     readonly property bool hovered: hover.hovered
     readonly property bool pressed: primaryTap.pressed
-    readonly property bool interactionActive: hovered || activeFocus
+    readonly property bool interactionActive: hovered || pressed || activeFocus
 
     signal triggered()
     signal contextRequested()

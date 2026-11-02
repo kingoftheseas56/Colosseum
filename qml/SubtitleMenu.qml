@@ -13,6 +13,7 @@ Item {
     width: faceChip.width
     height: faceChip.height
 
+    property bool touchInput: Qt.platform.os === "android"
     property bool panelOpen: false
     property var player: null
     property var tracks: []
@@ -42,6 +43,8 @@ Item {
     property bool forced: false
     property string filterMode: "all"
     property bool appearanceOpen: false
+    onAppearanceOpenChanged: resetBodyViewport()
+    onSearchingChanged: resetBodyViewport()
     property var fontFamilies: {
         var families = Qt.fontFamilies()
         return families && families.length ? families : ["Arial", "Segoe UI", "Verdana", "Tahoma", "Georgia"]
@@ -286,11 +289,45 @@ Item {
         if (overlayParent) {
             var p = menu.mapToItem(overlayParent, 0, 0);
             panel.x = clampX(p.x + menu.width - panel.width, 10, overlayParent.width - panel.width - 10);
-            panel.y = p.y - panel.height - 10;
+            panel.y = menu.touchInput
+                ? clampX(p.y - panel.height - 10, 10, overlayParent.height - panel.height - 10)
+                : p.y - panel.height - 10;
         } else {
             panel.x = menu.width - panel.width;
             panel.y = -panel.height - 10;
         }
+    }
+
+    function resetBodyViewport() {
+        if (!body) return
+        body.cancelFlick()
+        body.contentY = 0
+        body.contentX = menu.touchInput && menu.appearanceOpen
+            ? Math.max(0, body.contentWidth - body.width) : 0
+    }
+    function revealBodyFocus(item) {
+        if (!menu.touchInput || !menu.panelOpen || !item || !item.visible || !item.enabled) return
+        var owner = item
+        while (owner && owner !== body.contentItem) owner = owner.parent
+        if (!owner) return
+        var p = item.mapToItem(body.contentItem, 0, 0)
+        var x = body.contentX, y = body.contentY
+        if (item.width >= body.width || p.x < x + 8) x = p.x - 8
+        else if (p.x + item.width > x + body.width - 8) x = p.x + item.width - body.width + 8
+        if (item.height >= body.height || p.y < y + 8) y = p.y - 8
+        else if (p.y + item.height > y + body.height - 8) y = p.y + item.height - body.height + 8
+        body.cancelFlick()
+        body.contentX = clampX(x, 0, Math.max(0, body.contentWidth - body.width))
+        body.contentY = clampX(y, 0, Math.max(0, body.contentHeight - body.height))
+    }
+    Connections {
+        target: menu.overlayParent
+        function onWidthChanged() { if (menu.touchInput && menu.panelOpen) menu.positionPanel(panel) }
+        function onHeightChanged() { if (menu.touchInput && menu.panelOpen) menu.positionPanel(panel) }
+    }
+    Connections {
+        target: menu.Window.window
+        function onActiveFocusItemChanged() { menu.revealBodyFocus(menu.Window.window.activeFocusItem) }
     }
 
     onSelectedIdChanged: resolvePending()
@@ -303,7 +340,7 @@ Item {
             return
         }
         var w = menu.Window.window; menu.focusReturnItem = w ? w.activeFocusItem : null
-        Qt.callLater(function() { panel.forceActiveFocus(Qt.PopupFocusReason) })
+        Qt.callLater(function() { menu.resetBodyViewport(); panel.forceActiveFocus(Qt.PopupFocusReason) })
     }
 
     Timer { id: pendingTimer; interval: 8000; onTriggered: menu.failPending() }
@@ -372,11 +409,16 @@ Item {
 
     Rectangle {
         id: panel
+        objectName: "subtitlePanel"
         parent: menu.overlayParent ? menu.overlayParent : menu
         visible: menu.panelOpen
         z: menu.overlayParent ? 40 : 30
-        width: menu.panelWidth
-        height: menu.panelHeight
+        width: menu.touchInput && menu.overlayParent
+            ? Math.min(menu.panelWidth, Math.max(1, menu.overlayParent.width - 20)) : menu.panelWidth
+        height: menu.touchInput && menu.overlayParent
+            ? Math.min(menu.panelHeight, Math.max(1, menu.overlayParent.height - 20)) : menu.panelHeight
+        onHeightChanged: if (visible) menu.positionPanel(panel)
+        onWidthChanged: if (visible) menu.positionPanel(panel)
         onVisibleChanged: if (visible) menu.positionPanel(panel)
         radius: 22
         color: Qt.rgba(10 / 255, 12 / 255, 17 / 255, 0.96)
@@ -487,8 +529,20 @@ Item {
             }
         }
 
-        Item {
+        Flickable {
             id: body
+            objectName: "subtitleBodyScroll"
+            // Keep beta's desktop rows and right drawer on their original canvas.
+            // Only the Android viewport is bounded; overflow remains finger-reachable.
+            contentWidth: menu.touchInput ? Math.max(width, menu.panelWidth) : width
+            contentHeight: menu.touchInput ? Math.max(height, menu.panelHeight - header.height) : height
+            interactive: menu.touchInput && (contentWidth > width || contentHeight > height)
+            flickableDirection: Flickable.HorizontalAndVerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            clip: menu.touchInput
+            onVisibleChanged: if (!visible) cancelFlick()
+            onWidthChanged: Qt.callLater(function() { menu.revealBodyFocus(menu.Window.window ? menu.Window.window.activeFocusItem : null) })
+            onHeightChanged: Qt.callLater(function() { menu.revealBodyFocus(menu.Window.window ? menu.Window.window.activeFocusItem : null) })
             anchors.left: parent.left
             anchors.right: parent.right
             anchors.top: header.bottom

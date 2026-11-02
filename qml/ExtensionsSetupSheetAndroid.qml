@@ -3,6 +3,8 @@
 // comes back through the clipboard. Same face as ExtensionsSetupSheet, so the Store drives either.
 import QtQuick
 import QtQuick.Controls
+import QtQuick.Window
+import "ViewportAvoidance.js" as Viewport
 
 Item {
     id: sheet
@@ -12,6 +14,18 @@ Item {
     readonly property bool open: sheet.addon !== null
     property string status: ""
     property string pendingUrl: ""           // the normalized link last handed to install
+    property bool touchInput: Qt.platform.os === "android"
+    property var inputMethod: Qt.inputMethod
+    readonly property rect availableRect: {
+        if (!sheet.touchInput) return Qt.rect(0, 0, width, height)
+        // QML and Qt's input-method rectangle use the same logical window coordinates.
+        const keyboard = sheet.inputMethod ? sheet.inputMethod.keyboardRectangle : Qt.rect(0, 0, 0, 0)
+        const origin = sheet.mapFromItem(null, keyboard.x, keyboard.y)
+        const box = Viewport.available(width, height, SafeArea.margins,
+            !!(sheet.inputMethod && sheet.inputMethod.visible),
+            { x: origin.x, y: origin.y, width: keyboard.width, height: keyboard.height }, 12)
+        return Qt.rect(box.x, box.y, box.width, box.height)
+    }
     // Setup is optional (configurable, not configurationRequired): the plain link also works.
     readonly property bool canSkip: sheet.open && sheet.addon.setupRequired !== true
                                     && typeof Extensions !== "undefined"
@@ -39,143 +53,185 @@ Item {
         if (sheet.isAddonLink(t)) sheet.finish(t)
         else sheet.status = t.length ? "That isn't an add-on link." : "The clipboard is empty."
     }
+    function revealFocusedControl() {
+        if (!sheet.touchInput || !sheet.open || scroller.height <= 0) return
+        const window = sheet.Window.window
+        const focused = window ? window.activeFocusItem : null
+        if (!focused) return
+        let ancestor = focused
+        while (ancestor && ancestor !== scroller.contentItem) ancestor = ancestor.parent
+        if (!ancestor) return
+        const position = focused.mapToItem(scroller.contentItem, 0, 0)
+        let target = scroller.contentY
+        if (position.y < target) target = position.y
+        else if (position.y + focused.height > target + scroller.height)
+            target = position.y + focused.height - scroller.height
+        scroller.contentY = Math.max(0, Math.min(target, Math.max(0, scroller.contentHeight - scroller.height)))
+    }
+    onAvailableRectChanged: Qt.callLater(sheet.revealFocusedControl)
+    Connections {
+        target: sheet.Window.window
+        function onActiveFocusItemChanged() { Qt.callLater(sheet.revealFocusedControl) }
+    }
 
     Rectangle { anchors.fill: parent; color: Qt.rgba(0, 0, 0, 0.62) }
     MouseArea { anchors.fill: parent; onClicked: sheet.closeRequested() }
 
     Rectangle {
         id: panel
-        anchors.centerIn: parent
-        width: Math.min(parent.width - 32, 520)
-        height: body.implicitHeight + 44
+        objectName: "extensionsSetupPanel"
+        x: sheet.availableRect.x + (sheet.availableRect.width - width) / 2
+        y: sheet.availableRect.y + (sheet.availableRect.height - height) / 2
+        width: Math.min(parent.width - 32, 520, sheet.availableRect.width)
+        height: sheet.touchInput ? Math.min(body.implicitHeight + 44, sheet.availableRect.height)
+                                : body.implicitHeight + 44
         radius: 24
         color: "#0e1016"
         border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12)
         MouseArea { anchors.fill: parent }      // taps on the panel never close it
 
-        Column {
-            id: body
-            anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
+        Flickable {
+            id: scroller
+            objectName: "extensionsSetupScroll"
+            anchors.fill: parent
             anchors.margins: 22
-            spacing: 16
+            contentWidth: width
+            contentHeight: body.implicitHeight
+            clip: sheet.touchInput
+            interactive: sheet.touchInput && contentHeight > height
+            flickableDirection: Flickable.VerticalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            onHeightChanged: Qt.callLater(sheet.revealFocusedControl)
+            ScrollBar.vertical: ScrollBar { policy: sheet.touchInput ? ScrollBar.AsNeeded : ScrollBar.AlwaysOff }
 
-            Item {
-                width: parent.width; height: 34
-                Text {
-                    anchors.left: parent.left; anchors.right: closeBox.left; anchors.rightMargin: 12
-                    anchors.verticalCenter: parent.verticalCenter
-                    elide: Text.ElideRight
-                    text: sheet.addon ? "Set up " + (sheet.addon.title || sheet.addon.name) : ""
-                    color: theme.ink
-                    font.family: theme.display; font.pixelSize: 22
-                }
-                Rectangle {
-                    id: closeBox
-                    anchors.right: parent.right
-                    anchors.verticalCenter: parent.verticalCenter
-                    width: 34; height: 34; radius: 17
-                    color: closeAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                    // "×", not the desktop sheet's "✕": Android's system font has no glyph for that one.
-                    Text { anchors.centerIn: parent; text: "×"; color: theme.inkDim; font.pixelSize: 22 }
-                    KeyboardAction {
-                        id: closeAction
-                        anchors.fill: parent
-                        accessibleName: "Close setup"
-                        focusRadius: 17
-                        onTriggered: sheet.closeRequested()
+            Column {
+                id: body
+                width: scroller.width
+                spacing: 16
+
+                Item {
+                    width: parent.width; height: 34
+                    Text {
+                        anchors.left: parent.left; anchors.right: closeBox.left; anchors.rightMargin: 12
+                        anchors.verticalCenter: parent.verticalCenter
+                        elide: Text.ElideRight
+                        text: sheet.addon ? "Set up " + (sheet.addon.title || sheet.addon.name) : ""
+                        color: theme.ink
+                        font.family: theme.display; font.pixelSize: 22
+                    }
+                    Rectangle {
+                        id: closeBox
+                        anchors.right: parent.right
+                        anchors.verticalCenter: parent.verticalCenter
+                        width: 34; height: 34; radius: 17
+                        color: closeAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                        // "×", not the desktop sheet's "✕": Android's system font has no glyph for that one.
+                        Text { anchors.centerIn: parent; text: "×"; color: theme.inkDim; font.pixelSize: 22 }
+                        KeyboardAction {
+                            id: closeAction
+                            anchors.fill: parent
+                            accessibleName: "Close setup"
+                            focusRadius: 17
+                            onTriggered: sheet.closeRequested()
+                        }
                     }
                 }
-            }
 
-            Text {
-                width: parent.width
-                wrapMode: Text.WordWrap
-                text: "Setup opens in your browser. Finish it there, copy the add-on link it gives you, then come back and paste it."
-                color: theme.inkDim
-                font.family: theme.ui; font.pixelSize: 14
-            }
-
-            Rectangle {
-                width: parent.width; height: 44; radius: 22
-                color: "#f5f3ee"
                 Text {
-                    anchors.centerIn: parent
-                    text: "Open setup page"
-                    color: "#111217"
-                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                }
-                KeyboardAction {
-                    anchors.fill: parent
-                    accessibleName: "Open the setup page in the browser"
-                    focusRadius: 22
-                    onTriggered: Qt.openUrlExternally(sheet.setupUrl)
-                }
-            }
-
-            TextField {
-                id: paste
-                width: parent.width; height: 44
-                leftPadding: 16; rightPadding: 16
-                placeholderText: "Paste the add-on link the page gave you"
-                color: theme.ink
-                placeholderTextColor: theme.inkDimmer
-                font.family: theme.ui; font.pixelSize: 13
-                background: Rectangle { radius: 16; color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12) }
-                onAccepted: if (text.trim().length) sheet.finish(text.trim())
-            }
-
-            Rectangle {
-                width: parent.width; height: 44; radius: 22
-                color: clipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
-                Text {
-                    anchors.centerIn: parent
-                    text: paste.text.trim().length ? "Install" : "Paste link"
-                    color: theme.ink
-                    font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
-                }
-                KeyboardAction {
-                    id: clipAction
-                    anchors.fill: parent
-                    accessibleName: "Paste link from clipboard and install"
-                    focusRadius: 22
-                    onTriggered: {
-                        if (paste.text.trim().length) sheet.finish(paste.text.trim())
-                        else sheet.pasteAndInstall()
-                    }
-                }
-            }
-
-            Rectangle {
-                visible: sheet.canSkip
-                width: parent.width; height: 44; radius: 22
-                color: skipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
-                border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
-                Text {
-                    anchors.centerIn: parent
-                    text: "Install without setup"
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: "Setup opens in your browser. Finish it there, copy the add-on link it gives you, then come back and paste it."
                     color: theme.inkDim
                     font.family: theme.ui; font.pixelSize: 14
                 }
-                KeyboardAction {
-                    id: skipAction
-                    anchors.fill: parent
-                    accessibleName: "Install without setup"
-                    focusRadius: 22
-                    onTriggered: sheet.finish(sheet.addon.manifestUrl)
-                }
-            }
 
-            Text {
-                visible: sheet.status.length > 0
-                width: parent.width
-                wrapMode: Text.WordWrap
-                text: sheet.status
-                color: theme.gold
-                font.family: theme.ui; font.pixelSize: 13
+                Rectangle {
+                    width: parent.width; height: 44; radius: 22
+                    color: "#f5f3ee"
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Open setup page"
+                        color: "#111217"
+                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        anchors.fill: parent
+                        accessibleName: "Open the setup page in the browser"
+                        focusRadius: 22
+                        onTriggered: Qt.openUrlExternally(sheet.setupUrl)
+                    }
+                }
+
+                TextField {
+                    id: paste
+                    objectName: "extensionsSetupLink"
+                    width: parent.width; height: 44
+                    leftPadding: 16; rightPadding: 16
+                    placeholderText: "Paste the add-on link the page gave you"
+                    color: theme.ink
+                    placeholderTextColor: theme.inkDimmer
+                    font.family: theme.ui; font.pixelSize: 13
+                    background: Rectangle { radius: 16; color: Qt.rgba(1, 1, 1, 0.06); border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.12) }
+                    onAccepted: if (text.trim().length) sheet.finish(text.trim())
+                }
+
+                Rectangle {
+                    width: parent.width; height: 44; radius: 22
+                    color: clipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
+                    Text {
+                        anchors.centerIn: parent
+                        text: paste.text.trim().length ? "Install" : "Paste link"
+                        color: theme.ink
+                        font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold
+                    }
+                    KeyboardAction {
+                        id: clipAction
+                        anchors.fill: parent
+                        accessibleName: "Paste link from clipboard and install"
+                        focusRadius: 22
+                        onTriggered: {
+                            if (paste.text.trim().length) sheet.finish(paste.text.trim())
+                            else sheet.pasteAndInstall()
+                        }
+                    }
+                }
+
+                Rectangle {
+                    visible: sheet.canSkip
+                    width: parent.width; height: 44; radius: 22
+                    color: skipAction.interactionActive ? Qt.rgba(1, 1, 1, 0.12) : "transparent"
+                    border.width: 1; border.color: Qt.rgba(1, 1, 1, 0.16)
+                    Text {
+                        anchors.centerIn: parent
+                        text: "Install without setup"
+                        color: theme.inkDim
+                        font.family: theme.ui; font.pixelSize: 14
+                    }
+                    KeyboardAction {
+                        id: skipAction
+                        anchors.fill: parent
+                        accessibleName: "Install without setup"
+                        focusRadius: 22
+                        onTriggered: sheet.finish(sheet.addon.manifestUrl)
+                    }
+                }
+
+                Text {
+                    visible: sheet.status.length > 0
+                    width: parent.width
+                    wrapMode: Text.WordWrap
+                    text: sheet.status
+                    color: theme.gold
+                    font.family: theme.ui; font.pixelSize: 13
+                }
             }
         }
     }
 
-    onAddonChanged: { sheet.status = ""; paste.text = ""; sheet.pendingUrl = "" }
+    onAddonChanged: {
+        sheet.status = ""; paste.text = ""; sheet.pendingUrl = ""
+        scroller.cancelFlick()
+        scroller.contentY = 0
+    }
 }

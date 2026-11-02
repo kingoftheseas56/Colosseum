@@ -115,6 +115,7 @@ Item {
         category: "transport"
         property int seekStepSeconds: 10
         property bool showSkipButton: true
+        property bool phoneGestureAdjustments: false
         property bool autoSkipIntro: false
         property bool autoSkipRecap: false
         property bool autoSkipCredits: false
@@ -179,7 +180,10 @@ Item {
     property string traktVideoId: ""
     property string traktTitle: ""
     property string traktType: ""
-    onMediaIdChanged: if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
+    onMediaIdChanged: {
+        if (traktPlaying && mediaId !== traktVideoId) sendTraktPlayback(false)
+        root.cancelTouchInteraction()
+    }
     function sendTraktPlayback(playing) {
         if (typeof ProfileTrackers !== "undefined"
                 && ProfileTrackers
@@ -398,8 +402,12 @@ Item {
         root.wakeChrome()
     }
     onOverflowOpenChanged: {
-        if (root.overflowOpen)
-            Qt.callLater(function() { overflowPanel.beginKeyboardNavigation() })
+        if (root.overflowOpen) {
+            if (PlatformRuntime.android)
+                Qt.callLater(function() { overflowPanel.forceActiveFocus(Qt.PopupFocusReason) })
+            else
+                Qt.callLater(function() { overflowPanel.beginKeyboardNavigation() })
+        }
         else if (root.overflowFocusReturnItem) {
             var target = root.overflowFocusReturnItem
             root.overflowFocusReturnItem = null
@@ -1045,6 +1053,17 @@ Item {
     property bool errored: false
     property string statusMsg: ""
     property bool controlsShown: true
+    property bool controlsShownAtPress: true
+    property bool touchLocked: false
+    property bool touchOptionsOpen: false
+    onTouchLockedChanged: if (touchLocked) {
+        root.cancelTouchInteraction()
+        spaceHoldTimer.stop()
+        if (root.spaceHoldFired) {
+            mpv.speed = root.spaceBaseSpeed
+            root.spaceHoldFired = false
+        }
+    }
     property bool seeking: false
     property real seekPreview: mpv.position
     property real seekTargetSec: -1
@@ -1097,7 +1116,7 @@ Item {
     // fullscreen 150%-DPI window and hid change-stream + download for no layout reason.
     readonly property bool barSnug: utilitySpace < 360
     readonly property bool barTiny: utilitySpace < 260
-    readonly property bool anyMenuOpen: watchPartyMenu.panelOpen || audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen
+    readonly property bool anyMenuOpen: watchPartyMenu.panelOpen || audioMenu.panelOpen || subMenu.panelOpen || speedMenu.panelOpen || fillMenu.panelOpen || subStyleBar.open || root.liveGuideOpen || root.dvrPanelOpen || root.overflowOpen || root.closeConfirmOpen || root.browserOpen || root.touchOptionsOpen
     readonly property bool abLoopActive: root.abLoopA >= 0 && root.abLoopB > root.abLoopA
     readonly property bool sleepTimerActive: root.sleepTimerMode !== "off"
     readonly property var speedChoices: [0.5, 0.75, 1, 1.25, 1.5, 1.75, 2]
@@ -3123,6 +3142,14 @@ Item {
     function previewAt(mouseX, width) {
         return mpv.duration * root.clamp(mouseX / Math.max(1, width), 0, 1)
     }
+    function cancelSeekGesture() {
+        root.seeking = false
+        root.seekPreview = mpv.position
+    }
+    function cancelTouchInteraction() {
+        if (playerTouchSurface) playerTouchSurface.cancelGesture()
+        if (root.seeking) root.cancelSeekGesture()
+    }
     function seekTo(sec) {
         var target = root.clamp(sec, 0, Math.max(0, mpv.duration))
         if (root.fileReady && !root.starting && !root.recoveryResumePending)
@@ -3580,6 +3607,7 @@ Item {
         return root.clamp(mpv.volume, 0, 100) / 100
     }
     function closeMenus() {
+        root.touchOptionsOpen = false
         watchPartyMenu.panelOpen = false
         audioMenu.panelOpen = false
         subMenu.panelOpen = false
@@ -3597,11 +3625,13 @@ Item {
     // application Shortcut: temporary controls close first, otherwise Back minimizes
     // through the existing session-aware player seam.
     function requestEscape() {
+        if (root.touchLocked) { root.touchLocked = false; root.wakeChrome(); return }
         if (root.shortcutsOpen) { root.shortcutsOpen = false; return }
         if (root.anyMenuOpen) root.closeMenus()
         else root.backRequested()
     }
     function wakeChrome() {
+        if (root.touchLocked) return
         root.controlsShown = true
         hideTimer.restart()
     }
@@ -3650,6 +3680,7 @@ Item {
     }
 
     function runHotkeyAction(actionId, event) {
+        if (root.touchLocked && actionId !== "escape") return
         switch (actionId) {
         case "space":
             if (event.isAutoRepeat)
@@ -3736,6 +3767,7 @@ Item {
     function activateOverflowKind(kind) {
         if (kind === "loudness") { root.cycleLoudness(); root.wakeChrome(); return }
         root.closeMenus()
+        if (kind === "touch") { root.touchOptionsOpen = true; root.wakeChrome(); return }
         if (kind === "shortcuts") { root.shortcutsOpen = true; return }
         if (kind === "pip") {
             if (typeof WindowMode === "undefined") return
@@ -3793,7 +3825,10 @@ Item {
     }
 
     Component.onCompleted: {
-        if (PlatformRuntime.android) PlatformRuntime.setPlayerLandscape(root.visible)
+        if (PlatformRuntime.android) {
+            PlatformRuntime.setPlayerLandscape(root.visible)
+            if (root.visible) PlatformRuntime.beginPlaybackBrightness()
+        }
         root.forceActiveFocus()
         root.wakeChrome()
         root.syncPowerInhibit()
@@ -3801,14 +3836,25 @@ Item {
             mpv.setAudioNormalization(root.loudnessMode)
     }
     Component.onDestruction: {
-        if (PlatformRuntime.android) PlatformRuntime.setPlayerLandscape(false)
+        if (PlatformRuntime.android) {
+            PlatformRuntime.setPlayerLandscape(false)
+            PlatformRuntime.restorePlaybackBrightness()
+        }
         root.sendTraktPlayback(false)
         if (typeof Power !== "undefined") Power.release()
     }
     onVisibleChanged: {
+        if (!visible) root.cancelTouchInteraction()
         if (PlatformRuntime.android) {
             PlatformRuntime.setPlayerLandscape(visible)
-            if (visible) root.restoreRetiredStreamRoute()
+            if (visible) {
+                PlatformRuntime.beginPlaybackBrightness()
+                root.restoreRetiredStreamRoute()
+            } else {
+                PlatformRuntime.restorePlaybackBrightness()
+                root.touchLocked = false
+                root.touchOptionsOpen = false
+            }
         }
         // Hidden retained players cannot render video. Stop their watchdogs and
         // discard the hidden interval before granting a fresh visible grace period.
@@ -3827,8 +3873,10 @@ Item {
         root.syncPowerInhibit()
     }
     onStartingChanged: {
-        if (starting)
+        if (starting) {
+            root.cancelTouchInteraction()
             root.wakeChrome()
+        }
         else if (typeof Stream !== "undefined") {
             // loading face retired (first frame, error path, or back-out) → stop the 1 Hz stats poll
             Stream.unwatchStats()
@@ -4008,6 +4056,8 @@ Item {
             target: PlatformRuntime
             enabled: PlatformRuntime.android
             function onApplicationStateChanged() {
+                if (String(PlatformRuntime.applicationState).toLowerCase() !== "active")
+                    root.cancelTouchInteraction()
                 if (root.restoreRetiredStreamRoute())
                     return
                 mpv.setHostLifecycleState(PlatformRuntime.applicationState)
@@ -4494,16 +4544,69 @@ Item {
         onTriggered: root.maybeAutoSkipSegment()
     }
 
+    function handleAndroidVideoTap() {
+        if (root.resumeChoiceOpen) return
+        if (root.anyMenuOpen || root.shortcutsOpen) { root.closeMenus(); return }
+        if (root.controlsShownAtPress) { hideTimer.stop(); root.controlsShown = false }
+        else root.wakeChrome()
+    }
+
+    PlayerTouchSurface {
+        id: playerTouchSurface
+        objectName: "playerTouchSurface"
+        anchors.fill: parent
+        enabled: PlatformRuntime.android && root.visible
+            && String(PlatformRuntime.applicationState).toLowerCase() === "active"
+        visible: PlatformRuntime.android
+        locked: root.touchLocked
+        modalOpen: root.anyMenuOpen || root.resumeChoiceOpen || root.shortcutsOpen
+        seekEnabled: root.fileReady && !root.starting && !root.errored && !root.resumeChoiceOpen
+            && !root.anyMenuOpen && !root.shortcutsOpen && !root.seeking && mpv.duration > 0
+            && mpv["seekable"] === true && (!root.watchPartySyncActive || root.watchPartyCanControlTimeline)
+        adjustmentsEnabled: playerSettings.phoneGestureAdjustments && root.fileReady && !root.starting && !root.errored
+        fitEnabled: root.supportsPlayerCapability("videoTransform")
+        seekSeconds: root.seekForwardSeconds
+        volumeLevel: mpv.volume
+        brightnessLevel: PlatformRuntime.playbackBrightness
+        topExclusion: 80
+        bottomExclusion: bottomDock.height
+        onPressed: root.controlsShownAtPress = root.controlsShown
+        onSingleTapped: root.handleAndroidVideoTap()
+        onSeekRequested: (seconds) => root.requestUserSeekStep(seconds)
+        onVolumeRequested: (level) => root.adjustVolumeTo(level)
+        onBrightnessRequested: (level) => PlatformRuntime.setPlaybackBrightness(level)
+        onFitRequested: (fill) => root.applyFill(fill ? 1 : 0)
+        onUnlockRequested: { root.touchLocked = false; root.wakeChrome() }
+        onContextMenuRequested: (x, y) => root.openContextMenu(playerTouchSurface.mapToItem(chrome, x, y))
+    }
+    PlayerTouchOptions {
+        parent: chrome
+        anchors.fill: parent
+        z: 100005
+        visible: root.touchOptionsOpen
+        adjustmentsEnabled: playerSettings.phoneGestureAdjustments
+        fitAvailable: root.supportsPlayerCapability("videoTransform")
+        onCloseRequested: root.touchOptionsOpen = false
+        onToggleAdjustments: playerSettings.phoneGestureAdjustments = !playerSettings.phoneGestureAdjustments
+        onLockRequested: {
+            root.closeMenus()
+            root.touchLocked = true
+            root.controlsShown = false
+            hideTimer.stop()
+        }
+    }
+
     MouseArea {
         anchors.fill: parent
-        hoverEnabled: true
-        acceptedButtons: Qt.LeftButton | Qt.RightButton
+        enabled: !root.touchLocked
+        hoverEnabled: !PlatformRuntime.android
+        acceptedButtons: PlatformRuntime.android ? Qt.RightButton : Qt.LeftButton | Qt.RightButton
         // Cursor vanishes WITH the HUD (Hemanth 2026-07-09: no sore-thumb arrow floating
         // mid-screen after the bar fades). Mirrors the chrome's own visibility expression
         // (controlsShown && !starting) so they hide/show as one. Any pointer motion fires
         // wakeChrome → controlsShown true → the arrow is back instantly.
         cursorShape: (root.controlsShown && !root.starting) ? Qt.ArrowCursor : Qt.BlankCursor
-        onPositionChanged: root.wakeChrome()
+        onPositionChanged: if (!PlatformRuntime.android) root.wakeChrome()
         onClicked: function(mouse) {
             // Right-click = More controls at the cursor (native-player convention,
             // Hemanth 2026-07-18) — the ⋯ button it replaces is gone from the bar.
@@ -4565,6 +4668,8 @@ Item {
         event.accepted = true
         if (event.isAutoRepeat)
             return
+        if (root.touchLocked)
+            return
         if (spaceHoldTimer.running)
             spaceHoldTimer.stop()
         if (root.spaceHoldFired)
@@ -4582,6 +4687,7 @@ Item {
 
     Rectangle {
         id: chrome
+        enabled: !root.touchLocked
         x: 0
         y: 0
         width: root.chromeVisibleWidth
@@ -4904,6 +5010,35 @@ Item {
             id: overflowPanel
             visible: root.overflowOpen
             focusPolicy: visible ? Qt.TabFocus : Qt.NoFocus
+            function positionInChrome() {
+                x = root.clamp(root.contextMenuPos.x, 10, chrome.width - width - 10)
+                y = root.clamp(root.contextMenuPos.y, 10, chrome.height - height - 10)
+            }
+            function revealFocusedControl() {
+                if (!PlatformRuntime.android || !root.overflowOpen) return
+                const window = root.Window.window
+                const item = window ? window.activeFocusItem : null
+                if (!item || !item.visible || !item.enabled) return
+                let ancestor = item
+                while (ancestor && ancestor !== overflowScroll.contentItem) ancestor = ancestor.parent
+                if (!ancestor) return
+                const point = item.mapToItem(overflowScroll.contentItem, 0, 0)
+                let target = overflowScroll.contentY
+                if (point.y < target) target = point.y
+                else if (point.y + item.height > target + overflowScroll.height)
+                    target = point.y + item.height - overflowScroll.height
+                overflowScroll.contentY = root.clamp(target, 0,
+                    Math.max(0, overflowScroll.contentHeight - overflowScroll.height))
+            }
+            Connections {
+                target: root.Window.window
+                function onActiveFocusItemChanged() { Qt.callLater(overflowPanel.revealFocusedControl) }
+            }
+            Connections {
+                target: chrome
+                function onWidthChanged() { if (PlatformRuntime.android && root.overflowOpen) overflowPanel.positionInChrome() }
+                function onHeightChanged() { if (PlatformRuntime.android && root.overflowOpen) overflowPanel.positionInChrome() }
+            }
             function beginKeyboardNavigation() {
                 overflowPanel.forceActiveFocus(Qt.PopupFocusReason)
                 Qt.callLater(function() { root.moveKeyboardFocus(true) })
@@ -4927,8 +5062,13 @@ Item {
             opacity: root.overflowOpen ? 1 : 0
             Behavior on opacity { NumberAnimation { duration: 110 } }
             z: 9
-            width: 300
-            height: overflowColumn.implicitHeight + 30
+            width: PlatformRuntime.android ? Math.min(300, Math.max(1, chrome.width - 20)) : 300
+            height: PlatformRuntime.android
+                ? Math.min(overflowColumn.implicitHeight + 30, Math.max(1, chrome.height - 20))
+                : overflowColumn.implicitHeight + 30
+            clip: PlatformRuntime.android
+            onWidthChanged: if (PlatformRuntime.android && visible) positionInChrome()
+            onHeightChanged: if (PlatformRuntime.android && visible) positionInChrome()
             radius: 14
             color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
             border.width: 1
@@ -4937,104 +5077,120 @@ Item {
             // Context menu (2026-07-18): opens at the right-click cursor, clamped to the
             // window like every OS menu — the ⋯ button (and its tail) is gone from the bar.
             onVisibleChanged: if (visible) {
-                x = root.clamp(root.contextMenuPos.x, 10, chrome.width - width - 10)
-                y = root.clamp(root.contextMenuPos.y, 10, chrome.height - height - 10)
+                positionInChrome()
+                overflowScroll.cancelFlick()
+                overflowScroll.contentY = 0
             }
 
             // Absorb background clicks so the panel body never dismisses itself (parity spec F2).
             MouseArea { anchors.fill: parent; hoverEnabled: true; onClicked: root.wakeChrome() }
 
-            Column {
-                id: overflowColumn
-                x: 16
-                y: 15
-                width: parent.width - 32
-                // Rows sit flush and light up on hover instead of each being its own grey slab with
-                // a 10px gutter. That gutter plus a permanent fill is what made this menu read flat.
-                spacing: 2
+            Flickable {
+                id: overflowScroll
+                objectName: "playerMoreScroll"
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: overflowColumn.implicitHeight + 30
+                interactive: PlatformRuntime.android && contentHeight > height
+                flickableDirection: Flickable.VerticalFlick
+                boundsBehavior: Flickable.StopAtBounds
+                clip: PlatformRuntime.android
+                onVisibleChanged: if (!visible) cancelFlick()
+                onHeightChanged: Qt.callLater(overflowPanel.revealFocusedControl)
+                onContentHeightChanged: Qt.callLater(overflowPanel.revealFocusedControl)
+                Column {
+                    id: overflowColumn
+                    x: 16
+                    y: 15
+                    width: parent.width - 32
+                    // Rows sit flush and light up on hover instead of each being its own grey slab with
+                    // a 10px gutter. That gutter plus a permanent fill is what made this menu read flat.
+                    spacing: 2
 
-                Text {
-                    text: "More controls"
-                    color: theme.inkDimmer
-                    font.family: theme.hud
-                    font.pixelSize: 12
-                    font.weight: Font.DemiBold
-                    bottomPadding: 4
-                }
+                    Text {
+                        text: "More controls"
+                        color: theme.inkDimmer
+                        font.family: theme.hud
+                        font.pixelSize: 12
+                        font.weight: Font.DemiBold
+                        bottomPadding: 4
+                    }
 
-                VolumeControl { visible: root.tight }
+                    VolumeControl { visible: root.tight }
 
-                Repeater {
-                    model: [
-                        { "label": "Screenshot", "kind": "screenshot", "when": root.supportsPlayerCapability("frameCapture") },
-                        { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": root.supportsPlayerCapability("gifCapture") },
-                        { "label": "Playback stats", "kind": "stats", "when": root.supportsPlayerCapability("playbackStats") },
-                        { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": root.supportsPlayerCapability("loudnessNormalization") },
-                        { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
-                        { "label": "Episodes & sources", "kind": "browser", "when": root.barTiny && root.mediaId.indexOf("iptv:") !== 0 },
-                        { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
-                        { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
-                        { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
-                        { "label": "Speed", "kind": "speed", "when": root.barTiny },
-                        { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug && root.supportsPlayerCapability("videoTransform") },
-                        // The two rows Player 2's menu carried and this one never did. Both features
-                        // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
-                        // they were simply never offered anywhere in this menu.
-                        { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
-                          "kind": "pip", "when": root.supportsPlayerCapability("pictureInPicture") },
-                        { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
-                    ]
-                    delegate: Rectangle {
-                        required property var modelData
-                        readonly property string rowValue: root.overflowValue(modelData.kind)
-                        visible: modelData.when
-                        width: overflowColumn.width
-                        height: 38
-                        radius: 8
-                        // Transparent at rest, lit on hover -- the row reads as a target rather than
-                        // as a permanent grey slab. Matches the Player 2 menu Hemanth preferred.
-                        color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
-                        Text {
-                            anchors.verticalCenter: parent.verticalCenter
-                            x: 10
-                            width: parent.width - x - (valueText.width > 0 ? valueText.width + 22 : 12)
-                            elide: Text.ElideRight
-                            text: modelData.label
-                            color: theme.ink
-                            font.family: theme.hud
-                            font.pixelSize: 13
-                        }
-                        // What this control is currently set to. Gold, matching the seek bar and
-                        // volume accent, so the menu carries information and not only verbs.
-                        Text {
-                            id: valueText
-                            anchors.right: parent.right
-                            anchors.rightMargin: 10
-                            anchors.verticalCenter: parent.verticalCenter
-                            text: parent.rowValue
-                            visible: text.length > 0
-                            color: theme.gold
-                            font.family: theme.hud
-                            font.pixelSize: 12
-                            font.weight: Font.DemiBold
-                        }
-                        MouseArea {
-                            id: rowArea
-                            anchors.fill: parent
-                            hoverEnabled: true
-                            cursorShape: Qt.PointingHandCursor
-                            onClicked: root.activateOverflowKind(modelData.kind)
-                        }
-                        KeyboardAction {
-                            anchors.fill: parent
-                            pointerEnabled: false
-                            focusEnabled: parent.visible
-                            accessibleName: modelData.label
-                            accessibleDescription: parent.rowValue
-                            focusRadius: 8
-                            onTriggered: root.activateOverflowKind(modelData.kind)
+                    Repeater {
+                        model: [
+                            { "label": "Touch controls", "kind": "touch", "when": PlatformRuntime.android },
+                            { "label": "Screenshot", "kind": "screenshot", "when": root.supportsPlayerCapability("frameCapture") },
+                            { "label": root.gifState === "recording" ? "Stop GIF" : "Record GIF", "kind": "gif", "when": root.supportsPlayerCapability("gifCapture") },
+                            { "label": "Playback stats", "kind": "stats", "when": root.supportsPlayerCapability("playbackStats") },
+                            { "label": "Loudness · " + root.loudnessLabel(), "kind": "loudness", "when": root.supportsPlayerCapability("loudnessNormalization") },
+                            { "label": "Live guide", "kind": "liveGuide", "when": (typeof Live !== "undefined" && Live.isLive) },
+                            { "label": "DVR record", "kind": "dvr", "when": (typeof Live !== "undefined" && Live.isLive) },
+                            { "label": "Jump to live edge", "kind": "liveEdge", "when": (typeof Live !== "undefined" && Live.isLive) },
+                            { "label": "Episodes & sources", "kind": "browser", "when": root.barTiny && root.mediaId.indexOf("iptv:") !== 0 },
+                            { "label": "Pick another stream", "kind": "stream", "when": root.barSnug && root.streamCandidates.length > 1 },
+                            { "label": "Download", "kind": "download", "when": root.barSnug && root.currentCastUrl().length > 0 },
+                            { "label": "Audio tracks", "kind": "audio", "when": root.barTiny },
+                            { "label": "Speed", "kind": "speed", "when": root.barTiny },
+                            { "label": "Aspect ratio", "kind": "fill", "when": root.barSnug && root.supportsPlayerCapability("videoTransform") },
+                            // The two rows Player 2's menu carried and this one never did. Both features
+                            // already existed here (WindowMode.enterPip/exitPip, root.shortcutsOpen) --
+                            // they were simply never offered anywhere in this menu.
+                            { "label": root.pipMode ? "Exit picture-in-picture" : "Picture-in-picture",
+                              "kind": "pip", "when": root.supportsPlayerCapability("pictureInPicture") },
+                            { "label": "Keyboard shortcuts", "kind": "shortcuts", "when": true }
+                        ]
+                        delegate: Rectangle {
+                            required property var modelData
+                            readonly property string rowValue: root.overflowValue(modelData.kind)
+                            visible: modelData.when
+                            width: overflowColumn.width
+                            height: 38
+                            radius: 8
+                            // Transparent at rest, lit on hover -- the row reads as a target rather than
+                            // as a permanent grey slab. Matches the Player 2 menu Hemanth preferred.
+                            color: rowArea.containsMouse ? Qt.rgba(1, 1, 1, 0.10) : "transparent"
+                            Text {
+                                anchors.verticalCenter: parent.verticalCenter
+                                x: 10
+                                width: parent.width - x - (valueText.width > 0 ? valueText.width + 22 : 12)
+                                elide: Text.ElideRight
+                                text: modelData.label
+                                color: theme.ink
+                                font.family: theme.hud
+                                font.pixelSize: 13
+                            }
+                            // What this control is currently set to. Gold, matching the seek bar and
+                            // volume accent, so the menu carries information and not only verbs.
+                            Text {
+                                id: valueText
+                                anchors.right: parent.right
+                                anchors.rightMargin: 10
+                                anchors.verticalCenter: parent.verticalCenter
+                                text: parent.rowValue
+                                visible: text.length > 0
+                                color: theme.gold
+                                font.family: theme.hud
+                                font.pixelSize: 12
+                                font.weight: Font.DemiBold
+                            }
+                            MouseArea {
+                                id: rowArea
+                                anchors.fill: parent
+                                hoverEnabled: true
+                                cursorShape: Qt.PointingHandCursor
+                                onClicked: root.activateOverflowKind(modelData.kind)
+                            }
+                            KeyboardAction {
+                                anchors.fill: parent
+                                pointerEnabled: false
+                                focusEnabled: parent.visible
+                                accessibleName: modelData.label
+                                accessibleDescription: parent.rowValue
+                                focusRadius: 8
+                                onTriggered: root.activateOverflowKind(modelData.kind)
+                            }
                         }
                     }
                 }
@@ -6106,9 +6262,11 @@ Item {
                     }
                     MouseArea {
                         id: seekHover
+                        objectName: "playerSeekGestureArea"
                         anchors.fill: parent
                         hoverEnabled: true
-                        enabled: mpv.duration > 0
+                        enabled: mpv.duration > 0 && !root.touchLocked
+                        onEnabledChanged: if (!enabled) root.cancelSeekGesture()
                         cursorShape: Qt.PointingHandCursor
                         onEntered: { seekBar.hovered = true; root.wakeChrome(); root.requestSeekThumb() }
                         onExited: {
@@ -6117,6 +6275,7 @@ Item {
                                 root.seekPreview = mpv.position
                         }
                         onPositionChanged: {
+                            if (pressed && !root.seeking) return
                             root.seekPreview = root.previewAt(mouseX, width)
                             root.wakeChrome()
                             root.requestSeekThumb()
@@ -6127,9 +6286,11 @@ Item {
                             root.wakeChrome()
                         }
                         onReleased: {
+                            if (!root.seeking) return
                             root.requestUserSeekTo(root.seekPreview)
                             root.seeking = false
                         }
+                        onCanceled: root.cancelSeekGesture()
                     }
                     Item {
                         id: seekKeyboard

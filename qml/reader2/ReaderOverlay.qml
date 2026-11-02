@@ -23,6 +23,9 @@ Item {
         anchors.fill: parent
         opacity: host.nativeOverlay ? host.opacity : 1
         enabled: host.enabled
+        // Native overlays move this surface to another window. Keep the existing host's
+        // unhandled Escape/Tab handlers reachable across that visual-parent boundary.
+        Keys.forwardTo: surfaceItem.parent !== host ? [host] : []
     }
 
     Loader {

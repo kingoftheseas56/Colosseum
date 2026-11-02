@@ -17,7 +17,7 @@ import "Reader2Logic.js" as L
 
 ReaderOverlay {
     overlayActive: shown
-    nativeWindow: false
+    nativeWindow: true
     id: dictCard
     objectName: "reader2DictCard"
 
@@ -27,6 +27,7 @@ ReaderOverlay {
     property var entries: []          // [{ partOfSpeech, definitions:[str,...] }] from L.dictParse
     property string dictState: "loading"  // "loading" | "ok" | "empty"
     property bool shown: false
+    readonly property Item keyboardTarget: surface.parent !== dictCard ? surface : dictCard
 
     // ---- signals up ----
     signal dismissed()
@@ -36,10 +37,10 @@ ReaderOverlay {
     activeFocusOnTab: true
     Accessible.role: Accessible.Pane
     Accessible.name: "Dictionary definition"
-    KeyNavigation.tab: openLink.visible ? openMa : dictCard
-    KeyNavigation.backtab: openLink.visible ? openMa : dictCard
+    KeyNavigation.tab: openLink.visible ? openMa : dictCard.keyboardTarget
+    KeyNavigation.backtab: openLink.visible ? openMa : dictCard.keyboardTarget
     KeyNavigation.priority: KeyNavigation.BeforeItem
-    onShownChanged: if (shown) Qt.callLater(function() { dictCard.forceActiveFocus(Qt.OtherFocusReason) })
+    onShownChanged: if (shown) Qt.callLater(function() { dictCard.keyboardTarget.forceActiveFocus(Qt.OtherFocusReason) })
     Keys.onPressed: function(event) {
         if (!shown) return
         if (event.key === Qt.Key_Escape) { dictCard.dismissed(); event.accepted = true; return }
@@ -210,8 +211,8 @@ ReaderOverlay {
                 hoverEnabled: true
                 cursorShape: Qt.PointingHandCursor
                 keyboardLabel: "Open in Wiktionary"
-                KeyNavigation.tab: dictCard
-                KeyNavigation.backtab: dictCard
+                KeyNavigation.tab: dictCard.keyboardTarget
+                KeyNavigation.backtab: dictCard.keyboardTarget
                 onClicked: dictCard.openExternal()
             }
         }

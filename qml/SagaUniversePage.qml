@@ -11,6 +11,7 @@ import "Universes.js" as UDB
 
 Item {
     id: root
+    property bool touchInput: Qt.platform.os === "android"
     onUniverseContentGenerationChanged: reload()
     readonly property int universeContentGeneration: typeof Content !== "undefined" ? (UniverseContent.reload(Content.generation), Content.generation) : 0
     anchors.fill: parent
@@ -345,6 +346,17 @@ Item {
             if (root.tabs[i].target.mapToItem(page.contentItem, 0, 0).y - 160 <= page.contentY) active = i
         return active
     }
+    function revealActiveTab() {
+        if (!root.touchInput) { tabScroller.contentX = 0; return }
+        const tab = tabRepeater.itemAt(root.activeTab)
+        if (!tab || tabScroller.width <= 0) return
+        let left = tabScroller.contentX
+        if (tab.x < left) left = tab.x
+        else if (tab.x + tab.width > left + tabScroller.width)
+            left = tab.x + tab.width - tabScroller.width
+        tabScroller.contentX = Math.max(0, Math.min(left, Math.max(0, tabScroller.contentWidth - tabScroller.width)))
+    }
+    onActiveTabChanged: Qt.callLater(root.revealActiveTab)
 
     KeyboardScrollController {
         id: pageKeyboardScroll
@@ -1094,35 +1106,56 @@ Item {
         readonly property bool docked: hero.height - page.contentY <= 22
         x: root.gutter + (docked ? 118 : 0)
         y: Math.max(22, hero.height - page.contentY)
-        width: tabRow.width + 8; height: 46
+        width: root.touchInput
+            ? Math.min(tabRow.implicitWidth + 8, Math.max(0, root.width - x - root.gutter))
+            : tabRow.width + 8
+        height: 46
         Behavior on x { NumberAnimation { duration: root.reducedMotion ? 0 : 220; easing.type: Easing.OutCubic } }
-        Row {
-            id: tabRow
+        Flickable {
+            id: tabScroller
+            objectName: "sagaTabScroller"
             x: 4; y: 5
-            spacing: 2
-            Repeater {
-                model: root.tabs
-                delegate: Rectangle {
-                    id: tab
-                    required property var modelData
-                    required property int index
-                    readonly property bool active: root.activeTab === tab.index
-                    width: tabText.implicitWidth + 36; height: 36; radius: 18
-                    color: tab.active ? root.paper : (tabKey.hovered ? theme.glassTint : "transparent")
-                    Text {
-                        id: tabText
-                        anchors.centerIn: parent
-                        text: tab.modelData.title
-                        color: tab.active ? "#090c13" : (tabKey.hovered ? root.paper : theme.inkDim)
-                        font.family: root.uiFace; font.pixelSize: 13
-                        font.weight: tab.active ? Font.DemiBold : Font.Medium
-                    }
-                    KeyboardAction {
-                        id: tabKey
-                        anchors.fill: parent
-                        focusRadius: 18
-                        accessibleName: tab.modelData.title
-                        onTriggered: root.revealSection(tab.modelData.target)
+            width: Math.max(0, tabBar.width - 8); height: 36
+            contentWidth: tabRow.implicitWidth; contentHeight: height
+            clip: root.touchInput
+            interactive: root.touchInput && contentWidth > width
+            flickableDirection: Flickable.HorizontalFlick
+            boundsBehavior: Flickable.StopAtBounds
+            onWidthChanged: Qt.callLater(root.revealActiveTab)
+            Row {
+                id: tabRow
+                width: implicitWidth
+                height: 36
+                spacing: 2
+                Repeater {
+                    id: tabRepeater
+                    model: root.tabs
+                    onModelChanged: Qt.callLater(root.revealActiveTab)
+                    onCountChanged: Qt.callLater(root.revealActiveTab)
+                    delegate: Rectangle {
+                        id: tab
+                        objectName: "sagaTab_" + index
+                        required property var modelData
+                        required property int index
+                        readonly property bool active: root.activeTab === tab.index
+                        width: tabText.implicitWidth + 36; height: 36; radius: 18
+                        color: tab.active ? root.paper : (tabKey.hovered ? theme.glassTint : "transparent")
+                        Text {
+                            id: tabText
+                            anchors.centerIn: parent
+                            text: tab.modelData.title
+                            color: tab.active ? "#090c13" : (tabKey.hovered ? root.paper : theme.inkDim)
+                            font.family: root.uiFace; font.pixelSize: 13
+                            font.weight: tab.active ? Font.DemiBold : Font.Medium
+                        }
+                        KeyboardAction {
+                            id: tabKey
+                            objectName: "sagaTabAction_" + tab.index
+                            anchors.fill: parent
+                            focusRadius: 18
+                            accessibleName: tab.modelData.title
+                            onTriggered: root.revealSection(tab.modelData.target)
+                        }
                     }
                 }
             }

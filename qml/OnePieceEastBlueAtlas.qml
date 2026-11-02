@@ -19,6 +19,7 @@ FocusScope {
     property bool indexVisible: false
     property bool nonCanonMode: false
     property real shellChromeInset: 172
+    property bool touchInput: Qt.platform.os === "android"
     property real previewX: 18
     property real previewY: 88
     readonly property real shellChromeReservedLeft: root.width - 54 - (22 * 3 + 20 * 2)
@@ -68,6 +69,8 @@ FocusScope {
     }
 
     function closePreviewSoon() {
+        // A released touch must not retire the preview before its actions can be used.
+        if (root.touchInput) return
         closeGrace.restart()
     }
 
@@ -299,6 +302,7 @@ FocusScope {
     // always contains at base zoom; the Flickable provides panning at higher zoom.
     Flickable {
         id: mapViewport
+        objectName: "eastBlueMapViewport"
         anchors.fill: parent
         anchors.margins: 22
         clip: true
@@ -353,7 +357,8 @@ FocusScope {
                     objectName: "eastBlueBadge-" + markerId
                     Accessible.role: Accessible.Button
                     Accessible.name: markerArc ? markerArc.title : markerId
-                    Accessible.description: "Hover or focus to preview this East Blue arc"
+                    Accessible.description: root.touchInput ? "Preview this East Blue arc"
+                                                            : "Hover or focus to preview this East Blue arc"
 
                     activeFocusOnTab: true
                     Keys.onReturnPressed: root.openPreview(marker.markerId)
@@ -378,6 +383,10 @@ FocusScope {
 
                     HoverHandler {
                         id: markerHover
+                        // Touch can also synthesize mouse hover. Android opens only
+                        // through the thresholded tap/keyboard paths below.
+                        enabled: !root.touchInput
+                        acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
                         onHoveredChanged: {
                             if (hovered) {
                                 root.openPreview(marker.markerId)
@@ -421,6 +430,30 @@ FocusScope {
                             color: "#d8bd8a"
                             border.color: "#80633e"
                             Text { anchors.centerIn: parent; text: "ARC"; color: "#80633e"; font.family: atlasBodyFont.name; font.pixelSize: 9; font.bold: true }
+                        }
+                    }
+
+                    // Above the decorative Button so the whole existing hit box
+                    // receives taps. The map Flickable may still steal a drag.
+                    MouseArea {
+                        objectName: "eastBlueBadgeTouch-" + marker.markerId
+                        anchors.fill: parent
+                        z: 1
+                        enabled: root.touchInput
+                        property point pressPosition
+                        property bool moved: false
+                        onPressed: function(mouse) {
+                            pressPosition = Qt.point(mouse.x, mouse.y)
+                            moved = false
+                        }
+                        onPositionChanged: function(mouse) {
+                            if (pressed && Math.hypot(mouse.x - pressPosition.x, mouse.y - pressPosition.y) > Qt.styleHints.startDragDistance)
+                                moved = true
+                        }
+                        onCanceled: moved = true
+                        onClicked: function(mouse) {
+                            if (!moved && Math.hypot(mouse.x - pressPosition.x, mouse.y - pressPosition.y) <= Qt.styleHints.startDragDistance)
+                                root.openPreview(marker.markerId)
                         }
                     }
 
@@ -801,7 +834,8 @@ FocusScope {
 
         HoverHandler {
             id: bannerHover
-            enabled: root.previewVisible && !root.previewMarkerFocused
+            acceptedDevices: PointerDevice.Mouse | PointerDevice.TouchPad
+            enabled: !root.touchInput && root.previewVisible && !root.previewMarkerFocused
             onHoveredChanged: {
                 root.previewPointerInside = hovered
                 if (!hovered) root.closePreviewSoon()
