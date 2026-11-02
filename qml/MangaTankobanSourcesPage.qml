@@ -49,6 +49,18 @@ Item {
     objectName: "tankobanSourcesSheet"
     anchors.fill: parent
 
+    // Height budget (PF-02b, same policy as SourcesSheet): desktop pins a 300 banner and a 52
+    // table head (results = H - 410). At Android desktop presentation's launch-zoom heights
+    // (~556/533) no complete 150 volume row fits, so there the banner/chrome yield to keep one
+    // full row plus a peek. Desktop is unchanged.
+    readonly property bool androidDesktopPresentation: !!(sheet.Window.window
+        && sheet.Window.window.androidHost && sheet.Window.window.desktopPresentation === true)
+    readonly property real minResultBudget: 150 + 40
+    readonly property bool compactHeight: sheet.androidDesktopPresentation
+        && sheet.height - (300 + 20 + 52 + 12 + 26) < sheet.minResultBudget
+    readonly property real bannerHeight: !sheet.compactHeight ? 300
+        : Math.round(Math.max(76, Math.min(300, sheet.height - (10 + 44 + 12 + 12) - sheet.minResultBudget)))
+
     // Injection seam (same as MangaTankobanLibrary): the harness assigns a fake; the
     // app leaves this null and the calls fall through to the TankobanVolumes context
     // property. All service access resolves through serviceObject.
@@ -571,8 +583,9 @@ Item {
     // ── volume key-art hero across the top, washing down ──
     Item {
         id: bannerStrip
+        objectName: "tankobanSourcesBanner"
         anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-        height: 300
+        height: sheet.bannerHeight
         Image {
             anchors.fill: parent
             source: sheet.context.cover ? sheet.context.cover : ""
@@ -603,16 +616,21 @@ Item {
         // 2026-08-20): the Lanista smoke scenario needs to dismiss the picker
         // without knowing pixel coordinates. Mirrors tankobanReadingRoomBack.
         objectName: "tankobanSourcesBack"
-        x: theme.margin; y: 30; z: 20
+        x: theme.margin; y: sheet.compactHeight ? 12 : 30; z: 20
         onTriggered: sheet.hide(true)
     }
 
     // ── title block + volume identity rail, pinned to the bottom of the banner ──
     Column {
+        objectName: "tankobanSourcesTitleBlock"
         anchors.left: parent.left; anchors.right: parent.right
-        anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: parent.top; anchors.topMargin: bannerStrip.height - height - 26
-        spacing: 12
+        // Short Android banners share the first line with Back instead of overlapping it.
+        anchors.leftMargin: sheet.compactHeight ? sourcesBack.x + sourcesBack.width + 16 : theme.margin
+        anchors.rightMargin: theme.margin
+        anchors.top: parent.top
+        anchors.topMargin: sheet.compactHeight ? Math.max(sourcesBack.y, bannerStrip.height - height - 12)
+            : bannerStrip.height - height - 26
+        spacing: sheet.compactHeight ? 4 : 12
         Text {
             width: parent.width
             text: "SOURCES · TANKOBAN VOLUME"
@@ -623,7 +641,7 @@ Item {
             width: parent.width
             text: sheet.titleText()
             color: theme.ink; font.family: theme.display
-            font.pixelSize: 56; font.weight: Font.DemiBold
+            font.pixelSize: sheet.compactHeight ? 34 : 56; font.weight: Font.DemiBold
             maximumLineCount: 1; elide: Text.ElideRight
             style: Text.Raised; styleColor: Qt.rgba(0, 0, 0, 0.35)
         }
@@ -647,7 +665,7 @@ Item {
                 : "No synopsis for this volume yet."
             color: theme.inkDimmer; font.family: theme.ui; font.pixelSize: 13
             font.italic: !heroSynopsis.hasSynopsis
-            wrapMode: Text.WordWrap; maximumLineCount: 4; elide: Text.ElideRight
+            wrapMode: Text.WordWrap; maximumLineCount: sheet.compactHeight ? 1 : 4; elide: Text.ElideRight
         }
     }
 
@@ -657,15 +675,15 @@ Item {
         backdrop: sheet.backdrop
         anchors.left: parent.left; anchors.right: parent.right
         anchors.leftMargin: theme.margin; anchors.rightMargin: theme.margin
-        anchors.top: bannerStrip.bottom; anchors.topMargin: 20
-        anchors.bottom: parent.bottom; anchors.bottomMargin: 26
+        anchors.top: bannerStrip.bottom; anchors.topMargin: sheet.compactHeight ? 10 : 20
+        anchors.bottom: parent.bottom; anchors.bottomMargin: sheet.compactHeight ? 12 : 26
         radius: 18
         track: 0
 
         Item {
             id: tableHead
             anchors.left: parent.left; anchors.right: parent.right; anchors.top: parent.top
-            height: 52
+            height: sheet.compactHeight ? 44 : 52
             visible: sheet.rows.length > 0
             Text {
                 anchors.left: parent.left; anchors.leftMargin: 26

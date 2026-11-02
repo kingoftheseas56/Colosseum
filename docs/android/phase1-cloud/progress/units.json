@@ -45,17 +45,20 @@
       "id": "PF-02",
       "status": "HOST_QML_PASS",
       "tests": [
-        "qmltestrunner tests/qml/tst_android_sources_budget.qml => 0 (10 passed); same fixture vs pre-fix SourcesSheet => 8 failed (reproduced)",
-        "tests/sources_sheet_empty_extensions_harness.qml => 0 (5 passed)",
-        "android_qml_preflight.py => 0 (61/0)"
+        "qmltestrunner tests/qml/tst_android_sources_budget.qml => 0 (11 passed)",
+        "PF-02b: qmltestrunner tests/qml/tst_android_comic_manga_sources_budget.qml => 0 (8 passed); pre-fix pages => 4 failed (comic list 74/51, manga 146/123 at 556/533)",
+        "comic_torrent_sources_page_harness OK; tst_comic_download_cancel 10/0; android_qml_preflight 61/0; PRE-EXISTING: manga_tankoban_page_harness FAIL 'must render all 3 sources, got 0' identical on HEAD"
       ],
       "device": "LOCAL_PENDING",
       "files": [
         "qml/SourcesSheet.qml",
-        "tests/qml/tst_android_sources_budget.qml"
+        "qml/ComicTorrentSourcesPage.qml",
+        "qml/MangaTankobanSourcesPage.qml",
+        "tests/qml/tst_android_sources_budget.qml",
+        "tests/qml/tst_android_comic_manga_sources_budget.qml"
       ],
-      "note": "SourcesSheet: Android-desktop-presentation height budget (banner/chrome yield to keep >=1 full 150 row + 40 peek at 640/zoom logical heights 556/533; Back shares the banner line), extension menu bounded+scrollable with keyboard reveal (applies on all hosts but is pixel-identical when the menu fits). Desktop/Windows Sources geometry unchanged (H-544 asserted). Remaining: ComicTorrentSourcesPage/MangaTankobanSourcesPage have the same fixed 300 banner; analogous budget NOT yet applied (needs own geometry checks) -> follow-up PF-02b. Viewports are calculated (1024x640/zoom), not measured device rectangles.",
-      "updated_utc": "2026-11-02T21:48:30Z"
+      "note": "SourcesSheet (PF-02) plus PF-02b: Comic alternate-sources and Manga volume-sources pages use the same Android-desktop-presentation height budget (banner/chrome yield, Back shares banner line, manga synopsis 1 line when compact). Desktop 300 banner asserted. Calculated viewports, not device-measured.",
+      "updated_utc": "2026-11-02T22:51:40Z"
     },
     {
       "id": "PF-01",
@@ -373,9 +376,11 @@
     },
     {
       "id": "WT-01",
-      "status": "NOT_STARTED",
+      "status": "DECISION_REQUIRED",
       "tests": [],
-      "device": "LOCAL_PENDING"
+      "device": "LOCAL_PENDING",
+      "note": "Theatre bulk Remove conflicts with Beta's Stremio-aware TheatreRemovalDialog (per-item alsoStremio choice). See progress/DECISIONS.md. No selection code landed.",
+      "updated_utc": "2026-11-02T22:49:02Z"
     },
     {
       "id": "PF-10",
