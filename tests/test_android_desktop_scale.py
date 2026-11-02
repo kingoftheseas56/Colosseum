@@ -63,6 +63,13 @@ class QtSurfaceRedrawGate {
                 "org.colosseum.platform.ColosseumActivity"], text=True)
             on_create = bytecode.split("public void onCreate(android.os.Bundle);", 1)[1].split("private void configureDesktopScale", 1)[0]
             self.assertLess(on_create.index("Method configureDesktopScale"), on_create.index("QtActivity.onCreate"))
+            # Qt's fullscreen children retain the full window bounds when an outer
+            # content view is padded. The shipping Activity must leave insets and
+            # content geometry to Qt rather than offsetting only QtRootLayout.
+            for method in ("setPadding", "setOnApplyWindowInsetsListener", "requestApplyInsets"):
+                with self.subTest(forbidden_outer_geometry_call=method):
+                    self.assertFalse("android/view/View." + method + ":" in bytecode,
+                                     "Activity intercepts Qt content geometry via " + method)
 
 
 if __name__ == "__main__":
