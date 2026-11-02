@@ -104,7 +104,6 @@ public final class ColosseumActivity extends QtActivity {
     @Override public void onCreate(Bundle state) {
         configureDesktopScale();
         super.onCreate(state);
-        protectDesktopCutout();
         surfaceRedrawGate = new QtSurfaceRedrawGate(this);
         DownloadService.handleIntent(getIntent());
     }
@@ -139,24 +138,6 @@ public final class ColosseumActivity extends QtActivity {
             return new int[] {Math.max(0, bounds.width() - cutout.left - cutout.right),
                 Math.max(0, bounds.height() - cutout.top - cutout.bottom), bounds.width(), bounds.height()};
         }
-    }
-
-    private void protectDesktopCutout() {
-        // The standard content FrameLayout contains QtRootLayout and its foreign
-        // WebView windows. Qt keeps its own insets/IME listeners on QtWindow children.
-        android.view.View content = findViewById(android.R.id.content);
-        if (content == null) return;
-        final int left = content.getPaddingLeft(), top = content.getPaddingTop();
-        final int right = content.getPaddingRight(), bottom = content.getPaddingBottom();
-        content.setOnApplyWindowInsetsListener((view, insets) -> {
-            android.view.DisplayCutout cutout = insets.getDisplayCutout();
-            view.setPadding(left + (cutout == null ? 0 : cutout.getSafeInsetLeft()),
-                top + (cutout == null ? 0 : cutout.getSafeInsetTop()),
-                right + (cutout == null ? 0 : cutout.getSafeInsetRight()),
-                bottom + (cutout == null ? 0 : cutout.getSafeInsetBottom()));
-            return insets;
-        });
-        content.requestApplyInsets();
     }
 
     @Override public void onNewIntent(Intent intent) {
