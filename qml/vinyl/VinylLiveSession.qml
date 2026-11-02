@@ -378,6 +378,9 @@ Item {
     readonly property bool hasLyrics: lyrics.length > 0
     readonly property bool hasNotes: Object.keys(notes).length > 0
     readonly property bool hasVideo: backend.hasVideo
+    readonly property bool torrentAvailable: backend.torrentAvailable
+    readonly property bool torrentBusy: backend.torrentBusy
+    readonly property string torrentError: backend.torrentError
     readonly property bool videoBusy: backend.videoBusy
     readonly property bool videoSwitchCancellable: backend.videoSwitchCancellable
     readonly property string videoError: backend.videoError
@@ -493,6 +496,8 @@ Item {
     function resumeLyrics() { reading.resumeLyrics(); }
     function retryLyrics() { lyricService.retry(); }
     function toggleVideo() { backend.toggleVideo(); }
+    function findTorrent() { backend.findTorrent(); }
+    function cancelTorrent() { backend.cancelTorrent(); }
     function showNotes(index) { if(notes[index]) reading.showNotes(index); }
     function selectNoteLine(index) { if(Number.isInteger(index) && index>=0 && index<lyrics.length) reading.showNotes(index); }
     function seekToLine(index) { var time=lyricService.seekTime(index);if(typeof time==="number" && isFinite(time))seek(time); }

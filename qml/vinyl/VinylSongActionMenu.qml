@@ -12,6 +12,9 @@ Item {
     // Reparent the single collection row visually; button instances and ownership stay unique.
     property Item collectionHost: null
     readonly property real collectionWidth: collectionActions.width
+    readonly property bool torrentBusy: songData && songData.torrentBusy === true
+    readonly property bool torrentAvailable: songData && songData.torrentAvailable === true
+    readonly property string torrentError: songData && typeof songData.torrentError === "string" ? songData.torrentError : ""
     readonly property bool videoBusy: songData && songData.videoBusy === true
     readonly property bool videoSwitchCancellable: songData && songData.videoSwitchCancellable === true
 
@@ -254,9 +257,31 @@ Item {
         x: root.collectionHost || !collectionActions.width ? 0 : collectionActions.width + root.spacing
         spacing: root.spacing
         Action {
+            objectName: "vinylSongTorrent"
+            visible: root.torrentAvailable || root.torrentBusy
+            enabled: root.torrentBusy || (!root.videoBusy && !root.videoShown && root.torrentAvailable)
+            iconSource: root.torrentBusy ? "" : "data:image/svg+xml;utf8," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#c7c0b4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 3v8a6 6 0 0 0 12 0V3h-4v8a2 2 0 0 1-4 0V3zM6 7h4m4 0h4"/></svg>')
+            symbol: "cancel"
+            selected: root.torrentBusy
+            accessibleName: root.torrentBusy ? qsTr("Cancel torrent lookup") : qsTr("Find torrent stream")
+            accessibleDescription: root.torrentBusy ? qsTr("Finding a torrent stream. Audio is still playing.") : ""
+            onTriggered: root.invokeCurrentSong(root.torrentBusy ? "cancelTorrent" : "findTorrent")
+        }
+        Label {
+            visible: root.torrentError.length > 0
+            width: visible ? Math.min(240, implicitWidth) : 0
+            height: 34
+            verticalAlignment: Text.AlignVCenter
+            text: root.torrentError
+            elide: Text.ElideRight
+            color: theme.inkDim
+            font.pixelSize: 11
+            Accessible.name: text
+        }
+        Action {
             objectName: "vinylBarVideo"
             visible: root.showReaderTools
-            enabled: root.videoBusy ? root.videoSwitchCancellable : (root.videoAvailable || root.videoShown)
+            enabled: !root.torrentBusy && (root.videoBusy ? root.videoSwitchCancellable : (root.videoAvailable || root.videoShown))
             selected: root.videoShown
             symbol: root.videoBusy && root.videoSwitchCancellable ? "cancel" : "video"
             loading: root.videoBusy && !root.videoSwitchCancellable

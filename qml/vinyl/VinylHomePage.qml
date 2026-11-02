@@ -103,7 +103,7 @@ Item {
         objectName: "vinylHomeActions"
         x: Math.max(0, parent.width - width)
         y: 0
-        spacing: root.showHomeRefresh && root.showTasteEdit ? 8 : 0
+        spacing: 8
         visible: root.showTasteEdit || root.showHomeRefresh
 
         VinylWorldButton {

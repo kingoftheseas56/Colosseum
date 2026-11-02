@@ -40,6 +40,9 @@ Item {
         return total > 0 ? "Opening local music (" + processed + " of " + total + " files)…" : "Opening local music…";
     }
     property var routeStack: []
+    property var feedbackRequest: null
+    property string feedbackError: ""
+    readonly property var recommendationPage: feedbackLayer.item
     property bool browsingSong: false
     property bool restoringRoute: false
     property var pendingAlbumRoute: null
@@ -64,7 +67,7 @@ Item {
     readonly property real contentBottom: bar.visible ? bar.y - (videoDisplayed ? 14 : 54) : height - Math.max(62, shellDockBottomExtent)
     readonly property bool worldVisible: canEnterVinyl
         ? ["home","discover","library"].indexOf(page)>=0 : worldData.tastePickerOpen===true
-    readonly property Item chromeBackdrop: worldVisible && root.backdrop ? root.backdrop : vinylBackdrop
+    readonly property Item chromeBackdrop: (worldVisible || page==="feedback") && root.backdrop ? root.backdrop : vinylBackdrop
     readonly property bool discoverOnlineMode: {
         if(worldData.activeTab==="discover") return !!worldData.onlineMode;
         var states=worldData.browseStates;
@@ -98,6 +101,8 @@ Item {
             if (session.browsing) session.cancelBrowse();
             pendingAlbumRoute = null;
             routeStack = [];
+            feedbackRequest = null;
+            feedbackError = "";
             searchOpen = false;
             artistSearchOpen = false;
 
@@ -119,7 +124,7 @@ Item {
     }
     function captureRoute() {
         var focusItem=Window.window ? Window.window.activeFocusItem : null;
-        return {page:page,searchOpen:searchOpen,searchSnapshot:searchSnapshot,searchOriginCatalogue:searchOriginCatalogue,focus:focusItem,keyboardFocus:!!focusItem && focusItem.accessibleName!==undefined,
+        return {page:page,feedbackRequest:feedbackRequest,searchOpen:searchOpen,searchSnapshot:searchSnapshot,searchOriginCatalogue:searchOriginCatalogue,focus:focusItem,keyboardFocus:!!focusItem && focusItem.accessibleName!==undefined,
             worldY:worldScroll.contentY,albumY:album.contentY,artistY:artist.contentY,
             browseState:typeof worldData.captureBrowseState==="function" ? worldData.captureBrowseState() : null,
             worldState:world.captureRouteState(),
@@ -128,6 +133,22 @@ Item {
             browsingSong:browsingSong,songAlbum:browseSong.album,songIndex:browseSong.trackIndex,songEdition:browseSong.editionId};
     }
     function pushRoute() {routeStack=routeStack.concat([captureRoute()]);}
+    function showRecommendationActions(request) {
+        if(!canEnterVinyl || !request || request.generation!==worldData.recommendationProfileGeneration()) return false;
+        session.cancelBrowse();pendingAlbumRoute=null;
+        pushRoute();feedbackRequest=request;feedbackError="";
+        searchOpen=false;artistSearchOpen=false;page="feedback";
+        Qt.callLater(root.parkFocus);
+        return true;
+    }
+    function applyRecommendationAction(ref,action,generation) {
+        if(page!=="feedback" || !feedbackRequest || generation!==feedbackRequest.generation) return false;
+        if(!worldData.setRecommendationFeedback(ref,action,generation)) {
+            feedbackError=worldData.persistenceError || qsTr("Could not update recommendations. Try again.");
+            return false;
+        }
+        return goBack();
+    }
     function openArtistOnboarding() {
         if(lifecycleActive && page==="home" && worldData.tastePickerOpen
             && worldData.onboardingState==="draft" && !searchOpen)
@@ -508,6 +529,7 @@ Item {
             if(artistData.name!==state.artistName || artistData.artistId!==state.artistId) artistData.open({name:state.artistName,id:state.artistId});
             artistData.activeTab=state.artistTab;artist.selectedCategory=state.artistCategory;artistData.filter=state.artistFilter;artistData.categoryFilter=state.artistCategoryFilter;artistData.newestFirst=state.artistNewest;artistData.allSongs=state.artistAllSongs;
             browsingSong=state.browsingSong;browseSong.album=state.songAlbum;browseSong.editionId=state.songEdition;browseSong.trackIndex=state.songIndex;
+            feedbackRequest=state.feedbackRequest || null;feedbackError="";
             page=state.page;restoringRoute=false;
             Qt.callLater(function(){
                 if(!root) return;
@@ -580,6 +602,7 @@ Item {
         onQueueRequested: if(root.canEnterVinyl)queuePanel.open()
         onProfileGenerationChanged: {
             root.cancelNamedCollectionOpen();root.namedCollectionReturn=null;root.importStatus="";
+            root.feedbackRequest=null;root.feedbackError="";
             pendingAlbumRoute=null;root.searchSnapshot=null;root.searchOriginCatalogue=null;root.searchOpen=false;root.artistSearchOpen=false;
             artistData.open({id:"",name:""});root.routeStack=[];root.page="home";world.resetRouteState("home");
             Qt.callLater(function(){
@@ -590,7 +613,7 @@ Item {
         }
         onImportingChanged: {if(!session.importing && root.importStatus==="Opening local music…") root.importStatus="Import cancelled. Your library was kept.";}
     }
-    VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id)}
+    VinylLiveWorldData {id:worldData;session:session;personalLibrary:personalData;recommendationService:recommendations;onItemRequested: item => root.activateItem(item);onResumeRequested:root.activateItem({kind:"resume",resumeCurrent:true});onHomeDestinationRequested:(tab,section,id)=>root.openHomeDestination(tab,section,id);onRecommendationActionsRequested:request=>root.showRecommendationActions(request)}
     Connections {
         target:recommendations
         function onStateChanged() {
@@ -683,7 +706,7 @@ Item {
         onAccepted: root.importLocalFiles([String(selectedFolder)])
         onRejected: root.parkFocus()
     }
-    VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;visible:!root.worldVisible || !root.backdrop;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
+    VinylBackdrop {id:vinylBackdrop;anchors.fill:parent;visible:(!root.worldVisible && root.page!=="feedback") || !root.backdrop;source:root.page==="song" ? song.pageData.playingEdition.cover : root.page==="album" ? session.shownEdition.cover : ""}
     TopBar {
         id:top;objectName:"vinylTopBar"
         visible: !root.videoFullscreen
@@ -730,6 +753,17 @@ Item {
             onMinimizeRequested:root.minimizeClicked()
             onFullscreenRequested:root.fullscreenClicked()
             onCloseRequested:root.powerClicked()
+        }
+    }
+    Loader {
+        id:feedbackLayer
+        x:0;y:top.y+top.height+24;width:parent.width;height:Math.max(0,root.contentBottom-y)
+        active:root.canEnterVinyl && root.page==="feedback" && !!root.feedbackRequest
+        visible:active
+        sourceComponent: VinylRecommendationPage {
+            request:root.feedbackRequest;worldData:root.worldData;backdrop:root.chromeBackdrop;error:root.feedbackError
+            onBackRequested:root.goBack()
+            onActionRequested:(ref,action,generation)=>root.applyRecommendationAction(ref,action,generation)
         }
     }
     WorldTabBar {

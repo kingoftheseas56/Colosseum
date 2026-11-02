@@ -87,9 +87,15 @@ class FakePreferences final : public QObject {
     Q_PROPERTY(QString vinylHomeSelectionSnapshot MEMBER selection)
 public:
     int tasteWrites = 0;
+    int exposureWrites = 0;
+    bool rejectExposureWrites = false;
     QString feedback,exposure,selection;
     Q_INVOKABLE bool setVinylFeedbackSnapshot(const QString &value) {feedback=value;emit vinylFeedbackChanged();return true;}
-    Q_INVOKABLE bool setVinylRecommendationExposureSnapshot(const QString &value) {exposure=value;emit vinylRecommendationExposureChanged();return true;}
+    Q_INVOKABLE bool setVinylRecommendationExposureSnapshot(const QString &value) {
+        ++exposureWrites;
+        if (rejectExposureWrites) return false;
+        exposure=value;emit vinylRecommendationExposureChanged();return true;
+    }
     Q_INVOKABLE bool setVinylHomeSelectionSnapshot(const QString &value) {selection=value;return true;}
 
     void setTaste(const QVariantList &artists, bool answered = true)
@@ -570,6 +576,68 @@ private slots:
         auto record=item.value("record").toMap();record["tracks"]=QVariantList{wrong};item["record"]=record;
         response["items"]=QVariantList{item};
         QVERIFY(!VinylProvider::normalizeHome("songCandidates",video,options,response,&normalized));
+    }
+
+    void visibleExposurePersistsWithoutPublishingHomeModels() {
+        HomeFixture fixture({artistSeed(1)});
+        ActivityStore activity;
+        fixture.service.setActivityStore(&activity);
+        pumpAllHomeReplies(fixture.source);
+        const auto sections = fixture.service.homeSections();
+        const auto snapshot = fixture.service.homeSnapshot();
+        const auto carousel = fixture.service.homeCarouselItems();
+        const auto listening = fixture.service.homeListeningCards();
+        const auto quickPicks = fixture.service.homeQuickPicks();
+        const auto mix = fixture.service.homeMixView();
+        const int revision = fixture.service.homeRevision();
+        const auto items = sectionItems(fixture.service, "from-your-artists");
+        QVERIFY(!items.isEmpty());
+        const auto ref = items.first().toMap().value("ref").toMap();
+        const auto token = snapshot.value("exposureSnapshotId").toString();
+        const int writesBefore = fixture.preferences.exposureWrites;
+        QSignalSpy homeChanged(&fixture.service, &VinylRecommendationService::homeChanged);
+        QSignalSpy listeningChanged(&fixture.service, &VinylRecommendationService::listeningChanged);
+
+        fixture.preferences.rejectExposureWrites = true;
+        QVERIFY(!fixture.service.recordVisibleItems("from-your-artists", token, {ref}, 0));
+        QVERIFY(fixture.preferences.exposure.isEmpty());
+        QCOMPARE(fixture.preferences.exposureWrites, writesBefore + 1);
+        QCOMPARE(homeChanged.count(), 0);
+        QCOMPARE(listeningChanged.count(), 0);
+
+        fixture.preferences.rejectExposureWrites = false;
+        QElapsedTimer timer;
+        timer.start();
+        QVERIFY(fixture.service.recordVisibleItems("from-your-artists", token, {ref}, 0));
+        const qint64 elapsedNs = timer.nsecsElapsed();
+        const auto persisted = fixture.preferences.exposure;
+        const auto records = QJsonDocument::fromJson(persisted.toUtf8()).object().value("records").toArray();
+        QCOMPARE(records.size(), 1);
+        QCOMPARE(records.first().toObject().value("entity").toObject().toVariantMap(), ref);
+        QCOMPARE(records.first().toObject().value("shelf").toString(), QString("from-your-artists"));
+        QCOMPARE(records.first().toObject().value("rankPosition").toInt(), 1);
+        QCOMPARE(fixture.preferences.exposureWrites, writesBefore + 2);
+        qInfo() << "Exposure persistence ns:" << elapsedNs << "homeChanged:" << homeChanged.count()
+                << "listeningChanged:" << listeningChanged.count()
+                << "revision delta:" << fixture.service.homeRevision() - revision;
+        QCOMPARE(homeChanged.count(), 0);
+        QCOMPARE(listeningChanged.count(), 0);
+        QCOMPARE(fixture.service.homeRevision(), revision);
+        QCOMPARE(fixture.service.homeSnapshot(), snapshot);
+        QCOMPARE(fixture.service.homeSections(), sections);
+        QCOMPARE(fixture.service.homeCarouselItems(), carousel);
+        QCOMPARE(fixture.service.homeListeningCards(), listening);
+        QCOMPARE(fixture.service.homeQuickPicks(), quickPicks);
+        QCOMPARE(fixture.service.homeMixView(), mix);
+
+        QVERIFY(fixture.service.recordVisibleItems("from-your-artists", token, {ref}, 0));
+        QCOMPARE(fixture.preferences.exposure, persisted);
+        QCOMPARE(fixture.preferences.exposureWrites, writesBefore + 2);
+        QCOMPARE(homeChanged.count(), 0);
+        QCOMPARE(listeningChanged.count(), 0);
+        // Diagnostics remain a snapshot of composition until another real rebuild.
+        fixture.service.setHomeCollections({{"songs", QVariantList()}});
+        QCOMPARE(fixture.service.homeSnapshot().value("exposureCount").toInt(), 1);
     }
 
     void visibleExposureDoesNotRerankTheCurrentVisit() {

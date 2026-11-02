@@ -161,7 +161,7 @@ void VinylBackendSession::setSource(QObject *source) {
     if(m_source)disconnect(m_source,nullptr,this,nullptr);
     m_source=source;
     if(m_source)connect(m_source,SIGNAL(completed(QString,int,QVariant,QString)),
-                       this,SLOT(sourceCompleted(QString,int,QVariant,QString)),Qt::QueuedConnection);
+                       this,SLOT(sourceCompleted(QString,int,QVariant,QString)),Qt::AutoConnection);
     emit sourceChanged();
 }
 void VinylBackendSession::setVideoSurface(QObject *surface) {
@@ -375,7 +375,17 @@ std::optional<PlaybackLoadInput> VinylBackendSession::inputFor(const QueueOccurr
     return std::nullopt;
 }
 void VinylBackendSession::sourceCompleted(const QString &lane,int request,const QVariant &data,const QString &error) {
-    if(sender()!=m_source||m_shutdown||!m_profileActive)return;
+    const QPointer<QObject> owner=sender();
+    // AutoConnection keeps this slot on its owner thread. Snapshot GUI
+    // emissions before the queued acceptance can observe a retired request.
+    const auto epoch=m_epoch,serial=m_torrentSerial;
+    QMetaObject::invokeMethod(this,[this,owner,epoch,serial,lane,request,data,error] {
+        if(owner!=m_source||epoch!=m_epoch||(lane=="play"&&serial!=m_torrentSerial)||m_shutdown||!m_profileActive)return;
+        acceptSourceCompleted(lane,request,data,error);
+    },Qt::QueuedConnection);
+}
+void VinylBackendSession::acceptSourceCompleted(const QString &lane,int request,const QVariant &data,const QString &error) {
+    if(lane=="play"&&request>=0&&request==m_torrentRequest) {torrentCompleted(data.toMap(),error);return;}
     if(lane=="video-match"||lane=="video-stream"){videoCompleted(lane,request,data.toMap(),error);return;}
     if(lane!="play"||request<0||request!=m_request)return;
     m_request=-1;
@@ -398,7 +408,63 @@ void VinylBackendSession::sourceCompleted(const QString &lane,int request,const 
     if(!started.ok)fail("The audio could not start.");
     publishState();
 }
+bool VinylBackendSession::torrentAvailable() const {
+    return !m_shutdown&&m_profileActive&&m_source&&m_loaded&&m_request<0
+        &&m_sourceKind=="youtube"&&!m_videoActive&&!m_videoBusy
+        &&activeRow().value("edition").toMap().value("origin","local").toString()!="local";
+}
+void VinylBackendSession::findTorrent() {
+    if(torrentBusy()||!torrentAvailable())return;
+    m_torrentError.clear();m_torrentOccurrence=activeRow().value("queueId").toString();
+    m_torrentTrack=activeRow().value("trackId").toString();m_torrentEpoch=m_epoch;
+    const auto serial=++m_torrentSerial;
+    QVariantMap options{{"source","torrent"}};
+    const auto edition=activeRow().value("edition").toMap();
+    const auto browseId=edition.value("browseId",edition.value("sourceAlbum").toMap().value("browseId")).toString();
+    if(!browseId.isEmpty())options.insert("browseId",browseId);
+    m_torrentRequest=requestSource("play","resolve",m_torrentTrack,options);
+    if(m_torrentRequest<0)m_torrentError="Torrent lookup is unavailable. Audio is still playing.";
+    else QTimer::singleShot(120000,this,[this,serial] {
+        if(serial!=m_torrentSerial||!torrentBusy())return;
+        cancelTorrent();m_torrentError="Torrent lookup timed out. Audio is still playing.";publishState();
+    });
+    publishState();
+}
+void VinylBackendSession::cancelTorrent() {
+    const bool pending=torrentBusy();m_torrentRequest=-1;if(pending)++m_torrentSerial;
+    m_torrentOccurrence.clear();m_torrentTrack.clear();m_torrentError.clear();
+    if(pending&&m_source)QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("play")));
+    if(pending)publishState();
+}
+void VinylBackendSession::torrentCompleted(const QVariantMap &resource,const QString &error) {
+    const bool current=m_torrentEpoch==m_epoch&&m_torrentOccurrence==activeRow().value("queueId").toString()
+        &&m_torrentTrack==activeRow().value("trackId").toString();
+    m_torrentRequest=-1;++m_torrentSerial;
+    m_torrentOccurrence.clear();m_torrentTrack.clear();
+    if(!current)return;
+    auto unavailable=[this] {m_torrentError="No exact torrent stream is available. Audio is still playing.";publishState();};
+    if(!error.isEmpty()||resource.value("trackId")!=activeRow().value("trackId")
+        ||resource.value("provider")!="torrent"||!m_loaded||m_videoActive||m_videoBusy){unavailable();return;}
+    QVector<PlaybackRequestHeader> headers;
+    const auto fields=resource.value("headers").toMap();
+    for(auto it=fields.cbegin();it!=fields.cend();++it) {
+        if(it.value().metaType().id()!=QMetaType::QString){unavailable();return;}
+        headers.append({it.key(),it.value().toString()});
+    }
+    const auto input=PlaybackLoadInput::create(resource.value("url").toString(),headers);
+    const auto *active=m_backend->queue.activeOccurrence();
+    if(!input.ok()||!active){unavailable();return;}
+    m_resume=position();m_resumeListeningFacts=bool(m_backend->listenRecorder);
+    if(m_resumeListeningFacts)endListeningFacts(false);
+    m_backend->input=*input.value;m_audioResource=resource;
+    m_quality=resource.value("qualityLabel","Torrent audio").toString();m_sourceKind="torrent";
+    m_fallbackAttempted=false;m_fallbackReason.clear();m_torrentError.clear();m_state="finding";
+    const auto result=m_backend->coordinator.restartActive(active->occurrenceId(),*input.value);
+    if(!result.ok){if(!tryFallback("Torrent audio could not start."))fail("The audio could not start.");}
+    emit discontinuity(m_resume);publishState();
+}
 void VinylBackendSession::cancelResolution() {
+    cancelTorrent();m_torrentError.clear();
     resetVideo();
     ++m_epoch;m_request=-1;m_resolvingId.clear();m_backend->input.reset();
     if(m_source)QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("play")));
@@ -468,7 +534,7 @@ bool VinylBackendSession::videoSwitchCancellable() const {
         &&!resourceExpired(m_audioResource.value("url").toString());
 }
 void VinylBackendSession::toggleVideo() {
-    if(m_shutdown||!m_profileActive)return;
+    if(m_shutdown||!m_profileActive||torrentBusy())return;
     if(m_videoBusy&&m_videoRequest>=0) {
         if(!videoSwitchCancellable())return;
         QMetaObject::invokeMethod(m_source,"cancel",Qt::DirectConnection,Q_ARG(QString,QString("video-stream")));

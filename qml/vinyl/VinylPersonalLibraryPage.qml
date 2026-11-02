@@ -185,7 +185,7 @@ Item {
                         accessibleName: root.displayTitle(modelData) + (root.displayArtist(modelData) ? ", " + root.displayArtist(modelData) : "")
                         onActiveFocusChanged: if (activeFocus) { root.currentIndex=index; root.selectedId=String(modelData.albumId || modelData.id || ""); }
                         onTriggered: root.libraryData.activateAlbum(modelData)
-                        RoundedPosterImage { id: art; width: albumCard.width; height: width; radius: 12; hovered: albumCard.interactionActive; sources: root.artwork(albumCard.modelData.cover) ? [root.artwork(albumCard.modelData.cover)] : [] }
+                        VinylAlbumWidget { id: art; width: albumCard.width; height: implicitHeight; title: root.displayTitle(albumCard.modelData); artworkSource: root.artwork(albumCard.modelData.cover) }
                         Column {
                             id: copy; y: art.height + 11; width: parent.width; spacing: 4
                             Text { width: parent.width; text: root.displayTitle(albumCard.modelData); textFormat: Text.PlainText; color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold; maximumLineCount: 2; wrapMode: Text.WordWrap; elide: Text.ElideRight }
@@ -218,12 +218,11 @@ Item {
                         objectName: "vinylLibraryArtist_" + index
                         focusOnPointer: false; showFocusFrame: false
                         width: (artistGrid.width - (artistGrid.columns - 1) * artistGrid.columnSpacing) / artistGrid.columns
-                        height: art.height + copy.implicitHeight + 12
+                        height: art.height + 12
                         accessibleName: root.displayTitle(modelData)
                         onActiveFocusChanged: if (activeFocus) { root.currentIndex=index; root.selectedId=String(modelData.artistId || modelData.id || ""); }
                         onTriggered: root.libraryData.activateArtist(modelData)
-                        RoundedPosterImage { id: art; width: artistCard.width; height: width; radius: width / 2; hovered: artistCard.interactionActive; sources: root.artwork(artistCard.modelData.cover) ? [root.artwork(artistCard.modelData.cover)] : [] }
-                        Text { id: copy; y: art.height + 11; width: parent.width; text: root.displayTitle(artistCard.modelData); textFormat: Text.PlainText; color: theme.ink; font.family: theme.ui; font.pixelSize: 14; font.weight: Font.DemiBold; horizontalAlignment: Text.AlignHCenter; maximumLineCount: 2; wrapMode: Text.WordWrap; elide: Text.ElideRight }
+                        VinylArtistWidget { id: art; width: artistCard.width; height: implicitHeight; title: root.displayTitle(artistCard.modelData); artworkSource: root.artwork(artistCard.modelData.cover); displayFont: theme.display }
                     }
                 }
             }

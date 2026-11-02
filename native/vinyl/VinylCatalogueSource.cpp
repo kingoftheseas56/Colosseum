@@ -83,6 +83,11 @@ QVariantMap VinylCatalogueSource::remember(QVariantMap album){
 int VinylCatalogueSource::request(const QString &lane,const QString &operation,const QString &value){return request(lane,operation,value,{});}
 int VinylCatalogueSource::request(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options){
     if(operation=="songCandidates"&&lane!="home-song-0"&&lane!="home-song-1")return -1;
+    const bool resolving=operation=="resolve"||operation=="resolveFallback";
+    const auto selectedSource=options.value("source");
+    if(resolving&&options.contains("source")
+        &&(selectedSource.metaType().id()!=QMetaType::QString
+            ||(selectedSource.toString()!="youtube"&&selectedSource.toString()!="torrent")))return -1;
     cancel(lane);const int id=++m_serial;
     bool local=operation=="search"||value.startsWith("vault:")||value.startsWith("vinyl:local-");
     QString remoteValue=value,remoteOperation=operation;
@@ -100,7 +105,7 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
         local=false;remoteValue=options.value("videoId").toString();
         if(!QRegularExpression("^[A-Za-z0-9_-]{11}$").match(remoteValue).hasMatch())return -1;
     }
-    if(operation=="resolve"&&lane=="play"&&!local&&m_torrent&&m_remoteTracks.contains(value)){
+    if(operation=="resolve"&&lane=="play"&&!local&&selectedSource.toString()=="torrent"&&m_torrent&&m_remoteTracks.contains(value)){
         auto intent=m_remoteTracks.value(value);
         const auto browseId=options.value("browseId").toString();
         if(!browseId.isEmpty()){
@@ -121,7 +126,9 @@ int VinylCatalogueSource::request(const QString &lane,const QString &operation,c
         if(fallback<0){pending.fallbackReady=true;pending.fallbackError="The fallback source is unavailable.";}
         return id;
     }
-    const int transport=local?m_local->request(lane,operation,value,options):m_provider->requestPayload(lane,operation=="resolveFallback"?"resolve":remoteOperation,remoteValue,options);
+    auto localOptions=options;
+    if(local&&resolving)localOptions.remove("source");
+    const int transport=local?m_local->request(lane,operation,value,localOptions):m_provider->requestPayload(lane,operation=="resolveFallback"?"resolve":remoteOperation,remoteValue,options);
     if(transport<0)return -1;
     m_pending.insert(lane,{id,transport,local,operation,value});m_pending[lane].options=options;return id;
 }
@@ -220,7 +227,9 @@ void VinylCatalogueSource::openArtist(const QVariantMap &intent){
 }
 void VinylCatalogueSource::acceptArtist(const QString &lane,const QVariant &data,const QString &error){
     if(!error.isEmpty()){if(lane=="artist-identity")m_identity={{"unavailable",true}};m_artistError+=(m_artistError.isEmpty()?QString():"\n")+error;emit artistChanged();return;}
-    auto map=data.toMap();if(map.value("_cached").toBool())m_cached=true;
+    auto map=data.toMap();
+    // The artist UI's cached status reports that a stale fallback was used.
+    if(map.value("_stale").toBool())m_cached=true;
     if(lane=="artist-artwork"){loadArtwork(map);return;}
     if(lane=="artist"&&m_channel.isEmpty()){
         QVariantList exact;for(const auto &row:map.value("artists").toList())if(row.toMap().value("name").toString().compare(m_artistIntent.value("name").toString(),Qt::CaseInsensitive)==0)exact.append(row);

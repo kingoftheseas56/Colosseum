@@ -127,7 +127,10 @@ Item {
                     exposureRevision: root.exposureRevision
                     onActiveFocusChanged: if(activeFocus){root.currentIndex=index;root.reveal(index)}
                     Keys.onPressed: event => {if([Qt.Key_Left,Qt.Key_Right,Qt.Key_Home,Qt.Key_End].indexOf(event.key)>=0)nav.handle(event)}
-                    width: root.cardSize
+                    width: modelData.kind === "mixes"
+                        ? Math.min(rail.width, root.cardSize * 1.5)
+                        : modelData.kind === "radio"
+                            ? Math.min(rail.width, root.cardSize * 1.25) : root.cardSize
                     height: implicitHeight
                 }
             }

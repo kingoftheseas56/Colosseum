@@ -39,6 +39,13 @@ Item {
         property var playingTrack: viewedTrack
         property bool hasVideo: false
         property bool videoShown: false
+        property bool torrentAvailable: false
+        property bool torrentBusy: false
+        property string torrentError: ""
+        property int torrentRequests: 0
+        property int torrentCancels: 0
+        function findTorrent() { torrentRequests += 1 }
+        function cancelTorrent() { torrentCancels += 1 }
         property bool videoBusy: false
         property bool videoSwitchCancellable: false
         property var playingCredits: []
@@ -175,6 +182,11 @@ Item {
             unsupportedTrack.available = true
             viewedSong.hasVideo = false
             viewedSong.videoShown = false
+            viewedSong.torrentAvailable = false
+            viewedSong.torrentBusy = false
+            viewedSong.torrentError = ""
+            viewedSong.torrentRequests = 0
+            viewedSong.torrentCancels = 0
             viewedSong.videoBusy = false
             viewedSong.videoSwitchCancellable = false
             viewedSong.playingCredits = []
@@ -194,6 +206,32 @@ Item {
             videoSpy.clear()
             fullscreenSpy.clear()
             creditsSpy.clear()
+        }
+
+        function test_torrentCapabilityTargetsOnlyCurrentSessionAndCancels() {
+            const button = action("vinylSongTorrent")
+            verify(!button.visible)
+            viewedSong.torrentAvailable = true
+            verify(button.visible)
+            compare(button.accessibleName, "Find torrent stream")
+            button.activate()
+            compare(viewedSong.torrentRequests, 1)
+            viewedSong.torrentBusy = true
+            compare(button.accessibleName, "Cancel torrent lookup")
+            button.activate()
+            compare(viewedSong.torrentCancels, 1)
+            control.songData = otherSong
+            verify(!button.visible)
+            button.activate()
+            compare(viewedSong.torrentRequests, 1)
+            compare(viewedSong.torrentCancels, 1)
+        }
+        function test_videoBusyDisablesTorrentAction() {
+            viewedSong.torrentAvailable = true
+            viewedSong.videoBusy = true
+            verify(!action("vinylSongTorrent").enabled)
+            action("vinylSongTorrent").activate()
+            compare(viewedSong.torrentRequests, 0)
         }
 
         function test_onlySupportedActionsAndPersonalGate() {

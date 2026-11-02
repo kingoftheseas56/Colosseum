@@ -17,6 +17,19 @@ Item {
     property Item listReturnFocus: null
     readonly property var personalData: root.worldData.personalLibrary || null
     readonly property Item libraryDestination: personalLibraryHost.item || library
+    function carouselActionLabel(slide) {
+        var item=slide.item || {}, kind=String(item.kind || "");
+        var destination=item.destination || {};
+        if(slide.key==="resume" || kind==="resume") return qsTr("Resume");
+        if(kind==="mixes") return qsTr("Open mix");
+        if(kind==="radio") return qsTr("Start radio");
+        if(destination.kind==="artist" || kind==="artists") return qsTr("Explore artist");
+        if(destination.kind==="album" || kind==="albums") return qsTr("Open album");
+        if(destination.kind==="song" || destination.kind==="saved-song"
+            || kind==="songs" || kind==="saved-song") return qsTr("View song");
+        if(slide.key==="local-albums" || slide.key==="library") return qsTr("Open library");
+        return qsTr("Explore collection");
+    }
     function focusArtistSearch() {return home.focusArtistSearch();}
     function focusCurrent() {
         if (listKey) list.focusCurrent();
@@ -171,7 +184,7 @@ Item {
         slides: root.worldData.carouselSlides.map(function(slide) {
             return Object.assign({},slide,{c1:theme.biblioWashTop,c2:theme.biblioWashBottom,
                 artKind:slide.artKind==="poster" ? "square" : (slide.artKind || "square"),
-                primaryIcon:slide.key==="resume" || (slide.item && slide.item.kind==="resume") ? "play" : "chevronRight"});
+                cta:root.carouselActionLabel(slide),primaryIcon:""});
         })
         kicker: slides[index] ? slides[index].kicker : ""
         primaryLabel: slides[index] ? slides[index].cta : ""

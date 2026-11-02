@@ -1,10 +1,12 @@
 import QtQuick
 import QtTest
+import "../../qml/vinyl" as Vinyl
 
 TestCase {
     name: "VinylAlbumPage"
     when: windowShown
     property var host
+    Component { id: isolatedBackdrop; Vinyl.VinylBackdrop { contentStore: null } }
     function item(name) {
         function walk(o) {
             if (o.objectName === name)
@@ -31,6 +33,37 @@ TestCase {
         if (host) {
             host.close();
             host.destroy();
+        }
+    }
+    function test_backdropResizeUsesCurrentArtworkGeometry() {
+        function standardEffect(node) {
+            if (node.blurMax !== undefined && node.source && node.source.fillMode !== undefined)
+                return node;
+            for (var i = 0; i < node.children.length; ++i) {
+                var effect = standardEffect(node.children[i]);
+                if (effect)
+                    return effect;
+            }
+            return null;
+        }
+        var backdrop = createTemporaryObject(isolatedBackdrop, host.contentItem);
+        verify(backdrop !== null);
+        backdrop.width = 640;
+        backdrop.height = 480;
+        var effect = standardEffect(backdrop);
+        verify(effect !== null);
+        var originalWidth = backdrop.width;
+        var originalHeight = backdrop.height;
+        for (var offset of [1, 0]) {
+            backdrop.width = originalWidth + offset;
+            backdrop.height = originalHeight + offset;
+            tryVerify(function() {
+                var padding = effect.blurMax * (1 + effect.blurMultiplier);
+                var expectedWidth = effect.source.width * (1 + 2 * padding / effect.width);
+                var expectedHeight = effect.source.height * (1 + 2 * padding / effect.height);
+                return Math.abs(effect.itemRect.width - expectedWidth) < 0.001
+                    && Math.abs(effect.itemRect.height - expectedHeight) < 0.001;
+            }, 1000, "Blur source rectangle must follow the current artwork size after resize");
         }
     }
     function test_sectionIconsAreDistinctAndLoaded() {

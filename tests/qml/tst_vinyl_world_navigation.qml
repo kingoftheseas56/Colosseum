@@ -103,29 +103,31 @@ TestCase {
         })
         host.worldData.resume();compare(host.page,"song")
     }
-    function test_primaryCtasUseIconGlyphsAndAccessibleLabels() {
+    function test_primaryCtasUseNamedLabelsAndAccessibleActions() {
         var carousel=item("vinylCarousel")
         verify(carousel!==null)
         tryVerify(function(){return carousel.slides.length>0
             && findChild(carousel,"featuredPrimaryIcon_0")!==null})
         carousel.slides.forEach(function(slide,index) {
-            var expected=slide.key==="resume" ? "play" : "chevronRight"
-            compare(slide.primaryIcon,expected)
+            var expected=slide.key==="resume" ? "Resume"
+                : slide.key==="local-albums" || slide.key==="library" ? "Open library" : "Explore collection"
+            compare(slide.cta,expected)
+            compare(slide.primaryIcon,"")
             compare(slide.artKind,"square","Vinyl album and artist artwork keeps its square aspect")
             var icon=findChild(carousel,"featuredPrimaryIcon_"+index)
             var label=findChild(carousel,"featuredPrimaryLabel_"+index)
             var action=findChild(carousel,"featuredPrimaryAction_"+index)
             var art=findChild(carousel,"featuredInsetArt_"+index)
-            verify(icon!==null && icon.visible,index+" renders its primary icon")
-            compare(icon.kind,expected)
-            verify(label!==null && !label.visible,index+" hides its visible CTA text")
+            verify(icon!==null && !icon.visible,index+" hides its primary icon")
+            verify(label!==null && label.visible,index+" renders its named CTA")
+            compare(label.text,expected)
             verify(art!==null && art.visible,index+" renders inset cover art")
             verify(Math.abs(art.width/art.height-1)<0.01,index+" keeps cover art square")
             verify(action!==null)
             compare(action.accessibleName,slide.cta,
-                "the icon action keeps the supplied CTA as its accessible name")
+                "the named action keeps the supplied CTA as its accessible name")
             compare(action.accessibleDescription,"",
-                "the icon action adds no hover descriptor")
+                "the named action adds no hover descriptor")
         })
         var originalWidth=host.width
         host.width=520

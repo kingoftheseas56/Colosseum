@@ -17,6 +17,8 @@
 #include <QQueue>
 #include <QSet>
 #include <QRegularExpression>
+#include <QElapsedTimer>
+#include <QDebug>
 #include <functional>
 #include <memory>
 #include "VinylRecommendationIdentity.h"
@@ -187,7 +189,8 @@ public:
         const auto key=QString::fromLatin1(QCryptographicHash::hash(QJsonDocument(cacheInput).toJson(QJsonDocument::Compact),QCryptographicHash::Sha256).toHex());
         const auto path=m_cacheRoot+"/"+key+".json";
         auto *process=new QProcess(this);m_active.insert(lane,process);auto output=std::make_shared<QByteArray>();
-        auto finish=[this,process,lane,id,home,cacheable,path,key,operation,value,payload](QVariant data,QString error){
+        auto elapsed=std::make_shared<QElapsedTimer>();elapsed->start();
+        auto finish=[this,process,lane,id,home,cacheable,path,key,operation,value,payload,elapsed](QVariant data,QString error){
             if(m_active.value(lane)!=process)return;
             const bool ran=m_running.contains(process);
             m_active.remove(lane);m_running.remove(process);process->disconnect(this);
@@ -217,6 +220,12 @@ public:
                     if(!cached.isEmpty()){cached["_cached"]=true;cached["_stale"]=true;cached["_cacheError"]=error.isEmpty()?map.value("error","The source is unavailable.").toString():error;data=cached;error.clear();}
                 }
             }
+            const auto result=data.toMap();
+            const auto count=data.metaType().id()==QMetaType::QVariantList?data.toList().size()
+                :result.value("items",result.value("tracks",result.value("albums"))).toList().size();
+            qInfo().noquote()<<"[vinyl-provider]"<<QJsonDocument(QJsonObject{{"operation",operation},{"lane",lane},
+                {"cacheHit",result.value("_cached").toBool()},{"stale",result.value("_stale").toBool()},
+                {"elapsedMs",elapsed->elapsed()},{"count",count},{"ok",error.isEmpty()&&result.value("status")!="unavailable"}}).toJson(QJsonDocument::Compact);
             emit completed(lane,id,data,error);
             QTimer::singleShot(0,this,[this]{startWaiting();});
         };
@@ -235,7 +244,8 @@ public:
             }
             else finish(object.value("data").toVariant(),{});
         });
-        if((home||operation=="discover"||operation=="lyrics")&&!payload.value("refresh").toBool()){
+        const bool catalogueObject=QStringList{"cataloguePage","catalogueSearch","artist","artistReleases","album","artistVideos"}.contains(operation);
+        if((home||operation=="discover"||operation=="lyrics"||catalogueObject)&&!payload.value("refresh").toBool()){
             const auto cached=readCache(path,key,operation,value,payload,home,true);
             if(!cached.isEmpty()){QTimer::singleShot(0,process,[finish,cached]{auto map=cached;map["_cached"]=true;finish(map,{});});return id;}
         }

@@ -222,7 +222,8 @@ bool VinylRecommendationService::recordVisibleItems(const QString &shelf,const Q
     const auto captured=QString::fromUtf8(wire(QVariantMap{{"version",2},{"profileId",m_scope},{"records",retained},
         {"activityResetGeneration",QVariant::fromValue(m_home->activityReset)},{"historyResetGeneration",m_home->historyReset}}));
     if(captured==prior)return true;if(!storeExposure(captured))return false;
-    m_home->evaluatedAt=now;rebuildHome();return true;
+    // Persist current-visit exposure for the next visit, keeping this Home composition stable.
+    return true;
 }
 
 void VinylRecommendationService::initializeHome(std::function<qint64()> clock){

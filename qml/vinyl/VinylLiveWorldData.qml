@@ -1,5 +1,6 @@
 import QtQuick
 import "VinylWorldLists.js" as Lists
+import "VinylRecommendationActions.js" as RecommendationActions
 
 // Presentation only. Collection records and the music session remain authoritative.
 // Taste is owned by the active profile preferences.
@@ -139,7 +140,7 @@ Item {
         recentContinue=values.map(function(entry){
             var summary=session.checkpointSummary(entry.resume),row=summary.row;
             if(!row || (summary.duration>0 && summary.position>=summary.duration-0.5))return null;
-            return {id:"resume:"+row.editionId,kind:"resume",title:row.title,subtitle:row.artist,
+            return {id:"resume:"+row.editionId,kind:"resume",title:row.title,artist:row.artist,subtitle:row.artist,
                 cover:row.cover || "",editionId:row.editionId,trackId:row.trackId,
                 lastPlaybackAtMs:Number(summary.lastPlaybackAtMs)||0,
                 unavailable:!session.personalRowAvailable(row),resumeEntry:entry};
@@ -244,6 +245,38 @@ Item {
                 return recommendationRefsEqual(recommendationArtistRef(artist),artistRef);
             });
         }).slice(0,300);
+    }
+    signal recommendationActionsRequested(var request)
+    function requestRecommendationPreferences() {
+        var generation=recommendationProfileGeneration(), entries=[], seen={};
+        homeRows.forEach(function(row) {
+            if(!row || (!row.recommendation && row.key!=="taste-artists" && row.key!=="saved-artists")) return;
+            (row.items || []).forEach(function(item) {
+                if(!item || !item.ref || Number(row.profileGeneration)!==generation) return;
+                var key=JSON.stringify(item.ref);
+                if(seen[key]) return;
+                seen[key]=true;
+                entries.push({item:item,options:RecommendationActions.options(root,item,row)});
+            });
+        });
+        var suppressed=recommendationHomeSnapshot.suppressedItems || [];
+        suppressed.forEach(function(entry) {
+            if(!entry || !entry.ref || seen[JSON.stringify(entry.ref)]) return;
+            var options=RecommendationActions.recoveryOptions(entry);
+            if(!options.length) return;
+            entries.push({item:{id:entry.ref.itemId,title:entry.title || "",cover:entry.cover || "",ref:entry.ref,
+                kind:entry.ref.kind==="artist" ? "artists" : entry.ref.kind==="recording" ? "songs" : "albums"},options:options});
+        });
+        recommendationActionsRequested({entries:entries,generation:generation});
+        return true;
+    }
+    function requestRecommendationActions(item, row) {
+        var generation=recommendationProfileGeneration();
+        if(!item || !item.ref || !row || Number(row.profileGeneration)!==generation) return false;
+        var options=RecommendationActions.options(root,item,row);
+        if(!options.length) return false;
+        recommendationActionsRequested({item:item,options:options,generation:generation});
+        return true;
     }
     function setRecommendationFeedback(ref, action, expectedGeneration) {
         var generation=Number(expectedGeneration);
@@ -440,10 +473,13 @@ Item {
         if(homeQuickPicks.length)result.push({key:"quick-picks",title:"Quick picks",kind:"songs",items:homeQuickPicks,
             recommendation:true,sectionId:"quick-picks",profileGeneration:generation,
             exposureSnapshotId:String(snapshot.exposureSnapshotId || "")});
-        if(homeListeningCards.length)result.push({key:"mixes-radio",title:"Mixes & radio",kind:"mixes",items:homeListeningCards});
+        var mixes=homeListeningCards.filter(function(item){return item.kind==="mixes";});
+        var radio=homeListeningCards.filter(function(item){return item.kind==="radio";});
+        if(mixes.length)result.push({key:"mixes",title:"Mixes",kind:"mixes",items:mixes});
+        if(radio.length)result.push({key:"radio",title:"Radio",kind:"radio",items:radio});
         var continuing=[],active=session.activeQueueRow;
         if(active && session.sourceState!=="ended" && (!(session.duration>0) || session.position<session.duration-0.5))continuing.push({id:"resume:"+active.queueId,kind:"resume",resumeCurrent:true,
-            editionId:active.editionId,title:active.title,subtitle:active.artist,cover:active.cover || "",
+            editionId:active.editionId,title:active.title,artist:active.artist,subtitle:active.artist,cover:active.cover || "",
             unavailable:typeof session.personalRowAvailable==="function" && !session.personalRowAvailable(active)});
         continuing=continuing.concat(recentContinue.filter(item=>!active || item.editionId!==active.editionId));
         if(continuing.length)result.push({key:"continue-listening",title:"Continue listening",kind:"resume",items:continuing});

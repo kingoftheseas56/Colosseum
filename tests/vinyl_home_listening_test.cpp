@@ -30,7 +30,7 @@ QVariantMap album(const QString &id, const QString &prefix = {}) {
     QVariantList tracks;
     for (int i = 0; i < 6; ++i) tracks.append(QVariantMap{{"id", QStringLiteral("%1-track-%2").arg(prefix.isEmpty() ? id : prefix).arg(i)},
         {"title", QStringLiteral("Track %1").arg(i)}, {"available", i != 5}, {"seconds", 180}});
-    return {{"id", "canonical-" + id}, {"browseId", id}, {"title", id}, {"artists", QStringList{"Artist"}}, {"tracks", tracks}};
+    return {{"id", "canonical-" + id}, {"browseId", id}, {"title", id}, {"artists", QStringList{"Artist"}}, {"cover", "https://art.test/" + id + ".jpg"}, {"tracks", tracks}};
 }
 QVariantList personalSections() {
     return {QVariantMap{{"id", "from-your-artists"}, {"items", QVariantList{candidate("album-a", 0), candidate("album-b", 1), candidate("album-c", 2)}}},
@@ -67,6 +67,18 @@ private slots:
         const auto adjacent = model.view().value("songs").toList(); QVERIFY(!adjacent.isEmpty());
         for (const auto &song : adjacent) QCOMPARE(song.toMap().value("album").toMap().value("browseId").toString(), QStringLiteral("adjacent-album"));
         QVERIFY(!model.quickPicks().isEmpty());
+        QCOMPARE(model.quickPicks().first().toMap().value("artist").toString(), QStringLiteral("Artist"));
+        for (const auto &value : model.cards()) {
+            const auto card = value.toMap();
+            if (card.value("kind") != "mixes") continue;
+            const auto covers = card.value("artworkCovers").toList();
+            QVERIFY(!covers.isEmpty());
+            QVERIFY(covers.size() <= 3);
+            const auto mixSongs = card.value("mixId") == "personal" ? songs : adjacent;
+            for (const auto &cover : covers) QVERIFY(std::any_of(mixSongs.begin(), mixSongs.end(), [&](const QVariant &song) {
+                return song.toMap().value("album").toMap().value("cover") == cover;
+            }));
+        }
     }
     void profileSwitchRejectsLateAlbums() {
         ListeningSource source;

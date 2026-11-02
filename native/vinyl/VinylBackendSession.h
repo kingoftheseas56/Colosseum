@@ -25,6 +25,9 @@ class VinylBackendSession : public QObject {
     Q_PROPERTY(QObject *source READ source WRITE setSource NOTIFY sourceChanged)
     Q_PROPERTY(QObject *surface READ surface WRITE setSurface NOTIFY surfaceChanged)
     Q_PROPERTY(QObject *videoSurface READ videoSurface WRITE setVideoSurface NOTIFY videoSurfaceChanged)
+    Q_PROPERTY(bool torrentAvailable READ torrentAvailable NOTIFY stateChanged)
+    Q_PROPERTY(bool torrentBusy READ torrentBusy NOTIFY stateChanged)
+    Q_PROPERTY(QString torrentError READ torrentError NOTIFY stateChanged)
     Q_PROPERTY(bool hasVideo READ hasVideo NOTIFY stateChanged)
     Q_PROPERTY(bool videoActive READ videoActive NOTIFY stateChanged)
     Q_PROPERTY(bool videoBusy READ videoBusy NOTIFY stateChanged)
@@ -62,6 +65,9 @@ public:
     QObject *surface() const { return m_surface; }
     QObject *videoSurface() const { return m_videoSurface; }
     void setVideoSurface(QObject *surface);
+    bool torrentAvailable() const;
+    bool torrentBusy() const { return m_torrentRequest>=0; }
+    QString torrentError() const { return m_torrentError; }
     bool hasVideo() const { return !m_videoCandidate.isEmpty(); }
     bool videoActive() const { return m_videoActive; }
     bool videoBusy() const { return m_videoBusy; }
@@ -110,6 +116,8 @@ public:
     Q_INVOKABLE void seek(double seconds);
     Q_INVOKABLE void retry();
     Q_INVOKABLE void toggleVideo();
+    Q_INVOKABLE void findTorrent();
+    Q_INVOKABLE void cancelTorrent();
     Q_INVOKABLE void suspend();
     Q_INVOKABLE void clearProfile();
     Q_INVOKABLE void shutdown();
@@ -156,6 +164,8 @@ private:
     void retirePlayer();
     void cancelResolution();
     void resetVideo();
+    void torrentCompleted(const QVariantMap &,const QString &);
+    void acceptSourceCompleted(const QString &,int,const QVariant &,const QString &);
     void discoverVideo();
     int requestSource(const QString &lane,const QString &operation,const QString &value,const QVariantMap &options={});
     void videoCompleted(const QString &lane,int request,const QVariantMap &data,const QString &error);
@@ -199,6 +209,9 @@ private:
     double m_resume=0,m_duration=0;
     quint64 m_epoch=0;
     int m_request=-1;
+    int m_torrentRequest=-1;
+    quint64 m_torrentSerial=0,m_torrentEpoch=0;
+    QString m_torrentOccurrence,m_torrentTrack,m_torrentError;
     QString m_resolvingId;
     QHash<QString,QVariantMap> m_rows;
     struct Backend;
