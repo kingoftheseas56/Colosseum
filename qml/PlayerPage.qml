@@ -7127,16 +7127,44 @@ Item {
             Keys.onTabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, true) }
             Keys.onBacktabPressed: function(event) { event.accepted = FocusContainment.move(root.Window.window, speedPopup, false) }
             z: 40
-            width: 420
+            objectName: "playerSpeedPanel"
+            // Bounded by the chrome (PF-05): at a sufficient size the desktop 420 x body popup
+            // is unchanged; on short/narrow viewports the body scrolls inside the panel.
+            width: Math.min(420, Math.max(1, chrome.width - 20))
             // Two speed/sleep columns, then a full-width "Skip step" footer section below both.
             readonly property int columnsHeight: 46 + Math.max(root.speedChoices.length, root.sleepPresets.length + (root.sleepTimerActive ? 1 : 0)) * 38
             readonly property int skipStepTop: columnsHeight + 8
-            height: skipStepTop + 66
-            onVisibleChanged: if (visible) {
+            readonly property real bodyHeight: skipStepTop + 66
+            height: Math.min(bodyHeight, Math.max(1, chrome.height - 20))
+            function positionPopup() {
+                if (!visible) return
                 // Native chrome: rise centered on the chip, clamped to the window.
                 var p = sm.mapToItem(chrome, 0, 0)
                 x = root.clamp(p.x + sm.width / 2 - width / 2, 10, chrome.width - width - 10)
-                y = p.y - height - 12
+                y = root.clamp(p.y - height - 12, 10, chrome.height - height - 10)
+            }
+            onVisibleChanged: if (visible) { speedScroll.contentY = 0; positionPopup() }
+            onWidthChanged: positionPopup()
+            onHeightChanged: positionPopup()
+            Connections {
+                target: chrome
+                function onWidthChanged() { Qt.callLater(speedPopup.positionPopup) }
+                function onHeightChanged() { Qt.callLater(speedPopup.positionPopup) }
+            }
+            // Keyboard focus keeps the chosen row inside the scrolled body.
+            Connections {
+                target: speedChoiceRepeater
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
+                function onActiveFocusChanged() { if (speedChoiceRepeater.activeFocus) speedScroll.reveal(46 + speedChoiceRepeater.keyboardIndex * 38, 36) }
+            }
+            Connections {
+                target: sleepChoiceRepeater
+                function onKeyboardIndexChanged() { speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
+                function onActiveFocusChanged() { if (sleepChoiceRepeater.activeFocus) speedScroll.reveal(46 + sleepChoiceRepeater.keyboardIndex * 38, 36) }
+            }
+            Connections {
+                target: skipStepRepeater
+                function onActiveFocusChanged() { if (skipStepRepeater.activeFocus) speedScroll.reveal(speedPopup.skipStepTop, 58) }
             }
             radius: 14
             color: Qt.rgba(0.04, 0.05, 0.07, 0.94)
@@ -7154,6 +7182,26 @@ Item {
                 border.width: 1
                 border.color: Qt.rgba(1, 1, 1, 0.14)
             }
+            Flickable {
+                id: speedScroll
+                objectName: "playerSpeedScroll"
+                anchors.fill: parent
+                contentWidth: width
+                contentHeight: speedBody.height
+                interactive: contentHeight > height + 0.5
+                clip: interactive
+                boundsBehavior: Flickable.StopAtBounds
+                function reveal(top, h) {
+                    if (top < contentY) contentY = Math.max(0, top - 8)
+                    else if (top + h > contentY + height)
+                        contentY = Math.min(Math.max(0, contentHeight - height), top + h + 8 - height)
+                }
+                Item {
+                    id: speedBody
+                    width: speedPopup.width
+                    height: speedPopup.bodyHeight
+                    readonly property int columnsHeight: speedPopup.columnsHeight
+                    readonly property int skipStepTop: speedPopup.skipStepTop
             // Harbor's exact section title (uppercase eyebrow).
             Text {
                 x: 18
@@ -7245,6 +7293,7 @@ Item {
             }
             Repeater {
                 id: sleepChoiceRepeater
+                objectName: "playerSleepChoices"
                 property int keyboardIndex: 0
                 model: root.sleepPresets
                 focusPolicy: sm.panelOpen && root.sleepPresets.length > 0 ? Qt.TabFocus : Qt.NoFocus
@@ -7393,6 +7442,8 @@ Item {
                             onClicked: playerSettings.seekStepSeconds = modelData
                         }
                     }
+                }
+            }
                 }
             }
         }
