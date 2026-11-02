@@ -1,11 +1,20 @@
 {
-  "state": "PREPARED_NOT_STARTED",
+  "state": "IN_PROGRESS",
   "queue": [
     {
       "id": "C0",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "HOST_QML_PASS",
+      "tests": [
+        "inputs.py verify => 0",
+        "android_qml_preflight.py => 0 (61 entries, 0 failed)",
+        "7 C0 smallest checks + 6 protection fixtures => 0"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "docs/android/phase1-cloud/progress/C0-RESULT.md"
+      ],
+      "note": "HOST_QML PASS; ANDROID_TOOLCHAIN NOT_ATTEMPTED; ANDROID_APK BLOCKED (no hardened Nuvio prefix). WT-14 libexec-only qmlimportscanner established.",
+      "updated_utc": "2026-11-02T21:44:29Z"
     },
     {
       "id": "B0",
