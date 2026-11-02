@@ -191,9 +191,22 @@
     },
     {
       "id": "PF-03",
-      "status": "NOT_STARTED",
-      "tests": [],
-      "device": "LOCAL_PENDING"
+      "status": "PORTABLE_TEST_PASS",
+      "tests": [
+        "node tests/android_theatre_nested_back_test.mjs => 0 (4 tests; base tree => 4 failed)",
+        "node tests/shell_back_policy_test.mjs => PASS",
+        "sources_sheet_empty_extensions_harness, tst_android_sources_budget => 0; android_qml_preflight => 0 (61/0)"
+      ],
+      "device": "LOCAL_PENDING",
+      "files": [
+        "qml/Main.qml",
+        "qml/TheatreSeries.qml",
+        "qml/TheatreSeriesView.qml",
+        "qml/SourcesSheet.qml",
+        "tests/android_theatre_nested_back_test.mjs"
+      ],
+      "note": "Restored Alpha boolean contract: SourcesSheet.requestEscape (context -> ext menu -> hide), TheatreSeries/View.requestEscape (episode context -> Sources -> jump -> season), Main theatreSeries shell branch delegates on androidHost only. IME-first and Collections draft path untouched (handleEscape order unchanged). Manga detail (series) owner NOT changed (needs its own reviewed order). Evidence: Node VM over production bodies; native callback single dispatch unchanged.",
+      "updated_utc": "2026-11-02T22:25:31Z"
     },
     {
       "id": "WT-10",

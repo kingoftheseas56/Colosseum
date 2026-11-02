@@ -1385,7 +1385,14 @@ Window {
         case "downloads": win.closeDownloadsPage(); return
         case "profile": phoneShell.closeProfilePage(); return
         case "book": win.closeBook(); return
-        case "theatreSeries": win.closeTheatreSeries(); return
+        case "theatreSeries":
+            // Native Back (PF-03) closes the title's visible transient first (episode
+            // context, Sources context/extension menu/sheet, episode jump, season menu);
+            // only an unconsumed Back leaves the title. Desktop Escape keeps its key routes.
+            if (win.androidHost && theatreSeriesLayer.item
+                    && theatreSeriesLayer.item.requestEscape
+                    && theatreSeriesLayer.item.requestEscape()) return
+            win.closeTheatreSeries(); return
         case "western": win.closeWestern(); return
         case "series": win.closeSeries(); return
         case "onePieceArc": win.closeOnePieceArc(); return

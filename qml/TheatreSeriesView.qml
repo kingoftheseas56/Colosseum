@@ -524,6 +524,15 @@ Item {
         if (restore!==false && page.episodeContextReturnItem) Qt.callLater(function(){ episodeVirtualSpace.forceActiveFocus(Qt.PopupFocusReason) })
         page.episodeContextReturnItem=null
     }
+    // Shell Back delegation (PF-03): true when one visible transient was closed.
+    function requestEscape() {
+        if (page.episodeContextOpen) { page.closeEpisodeContext(true); return true }
+        if (sources.requestEscape()) return true
+        if (page.episodeJumpOpen) { page.closeEpisodeJump(true); return true }
+        if (page.seasonMenuOpen) { page.closeSeasonMenu(true); return true }
+        return false
+    }
+
     function activateEpisodeContext(choice) {
         var v=page.episodes[page.episodeKeyboardIndex]
         if(choice===0) page.openEpisodeForPlay(v); else if(choice===1) page.openEpisodeDownload(v)
