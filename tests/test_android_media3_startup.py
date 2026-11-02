@@ -112,9 +112,17 @@ public final class Media3PlayerHost {
     }
 }
 '''.replace("PLAYER_FIELD", player_field).replace("METHODS", methods)
-        java_home = Path(os.environ.get("JAVA_HOME", r"C:\Program Files\Microsoft\jdk-21.0.12.101-hotspot"))
-        javac = shutil.which("javac") or str(java_home / "bin/javac.exe")
-        java = shutil.which("java") or str(java_home / "bin/java.exe")
+        java_home = os.environ.get("JAVA_HOME")
+        suffix = ".exe" if os.name == "nt" else ""
+        def tool(name):
+            found = shutil.which(name)
+            if found:
+                return found
+            candidate = Path(java_home) / "bin" / (name + suffix) if java_home else None
+            if candidate and candidate.is_file():
+                return str(candidate)
+            self.skipTest(f"JDK tool {name} is required for the executable startup regression")
+        javac, java = tool("javac"), tool("java")
         with tempfile.TemporaryDirectory(prefix="media3-startup-") as directory:
             source = Path(directory) / "Media3PlayerHost.java"
             source.write_text(harness, encoding="utf8")
