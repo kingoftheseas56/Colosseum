@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="160" height="50" viewBox="0 0 160 50" role="img" aria-label="Visit the Colosseum website">
+  <title>Visit the Colosseum website</title>
+  <rect x="1" y="1" width="158" height="48" rx="9" fill="#33302D" stroke="#82715C" stroke-width="1.5"/>
+  <g fill="none" stroke="#D2C19C" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="25.5" cy="25.5" r="11.5"/><path d="M14 25.5h23M25.5 14c-8 7-8 16 0 23m0-23c8 7 8 16 0 23"/></g>
+  <text x="47" y="22" fill="#F5F0E8" font-family="Arial, Helvetica, sans-serif" font-size="15" font-weight="700">Website</text>
+  <text x="47" y="36" fill="#C8B7A1" font-family="Arial, Helvetica, sans-serif" font-size="10" font-weight="600" letter-spacing="1">VISIT SITE</text>
+</svg>
