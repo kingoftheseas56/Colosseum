@@ -236,7 +236,9 @@ Item {
             if (!h.length) continue;
             if (h === sheet.warmedHash) return;         // already warmed this one
             sheet.warmedHash = h;
-            Stream.prefetch(h, row.fileIdx || 0);
+            // Android's best-effort warm-up yields to an explicit download owner.
+            if (Qt.platform.os === "android") Stream.warmSource(h, row.fileIdx || 0);
+            else Stream.prefetch(h, row.fileIdx || 0);
             return;
         }
     }

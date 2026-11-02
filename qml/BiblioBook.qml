@@ -128,7 +128,11 @@ Item {
             // hangs 60s+; a warm engine resolves in seconds.)
             if (!detail.audioLocal && detail.abRows.length > 0 && typeof Stream !== 'undefined') {
                 Abb.fetchInfoHash(detail.abRows[0].slug, function(d) {
-                    if (d && d.infoHash) { detail.abInfoHash = d.infoHash; Stream.prefetch(d.infoHash, 0) }
+                    if (d && d.infoHash) {
+                        detail.abInfoHash = d.infoHash;
+                        if (Qt.platform.os === "android") Stream.warmSource(d.infoHash, 0)
+                        else Stream.prefetch(d.infoHash, 0)
+                    }
                 })
             }
         })
